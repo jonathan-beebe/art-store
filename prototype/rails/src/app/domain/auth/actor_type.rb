@@ -11,10 +11,6 @@ module Domain
         self == SELLER
       end
 
-      def customer?
-        self == CUSTOMER
-      end
-
       def to_s
         name
       end
