@@ -1,0 +1,8 @@
+<article>
+  <%= link_to shop_listing_path(slug: listing.slug), class: "block" do %>
+    <%= image_tag listing.image_url, alt: listing.title, class: "aspect-square w-full rounded-2xl object-cover" %>
+    <h2 class="mt-4 text-lg font-medium"><%= listing.title %></h2>
+  <% end %>
+  <p class="mt-1 text-sm text-neutral-500"><%= shop_name_of(listing.seller) %></p>
+  <p class="mt-2 text-base"><%= money(listing.price_cents) %></p>
+</article>

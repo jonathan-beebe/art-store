@@ -17,27 +17,35 @@
     <%= render "layouts/flash" %>
 
     <header class="border-b border-neutral-100">
-      <div class="mx-auto flex max-w-6xl items-baseline justify-between px-6 py-8">
-        <%= link_to "Art Store", root_path, class: "text-xs uppercase tracking-[0.35em] text-neutral-400" %>
-        <nav class="flex gap-8 text-sm text-neutral-500">
-          <%= link_to "Shop", root_path %>
-          <%= link_to "Sell", seller_root_path %>
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-4 px-6 py-6">
+        <%= link_to "Art Store", root_path, class: "text-xs uppercase tracking-[0.35em] text-neutral-400 hover:text-neutral-900" %>
+
+        <%= form_with url: root_path, method: :get, class: "order-last w-full sm:order-none sm:w-auto sm:flex-1" do |form| %>
+          <%= form.label :q, "Search art", class: "sr-only" %>
+          <%= form.search_field :q, value: params[:q], placeholder: "Search art, media, descriptions",
+                class: "w-full rounded-full border border-neutral-200 px-5 py-2 text-base placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none" %>
+        <% end %>
+
+        <nav class="flex items-center gap-6 text-sm text-neutral-500">
+          <%= link_to "Favorites", shop_favorites_path, class: "hover:text-neutral-900" %>
+          <%= link_to "Cart (#{cart_item_count})", shop_cart_path, class: "hover:text-neutral-900" %>
+          <%= link_to "Orders", shop_orders_path, class: "hover:text-neutral-900" %>
           <% if customer_signed_in? %>
-            <%= link_to "Account", shop_account_path %>
-            <%= button_to "Sign out", customer_logout_path, method: :post, form_class: "inline" %>
+            <%= link_to "Account (#{unread_notification_count})", shop_account_path, class: "hover:text-neutral-900" %>
+            <%= button_to "Sign out", customer_logout_path, method: :post, form_class: "inline", class: "hover:text-neutral-900" %>
           <% else %>
-            <%= link_to "Sign in", customer_login_path %>
+            <%= link_to "Sign in", customer_login_path, class: "hover:text-neutral-900" %>
           <% end %>
         </nav>
       </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-6 py-20">
+    <main class="mx-auto max-w-6xl px-6 pb-24 pt-14">
       <%= yield %>
     </main>
 
-    <footer class="mx-auto max-w-6xl px-6 pb-20 text-xs text-neutral-400">
-      Art Store prototype
+    <footer class="mx-auto max-w-6xl px-6 pb-16 text-xs text-neutral-400">
+      Art Store prototype &mdash; <%= link_to "sell your work", seller_root_path, class: "underline" %>
     </footer>
   </body>
 </html>
