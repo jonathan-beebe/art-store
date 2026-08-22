@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test coverage migrate fresh logs console
+.PHONY: up down build assets shell test smoke coverage migrate fresh logs console
 
 up:
 	docker compose up -d
@@ -17,10 +17,13 @@ shell:
 	docker compose run --rm app bash
 
 test:
-	docker compose run --rm app bin/rails test app lib db
+	docker compose run --rm app bin/rails test app lib db test
+
+smoke:
+	docker compose run --rm app bin/rails test test/smoke_test.rb
 
 coverage:
-	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db
+	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db test
 
 migrate:
 	docker compose run --rm app bin/rails db:migrate
