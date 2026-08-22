@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:16:25:18 — FEAT-002 — done: magic-link sign-in for sellers and customers, anonymous customer identity in a signed cookie with merge-on-verify, MagicLinkDelivery port, /account page and sign-out on both sites
 - 2026-08-22:16:06:24 — FEAT-003 — started
 - 2026-08-22:16:05:34 — FEAT-002 — started
 - 2026-08-22:16:02:58 — FEAT-001 — done: dockerized Rails 8.1 app on ruby:3.3-slim, Domain-namespaced sidecar Minitest with SimpleCov, Tailwind, shop and seller layouts with placeholder pages and the debug alert partial, README

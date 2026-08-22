@@ -139,4 +139,17 @@ prototype/rails/
 
 Passwordless on both sides, with no mailbox: the delivery port flashes the URL
 and `layouts/_debug_alert` prints it at the top of both layouts whenever
-`flash[:debug_magic_link]` is set. Sign-in itself is not built yet.
+`flash[:debug_magic_link]` is set.
+
+Sellers sign in at `/seller/login`, customers at `/login`; both submit an email
+address, then click the link in the debug alert. A link lasts 15 minutes and
+works once. The first link for an address creates the account.
+
+Every storefront visitor gets a `customers` row before they give an address,
+carried in the signed `customer_id` cookie. Verifying an address either claims
+that row or merges it into the account already holding the address.
+
+```sh
+MAGIC_LINK_DELIVERY=mail        # flash (default) | mail, which raises until email exists
+MAGIC_LINK_EXPIRY_MINUTES=15
+```

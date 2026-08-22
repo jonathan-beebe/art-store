@@ -1,7 +1,7 @@
 ---
 id: FEAT-002
 type: feature
-status: open
+status: resolved
 created: 
 ---
 
@@ -33,3 +33,75 @@ Read `docs/architecture.md` → Identity. The PHP spike's `app/Domain/Auth`, `ap
 - Merge re-pointing is a table-driven list of `[model, column]` pairs guarded by `table_exists?` so this ticket's tests pass before FEAT-003's tables exist.
 - Redirect after verification: `redirect_to` when present and local (`url_from` / `Rails.application.routes.recognize_path`), else `/seller` or `/account`. Add a minimal `/account` page (email + sign-out) under `shop`; FEAT-005 extends it.
 - Route names: `seller_login`, `seller_send_magic_link`, `seller_logout`, `customer_login`, `customer_send_magic_link`, `customer_logout`, `verify_magic_link`, `shop_account`.
+
+## Working
+
+### Shape
+
+```mermaid
+flowchart LR
+    login["/seller/login\n/login"] --> send["Auth::SendMagicLink"]
+    send --> delivery["MagicLinkDelivery.build(flash)"]
+    delivery --> alert["layouts/_debug_alert"]
+    alert --> verify["GET /auth/magic/:token\nAuth::MagicLinksController"]
+    verify --> status["Domain::Auth::MagicLinkStatus"]
+    verify --> claimS["Auth::ClaimSellerIdentity"]
+    verify --> claimC["Customers::ClaimCustomerIdentity"]
+    claimC --> plan["Domain::Customers::IdentityPlan"]
+    claimC --> merge["Customers::MergeAnonymousCustomer"]
+    verify --> redirect["Domain::Auth::LocalRedirect"]
+```
+
+### Decisions
+
+- **`Seller::` controllers use the compact class form.** `app/models/seller.rb`
+  defines `Seller` as a class, so the portal namespace nests inside it and
+  `module Seller` raises `TypeError: Seller is not a module`. Every file under
+  `app/controllers/seller/` declares `class Seller::XController`.
+  FEAT-001's dashboard controller and its test were converted for this.
+  `Shop::`, `Auth::` and `Customers::` have no matching model and stay
+  `module`.
+- **Constants inside a `Data.define do … end` block land in the enclosing
+  lexical scope, not on the class.** `Domain::Auth::ActorType` and
+  `Domain::Customers::IdentityPlan` subclass instead:
+  `class ActorType < Data.define(:name, …)`.
+- **Session is the sign-in; the cookie is only the identity.**
+  `customer_signed_in?` reads `session[:customer_id]` and requires a verified
+  row; `current_customer` falls back to the signed cookie and then to a fresh
+  anonymous row. A cookie alone never reaches `/account`.
+- **`Auth::SendMagicLink` receives `link_url:`**, a callable over the token.
+  The host belongs to the request, so the controller supplies it and the action
+  stays free of URL guessing.
+- **`Customers::MergeAnonymousCustomer` takes `owned_tables:`**, defaulting to
+  `Domain::Customers::OwnedTables::ALL`. The sidecar injects a probe table it
+  creates and drops itself, so the re-pointing is proven without touching the
+  commerce schema.
+- **`Seller::BaseController` gets `SellerAuthentication` but no
+  `require_seller!`.** Adding the filter would fail FEAT-001's dashboard test;
+  FEAT-004 owns portal authorization and the filter is ready for it.
+- **`layouts/_flash.html.erb`** renders `flash[:notice]` / `flash[:alert]` in
+  both layouts, beside the debug alert.
+
+### Parallel work
+
+- `db/schema.rb` was committed with this ticket's four tables only; FEAT-003's
+  migrations landed in the working tree afterwards and their tables come with
+  their commit.
+- `MAGIC_LINK_DELIVERY` and `MAGIC_LINK_EXPIRY_MINUTES` are read in
+  `config/initializers/magic_links.rb`.
+- A running `make up` server does not pick up a new `app/<dir>` (autoload paths
+  are computed at boot). `docker compose restart app` after `app/actions`,
+  `app/delivery` and `app/domain/auth` appeared.
+
+### Verified
+
+- `make test`: 347 runs, 0 failures (147 of them this ticket's, 253
+  assertions). Line coverage 92.47%, Domain 99.74%, Controllers 98.57%.
+- `bin/rails zeitwerk:check`: all is good.
+- Core sidecars under `app/domain/auth` and `app/domain/customers` all pass
+  under `ruby -Iapp <file>` with no Rails boot.
+- Against the running server: seller submits an address at `/seller/login`,
+  clicks the link from the debug alert, lands on `/seller` with the address and
+  a sign-out form in the header. Customer does the same at `/login` and lands
+  on `/account`. The storefront sets an HttpOnly signed `customer_id` cookie on
+  the first request.
