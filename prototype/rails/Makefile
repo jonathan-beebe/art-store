@@ -17,10 +17,10 @@ shell:
 	docker compose run --rm app bash
 
 test:
-	docker compose run --rm app bin/rails test app lib
+	docker compose run --rm app bin/rails test app lib db
 
 coverage:
-	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib
+	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db
 
 migrate:
 	docker compose run --rm app bin/rails db:migrate

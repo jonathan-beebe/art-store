@@ -29,6 +29,26 @@ Then open:
 
 `make down` stops the stack. `make logs` follows the server output.
 
+## Seeded accounts
+
+`bin/rails db:seed` (part of `make fresh`, and run once automatically by the
+entrypoint against a fresh database) creates four verified sellers, 29
+listings, one verified customer, and order history built through the FEAT-003
+actions: a paid order awaiting shipment, a shipped order, and a delivered
+order whose escrow is released and paid out.
+
+| Email | Role | Shop |
+| --- | --- | --- |
+| `maya@example.com` | Seller | Terra & Glaze Ceramics |
+| `noah@example.com` | Seller | North Light Editions |
+| `priya@example.com` | Seller | Priya Anand Textile Studio |
+| `leo@example.com` | Seller | Leo Martins Photography |
+| `casey@example.com` | Customer | — (3 favorites, view history, 3 orders) |
+
+Every account is passwordless. Sign in at `/seller/login` or `/login` with one
+of the emails above; the layout's debug alert prints the magic link in place
+of sending an email, and clicking it signs you in.
+
 ## Commands
 
 Every target is a thin `docker compose` wrapper, so either form works.
@@ -40,8 +60,8 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test app lib` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib` |
+| `make test` | `docker compose run --rm app bin/rails test app lib db` |
+| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db` |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
 | `make console` | `docker compose run --rm app bin/rails console` |
@@ -57,10 +77,12 @@ docker compose exec app bin/rails console      # against the running server
 ## Tests
 
 Minitest, and tests are sidecars: `money.rb` and `money_test.rb` sit in the same
-directory. `bin/rails test app lib` globs both trees; `config/application.rb`
+directory. `bin/rails test app lib db` globs all three trees; `config/application.rb`
 tells Zeitwerk to ignore `**/*_test.rb` so a test file never has to name a
 constant matching its path. `test/test_helper.rb` holds the Rails base and the
-coverage setup — there is no `test/unit` or `test/integration`.
+coverage setup — there is no `test/unit` or `test/integration`. `db/seeds_test.rb`
+calls `Rails.application.load_seed` and asserts the seeded counts; it is why
+`db` is in the test path alongside `app` and `lib`.
 
 ```sh
 make test                                                                   # whole suite
