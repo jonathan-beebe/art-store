@@ -9,11 +9,26 @@
 - IMPRV: 1
 - MAINT: 1
 - A11Y: 1
-- RFCTR: 1
+- RFCTR: 14
 - BUG: 1
 
 ## Log
 
+- 2026-08-22:18:48:05 — RFCTR-001 — done: 109 test files moved under test/ mirroring app/ (git mv), domain tests require test_helper and subclass ActiveSupport::TestCase, Zeitwerk ignore and SimpleCov skip for *_test.rb removed, bin/rails test with no arguments runs all 645 at 100% line coverage, Makefile/README/docs updated (d4044ad)
+- 2026-08-22:18:42:00 — RFCTR-001 — started
+- 2026-08-22:18:40:00 — RFCTR-013 — defined: Resourceful storefront controllers behind the existing URLs
+- 2026-08-22:18:40:00 — RFCTR-012 — defined: Deliver magic links through Action Mailer
+- 2026-08-22:18:40:00 — RFCTR-011 — defined: Dissolve the Domain namespace and the custom autoloader
+- 2026-08-22:18:40:00 — RFCTR-010 — defined: Notifications address a polymorphic recipient
+- 2026-08-22:18:40:00 — RFCTR-009 — defined: Escrow balance and weekly payout on LedgerEntry, Seller and Payout
+- 2026-08-22:18:40:00 — RFCTR-008 — defined: Shipping and delivery on Fulfillment
+- 2026-08-22:18:40:00 — RFCTR-007 — defined: Placing, paying and rolling up an order on Order
+- 2026-08-22:18:40:00 — RFCTR-006 — defined: Cart and favorites behaviour on Cart and Customer
+- 2026-08-22:18:40:00 — RFCTR-005 — defined: Listing validations, the listing form, and status transitions on Listing
+- 2026-08-22:18:40:00 — RFCTR-004 — defined: Identity behaviour lives on MagicLink, Seller and Customer
+- 2026-08-22:18:40:00 — RFCTR-003 — defined: Use the ActiveSupport built-in where the code reimplements one
+- 2026-08-22:18:40:00 — RFCTR-002 — defined: One test base, one declaration style
+- 2026-08-22:18:40:00 — RFCTR-001 — defined: Run the suite with bin/rails test from a conventional test/ tree
 - 2026-08-22:17:21:34 — FEAT-008 — done: clean first run from an empty tree in 40s, 645 tests green at 100% line coverage, make smoke walking the whole product in one integration test, a curl walk over every page and a live guest checkout to Paid, ShipmentDetails extracted out of the controller, dead scaffolding deleted, docs/review.md mapping the brief to routes and tests, README completed
 - 2026-08-22:22:14:59 — FEAT-007 — done: corrected architecture.md drift (storefront visibility, fee timing, missing payment_failed->cancelled edge, test runner scope, coverage thresholds, action namespaces, ledger_entries.entry_type); added identity.md, orders.md, escrow.md, data-model.md, ontology.md, README.md; 13/13 Mermaid diagrams validated
 - 2026-08-22:22:02:42 — FEAT-007 — started
