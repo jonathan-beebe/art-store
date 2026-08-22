@@ -1,0 +1,24 @@
+{
+  "includeCoAuthoredBy": false,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | grep -E '\\.(ts|tsx|js|jsx|json|css|md)$' | xargs -I{} ./node_modules/.bin/prettier --write {}"
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | grep -E '^.*/src/.*\\.(ts|tsx|js|jsx)$' | xargs -I{} ./node_modules/.bin/eslint --fix {}"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/statusline.py\""
+  }
+}
