@@ -48,7 +48,7 @@ module Auth
     end
 
     test "the seller header offers sign-in until someone signs in" do
-      get seller_root_path
+      get seller_login_path
 
       assert_select "header a[href=?]", seller_login_path
     end

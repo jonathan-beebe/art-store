@@ -17,9 +17,46 @@ Rails.application.routes.draw do
 
   namespace :seller do
     root "dashboard#show"
+
+    resources :listings, only: %i[index show new create edit update] do
+      resource :status, only: :create, controller: "listing_statuses"
+    end
+
+    resources :orders, only: %i[index show] do
+      resource :shipment, only: :create, controller: "shipments"
+    end
+
+    get "earnings", to: "earnings#show", as: :earnings
+    post "earnings/payout", to: "payouts#create", as: :earnings_payout
+
+    resources :notifications, only: :index do
+      resource :read, only: :create, controller: "notification_reads"
+    end
   end
 
-  get "account", to: "shop/account#show", as: :shop_account
+  namespace :shop, path: "" do
+    get "art/:slug", to: "listings#show", as: :listing
+
+    get "favorites", to: "favorites#index", as: :favorites
+    post "art/:slug/favorite", to: "favorites#toggle", as: :toggle_favorite
+
+    get "cart", to: "carts#show", as: :cart
+    post "cart/:slug", to: "carts#add", as: :add_to_cart
+    delete "cart/:slug", to: "carts#remove", as: :remove_from_cart
+
+    get "checkout", to: "checkouts#show", as: :checkout
+    post "checkout", to: "checkouts#create", as: :place_order
+
+    get "orders", to: "orders#index", as: :orders
+    get "orders/:id", to: "orders#show", as: :order
+    get "orders/:id/pay", to: "order_payments#show", as: :order_payment
+    post "orders/:id/pay", to: "order_payments#create", as: :pay_order
+    post "orders/:order_id/fulfillments/:id/delivered",
+      to: "delivery_confirmations#create", as: :confirm_delivery
+
+    get "account", to: "account#show", as: :account
+    post "account/notifications/:id/read", to: "notifications#update", as: :read_notification
+  end
 
   root "shop/storefront#show"
 end

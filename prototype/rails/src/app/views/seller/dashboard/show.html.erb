@@ -1,13 +1,48 @@
-<% content_for :title, "Seller portal" %>
+<% content_for :title, "Dashboard — Art Store seller" %>
 
 <h1 class="text-lg font-semibold">Dashboard</h1>
-<p class="mt-1 text-neutral-500">Listings, orders to ship, and earnings land here.</p>
 
-<div class="mt-4 grid gap-px overflow-hidden rounded border border-neutral-300 bg-neutral-300 sm:grid-cols-3">
-  <% [ "Listings", "To ship", "Available" ].each do |label| %>
-    <div class="bg-white px-4 py-3">
-      <div class="text-xs uppercase tracking-wide text-neutral-500"><%= label %></div>
-      <div class="mt-1 text-2xl tabular-nums text-neutral-400">&mdash;</div>
-    </div>
+<section aria-labelledby="listings-heading" class="mt-6">
+  <div class="flex flex-wrap items-center gap-4">
+    <h2 id="listings-heading" class="font-semibold text-neutral-700">Listings</h2>
+    <%= link_to "All listings", seller_listings_path, class: "ml-auto underline" %>
+  </div>
+
+  <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <% @tally.each do |row| %>
+      <%= render "seller/shared/stat", key: row.status, label: row.label, value: row.count %>
+    <% end %>
+  </dl>
+</section>
+
+<section aria-labelledby="work-heading" class="mt-6">
+  <h2 id="work-heading" class="font-semibold text-neutral-700">Money and work</h2>
+
+  <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <%= render "seller/shared/stat", key: "awaiting_shipment", label: "Awaiting shipment", value: @awaiting_shipment %>
+    <%= render "seller/shared/stat", key: "held", label: "Held in escrow", value: @balance.held.format %>
+    <%= render "seller/shared/stat", key: "available", label: "Available", value: @balance.available.format %>
+    <%= render "seller/shared/stat", key: "unread_notifications", label: "Unread notifications", value: @unread_notifications %>
+  </dl>
+</section>
+
+<section aria-labelledby="notifications-heading" class="mt-6">
+  <div class="flex flex-wrap items-center gap-4">
+    <h2 id="notifications-heading" class="font-semibold text-neutral-700">Recent notifications</h2>
+    <%= link_to "All notifications", seller_notifications_path, class: "ml-auto underline" %>
+  </div>
+
+  <% if @recent_notifications.empty? %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing yet.</p>
+  <% else %>
+    <ul class="mt-2 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
+      <% @recent_notifications.each do |notification| %>
+        <li data-recent-notification class="p-4">
+          <p class="font-medium"><%= notification.subject %></p>
+          <p class="mt-1 text-neutral-600"><%= notification.body %></p>
+          <p class="mt-1 text-neutral-500"><%= notification.created_at.strftime("%b %-d, %Y %-l:%M%P") %></p>
+        </li>
+      <% end %>
+    </ul>
   <% end %>
-</div>
+</section>

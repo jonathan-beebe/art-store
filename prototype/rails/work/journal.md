@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-22:16:34:05 — FEAT-005 — started
+- 2026-08-22:16:32:01 — FEAT-006 — started
+- 2026-08-22:16:31:09 — FEAT-004 — started
 - 2026-08-22:16:27:01 — FEAT-003 — done: commerce domain core (listings, payments, orders, cart, escrow, notifications), 13 migrations and thin models, cart/order/fulfillment/escrow/notification actions, payouts:run, end-to-end lifecycle and declined-then-retry tests
 - 2026-08-22:16:25:18 — FEAT-002 — done: magic-link sign-in for sellers and customers, anonymous customer identity in a signed cookie with merge-on-verify, MagicLinkDelivery port, /account page and sign-out on both sites
 - 2026-08-22:16:06:24 — FEAT-003 — started

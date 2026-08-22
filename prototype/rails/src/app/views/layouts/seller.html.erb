@@ -17,18 +17,30 @@
     <%= render "layouts/flash" %>
 
     <header class="bg-neutral-900 text-neutral-100">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-2">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
         <%= link_to "Seller portal", seller_root_path, class: "font-semibold" %>
-        <nav class="flex gap-4 text-neutral-300">
-          <%= link_to "Dashboard", seller_root_path %>
-          <%= link_to "Storefront", root_path %>
-          <% if seller_signed_in? %>
+
+        <% if seller_signed_in? %>
+          <nav aria-label="Seller portal" class="flex flex-wrap gap-4 text-neutral-300">
+            <%= link_to "Dashboard", seller_root_path %>
+            <%= link_to "Listings", seller_listings_path %>
+            <%= link_to "Orders", seller_orders_path %>
+            <%= link_to "Earnings", seller_earnings_path %>
+            <%= link_to seller_notifications_path, class: "flex items-center gap-1" do %>
+              Notifications
+              <% if unread_notification_count.positive? %>
+                <span data-unread-count class="rounded bg-neutral-100 px-1.5 text-xs font-semibold text-neutral-900"><%= unread_notification_count %></span>
+              <% end %>
+            <% end %>
+          </nav>
+
+          <div class="ml-auto flex items-center gap-4 text-neutral-300">
             <span><%= current_seller.email %></span>
             <%= button_to "Sign out", seller_logout_path, method: :post, form_class: "inline" %>
-          <% else %>
-            <%= link_to "Sign in", seller_login_path %>
-          <% end %>
-        </nav>
+          </div>
+        <% else %>
+          <div class="ml-auto text-neutral-300"><%= link_to "Sign in", seller_login_path %></div>
+        <% end %>
       </div>
     </header>
 
