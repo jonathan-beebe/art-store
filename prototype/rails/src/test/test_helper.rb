@@ -4,18 +4,18 @@ require "simplecov"
 # measured. Core sidecar tests under app/domain skip this file entirely, which
 # is what lets them run as `ruby -Iapp app/domain/money_test.rb`.
 SimpleCov.start do
-  add_filter "/config/"
-  add_filter "/db/"
-  add_filter "/test/"
-  add_filter "/vendor/"
-  add_filter(/_test\.rb\z/)
+  skip "/config/"
+  skip "/db/"
+  skip "/test/"
+  skip "/vendor/"
+  skip(/_test\.rb\z/)
 
-  track_files "{app,lib}/**/*.rb"
+  cover "{app,lib}/**/*.rb"
 
-  add_group "Domain", "app/domain"
-  add_group "Actions", "app/actions"
-  add_group "Controllers", "app/controllers"
-  add_group "Models", "app/models"
+  group "Domain", "app/domain"
+  group "Actions", "app/actions"
+  group "Controllers", "app/controllers"
+  group "Models", "app/models"
 
   minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]
 end
@@ -23,13 +23,13 @@ end
 # There is no browser in the container to open coverage/index.html, so the
 # per-group numbers are printed as well.
 SimpleCov.at_exit do
+  SimpleCov.result.format!
+
   SimpleCov.result.groups.each do |name, files|
     next if files.empty?
 
     puts format("%-12s %6.2f%%  %d files", name, files.covered_percent, files.count)
   end
-
-  SimpleCov.run_exit_tasks!
 end
 
 ENV["RAILS_ENV"] ||= "test"

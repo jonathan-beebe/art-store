@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Art Store" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+  </head>
+
+  <body data-site="shop" class="min-h-screen bg-white text-neutral-900 antialiased">
+    <%= render "layouts/debug_alert" %>
+
+    <header class="border-b border-neutral-100">
+      <div class="mx-auto flex max-w-6xl items-baseline justify-between px-6 py-8">
+        <%= link_to "Art Store", root_path, class: "text-xs uppercase tracking-[0.35em] text-neutral-400" %>
+        <nav class="flex gap-8 text-sm text-neutral-500">
+          <%= link_to "Shop", root_path %>
+          <%= link_to "Sell", seller_root_path %>
+        </nav>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-6 py-20">
+      <%= yield %>
+    </main>
+
+    <footer class="mx-auto max-w-6xl px-6 pb-20 text-xs text-neutral-400">
+      Art Store prototype
+    </footer>
+  </body>
+</html>
