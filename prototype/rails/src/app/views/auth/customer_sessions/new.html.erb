@@ -1,0 +1,14 @@
+<% content_for :title, "Sign in — Art Store" %>
+
+<div class="mx-auto max-w-md">
+  <h1 class="text-2xl">Sign in</h1>
+  <p class="mt-2 text-neutral-500">No password. We send a link that signs you in.</p>
+
+  <%= form_with url: customer_send_magic_link_path, method: :post, class: "mt-8 space-y-4" do |form| %>
+    <%= form.hidden_field :redirect_to, value: @redirect_to %>
+    <%= form.label :email, "Email address", class: "block text-sm text-neutral-500" %>
+    <%= form.email_field :email, value: params[:email], required: true, autofocus: true,
+          class: "w-full border-b border-neutral-300 py-2 text-lg" %>
+    <%= form.submit "Send sign-in link", class: "bg-neutral-900 px-6 py-3 text-white" %>
+  <% end %>
+</div>

@@ -1,0 +1,34 @@
+<% content_for :title, "Cart — Art Store" %>
+
+<h1 class="text-4xl font-light tracking-tight">Cart</h1>
+
+<% if @items.empty? %>
+  <p class="mt-10 text-lg text-neutral-500">Your cart is empty.</p>
+
+  <%= link_to "Browse the art", root_path, class: "mt-8 inline-block rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
+<% else %>
+  <ul class="mt-12 divide-y divide-neutral-100 border-y border-neutral-100">
+    <% @items.each do |item| %>
+      <li class="flex flex-wrap items-center gap-6 py-6">
+        <%= image_tag item.listing.image_url, alt: item.listing.title, class: "aspect-square w-24 rounded-xl object-cover" %>
+
+        <div class="flex-1">
+          <%= link_to item.listing.title, shop_listing_path(slug: item.listing.slug), class: "text-lg" %>
+          <p class="mt-1 text-sm text-neutral-500"><%= shop_name_of(item.listing.seller) %></p>
+          <p class="mt-1 text-sm text-neutral-500">Quantity <%= item.quantity %></p>
+        </div>
+
+        <p class="text-lg"><%= money(item.listing.price_cents * item.quantity) %></p>
+
+        <%= button_to "Remove", shop_remove_from_cart_path(slug: item.listing.slug), method: :delete,
+              class: "text-sm text-neutral-500 underline hover:text-neutral-900" %>
+      </li>
+    <% end %>
+  </ul>
+
+  <div class="mt-10 flex flex-wrap items-center justify-between gap-6">
+    <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= @totals.subtotal.format %></span></p>
+
+    <%= link_to "Checkout", shop_checkout_path, class: "rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
+  </div>
+<% end %>

@@ -1,0 +1,7 @@
+<% content_for :title, "Status change refused — Art Store seller" %>
+
+<%= render "seller/shared/refusal",
+      heading: "Status change refused",
+      message: @refusal,
+      back_url: seller_listings_path,
+      back_label: "Back to listings" %>

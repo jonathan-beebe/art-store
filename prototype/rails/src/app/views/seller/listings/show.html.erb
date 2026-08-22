@@ -1,0 +1,83 @@
+<% content_for :title, "#{@listing.title} — Art Store seller" %>
+
+<div class="flex flex-wrap items-center gap-4">
+  <h1 class="text-lg font-semibold"><%= @listing.title %></h1>
+  <p class="text-neutral-600">
+    <span data-cell="status"><%= Domain::Reports::StatusLabel.of(@listing.status) %></span>
+    &middot; <%= @listing.price.format %>
+    &middot; <%= @listing.quantity %> in stock
+  </p>
+  <%= link_to "Edit", edit_seller_listing_path(@listing), class: "ml-auto rounded border border-neutral-400 px-3 py-2" %>
+</div>
+
+<section aria-labelledby="totals-heading" class="mt-6">
+  <h2 id="totals-heading" class="font-semibold text-neutral-700">Totals</h2>
+
+  <dl class="mt-2 grid grid-cols-3 gap-3">
+    <%= render "seller/shared/stat", key: "views", label: "Views", value: @totals.views %>
+    <%= render "seller/shared/stat", key: "favorites", label: "Favorites", value: @totals.favorites %>
+    <%= render "seller/shared/stat", key: "cart_adds", label: "Cart adds", value: @totals.cart_adds %>
+  </dl>
+</section>
+
+<section aria-labelledby="daily-heading" class="mt-6">
+  <h2 id="daily-heading" class="font-semibold text-neutral-700">Last <%= @days.length %> days</h2>
+
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">Daily views, favorites, and cart adds</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Day</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Favorites</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Cart adds</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% @days.each do |day| %>
+          <tr data-day="<%= day.date.iso8601 %>">
+            <th scope="row" class="px-4 py-2 font-normal"><%= day.label %></th>
+            <td data-activity="views" class="px-4 py-2 text-right tabular-nums"><%= day.totals.views %></td>
+            <td data-activity="favorites" class="px-4 py-2 text-right tabular-nums"><%= day.totals.favorites %></td>
+            <td data-activity="cart_adds" class="px-4 py-2 text-right tabular-nums"><%= day.totals.cart_adds %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="sales-heading" class="mt-6">
+  <h2 id="sales-heading" class="font-semibold text-neutral-700">Sales</h2>
+
+  <% if @sales.empty? %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No sales yet.</p>
+  <% else %>
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <table class="w-full text-left">
+        <caption class="sr-only">Orders containing this listing</caption>
+        <thead class="border-b border-neutral-300 bg-neutral-50">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-200">
+          <% @sales.each do |sale| %>
+            <tr data-sale="<%= sale.id %>">
+              <th scope="row" class="px-4 py-2 font-normal">#<%= sale.order_id %></th>
+              <td class="px-4 py-2"><%= sale.order.placed_at.strftime("%b %-d, %Y") %></td>
+              <td data-cell="order_status" class="px-4 py-2"><%= Domain::Reports::StatusLabel.of(sale.order.status) %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= sale.quantity %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(sale.unit_price_cents).format %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>

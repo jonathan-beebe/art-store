@@ -1,0 +1,32 @@
+<% content_for :title, "Notifications — Art Store seller" %>
+
+<h1 class="text-lg font-semibold">Notifications</h1>
+
+<% if @notifications.empty? %>
+  <p class="mt-4 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing yet.</p>
+<% else %>
+  <ul class="mt-4 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
+    <% @notifications.each do |notification| %>
+      <li data-notification="<%= notification.id %>" class="flex flex-wrap items-start gap-4 p-4">
+        <div>
+          <p class="font-medium">
+            <%= notification.subject %>
+            <% if notification.read_at.nil? %>
+              <span data-unread class="ml-1 rounded bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">Unread</span>
+            <% end %>
+          </p>
+          <p class="mt-1 text-neutral-600"><%= notification.body %></p>
+          <p class="mt-1 text-neutral-500"><%= notification.created_at.strftime("%b %-d, %Y %-l:%M%P") %></p>
+          <% if notification.url.present? %>
+            <p class="mt-1"><%= link_to "Open", notification.url, class: "underline" %></p>
+          <% end %>
+        </div>
+
+        <% if notification.read_at.nil? %>
+          <%= button_to "Mark as read", seller_notification_read_path(notification),
+                class: "rounded border border-neutral-400 px-3 py-1", form_class: "ml-auto" %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

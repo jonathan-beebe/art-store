@@ -1,0 +1,91 @@
+<% content_for :title, "Earnings — Art Store seller" %>
+
+<h1 class="text-lg font-semibold">Earnings</h1>
+
+<section aria-labelledby="balances-heading" class="mt-6">
+  <h2 id="balances-heading" class="font-semibold text-neutral-700">Balances</h2>
+
+  <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <%= render "seller/shared/stat", key: "held", label: "Held in escrow", value: @balance.held.format %>
+    <%= render "seller/shared/stat", key: "available", label: "Available", value: @balance.available.format %>
+    <%= render "seller/shared/stat", key: "paid_out", label: "Paid out", value: @balance.paid_out.format %>
+  </dl>
+</section>
+
+<section aria-labelledby="sales-heading" class="mt-6">
+  <h2 id="sales-heading" class="font-semibold text-neutral-700">Sales</h2>
+
+  <% if @fulfillments.empty? %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No sales yet.</p>
+  <% else %>
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <table class="w-full text-left">
+        <caption class="sr-only">Every sale, newest first</caption>
+        <thead class="border-b border-neutral-300 bg-neutral-50">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-semibold">Date</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Items</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Subtotal</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Fee</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-200">
+          <% @fulfillments.each do |fulfillment| %>
+            <tr data-fulfillment="<%= fulfillment.id %>">
+              <td class="px-4 py-2"><%= fulfillment.order.placed_at.strftime("%b %-d, %Y") %></td>
+              <th scope="row" class="px-4 py-2 font-normal">
+                <%= link_to "##{fulfillment.order_id}", seller_order_path(fulfillment), class: "underline" %>
+              </th>
+              <td class="px-4 py-2"><%= own_items(fulfillment.order).map(&:title).join(", ") %></td>
+              <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(fulfillment.subtotal_cents).format %></td>
+              <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(fulfillment.fee_cents).format %></td>
+              <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= fulfillment.net.format %></td>
+              <td data-cell="status" class="px-4 py-2"><%= Domain::Reports::StatusLabel.of(fulfillment.status) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
+<section aria-labelledby="payouts-heading" class="mt-6">
+  <h2 id="payouts-heading" class="font-semibold text-neutral-700">Payouts</h2>
+
+  <% if @payouts.empty? %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No payouts yet.</p>
+  <% else %>
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <table class="w-full text-left">
+        <caption class="sr-only">Weekly payouts, newest first</caption>
+        <thead class="border-b border-neutral-300 bg-neutral-50">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-semibold">Period</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-200">
+          <% @payouts.each do |payout| %>
+            <tr data-payout="<%= payout.id %>">
+              <th scope="row" class="px-4 py-2 font-normal">
+                <%= payout.period_start.strftime("%b %-d, %Y") %> to <%= payout.period_end.strftime("%b %-d, %Y") %>
+              </th>
+              <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= payout.amount.format %></td>
+              <td class="px-4 py-2"><%= payout.paid_at.strftime("%b %-d, %Y") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <div class="mt-4 flex flex-wrap items-center gap-2">
+    <%= button_to "Run weekly payout now", seller_earnings_payout_path,
+          class: "rounded border border-neutral-400 bg-white px-4 py-2 font-medium" %>
+    <span class="text-neutral-600">Debug control: settles every seller's released escrow for the last completed week.</span>
+  </div>
+</section>

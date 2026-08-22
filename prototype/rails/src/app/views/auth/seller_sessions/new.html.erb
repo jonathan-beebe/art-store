@@ -1,0 +1,13 @@
+<% content_for :title, "Sign in — Seller portal" %>
+
+<div class="mx-auto max-w-md">
+  <h1 class="text-lg font-semibold">Sign in to the seller portal</h1>
+  <p class="mt-1 text-neutral-500">No password. We send a link that signs you in.</p>
+
+  <%= form_with url: seller_send_magic_link_path, method: :post, class: "mt-6 space-y-3" do |form| %>
+    <%= form.label :email, "Email address", class: "block font-medium" %>
+    <%= form.email_field :email, value: params[:email], required: true, autofocus: true,
+          class: "w-full border border-neutral-300 bg-white px-3 py-2" %>
+    <%= form.submit "Send sign-in link", class: "bg-neutral-900 px-4 py-2 text-neutral-100" %>
+  <% end %>
+</div>
