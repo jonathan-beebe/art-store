@@ -18,6 +18,11 @@ require "rails/test_unit/railtie"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# Pushed as a Zeitwerk root namespace below, so it has to exist before the
+# autoloader is set up.
+module Domain
+end
+
 module ArtStore
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -27,6 +32,20 @@ module ArtStore
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
+
+    # Rails makes every app/* directory a Zeitwerk root, which would map
+    # app/domain/money.rb to ::Money. The functional core is namespaced, so the
+    # directory is re-pushed under Domain by the initializer below.
+    config.eager_load_paths -= [ config.root.join("app/domain").to_s ]
+
+    initializer "art_store.autoloading", after: :set_autoload_paths do |app|
+      Rails.autoloaders.main.push_dir(app.root.join("app/domain"), namespace: Domain)
+
+      # Tests sit beside the code they cover. The test runner requires them;
+      # the autoloader must not, or every *_test.rb would have to name a
+      # constant matching its path.
+      Rails.autoloaders.main.ignore("#{app.root}/{app,lib}/**/*_test.rb")
+    end
 
     # Configuration for the application, engines, and railties goes here.
     #

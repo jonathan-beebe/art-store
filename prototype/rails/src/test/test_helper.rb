@@ -1,11 +1,46 @@
+require "simplecov"
+
+# Started before the application is loaded so every app/ and lib/ file is
+# measured. Core sidecar tests under app/domain skip this file entirely, which
+# is what lets them run as `ruby -Iapp app/domain/money_test.rb`.
+SimpleCov.start do
+  add_filter "/config/"
+  add_filter "/db/"
+  add_filter "/test/"
+  add_filter "/vendor/"
+  add_filter(/_test\.rb\z/)
+
+  track_files "{app,lib}/**/*.rb"
+
+  add_group "Domain", "app/domain"
+  add_group "Actions", "app/actions"
+  add_group "Controllers", "app/controllers"
+  add_group "Models", "app/models"
+
+  minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]
+end
+
+# There is no browser in the container to open coverage/index.html, so the
+# per-group numbers are printed as well.
+SimpleCov.at_exit do
+  SimpleCov.result.groups.each do |name, files|
+    next if files.empty?
+
+    puts format("%-12s %6.2f%%  %d files", name, files.covered_percent, files.count)
+  end
+
+  SimpleCov.run_exit_tasks!
+end
+
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
 module ActiveSupport
   class TestCase
-    # Run tests in parallel with specified workers
-    parallelize(workers: :number_of_processors)
+    # Serial: one SQLite file and one coverage result beat merging forked
+    # workers for a suite this size.
+    parallelize(workers: 1)
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
