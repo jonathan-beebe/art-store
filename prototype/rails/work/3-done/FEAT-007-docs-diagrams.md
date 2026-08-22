@@ -73,10 +73,11 @@ must pass through `awaiting_payment` first, called out in `orders.md`.
 
 ### Verified
 
-- All 13 Mermaid blocks (identity.md: 3, orders.md: 3, escrow.md: 2,
-  data-model.md: 1, ontology.md: 1, architecture.md: 3) render with
+- All 17 Mermaid blocks (architecture.md: 4, identity.md: 3, orders.md: 3,
+  escrow.md: 2, data-model.md: 1, ontology.md: 1 — README.md carries none)
+  render with
   `docker run --rm -v "$D":/data -v "$D/tmp":/tmp minlag/mermaid-cli`, no
-  errors. 13/13.
+  errors. 17/17.
 - Cross-checked every `Domain::`, model, and action name quoted in the new
   docs against the actual `src/app/domain/**`, `src/app/actions/**`, and
   `src/app/models/**` files (see file list above) — no invented names.
