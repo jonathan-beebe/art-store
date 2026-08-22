@@ -1,0 +1,20 @@
+<?php
+
+namespace App\Domain\Escrow;
+
+use App\Domain\Money\Money;
+
+final class Fee
+{
+    public const PLATFORM_PERCENT = 10;
+
+    public static function platform(Money $subtotal): Money
+    {
+        return $subtotal->percent(self::PLATFORM_PERCENT);
+    }
+
+    public static function net(Money $subtotal): Money
+    {
+        return Money::fromCents($subtotal->cents - self::platform($subtotal)->cents);
+    }
+}

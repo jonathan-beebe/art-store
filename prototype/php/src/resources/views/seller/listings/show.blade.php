@@ -1,0 +1,94 @@
+@extends('layouts.seller')
+@use('App\Domain\Money\Money')
+@use('App\Domain\Reports\StatusLabel')
+
+@section('title', $listing->title.' — Art Store seller')
+
+@section('content')
+    <div class="flex flex-wrap items-center gap-4">
+        <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
+        <p class="text-gray-600">{{ StatusLabel::of($listing->status) }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
+        <a href="{{ route('seller.listings.edit', $listing->id) }}" class="ml-auto rounded border border-gray-400 px-3 py-2">Edit</a>
+    </div>
+
+    <section aria-labelledby="totals-heading" class="mt-6">
+        <h2 id="totals-heading" class="font-semibold text-gray-700">Totals</h2>
+
+        <dl class="mt-2 grid grid-cols-3 gap-3">
+            <div class="rounded border border-gray-300 bg-white p-4">
+                <dt class="text-gray-600">Views</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->views_count }}</dd>
+            </div>
+            <div class="rounded border border-gray-300 bg-white p-4">
+                <dt class="text-gray-600">Favorites</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->favorites_count }}</dd>
+            </div>
+            <div class="rounded border border-gray-300 bg-white p-4">
+                <dt class="text-gray-600">Cart adds</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->cart_adds_count }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section aria-labelledby="daily-heading" class="mt-6">
+        <h2 id="daily-heading" class="font-semibold text-gray-700">Last {{ $windowDays }} days</h2>
+
+        <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+            <table class="w-full text-left">
+                <caption class="sr-only">Daily views, favorites, and cart adds</caption>
+                <thead class="border-b border-gray-300 bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-4 py-2 font-semibold">Day</th>
+                        <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
+                        <th scope="col" class="px-4 py-2 text-right font-semibold">Favorites</th>
+                        <th scope="col" class="px-4 py-2 text-right font-semibold">Cart adds</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach ($days as $day)
+                        <tr>
+                            <th scope="row" class="px-4 py-2 font-normal">{{ $day->label() }}</th>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $day->views }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $day->favorites }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $day->cartAdds }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section aria-labelledby="sales-heading" class="mt-6">
+        <h2 id="sales-heading" class="font-semibold text-gray-700">Sales</h2>
+
+        @if ($sales->isEmpty())
+            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No sales yet.</p>
+        @else
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <table class="w-full text-left">
+                    <caption class="sr-only">Orders containing this listing</caption>
+                    <thead class="border-b border-gray-300 bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+                            <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
+                            <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($sales as $sale)
+                            <tr>
+                                <th scope="row" class="px-4 py-2 font-normal">#{{ $sale->order_id }}</th>
+                                <td class="px-4 py-2">{{ $sale->order->placed_at?->format('M j, Y') }}</td>
+                                <td class="px-4 py-2">{{ StatusLabel::of($sale->order->status) }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $sale->quantity }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($sale->unit_price_cents)->format() }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+@endsection
