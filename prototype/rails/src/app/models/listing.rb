@@ -11,4 +11,10 @@ class Listing < ApplicationRecord
   def price
     Domain::Money.from_cents(price_cents)
   end
+
+  def image_url
+    return PlaceholderImage.data_uri(title) unless image.attached?
+
+    Rails.application.routes.url_helpers.rails_blob_path(image, only_path: true)
+  end
 end
