@@ -1,0 +1,43 @@
+<% content_for :title, "Orders — Art Store seller" %>
+
+<h1 class="text-lg font-semibold">Orders</h1>
+
+<% @groups.each do |status, fulfillments| %>
+  <section aria-labelledby="group-<%= status %>" data-group="<%= status %>" class="mt-6">
+    <h2 id="group-<%= status %>" class="font-semibold text-neutral-700">
+      <%= Domain::Reports::StatusLabel.of(status) %> (<%= fulfillments.length %>)
+    </h2>
+
+    <% if fulfillments.empty? %>
+      <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing here.</p>
+    <% else %>
+      <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+        <table class="w-full text-left">
+          <caption class="sr-only"><%= Domain::Reports::StatusLabel.of(status) %> orders</caption>
+          <thead class="border-b border-neutral-300 bg-neutral-50">
+            <tr>
+              <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Buyer</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Items</th>
+              <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-200">
+            <% fulfillments.each do |fulfillment| %>
+              <tr data-fulfillment="<%= fulfillment.id %>">
+                <th scope="row" class="px-4 py-2 font-normal">
+                  <%= link_to "##{fulfillment.order_id}", seller_order_path(fulfillment), class: "font-medium underline" %>
+                </th>
+                <td class="px-4 py-2"><%= fulfillment.order.shipping_name %></td>
+                <td class="px-4 py-2"><%= own_items(fulfillment.order).map(&:title).join(", ") %></td>
+                <td class="px-4 py-2 text-right tabular-nums"><%= fulfillment.net.format %></td>
+                <td class="px-4 py-2"><%= fulfillment.order.placed_at.strftime("%b %-d, %Y") %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+<% end %>
