@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:16:02:58 — FEAT-001 — done: dockerized Rails 8.1 app on ruby:3.3-slim, Domain-namespaced sidecar Minitest with SimpleCov, Tailwind, shop and seller layouts with placeholder pages and the debug alert partial, README
 - 2026-08-22:15:44:45 — FEAT-001 — started
 - 2026-08-22:15:41:08 — FEAT-008 — defined
 - 2026-08-22:15:41:08 — FEAT-007 — defined

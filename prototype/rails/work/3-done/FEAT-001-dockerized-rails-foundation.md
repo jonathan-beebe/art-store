@@ -1,7 +1,7 @@
 ---
 id: FEAT-001
 type: feature
-status: open
+status: resolved
 created: 
 ---
 
@@ -33,3 +33,52 @@ Read `docs/architecture.md` first. The PHP spike in `prototype/php/` (its `Docke
 - `Makefile` targets: `up`, `down`, `build`, `assets`, `shell`, `test`, `coverage`, `migrate`, `fresh` (`db:reset` → drop, create, migrate, seed), `logs`, `console`.
 - First sidecar: `Domain::Money` — `Data.define(:cents)` or frozen class with `from_cents`, `from_dollars(String)`, `+`, `*(Integer)`, `percent(Integer)` (half-cent rounds away from zero), `format` → `$1,234.56` / `-$12.34`. TDD it.
 - Commit with the ticket id when green. Stage only `prototype/rails`.
+
+## Working
+
+### Versions
+Ruby 3.3.12, Rails 8.1.3.1, Puma 8.0.2, SQLite3 gem 2.9.6, tailwindcss-rails
+4.6.0 / tailwindcss 4.3.3, Propshaft, SimpleCov 1.1.1.
+
+### Decisions
+- **Scaffolded from the image, not a one-off `ruby:3.3` run.** The Dockerfile
+  installs `rails ~> 8.0` (resolved to 8.1.3.1), then
+  `docker compose run --rm --entrypoint bash -u "$(id -u):$(id -g)" app -c 'rails new . …'`
+  generated the tree inside the bind mount. Everything is owned by the host
+  user and `vendor/bundle` sits in `src/`.
+- **`app/domain` is re-pushed under the `Domain` namespace.** Rails makes every
+  `app/*` directory a Zeitwerk root, which would map `app/domain/money.rb` to
+  `::Money`. `config/application.rb` removes it from `eager_load_paths` and an
+  initializer calls `push_dir(app/domain, namespace: Domain)`. Verified with
+  `bin/rails zeitwerk:check`.
+- **Sidecar ignore is a glob pattern**, `"#{app.root}/{app,lib}/**/*_test.rb"`,
+  not an expanded file list, so a new test file needs no restart.
+- **SimpleCov starts in `test/test_helper.rb`** before `config/environment` is
+  required, and prints per-group lines because there is no browser in the
+  container. `SimpleCov.at_exit` calls `result.format!` — calling
+  `run_exit_tasks!` there recurses. SimpleCov 1.1 renamed `add_filter`,
+  `track_files`, and `add_group` to `skip`, `cover`, and `group`.
+- **A `BaseController` per site** (`Shop::BaseController`, `Seller::BaseController`)
+  owns the layout, which gives FEAT-002 a place for the session identity.
+- **`parallelize(workers: 1)`.** Forked workers mean merging coverage results
+  and sharing one SQLite file for a suite that runs in 0.1s.
+
+### Deviations from the discovery notes
+- `make fresh` is `db:drop db:create db:migrate db:seed`, not `db:reset`.
+  `db:reset` loads `db/schema.rb` and fails until the first migration exists.
+- No empty `namespace :auth` in `config/routes.rb`; FEAT-002 adds it with its
+  first route.
+- Deleted `Procfile.dev`, `bin/dev` (foreman host loop, superseded by the
+  container) and `app/views/layouts/application.html.erb` (no controller
+  reaches it). Dropped `capybara` and `selenium-webdriver` — no browser in the
+  image and no system tests. Pointed `bin/ci` at `bin/rails test app lib`.
+
+### Verified
+- `make up` from nothing (no `vendor`, no `.bundle`, no `storage/*.sqlite3`, no
+  `app/assets/builds/tailwind.css`): `/` and `/seller` return 200, both link
+  `/assets/tailwind-<digest>.css`, which serves 200.
+- `docker compose down` then `make up` again: 200 on both.
+- `make test` and `make coverage`: 29 runs, 40 assertions, 0 failures.
+  86.95% overall line coverage, Domain 100%.
+- `ruby -Iapp app/domain/money_test.rb` with no Rails boot: 23 runs, 0 failures.
+- `bin/rails zeitwerk:check`, `make fresh`, single-file and `-n /pattern/` runs.
