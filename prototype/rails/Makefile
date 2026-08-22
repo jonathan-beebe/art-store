@@ -26,7 +26,7 @@ migrate:
 	docker compose run --rm app bin/rails db:migrate
 
 fresh:
-	docker compose run --rm app bin/rails db:reset
+	docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed
 
 logs:
 	docker compose logs -f
