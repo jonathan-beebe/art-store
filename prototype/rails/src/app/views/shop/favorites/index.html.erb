@@ -1,0 +1,15 @@
+<% content_for :title, "Favorites — Art Store" %>
+
+<h1 class="text-4xl font-light tracking-tight">Favorites</h1>
+
+<% if @listings.empty? %>
+  <p class="mt-10 text-lg text-neutral-500">
+    Nothing saved yet. Tap Favorite on any piece you want to come back to.
+  </p>
+<% else %>
+  <ul class="mt-14 grid grid-cols-1 gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+    <% @listings.each do |listing| %>
+      <li><%= render "shop/listing_card", listing: listing %></li>
+    <% end %>
+  </ul>
+<% end %>
