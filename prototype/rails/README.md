@@ -60,8 +60,9 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test app lib db` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db` |
+| `make test` | `docker compose run --rm app bin/rails test app lib db test` |
+| `make smoke` | `docker compose run --rm app bin/rails test test/smoke_test.rb` |
+| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db test` |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
 | `make console` | `docker compose run --rm app bin/rails console` |
@@ -77,12 +78,13 @@ docker compose exec app bin/rails console      # against the running server
 ## Tests
 
 Minitest, and tests are sidecars: `money.rb` and `money_test.rb` sit in the same
-directory. `bin/rails test app lib db` globs all three trees; `config/application.rb`
-tells Zeitwerk to ignore `**/*_test.rb` so a test file never has to name a
-constant matching its path. `test/test_helper.rb` holds the Rails base and the
-coverage setup — there is no `test/unit` or `test/integration`. `db/seeds_test.rb`
-calls `Rails.application.load_seed` and asserts the seeded counts; it is why
-`db` is in the test path alongside `app` and `lib`.
+directory. `bin/rails test app lib db test` globs all four trees;
+`config/application.rb` tells Zeitwerk to ignore `**/*_test.rb` so a test file
+never has to name a constant matching its path. `test/` holds only
+`test_helper.rb` (the Rails base and the coverage setup), the four shared test
+cases, and `smoke_test.rb` — there is no `test/unit` or `test/integration`.
+`db/seeds_test.rb` calls `Rails.application.load_seed` and asserts the seeded
+counts; it is why `db` is in the test path alongside `app`, `lib` and `test`.
 
 ```sh
 make test                                                                   # whole suite
@@ -100,6 +102,21 @@ docker compose run --rm app ruby -Iapp app/domain/money_test.rb
 Controller tests are `ActionDispatch::IntegrationTest` and require
 `test_helper`; they drive HTTP and assert on rendered HTML.
 
+## Smoke
+
+```sh
+make smoke
+```
+
+`src/test/smoke_test.rb` is one integration test that walks the whole product
+over HTTP in two browsers: the seller signs in by magic link, creates a listing
+with an image, marks it for sale; a fresh anonymous visitor views, favorites,
+and carts it, checks out as a guest, verifies the address from the debug alert,
+pays with 4242; the seller reads the "Item sold" notification and ships; the
+customer confirms delivery; the weekly payout runs and the earnings page shows
+the net. Time is frozen so the payout period is the same whatever day it runs.
+It is part of `make test`.
+
 ## Coverage
 
 ```sh
@@ -108,7 +125,8 @@ make coverage
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Domain, Actions, Controllers, Models). `COVERAGE_MIN` sets the
-overall line minimum and fails the run below it; `make coverage` passes 80.
+overall line minimum and fails the run below it; `make coverage` passes 80. The
+suite stands at 645 runs and 100% line coverage.
 
 ## Database
 
@@ -147,15 +165,21 @@ prototype/rails/
   docker-compose.yml   one service: app
   docker/entrypoint.sh bundle, database, Tailwind, then the container command
   Makefile             host-side wrappers over docker compose
-  docs/                architecture and feature docs
+  docs/                architecture, feature docs, and review.md
   work/                tickets and journal
   src/                 the Rails application
     app/domain/        pure domain core, sidecar tests beside each file
-    app/controllers/   one namespace per site: shop/, seller/
+    app/actions/       one class per verb, sequencing core and adapters
+    app/controllers/   one namespace per site: shop/, seller/, auth/
+    app/delivery/      the magic-link delivery port and its two implementations
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
     test/test_helper.rb SimpleCov and the Rails test base
+    test/smoke_test.rb  the whole product in one walk
 ```
+
+[`docs/review.md`](docs/review.md) maps every requirement in the brief to the
+route and the test that prove it, and lists what is missing.
 
 ## Magic links
 
@@ -175,3 +199,40 @@ that row or merges it into the account already holding the address.
 MAGIC_LINK_DELIVERY=mail        # flash (default) | mail, which raises until email exists
 MAGIC_LINK_EXPIRY_MINUTES=15
 ```
+
+Two hooks are where email goes when it exists:
+`src/app/delivery/mail_magic_link_delivery.rb` (`MailMagicLinkDelivery#deliver`,
+selected by `MAGIC_LINK_DELIVERY=mail`) for sign-in links, and
+`src/app/actions/notifications/notify.rb` (`Notify#deliver_by_email`) for the
+"Item sold" and "Order shipped" notifications, which reach the in-app inbox
+today.
+
+## Paying
+
+The card is fake and nothing is stored but the last four digits.
+
+| Number | Result |
+| --- | --- |
+| `4242 4242 4242 4242` | approved |
+| `4000 0000 0000 0002` | declined — generic decline |
+| `4000 0000 0000 9995` | declined — insufficient funds |
+| anything else | declined — invalid card number |
+
+Spaces and dashes are ignored. A decline leaves the order on a retry form with
+the stock returned to the listing.
+
+## Known gaps
+
+The full list, with the next steps for each, is in
+[`docs/review.md`](docs/review.md). The ones to know before a demo:
+
+- Email is not implemented. Both hooks above are empty, and
+  `MAGIC_LINK_DELIVERY=mail` raises rather than sending.
+- "Run weekly payout now" on the earnings page pays every seller, not the
+  signed-in one. It is a debug control; `payouts:run` is the real entry point.
+- A merge can leave a customer holding two carts, and the storefront shops with
+  whichever holds more items.
+- There is no order cancellation route.
+- There is no libvips in the image, so Active Storage serves original blobs and
+  a variant would raise. Seeded listings carry a generated SVG rather than a
+  photograph.

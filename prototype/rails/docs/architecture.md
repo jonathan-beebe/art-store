@@ -217,11 +217,12 @@ email hook.
 ## Testing
 
 - Minitest (stock Rails). Tests are **sidecars**: `foo.rb` → `foo_test.rb` in
-  the same directory. `bin/rails test app lib db` runs them (the runner globs
-  `**/*_test.rb` under each given path; `db` was added for `db/seeds_test.rb`
-  — the bare `app lib` form does not glob it); `config/application.rb` tells
-  Zeitwerk to ignore `**/*_test.rb` so test files are never autoloaded.
-  `test/test_helper.rb` stays as the Rails base.
+  the same directory. `bin/rails test app lib db test` runs them (the runner
+  globs `**/*_test.rb` under each given path; `db` was added for
+  `db/seeds_test.rb` and `test` for `test/smoke_test.rb` — the bare `app lib`
+  form globs neither); `config/application.rb` tells Zeitwerk to ignore
+  `**/*_test.rb` so test files are never autoloaded. `test/test_helper.rb`
+  stays as the Rails base.
 - Core tests (`app/domain/**`) require only `minitest/autorun` and the file
   under test — no `test_helper`, no database, no doubles. They also run under
   the Rails runner.
