@@ -70,7 +70,7 @@ is `@import "tailwindcss"` and nothing else.
 | --- | --- | --- |
 | Everything dockerized, nothing on the host | done | `Dockerfile`, `docker-compose.yml`, `Makefile` — every target is a `docker compose` wrapper |
 | All source in `src` | done | `prototype/rails/src/` |
-| Tests are sidecars next to the code | partial | 20 files under `app/` have no sidecar (see Known gaps); all are at 100% line coverage through the tests of their callers |
+| Tests mirror the code under `test/` | partial | 20 files under `app/` have no test of their own (see Known gaps); all are at 100% line coverage through the tests of their callers |
 | `/test*` and `/tdd*` skills | partial | process, not visible in the artifacts; the shape they call for holds — pure core tests, HTTP tests for the shell |
 | `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 8 tickets |
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
@@ -121,7 +121,7 @@ is `@import "tailwindcss"` and nothing else.
 2. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller_earnings` and the controller says so.
    `payouts:run` is the real entry point.
-3. **20 files under `app/` have no sidecar test**: `ApplicationController`,
+3. **20 files under `app/` have no test of their own**: `ApplicationController`,
    the three base controllers, `Shop::NotificationsController`, the two
    authentication concerns, `Domain::TransitionError`, the two helpers,
    `ApplicationRecord`, and nine thin models. Every one is at 100% line
@@ -159,7 +159,7 @@ is `@import "tailwindcss"` and nothing else.
    `payouts:run` as the single entry point. Closes gap 2.
 4. Add order cancellation for `pending_verification` and `awaiting_payment`
    orders, returning the stock to the listing. Closes gap 5.
-5. Give `Shop::NotificationsController` its own sidecar, and delete or use the
+5. Give `Shop::NotificationsController` its own test, and delete or use the
    model relations no caller reads. Closes gap 3.
 6. Attach real images in `db/seeds.rb` and add libvips to the image so the
    storefront can ask for a thumbnail variant. Closes gaps 6 and 8.

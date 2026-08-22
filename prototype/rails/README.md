@@ -60,9 +60,9 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test app lib db test` |
+| `make test` | `docker compose run --rm app bin/rails test` |
 | `make smoke` | `docker compose run --rm app bin/rails test test/smoke_test.rb` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db test` |
+| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test` |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
 | `make console` | `docker compose run --rm app bin/rails console` |
@@ -77,30 +77,23 @@ docker compose exec app bin/rails console      # against the running server
 
 ## Tests
 
-Minitest, and tests are sidecars: `money.rb` and `money_test.rb` sit in the same
-directory. `bin/rails test app lib db test` globs all four trees;
-`config/application.rb` tells Zeitwerk to ignore `**/*_test.rb` so a test file
-never has to name a constant matching its path. `test/` holds only
-`test_helper.rb` (the Rails base and the coverage setup), the four shared test
-cases, and `smoke_test.rb` — there is no `test/unit` or `test/integration`.
-`db/seeds_test.rb` calls `Rails.application.load_seed` and asserts the seeded
-counts; it is why `db` is in the test path alongside `app`, `lib` and `test`.
+Minitest, and every test lives under `test/`, mirroring `app/`:
+`app/domain/money.rb` is covered by `test/domain/money_test.rb`. `bin/rails
+test` with no arguments runs the whole suite. Alongside the mirrored trees,
+`test/` holds `test_helper.rb` (the Rails base and the coverage setup), the four
+shared test cases, `smoke_test.rb`, `seeds_test.rb`, and `tasks/` for the rake
+tasks. `test/seeds_test.rb` calls `Rails.application.load_seed` and asserts the
+seeded counts.
 
 ```sh
-make test                                                                   # whole suite
-docker compose run --rm app bin/rails test app/domain/money_test.rb         # one file
-docker compose run --rm app bin/rails test app/domain/money_test.rb -n /percent/   # one test
+make test                                                                    # whole suite
+docker compose run --rm app bin/rails test test/domain/money_test.rb         # one file
+docker compose run --rm app bin/rails test test/domain/money_test.rb -n /percent/   # one test
 ```
 
-Core tests under `app/domain` require `minitest/autorun` and the file under
-test, nothing else, so they also run with no Rails boot:
-
-```sh
-docker compose run --rm app ruby -Iapp app/domain/money_test.rb
-```
-
-Controller tests are `ActionDispatch::IntegrationTest` and require
-`test_helper`; they drive HTTP and assert on rendered HTML.
+Every test requires `test_helper`. Core tests under `test/domain` subclass
+`ActiveSupport::TestCase` and touch no database. Controller tests are
+`ActionDispatch::IntegrationTest`; they drive HTTP and assert on rendered HTML.
 
 ## Smoke
 
@@ -168,12 +161,13 @@ prototype/rails/
   docs/                architecture, feature docs, and review.md
   work/                tickets and journal
   src/                 the Rails application
-    app/domain/        pure domain core, sidecar tests beside each file
+    app/domain/        pure domain core
     app/actions/       one class per verb, sequencing core and adapters
     app/controllers/   one namespace per site: shop/, seller/, auth/
     app/delivery/      the magic-link delivery port and its two implementations
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
+    test/              mirrors app/: domain/, actions/, controllers/, models/
     test/test_helper.rb SimpleCov and the Rails test base
     test/smoke_test.rb  the whole product in one walk
 ```

@@ -1,14 +1,12 @@
 require "simplecov"
 
 # Started before the application is loaded so every app/ and lib/ file is
-# measured. Core sidecar tests under app/domain skip this file entirely, which
-# is what lets them run as `ruby -Iapp app/domain/money_test.rb`.
+# measured.
 SimpleCov.start do
   skip "/config/"
   skip "/db/"
   skip "/test/"
   skip "/vendor/"
-  skip(/_test\.rb\z/)
 
   cover "{app,lib}/**/*.rb"
 

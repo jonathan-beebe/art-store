@@ -76,7 +76,7 @@ stateDiagram-v2
 ```
 
 Source of truth: `Domain::Orders::OrderStatus::TRANSITIONS`, verified by
-`order_status_test.rb`. `cancelled` has no route to it from the UI in this
+`test/domain/orders/order_status_test.rb`. `cancelled` has no route to it from the UI in this
 prototype — the transition exists in the domain but no action calls it. A
 guest order cannot jump straight from `pending_verification` to `paid`: the
 table has no such edge, so `FinalizeOrder` on an unverified order raises
@@ -100,7 +100,7 @@ stateDiagram-v2
 ```
 
 Source of truth: `Domain::Orders::FulfillmentStatus::TRANSITIONS`, verified by
-`fulfillment_status_test.rb`. `Fulfillments::MarkShipped` notifies the
+`test/domain/orders/fulfillment_status_test.rb`. `Fulfillments::MarkShipped` notifies the
 customer ("Order shipped") and calls `Orders::RollUpOrderStatus`;
 `Fulfillments::ConfirmDelivered` releases the fulfillment's held escrow (see
 `docs/escrow.md`) and also rolls the order status up. Delivery confirmation is

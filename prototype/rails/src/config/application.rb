@@ -40,11 +40,6 @@ module ArtStore
 
     initializer "art_store.autoloading", after: :set_autoload_paths do |app|
       Rails.autoloaders.main.push_dir(app.root.join("app/domain"), namespace: Domain)
-
-      # Tests sit beside the code they cover. The test runner requires them;
-      # the autoloader must not, or every *_test.rb would have to name a
-      # constant matching its path.
-      Rails.autoloaders.main.ignore("#{app.root}/{app,lib}/**/*_test.rb")
     end
 
     # Configuration for the application, engines, and railties goes here.

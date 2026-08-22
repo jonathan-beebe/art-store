@@ -40,7 +40,7 @@ flowchart TD
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested with no Rails boot (`require "minitest/autorun"` only, plus the file under test). |
+| Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
 | Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (thin: associations, scopes, enums mapped to domain enums), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
@@ -163,7 +163,7 @@ stateDiagram-v2
 
 `cancelled` has no route to it from either UI in this prototype — the
 transition exists in `Domain::Orders::OrderStatus::TRANSITIONS`, verified by
-its sidecar test, but no action calls it.
+its unit test, but no action calls it.
 
 ### Fulfillment status (per order × seller)
 
@@ -216,16 +216,14 @@ email hook.
 
 ## Testing
 
-- Minitest (stock Rails). Tests are **sidecars**: `foo.rb` → `foo_test.rb` in
-  the same directory. `bin/rails test app lib db test` runs them (the runner
-  globs `**/*_test.rb` under each given path; `db` was added for
-  `db/seeds_test.rb` and `test` for `test/smoke_test.rb` — the bare `app lib`
-  form globs neither); `config/application.rb` tells Zeitwerk to ignore
-  `**/*_test.rb` so test files are never autoloaded. `test/test_helper.rb`
-  stays as the Rails base.
-- Core tests (`app/domain/**`) require only `minitest/autorun` and the file
-  under test — no `test_helper`, no database, no doubles. They also run under
-  the Rails runner.
+- Minitest (stock Rails). Every test lives under `test/`, mirroring the tree it
+  covers: `app/domain/money.rb` → `test/domain/money_test.rb`,
+  `app/actions/orders/place_order.rb` → `test/actions/orders/place_order_test.rb`,
+  `lib/tasks/payouts.rake` → `test/tasks/payouts_test.rb`. `bin/rails test`
+  with no arguments runs the whole suite. `test/test_helper.rb` is the Rails
+  base and starts SimpleCov.
+- Core tests (`test/domain/**`) subclass `ActiveSupport::TestCase` and exercise
+  the file under test — no database, no doubles.
 - Coordination tests (controllers, actions, tasks) are `ActionDispatch::IntegrationTest`
   / `ActiveSupport::TestCase` with fixtures or factories against the test
   SQLite database; they drive HTTP and assert on rendered HTML and DB state.
@@ -235,7 +233,7 @@ email hook.
   reports the Domain group's percentage but nothing enforces a higher
   threshold on it specifically; it has stayed near 100% in practice because
   the core is small and pure.
-- TDD: failing sidecar test, make it pass, refactor. Feature tickets are done
+- TDD: failing test, make it pass, refactor. Feature tickets are done
   when their flow has an integration test that walks it end to end.
 
 ## Repository layout
@@ -257,6 +255,6 @@ prototype/rails/
 | Skill says | Here it means |
 | --- | --- |
 | `npm run test:run -- <pattern>` | `docker compose run --rm app bin/rails test <path>` |
-| Vitest unit test | Minitest sidecar requiring only `minitest/autorun` |
-| React Testing Library integration test | `ActionDispatch::IntegrationTest` sidecar beside the controller |
+| Vitest unit test | Minitest `ActiveSupport::TestCase` under `test/domain/` |
+| React Testing Library integration test | `ActionDispatch::IntegrationTest` under `test/controllers/` |
 | `src/` | `prototype/rails/src/` |

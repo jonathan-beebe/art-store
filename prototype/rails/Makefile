@@ -17,13 +17,13 @@ shell:
 	docker compose run --rm app bash
 
 test:
-	docker compose run --rm app bin/rails test app lib db test
+	docker compose run --rm app bin/rails test
 
 smoke:
 	docker compose run --rm app bin/rails test test/smoke_test.rb
 
 coverage:
-	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db test
+	docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test
 
 migrate:
 	docker compose run --rm app bin/rails db:migrate
