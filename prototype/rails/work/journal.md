@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:16:55:27 — FEAT-005 — done: customer storefront — paged search and medium filter over for_sale listings, listing page with view events, favorites, cart, guest checkout that verifies by magic link before the card form on /orders/:id/pay, signed-in one-request checkout, declines with a retry form, orders with per-seller fulfillment and delivery confirmation, and account notifications
 - 2026-08-22:16:39:45 — FEAT-006 — done: seed data ported from the PHP spike — 4 verified sellers, 29 listings (24 for_sale / 3 draft / 2 sold across six media), casey@example.com with 3 favorites and view history, and order history through the FEAT-003 actions (paid, shipped, delivered-and-paid-out); db/seeds_test.rb sidecar, README "Seeded accounts" section, db added to the test/coverage Makefile targets
 - 2026-08-22:16:34:05 — FEAT-005 — started
 - 2026-08-22:16:32:01 — FEAT-006 — started
