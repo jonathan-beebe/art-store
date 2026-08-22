@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:22:14:59 — FEAT-007 — done: corrected architecture.md drift (storefront visibility, fee timing, missing payment_failed->cancelled edge, test runner scope, coverage thresholds, action namespaces, ledger_entries.entry_type); added identity.md, orders.md, escrow.md, data-model.md, ontology.md, README.md; 13/13 Mermaid diagrams validated
 - 2026-08-22:22:02:42 — FEAT-007 — started
 - 2026-08-22:17:01:59 — FEAT-008 — started
 - 2026-08-22:16:59:20 — FEAT-004 — done: seller portal behind require_seller!, dashboard, listings CRUD with dollar prices and image upload, listing activity with a 14-day breakdown, orders grouped by fulfillment status with mark-shipped, earnings with LedgerBalance and the weekly payout control, notifications inbox
