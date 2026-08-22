@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:17:21:34 — FEAT-008 — done: clean first run from an empty tree in 40s, 645 tests green at 100% line coverage, make smoke walking the whole product in one integration test, a curl walk over every page and a live guest checkout to Paid, ShipmentDetails extracted out of the controller, dead scaffolding deleted, docs/review.md mapping the brief to routes and tests, README completed
 - 2026-08-22:22:14:59 — FEAT-007 — done: corrected architecture.md drift (storefront visibility, fee timing, missing payment_failed->cancelled edge, test runner scope, coverage thresholds, action namespaces, ledger_entries.entry_type); added identity.md, orders.md, escrow.md, data-model.md, ontology.md, README.md; 13/13 Mermaid diagrams validated
 - 2026-08-22:22:02:42 — FEAT-007 — started
 - 2026-08-22:17:01:59 — FEAT-008 — started
