@@ -1,0 +1,7 @@
+<% content_for :title, "Status change refused — Art Store seller" %>
+
+<h1 class="text-lg font-semibold">Status change refused</h1>
+
+<p role="alert" data-refusal class="mt-4 rounded border border-red-300 bg-red-50 p-4 text-red-900"><%= @refusal %></p>
+
+<p class="mt-4"><%= link_to "Back to listings", seller_listings_path, class: "underline" %></p>
