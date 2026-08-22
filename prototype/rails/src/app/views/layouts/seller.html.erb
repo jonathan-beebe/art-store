@@ -14,6 +14,7 @@
 
   <body data-site="seller" class="min-h-screen bg-neutral-100 text-sm text-neutral-900">
     <%= render "layouts/debug_alert" %>
+    <%= render "layouts/flash" %>
 
     <header class="bg-neutral-900 text-neutral-100">
       <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-2">
@@ -21,6 +22,12 @@
         <nav class="flex gap-4 text-neutral-300">
           <%= link_to "Dashboard", seller_root_path %>
           <%= link_to "Storefront", root_path %>
+          <% if seller_signed_in? %>
+            <span><%= current_seller.email %></span>
+            <%= button_to "Sign out", seller_logout_path, method: :post, form_class: "inline" %>
+          <% else %>
+            <%= link_to "Sign in", seller_login_path %>
+          <% end %>
         </nav>
       </div>
     </header>

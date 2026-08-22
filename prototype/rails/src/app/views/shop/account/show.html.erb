@@ -1,0 +1,12 @@
+<% content_for :title, "Your account — Art Store" %>
+
+<div class="mx-auto max-w-md">
+  <h1 class="text-2xl">Your account</h1>
+
+  <dl class="mt-8">
+    <dt class="text-sm text-neutral-500">Email</dt>
+    <dd data-account-email class="text-lg"><%= current_customer.email %></dd>
+  </dl>
+
+  <%= button_to "Sign out", customer_logout_path, method: :post, class: "mt-8 border border-neutral-300 px-4 py-2" %>
+</div>

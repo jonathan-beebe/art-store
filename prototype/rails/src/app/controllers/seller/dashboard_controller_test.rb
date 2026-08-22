@@ -1,19 +1,17 @@
 require "test_helper"
 
-module Seller
-  class DashboardControllerTest < ActionDispatch::IntegrationTest
-    test "the dashboard renders in the seller layout" do
-      get seller_root_path
+class Seller::DashboardControllerTest < ActionDispatch::IntegrationTest
+  test "the dashboard renders in the seller layout" do
+    get seller_root_path
 
-      assert_response :success
-      assert_select "body[data-site=?]", "seller"
-      assert_select "h1"
-    end
+    assert_response :success
+    assert_select "body[data-site=?]", "seller"
+    assert_select "h1"
+  end
 
-    test "the dashboard links the built Tailwind stylesheet" do
-      get seller_root_path
+  test "the dashboard links the built Tailwind stylesheet" do
+    get seller_root_path
 
-      assert_select "head link[rel=stylesheet][href*=?]", "tailwind"
-    end
+    assert_select "head link[rel=stylesheet][href*=?]", "tailwind"
   end
 end

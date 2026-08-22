@@ -1,6 +1,4 @@
-module Seller
-  class DashboardController < BaseController
-    def show
-    end
+class Seller::DashboardController < Seller::BaseController
+  def show
   end
 end
