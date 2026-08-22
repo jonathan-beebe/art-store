@@ -1,7 +1,18 @@
 class Seller::ListingsController < Seller::BaseController
+  WINDOW_DAYS = 14
+
   def index
     @listings = current_seller.listings.order(id: :desc).to_a
     @activity = activity_by_listing(@listings)
+  end
+
+  def show
+    @listing = owned_listing
+    @totals = Domain::Reports::ActivityTotals.from(@listing.listing_events.group(:event_type).count)
+    @days = Domain::Reports::ActivityTimeline.last_days(
+      event_counts_by_date(@listing), ends_on: Time.current, days: WINDOW_DAYS
+    )
+    @sales = @listing.order_items.includes(:order).order(id: :desc)
   end
 
   def new
@@ -66,6 +77,13 @@ class Seller::ListingsController < Seller::BaseController
       price: format("%d.%02d", listing.price_cents / 100, listing.price_cents % 100),
       quantity: listing.quantity
     }
+  end
+
+  def event_counts_by_date(listing)
+    listing.listing_events
+           .pluck(:occurred_at, :event_type)
+           .group_by { |occurred_at, _| occurred_at.to_date }
+           .transform_values { |events| events.map(&:last).tally }
   end
 
   def activity_by_listing(listings)

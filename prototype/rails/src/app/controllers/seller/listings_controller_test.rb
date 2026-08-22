@@ -58,6 +58,73 @@ class Seller::ListingsControllerTest < SellerPortalTestCase
     assert_select "[data-status-button=sold]", false
   end
 
+  test "the activity page totals the events of the seller's own listing" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    2.times { create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 1.day.ago) }
+    create_listing_event(listing, Domain::Listings::ListingEventType::FAVORITE, 1.day.ago)
+    create_listing_event(listing, Domain::Listings::ListingEventType::UNFAVORITE, 1.day.ago)
+
+    get seller_listing_path(listing)
+
+    assert_response :success
+    assert_select "[data-stat=views]", text: "2"
+    assert_select "[data-stat=favorites]", text: "1"
+    assert_select "[data-stat=cart_adds]", text: "0"
+  end
+
+  test "the activity page breaks the last fortnight down by day" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 1.day.ago)
+    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 40.days.ago)
+
+    get seller_listing_path(listing)
+
+    assert_select "tbody tr[data-day]", 14
+    assert_select "[data-day=?]", Date.current.yesterday.iso8601 do
+      assert_select "[data-activity=views]", text: "1"
+    end
+    assert_select "[data-day=?]", Date.current.iso8601 do
+      assert_select "[data-activity=views]", text: "0"
+    end
+  end
+
+  test "the activity page lists the orders that bought the listing" do
+    seller = signed_in_seller
+    listing = create_listing(seller, quantity: 2)
+    order = create_paid_order(listing)
+
+    get seller_listing_path(listing)
+
+    assert_select "[data-sale]", 1
+    assert_select "[data-sale] th", text: "##{order.id}"
+    assert_select "[data-cell=order_status]", text: "Paid"
+  end
+
+  test "a listing with no sales says so" do
+    seller = signed_in_seller
+
+    get seller_listing_path(create_listing(seller))
+
+    assert_select "[data-sale]", false
+    assert_select "p", text: "No sales yet."
+  end
+
+  test "another seller's activity page is not found" do
+    signed_in_seller
+
+    get seller_listing_path(create_listing(other_seller))
+
+    assert_response :not_found
+  end
+
+  test "a signed-out visitor reaches no activity page" do
+    get seller_listing_path(create_listing(other_seller))
+
+    assert_redirected_to seller_login_path
+  end
+
   test "the new listing form asks for every field" do
     signed_in_seller
 
