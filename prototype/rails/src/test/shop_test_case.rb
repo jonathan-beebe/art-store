@@ -37,6 +37,12 @@ module ShopRecords
     }
   end
 
+  # The identity cookie outlives a session, so dropping the session alone
+  # leaves a returning visitor recognised but signed out.
+  def end_session
+    cookies.delete(Rails.application.config.session_options.fetch(:key))
+  end
+
   # The customer the identity cookie points at after the last request.
   def visiting_customer
     Customer.find(signed_cookie(CustomerIdentity::COOKIE))

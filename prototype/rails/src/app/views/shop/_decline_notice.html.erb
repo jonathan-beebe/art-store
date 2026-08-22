@@ -1,0 +1,6 @@
+<% if payment&.decline_reason %>
+  <p role="alert" data-decline
+     class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+    <%= Domain::Payments::DeclineReason.message(payment.decline_reason) %> Try another card.
+  </p>
+<% end %>

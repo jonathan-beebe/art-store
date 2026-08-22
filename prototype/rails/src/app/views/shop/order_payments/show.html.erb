@@ -1,0 +1,15 @@
+<% content_for :title, "Pay for order ##{@order.id} — Art Store" %>
+
+<h1 class="text-4xl font-light tracking-tight">Pay for order #<%= @order.id %></h1>
+
+<p class="mt-3 text-lg text-neutral-500">
+  <%= @order.total.format %> to <%= @order.email %>
+</p>
+
+<%= render "shop/decline_notice", payment: @payment %>
+
+<%= form_with url: shop_pay_order_path(@order), method: :post, class: "mt-8 max-w-xl" do |form| %>
+  <%= render "shop/card_fields", form: form %>
+
+  <%= form.submit "Pay #{@order.total.format}", class: "mt-10 rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
+<% end %>

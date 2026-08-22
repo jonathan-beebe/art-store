@@ -1,0 +1,24 @@
+<% content_for :title, "Orders — Art Store" %>
+
+<h1 class="text-4xl font-light tracking-tight">Orders</h1>
+
+<% if @orders.empty? %>
+  <p class="mt-10 text-lg text-neutral-500">No orders yet.</p>
+<% else %>
+  <ul class="mt-12 divide-y divide-neutral-100 border-y border-neutral-100">
+    <% @orders.each do |order| %>
+      <li class="flex flex-wrap items-baseline justify-between gap-6 py-6">
+        <div>
+          <%= link_to "Order ##{order.id}", shop_order_path(order), class: "text-lg" %>
+          <p class="mt-1 text-base text-neutral-500"><%= order.items.map(&:title).join(", ") %></p>
+        </div>
+
+        <div class="text-right">
+          <p class="text-base text-neutral-400"><%= order.placed_at.to_date.to_fs(:long) %></p>
+          <p class="mt-1 text-lg"><%= order.total.format %></p>
+          <p class="mt-1 text-base text-neutral-500"><%= status_label(order.status) %></p>
+        </div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
