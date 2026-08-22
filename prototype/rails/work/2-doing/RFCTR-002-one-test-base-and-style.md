@@ -24,3 +24,7 @@ Duplicated builders drift (they already differ on which listing fields are fille
 
 ## Related work
 - RFCTR-001
+
+## Working
+
+The declarative style landed first, on its own. 390 `def test_<name>` definitions across 73 files became `test "<name>" do`, and the two remaining `def setup` methods became `setup do`. The wording comes straight from the method name with underscores turned into spaces, so no test changed what it asserts. The suite stayed at 645 runs, 1604 assertions, 0 failures, and line coverage stayed at 100%.

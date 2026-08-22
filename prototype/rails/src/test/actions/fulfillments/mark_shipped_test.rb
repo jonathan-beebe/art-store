@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Fulfillments
   class MarkShippedTest < CommerceTestCase
-    def test_it_records_the_carrier_and_the_tracking_number
+    test "it records the carrier and the tracking number" do
       fulfillment = ship(paid_order_for(customer, listing(seller)).fulfillments.sole)
 
       assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.status
@@ -11,7 +11,7 @@ module Fulfillments
       assert_equal moment("2026-08-21 11:00:00"), fulfillment.shipped_at
     end
 
-    def test_the_only_shipment_of_an_order_ships_the_order
+    test "the only shipment of an order ships the order" do
       order = paid_order_for(customer, listing(seller))
 
       ship(order.fulfillments.sole)
@@ -19,7 +19,7 @@ module Fulfillments
       assert_equal Domain::Orders::OrderStatus::SHIPPED, order.reload.status
     end
 
-    def test_one_shipment_of_two_partially_ships_the_order
+    test "one shipment of two partially ships the order" do
       order = paid_order_for(customer, listing(seller("Blue Kiln Studio")), listing(seller("Rye Press")))
 
       ship(order.fulfillments.first)
@@ -27,7 +27,7 @@ module Fulfillments
       assert_equal Domain::Orders::OrderStatus::PARTIALLY_SHIPPED, order.reload.status
     end
 
-    def test_it_tells_the_customer_how_to_track_the_order
+    test "it tells the customer how to track the order" do
       buyer = customer
       order = paid_order_for(buyer, listing(seller))
 
@@ -38,7 +38,7 @@ module Fulfillments
       assert_includes notification.body, "9400111899"
     end
 
-    def test_it_refuses_to_ship_the_same_fulfillment_twice
+    test "it refuses to ship the same fulfillment twice" do
       fulfillment = ship(paid_order_for(customer, listing(seller)).fulfillments.sole)
 
       assert_raises(Domain::TransitionError) { ship(fulfillment) }

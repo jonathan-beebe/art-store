@@ -5,24 +5,24 @@ module Domain
     class MagicLinkStatusTest < ActiveSupport::TestCase
       EXPIRES_AT = Time.utc(2026, 8, 22, 12, 15)
 
-      def test_a_fresh_unconsumed_link_is_usable
+      test "a fresh unconsumed link is usable" do
         assert_equal MagicLinkStatus::USABLE, status_at(Time.utc(2026, 8, 22, 12, 0))
       end
 
-      def test_a_link_expires_the_moment_now_reaches_the_expiry
+      test "a link expires the moment now reaches the expiry" do
         assert_equal MagicLinkStatus::EXPIRED, status_at(EXPIRES_AT)
       end
 
-      def test_a_link_is_expired_after_the_expiry
+      test "a link is expired after the expiry" do
         assert_equal MagicLinkStatus::EXPIRED, status_at(EXPIRES_AT + 1)
       end
 
-      def test_a_consumed_link_is_consumed
+      test "a consumed link is consumed" do
         assert_equal MagicLinkStatus::CONSUMED,
           status_at(Time.utc(2026, 8, 22, 12, 6), consumed_at: Time.utc(2026, 8, 22, 12, 5))
       end
 
-      def test_consumption_outranks_expiry
+      test "consumption outranks expiry" do
         assert_equal MagicLinkStatus::CONSUMED,
           status_at(Time.utc(2026, 8, 22, 13, 0), consumed_at: Time.utc(2026, 8, 22, 12, 5))
       end

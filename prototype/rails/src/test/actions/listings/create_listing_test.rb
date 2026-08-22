@@ -2,13 +2,13 @@ require "commerce_test_case"
 
 module Listings
   class CreateListingTest < CommerceTestCase
-    def test_a_new_listing_starts_as_a_draft
+    test "a new listing starts as a draft" do
       created = CreateListing.new.call(seller: seller, draft: draft)
 
       assert_equal Domain::Listings::ListingStatus::DRAFT, created.status
     end
 
-    def test_it_stores_the_typed_fields_and_the_price_in_cents
+    test "it stores the typed fields and the price in cents" do
       created = CreateListing.new.call(seller: seller, draft: draft)
 
       assert_equal "Harbour at Dusk", created.title
@@ -18,7 +18,7 @@ module Listings
       assert_equal 2, created.quantity
     end
 
-    def test_it_belongs_to_the_seller_who_created_it
+    test "it belongs to the seller who created it" do
       artist = seller
 
       created = CreateListing.new.call(seller: artist, draft: draft)
@@ -26,13 +26,13 @@ module Listings
       assert_equal artist, created.seller
     end
 
-    def test_it_slugs_the_title
+    test "it slugs the title" do
       created = CreateListing.new.call(seller: seller, draft: draft)
 
       assert_equal "harbour-at-dusk", created.slug
     end
 
-    def test_a_title_another_listing_already_slugged_is_numbered
+    test "a title another listing already slugged is numbered" do
       CreateListing.new.call(seller: seller, draft: draft)
 
       created = CreateListing.new.call(seller: seller, draft: draft)
@@ -40,14 +40,14 @@ module Listings
       assert_equal "harbour-at-dusk-2", created.slug
     end
 
-    def test_it_attaches_an_uploaded_image
+    test "it attaches an uploaded image" do
       created = CreateListing.new.call(seller: seller, draft: draft, image: uploaded_image)
 
       assert_predicate created.image, :attached?
       assert_equal "image/png", created.image.content_type
     end
 
-    def test_a_listing_with_no_upload_carries_no_image
+    test "a listing with no upload carries no image" do
       created = CreateListing.new.call(seller: seller, draft: draft)
 
       refute_predicate created.image, :attached?

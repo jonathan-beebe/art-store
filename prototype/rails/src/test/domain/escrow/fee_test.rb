@@ -3,25 +3,25 @@ require "test_helper"
 module Domain
   module Escrow
     class FeeTest < ActiveSupport::TestCase
-      def test_the_platform_takes_a_tenth
+      test "the platform takes a tenth" do
         assert_equal 4500, Fee.platform(Money.from_cents(45_000)).cents
       end
 
-      def test_the_seller_keeps_the_rest
+      test "the seller keeps the rest" do
         assert_equal 40_500, Fee.net(Money.from_cents(45_000)).cents
       end
 
-      def test_the_fee_and_the_net_add_back_up
+      test "the fee and the net add back up" do
         subtotal = Money.from_cents(4999)
 
         assert_equal subtotal.cents, Fee.platform(subtotal).cents + Fee.net(subtotal).cents
       end
 
-      def test_half_a_cent_rounds_away_from_zero
+      test "half a cent rounds away from zero" do
         assert_equal 5, Fee.platform(Money.from_cents(45)).cents
       end
 
-      def test_nothing_owes_nothing
+      test "nothing owes nothing" do
         assert_equal 0, Fee.platform(Money.from_cents(0)).cents
       end
     end

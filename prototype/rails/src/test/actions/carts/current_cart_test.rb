@@ -1,11 +1,11 @@
 require "commerce_test_case"
 
 class CurrentCartTest < CommerceTestCase
-  def setup
+  setup do
     @current_cart = Carts::CurrentCart.new
   end
 
-  def test_a_visitor_with_no_cart_gets_one
+  test "a visitor with no cart gets one" do
     shopper = anonymous_customer
 
     cart = @current_cart.call(customer: shopper)
@@ -14,13 +14,13 @@ class CurrentCartTest < CommerceTestCase
     assert_empty cart.items
   end
 
-  def test_it_returns_the_same_cart_on_a_second_call
+  test "it returns the same cart on a second call" do
     shopper = anonymous_customer
 
     assert_equal @current_cart.call(customer: shopper), @current_cart.call(customer: shopper)
   end
 
-  def test_a_merged_customer_keeps_shopping_with_the_cart_holding_items
+  test "a merged customer keeps shopping with the cart holding items" do
     shopper = customer
     cart_for(shopper)
     filled = cart_holding(shopper, listing(seller))

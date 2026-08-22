@@ -3,15 +3,15 @@ require "test_helper"
 module Domain
   module Auth
     class MagicLinkTokenTest < ActiveSupport::TestCase
-      def test_digest_is_the_sha256_of_the_token
+      test "digest is the sha256 of the token" do
         assert_equal Digest::SHA256.hexdigest("abc"), MagicLinkToken.digest("abc")
       end
 
-      def test_the_same_token_digests_to_the_same_value
+      test "the same token digests to the same value" do
         assert_equal MagicLinkToken.digest("abc"), MagicLinkToken.digest("abc")
       end
 
-      def test_different_tokens_digest_to_different_values
+      test "different tokens digest to different values" do
         refute_equal MagicLinkToken.digest("abc"), MagicLinkToken.digest("abd")
       end
     end

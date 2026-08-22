@@ -3,37 +3,37 @@ require "test_helper"
 module Domain
   module Orders
     class OrderStockTest < ActiveSupport::TestCase
-      def test_an_order_awaiting_payment_holds_its_stock
+      test "an order awaiting payment holds its stock" do
         assert OrderStock.holds?(OrderStatus::AWAITING_PAYMENT)
       end
 
-      def test_a_failed_payment_holds_nothing
+      test "a failed payment holds nothing" do
         refute OrderStock.holds?(OrderStatus::PAYMENT_FAILED)
       end
 
-      def test_a_cancelled_order_holds_nothing
+      test "a cancelled order holds nothing" do
         refute OrderStock.holds?(OrderStatus::CANCELLED)
       end
 
-      def test_a_declined_card_hands_the_stock_back
+      test "a declined card hands the stock back" do
         change = OrderStock.change(from: OrderStatus::AWAITING_PAYMENT, to: OrderStatus::PAYMENT_FAILED)
 
         assert_equal Listings::StockChange::RESTORE, change
       end
 
-      def test_a_retry_claims_the_stock_again
+      test "a retry claims the stock again" do
         change = OrderStock.change(from: OrderStatus::PAYMENT_FAILED, to: OrderStatus::PAID)
 
         assert_equal Listings::StockChange::TAKE, change
       end
 
-      def test_a_first_payment_leaves_the_stock_placement_already_took
+      test "a first payment leaves the stock placement already took" do
         change = OrderStock.change(from: OrderStatus::AWAITING_PAYMENT, to: OrderStatus::PAID)
 
         assert_equal Listings::StockChange::KEEP, change
       end
 
-      def test_a_retry_that_is_declined_again_changes_nothing
+      test "a retry that is declined again changes nothing" do
         change = OrderStock.change(from: OrderStatus::PAYMENT_FAILED, to: OrderStatus::PAYMENT_FAILED)
 
         assert_equal Listings::StockChange::KEEP, change

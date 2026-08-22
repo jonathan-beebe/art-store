@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Listings
   class RecordListingEventTest < CommerceTestCase
-    def test_it_records_what_happened_and_when
+    test "it records what happened and when" do
       art = listing(seller)
 
       event = RecordListingEvent.new.call(
@@ -17,7 +17,7 @@ module Listings
       assert_equal moment("2026-08-20 08:00:00"), event.occurred_at
     end
 
-    def test_an_anonymous_visitor_leaves_an_event_with_no_customer
+    test "an anonymous visitor leaves an event with no customer" do
       event = RecordListingEvent.new.call(
         listing: listing(seller),
         customer_id: nil,

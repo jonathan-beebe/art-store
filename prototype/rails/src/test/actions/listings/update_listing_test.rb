@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Listings
   class UpdateListingTest < CommerceTestCase
-    def test_it_writes_the_edited_fields
+    test "it writes the edited fields" do
       art = CreateListing.new.call(seller: seller, draft: draft)
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn", price: "300.50"))
@@ -11,7 +11,7 @@ module Listings
       assert_equal 30_050, art.price_cents
     end
 
-    def test_a_retitled_listing_keeps_its_slug
+    test "a retitled listing keeps its slug" do
       art = CreateListing.new.call(seller: seller, draft: draft)
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn"))
@@ -19,7 +19,7 @@ module Listings
       assert_equal "harbour-at-dusk", art.reload.slug
     end
 
-    def test_it_leaves_the_status_alone
+    test "it leaves the status alone" do
       art = CreateListing.new.call(seller: seller, draft: draft)
       art.update!(status: Domain::Listings::ListingStatus::FOR_SALE)
 
@@ -28,7 +28,7 @@ module Listings
       assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.reload.status
     end
 
-    def test_a_new_upload_replaces_the_image
+    test "a new upload replaces the image" do
       art = CreateListing.new.call(seller: seller, draft: draft, image: uploaded_image("first.png"))
 
       UpdateListing.new.call(listing: art, draft: draft, image: uploaded_image("second.png"))
@@ -36,7 +36,7 @@ module Listings
       assert_equal "second.png", art.reload.image.filename.to_s
     end
 
-    def test_an_edit_with_no_upload_keeps_the_image
+    test "an edit with no upload keeps the image" do
       art = CreateListing.new.call(seller: seller, draft: draft, image: uploaded_image("first.png"))
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn"))

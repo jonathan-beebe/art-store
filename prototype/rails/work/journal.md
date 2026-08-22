@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:18:54:09 — RFCTR-002 — started
 - 2026-08-22:18:48:05 — RFCTR-001 — done: 109 test files moved under test/ mirroring app/ (git mv), domain tests require test_helper and subclass ActiveSupport::TestCase, Zeitwerk ignore and SimpleCov skip for *_test.rb removed, bin/rails test with no arguments runs all 645 at 100% line coverage, Makefile/README/docs updated (d4044ad)
 - 2026-08-22:18:42:00 — RFCTR-001 — started
 - 2026-08-22:18:40:00 — RFCTR-013 — defined: Resourceful storefront controllers behind the existing URLs

@@ -3,53 +3,53 @@ require "test_helper"
 module Domain
   module Listings
     class ListingStatusTest < ActiveSupport::TestCase
-      def test_all_names_every_status
+      test "all names every status" do
         assert_equal %w[draft for_sale sold archived], ListingStatus::ALL
       end
 
-      def test_a_draft_goes_on_sale
+      test "a draft goes on sale" do
         assert ListingStatus.can_transition?(ListingStatus::DRAFT, ListingStatus::FOR_SALE)
       end
 
-      def test_a_listing_on_sale_sells
+      test "a listing on sale sells" do
         assert ListingStatus.can_transition?(ListingStatus::FOR_SALE, ListingStatus::SOLD)
       end
 
-      def test_a_sold_listing_returns_to_the_storefront
+      test "a sold listing returns to the storefront" do
         assert ListingStatus.can_transition?(ListingStatus::SOLD, ListingStatus::FOR_SALE)
       end
 
-      def test_a_draft_and_a_listing_on_sale_both_archive
+      test "a draft and a listing on sale both archive" do
         assert ListingStatus.can_transition?(ListingStatus::DRAFT, ListingStatus::ARCHIVED)
         assert ListingStatus.can_transition?(ListingStatus::FOR_SALE, ListingStatus::ARCHIVED)
       end
 
-      def test_an_archived_listing_goes_nowhere
+      test "an archived listing goes nowhere" do
         assert_empty ListingStatus::TRANSITIONS.fetch(ListingStatus::ARCHIVED)
       end
 
-      def test_a_sold_listing_does_not_archive
+      test "a sold listing does not archive" do
         refute ListingStatus.can_transition?(ListingStatus::SOLD, ListingStatus::ARCHIVED)
       end
 
-      def test_a_draft_does_not_sell
+      test "a draft does not sell" do
         refute ListingStatus.can_transition?(ListingStatus::DRAFT, ListingStatus::SOLD)
       end
 
-      def test_transition_returns_the_next_status
+      test "transition returns the next status" do
         assert_equal ListingStatus::SOLD, ListingStatus.transition(ListingStatus::FOR_SALE, ListingStatus::SOLD)
       end
 
-      def test_transition_refuses_a_move_the_table_does_not_allow
+      test "transition refuses a move the table does not allow" do
         error = assert_raises(TransitionError) { ListingStatus.transition(ListingStatus::DRAFT, ListingStatus::SOLD) }
         assert_equal "A listing cannot move from draft to sold.", error.message
       end
 
-      def test_transition_refuses_a_status_it_does_not_know
+      test "transition refuses a status it does not know" do
         assert_raises(TransitionError) { ListingStatus.transition("wishlisted", ListingStatus::SOLD) }
       end
 
-      def test_every_status_has_a_transition_list
+      test "every status has a transition list" do
         assert_equal ListingStatus::ALL.sort, ListingStatus::TRANSITIONS.keys.sort
       end
     end

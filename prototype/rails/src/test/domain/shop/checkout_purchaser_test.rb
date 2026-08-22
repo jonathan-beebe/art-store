@@ -3,7 +3,7 @@ require "test_helper"
 class CheckoutPurchaserTest < ActiveSupport::TestCase
   CheckoutPurchaser = Domain::Shop::CheckoutPurchaser
 
-  def test_a_guest_buys_under_the_address_they_typed
+  test "a guest buys under the address they typed" do
     purchaser = CheckoutPurchaser.for_checkout(
       id: 7, account_email: nil, account_verified_at: nil, submitted_email: "  Ada@Example.Test "
     )
@@ -13,7 +13,7 @@ class CheckoutPurchaserTest < ActiveSupport::TestCase
     refute purchaser.email_verified?
   end
 
-  def test_a_signed_in_customer_buys_under_the_address_on_their_account
+  test "a signed in customer buys under the address on their account" do
     verified_at = Time.utc(2026, 8, 20, 9)
 
     purchaser = CheckoutPurchaser.for_checkout(

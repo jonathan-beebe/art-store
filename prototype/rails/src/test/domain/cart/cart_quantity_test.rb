@@ -3,19 +3,19 @@ require "test_helper"
 module Domain
   module Cart
     class CartQuantityTest < ActiveSupport::TestCase
-      def test_it_takes_what_was_asked_for_when_the_stock_covers_it
+      test "it takes what was asked for when the stock covers it" do
         assert_equal 2, CartQuantity.within_stock(requested: 2, available: 3)
       end
 
-      def test_it_stops_at_what_is_left
+      test "it stops at what is left" do
         assert_equal 3, CartQuantity.within_stock(requested: 5, available: 3)
       end
 
-      def test_it_holds_at_least_one_of_a_listing
+      test "it holds at least one of a listing" do
         assert_raises(ArgumentError) { CartQuantity.within_stock(requested: 0, available: 3) }
       end
 
-      def test_it_refuses_a_sold_out_listing
+      test "it refuses a sold out listing" do
         assert_raises(ArgumentError) { CartQuantity.within_stock(requested: 1, available: 0) }
       end
     end

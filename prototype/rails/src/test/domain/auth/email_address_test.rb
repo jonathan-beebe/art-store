@@ -3,39 +3,39 @@ require "test_helper"
 module Domain
   module Auth
     class EmailAddressTest < ActiveSupport::TestCase
-      def test_normalize_lowercases_an_address
+      test "normalize lowercases an address" do
         assert_equal "artist@example.com", EmailAddress.normalize("Artist@Example.COM")
       end
 
-      def test_normalize_trims_surrounding_whitespace
+      test "normalize trims surrounding whitespace" do
         assert_equal "artist@example.com", EmailAddress.normalize("  artist@example.com\n")
       end
 
-      def test_normalize_leaves_an_already_normal_address_alone
+      test "normalize leaves an already normal address alone" do
         assert_equal "artist@example.com", EmailAddress.normalize("artist@example.com")
       end
 
-      def test_normalize_turns_a_missing_address_into_an_empty_string
+      test "normalize turns a missing address into an empty string" do
         assert_equal "", EmailAddress.normalize(nil)
       end
 
-      def test_an_address_with_a_local_part_and_a_dotted_domain_is_valid
+      test "an address with a local part and a dotted domain is valid" do
         assert EmailAddress.valid?("artist@example.com")
       end
 
-      def test_an_address_without_an_at_sign_is_invalid
+      test "an address without an at sign is invalid" do
         refute EmailAddress.valid?("artist.example.com")
       end
 
-      def test_an_address_without_a_dotted_domain_is_invalid
+      test "an address without a dotted domain is invalid" do
         refute EmailAddress.valid?("artist@example")
       end
 
-      def test_an_address_carrying_whitespace_is_invalid
+      test "an address carrying whitespace is invalid" do
         refute EmailAddress.valid?("artist name@example.com")
       end
 
-      def test_a_blank_address_is_invalid
+      test "a blank address is invalid" do
         refute EmailAddress.valid?("   ")
       end
     end

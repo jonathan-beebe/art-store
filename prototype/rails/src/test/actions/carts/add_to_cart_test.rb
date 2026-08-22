@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Carts
   class AddToCartTest < CommerceTestCase
-    def test_it_puts_the_listing_in_the_cart
+    test "it puts the listing in the cart" do
       art = listing(seller, quantity: 3)
       cart = cart_for(customer)
 
@@ -12,7 +12,7 @@ module Carts
       assert_equal [art], cart.reload.items.map(&:listing)
     end
 
-    def test_adding_the_same_listing_again_adds_to_the_line
+    test "adding the same listing again adds to the line" do
       art = listing(seller, quantity: 3)
       cart = cart_for(customer)
       add_to_cart = AddToCart.new
@@ -24,7 +24,7 @@ module Carts
       assert_equal 2, cart.items.sole.quantity
     end
 
-    def test_a_cart_never_holds_more_than_the_seller_has_left
+    test "a cart never holds more than the seller has left" do
       art = listing(seller, quantity: 2)
 
       item = AddToCart.new.call(cart: cart_for(customer), listing: art, quantity: 5, now: moment("2026-08-20 08:00:00"))
@@ -32,7 +32,7 @@ module Carts
       assert_equal 2, item.quantity
     end
 
-    def test_it_refuses_a_sold_out_listing
+    test "it refuses a sold out listing" do
       art = listing(seller, quantity: 0, status: Domain::Listings::ListingStatus::SOLD)
 
       assert_raises(ArgumentError) do
@@ -40,7 +40,7 @@ module Carts
       end
     end
 
-    def test_it_records_the_interest_against_the_listing
+    test "it records the interest against the listing" do
       art = listing(seller)
       buyer = customer
 

@@ -3,35 +3,35 @@ require "test_helper"
 module Domain
   module Auth
     class ActorTypeTest < ActiveSupport::TestCase
-      def test_each_actor_is_named_for_its_side_of_the_marketplace
+      test "each actor is named for its side of the marketplace" do
         assert_equal "seller", ActorType::SELLER.name
         assert_equal "customer", ActorType::CUSTOMER.name
       end
 
-      def test_each_actor_lands_on_its_own_site
+      test "each actor lands on its own site" do
         assert_equal :seller_root, ActorType::SELLER.home_route
         assert_equal :shop_account, ActorType::CUSTOMER.home_route
       end
 
-      def test_each_actor_signs_in_on_its_own_site
+      test "each actor signs in on its own site" do
         assert_equal :seller_login, ActorType::SELLER.login_route
         assert_equal :customer_login, ActorType::CUSTOMER.login_route
       end
 
-      def test_only_the_seller_answers_to_seller
+      test "only the seller answers to seller" do
         assert ActorType::SELLER.seller?
         refute ActorType::CUSTOMER.seller?
       end
 
-      def test_named_finds_an_actor_by_its_stored_name
+      test "named finds an actor by its stored name" do
         assert_equal ActorType::CUSTOMER, ActorType.named("customer")
       end
 
-      def test_named_rejects_an_unknown_name
+      test "named rejects an unknown name" do
         assert_raises(ArgumentError) { ActorType.named("admin") }
       end
 
-      def test_all_holds_both_actors
+      test "all holds both actors" do
         assert_equal [ActorType::SELLER, ActorType::CUSTOMER], ActorType::ALL
       end
     end

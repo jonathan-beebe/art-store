@@ -4,7 +4,7 @@ require "commerce_test_case"
 # covers one step; these two protect the way the steps add up.
 module Orders
   class OrderLifecycleTest < CommerceTestCase
-    def test_an_order_runs_from_the_cart_to_the_weekly_payout
+    test "an order runs from the cart to the weekly payout" do
       painter = seller("Blue Kiln Studio")
       printer = seller("Rye Press")
       painting = listing(painter, price_cents: 45_000, quantity: 1)
@@ -48,7 +48,7 @@ module Orders
       assert_equal [40_500, 10_800], paid_out_per_seller(painter, printer)
     end
 
-    def test_a_declined_card_returns_the_stock_and_a_retry_completes_the_order
+    test "a declined card returns the stock and a retry completes the order" do
       shop = seller
       art = listing(shop, price_cents: 45_000, quantity: 1)
       order = order_for(customer, art)

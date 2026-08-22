@@ -2,14 +2,14 @@ require "commerce_test_case"
 
 module Fulfillments
   class ConfirmDeliveredTest < CommerceTestCase
-    def test_it_records_when_the_order_arrived
+    test "it records when the order arrived" do
       fulfillment = deliver(shipped_fulfillment)
 
       assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.status
       assert_equal moment("2026-08-22 09:00:00"), fulfillment.delivered_at
     end
 
-    def test_delivery_releases_the_escrow_the_sale_held
+    test "delivery releases the escrow the sale held" do
       shop = seller
       fulfillment = deliver(shipped_fulfillment(shop))
 
@@ -19,7 +19,7 @@ module Fulfillments
       assert_equal moment("2026-08-22 09:00:00"), entry.occurred_at
     end
 
-    def test_released_money_becomes_available_to_the_seller
+    test "released money becomes available to the seller" do
       shop = seller
 
       deliver(shipped_fulfillment(shop))
@@ -29,7 +29,7 @@ module Fulfillments
       assert_equal 40_500, balance.available.cents
     end
 
-    def test_the_last_delivery_of_an_order_delivers_the_order
+    test "the last delivery of an order delivers the order" do
       fulfillment = shipped_fulfillment
 
       deliver(fulfillment)
@@ -37,7 +37,7 @@ module Fulfillments
       assert_equal Domain::Orders::OrderStatus::DELIVERED, fulfillment.order.reload.status
     end
 
-    def test_it_refuses_a_fulfillment_that_has_not_shipped
+    test "it refuses a fulfillment that has not shipped" do
       fulfillment = paid_order_for(customer, listing(seller)).fulfillments.sole
 
       assert_raises(Domain::TransitionError) { deliver(fulfillment) }

@@ -7,7 +7,7 @@ class PayoutsTaskTest < CommerceTestCase
     Rake::Task["payouts:run"].reenable
   end
 
-  def test_it_pays_the_week_that_ended_before_the_date_it_is_given
+  test "it pays the week that ended before the date it is given" do
     shop = seller("Blue Kiln Studio")
     deliver_a_sale(shop)
 
@@ -19,7 +19,7 @@ class PayoutsTaskTest < CommerceTestCase
     assert_equal 40_500, Payout.sole.amount_cents
   end
 
-  def test_it_says_so_when_no_seller_has_a_released_balance
+  test "it says so when no seller has a released balance" do
     output = run_task("2026-08-24 09:00:00")
 
     assert_includes output, "No seller has a released balance for this period."

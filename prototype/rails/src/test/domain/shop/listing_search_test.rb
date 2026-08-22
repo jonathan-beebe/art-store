@@ -3,7 +3,7 @@ require "test_helper"
 class ListingSearchTest < ActiveSupport::TestCase
   ListingSearch = Domain::Shop::ListingSearch
 
-  def test_it_reads_a_term_and_a_medium
+  test "it reads a term and a medium" do
     search = ListingSearch.from_input(term: "harbour", medium: "Oil on canvas")
 
     assert search.term?
@@ -12,7 +12,7 @@ class ListingSearchTest < ActiveSupport::TestCase
     assert_equal "Oil on canvas", search.medium
   end
 
-  def test_it_treats_blank_input_as_no_filter
+  test "it treats blank input as no filter" do
     search = ListingSearch.from_input(term: "   ", medium: nil)
 
     refute search.term?
@@ -21,19 +21,19 @@ class ListingSearchTest < ActiveSupport::TestCase
     assert_nil search.medium
   end
 
-  def test_it_trims_what_the_visitor_typed
+  test "it trims what the visitor typed" do
     assert_equal "dusk", ListingSearch.from_input(term: "  dusk  ", medium: nil).term
   end
 
-  def test_it_wraps_the_term_in_wildcards
+  test "it wraps the term in wildcards" do
     assert_equal "%harbour%", ListingSearch.from_input(term: "harbour", medium: nil).like_pattern
   end
 
-  def test_it_drops_wildcards_the_visitor_typed
+  test "it drops wildcards the visitor typed" do
     assert_equal "%a b%", ListingSearch.from_input(term: "a%_b", medium: nil).like_pattern
   end
 
-  def test_it_refuses_a_pattern_without_a_term
+  test "it refuses a pattern without a term" do
     search = ListingSearch.from_input(term: nil, medium: "Oil")
 
     assert_raises(ArgumentError) { search.like_pattern }

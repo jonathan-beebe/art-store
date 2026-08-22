@@ -3,7 +3,7 @@ require "test_helper"
 module Domain
   module Notifications
     class RecipientTypeTest < ActiveSupport::TestCase
-      def test_all_names_both_sides_of_the_marketplace
+      test "all names both sides of the marketplace" do
         assert_equal %w[seller customer], RecipientType::ALL
       end
     end

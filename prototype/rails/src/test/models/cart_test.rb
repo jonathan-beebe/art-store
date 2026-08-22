@@ -1,7 +1,7 @@
 require "commerce_test_case"
 
 class CartTest < CommerceTestCase
-  def test_a_cart_reads_as_the_lines_checkout_totals
+  test "a cart reads as the lines checkout totals" do
     shop = seller
     cart = cart_holding(customer, listing(shop, price_cents: 45_000))
 
@@ -12,7 +12,7 @@ class CartTest < CommerceTestCase
     assert_equal 1, line.quantity
   end
 
-  def test_an_empty_cart_has_no_lines
+  test "an empty cart has no lines" do
     assert_empty cart_for(customer).lines
   end
 end

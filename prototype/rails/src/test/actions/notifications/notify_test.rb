@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Notifications
   class NotifyTest < CommerceTestCase
-    def test_it_files_a_seller_message_under_the_seller
+    test "it files a seller message under the seller" do
       shop = seller
 
       notification = Notify.new.call(
@@ -16,7 +16,7 @@ module Notifications
       assert_equal "Item sold", notification.subject
     end
 
-    def test_it_files_a_customer_message_under_the_customer
+    test "it files a customer message under the customer" do
       buyer = customer
 
       notification = Notify.new.call(
@@ -29,7 +29,7 @@ module Notifications
       assert_nil notification.seller_id
     end
 
-    def test_a_new_notification_is_unread
+    test "a new notification is unread" do
       notification = Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::SELLER,
         recipient_id: seller.id,
@@ -39,7 +39,7 @@ module Notifications
       assert_includes Notification.unread, notification
     end
 
-    def test_it_carries_the_url_the_message_points_at
+    test "it carries the url the message points at" do
       message = Domain::Notifications::NotificationMessage
                   .item_sold(7, Domain::Money.from_cents(40_500))
                   .with(url: "/seller/orders/7")

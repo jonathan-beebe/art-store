@@ -6,51 +6,51 @@ module Domain
       ORIGIN = "http://localhost:3000".freeze
       FALLBACK = "/account".freeze
 
-      def test_a_missing_target_falls_back
+      test "a missing target falls back" do
         assert_equal FALLBACK, resolve(nil)
       end
 
-      def test_a_blank_target_falls_back
+      test "a blank target falls back" do
         assert_equal FALLBACK, resolve("   ")
       end
 
-      def test_a_root_relative_path_is_kept
+      test "a root relative path is kept" do
         assert_equal "/checkout?step=2", resolve("/checkout?step=2")
       end
 
-      def test_an_absolute_url_on_this_origin_is_kept
+      test "an absolute url on this origin is kept" do
         assert_equal "#{ORIGIN}/checkout", resolve("#{ORIGIN}/checkout")
       end
 
-      def test_the_origin_itself_is_kept
+      test "the origin itself is kept" do
         assert_equal ORIGIN, resolve(ORIGIN)
       end
 
-      def test_another_host_falls_back
+      test "another host falls back" do
         assert_equal FALLBACK, resolve("http://evil.example/steal")
       end
 
-      def test_a_host_that_only_prefixes_this_origin_falls_back
+      test "a host that only prefixes this origin falls back" do
         assert_equal FALLBACK, resolve("#{ORIGIN}.evil.example/steal")
       end
 
-      def test_a_protocol_relative_url_falls_back
+      test "a protocol relative url falls back" do
         assert_equal FALLBACK, resolve("//evil.example/steal")
       end
 
-      def test_a_backslash_escaped_path_falls_back
+      test "a backslash escaped path falls back" do
         assert_equal FALLBACK, resolve("/\\evil.example/steal")
       end
 
-      def test_a_target_carrying_a_newline_falls_back
+      test "a target carrying a newline falls back" do
         assert_equal FALLBACK, resolve("/checkout\nSet-Cookie: x=1")
       end
 
-      def test_keep_if_local_returns_a_local_target
+      test "keep if local returns a local target" do
         assert_equal "/checkout", LocalRedirect.keep_if_local("/checkout", origin: ORIGIN)
       end
 
-      def test_keep_if_local_drops_a_foreign_target
+      test "keep if local drops a foreign target" do
         assert_nil LocalRedirect.keep_if_local("http://evil.example/steal", origin: ORIGIN)
       end
 

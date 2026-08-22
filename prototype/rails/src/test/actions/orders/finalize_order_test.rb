@@ -2,14 +2,14 @@ require "commerce_test_case"
 
 module Orders
   class FinalizeOrderTest < CommerceTestCase
-    def test_an_approved_card_pays_the_order
+    test "an approved card pays the order" do
       order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
 
       assert_equal Domain::Orders::OrderStatus::PAID, order.status
       assert_equal moment("2026-08-20 10:00:00"), order.finalized_at
     end
 
-    def test_an_approved_card_records_the_payment
+    test "an approved card records the payment" do
       order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
 
       payment = order.payments.sole
@@ -19,7 +19,7 @@ module Orders
       assert_nil payment.decline_reason
     end
 
-    def test_a_paid_order_holds_the_seller_net_in_escrow
+    test "a paid order holds the seller net in escrow" do
       shop = seller
       order = finalize(order_for(customer, listing(shop)), APPROVED_CARD)
 
@@ -30,7 +30,7 @@ module Orders
       assert_equal order.fulfillments.sole.id, entry.fulfillment_id
     end
 
-    def test_a_paid_order_holds_one_amount_per_seller
+    test "a paid order holds one amount per seller" do
       order = order_for(customer, listing(seller("Blue Kiln Studio")), listing(seller("Rye Press"), price_cents: 10_000))
 
       finalize(order, APPROVED_CARD)
@@ -38,7 +38,7 @@ module Orders
       assert_equal [9000, 40_500], LedgerEntry.order(:amount_cents).pluck(:amount_cents)
     end
 
-    def test_a_paid_order_tells_each_seller_their_item_sold
+    test "a paid order tells each seller their item sold" do
       shop = seller
 
       finalize(order_for(customer, listing(shop)), APPROVED_CARD)
@@ -49,7 +49,7 @@ module Orders
       assert_includes notification.body, "$405.00"
     end
 
-    def test_a_declined_card_fails_the_payment
+    test "a declined card fails the payment" do
       order = finalize(order_for(customer, listing(seller)), DECLINED_CARD)
 
       assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
@@ -57,7 +57,7 @@ module Orders
       assert_equal Domain::Payments::DeclineReason::GENERIC_DECLINE, order.payments.sole.decline_reason
     end
 
-    def test_a_declined_card_puts_the_stock_back_on_the_storefront
+    test "a declined card puts the stock back on the storefront" do
       art = listing(seller, quantity: 1)
 
       finalize(order_for(customer, art), DECLINED_CARD)
@@ -67,14 +67,14 @@ module Orders
       assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.status
     end
 
-    def test_a_declined_card_holds_nothing_and_tells_nobody
+    test "a declined card holds nothing and tells nobody" do
       finalize(order_for(customer, listing(seller)), DECLINED_CARD)
 
       assert_equal 0, LedgerEntry.count
       assert_equal 0, Notification.count
     end
 
-    def test_a_retry_with_a_good_card_pays_the_order_and_takes_the_stock_again
+    test "a retry with a good card pays the order and takes the stock again" do
       art = listing(seller, quantity: 1)
       order = order_for(customer, art)
       finalize(order, DECLINED_CARD)
@@ -89,7 +89,7 @@ module Orders
       assert_equal 40_500, LedgerEntry.sole.amount_cents
     end
 
-    def test_a_retry_that_is_declined_again_leaves_the_stock_on_the_storefront
+    test "a retry that is declined again leaves the stock on the storefront" do
       art = listing(seller, quantity: 1)
       order = order_for(customer, art)
       finalize(order, DECLINED_CARD)
@@ -103,13 +103,13 @@ module Orders
       assert_equal Domain::Payments::DeclineReason::INSUFFICIENT_FUNDS, order.payments.last.decline_reason
     end
 
-    def test_it_refuses_to_charge_an_order_that_is_already_paid
+    test "it refuses to charge an order that is already paid" do
       order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
 
       assert_raises(Domain::TransitionError) { finalize(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
     end
 
-    def test_it_refuses_to_charge_an_order_that_has_not_been_verified
+    test "it refuses to charge an order that has not been verified" do
       order = order_for(anonymous_customer, listing(seller))
 
       assert_raises(Domain::TransitionError) { finalize(order, APPROVED_CARD) }

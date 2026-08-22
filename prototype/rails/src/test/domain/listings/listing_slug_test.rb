@@ -3,34 +3,34 @@ require "test_helper"
 module Domain
   module Listings
     class ListingSlugTest < ActiveSupport::TestCase
-      def test_it_slugs_the_title
+      test "it slugs the title" do
         assert_equal "harbour-at-dusk", ListingSlug.first_free("Harbour at Dusk", [])
       end
 
-      def test_it_drops_punctuation_and_edge_separators
+      test "it drops punctuation and edge separators" do
         assert_equal "study-no-4", ListingSlug.base("  Study, No. 4!  ")
       end
 
-      def test_it_numbers_a_slug_another_listing_already_holds
+      test "it numbers a slug another listing already holds" do
         assert_equal "harbour-at-dusk-2", ListingSlug.first_free("Harbour at Dusk", ["harbour-at-dusk"])
       end
 
-      def test_it_keeps_counting_past_a_numbered_slug
+      test "it keeps counting past a numbered slug" do
         taken = ["harbour-at-dusk", "harbour-at-dusk-2", "harbour-at-dusk-3"]
 
         assert_equal "harbour-at-dusk-4", ListingSlug.first_free("Harbour at Dusk", taken)
       end
 
-      def test_it_ignores_slugs_another_title_holds
+      test "it ignores slugs another title holds" do
         assert_equal "harbour-at-dusk", ListingSlug.first_free("Harbour at Dusk", ["morning-tide"])
       end
 
-      def test_it_falls_back_to_a_word_when_the_title_slugs_to_nothing
+      test "it falls back to a word when the title slugs to nothing" do
         assert_equal "listing", ListingSlug.base("—")
         assert_equal "listing", ListingSlug.first_free("—", [])
       end
 
-      def test_its_base_ignores_what_is_already_taken
+      test "its base ignores what is already taken" do
         assert_equal "harbour-at-dusk", ListingSlug.base("Harbour at Dusk")
       end
     end

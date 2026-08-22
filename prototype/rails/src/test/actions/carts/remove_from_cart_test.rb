@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Carts
   class RemoveFromCartTest < CommerceTestCase
-    def test_it_takes_the_listing_out_of_the_cart
+    test "it takes the listing out of the cart" do
       shop = seller
       kept = listing(shop)
       dropped = listing(shop)
@@ -13,7 +13,7 @@ module Carts
       assert_equal [kept], cart.reload.items.map(&:listing)
     end
 
-    def test_removing_a_listing_the_cart_never_held_changes_nothing
+    test "removing a listing the cart never held changes nothing" do
       cart = cart_holding(customer, listing(seller))
 
       RemoveFromCart.new.call(cart: cart, listing: listing(seller))

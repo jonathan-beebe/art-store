@@ -4,43 +4,43 @@ class OrderPaymentTest < ActiveSupport::TestCase
   Payment = Domain::Orders::OrderPayment
   Status = Domain::Orders::OrderStatus
 
-  def test_an_order_awaiting_payment_takes_a_card
+  test "an order awaiting payment takes a card" do
     assert Payment.awaits_card?(Status::AWAITING_PAYMENT)
   end
 
-  def test_a_declined_order_takes_another_card
+  test "a declined order takes another card" do
     assert Payment.awaits_card?(Status::PAYMENT_FAILED)
   end
 
-  def test_an_unverified_order_takes_no_card_yet
+  test "an unverified order takes no card yet" do
     refute Payment.awaits_card?(Status::PENDING_VERIFICATION)
   end
 
-  def test_a_paid_order_takes_no_card
+  test "a paid order takes no card" do
     refute Payment.awaits_card?(Status::PAID)
   end
 
-  def test_an_unverified_order_is_unpaid
+  test "an unverified order is unpaid" do
     assert Payment.unpaid?(Status::PENDING_VERIFICATION)
   end
 
-  def test_a_declined_order_is_unpaid
+  test "a declined order is unpaid" do
     assert Payment.unpaid?(Status::PAYMENT_FAILED)
   end
 
-  def test_a_shipped_order_is_not_unpaid
+  test "a shipped order is not unpaid" do
     refute Payment.unpaid?(Status::SHIPPED)
   end
 
-  def test_a_verified_purchaser_pays_an_order_awaiting_payment
+  test "a verified purchaser pays an order awaiting payment" do
     assert Payment.payable?(Status::AWAITING_PAYMENT, true)
   end
 
-  def test_an_unverified_purchaser_pays_nothing
+  test "an unverified purchaser pays nothing" do
     refute Payment.payable?(Status::AWAITING_PAYMENT, false)
   end
 
-  def test_a_verified_purchaser_cannot_pay_a_delivered_order
+  test "a verified purchaser cannot pay a delivered order" do
     refute Payment.payable?(Status::DELIVERED, true)
   end
 end

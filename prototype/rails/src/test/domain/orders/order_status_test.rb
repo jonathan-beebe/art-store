@@ -3,93 +3,93 @@ require "test_helper"
 module Domain
   module Orders
     class OrderStatusTest < ActiveSupport::TestCase
-      def test_every_status_has_a_transition_list
+      test "every status has a transition list" do
         assert_equal OrderStatus::ALL.sort, OrderStatus::TRANSITIONS.keys.sort
       end
 
-      def test_verifying_an_email_opens_payment
+      test "verifying an email opens payment" do
         assert OrderStatus.can_transition?(OrderStatus::PENDING_VERIFICATION, OrderStatus::AWAITING_PAYMENT)
       end
 
-      def test_an_order_awaiting_payment_is_paid_or_fails
+      test "an order awaiting payment is paid or fails" do
         assert OrderStatus.can_transition?(OrderStatus::AWAITING_PAYMENT, OrderStatus::PAID)
         assert OrderStatus.can_transition?(OrderStatus::AWAITING_PAYMENT, OrderStatus::PAYMENT_FAILED)
       end
 
-      def test_a_guest_cannot_pay_before_verifying
+      test "a guest cannot pay before verifying" do
         refute OrderStatus.can_transition?(OrderStatus::PENDING_VERIFICATION, OrderStatus::PAID)
       end
 
-      def test_a_failed_payment_retries
+      test "a failed payment retries" do
         assert OrderStatus.can_transition?(OrderStatus::PAYMENT_FAILED, OrderStatus::PAID)
       end
 
-      def test_a_retry_that_is_declined_again_stays_where_it_was
+      test "a retry that is declined again stays where it was" do
         assert OrderStatus.can_transition?(OrderStatus::PAYMENT_FAILED, OrderStatus::PAYMENT_FAILED)
       end
 
-      def test_a_paid_order_ships_whole_or_in_part
+      test "a paid order ships whole or in part" do
         assert OrderStatus.can_transition?(OrderStatus::PAID, OrderStatus::SHIPPED)
         assert OrderStatus.can_transition?(OrderStatus::PAID, OrderStatus::PARTIALLY_SHIPPED)
       end
 
-      def test_a_delivered_order_goes_nowhere
+      test "a delivered order goes nowhere" do
         assert_empty OrderStatus::TRANSITIONS.fetch(OrderStatus::DELIVERED)
       end
 
-      def test_a_cancelled_order_goes_nowhere
+      test "a cancelled order goes nowhere" do
         assert_empty OrderStatus::TRANSITIONS.fetch(OrderStatus::CANCELLED)
       end
 
-      def test_a_paid_order_cannot_be_paid_twice
+      test "a paid order cannot be paid twice" do
         error = assert_raises(TransitionError) { OrderStatus.transition(OrderStatus::PAID, OrderStatus::PAID) }
         assert_equal "An order cannot move from paid to paid.", error.message
       end
 
-      def test_a_verified_purchaser_places_an_order_that_awaits_payment
+      test "a verified purchaser places an order that awaits payment" do
         assert_equal OrderStatus::AWAITING_PAYMENT, OrderStatus.for_placement(verified_purchaser)
       end
 
-      def test_a_guest_places_an_order_that_awaits_verification
+      test "a guest places an order that awaits verification" do
         assert_equal OrderStatus::PENDING_VERIFICATION, OrderStatus.for_placement(guest_purchaser)
       end
 
-      def test_verification_moves_an_order_that_was_waiting_on_it
+      test "verification moves an order that was waiting on it" do
         assert_equal OrderStatus::AWAITING_PAYMENT, OrderStatus.after_verification(OrderStatus::PENDING_VERIFICATION)
       end
 
-      def test_verification_leaves_every_other_status_alone
+      test "verification leaves every other status alone" do
         assert_equal OrderStatus::PAID, OrderStatus.after_verification(OrderStatus::PAID)
         assert_equal OrderStatus::AWAITING_PAYMENT, OrderStatus.after_verification(OrderStatus::AWAITING_PAYMENT)
       end
 
-      def test_an_approved_card_pays_the_order
+      test "an approved card pays the order" do
         assert_equal OrderStatus::PAID, OrderStatus.from_card_decision(Payments::CardDecision.approved("4242"))
       end
 
-      def test_a_declined_card_fails_the_payment
+      test "a declined card fails the payment" do
         decision = Payments::CardDecision.declined("0002", "generic_decline")
 
         assert_equal OrderStatus::PAYMENT_FAILED, OrderStatus.from_card_decision(decision)
       end
 
-      def test_an_order_whose_fulfillments_all_delivered_is_delivered
+      test "an order whose fulfillments all delivered is delivered" do
         assert_equal OrderStatus::DELIVERED, OrderStatus.from_fulfillments(%w[delivered delivered])
       end
 
-      def test_an_order_whose_fulfillments_all_departed_is_shipped
+      test "an order whose fulfillments all departed is shipped" do
         assert_equal OrderStatus::SHIPPED, OrderStatus.from_fulfillments(%w[shipped delivered])
       end
 
-      def test_an_order_with_one_fulfillment_still_in_the_studio_is_partially_shipped
+      test "an order with one fulfillment still in the studio is partially shipped" do
         assert_equal OrderStatus::PARTIALLY_SHIPPED, OrderStatus.from_fulfillments(%w[delivered awaiting_shipment])
       end
 
-      def test_an_order_whose_fulfillments_all_await_shipment_is_paid
+      test "an order whose fulfillments all await shipment is paid" do
         assert_equal OrderStatus::PAID, OrderStatus.from_fulfillments(%w[awaiting_shipment awaiting_shipment])
       end
 
-      def test_an_order_rolls_up_from_at_least_one_fulfillment
+      test "an order rolls up from at least one fulfillment" do
         assert_raises(ArgumentError) { OrderStatus.from_fulfillments([]) }
       end
 

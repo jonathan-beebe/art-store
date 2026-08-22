@@ -3,7 +3,7 @@ require "test_helper"
 module Domain
   module Orders
     class ShippingAddressTest < ActiveSupport::TestCase
-      def test_it_carries_every_line_an_order_copies
+      test "it carries every line an order copies" do
         address = ShippingAddress.new(
           name: "Ada Lovelace", line1: "12 Analytical Way", line2: nil,
           city: "London", region: "Greater London", postal_code: "EC1A 1BB", country: "GB"

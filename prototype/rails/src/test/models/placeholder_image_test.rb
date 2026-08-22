@@ -1,22 +1,22 @@
 require "test_helper"
 
 class PlaceholderImageTest < ActiveSupport::TestCase
-  def test_same_title_renders_the_same_svg
+  test "same title renders the same svg" do
     assert_equal PlaceholderImage.svg("Blue Heron"), PlaceholderImage.svg("Blue Heron")
   end
 
-  def test_different_titles_render_different_svgs
+  test "different titles render different svgs" do
     refute_equal PlaceholderImage.svg("Blue Heron"), PlaceholderImage.svg("Red Fox")
   end
 
-  def test_svg_carries_the_title_as_an_accessible_label
+  test "svg carries the title as an accessible label" do
     svg = PlaceholderImage.svg("Mug & Bowl")
 
     assert_includes svg, 'aria-label="Mug &amp; Bowl"'
     assert svg.lstrip.start_with?("<svg")
   end
 
-  def test_data_uri_is_base64_svg
+  test "data uri is base64 svg" do
     uri = PlaceholderImage.data_uri("Blue Heron")
     prefix = "data:image/svg+xml;base64,"
 

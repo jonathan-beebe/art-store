@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Orders
   class PlaceOrderTest < CommerceTestCase
-    def test_it_turns_the_cart_into_an_order_the_customer_can_pay_for
+    test "it turns the cart into an order the customer can pay for" do
       order = place(customer)
 
       assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.status
@@ -12,11 +12,11 @@ module Orders
       assert_nil order.finalized_at
     end
 
-    def test_a_guest_places_an_order_that_waits_for_verification
+    test "a guest places an order that waits for verification" do
       assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, place(anonymous_customer).status
     end
 
-    def test_it_copies_the_shipping_address_onto_the_order
+    test "it copies the shipping address onto the order" do
       order = place(customer)
 
       assert_equal "Ada Lovelace", order.shipping_name
@@ -26,7 +26,7 @@ module Orders
       assert_equal "GB", order.shipping_country
     end
 
-    def test_it_snapshots_the_title_and_price_of_every_item
+    test "it snapshots the title and price of every item" do
       art = listing(seller, title: "Harbour at Dusk", price_cents: 45_000)
 
       item = order_for(customer, art).items.sole
@@ -36,7 +36,7 @@ module Orders
       assert_equal art.seller_id, item.seller_id
     end
 
-    def test_it_splits_the_order_into_one_fulfillment_per_seller
+    test "it splits the order into one fulfillment per seller" do
       painting = listing(seller("Blue Kiln Studio"), price_cents: 45_000)
       print = listing(seller("Rye Press"), price_cents: 10_000)
 
@@ -49,13 +49,13 @@ module Orders
       )
     end
 
-    def test_every_fulfillment_starts_awaiting_shipment
+    test "every fulfillment starts awaiting shipment" do
       status = place(customer).fulfillments.sole.status
 
       assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, status
     end
 
-    def test_it_takes_the_stock_the_order_claims
+    test "it takes the stock the order claims" do
       art = listing(seller, quantity: 3)
       cart = cart_for(customer)
       Carts::AddToCart.new.call(cart: cart, listing: art, quantity: 2, now: moment("2026-08-20 08:00:00"))
@@ -68,7 +68,7 @@ module Orders
       assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.status
     end
 
-    def test_the_last_of_a_listing_marks_it_sold
+    test "the last of a listing marks it sold" do
       art = listing(seller, quantity: 1)
 
       order_for(customer, art)
@@ -78,7 +78,7 @@ module Orders
       assert_equal Domain::Listings::ListingStatus::SOLD, art.status
     end
 
-    def test_it_empties_the_cart
+    test "it empties the cart" do
       buyer = customer
       cart = cart_holding(buyer, listing(seller))
 
@@ -88,7 +88,7 @@ module Orders
       assert_empty cart.reload.items
     end
 
-    def test_it_refuses_an_empty_cart
+    test "it refuses an empty cart" do
       buyer = customer
 
       assert_raises(ArgumentError) do

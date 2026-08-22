@@ -3,26 +3,26 @@ require "test_helper"
 module Domain
   module Orders
     class ShipmentDetailsTest < ActiveSupport::TestCase
-      def test_a_carrier_and_a_tracking_number_are_complete
+      test "a carrier and a tracking number are complete" do
         assert_predicate submitted(carrier: "Royal Mail", tracking_number: "RM123456789GB"), :complete?
       end
 
-      def test_surrounding_space_is_not_part_of_either_field
+      test "surrounding space is not part of either field" do
         details = submitted(carrier: "  Royal Mail  ", tracking_number: "  RM123456789GB  ")
 
         assert_equal "Royal Mail", details.carrier
         assert_equal "RM123456789GB", details.tracking_number
       end
 
-      def test_a_shipment_with_no_carrier_is_incomplete
+      test "a shipment with no carrier is incomplete" do
         refute_predicate submitted(carrier: " ", tracking_number: "RM123456789GB"), :complete?
       end
 
-      def test_a_shipment_with_no_tracking_number_is_incomplete
+      test "a shipment with no tracking number is incomplete" do
         refute_predicate submitted(carrier: "Royal Mail", tracking_number: ""), :complete?
       end
 
-      def test_a_missing_field_is_incomplete_rather_than_an_error
+      test "a missing field is incomplete rather than an error" do
         refute_predicate submitted(carrier: nil, tracking_number: nil), :complete?
       end
 

@@ -2,7 +2,7 @@ require "commerce_test_case"
 
 module Escrow
   class RunWeeklyPayoutTest < CommerceTestCase
-    def test_it_pays_a_seller_whose_delivery_landed_inside_the_period
+    test "it pays a seller whose delivery landed inside the period" do
       shop = seller
       deliver_a_sale(shop)
 
@@ -15,7 +15,7 @@ module Escrow
       assert_equal Date.new(2026, 8, 23), payouts.sole.period_end
     end
 
-    def test_a_payout_writes_a_matching_paid_out_entry_at_the_close_of_the_period
+    test "a payout writes a matching paid out entry at the close of the period" do
       deliver_a_sale(seller)
 
       payouts = run_payout("2026-08-24 09:00:00")
@@ -26,7 +26,7 @@ module Escrow
       assert_equal Time.utc(2026, 8, 23, 23, 59, 59), entry.occurred_at
     end
 
-    def test_running_the_same_period_twice_pays_once
+    test "running the same period twice pays once" do
       deliver_a_sale(seller)
       run_payout("2026-08-24 09:00:00")
 
@@ -36,7 +36,7 @@ module Escrow
       assert_equal 1, Payout.count
     end
 
-    def test_it_pays_each_seller_their_own_released_amount
+    test "it pays each seller their own released amount" do
       first = seller("Blue Kiln Studio")
       second = seller("Rye Press")
       deliver_a_sale(first)
@@ -47,14 +47,14 @@ module Escrow
       assert_equal({ first.id => 40_500, second.id => 9000 }, Payout.order(:seller_id).pluck(:seller_id, :amount_cents).to_h)
     end
 
-    def test_money_still_held_in_escrow_is_not_paid_out
+    test "money still held in escrow is not paid out" do
       paid_order_for(customer, listing(seller))
 
       assert_empty run_payout("2026-08-24 09:00:00")
       assert_equal 0, Payout.count
     end
 
-    def test_a_delivery_after_the_period_ends_waits_for_the_next_run
+    test "a delivery after the period ends waits for the next run" do
       deliver_a_sale(seller, delivered_at: "2026-08-24 11:00:00")
 
       assert_empty run_payout("2026-08-24 12:00:00")

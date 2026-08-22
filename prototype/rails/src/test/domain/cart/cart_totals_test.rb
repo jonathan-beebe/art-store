@@ -3,27 +3,27 @@ require "test_helper"
 module Domain
   module Cart
     class CartTotalsTest < ActiveSupport::TestCase
-      def test_it_counts_every_item
+      test "it counts every item" do
         assert_equal 3, CartTotals.from([line(1, 4500, 2), line(1, 1000, 1)]).item_count
       end
 
-      def test_it_adds_every_line
+      test "it adds every line" do
         assert_equal 10_000, CartTotals.from([line(1, 4500, 2), line(2, 1000, 1)]).subtotal.cents
       end
 
-      def test_it_splits_the_subtotal_by_seller
+      test "it splits the subtotal by seller" do
         totals = CartTotals.from([line(2, 1000, 1), line(1, 4500, 2), line(1, 500, 1)])
 
         assert_equal({ 1 => 9500, 2 => 1000 }, totals.subtotals_by_seller.transform_values(&:cents))
       end
 
-      def test_it_orders_the_sellers_by_id
+      test "it orders the sellers by id" do
         totals = CartTotals.from([line(9, 1000, 1), line(3, 1000, 1)])
 
         assert_equal [3, 9], totals.subtotals_by_seller.keys
       end
 
-      def test_an_empty_cart_totals_nothing
+      test "an empty cart totals nothing" do
         totals = CartTotals.from([])
 
         assert_equal 0, totals.item_count
@@ -31,11 +31,11 @@ module Domain
         assert_empty totals.subtotals_by_seller
       end
 
-      def test_checkout_refuses_an_empty_cart
+      test "checkout refuses an empty cart" do
         assert_raises(ArgumentError) { CartTotals.for_checkout([]) }
       end
 
-      def test_checkout_totals_a_cart_that_has_something_in_it
+      test "checkout totals a cart that has something in it" do
         assert_equal 4500, CartTotals.for_checkout([line(1, 4500, 1)]).subtotal.cents
       end
 

@@ -3,13 +3,13 @@ require "commerce_test_case"
 class ToggleFavoriteTest < CommerceTestCase
   FavoriteChange = Domain::Shop::FavoriteChange
 
-  def setup
+  setup do
     @toggle = Favorites::ToggleFavorite.new
     @shopper = customer
     @listing = listing(seller)
   end
 
-  def test_it_saves_a_favorite_and_records_the_event
+  test "it saves a favorite and records the event" do
     change = @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 
     assert_equal FavoriteChange::ADDED, change
@@ -17,7 +17,7 @@ class ToggleFavoriteTest < CommerceTestCase
     assert_equal ["favorite"], @listing.listing_events.pluck(:event_type)
   end
 
-  def test_toggling_twice_drops_the_favorite_and_records_the_event
+  test "toggling twice drops the favorite and records the event" do
     @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 
     change = @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:05:00"))
@@ -27,13 +27,13 @@ class ToggleFavoriteTest < CommerceTestCase
     assert_equal %w[favorite unfavorite], @listing.listing_events.order(:occurred_at).pluck(:event_type)
   end
 
-  def test_it_records_the_event_against_the_visitor_who_saved_it
+  test "it records the event against the visitor who saved it" do
     @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 
     assert_equal @shopper.id, @listing.listing_events.sole.customer_id
   end
 
-  def test_one_visitor_saving_leaves_another_visitor_alone
+  test "one visitor saving leaves another visitor alone" do
     other = customer
     @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 

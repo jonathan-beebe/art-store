@@ -3,7 +3,7 @@ require "test_helper"
 module Domain
   module Escrow
     class LedgerBalanceTest < ActiveSupport::TestCase
-      def test_an_empty_ledger_owes_nothing
+      test "an empty ledger owes nothing" do
         balance = LedgerBalance.from([])
 
         assert_equal 0, balance.held.cents
@@ -12,7 +12,7 @@ module Domain
         refute_predicate balance, :payable?
       end
 
-      def test_a_hold_waits_on_delivery
+      test "a hold waits on delivery" do
         balance = LedgerBalance.from([LedgerMovement.hold(Money.from_cents(40_500))])
 
         assert_equal 40_500, balance.held.cents
@@ -20,7 +20,7 @@ module Domain
         refute_predicate balance, :payable?
       end
 
-      def test_a_release_moves_the_hold_to_available
+      test "a release moves the hold to available" do
         balance = LedgerBalance.from(hold_and_release(40_500))
 
         assert_equal 0, balance.held.cents
@@ -28,7 +28,7 @@ module Domain
         assert_predicate balance, :payable?
       end
 
-      def test_a_payout_empties_what_was_available
+      test "a payout empties what was available" do
         movements = hold_and_release(40_500) + [LedgerMovement.payout(Money.from_cents(40_500))]
         balance = LedgerBalance.from(movements)
 
@@ -37,7 +37,7 @@ module Domain
         refute_predicate balance, :payable?
       end
 
-      def test_it_folds_a_ledger_that_holds_and_releases_more_than_once
+      test "it folds a ledger that holds and releases more than once" do
         movements = hold_and_release(40_500) + [LedgerMovement.hold(Money.from_cents(9000))]
         balance = LedgerBalance.from(movements)
 

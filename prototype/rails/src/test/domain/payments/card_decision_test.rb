@@ -3,7 +3,7 @@ require "test_helper"
 module Domain
   module Payments
     class CardDecisionTest < ActiveSupport::TestCase
-      def test_an_approved_decision_carries_no_reason
+      test "an approved decision carries no reason" do
         decision = CardDecision.approved("4242")
 
         assert_predicate decision, :approved?
@@ -11,7 +11,7 @@ module Domain
         assert_equal "4242", decision.last_four
       end
 
-      def test_a_declined_decision_carries_the_reason
+      test "a declined decision carries the reason" do
         decision = CardDecision.declined("0002", "generic_decline")
 
         refute_predicate decision, :approved?
