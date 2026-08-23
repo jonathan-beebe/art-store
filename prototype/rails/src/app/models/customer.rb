@@ -1,9 +1,12 @@
 class Customer < ApplicationRecord
   include EmailAddress
+  include Messaging
 
   # The rows that move with a customer when an anonymous identity is absorbed
   # into a verified one.
-  MERGED_ASSOCIATIONS = %i[favorites carts orders listing_events notifications].freeze
+  MERGED_ASSOCIATIONS = %i[
+    favorites carts orders listing_events notifications conversations sent_messages
+  ].freeze
 
   has_many :merges_absorbed, class_name: "CustomerMerge", dependent: :destroy, inverse_of: :customer
   has_many :carts, dependent: :destroy

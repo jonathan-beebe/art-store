@@ -2,6 +2,7 @@ class Fulfillment < ApplicationRecord
   belongs_to :order
   belongs_to :seller
   has_many :ledger_entries, dependent: :destroy
+  has_many :conversations, as: :subject, dependent: :destroy
 
   enum :status, {
     awaiting_shipment: "awaiting_shipment",

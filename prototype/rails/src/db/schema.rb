@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_000104) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -64,6 +64,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
     t.integer "customer_id", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id"], name: "index_carts_on_customer_id"
+  end
+
+  create_table "conversations", force: :cascade do |t|
+    t.integer "admin_id"
+    t.datetime "created_at", null: false
+    t.integer "customer_id"
+    t.string "kind", null: false
+    t.datetime "last_message_at", null: false
+    t.integer "seller_id"
+    t.integer "subject_id"
+    t.string "subject_type"
+    t.datetime "updated_at", null: false
+    t.index ["admin_id", "last_message_at"], name: "index_conversations_on_admin_id_and_last_message_at"
+    t.index ["customer_id", "last_message_at"], name: "index_conversations_on_customer_id_and_last_message_at"
+    t.index ["kind", "subject_type", "subject_id"], name: "index_conversations_on_kind_and_subject_type_and_subject_id"
+    t.index ["seller_id", "last_message_at"], name: "index_conversations_on_seller_id_and_last_message_at"
   end
 
   create_table "customer_merges", force: :cascade do |t|
@@ -140,6 +156,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
     t.index ["listing_id"], name: "index_listing_events_on_listing_id"
   end
 
+  create_table "listing_faqs", force: :cascade do |t|
+    t.text "answer", null: false
+    t.datetime "created_at", null: false
+    t.integer "listing_id", null: false
+    t.datetime "published_at", null: false
+    t.text "question", null: false
+    t.integer "source_message_id"
+    t.datetime "updated_at", null: false
+    t.index ["listing_id", "created_at"], name: "index_listing_faqs_on_listing_id_and_created_at"
+  end
+
   create_table "listings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description"
@@ -167,6 +194,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
     t.string "token_digest", null: false
     t.datetime "updated_at", null: false
     t.index ["token_digest"], name: "index_magic_links_on_token_digest", unique: true
+  end
+
+  create_table "messages", force: :cascade do |t|
+    t.text "body", null: false
+    t.integer "conversation_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "read_at"
+    t.integer "sender_id", null: false
+    t.string "sender_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
+    t.index ["sender_type", "sender_id"], name: "index_messages_on_sender"
   end
 
   create_table "notifications", force: :cascade do |t|
@@ -256,6 +295,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
   add_foreign_key "cart_items", "carts"
   add_foreign_key "cart_items", "listings"
   add_foreign_key "carts", "customers"
+  add_foreign_key "conversations", "admins"
+  add_foreign_key "conversations", "customers"
+  add_foreign_key "conversations", "sellers"
   add_foreign_key "customer_merges", "customers"
   add_foreign_key "customer_merges", "customers", column: "anonymous_customer_id"
   add_foreign_key "favorites", "customers"
@@ -267,7 +309,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000101) do
   add_foreign_key "ledger_entries", "sellers"
   add_foreign_key "listing_events", "customers"
   add_foreign_key "listing_events", "listings"
+  add_foreign_key "listing_faqs", "listings"
+  add_foreign_key "listing_faqs", "messages", column: "source_message_id", on_delete: :nullify
   add_foreign_key "listings", "sellers"
+  add_foreign_key "messages", "conversations"
   add_foreign_key "order_items", "listings"
   add_foreign_key "order_items", "orders"
   add_foreign_key "order_items", "sellers"

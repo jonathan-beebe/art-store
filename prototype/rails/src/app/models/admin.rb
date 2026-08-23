@@ -1,5 +1,6 @@
 class Admin < ApplicationRecord
   include EmailAddress
+  include Messaging
 
   has_many :notifications, as: :recipient, dependent: :destroy
 

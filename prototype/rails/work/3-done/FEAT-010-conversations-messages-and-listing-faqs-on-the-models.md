@@ -1,7 +1,7 @@
 ---
 id: FEAT-010
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -29,3 +29,68 @@ Node's one-table shape — `kind` plus nullable `seller_id`/`customer_id`/`admin
 - FEAT-009
 - prototype/node/work/3-done/FEAT-007-messaging-center.md
 - prototype/node/docs/messaging.md
+
+## Working
+
+### Verified before changing anything
+
+- `src/db/schema.rb` had no `conversations`, `messages` or `listing_faqs`; `src/app/models/` had no
+  conversation or message; `Notification` carried `item_sold` and `order_shipped` only, both through the
+  private `deliver`; `Customer::MERGED_ASSOCIATIONS` listed five associations. The problem stood as written.
+- `Admin`, `Customer#display_name` and `TestRecords#create_admin` were in place from FEAT-009. Baseline
+  567 runs at 100% line coverage.
+
+### Decisions
+
+- **`KINDS` is the one source.** `Conversation::Kind` (a `Data`) holds each kind's two sides, its subject
+  class name, and how the thread reads. `Conversation.open`, the two shape validations and `#topic` all
+  read it, so adding a kind is one row. `Conversation::SIDES` holds the other half — the participant
+  column and the inbox path per actor type — and `.side_of(actor)` reaches it through
+  `actor.model_name.singular`, which is what makes `.involving` and `#thread_path_for` work for all three
+  actors with no case statement.
+- **Notification URL: a table on the record, not an injected lambda.** `Conversation#thread_path_for(actor)`
+  builds `/seller/messages/:id`, `/messages/:id` or `/admin/messages/:id` from `SIDES`. An injected
+  path-builder would make every caller — three sites' controllers, plus seeds — carry a lambda for a fact
+  the record already knows, and `#post!` is the only writer of that URL. FEAT-011 can keep the method (the
+  paths it names are the routes that ticket lands) or replace its body with
+  `Rails.application.routes.url_helpers`; `Notification.new_message(message, url:)` takes the URL as an
+  argument either way, so the swap does not reach the notification builder.
+- **One definition of unread.** `Message.unread_for(reader)` is `read_at IS NULL AND NOT sent by the reader`.
+  `#unread_count_for`, `#read_by!` and `Messaging#unread_message_count` all read it; none repeats the rule.
+- **`Messaging` concern** on `Seller`, `Customer` and `Admin`: `has_many :conversations` (Rails infers
+  `seller_id`/`customer_id`/`admin_id` from the including class), `has_many :sent_messages, as: :sender`,
+  and `#unread_message_count`. `Customer#absorb` re-points both through
+  `reflect_on_association(...).foreign_key` unchanged.
+- **`#post!` refuses a sender who is not a participant** (`ArgumentError`). `#counterpart_of` is defined
+  as "the participant the actor is not", which only answers for a participant; the guard keeps that
+  precondition on the record rather than trusting three controllers.
+- **Indexes** are the brief's: each participant column paired with `last_message_at`, and
+  `(kind, subject_type, subject_id)`. The default single-column indexes Rails would add for those
+  references are turned off, since the composite covers each one.
+- `listing_faqs.source_message_id` is a nullable FK with `on_delete: :nullify`, so a published entry
+  outlives the thread it was lifted from. Unpublishing is `destroy!` — no `#unpublish!` alias, since the
+  row exists only while it is published and Rails already has the verb.
+
+### Left alone
+
+- No routes, controllers, views or seeds (FEAT-011, FEAT-012, FEAT-014).
+- `Notification#deliver_by_email` stays the hook it was; RFCTR-014 covers `new_message` with the rest.
+- No `Message` broadcast callbacks (FEAT-013).
+
+### Verification
+
+- `make test`: 617 runs, 1838 assertions, 0 failures, 0 errors. Line coverage 1071/1071 (100.00%);
+  Models, Controllers, Helpers and Mailers each 100%. Baseline was 567 runs.
+- `make migrate` applied the three migrations to the dev database and regenerated `schema.rb`.
+- Console walk (`bin/rails runner`) against the seeded dev database: opening the same listing question
+  twice returned one thread with topic `“Low Tide at Dusk”`; posting as the customer left the seller with
+  1 unread and the customer with 0, and filed `New message` under `Seller` at `/seller/messages/1`;
+  `read_by!(seller)` zeroed both counts; an `admin_seller` thread reported topic `Art Store support` and
+  notified the seller at their own path; `Conversation.involving(seller)` listed both threads newest
+  first and listed nothing for a seller who is in neither; `ListingFaq.publish` then `destroy!` took the
+  row from 1 to 0.
+
+### Outside this ticket
+
+- `docs/architecture.md` still describes the commerce ER diagram and the notification builders without
+  messaging. FEAT-014 owns the docs pass.

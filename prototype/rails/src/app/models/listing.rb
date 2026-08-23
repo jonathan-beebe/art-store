@@ -11,6 +11,8 @@ class Listing < ApplicationRecord
   has_many :favorites, dependent: :destroy
   has_many :cart_items, dependent: :destroy
   has_many :order_items, dependent: :restrict_with_error
+  has_many :faqs, class_name: "ListingFaq", dependent: :destroy
+  has_many :conversations, as: :subject, dependent: :destroy
   has_one_attached :image
 
   enum :status, { draft: "draft", for_sale: "for_sale", sold: "sold", archived: "archived" }, default: :draft

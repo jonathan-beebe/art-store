@@ -125,6 +125,10 @@ class CustomerTest < ActiveSupport::TestCase
       customer: anonymous, event_type: "view", occurred_at: Time.current
     )
     notification = Notification.create!(recipient: anonymous, subject: "Order placed", body: "Order #1 is open.")
+    conversation = Conversation.open(
+      kind: :listing_question, seller: listing.seller, customer: anonymous, subject: listing
+    )
+    message = conversation.post!(anonymous, "Is the frame included?")
 
     verified.absorb(anonymous)
 
@@ -133,6 +137,8 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal verified, order.reload.customer
     assert_equal verified, event.reload.customer
     assert_equal verified, notification.reload.recipient
+    assert_equal verified, conversation.reload.customer
+    assert_equal verified, message.reload.sender
   end
 
   test "absorb leaves the rows of a bystander where they are" do
@@ -258,5 +264,16 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal :added, other.toggle_favorite(listing, at: moment("2026-08-20 09:01:00"))
     assert shopper.favorited?(listing)
+  end
+
+  test "a customer counts the unread messages across their own threads" do
+    buyer = create_verified_customer
+    shop = create_seller
+    listing = create_listing(shop)
+    conversation = Conversation.open(kind: :listing_question, seller: shop, customer: buyer, subject: listing)
+    conversation.post!(shop, "This one is back in stock.")
+
+    assert_equal 1, buyer.unread_message_count
+    assert_equal 0, create_verified_customer.unread_message_count
   end
 end

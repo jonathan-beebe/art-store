@@ -43,4 +43,13 @@ class AdminTest < ActiveSupport::TestCase
 
     assert_equal [notification], admin.notifications.to_a
   end
+
+  test "an admin counts the unread messages across their own threads" do
+    admin = create_admin
+    shop = create_seller
+    Conversation.open(kind: :admin_seller, admin: admin, seller: shop).post!(shop, "My payout is late.")
+
+    assert_equal 1, admin.unread_message_count
+    assert_equal 0, create_admin.unread_message_count
+  end
 end
