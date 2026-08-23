@@ -86,8 +86,8 @@ is `@import "tailwindcss"` and nothing else.
 | Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
 | Customer site for browsing | done | `/` |
 | Mocked cart and payment with a fake card, success and failure | done | `FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is an invalid number |
-| Magic links for both sides, printed to the screen in a debug alert | done | `FlashMagicLinkDelivery` → `layouts/_debug_alert` |
-| A hook where email goes later | done | `MailMagicLinkDelivery` (selected by `MAGIC_LINK_DELIVERY=mail`), `Notification#deliver_by_email` |
+| Magic links for both sides, printed to the screen in a debug alert | done | `MagicLinkSender#send_magic_link` → `layouts/_debug_alert` (`MAGIC_LINK_DEBUG_ALERT`) |
+| A hook where email goes later | done | `MagicLinkMailer#sign_in` sends the link; `Notification#deliver_by_email` is still empty |
 | Guest checkout requiring verification before the order finalizes | done | `Shop::CheckoutsController#create` → `Shop::OrderPaymentsController` |
 | Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-008 |
 | Delivered in `./prototype/rails/` with a complete README and a docs folder | done | `README.md`, `docs/` |
@@ -114,10 +114,11 @@ is `@import "tailwindcss"` and nothing else.
 
 ## Known gaps
 
-1. **Mail delivery raises.** `MailMagicLinkDelivery#deliver` raises
-   `NotImplementedError` and `Notification#deliver_by_email` does nothing. Setting
-   `MAGIC_LINK_DELIVERY=mail` breaks sign-in. This is the hook, not an
-   implementation.
+1. **No mail leaves the container.** `MagicLinkMailer` renders and sends the
+   sign-in link, and `delivery_method :test` outside production holds it in
+   `ActionMailer::Base.deliveries`. Production needs the SMTP settings that are
+   commented out in `config/environments/production.rb`, and
+   `Notification#deliver_by_email` does nothing.
 2. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller_earnings` and the controller says so.
    `payouts:run` is the real entry point.
@@ -150,9 +151,9 @@ is `@import "tailwindcss"` and nothing else.
 
 ## Suggested next steps
 
-1. Implement `MailMagicLinkDelivery` against Action Mailer and give
-   `Notification#deliver_by_email` the same port shape. Closes gap 1 and
-   removes the debug alert from the demo path.
+1. Configure SMTP for production and give `Notification#deliver_by_email` its
+   own mailer. Closes gap 1 and lets `MAGIC_LINK_DEBUG_ALERT=false` take the
+   debug alert off the demo path.
 2. Fold the anonymous cart into the account's cart during the merge, so one
    customer has one cart. Closes gap 4.
 3. Scope the payout button to the signed-in seller, or drop it and keep

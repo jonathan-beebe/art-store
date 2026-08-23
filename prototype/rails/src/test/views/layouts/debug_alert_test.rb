@@ -1,7 +1,7 @@
 require "test_helper"
 
 class DebugAlertTest < ActionView::TestCase
-  test "renders the magic link the delivery port flashed" do
+  test "renders the magic link the sender flashed" do
     controller.flash[:debug_magic_link] = "http://localhost:3000/auth/verify/token"
 
     render partial: "layouts/debug_alert"

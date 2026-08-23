@@ -13,6 +13,7 @@ SimpleCov.start do
   group "Domain", "app/domain"
   group "Controllers", "app/controllers"
   group "Models", "app/models"
+  group "Mailers", "app/mailers"
 
   minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]
 end
@@ -44,6 +45,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # Every sign-in enqueues a mailer job, so the whole suite runs on the test
+    # queue adapter rather than delivering from a background thread.
+    include ActiveJob::TestHelper
+    include ActionMailer::TestHelper
     include TestRecords
   end
 end

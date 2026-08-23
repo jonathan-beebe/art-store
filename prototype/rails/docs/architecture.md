@@ -19,7 +19,7 @@ flowchart LR
     end
     seller["Seller (browser)"] -- "HTML forms" --> rails
     customer["Customer (browser)"] -- "HTML forms" --> rails
-    mail["Email delivery (future)"] -.-> rails
+    smtp["SMTP (production only; delivery_method :test elsewhere)"] -.-> rails
 ```
 
 One container (`app`) holds Ruby, Bundler, the Tailwind standalone binary
@@ -34,15 +34,15 @@ flowchart TD
     entry["Entry: config/routes.rb, config/initializers"] --> coord
     coord["Coordination: app/controllers, lib/tasks"] --> core
     coord --> adapters
-    adapters["Adapters: app/models (ActiveRecord), app/delivery, app/views"] --> core
+    adapters["Adapters: app/models (ActiveRecord), app/mailers, app/views"] --> core
     core["Core: app/domain/** — plain Ruby, no I/O, no clock, no random"]
 ```
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
-`Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`), the plain value objects a record folds into (`LedgerEntry::Balance`, `PayoutPeriod`), the magic-link delivery port implementations, ERB views. |
+| Adapters | `app/models/`, `app/mailers/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
+`Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`), the plain value objects a record folds into (`LedgerEntry::Balance`, `PayoutPeriod`), `MagicLinkMailer`, ERB views. |
 | Coordination | `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
@@ -77,12 +77,14 @@ which prints `flash[:debug_magic_link]`.
   `MagicLink.issue` writes the row and returns the plaintext token beside it;
   `MagicLink.find_by_token`, `#usable?` and `#consume!` are the verify side.
   `Seller.claim` and `Customer.claim` turn a followed link into an account.
-- Delivery is a port: `MagicLinkDelivery` (duck-typed interface in
-  `app/delivery/`) with `FlashMagicLinkDelivery` (prototype: flash the URL so
-  the layout prints it in a debug alert) and `MailMagicLinkDelivery` (the hook
-  for real email; raises `NotImplementedError`). Selected by
-  `Rails.configuration.x.magic_links.delivery` (`flash` | `mail`, env
-  `MAGIC_LINK_DELIVERY`).
+- `MagicLinkSender#send_magic_link` issues the link and enqueues
+  `MagicLinkMailer.with(link:, url:).sign_in.deliver_later`. Delivery is
+  `:test` in development and test, so the mail stays in
+  `ActionMailer::Base.deliveries`; production needs SMTP settings.
+- The same URL goes into `flash[:debug_magic_link]` so the layout prints it in
+  a debug alert, which is how a demo follows a link with no mailbox. Guarded by
+  `Rails.configuration.x.magic_links.debug_alert` (env
+  `MAGIC_LINK_DEBUG_ALERT`, on outside production).
 - Customers: every visitor gets a `customers` row with `email = nil`; its id is
   stored in a signed cookie `customer_id`. Verifying an email either claims that
   row or **merges** the anonymous row into the existing verified customer

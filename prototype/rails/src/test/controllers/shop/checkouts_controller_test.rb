@@ -45,11 +45,15 @@ module Shop
     test "a guest is handed a link that lands on the pay page" do
       fill_cart
 
-      post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+      assert_enqueued_emails 1 do
+        post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+      end
 
       order = order_of_visiting_customer
       assert_equal shop_order_payment_path(order), MagicLink.sole.redirect_to
       assert_includes flash[:debug_magic_link], "/auth/magic/"
+      assert_enqueued_email_with MagicLinkMailer, :sign_in,
+        params: { link: MagicLink.sole, url: flash[:debug_magic_link] }
     end
 
     test "the order page explains that a link was sent" do

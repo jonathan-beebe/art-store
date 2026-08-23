@@ -32,7 +32,7 @@ class Notification < ApplicationRecord
   end
 
   # The prototype delivers to the in-app inbox only. Mail hangs off this hook,
-  # behind the same port shape as MagicLinkDelivery.
+  # the way sign-in links hang off MagicLinkMailer.
   def deliver_by_email
   end
 end

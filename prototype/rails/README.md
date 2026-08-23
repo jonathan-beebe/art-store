@@ -169,7 +169,7 @@ prototype/rails/
     app/domain/        pure domain core
     app/models/        the records and the behaviour that belongs to them
     app/controllers/   one namespace per site: shop/, seller/, auth/
-    app/delivery/      the magic-link delivery port and its two implementations
+    app/mailers/       MagicLinkMailer, which sends the sign-in link
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
     test/              mirrors app/: domain/, controllers/, models/
@@ -183,9 +183,10 @@ route and the test that prove it, and lists what is missing.
 
 ## Magic links
 
-Passwordless on both sides, with no mailbox: the delivery port flashes the URL
-and `layouts/_debug_alert` prints it at the top of both layouts whenever
-`flash[:debug_magic_link]` is set.
+Passwordless on both sides. `MagicLinkMailer.sign_in` sends the URL, and
+because the container has no mailbox anyone can read, the URL is also flashed
+into `flash[:debug_magic_link]`, which `layouts/_debug_alert` prints at the top
+of both layouts.
 
 Sellers sign in at `/seller/login`, customers at `/login`; both submit an email
 address, then click the link in the debug alert. A link lasts 15 minutes and
@@ -203,16 +204,19 @@ holding the address (`Customer#absorb`, which leaves a `customer_merges` row so
 a stale cookie resolves forward through `Customer.from_cookie`).
 
 ```sh
-MAGIC_LINK_DELIVERY=mail        # flash (default) | mail, which raises until email exists
+MAGIC_LINK_DEBUG_ALERT=false    # default: on outside production
 MAGIC_LINK_EXPIRY_MINUTES=15
 ```
 
-Two hooks are where email goes when it exists:
-`src/app/delivery/mail_magic_link_delivery.rb` (`MailMagicLinkDelivery#deliver`,
-selected by `MAGIC_LINK_DELIVERY=mail`) for sign-in links, and
-`src/app/models/notification.rb` (`Notification#deliver_by_email`) for the
-"Item sold" and "Order shipped" notifications, which reach the in-app inbox
-today.
+`Auth::MagicLinksController` verifies the token; `MagicLinkSender#send_magic_link`
+issues it, enqueues the mail with `deliver_later`, and sets the debug flash.
+Development and test both use `delivery_method :test`, so mail accumulates in
+`ActionMailer::Base.deliveries` and nothing leaves the container. The rendered
+mail is at `/rails/mailers/magic_link_mailer/sign_in` in development.
+
+`src/app/models/notification.rb` (`Notification#deliver_by_email`) is the
+remaining hook, for the "Item sold" and "Order shipped" notifications, which
+reach the in-app inbox today.
 
 ## Paying
 
@@ -233,8 +237,11 @@ the stock returned to the listing.
 The full list, with the next steps for each, is in
 [`docs/review.md`](docs/review.md). The ones to know before a demo:
 
-- Email is not implemented. Both hooks above are empty, and
-  `MAGIC_LINK_DELIVERY=mail` raises rather than sending.
+- No mail leaves the container. `MagicLinkMailer` renders and sends the sign-in
+  link, and `delivery_method :test` outside production keeps it in
+  `ActionMailer::Base.deliveries`; production needs the SMTP settings that are
+  commented out in `config/environments/production.rb`.
+  `Notification#deliver_by_email` is still empty.
 - "Run weekly payout now" on the earnings page pays every seller, not the
   signed-in one. It is a debug control; `payouts:run` is the real entry point.
 - A merge can leave a customer holding two carts, and the storefront shops with

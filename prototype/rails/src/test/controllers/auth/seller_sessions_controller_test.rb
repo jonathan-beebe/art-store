@@ -40,8 +40,30 @@ module Auth
       assert_equal "seller", MagicLink.sole.actor_type
     end
 
+    test "submitting an address sends the link to the address it was issued for" do
+      assert_enqueued_emails 1 do
+        post seller_send_magic_link_path, params: { email: "  ARTIST@Example.com  " }
+      end
+
+      assert_equal "artist@example.com", MagicLink.sole.email
+      assert_enqueued_email_with MagicLinkMailer, :sign_in,
+        params: { link: MagicLink.sole, url: flash[:debug_magic_link] }
+    end
+
+    test "the debug alert stays out of the flash where it is turned off" do
+      without_debug_alert do
+        assert_enqueued_emails 1 do
+          post seller_send_magic_link_path, params: { email: "artist@example.com" }
+        end
+      end
+
+      assert_nil flash[:debug_magic_link]
+    end
+
     test "submitting an address that is not an email issues no link" do
-      post seller_send_magic_link_path, params: { email: "not-an-address" }
+      assert_no_enqueued_emails do
+        post seller_send_magic_link_path, params: { email: "not-an-address" }
+      end
 
       assert_response :unprocessable_content
       assert_equal 0, MagicLink.count
@@ -68,6 +90,17 @@ module Auth
 
       assert_redirected_to seller_login_path
       assert_nil session[:seller_id]
+    end
+
+    private
+
+    def without_debug_alert
+      original = Rails.configuration.x.magic_links.debug_alert
+      Rails.configuration.x.magic_links.debug_alert = false
+
+      yield
+    ensure
+      Rails.configuration.x.magic_links.debug_alert = original
     end
   end
 end

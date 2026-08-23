@@ -1,0 +1,10 @@
+<p>Someone asked to sign in to Art Store as <%= @link.email %>.</p>
+
+<p><%= link_to "Sign in", @url %></p>
+
+<p><%= @url %></p>
+
+<p>
+  The link works once and expires <%= @expiry_minutes %> minutes after it was
+  sent. If you did not ask for it, ignore this email.
+</p>

@@ -4,7 +4,17 @@ Passwordless sign-in for both sites, plus the anonymous-customer cookie the
 storefront hangs favorites, carts, and guest orders on before anyone verifies
 an address. Code: `app/models/{magic_link,seller,customer}.rb`,
 `app/models/concerns/email_address.rb`,
-`app/controllers/concerns/{magic_link_sender,customer_identity}.rb`.
+`app/controllers/concerns/{magic_link_sender,customer_identity}.rb`,
+`app/mailers/magic_link_mailer.rb`.
+
+`MagicLinkSender#send_magic_link` does two things with the URL it builds from
+the plaintext token: it enqueues `MagicLinkMailer.sign_in` with
+`deliver_later`, and where
+`Rails.configuration.x.magic_links.debug_alert` is on (everywhere but
+production) it writes the URL into `flash[:debug_magic_link]`, which
+`layouts/_debug_alert` prints. The container has no mailbox anyone can read —
+`delivery_method :test` holds the mail in `ActionMailer::Base.deliveries` — so
+the debug alert is how a demo and the integration tests follow a link.
 
 ## Seller magic-link sign-in
 
@@ -16,12 +26,15 @@ sequenceDiagram
     actor Seller
     participant Login as Auth::SellerSessionsController
     participant MagicLinks as MagicLink
+    participant Mailer as MagicLinkMailer
     participant Verify as Auth::MagicLinksController
     participant Sellers as Seller
 
     Seller->>Login: POST /seller/login (email)
     Login->>MagicLinks: issue(email:, actor_type: :seller)
     MagicLinks-->>Login: [link, token] — only the digest is stored
+    Login->>Mailer: with(link:, url:).sign_in.deliver_later
+    Mailer-->>Seller: the sign-in link (held in deliveries outside production)
     Login-->>Seller: flash[:debug_magic_link] (layout prints the URL)
 
     Seller->>Verify: GET /auth/magic/:token
@@ -56,7 +69,7 @@ sequenceDiagram
     Note over Customer,Cookie: anonymous customer row already exists (cookie set on first request)
     Customer->>Checkout: POST /checkout, email unverified
     Checkout->>Checkout: send_magic_link(email, redirect_to: /orders/:id/pay)
-    Checkout-->>Customer: flash[:debug_magic_link]
+    Checkout-->>Customer: MagicLinkMailer.sign_in, plus flash[:debug_magic_link]
 
     Customer->>Verify: GET /auth/magic/:token
     Verify->>Verify: consume!
