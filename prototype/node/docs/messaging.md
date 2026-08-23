@@ -31,8 +31,8 @@ always the participant who did not send it.
 
 Each site reads the same threads through its own paths — `/messages`,
 `/seller/messages`, `/admin/messages` for the inbox, and `.../messages/:id` for
-one thread. `conversationPath(actorType, id)` and `inboxPath(actorType)` are
-core functions, because `postMessage` needs the *recipient's* path for the
+one thread. `conversationPath(actorType, id)` is a
+core function, because `postMessage` needs the *recipient's* path for the
 notification URL and each site needs its own for links.
 
 Both support routes open the thread against **the first admin by id**. Admin

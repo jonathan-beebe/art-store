@@ -411,7 +411,7 @@ re-run safe.
 **Lifecycle.** None; pure math over a `Date`.
 
 **In code.** `PayoutPeriod`, `payoutPeriodEndingBefore`, `payoutPeriodEndsAt`
-(`T23:59:59.999Z`), `payoutPeriodCovers`, `payoutPeriodLabel`.
+(`T23:59:59.999Z`), `payoutPeriodLabel`.
 
 ## Identity
 
