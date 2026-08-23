@@ -16,7 +16,7 @@ module Fulfillments
 
       ship(order.fulfillments.sole)
 
-      assert_equal Domain::Orders::OrderStatus::SHIPPED, order.reload.status
+      assert_equal "shipped", order.reload.status
     end
 
     test "one shipment of two partially ships the order" do
@@ -28,7 +28,7 @@ module Fulfillments
 
       ship(order.fulfillments.first)
 
-      assert_equal Domain::Orders::OrderStatus::PARTIALLY_SHIPPED, order.reload.status
+      assert_equal "partially_shipped", order.reload.status
     end
 
     test "it tells the customer how to track the order" do

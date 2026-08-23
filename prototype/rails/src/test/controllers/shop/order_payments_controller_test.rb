@@ -17,7 +17,7 @@ module Shop
 
       get shop_order_payment_path(order)
 
-      assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.reload.status
+      assert_equal "awaiting_payment", order.reload.status
     end
 
     test "it sends a returning customer without a session to sign in first" do
@@ -27,7 +27,7 @@ module Shop
       get shop_order_payment_path(order)
 
       assert_redirected_to customer_login_path(redirect_to: shop_order_payment_path(order))
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, order.reload.status
+      assert_equal "pending_verification", order.reload.status
     end
 
     test "another customer cannot read the pay page" do
@@ -48,7 +48,7 @@ module Shop
       post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
 
       assert_response :not_found
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, order.reload.status
+      assert_equal "pending_verification", order.reload.status
     end
 
     test "a paid order goes back to the order page" do
@@ -78,7 +78,7 @@ module Shop
 
       post shop_pay_order_path(order), params: { card_number: UNFUNDED_CARD }
 
-      assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.reload.status
+      assert_equal "payment_failed", order.reload.status
       follow_redirect!
       assert_select "[data-decline]", text: /insufficient funds/
 
@@ -87,7 +87,7 @@ module Shop
 
       post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
 
-      assert_equal Domain::Orders::OrderStatus::PAID, order.reload.status
+      assert_equal "paid", order.reload.status
       assert_equal 2, order.payments.count
     end
 

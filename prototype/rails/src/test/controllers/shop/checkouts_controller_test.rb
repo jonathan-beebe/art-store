@@ -36,7 +36,7 @@ module Shop
 
       order = order_of_visiting_customer
       assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, order.status
+      assert_equal "pending_verification", order.status
       assert_equal "guest@example.com", order.email
       assert_equal "London", order.shipping_city
       assert_empty order.payments
@@ -72,13 +72,13 @@ module Shop
 
       assert_redirected_to shop_order_payment_path(order)
       follow_redirect!
-      assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.reload.status
+      assert_equal "awaiting_payment", order.reload.status
       assert_select "input[name=card_number]"
 
       post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
 
       assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::OrderStatus::PAID, order.reload.status
+      assert_equal "paid", order.reload.status
       assert_equal order.customer_id, visiting_customer.id
       assert_equal "guest@example.com", visiting_customer.email
       assert_equal "sold", listing.reload.status
@@ -93,7 +93,7 @@ module Shop
 
       order = order_of_visiting_customer
       assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::OrderStatus::PAID, order.status
+      assert_equal "paid", order.status
       assert_equal "4242", order.payments.sole.card_last_four
       assert_empty MagicLink.where(redirect_to: shop_order_payment_path(order))
     end
@@ -116,7 +116,7 @@ module Shop
         params: { email: "buyer@example.com", card_number: DECLINED_CARD }.merge(shipping_params)
 
       order = order_of_visiting_customer
-      assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
+      assert_equal "payment_failed", order.status
       assert_equal "for_sale", listing.reload.status
 
       follow_redirect!

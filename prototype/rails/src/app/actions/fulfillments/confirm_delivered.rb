@@ -1,9 +1,5 @@
 module Fulfillments
   class ConfirmDelivered
-    def initialize(roll_up_order_status: Orders::RollUpOrderStatus.new)
-      @roll_up_order_status = roll_up_order_status
-    end
-
     def call(fulfillment:, now:)
       status = Domain::Orders::FulfillmentStatus.transition(
         fulfillment.status, Domain::Orders::FulfillmentStatus::DELIVERED
@@ -12,7 +8,7 @@ module Fulfillments
       fulfillment.transaction do
         fulfillment.update!(status: status, delivered_at: now)
         release_escrow(fulfillment, now)
-        @roll_up_order_status.call(order: fulfillment.order)
+        fulfillment.order.roll_up_status!
       end
 
       fulfillment

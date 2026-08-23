@@ -37,10 +37,10 @@ is `@import "tailwindcss"` and nothing else.
 | Anonymous customer id per visitor | done | every storefront route, via `CustomerIdentity` | `CustomerIdentityConcernTest` |
 | Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `CustomerTest`, `Auth::MagicLinksControllerTest` |
 | Magic links, no passwords | done | `customer_login`, `customer_send_magic_link` | `Auth::CustomerSessionsControllerTest` |
-| Fake card 4242 4242 4242 4242 | done | `shop_pay_order` | `Domain::Payments::FakeCardTest` |
-| Failed payments | done | `shop_pay_order`, retry form on `shop_order` | `Shop::OrderPaymentsControllerTest`, `Orders::FinalizeOrderTest`, `Orders::OrderLifecycleTest` |
+| Fake card 4242 4242 4242 4242 | done | `shop_pay_order` | `FakeCardTest` |
+| Failed payments | done | `shop_pay_order`, retry form on `shop_order` | `Shop::OrderPaymentsControllerTest`, `OrderTest`, `OrderLifecycleTest` |
 | Guest checkout, verification before finalizing | done | `shop_place_order` → `verify_magic_link` → `shop_order_payment` | `Shop::CheckoutsControllerTest`, `SmokeTest` |
-| Whole purchase and fulfillment flow mocked | done | the chain above plus `seller_order_shipment`, `shop_confirm_delivery` | `SmokeTest`, `Orders::OrderLifecycleTest` |
+| Whole purchase and fulfillment flow mocked | done | the chain above plus `seller_order_shipment`, `shop_confirm_delivery` | `SmokeTest`, `OrderLifecycleTest` |
 | Theme: bright, open, wares over brand | done | `layouts/shop` | none (visual) |
 
 ## Fulfillment, escrow, payout
@@ -85,7 +85,7 @@ is `@import "tailwindcss"` and nothing else.
 | --- | --- | --- |
 | Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
 | Customer site for browsing | done | `/` |
-| Mocked cart and payment with a fake card, success and failure | done | `Domain::Payments::FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is an invalid number |
+| Mocked cart and payment with a fake card, success and failure | done | `FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is an invalid number |
 | Magic links for both sides, printed to the screen in a debug alert | done | `FlashMagicLinkDelivery` → `layouts/_debug_alert` |
 | A hook where email goes later | done | `MailMagicLinkDelivery` (selected by `MAGIC_LINK_DELIVERY=mail`), `Notifications::Notify#deliver_by_email` |
 | Guest checkout requiring verification before the order finalizes | done | `Shop::CheckoutsController#create` → `Shop::OrderPaymentsController` |
@@ -133,8 +133,8 @@ is `@import "tailwindcss"` and nothing else.
    folding it into the account's cart, and `Customer#current_cart` then shops with
    whichever holds more items. Items in the other cart are still in the
    database and no page shows them.
-5. **No order cancellation.** `OrderStatus::CANCELLED` and the stock it would
-   release exist in the domain with no route that reaches them.
+5. **No order cancellation.** The `cancelled` status and the stock it would
+   release exist on `Order` with no route that reaches them.
 6. **No image variants.** There is no libvips in the image, so
    `Listing#image_url` serves the original blob. Asking for a variant would
    raise.

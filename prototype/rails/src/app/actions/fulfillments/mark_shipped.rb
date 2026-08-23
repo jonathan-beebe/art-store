@@ -1,7 +1,6 @@
 module Fulfillments
   class MarkShipped
-    def initialize(roll_up_order_status: Orders::RollUpOrderStatus.new, notify: Notifications::Notify.new)
-      @roll_up_order_status = roll_up_order_status
+    def initialize(notify: Notifications::Notify.new)
       @notify = notify
     end
 
@@ -12,7 +11,7 @@ module Fulfillments
 
       fulfillment.transaction do
         fulfillment.update!(status: status, carrier: carrier, tracking_number: tracking_number, shipped_at: now)
-        tell_the_customer(@roll_up_order_status.call(order: fulfillment.order), carrier, tracking_number)
+        tell_the_customer(fulfillment.order.roll_up_status!, carrier, tracking_number)
       end
 
       fulfillment

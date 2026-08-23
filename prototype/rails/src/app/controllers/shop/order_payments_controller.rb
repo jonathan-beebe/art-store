@@ -2,17 +2,17 @@ module Shop
   class OrderPaymentsController < BaseController
     def show
       order = order_of_customer(params[:id])
-      return redirect_to shop_order_path(order) unless Domain::Orders::OrderPayment.unpaid?(order.status)
+      return redirect_to shop_order_path(order) unless order.unpaid?
       return redirect_to sign_in_to_pay(order) unless customer_signed_in?
 
-      @order = Orders::MarkAwaitingPayment.new.call(order: order)
+      @order = order.mark_awaiting_payment!
       @payment = @order.payments.order(:id).last
     end
 
     def create
       order = payable_order
 
-      Orders::FinalizeOrder.new.call(order: order, card_number: params[:card_number], now: now)
+      order.pay!(params[:card_number])
 
       redirect_to shop_order_path(order)
     end
@@ -26,8 +26,8 @@ module Shop
       order = order_of_customer(params[:id])
       raise ActiveRecord::RecordNotFound unless customer_signed_in?
 
-      Orders::MarkAwaitingPayment.new.call(order: order)
-      raise ActiveRecord::RecordNotFound unless Domain::Orders::OrderPayment.awaits_card?(order.status)
+      order.mark_awaiting_payment!
+      raise ActiveRecord::RecordNotFound unless order.awaits_card?
 
       order
     end

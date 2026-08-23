@@ -41,15 +41,15 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Customer#toggle_favorite`), the magic-link delivery port implementations, ERB views. |
+| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Listing#take_stock!`), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
-Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
-`RunWeeklyPayout`), domain enums name states (`OrderStatus`), events are past
-tense.
+Naming follows the `naming` skill: actions are verb phrases (`MarkShipped`,
+`RunWeeklyPayout`), model methods are the verb a record answers to
+(`Order#pay!`, `Listing#take_stock!`), events are past tense.
 
-Action namespaces are the plural directory name — `Fulfillments::`, `Orders::`,
+Action namespaces are the plural directory name — `Fulfillments::`,
 `Notifications::`, `Escrow::` — not the singular the ticket originally asked
 for. Rails makes every `app/*` directory a Zeitwerk root, and
 `app/models/fulfillment.rb` / `seller.rb` already define `Fulfillment` and
@@ -96,11 +96,11 @@ which prints `flash[:debug_magic_link]`.
 - Guest checkout = place the order as the anonymous customer, verify, then pay
   on `/orders/:id/pay`. The card is entered after verification and never stored.
 - Verifying does not by itself pay the order. It moves the order from
-  `pending_verification` to `awaiting_payment` (`Orders::MarkAwaitingPayment`,
+  `pending_verification` to `awaiting_payment` (`Order#mark_awaiting_payment!`,
   a no-op on any other status), so a guest order still has nowhere to go but
-  `/orders/:id/pay`. `Shop::OrderPaymentsController` calls the action itself on
-  both `show` and `create`, since `Auth::MagicLinksController` (FEAT-002)
-  knows nothing about orders.
+  `/orders/:id/pay`. `Shop::OrderPaymentsController` calls it on both `show`
+  and `create`, since `Auth::MagicLinksController` (FEAT-002) knows nothing
+  about orders.
 
 ## Commerce domain
 
@@ -168,8 +168,8 @@ stateDiagram-v2
 ```
 
 `cancelled` has no route to it from either UI in this prototype — the
-transition exists in `Domain::Orders::OrderStatus::TRANSITIONS`, verified by
-its unit test, but no action calls it.
+transition exists in `Order::TRANSITIONS`, verified by
+`test/models/order_test.rb`, but nothing calls it.
 
 ### Fulfillment status (per order × seller)
 
@@ -191,9 +191,9 @@ owns.
   negative, so this nets down as money leaves); `paid_out = −paid_out_total`
   (a positive lifetime figure).
 - Platform fee: 10% of the fulfillment subtotal (`Domain::Escrow::Fee`),
-  computed once at order placement (`Orders::PlaceOrder`) and stored on the
+  computed once at order placement (`Order.place`) and stored on the
   `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal − fee.
-  `Orders::FinalizeOrder` (hold) and `Fulfillments::ConfirmDelivered` (release)
+  `Order#pay!` (hold) and `Fulfillments::ConfirmDelivered` (release)
   move `fulfillment.net` through escrow rather than recomputing it.
 - Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` creates one
   `payouts` row per seller for released-not-paid amounts as of the most
@@ -202,7 +202,7 @@ owns.
 
 ### Fake payment
 
-`Domain::Payments::FakeCard.decide(number)`:
+`FakeCard.new(number)`:
 
 | Number | Decision |
 | --- | --- |
@@ -224,7 +224,7 @@ email hook.
 
 - Minitest (stock Rails). Every test lives under `test/`, mirroring the tree it
   covers: `app/domain/money.rb` → `test/domain/money_test.rb`,
-  `app/actions/orders/place_order.rb` → `test/actions/orders/place_order_test.rb`,
+  `app/models/order.rb` → `test/models/order_test.rb`,
   `lib/tasks/payouts.rake` → `test/tasks/payouts_test.rb`. `bin/rails test`
   with no arguments runs the whole suite. `test/test_helper.rb` is the Rails
   base and starts SimpleCov.

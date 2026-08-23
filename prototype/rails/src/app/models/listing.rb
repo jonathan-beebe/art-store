@@ -99,6 +99,23 @@ class Listing < ApplicationRecord
     for_sale? && quantity.positive?
   end
 
+  # An order claims stock when it is placed and hands it back when the card is
+  # declined, which puts a listing that had sold out back on the storefront.
+  def take_stock!(count)
+    reject_an_empty_change(count)
+    raise ArgumentError, "a listing that is #{status} cannot be sold" unless for_sale?
+    raise ArgumentError, "a listing with #{quantity} left cannot sell #{count}" if count > quantity
+
+    remaining = quantity - count
+    update!(quantity: remaining, status: remaining.zero? ? self.class.transition(status, "sold") : status)
+  end
+
+  def restore_stock!(count)
+    reject_an_empty_change(count)
+
+    update!(quantity: quantity + count, status: sold? ? self.class.transition(status, "for_sale") : status)
+  end
+
   def record_event!(event_type, customer_id: nil, at: Time.current)
     events.create!(event_type: event_type, customer_id: customer_id, occurred_at: at)
   end
@@ -112,6 +129,10 @@ class Listing < ApplicationRecord
   end
 
   private
+
+  def reject_an_empty_change(count)
+    raise ArgumentError, "a stock change covers at least one item, got #{count}" if count < 1
+  end
 
   def cents_in(dollars)
     return unless DOLLARS.match?(dollars)

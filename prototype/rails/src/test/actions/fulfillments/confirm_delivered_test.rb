@@ -34,7 +34,7 @@ module Fulfillments
 
       deliver(fulfillment)
 
-      assert_equal Domain::Orders::OrderStatus::DELIVERED, fulfillment.order.reload.status
+      assert_equal "delivered", fulfillment.order.reload.status
     end
 
     test "it refuses a fulfillment that has not shipped" do

@@ -10,7 +10,7 @@ module Shop
         raise ActiveRecord::RecordNotFound
       end
 
-      Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment, now: now)
+      Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment, now: Time.current)
 
       redirect_to shop_order_path(order)
     end

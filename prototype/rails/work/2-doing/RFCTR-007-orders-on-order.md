@@ -26,3 +26,32 @@ Keep the `INCOMPLETE` flash text and `:unprocessable_content` responses. The tra
 - RFCTR-006
 - RFCTR-008
 - RFCTR-011
+
+## Working
+
+`Order` now carries the lifecycle. `Order.place(cart:, customer:, email:,
+shipping:, email_verified:, at:)` snapshots the items at the price they were
+bought at, splits the order into one fulfillment per seller with the platform
+fee taken out, takes the stock through `Listing#take_stock!` and empties the
+cart; it raises on an empty cart. `Order#pay!(card_number, at:)` reads a
+`FakeCard`, moves the order through `Order::TRANSITIONS`, writes one `payments`
+row per attempt, hands the stock back on a decline and claims it again on a
+retry, and on approval holds each seller's net in escrow and sends the "Item
+sold" notification. `mark_awaiting_payment!`, `roll_up_status!`,
+`transition_to!`, `next_statuses`, `awaits_card?`, `unpaid?` and
+`payable_by?` complete the surface.
+
+`Listing#take_stock!` / `#restore_stock!` replace `Domain::Listings::ListingStock`
+and `StockChange`, keeping the same `ArgumentError` messages. `FakeCard` is a
+plain model reading one number; `Payment` holds the `status` and
+`decline_reason` enums and the decline messages the storefront renders.
+
+Deleted: `app/actions/orders/`, `app/domain/orders/{order_status,order_payment,
+order_stock,payment_attempt}.rb`, `app/domain/payments/`, `app/domain/listings/`
+and their tests, whose behaviour moved into `test/models/{order,order_lifecycle,
+listing,fake_card,payment}_test.rb`.
+
+Left alone: `Domain::Orders::FulfillmentStatus` (RFCTR-008), the escrow value
+objects (RFCTR-009) and `Notifications::Notify` (RFCTR-010). `Fulfillments::
+MarkShipped` and `ConfirmDelivered` lost their `roll_up_order_status:`
+constructor argument and call `order.roll_up_status!` directly.

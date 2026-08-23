@@ -172,6 +172,60 @@ class ListingTest < ActiveSupport::TestCase
     refute_predicate create_listing(status: :sold, quantity: 3), :purchasable?
   end
 
+  test "a sale takes the quantity it asks for" do
+    record = create_listing(status: :for_sale, quantity: 3)
+
+    record.take_stock!(2)
+
+    assert_equal 1, record.quantity
+    assert_equal "for_sale", record.status
+  end
+
+  test "the last of a listing marks it sold" do
+    record = create_listing(status: :for_sale, quantity: 1)
+
+    record.take_stock!(1)
+
+    assert_equal 0, record.quantity
+    assert_equal "sold", record.status
+  end
+
+  test "a sale refuses to take more than is left" do
+    assert_raises(ArgumentError) { create_listing(status: :for_sale, quantity: 1).take_stock!(2) }
+  end
+
+  test "a sale refuses a listing that is not for sale" do
+    assert_raises(ArgumentError) { create_listing(status: :draft, quantity: 1).take_stock!(1) }
+  end
+
+  test "a sale covers at least one item" do
+    error = assert_raises(ArgumentError) { create_listing(status: :for_sale, quantity: 3).take_stock!(0) }
+
+    assert_equal "a stock change covers at least one item, got 0", error.message
+  end
+
+  test "a restock puts a sold listing back on the storefront" do
+    record = create_listing(status: :sold, quantity: 0)
+
+    record.restore_stock!(1)
+
+    assert_equal 1, record.quantity
+    assert_equal "for_sale", record.status
+  end
+
+  test "a restock leaves a listing that is still for sale alone" do
+    record = create_listing(status: :for_sale, quantity: 2)
+
+    record.restore_stock!(1)
+
+    assert_equal 3, record.quantity
+    assert_equal "for_sale", record.status
+  end
+
+  test "a restock covers at least one item" do
+    assert_raises(ArgumentError) { create_listing(status: :sold, quantity: 0).restore_stock!(0) }
+  end
+
   test "the storefront carries listings for sale and sold" do
     for_sale = create_listing(status: :for_sale)
     sold = create_listing(status: :sold, quantity: 0)

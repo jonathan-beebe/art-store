@@ -4,7 +4,7 @@
 | --- | --- |
 | [`architecture.md`](architecture.md) | System shape: deployables, layers, sites, repository layout. Start here. |
 | [`identity.md`](identity.md) | Magic-link sign-in for sellers and customers, anonymous-customer merge, `CustomerIdentity#current_customer`. |
-| [`orders.md`](orders.md) | Checkout → finalize → seller notification; `OrderStatus` and `FulfillmentStatus` state diagrams. |
+| [`orders.md`](orders.md) | Checkout → payment → seller notification; order and fulfillment status diagrams. |
 | [`escrow.md`](escrow.md) | Ledger entry types (`held` / `released` / `paid_out`), `payouts:run`, a worked dollar example. |
 | [`data-model.md`](data-model.md) | ER diagram generated from `src/db/schema.rb`. |
 | [`ontology.md`](ontology.md) | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One concept-level diagram. |

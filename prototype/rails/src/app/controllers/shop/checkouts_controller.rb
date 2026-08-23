@@ -20,11 +20,12 @@ module Shop
       return reject_incomplete unless @form.complete?
 
       purchaser = checkout_purchaser
-      order = Orders::PlaceOrder.new.call(
-        cart: current_cart, purchaser: purchaser, shipping: @form.shipping, now: now
+      order = Order.place(
+        cart: current_cart, customer: current_customer, email: purchaser.email,
+        email_verified: purchaser.email_verified?, shipping: shipping_attributes, at: Time.current
       )
 
-      return charge(order) if Domain::Orders::OrderPayment.payable?(order.status, purchaser.email_verified?)
+      return charge(order) if order.payable_by?(purchaser.email_verified?)
 
       send_verification_link(order, purchaser)
     end
@@ -32,9 +33,13 @@ module Shop
     private
 
     def charge(order)
-      Orders::FinalizeOrder.new.call(order: order, card_number: params[:card_number], now: now)
+      order.pay!(params[:card_number])
 
       redirect_to shop_order_path(order)
+    end
+
+    def shipping_attributes
+      @form.shipping.to_h.transform_keys { |part| :"shipping_#{part}" }
     end
 
     def send_verification_link(order, purchaser)

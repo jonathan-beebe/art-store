@@ -10,7 +10,7 @@ module Shop
 
       assert_redirected_to shop_order_path(order)
       assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.reload.status
-      assert_equal Domain::Orders::OrderStatus::DELIVERED, order.reload.status
+      assert_equal "delivered", order.reload.status
       assert_includes fulfillment.ledger_entries.pluck(:entry_type), Domain::Escrow::LedgerEntryType::RELEASED
     end
 

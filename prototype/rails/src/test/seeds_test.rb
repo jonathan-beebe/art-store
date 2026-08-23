@@ -28,7 +28,7 @@ class SeedsTest < ActiveSupport::TestCase
 
   test "it seeds order history for two sellers" do
     assert_equal 3, Order.count
-    assert_equal 0, Order.where(status: Domain::Orders::OrderStatus::PENDING_VERIFICATION).count
+    assert_equal 0, Order.where(status: "pending_verification").count
 
     assert_equal 1, Fulfillment.where(status: Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT).count
     assert_equal 1, Fulfillment.where(status: Domain::Orders::FulfillmentStatus::SHIPPED).count

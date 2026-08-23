@@ -1,7 +1,7 @@
 # What the tests that drive the app over HTTP need on top of the record
 # builders: the sign-in walk, the cookies the app sets, and the order state the
-# seller portal reads back. Order state is built through the commerce actions,
-# so the portal reads what the domain wrote rather than a hand-made row.
+# seller portal reads back. Order state is built by placing and paying an
+# order, so the portal reads what checkout wrote rather than a hand-made row.
 module IntegrationHelpers
   # Signed cookies are opaque to the Rack::Test jar, so the assertions read
   # them back through the same jar the app writes with.
@@ -67,13 +67,12 @@ module IntegrationHelpers
     cart = Cart.create!(customer: buyer)
     cart.add(listing, at: moment("2026-08-20 08:00:00"))
 
-    order = Orders::PlaceOrder.new.call(
-      cart: cart, purchaser: purchaser(buyer), shipping: shipping_address, now: moment("2026-08-20 09:00:00")
+    order = Order.place(
+      cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+      shipping: shipping_address, at: moment("2026-08-20 09:00:00")
     )
 
-    Orders::FinalizeOrder.new.call(
-      order: order, card_number: TestRecords::APPROVED_CARD, now: moment("2026-08-20 10:00:00")
-    )
+    order.pay!(TestRecords::APPROVED_CARD, at: moment("2026-08-20 10:00:00"))
   end
 
   def create_fulfillment(seller, listing: create_listing(seller))

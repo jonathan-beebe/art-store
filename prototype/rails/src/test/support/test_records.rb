@@ -48,17 +48,12 @@ module TestRecords
     [token, link]
   end
 
-  def purchaser(customer)
-    Domain::Orders::Purchaser.new(
-      id: customer.id, email: customer.email, email_verified_at: customer.email_verified_at
-    )
-  end
-
-  def shipping_address
-    Domain::Orders::ShippingAddress.new(
-      name: "Ada Lovelace", line1: "12 Analytical Way", line2: nil,
-      city: "London", region: "Greater London", postal_code: "EC1A 1BB", country: "GB"
-    )
+  def shipping_address(**overrides)
+    {
+      shipping_name: "Ada Lovelace", shipping_line1: "12 Analytical Way", shipping_line2: nil,
+      shipping_city: "London", shipping_region: "Greater London", shipping_postal_code: "EC1A 1BB",
+      shipping_country: "GB"
+    }.merge(overrides)
   end
 
   def cart_for(customer)
@@ -72,18 +67,18 @@ module TestRecords
   end
 
   def order_for(customer, *listings)
-    Orders::PlaceOrder.new.call(
+    Order.place(
       cart: cart_holding(customer, *listings),
-      purchaser: purchaser(customer),
+      customer: customer,
+      email: customer.email || "guest@example.test",
+      email_verified: customer.email_verified_at.present?,
       shipping: shipping_address,
-      now: moment("2026-08-20 09:00:00")
+      at: moment("2026-08-20 09:00:00")
     )
   end
 
   def paid_order_for(customer, *listings)
-    Orders::FinalizeOrder.new.call(
-      order: order_for(customer, *listings), card_number: APPROVED_CARD, now: moment("2026-08-20 10:00:00")
-    )
+    order_for(customer, *listings).pay!(APPROVED_CARD, at: moment("2026-08-20 10:00:00"))
   end
 
   def balance_of(seller)

@@ -149,8 +149,8 @@ its own page. See "sold" in Vocabulary notes.
 - held in Cart items, sold as Order items
 
 **In code.** `Listing` (table `listings`), which carries the `status` enum,
-`TRANSITIONS`, `on_storefront`, `purchasable?` and the field validations, and
-`Domain::Listings::ListingStock`.
+`TRANSITIONS`, `on_storefront`, `purchasable?`, `take_stock!` /
+`restore_stock!` and the field validations.
 
 ### Listing event
 
@@ -233,8 +233,7 @@ delivery; the parent of the per-seller Fulfillments.
 (verified) → `paid` or `payment_failed` → `partially_shipped` / `shipped` →
 `delivered`; `cancelled` is a reachable state with no route to it in the UI.
 A multi-seller order's status rolls up from its Fulfillments
-(`OrderStatus.from_fulfillments`, called by `Orders::RollUpOrderStatus`). Full
-diagram: `docs/orders.md`.
+(`Order#roll_up_status!`). Full diagram: `docs/orders.md`.
 
 **Relates to.**
 - placed by one Customer
@@ -243,9 +242,9 @@ diagram: `docs/orders.md`.
 - splits by seller into Fulfillments
 - triggers an "Item sold" Notification to each seller when it reaches `paid`
 
-**In code.** `Order`, `Domain::Orders::OrderStatus` (enum), `Purchaser`,
-`ShippingAddress`, `OrderPayment` (table `orders`), opened by
-`Orders::PlaceOrder`, charged by `Orders::FinalizeOrder`.
+**In code.** `Order` (table `orders`), which carries the `status` enum,
+`TRANSITIONS`, the shipping fields it validates, `place`, `pay!`,
+`mark_awaiting_payment!` and `roll_up_status!`.
 
 ### Order item
 
@@ -278,8 +277,8 @@ current payment is the latest row.
 - belongs to one Order
 - decided by a Card decision
 
-**In code.** `Payment`, `Domain::Payments::PaymentStatus` (enum) (table
-`payments`), written by `Orders::FinalizeOrder`.
+**In code.** `Payment` (table `payments`), which carries the `status` and
+`decline_reason` enums and the decline messages, written by `Order#pay!`.
 
 ### Fulfillment
 
@@ -473,8 +472,7 @@ stored as its own row (its outcome becomes a Payment).
 - decides a Payment's status and a Payment's decline reason
 - drives the Order's `paid`/`payment_failed` transition
 
-**In code.** `Domain::Payments::FakeCard.decide`, `CardDecision`,
-`DeclineReason`.
+**In code.** `FakeCard`, read by `Order#pay!`.
 
 ### Listing status
 
@@ -486,7 +484,7 @@ stored as its own row (its outcome becomes a Payment).
 
 **Who/what.** The lifecycle state of an Order (see Buying above).
 
-**In code.** `Domain::Orders::OrderStatus`.
+**In code.** `Order::TRANSITIONS` and the `Order` `status` enum.
 
 ### Fulfillment status
 

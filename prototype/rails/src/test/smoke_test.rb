@@ -163,7 +163,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     Order.sole.tap do |order|
       @customer_browser.assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, order.status
+      assert_equal "pending_verification", order.status
       assert_equal 48_000, order.total_cents
       assert_empty order.payments
     end
@@ -182,7 +182,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
   def pay_with_an_approved_card(order)
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "input[name=card_number]"
-    assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.reload.status
+    assert_equal "awaiting_payment", order.reload.status
 
     @customer_browser.post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
 
@@ -190,7 +190,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "[data-order-status]", text: "Paid"
 
-    assert_equal Domain::Orders::OrderStatus::PAID, order.reload.status
+    assert_equal "paid", order.reload.status
     assert_equal "4242", order.payments.sole.card_last_four
     assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::HELD)
   end
@@ -232,7 +232,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.assert_select "[data-order-status]", text: "Delivered"
 
     assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.reload.status
-    assert_equal Domain::Orders::OrderStatus::DELIVERED, order.reload.status
+    assert_equal "delivered", order.reload.status
     assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::RELEASED)
   end
 
