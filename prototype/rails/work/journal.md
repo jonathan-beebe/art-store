@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:19:05:52 — RFCTR-003 — started
 - 2026-08-22:19:03:43 — RFCTR-002 — done: four shared test cases collapsed into test_helper plus test/support (TestRecords, IntegrationHelpers), every test file requires test_helper and subclasses a stock Rails base, 205 call sites renamed to the create_* builders off the parsed AST, README and architecture.md updated, 645 runs at 100% line coverage (this commit)
 - 2026-08-22:18:54:09 — RFCTR-002 — started
 - 2026-08-22:18:48:05 — RFCTR-001 — done: 109 test files moved under test/ mirroring app/ (git mv), domain tests require test_helper and subclass ActiveSupport::TestCase, Zeitwerk ignore and SimpleCov skip for *_test.rb removed, bin/rails test with no arguments runs all 645 at 100% line coverage, Makefile/README/docs updated (d4044ad)

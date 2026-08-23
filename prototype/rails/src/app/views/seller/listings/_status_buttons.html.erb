@@ -3,6 +3,6 @@
         params: { status: next_status },
         class: "rounded border border-neutral-400 px-2 py-1",
         form: { data: { status_button: next_status } } do %>
-    Mark <%= Domain::Reports::StatusLabel.of(next_status).downcase %>
+    Mark <%= status_label(next_status).downcase %>
   <% end %>
 <% end %>

@@ -24,3 +24,17 @@ Each reimplementation carries its own tests and its own edge cases; the built-in
 
 ## Related work
 - RFCTR-001
+
+## Working
+
+### C1 — status labels
+
+Both `StatusLabel` modules produced the same string as `String#humanize` for every value in
+`OrderStatus::ALL`, `FulfillmentStatus::ALL`, `ListingStatus::ALL` and `paid_out`, checked value by
+value before the change. The two modules and their tests are gone.
+
+`status_label` now lives once in `ApplicationHelper` rather than once per site. Rails includes every
+helper in every view, so a copy in `SellerHelper` alongside the one in `ShopHelper` would have been
+shadowed by load order and never run — coverage caught it as a dead line. Seller views call
+`status_label`; `Seller::ListingStatusesController` and `Domain::Reports::ListingStatusCount#label`
+call `humanize` directly.

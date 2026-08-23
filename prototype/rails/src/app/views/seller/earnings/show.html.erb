@@ -43,7 +43,7 @@
               <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(fulfillment.subtotal_cents).format %></td>
               <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(fulfillment.fee_cents).format %></td>
               <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= fulfillment.net.format %></td>
-              <td data-cell="status" class="px-4 py-2"><%= Domain::Reports::StatusLabel.of(fulfillment.status) %></td>
+              <td data-cell="status" class="px-4 py-2"><%= status_label(fulfillment.status) %></td>
             </tr>
           <% end %>
         </tbody>

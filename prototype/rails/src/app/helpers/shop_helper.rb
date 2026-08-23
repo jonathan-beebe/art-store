@@ -17,10 +17,6 @@ module ShopHelper
     Domain::Shop::ShopName.of(shop_name: seller.shop_name, email: seller.email)
   end
 
-  def status_label(status)
-    Domain::Shop::StatusLabel.humanize(status)
-  end
-
   def money(cents)
     Domain::Money.from_cents(cents).format
   end
