@@ -1,0 +1,44 @@
+name: Node
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prototype/node/**'
+      - '.github/workflows/node.yml'
+  pull_request:
+    paths:
+      - 'prototype/node/**'
+      - '.github/workflows/node.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototype/node/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: prototype/node/src/package-lock.json
+
+      - run: npm ci
+
+      # The smoke test serves /public/app.css; nothing builds it on install.
+      - run: npm run assets
+
+      - run: npm run check
+
+      # `check` gates on coverage but doesn't write a report file; `test:ci`
+      # reruns the same gated suite with spec output plus an lcov reporter so
+      # there is a coverage/lcov.info to upload below.
+      - run: npm run test:ci
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: prototype/node/src/coverage/lcov.info

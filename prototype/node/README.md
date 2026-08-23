@@ -129,7 +129,8 @@ export needs `--user "$(id -u):$(id -g)"`.
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
 `node:assert/strict` — no test framework is installed. `make test` runs
 `npm run check`: `tsc --noEmit`, then eslint (`complexity` max 8, `max-depth`
-max 3), then `node --test 'app/**/*.test.ts'`.
+max 3), then the coverage-gated suite (see Coverage below). `npm test` on its
+own runs the suite without the coverage gate, for a fast local loop.
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -154,12 +155,26 @@ docker compose run --rm app node --test --test-name-pattern="percent" app/core/m
 make coverage
 ```
 
-Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=90 --test-coverage-branches=80 'app/**/*.test.ts'`,
-printing Node's own coverage table and failing under 90% lines / 80% branches.
+Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 'app/**/*.test.ts'`,
+printing Node's own coverage table and failing under 95% lines / 90% branches.
 
 The suite stands at 1,161 tests and 99.42% lines / 95.23% branches / 98.85%
 functions. What is left uncovered is migration `down()` bodies and a handful of
 defensive branches.
+
+`node:test` itself is stable. `--experimental-test-coverage` and the
+`--test-coverage-lines`/`--test-coverage-branches` threshold flags it enables
+are still Node's own Stability 1 (Experimental) — the platform's own test
+runner gates the build, but that gate is built on an experimental flag, not a
+stable one.
+
+## CI
+
+[`.github/workflows/node.yml`](../../.github/workflows/node.yml) runs on
+every push to `main` and every pull request touching `prototype/node/**`: it
+installs on Node 24, builds the Tailwind stylesheet the smoke test serves,
+then runs `npm run check` — typecheck, lint, and the coverage-gated suite —
+and uploads `coverage/lcov.info` as a build artifact.
 
 ## Smoke
 

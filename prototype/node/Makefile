@@ -20,6 +20,8 @@ assets:
 shell:
 	docker compose run --rm app bash
 
+# `check` now runs the coverage-gated suite, not the fast one, so `make test`
+# also fails under 95% lines / 90% branches.
 test:
 	docker compose run --rm app npm run check
 

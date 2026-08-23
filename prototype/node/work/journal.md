@@ -13,6 +13,8 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:08:17:10 — FEAT-014 — done: `.github/workflows/node.yml` runs typecheck, lint, and the coverage-gated suite on Node 24 for pushes/PRs touching `prototype/node`, then uploads `coverage/lcov.info`; `npm run check` now runs `typecheck && lint && coverage`, thresholds raised 90/80 → 95/90, new `test:ci` script pairs `spec`+`lcov` reporters for CI's readable output plus the artifact
+- 2026-08-23:08:11:38 — FEAT-014 — started
 - 2026-08-23:08:08:40 — IMPRV-005 — started
 - 2026-08-23:08:08:16 — IMPRV-004 — done: CHECK constraints on all eleven status/kind columns generated from their core `as const` arrays (added to the original create-table migrations, since SQLite has no ALTER TABLE ADD CONSTRAINT — existing databases need `make fresh`), a schema-fidelity test checking every table's columns and nullability against `pragma_table_info`, `migrateDown`/`pendingMigrations` plus a down-to-zero-and-back migration cycle test, and `page_view_counts.site`/`listings.quantity`/`listings.status`/`fulfillments.status`/`page_view_counts.count` carrying their narrow/`Generated` types
 - 2026-08-23:08:07:30 — BUG-003 — done: checkout plans placement in core and refuses a stale cart by name instead of 500ing, placement and the charge commit as one transaction, and the add-to-cart gate reads the listing in the transaction that writes the line
