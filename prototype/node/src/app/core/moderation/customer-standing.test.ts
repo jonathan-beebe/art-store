@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { customerStanding, canShop, type CustomerBlock } from './customer-standing.ts'
+import { activeBlock, canShop, customerStanding, type CustomerBlock } from './customer-standing.ts'
 
 function block(overrides: Partial<CustomerBlock> = {}): CustomerBlock {
   return { reason: 'abusive messages', liftedAt: null, ...overrides }
@@ -30,4 +30,13 @@ test('a good standing customer can shop', () => {
 
 test('a blocked customer cannot shop', () => {
   assert.equal(canShop(customerStanding([block()])), false)
+})
+
+test('the active block is the unlifted one, with everything else it was read with', () => {
+  const lifted = { id: 1, reason: 'Chargeback fraud', liftedAt: new Date('2026-08-20T00:00:00.000Z') }
+  const active = { id: 2, reason: 'Abusive messages', liftedAt: null }
+
+  assert.equal(activeBlock([lifted, active]), active)
+  assert.equal(activeBlock([lifted]), null)
+  assert.equal(activeBlock([]), null)
 })

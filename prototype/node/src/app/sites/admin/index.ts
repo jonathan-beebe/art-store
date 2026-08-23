@@ -1,8 +1,8 @@
 import type { FastifyPluginCallback } from 'fastify'
+import { adminConsoleRoutes } from './console.ts'
 import { findAdminByEmail } from '../../actions/auth/find-admin-by-email.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
 import { signInRoutes } from '../auth/sign-in-routes.ts'
-import { homeRoutes } from './routes/home.ts'
 
 export const adminSite: FastifyPluginCallback = (admin, _options, done) => {
   addSiteRender(admin, { pages: 'sites/admin/views', layout: 'sites/admin/views/layout' })
@@ -15,7 +15,7 @@ export const adminSite: FastifyPluginCallback = (admin, _options, done) => {
       refusal: 'That address cannot sign in to the admin site.',
     }),
   )
-  admin.register(homeRoutes)
+  admin.register(adminConsoleRoutes)
 
   done()
 }

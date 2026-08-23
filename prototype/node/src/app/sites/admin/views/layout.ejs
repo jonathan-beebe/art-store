@@ -6,28 +6,38 @@
     <title><%= title %> — Admin</title>
     <link rel="stylesheet" href="/app.css" />
   </head>
-  <body class="min-h-screen bg-neutral-100 text-neutral-900 antialiased">
+  <body class="min-h-screen bg-neutral-100 text-sm text-neutral-900 antialiased">
     <%- include('views/partials/debug-alert', { flash }) %>
     <%- include('views/partials/flash', { flash }) %>
     <header class="border-b border-neutral-300 bg-neutral-900 text-neutral-100">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-sm">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
         <a href="/admin" class="font-semibold">Art Store admin</a>
-        <ul class="flex gap-4 text-neutral-400">
-          <li><a href="/" class="hover:text-white">Storefront</a></li>
-          <li><a href="/seller" class="hover:text-white">Seller portal</a></li>
-          <% if (identity.admin) { %>
-          <li><a href="/admin/account" class="hover:text-white">Account</a></li>
-          <li>
-            <form method="post" action="/admin/logout">
-              <button type="submit" class="cursor-pointer hover:text-white">Sign out</button>
-            </form>
-          </li>
-          <% } else { %>
-          <li><a href="/admin/login" class="hover:text-white">Sign in</a></li>
-          <% } %>
-        </ul>
-      </nav>
+        <% if (identity.admin) { %>
+        <nav aria-label="Admin site" class="flex flex-wrap gap-4 text-neutral-300">
+          <a href="/admin" class="hover:text-white">Overview</a>
+          <a href="/admin/sellers" class="hover:text-white">Sellers</a>
+          <a href="/admin/customers" class="hover:text-white">Customers</a>
+          <a href="/admin/listings" class="hover:text-white">Listings</a>
+          <a href="/admin/orders" class="hover:text-white">Orders</a>
+          <a href="/admin/fulfillments" class="hover:text-white">Fulfillments</a>
+          <a href="/admin/accounting" class="hover:text-white">Accounting</a>
+          <a href="/admin/payouts" class="hover:text-white">Payouts</a>
+          <a href="/admin/ledger" class="hover:text-white">Ledger</a>
+          <a href="/admin/stats" class="hover:text-white">Site stats</a>
+        </nav>
+        <div class="ml-auto flex items-center gap-4 text-neutral-300">
+          <a href="/admin/account" class="hover:text-white"><%= identity.admin.email %></a>
+          <form method="post" action="/admin/logout" class="inline">
+            <button type="submit" class="cursor-pointer hover:text-white">Sign out</button>
+          </form>
+        </div>
+        <% } else { %>
+        <div class="ml-auto text-neutral-300">
+          <a href="/admin/login" class="hover:text-white">Sign in</a>
+        </div>
+        <% } %>
+      </div>
     </header>
-    <main class="mx-auto max-w-6xl px-4 py-8"><%- body %></main>
+    <main class="mx-auto max-w-7xl px-4 py-6"><%- body %></main>
   </body>
 </html>

@@ -1,0 +1,135 @@
+<h1 class="text-lg font-semibold" data-customer="<%= customer.id %>"><%= customer.email ?? 'Anonymous customer' %></h1>
+<dl class="mt-2 text-neutral-600">
+  <div><dt class="inline text-neutral-500">Joined</dt> <dd class="inline"><%= formatMoment(customer.createdAt) %></dd></div>
+</dl>
+
+<section class="mt-6" data-standing="<%= block ? 'blocked' : 'unblocked' %>" aria-labelledby="standing-heading">
+  <h2 id="standing-heading" class="font-semibold text-neutral-700">Standing</h2>
+
+  <% if (block) { %>
+  <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600" data-block-reason>
+    Blocked <%= formatMoment(block.createdAt.toISOString()) %>: <%= block.reason %>
+  </p>
+  <form method="post" action="/admin/customers/<%= customer.id %>/blocks/lift" class="mt-4">
+    <input type="hidden" name="redirect_to" value="/admin/customers/<%= customer.id %>" />
+    <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+      Lift block
+    </button>
+  </form>
+  <% } else { %>
+  <p class="mt-2 text-neutral-600">Not blocked.</p>
+  <form method="post" action="/admin/customers/<%= customer.id %>/blocks" class="mt-4 max-w-md space-y-3">
+    <input type="hidden" name="redirect_to" value="/admin/customers/<%= customer.id %>" />
+    <div>
+      <label for="reason" class="block text-sm font-medium text-neutral-700">Reason</label>
+      <textarea
+        name="reason"
+        id="reason"
+        required
+        class="mt-1 block w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
+      ></textarea>
+    </div>
+    <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+      Block customer
+    </button>
+  </form>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="orders-heading">
+  <h2 id="orders-heading" class="font-semibold text-neutral-700">Orders</h2>
+  <% if (orders.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No orders yet.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This customer's orders</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Total</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% orders.forEach((order) => { %>
+        <tr data-order="<%= order.id %>">
+          <th scope="row" class="px-4 py-3 font-normal">
+            <a href="/admin/orders/<%= order.id %>" class="font-medium underline">#<%= order.id %></a>
+          </th>
+          <td data-cell="status" class="px-4 py-3"><%= formatLabel(order.status) %></td>
+          <td data-cell="total" class="px-4 py-3 text-right tabular-nums"><%= formatCents(order.totalCents) %></td>
+          <td class="px-4 py-3"><%= formatMoment(order.placedAt) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="favorites-heading">
+  <h2 id="favorites-heading" class="font-semibold text-neutral-700">Favorites</h2>
+  <% if (favorites.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No favorites yet.' }) %>
+  <% } else { %>
+  <ul class="mt-2 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
+    <% favorites.forEach((favorite) => { %>
+    <li data-favorite="<%= favorite.listingId %>" class="p-3">
+      <a href="/admin/listings/<%= favorite.listingId %>" class="underline"><%= favorite.title %></a>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="cart-heading">
+  <h2 id="cart-heading" class="font-semibold text-neutral-700">Cart</h2>
+  <% if (cartLines.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'The cart is empty.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This customer's cart</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% cartLines.forEach((line) => { %>
+        <tr data-cart-line="<%= line.listingId %>">
+          <th scope="row" class="px-4 py-3 font-normal">
+            <a href="/admin/listings/<%= line.listingId %>" class="underline"><%= line.title %></a>
+          </th>
+          <td data-cell="quantity" class="px-4 py-3 text-right tabular-nums"><%= line.quantity %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="merges-heading">
+  <h2 id="merges-heading" class="font-semibold text-neutral-700">Merges</h2>
+  <% if (merges.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No merges on record.' }) %>
+  <% } else { %>
+  <ul class="mt-2 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
+    <% merges.forEach((merge) => { %>
+    <li data-merge="<%= merge.id %>" data-direction="<%= merge.direction %>" class="p-3">
+      <% if (merge.direction === 'into') { %>
+      Folded in customer
+      <% } else { %>
+      Folded into customer
+      <% } %>
+      <a href="/admin/customers/<%= merge.otherCustomerId %>" class="underline">#<%= merge.otherCustomerId %></a>
+      on <%= formatMoment(merge.createdAt) %>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+</section>
