@@ -2,7 +2,13 @@
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
         <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
-        <a href="{{ route('seller.orders.index') }}" class="ml-auto text-gray-700 underline">All orders</a>
+
+        <form method="POST" action="{{ route('seller.orders.messages', $fulfillment) }}" class="ml-auto">
+            @csrf
+            <button type="submit" class="text-gray-700 underline">Message the customer</button>
+        </form>
+
+        <a href="{{ route('seller.orders.index') }}" class="text-gray-700 underline">All orders</a>
     </div>
 
     <div class="mt-6 grid gap-6 lg:grid-cols-2">

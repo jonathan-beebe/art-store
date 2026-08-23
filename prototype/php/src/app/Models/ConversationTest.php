@@ -77,6 +77,113 @@ it('has no other participant when the thread is missing one side', function (): 
     expect($conversation->otherParticipant($message))->toBeNull();
 });
 
+it('names the counterpart a viewer sees, not the viewer\'s own side', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+    ]);
+    $conversation->load(['seller', 'customer', 'admin']);
+
+    expect($conversation->counterpart(ActorType::Seller)?->is($customer))->toBeTrue()
+        ->and($conversation->counterpart(ActorType::Customer)?->is($seller))->toBeTrue();
+});
+
+it('has no counterpart when the thread is missing that side', function (): void {
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => null,
+    ]);
+    $conversation->load(['seller', 'customer', 'admin']);
+
+    expect($conversation->counterpart(ActorType::Seller))->toBeNull();
+});
+
+it('reads a customer counterpart by name, falling back to their id', function (): void {
+    $seller = $this->seller();
+    $named = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => Customer::factory()->create(['name' => 'Ada Lovelace'])->id,
+    ]);
+    $unnamed = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => Customer::factory()->create(['name' => null])->id,
+    ]);
+    $named->load(['seller', 'customer', 'admin']);
+    $unnamed->load(['seller', 'customer', 'admin']);
+
+    expect($named->counterpartName(ActorType::Seller))->toBe('Ada Lovelace')
+        ->and($unnamed->counterpartName(ActorType::Seller))->toBe('Customer #'.$unnamed->customer_id);
+});
+
+it('reads an admin or seller counterpart by their display name', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller('Blue Kiln Studio');
+    $conversation = Conversation::factory()->adminSeller()->create([
+        'admin_id' => $admin->id,
+        'seller_id' => $seller->id,
+    ]);
+    $conversation->load(['seller', 'customer', 'admin']);
+
+    expect($conversation->counterpartName(ActorType::Seller))->toBe($admin->displayName())
+        ->and($conversation->counterpartName(ActorType::Admin))->toBe('Blue Kiln Studio');
+});
+
+it('names no counterpart account as deleted', function (): void {
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => null,
+    ]);
+    $conversation->load(['seller', 'customer', 'admin']);
+
+    expect($conversation->counterpartName(ActorType::Seller))->toBe('Deleted account');
+});
+
+it('reads the newest message as the preview', function (): void {
+    $conversation = Conversation::factory()->listingQuestion()->create();
+    Message::factory()->create(['conversation_id' => $conversation->id, 'sent_at' => now()->subMinute()]);
+    $newest = Message::factory()->create(['conversation_id' => $conversation->id, 'sent_at' => now()]);
+
+    expect($conversation->latestMessage?->is($newest))->toBeTrue();
+});
+
+it('prefills an faq from the opening question and the seller\'s latest answer', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+    ]);
+    Message::factory()->from($customer)->create(['conversation_id' => $conversation->id, 'body' => 'Is this framed?']);
+    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Not yet framed.']);
+    $latestAnswer = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Yes, framed in black wood.']);
+    $conversation->load('messages');
+
+    $prefill = $conversation->faqPrefill();
+
+    expect($prefill?->question)->toBe('Is this framed?')
+        ->and($prefill?->answer)->toBe('Yes, framed in black wood.')
+        ->and($prefill?->sourceMessageId)->toBe($latestAnswer->id);
+});
+
+it('offers no faq prefill for a thread the seller has not answered', function (): void {
+    $conversation = Conversation::factory()->listingQuestion()->create();
+    Message::factory()->create(['conversation_id' => $conversation->id]);
+    $conversation->load('messages');
+
+    expect($conversation->faqPrefill())->toBeNull();
+});
+
+it('offers no faq prefill for a thread with no listing', function (): void {
+    $conversation = Conversation::factory()->adminSeller()->create();
+    $conversation->load('messages');
+
+    expect($conversation->faqPrefill())->toBeNull();
+});
+
 it('scopes threads to the given participant', function (): void {
     $seller = $this->seller();
     $mine = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);

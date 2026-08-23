@@ -32,3 +32,14 @@ it('reads the messages it sent', function (): void {
 
     expect($admin->sentMessages()->count())->toBe(1);
 });
+
+it('names the first admin by id as the platform admin', function (): void {
+    $first = $this->admin();
+    $this->admin();
+
+    expect(Admin::platformAdmin()?->is($first))->toBeTrue();
+});
+
+it('has no platform admin when none is seeded', function (): void {
+    expect(Admin::platformAdmin())->toBeNull();
+});

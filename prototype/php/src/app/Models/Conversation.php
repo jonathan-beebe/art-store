@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Messaging\ConversationKind;
 use App\Domain\Messaging\ConversationSubject;
+use App\Domain\Messaging\FaqPrefill;
+use App\Support\ActorDisplay;
 use Database\Factories\ConversationFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -16,6 +18,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Override;
 
 /**
@@ -24,6 +27,7 @@ use Override;
  * @property-read Admin|null $admin
  * @property-read Listing|null $listing
  * @property-read Fulfillment|null $fulfillment
+ * @property-read Message|null $latestMessage
  */
 #[Fillable(['kind', 'subject_key', 'seller_id', 'customer_id', 'admin_id', 'listing_id', 'fulfillment_id', 'last_message_at'])]
 class Conversation extends Model
@@ -77,6 +81,16 @@ class Conversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    /**
+     * The newest message in the thread — the preview an inbox row shows.
+     *
+     * @return HasOne<Message, $this>
+     */
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(Message::class)->latestOfMany('id');
     }
 
     /**
@@ -139,13 +153,22 @@ class Conversation extends Model
 
     /**
      * The participant a posted message is told about: the side of the thread
-     * that did not send it. Reads the relation already eager-loaded rather
-     * than fetching it fresh, so a caller plans its eager loads up front.
+     * that did not send it.
      */
     public function otherParticipant(Message $message): Seller|Customer|Admin|null
     {
+        return $this->counterpart(ActorType::from($message->sender_type));
+    }
+
+    /**
+     * The side of the thread a viewer is not on. Reads the relation already
+     * eager-loaded rather than fetching it fresh, so a caller plans its
+     * eager loads up front.
+     */
+    public function counterpart(ActorType $viewer): Seller|Customer|Admin|null
+    {
         foreach (ActorType::cases() as $actorType) {
-            if ($actorType->value === $message->sender_type) {
+            if ($actorType === $viewer) {
                 continue;
             }
 
@@ -161,6 +184,37 @@ class Conversation extends Model
         }
 
         return null;
+    }
+
+    /**
+     * How a viewer's inbox names the other side of the thread.
+     */
+    public function counterpartName(ActorType $viewer): string
+    {
+        return ActorDisplay::nameOf($this->counterpart($viewer));
+    }
+
+    /**
+     * What a listing-question thread offers to carry onto a published FAQ
+     * entry, or null for a thread with no listing to publish one against.
+     * The opening message reads as the question and the seller's latest
+     * reply as the answer, so a thread the seller has not answered yet
+     * offers nothing to publish. Reads the `messages` relation already
+     * eager-loaded rather than fetching it fresh.
+     */
+    public function faqPrefill(): ?FaqPrefill
+    {
+        if ($this->kind !== ConversationKind::ListingQuestion) {
+            return null;
+        }
+
+        $messages = $this->messages->sortBy('id');
+        $question = $messages->first();
+        $answer = $messages->where('sender_type', ActorType::Seller->value)->last();
+
+        return $question !== null && $answer !== null
+            ? FaqPrefill::of($question->body, $answer->body, $answer->id)
+            : null;
     }
 
     /**

@@ -50,4 +50,13 @@ class Admin extends Authenticatable
     {
         return $this->morphMany(Message::class, 'sender');
     }
+
+    /**
+     * The one admin a support thread opens against, in a prototype with no
+     * assignment model. Null when no admin has been seeded yet.
+     */
+    public static function platformAdmin(): ?self
+    {
+        return self::query()->oldest('id')->first();
+    }
 }

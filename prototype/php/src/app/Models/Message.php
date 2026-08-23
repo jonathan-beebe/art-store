@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Support\ActorDisplay;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -46,6 +47,15 @@ class Message extends Model
     public function sender(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Who a thread reads this message as from. Reads the relation already
+     * eager-loaded rather than fetching it fresh.
+     */
+    public function senderName(): string
+    {
+        return ActorDisplay::nameOf($this->sender);
     }
 
     /**

@@ -42,7 +42,7 @@ flowchart TD
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
 | Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`, `routes/admin.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`, `routes/admin.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop` and `SellerLayoutComposer` to `components.layouts.seller`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -121,6 +121,7 @@ binds by slug) and then authorizes it. `app/Policies` holds the rules:
 | `FulfillmentPolicy` | `confirmDelivery` | `Customer` |
 | `OrderPolicy` | `view`, `pay` | `Customer` |
 | `NotificationPolicy` | `markRead` | `Seller` or `Customer` |
+| `ConversationPolicy` | `view`, `post` | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -384,7 +385,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (826 tests, 1887 assertions). `make analyse` and `make lint` run
+  then the full Pest suite (999 tests, 2196 assertions). `make analyse` and `make lint` run
   the first two alone, against the file tree only (`--no-deps`, no web
   server).
 - Sidecar tests are analysed at the same level as the code they cover: there

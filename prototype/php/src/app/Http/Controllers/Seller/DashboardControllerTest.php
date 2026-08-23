@@ -131,7 +131,7 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
     $this->deliveredFulfillmentFor($seller, priceCents: 10000);
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(5)
+        ->expectsDatabaseQueryCount(6)
         ->get('/seller');
 
     $response->assertOk();

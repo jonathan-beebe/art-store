@@ -103,30 +103,29 @@ it('names support as the topic of an admin thread', function (): void {
 });
 
 it('leaves the url null when the recipient route does not exist yet', function (): void {
+    // The seller portal's thread route exists; the storefront's does not
+    // until a later ticket lands it, so a customer recipient still proves
+    // the guard.
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $conversation = Conversation::factory()->listingQuestion()->create([
         'seller_id' => $seller->id,
         'customer_id' => $customer->id,
     ]);
-    $message = Message::factory()->from($customer)->create(['conversation_id' => $conversation->id]);
+    $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
     Notification::fake();
 
     app(NotifyOfMessage::class)->handle(new MessagePosted($message, $this->moment('2026-08-20 10:00:00')));
 
     Notification::assertSentTo(
-        $seller,
+        $customer,
         MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($seller)['url'] === null,
+        fn (MessageReceived $notification): bool => $notification->toArray($customer)['url'] === null,
     );
 });
 
 it('links to the thread on the recipient site once its route exists', function (): void {
-    Route::get('/seller/messages/{conversation}', fn () => null)->name('seller.messages.show');
-    // The name lookup Route::has()/route() read is built when the router
-    // compiles for dispatch, not the moment ->name() is called, so a route
-    // registered mid-test has to ask for it explicitly.
-    app('router')->getRoutes()->refreshNameLookups();
+    expect(Route::has('seller.messages.show'))->toBeTrue();
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $conversation = Conversation::factory()->listingQuestion()->create([

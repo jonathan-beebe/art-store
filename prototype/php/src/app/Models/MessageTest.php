@@ -35,3 +35,10 @@ it('reads its sender through the morph map', function (): void {
 
     expect($message->sender->is($seller))->toBeTrue();
 });
+
+it('names its sender', function (): void {
+    $seller = $this->seller('Blue Kiln Studio');
+    $message = Message::factory()->from($seller)->create();
+
+    expect($message->senderName())->toBe('Blue Kiln Studio');
+});

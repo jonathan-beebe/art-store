@@ -16,6 +16,7 @@ use App\Models\Customer;
 use App\Models\Seller;
 use App\Policies\NotificationPolicy;
 use App\Support\CustomerIdentity;
+use App\View\Composers\SellerLayoutComposer;
 use App\View\Composers\ShopLayoutComposer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -62,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         // The header counts belong to the layout that renders them, so every
         // storefront page gets them without its controller passing them along.
         View::composer('components.layouts.shop', ShopLayoutComposer::class);
+        View::composer('components.layouts.seller', SellerLayoutComposer::class);
 
         // The storefront visitor is resolved by middleware rather than signed
         // in on a guard, so `@can` has no user to read there. `@visitorCan`

@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:15:35:50 — FEAT-012 — done: seller messaging pages (inbox, thread, reply), support/order-message open-or-find, listing FAQ publish/reword/unpublish, SellerLayoutComposer nav badge; 999 tests / 2196 assertions, 100.0% coverage
+- 2026-08-23:15:12:04 — FEAT-012 — started
 - 2026-08-23:15:08:00 — FEAT-011 — reviewed: fixed a merge leaving conversations.subject_key naming the anonymous customer (duplicate threads after verification); Conversation::moveCustomer re-keys and folds, ConversationSubject::for rebuilds a key from a row; docs carry the messaging tables and drop RecipientType; 941 tests / 2056 assertions, 100.0% coverage
 - 2026-08-23:14:55:11 — FEAT-011 — done: messaging schema, domain (ConversationKind/Subject, MessageBody, FaqDraft), models+factories, ConversationPolicy, six Messaging actions, MessagePosted/NotifyOfMessage/MessageReceived, merge extension; 931 tests / 2041 assertions, 100.0% coverage
 - 2026-08-23:14:38:02 — FEAT-011 — started

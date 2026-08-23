@@ -67,6 +67,18 @@ class ConversationFactory extends Factory
     }
 
     /**
+     * Builds the row a given subject already names, so a test that overrides
+     * a participant column (`->forSubject($subject)->create(['seller_id' =>
+     * $seller->id])` with the subject built from that same seller) writes a
+     * `subject_key` that agrees with the columns rather than one a later
+     * override contradicts.
+     */
+    public function forSubject(ConversationSubject $subject): static
+    {
+        return $this->state(fn (): array => $this->columnsFor($subject));
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function listingQuestionAttributes(): array
