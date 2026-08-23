@@ -35,6 +35,10 @@ export const payoutRoutes: FastifyPluginCallback = (admin, _options, done) => {
     const asOf = parseAsOfDay(runForm.parse(formBody(request)).as_of, admin.clock.now())
     const payouts = await runWeeklyPayout({ db: admin.db, clock: admin.clock }, asOf)
 
+    request.log.info(
+      { event: 'payout.run', count: payouts.length, totalCents: payoutTotal(payouts) },
+      'payout run',
+    )
     reply.setFlash({ notice: payoutFlashMessage(payouts, payoutPeriodEndingBefore(asOf)) })
 
     return reply.redirect('/admin/payouts')

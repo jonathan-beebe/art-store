@@ -1,14 +1,25 @@
 import { parseArgs } from 'node:util'
 import { fileURLToPath } from 'node:url'
+import type pino from 'pino'
 import { loadConfig } from '../config.ts'
+import { createCliLogger } from '../logging.ts'
 import { openDatabase, removeDatabaseFile } from './database.ts'
 import { migrateToLatest } from './migrator.ts'
 
-/** Applies every pending migration, optionally after deleting the database
- * file first (`--fresh`). Importable so a test can run it against a temp
- * database without the process ever starting. */
-export async function main(argv: readonly string[], env: NodeJS.ProcessEnv): Promise<void> {
+/**
+ * Applies every pending migration, optionally after deleting the database
+ * file first (`--fresh`). A failure is logged and leaves `process.exitCode`
+ * at 1 rather than crashing with a raw stack trace. Importable, with an
+ * injectable `logger`, so a test can run it against a temp database without
+ * the process ever starting.
+ */
+export async function main(
+  argv: readonly string[],
+  env: NodeJS.ProcessEnv,
+  logger?: pino.Logger,
+): Promise<void> {
   const config = loadConfig(env)
+  const log = logger ?? createCliLogger(config)
 
   const { values } = parseArgs({
     args: argv.slice(2),
@@ -16,23 +27,34 @@ export async function main(argv: readonly string[], env: NodeJS.ProcessEnv): Pro
     strict: true,
   })
 
-  if (values.fresh) {
-    await removeDatabaseFile(config.databaseFile)
-    console.log(`removed ${config.databaseFile}`)
-  }
-
-  const db = openDatabase(config.databaseFile)
-
   try {
-    const applied = await migrateToLatest(db)
-
-    for (const migration of applied) {
-      console.log(`${migration.status} ${migration.migrationName}`)
+    if (values.fresh) {
+      await removeDatabaseFile(config.databaseFile)
+      log.info({ event: 'migrate.removed', databaseFile: config.databaseFile }, 'removed the database file')
     }
 
-    console.log(`${config.databaseFile} is up to date (${applied.length} applied)`)
-  } finally {
-    await db.destroy()
+    const db = openDatabase(config.databaseFile)
+
+    try {
+      const applied = await migrateToLatest(db)
+
+      for (const migration of applied) {
+        log.info(
+          { event: 'migrate.applied', migration: migration.migrationName, status: migration.status },
+          `${migration.status} ${migration.migrationName}`,
+        )
+      }
+
+      log.info(
+        { event: 'migrate.run', databaseFile: config.databaseFile, count: applied.length },
+        `${config.databaseFile} is up to date (${applied.length} applied)`,
+      )
+    } finally {
+      await db.destroy()
+    }
+  } catch (error) {
+    log.error({ err: error }, 'the migration run failed')
+    process.exitCode = 1
   }
 }
 

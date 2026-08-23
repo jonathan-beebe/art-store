@@ -10,6 +10,7 @@ export default tseslint.config(
     rules: {
       complexity: ['error', 8],
       'max-depth': ['error', 3],
+      'no-console': 'error',
     },
   },
 )

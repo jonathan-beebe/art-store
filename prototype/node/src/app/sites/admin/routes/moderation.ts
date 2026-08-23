@@ -33,6 +33,8 @@ type ModerationCommand<Submitted extends { redirect_to?: string }> = {
     context: ActionContext,
     input: { subjectId: number; adminId: number; submitted: Submitted },
   ): Promise<unknown>
+  /** The business event this write logs once `apply` has succeeded. */
+  logEvent(subjectId: number, adminId: number, submitted: Submitted): Record<string, unknown>
 }
 
 /**
@@ -56,12 +58,10 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
       origin: requestOrigin(request),
     })
 
+    const adminId = currentAdminId(request)
+
     try {
-      await command.apply(actionContext(request), {
-        subjectId,
-        adminId: currentAdminId(request),
-        submitted,
-      })
+      await command.apply(actionContext(request), { subjectId, adminId, submitted })
     } catch (error) {
       if (!(error instanceof TransitionError)) throw error
 
@@ -70,6 +70,7 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
       return reply.redirect(destination)
     }
 
+    request.log.info(command.logEvent(subjectId, adminId, submitted), command.notice)
     reply.setFlash({ notice: command.notice })
 
     return reply.redirect(destination)
@@ -106,6 +107,13 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
           kind: submitted.kind,
           reason: submitted.reason,
         }),
+      logEvent: (listingId, adminId, submitted) => ({
+        event: 'moderation.listing_removed',
+        listingId,
+        adminId,
+        kind: submitted.kind,
+        reason: submitted.reason,
+      }),
     }),
   )
 
@@ -116,6 +124,11 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       subjectPath: listingPath,
       notice: 'Removal lifted.',
       apply: (context, { subjectId }) => liftListingRemoval(context, { listingId: subjectId }),
+      logEvent: (listingId, adminId) => ({
+        event: 'moderation.listing_removal_lifted',
+        listingId,
+        adminId,
+      }),
     }),
   )
 
@@ -127,6 +140,12 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       notice: 'Customer blocked.',
       apply: (context, { subjectId, adminId, submitted }) =>
         blockCustomer(context, { customerId: subjectId, adminId, reason: submitted.reason }),
+      logEvent: (customerId, adminId, submitted) => ({
+        event: 'moderation.customer_blocked',
+        customerId,
+        adminId,
+        reason: submitted.reason,
+      }),
     }),
   )
 
@@ -137,6 +156,11 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       subjectPath: customerPath,
       notice: 'Block lifted.',
       apply: (context, { subjectId }) => liftCustomerBlock(context, { customerId: subjectId }),
+      logEvent: (customerId, adminId) => ({
+        event: 'moderation.customer_block_lifted',
+        customerId,
+        adminId,
+      }),
     }),
   )
 

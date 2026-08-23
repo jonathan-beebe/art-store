@@ -1,11 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildTestApp, signInAsAdmin, signInAsCustomer, type TestApp } from '../../../test/build-test-app.ts'
+import { buildTestApp, signInAsAdmin, signInAsCustomer, TEST_CONFIG, type TestApp } from '../../../test/build-test-app.ts'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
 import { currentCustomerStanding } from '../../../actions/moderation/current-customer-standing.ts'
 import { isOnStorefront } from '../../../core/listings/listing-availability.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { cartHolding, createListing, createCustomer, createSeller } from '../../../test/commerce-world.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 
 function flashFrom(testApp: TestApp, response: { cookies: { name: string; value: string }[] }): Record<string, string> {
   const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
@@ -427,3 +428,69 @@ test('a blocked customer is turned away from checkout on the storefront', async 
   assert.equal(afterBlock.headers.location, '/cart')
   assert.match(flashFrom(testApp, afterBlock).alert ?? '', /Chargeback fraud\./)
 })
+
+test('the four moderation writes each log a business event with the admin who did it', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = await createSeller({ db: testApp.db, clock: testApp.clock })
+  const listing = await createListing({ db: testApp.db, clock: testApp.clock }, sellerId)
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/listings/${listing.id}/removals`,
+    cookies: admin.cookies,
+    payload: { kind: 'temporary', reason: 'Reported artwork.' },
+  })
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/listings/${listing.id}/removals/lift`,
+    cookies: admin.cookies,
+  })
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks`,
+    cookies: admin.cookies,
+    payload: { reason: 'Chargeback fraud.' },
+  })
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks/lift`,
+    cookies: admin.cookies,
+  })
+
+  const lines = stream.lines()
+
+  const removed = eventLine(lines, 'moderation.listing_removed')
+  assert.equal(removed.listingId, listing.id)
+  assert.equal(removed.adminId, admin.id)
+  assert.equal(removed.reason, 'Reported artwork.')
+
+  const lifted = eventLine(lines, 'moderation.listing_removal_lifted')
+  assert.equal(lifted.listingId, listing.id)
+  assert.equal(lifted.adminId, admin.id)
+
+  const blocked = eventLine(lines, 'moderation.customer_blocked')
+  assert.equal(blocked.customerId, customerId)
+  assert.equal(blocked.adminId, admin.id)
+  assert.equal(blocked.reason, 'Chargeback fraud.')
+
+  const unblocked = eventLine(lines, 'moderation.customer_block_lifted')
+  assert.equal(unblocked.customerId, customerId)
+  assert.equal(unblocked.adminId, admin.id)
+})
+
+/** The one line logging the named event, so an assertion on its fields never
+ * needs to guard against the line being absent. */
+function eventLine(lines: readonly Record<string, unknown>[], event: string): Record<string, unknown> {
+  const line = lines.find((candidate) => candidate.event === event)
+  if (line === undefined) throw new Error(`no log line carries event ${event}`)
+
+  return line
+}

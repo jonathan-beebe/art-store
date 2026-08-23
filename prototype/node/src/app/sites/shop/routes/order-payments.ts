@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback } from 'fastify'
+import type { FastifyPluginCallback, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { finalizeOrder } from '../../../actions/orders/finalize-order.ts'
@@ -30,6 +30,17 @@ async function chargeVerifiedOrder(
 
     return finalizeOrder(transacted, { orderId: order.id, cardNumber: input.cardNumber })
   })
+}
+
+/** The card was charged one way or the other by the time this runs, so the
+ * event names what happened rather than what was attempted. */
+function logChargeOutcome(request: FastifyRequest, charged: Order): void {
+  const paid = charged.status === 'paid'
+
+  request.log.info(
+    { event: paid ? 'order.paid' : 'order.declined', orderId: charged.id, amountCents: charged.totalCents },
+    paid ? 'order paid' : 'card declined',
+  )
 }
 
 /**
@@ -70,6 +81,8 @@ export const orderPaymentRoutes: FastifyPluginCallback = (shop, _options, done) 
         { orderId: found.order.id, cardNumber: submitted.card_number ?? '' },
       )
       if (charged === null) return renderNotFound(reply)
+
+      logChargeOutcome(request, charged)
 
       return await reply.redirect(`/orders/${charged.id}`)
     },

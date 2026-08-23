@@ -6,6 +6,7 @@ import type { LightMyRequestResponse } from 'fastify'
 import type { AppConfig } from './config.ts'
 import { flashMagicLinkDelivery } from './delivery/flash-magic-link-delivery.ts'
 import { buildTestApp, TEST_CONFIG, type TestApp } from './test/build-test-app.ts'
+import { captureLogLines } from './test/log-lines.ts'
 
 /**
  * What `loadConfig` yields for a deployment behind TLS. The flash delivery is
@@ -117,4 +118,64 @@ test('a magic link is built from the public url, not the Host header the request
   const link: unknown = JSON.parse(flash.value ?? '{}')
   assert.ok(link !== null && typeof link === 'object' && 'debugMagicLink' in link)
   assert.match(String(link.debugMagicLink), /^https:\/\/art-store\.example\.com\/auth\/magic\//)
+})
+
+test('a request log line carries the incoming x-request-id', async (t) => {
+  const stream = captureLogLines()
+  const { app, close } = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(close)
+
+  await app.inject({
+    method: 'GET',
+    url: '/',
+    headers: { 'x-request-id': 'test-request-id' },
+  })
+
+  assert.ok(stream.lines().some((line) => line.requestId === 'test-request-id'))
+})
+
+test('a request log line gets a generated request id when none arrives', async (t) => {
+  const stream = captureLogLines()
+  const { app, close } = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(close)
+
+  await app.inject({ method: 'GET', url: '/' })
+
+  assert.ok(stream.lines().some((line) => typeof line.requestId === 'string' && line.requestId.length > 0))
+})
+
+test('the request log redacts identity and flash cookies but not others', async (t) => {
+  const stream = captureLogLines()
+  const { app, close } = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(close)
+
+  await app.inject({
+    method: 'GET',
+    url: '/',
+    cookies: { customer_id: 'signed-value', flash: 'signed-flash-value', theme: 'dark' },
+  })
+
+  const withCookies = stream
+    .lines()
+    .find(
+      (line): line is Record<string, unknown> & { req: { cookies: Record<string, string> } } =>
+        typeof line.req === 'object' &&
+        line.req !== null &&
+        'cookies' in line.req &&
+        typeof (line.req as { cookies?: unknown }).cookies === 'object',
+    )
+
+  assert.notEqual(withCookies, undefined)
+  assert.equal(withCookies?.req.cookies.customer_id, '[redacted]')
+  assert.equal(withCookies?.req.cookies.flash, '[redacted]')
+  assert.equal(withCookies?.req.cookies.theme, 'dark')
 })

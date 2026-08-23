@@ -70,6 +70,7 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
     clock,
     config,
     magicLinkDelivery: overrides.magicLinkDelivery ?? flashMagicLinkDelivery,
+    loggerStream: overrides.loggerStream,
   })
   await app.ready()
 

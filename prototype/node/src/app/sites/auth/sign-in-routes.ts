@@ -88,6 +88,9 @@ export function signInRoutes({
         { email, actorType, redirectTo },
       )
 
+      // Never the token or the URL: `delivered` carries the debug magic link
+      // and the flash it becomes is the only place that link is allowed.
+      request.log.info({ event: 'magic_link.requested', actorType, email }, 'magic link requested')
       reply.setFlash({ ...delivered, notice: `Sign-in link sent to ${email}.` })
 
       return await reply.redirect(loginPath(site.loginPath, redirectTo))

@@ -9,8 +9,10 @@ import {
   signInAsCustomer,
   signInAsSeller,
   takeDebugMagicLink,
+  TEST_CONFIG,
   type TestApp,
 } from '../../../test/build-test-app.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 import {
   APPROVED_CARD,
   DECLINED_CARD,
@@ -327,6 +329,46 @@ test('a blocked customer cannot pay and is told why', async (t) => {
     cookies: { ...customer.cookies, ...flashFrom(response) },
   })
   assert.match(orderPage.body, /Your account is on hold/)
+})
+
+test('a successful charge logs an order.paid event', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+    payload: { card_number: APPROVED_CARD },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'order.paid')
+  assert.equal(line?.orderId, order.id)
+  assert.equal(line?.amountCents, 24_000)
+})
+
+test('a declined card logs an order.declined event', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+    payload: { card_number: DECLINED_CARD },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'order.declined')
+  assert.equal(line?.orderId, order.id)
+  assert.equal(line?.amountCents, 24_000)
 })
 
 function flashFrom(response: LightMyRequestResponse): Record<string, string> {

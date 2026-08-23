@@ -10,6 +10,7 @@ import { finalizeOrder } from '../actions/orders/finalize-order.ts'
 import { fixedClock } from '../clock.ts'
 import { openDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
+import { createCliLogger } from '../logging.ts'
 import {
   APPROVED_CARD,
   createCustomer,
@@ -17,13 +18,14 @@ import {
   createSeller,
   placedOrder,
 } from '../test/commerce-world.ts'
+import { captureLogLines } from '../test/log-lines.ts'
 
 /**
  * `main` opens its own database connection from `env`, so this exercises it
  * against a real file on disk — the setup connection is closed before `main`
  * runs, the way `npm run migrate` and `npm run payouts` never share a process.
  */
-test('main prints and pays a seller whose delivery landed inside the settled period', async (t) => {
+test('main logs one line per seller paid and a summary', async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'art-store-run-payouts-'))
   const databaseFile = path.join(dir, 'test.sqlite3')
   t.after(() => rm(dir, { recursive: true, force: true }))
@@ -54,23 +56,23 @@ test('main prints and pays a seller whose delivery landed inside the settled per
   await confirmDelivered({ db: setupDb, clock: deliveredAt }, fulfillment.id)
   await setupDb.destroy()
 
-  const lines: string[] = []
-  const originalLog = console.log
-  console.log = (line: unknown) => {
-    lines.push(String(line))
-  }
-  t.after(() => {
-    console.log = originalLog
-  })
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info' }, { stream })
 
-  await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile })
+  await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
 
-  assert.equal(lines[0], 'Payout period 2026-08-17 to 2026-08-23')
-  assert.equal(lines.includes(`seller ${sellerId} $405.00`), true)
-  assert.equal(lines.at(-1), '1 seller(s) paid.')
+  const lines = stream.lines()
+  const paidLine = lines.find((line) => line.event === 'payout.paid')
+  assert.equal(paidLine?.sellerId, sellerId)
+  assert.equal(paidLine?.amountCents, 40_500)
+  assert.equal(paidLine?.period, '2026-08-17 to 2026-08-23')
+
+  const summaryLine = lines.find((line) => line.event === 'payout.run')
+  assert.equal(summaryLine?.count, 1)
+  assert.equal(summaryLine?.totalCents, 40_500)
 })
 
-test('main reports no payout when nothing has released escrow', async (t) => {
+test('main logs a zero-count summary when nothing has released escrow', async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'art-store-run-payouts-'))
   const databaseFile = path.join(dir, 'test.sqlite3')
   t.after(() => rm(dir, { recursive: true, force: true }))
@@ -79,16 +81,44 @@ test('main reports no payout when nothing has released escrow', async (t) => {
   await migrateToLatest(setupDb)
   await setupDb.destroy()
 
-  const lines: string[] = []
-  const originalLog = console.log
-  console.log = (line: unknown) => {
-    lines.push(String(line))
-  }
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info' }, { stream })
+
+  await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
+
+  const lines = stream.lines()
+  assert.equal(lines.some((line) => line.event === 'payout.paid'), false)
+  const summaryLine = lines.find((line) => line.event === 'payout.run')
+  assert.equal(summaryLine?.count, 0)
+  assert.equal(summaryLine?.totalCents, 0)
+})
+
+test('main logs the error and sets a failing exit code when the run itself fails', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'art-store-run-payouts-'))
+  const databaseFile = path.join(dir, 'test.sqlite3')
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  // No migrations applied, so the query inside `runWeeklyPayout` fails against
+  // a database with no tables — the run itself failing, not a usage mistake.
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info' }, { stream })
+  const exitCodeBefore = process.exitCode
   t.after(() => {
-    console.log = originalLog
+    process.exitCode = exitCodeBefore
   })
 
-  await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile })
+  await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
 
-  assert.equal(lines.at(-1), 'No seller has a released balance for this period.')
+  assert.equal(process.exitCode, 1)
+  assert.equal(stream.lines().some((line) => line.err !== undefined), true)
+})
+
+test('a flag the command does not take is a mistake, not a logged failure', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'art-store-run-payouts-'))
+  const databaseFile = path.join(dir, 'test.sqlite3')
+  t.after(() => rm(dir, { recursive: true, force: true }))
+
+  await assert.rejects(() =>
+    main(['node', 'run-payouts.ts', '--evrything'], { DATABASE_FILE: databaseFile }),
+  )
 })
