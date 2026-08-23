@@ -1,4 +1,7 @@
 import { sql, type Kysely } from 'kysely'
+import { LISTING_EVENT_TYPES } from '../../core/listings/listing-event-type.ts'
+import { LISTING_STATUSES } from '../../core/listings/listing-status.ts'
+import { REMOVAL_KINDS } from '../../core/moderation/listing-removal.ts'
 
 /**
  * The catalogue and what visitors do to it. `listing_removals` is the admin's
@@ -23,7 +26,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('quantity', 'integer', (column) =>
       column.notNull().defaultTo(1).check(sql`quantity >= 0`),
     )
-    .addColumn('status', 'text', (column) => column.notNull().defaultTo('draft'))
+    .addColumn('status', 'text', (column) =>
+      column
+        .notNull()
+        .defaultTo('draft')
+        .check(sql`status in (${sql.join(LISTING_STATUSES.map((status) => sql.lit(status)))})`),
+    )
     .addColumn('image_path', 'text')
     .addColumn('created_at', 'text', (column) => column.notNull())
     .addColumn('updated_at', 'text', (column) => column.notNull())
@@ -46,7 +54,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
     .addColumn('customer_id', 'integer', (column) => column.references('customers.id'))
-    .addColumn('event_type', 'text', (column) => column.notNull())
+    .addColumn('event_type', 'text', (column) =>
+      column
+        .notNull()
+        .check(sql`event_type in (${sql.join(LISTING_EVENT_TYPES.map((type) => sql.lit(type)))})`),
+    )
     .addColumn('occurred_at', 'text', (column) => column.notNull())
     .execute()
 
@@ -76,7 +88,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
     .addColumn('admin_id', 'integer', (column) => column.notNull().references('admins.id'))
-    .addColumn('kind', 'text', (column) => column.notNull())
+    .addColumn('kind', 'text', (column) =>
+      column.notNull().check(sql`kind in (${sql.join(REMOVAL_KINDS.map((kind) => sql.lit(kind)))})`),
+    )
     .addColumn('reason', 'text', (column) => column.notNull())
     .addColumn('created_at', 'text', (column) => column.notNull())
     .addColumn('lifted_at', 'text')

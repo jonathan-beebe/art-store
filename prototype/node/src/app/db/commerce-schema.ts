@@ -1,4 +1,5 @@
 import type { Generated, Selectable } from 'kysely'
+import type { PageViewSite } from '../core/analytics/page-view-site.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
 import type { LedgerEntryType } from '../core/escrow/ledger-entry-type.ts'
 import type { ListingEventType } from '../core/listings/listing-event-type.ts'
@@ -23,8 +24,10 @@ export type ListingsTable = {
   medium: string | null
   dimensions: string | null
   priceCents: number
-  quantity: number
-  status: ListingStatus
+  /** Defaults to 1 in the migration. */
+  quantity: Generated<number>
+  /** Defaults to `'draft'` in the migration. */
+  status: Generated<ListingStatus>
   /** Relative to `public/`; null while the listing shows a generated placeholder. */
   imagePath: string | null
   createdAt: Timestamp
@@ -122,7 +125,8 @@ export type FulfillmentsTable = {
   id: Generated<number>
   orderId: number
   sellerId: number
-  status: FulfillmentStatus
+  /** Defaults to `'awaiting_shipment'` in the migration. */
+  status: Generated<FulfillmentStatus>
   carrier: string | null
   trackingNumber: string | null
   subtotalCents: number
@@ -167,11 +171,12 @@ export type NotificationsTable = {
 
 export type PageViewCountsTable = {
   id: Generated<number>
-  site: string
+  site: PageViewSite
   /** The route's pattern (`/art/:slug`), not the concrete URL. */
   pathPattern: string
   day: Day
-  count: number
+  /** Defaults to 0 in the migration; the upsert always sets it explicitly. */
+  count: Generated<number>
 }
 
 /**

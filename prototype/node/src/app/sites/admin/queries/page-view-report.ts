@@ -1,11 +1,13 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { PageViewSite } from '../../../core/analytics/page-view-site.ts'
 import { pageViewWeek } from '../../../core/analytics/page-view-window.ts'
+import type { Day } from '../../../db/commerce-schema.ts'
 
 /** Traffic on one day, across every site. */
-export type DayCount = { day: string; count: number }
+export type DayCount = { day: Day; count: number }
 
 /** Traffic on one route pattern of one site, across every day. */
-export type PatternCount = { site: string; pathPattern: string; count: number }
+export type PatternCount = { site: PageViewSite; pathPattern: string; count: number }
 
 export type PageViewTotals = { todayCount: number; weekCount: number }
 

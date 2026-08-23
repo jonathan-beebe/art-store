@@ -13,6 +13,8 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:08:08:40 — IMPRV-005 — started
+- 2026-08-23:08:08:16 — IMPRV-004 — done: CHECK constraints on all eleven status/kind columns generated from their core `as const` arrays (added to the original create-table migrations, since SQLite has no ALTER TABLE ADD CONSTRAINT — existing databases need `make fresh`), a schema-fidelity test checking every table's columns and nullability against `pragma_table_info`, `migrateDown`/`pendingMigrations` plus a down-to-zero-and-back migration cycle test, and `page_view_counts.site`/`listings.quantity`/`listings.status`/`fulfillments.status`/`page_view_counts.count` carrying their narrow/`Generated` types
 - 2026-08-23:08:07:30 — BUG-003 — done: checkout plans placement in core and refuses a stale cart by name instead of 500ing, placement and the charge commit as one transaction, and the add-to-cart gate reads the listing in the transaction that writes the line
 - 2026-08-23:07:53:17 — BUG-003 — started
 - 2026-08-23:07:59:56 — RFCTR-002 — started

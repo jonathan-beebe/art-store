@@ -1,4 +1,5 @@
-import type { Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
+import { LEDGER_ENTRY_TYPES } from '../../core/escrow/ledger-entry-type.ts'
 
 /**
  * Per-seller money: an auditable entry per movement rather than one mutable
@@ -30,7 +31,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
     .addColumn('fulfillment_id', 'integer', (column) => column.references('fulfillments.id'))
     .addColumn('payout_id', 'integer', (column) => column.references('payouts.id'))
-    .addColumn('entry_type', 'text', (column) => column.notNull())
+    .addColumn('entry_type', 'text', (column) =>
+      column
+        .notNull()
+        .check(sql`entry_type in (${sql.join(LEDGER_ENTRY_TYPES.map((type) => sql.lit(type)))})`),
+    )
     .addColumn('amount_cents', 'integer', (column) => column.notNull())
     .addColumn('occurred_at', 'text', (column) => column.notNull())
     .execute()

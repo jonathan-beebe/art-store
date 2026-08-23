@@ -1,4 +1,8 @@
-import type { Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
+import { FULFILLMENT_STATUSES } from '../../core/orders/fulfillment-status.ts'
+import { ORDER_STATUSES } from '../../core/orders/order-status.ts'
+import { DECLINE_REASONS } from '../../core/payments/decline-reason.ts'
+import { PAYMENT_STATUSES } from '../../core/payments/payment-status.ts'
 
 /**
  * An order and its parts. `order_items` snapshot the title and price so an
@@ -12,7 +16,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('customer_id', 'integer', (column) => column.notNull().references('customers.id'))
     .addColumn('email', 'text')
-    .addColumn('status', 'text', (column) => column.notNull())
+    .addColumn('status', 'text', (column) =>
+      column.notNull().check(sql`status in (${sql.join(ORDER_STATUSES.map((status) => sql.lit(status)))})`),
+    )
     .addColumn('shipping_name', 'text', (column) => column.notNull())
     .addColumn('shipping_line1', 'text', (column) => column.notNull())
     .addColumn('shipping_line2', 'text')
@@ -54,10 +60,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createTable('payments')
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('order_id', 'integer', (column) => column.notNull().references('orders.id'))
-    .addColumn('status', 'text', (column) => column.notNull())
+    .addColumn('status', 'text', (column) =>
+      column
+        .notNull()
+        .check(sql`status in (${sql.join(PAYMENT_STATUSES.map((status) => sql.lit(status)))})`),
+    )
     .addColumn('amount_cents', 'integer', (column) => column.notNull())
     .addColumn('card_last_four', 'text', (column) => column.notNull())
-    .addColumn('decline_reason', 'text')
+    .addColumn('decline_reason', 'text', (column) =>
+      column.check(sql`decline_reason in (${sql.join(DECLINE_REASONS.map((reason) => sql.lit(reason)))})`),
+    )
     .addColumn('processed_at', 'text', (column) => column.notNull())
     .execute()
 
@@ -72,7 +84,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('order_id', 'integer', (column) => column.notNull().references('orders.id'))
     .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
-    .addColumn('status', 'text', (column) => column.notNull().defaultTo('awaiting_shipment'))
+    .addColumn('status', 'text', (column) =>
+      column
+        .notNull()
+        .defaultTo('awaiting_shipment')
+        .check(sql`status in (${sql.join(FULFILLMENT_STATUSES.map((status) => sql.lit(status)))})`),
+    )
     .addColumn('carrier', 'text')
     .addColumn('tracking_number', 'text')
     .addColumn('subtotal_cents', 'integer', (column) => column.notNull())
