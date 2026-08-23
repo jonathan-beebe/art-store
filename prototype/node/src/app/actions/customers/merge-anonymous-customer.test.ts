@@ -157,17 +157,6 @@ test('it re-points the rows of a table the customer owns', async (t) => {
   )
 })
 
-test('it skips a table the schema does not have and still writes its trail', async (t) => {
-  const merging = await startMerging()
-  t.after(merging.close)
-
-  await sql`drop table conversations`.execute(merging.db)
-
-  await merge(merging)
-
-  assert.equal((await merging.db.selectFrom('customerMerges').selectAll().execute()).length, 1)
-})
-
 test('a conversation opened anonymously re-points to the verified customer', async (t) => {
   const merging = await startMerging()
   t.after(merging.close)

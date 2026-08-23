@@ -28,12 +28,20 @@ export async function sellerDetail(
   const seller = await db.selectFrom('sellers').selectAll().where('id', '=', sellerId).executeTakeFirst()
   if (seller === undefined) return null
 
-  const [listings, fulfillments, balance, payouts] = await Promise.all([
-    listingsWithRemoval(db, sellerId),
-    db.selectFrom('fulfillments').selectAll().where('sellerId', '=', sellerId).orderBy('id', 'desc').execute(),
-    sellerBalance(context, sellerId),
-    db.selectFrom('payouts').selectAll().where('sellerId', '=', sellerId).orderBy('periodStart', 'desc').execute(),
-  ])
+  const listings = await listingsWithRemoval(db, sellerId)
+  const fulfillments = await db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('sellerId', '=', sellerId)
+    .orderBy('id', 'desc')
+    .execute()
+  const balance = await sellerBalance(context, sellerId)
+  const payouts = await db
+    .selectFrom('payouts')
+    .selectAll()
+    .where('sellerId', '=', sellerId)
+    .orderBy('periodStart', 'desc')
+    .execute()
 
   return { seller, listings, fulfillments, balance, payouts }
 }

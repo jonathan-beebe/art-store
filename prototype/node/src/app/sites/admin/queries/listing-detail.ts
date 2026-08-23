@@ -46,10 +46,8 @@ export async function listingDetail(
     .where('id', '=', listing.sellerId)
     .executeTakeFirstOrThrow()
 
-  const [removals, active] = await Promise.all([
-    removalHistory(db, listingId),
-    activeListingRemoval(context, listingId),
-  ])
+  const removals = await removalHistory(db, listingId)
+  const active = await activeListingRemoval(context, listingId)
 
   return {
     listing,

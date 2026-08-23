@@ -41,10 +41,8 @@ export async function inboxConversations(
   )
   const unread = unreadCountsByConversation(messages, actor)
   const previews = new Map(messages.map((message) => [message.conversationId, message.body]))
-  const [topics, names] = await Promise.all([
-    conversationTopics(context, conversations),
-    participantNames(context, conversations),
-  ])
+  const topics = await conversationTopics(context, conversations)
+  const names = await participantNames(context, conversations)
 
   return conversations.map((conversation) => ({
     id: conversation.id,

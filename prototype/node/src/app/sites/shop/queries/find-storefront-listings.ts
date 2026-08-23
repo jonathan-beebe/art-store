@@ -1,7 +1,7 @@
 import type { Expression, ExpressionBuilder, SqlBool } from 'kysely'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Database } from '../../../db/schema.ts'
-import { isPurchasable } from '../../../core/listings/listing-availability.ts'
+import { BROWSABLE_STATUSES, isPurchasable } from '../../../core/listings/listing-availability.ts'
 import type { ListingStatus } from '../../../core/listings/listing-status.ts'
 import type { ListingPage } from '../../../core/shop/listing-page.ts'
 import { searchLikePattern, type ListingSearch } from '../../../core/shop/listing-search.ts'
@@ -26,7 +26,8 @@ type ListingFilter = ExpressionBuilder<Database, 'listings'>
  */
 function isBrowsable(eb: ListingFilter): Expression<SqlBool> {
   return eb.and([
-    eb('listings.status', '=', 'for_sale'),
+    eb('listings.status', 'in', BROWSABLE_STATUSES),
+    // The removal half of `isOnStorefront`, in the only dialect a where clause speaks.
     eb.not(
       eb.exists(
         eb

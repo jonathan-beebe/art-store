@@ -1,22 +1,37 @@
+import {
+  parseNotificationRow,
+  type ParsedNotification,
+} from '../../../actions/notifications/notification-recipient.ts'
 import type { AppDatabase } from '../../../db/database.ts'
-import type { Notification } from '../../../db/commerce-schema.ts'
 
-export async function notificationsForSeller(db: AppDatabase, sellerId: number): Promise<readonly Notification[]> {
-  return db.selectFrom('notifications').selectAll().where('sellerId', '=', sellerId).orderBy('id', 'desc').execute()
+export async function notificationsForSeller(
+  db: AppDatabase,
+  sellerId: number,
+): Promise<readonly ParsedNotification[]> {
+  const rows = await db
+    .selectFrom('notifications')
+    .selectAll()
+    .where('sellerId', '=', sellerId)
+    .orderBy('id', 'desc')
+    .execute()
+
+  return rows.map(parseNotificationRow)
 }
 
 export async function recentNotificationsForSeller(
   db: AppDatabase,
   sellerId: number,
   limit: number,
-): Promise<readonly Notification[]> {
-  return db
+): Promise<readonly ParsedNotification[]> {
+  const rows = await db
     .selectFrom('notifications')
     .selectAll()
     .where('sellerId', '=', sellerId)
     .orderBy('id', 'desc')
     .limit(limit)
     .execute()
+
+  return rows.map(parseNotificationRow)
 }
 
 export async function unreadNotificationCount(db: AppDatabase, sellerId: number): Promise<number> {
@@ -34,7 +49,7 @@ export async function ownedNotification(
   db: AppDatabase,
   sellerId: number,
   notificationId: number,
-): Promise<Notification | null> {
+): Promise<ParsedNotification | null> {
   const notification = await db
     .selectFrom('notifications')
     .selectAll()
@@ -42,5 +57,5 @@ export async function ownedNotification(
     .where('sellerId', '=', sellerId)
     .executeTakeFirst()
 
-  return notification ?? null
+  return notification === undefined ? null : parseNotificationRow(notification)
 }

@@ -62,12 +62,10 @@ export async function conversationThread(
     .orderBy('id')
     .execute()
 
-  const [topic, names, listing, fulfillment] = await Promise.all([
-    conversationTopicOf(context, conversation),
-    participantNames(context, [conversation]),
-    findThreadListing(context.db, conversation.listingId),
-    findThreadFulfillment(context.db, conversation.fulfillmentId),
-  ])
+  const topic = await conversationTopicOf(context, conversation)
+  const names = await participantNames(context, [conversation])
+  const listing = await findThreadListing(context.db, conversation.listingId)
+  const fulfillment = await findThreadFulfillment(context.db, conversation.fulfillmentId)
 
   return {
     conversation,

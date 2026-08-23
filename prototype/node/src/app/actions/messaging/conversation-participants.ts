@@ -17,25 +17,28 @@ export async function participantNames(
   const customerIds = idsOf(conversations, (conversation) => conversation.customerId)
   const adminIds = idsOf(conversations, (conversation) => conversation.adminId)
 
-  const [sellers, customers, admins] = await Promise.all([
+  const sellers =
     sellerIds.length === 0
       ? []
-      : db
+      : await db
           .selectFrom('sellers')
           .select(['id', 'shopName', 'email'])
           .where('id', 'in', sellerIds)
-          .execute(),
+          .execute()
+
+  const customers =
     customerIds.length === 0
       ? []
-      : db
+      : await db
           .selectFrom('customers')
           .select(['id', 'name', 'email'])
           .where('id', 'in', customerIds)
-          .execute(),
+          .execute()
+
+  const admins =
     adminIds.length === 0
       ? []
-      : db.selectFrom('admins').select(['id', 'name']).where('id', 'in', adminIds).execute(),
-  ])
+      : await db.selectFrom('admins').select(['id', 'name']).where('id', 'in', adminIds).execute()
 
   return {
     seller: new Map(sellers.map((seller) => [seller.id, shopName(seller)])),

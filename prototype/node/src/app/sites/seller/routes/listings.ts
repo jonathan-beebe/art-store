@@ -139,10 +139,8 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
   const { db } = request.server
   const listings = await listingsForSeller(db, currentSellerId(request))
   const ids = listings.map((listing) => listing.id)
-  const [eventCounts, removedIds] = await Promise.all([
-    listingEventCountsByListing(db, ids),
-    listingIdsWithActiveRemoval(db, ids),
-  ])
+  const eventCounts = await listingEventCountsByListing(db, ids)
+  const removedIds = await listingIdsWithActiveRemoval(db, ids)
 
   const rows = listings.map((listing) => ({
     listing,
@@ -265,12 +263,10 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const { db, clock } = request.server
   const now = clock.now()
   const window = activityWindow(now, ACTIVITY_WINDOW_DAYS)
-  const [eventTotals, dailyCounts, sales, removal] = await Promise.all([
-    listingEventTotals(db, listing.id),
-    listingEventCountsByDay(db, listing.id, window.since),
-    salesForListing(db, listing.id),
-    activeListingRemoval({ db }, listing.id),
-  ])
+  const eventTotals = await listingEventTotals(db, listing.id)
+  const dailyCounts = await listingEventCountsByDay(db, listing.id, window.since)
+  const sales = await salesForListing(db, listing.id)
+  const removal = await activeListingRemoval({ db }, listing.id)
 
   return reply.render('listings/show', {
     title: listing.title,

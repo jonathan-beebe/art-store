@@ -119,9 +119,9 @@ customer with two, so they are folded instead. `planCustomerMerge` sums cart
 quantities per listing, clamps each to the listing's stock, drops anything that
 lands at zero, and de-duplicates favorites; `mergeAnonymousCustomer` applies the
 result with UPDATEs and DELETEs only, never an INSERT, so it needs no knowledge
-of columns it is not touching. It reads `sqlite_master` and
-`pragma_table_info` first (`readMergedTableColumns`) and skips a table the
-schema does not have. The anonymous row is never deleted — the `customer_merges`
+of columns it is not touching. Every statement goes through the typed Kysely
+builder, so a renamed table or column stops compiling. The anonymous row is
+never deleted — the `customer_merges`
 row (unique on `anonymous_customer_id`) is what lets a stale cookie on another
 device resolve forward. `claimCustomerIdentity` also settles a guest's
 `email_verified_at` when checkout left an address on the row without verifying

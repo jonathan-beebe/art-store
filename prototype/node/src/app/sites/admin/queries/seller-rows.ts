@@ -23,13 +23,15 @@ const EMPTY_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutC
  */
 export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<readonly SellerRow[]> {
   const { db } = context
-  const [sellers, listingCounts, fulfillmentCounts, removedCounts, movements] = await Promise.all([
-    db.selectFrom('sellers').select(['id', 'email', 'shopName', 'createdAt']).orderBy('id').execute(),
-    countBySeller(db, 'listings'),
-    countBySeller(db, 'fulfillments'),
-    removedListingCountsBySeller(db),
-    ledgerMovements(context),
-  ])
+  const sellers = await db
+    .selectFrom('sellers')
+    .select(['id', 'email', 'shopName', 'createdAt'])
+    .orderBy('id')
+    .execute()
+  const listingCounts = await countBySeller(db, 'listings')
+  const fulfillmentCounts = await countBySeller(db, 'fulfillments')
+  const removedCounts = await removedListingCountsBySeller(db)
+  const movements = await ledgerMovements(context)
   const balances = ledgerBalancesBySeller(movements)
 
   return sellers.map((seller) => ({

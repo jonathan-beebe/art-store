@@ -110,6 +110,30 @@ test('the notificationDelivery port receives the notification when one is on the
   assert.equal(delivered[0]?.recipientId, shop)
 })
 
+test('a delivery that fails leaves the notification on file', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const notificationDelivery = {
+    deliver: async () => {
+      throw new Error('mail is down')
+    },
+  }
+
+  await assert.rejects(() =>
+    notify(
+      { ...context, notificationDelivery },
+      { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) },
+    ),
+  )
+
+  const filed = await context.db.selectFrom('notifications').selectAll().execute()
+
+  assert.equal(filed.length, 1)
+})
+
 test('notify works with none', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)

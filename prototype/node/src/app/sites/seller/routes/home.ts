@@ -15,13 +15,11 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const { db } = request.server
   const sellerId = currentSellerId(request)
 
-  const [statusCounts, awaitingShipment, balance, unreadCount, recentNotifications] = await Promise.all([
-    listingStatusCounts(db, sellerId),
-    awaitingShipmentCount(db, sellerId),
-    sellerBalance({ db }, sellerId),
-    unreadNotificationCount(db, sellerId),
-    recentNotificationsForSeller(db, sellerId, RECENT_NOTIFICATIONS),
-  ])
+  const statusCounts = await listingStatusCounts(db, sellerId)
+  const awaitingShipment = await awaitingShipmentCount(db, sellerId)
+  const balance = await sellerBalance({ db }, sellerId)
+  const unreadCount = await unreadNotificationCount(db, sellerId)
+  const recentNotifications = await recentNotificationsForSeller(db, sellerId, RECENT_NOTIFICATIONS)
 
   return reply.render('home', {
     title: 'Dashboard',

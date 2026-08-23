@@ -1,7 +1,7 @@
 ---
 id: RFCTR-004
 type: refactor
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -171,3 +171,106 @@ scope (business rules moving into core).
 - 02-types-boundaries.md — "A notification's recipient is three nullable columns plus a SQL-only invariant"
 - 04-data-layer.md — "Single-statement actions wrapped in a transaction"
 - 04-data-layer.md — "`make fresh` deletes the database file under a running server"
+
+## Working
+
+### Verified against the code first
+
+Every part of the problem still held, with two corrections to the report:
+
+- The driver is `node:sqlite` through `app/db/node-sqlite-dialect.ts`, not
+  better-sqlite3. The conclusion is the same: the dialect reports
+  `supportsMultipleConnections === false`, holds one `DatabaseSync`, and
+  Kysely serializes every query through it, so a `Promise.all` was never
+  concurrency.
+- 15 `Promise.all` sites were named; 13 wrap database calls. The other two are
+  `app/plugins/health.ts:25` (FEAT-011 owns that file) and `app/db/database.ts:24`,
+  which unlinks the database file and its `-wal`/`-shm` siblings — file removal,
+  not database calls. Both left alone.
+
+### Changed
+
+- **Sequential awaits, 13 sites.** `app/actions/messaging/conversation-topics.ts`,
+  `conversation-thread.ts`, `conversation-participants.ts`, `conversation-inbox.ts`;
+  `app/sites/admin/queries/seller-rows.ts`, `customer-rows.ts`, `customer-detail.ts`
+  (both), `seller-detail.ts`, `order-rows.ts`, `listing-detail.ts`;
+  `app/sites/seller/routes/home.ts`, `earnings.ts`, `listings.ts` (both). Each was
+  already a batch load, so unwrapping the array was the whole change — no query
+  was restructured and the round-trip count per site is unchanged.
+- **The merge is written against the typed builder.**
+  `app/actions/customers/merge-anonymous-customer.ts` holds no `sql` fragment;
+  every statement is `selectFrom`/`updateTable`/`deleteFrom`/`insertInto` with
+  camelCase names checked against `Database`. `merged-table-columns.ts` and its
+  test are deleted. The repoint loop is generic over the table
+  (`db.updateTable(table).set({ customerId })`) and typechecks as written, so
+  the four updates stayed one loop.
+- **`REPOINTED_CUSTOMER_TABLES` moved from `app/core/customers/` to
+  `app/actions/customers/`** and is now
+  `['orders', 'listingEvents', 'notifications', 'conversations'] as const satisfies readonly (keyof Database)[]`.
+  Assumption recorded: the ticket asked for `keyof Database` typing, and core
+  imports nothing from `app/db` anywhere else in the tree — a list of database
+  tables is shell vocabulary, so the file moved rather than pulling a `Database`
+  import into core. Its test moved with it; the `column: 'customer_id'`
+  assertion is gone because the column is no longer spelled as a string.
+- **Notification recipients are parsed once.**
+  `app/actions/notifications/notification-recipient.ts` (new, with tests) turns a
+  row's three nullable columns into `{ recipientType, recipientId }` and throws
+  `TypeError` for a row naming nobody — the table's check constraint makes that a
+  broken database rather than a case a caller answers.
+  `app/sites/seller/queries/notifications.ts` and
+  `app/sites/shop/queries/find-customer-notifications.ts` return
+  `ParsedNotification`. There is no admin notification query to convert.
+  `notify` writes through an explicit `switch` (`recipientColumns`) that returns
+  all three columns per branch, so the insert is discriminated again.
+- **`notify` no longer opens a transaction.** It is one insert, and the delivery
+  port now runs after the row is written rather than inside a transaction `notify`
+  itself opened. `ActionContext.notificationDelivery` is unchanged, so a caller
+  that already holds a transaction (`mark-shipped`) still delivers inside its
+  own unit of work — the outbox ticket (FEAT-015) is what makes delivery a row
+  write and closes that. New test: a delivery that throws leaves the notification
+  on file.
+- **Four single-statement actions call their write directly.**
+  `publish-listing-faq.ts`, `update-listing-faq.ts`, `unpublish-listing-faq.ts`,
+  `remove-from-cart.ts` destructure `ActionContext` and drop `runInTransaction`;
+  the parameter type is unchanged, so a caller inside a transaction still writes
+  into it.
+- **`make fresh` stops the app first.** `docker compose stop app`, then fresh +
+  seed, then `docker compose start app`. The comment now names the hazard
+  (writes to an unlinked inode) rather than the workaround.
+- **Storefront visibility (added scope from RFCTR-002).**
+  `app/core/listings/listing-availability.ts` exports `STOREFRONT_STATUSES` and
+  `BROWSABLE_STATUSES`; `find-storefront-listings.ts`'s `isBrowsable` and
+  `find-favorite-listings.ts` build their `where` from them, and each keeps its
+  `NOT EXISTS` removal clause under a comment naming `isOnStorefront` as the
+  predicate it mirrors. Core tests pin that `isOnStorefront` admits exactly
+  `STOREFRONT_STATUSES` and that everything browsable is on the storefront.
+  `app/sites/shop/queries/find-storefront-listings.test.ts` did not exist at the
+  time of the change — the whole suite is green without it.
+
+### Left alone deliberately
+
+- `app/plugins/health.ts` and `app/db/database.ts` — FEAT-011's file, and a
+  `Promise.all` over `unlink`, not over queries.
+- `app/db/commerce-schema.ts` — the ticket listed it, but the recipient parse
+  lives at the read boundary and the three nullable columns are what the table
+  holds. Nothing in the schema file needed to change.
+- The merge test `it skips a table the schema does not have and still writes its
+  trail` is deleted along with the introspection it exercised: dropping
+  `conversations` at runtime is not a state the checked-in migrations can produce.
+- `docs/identity.md` had two sentences describing `readMergedTableColumns`;
+  those were replaced with what the merge does now. No other doc mentioned the
+  deleted module.
+
+### Tests
+
+`npm test`: 1318 → 1338 passing, 0 failing (the tree is shared with other
+tickets in flight, so that delta is not all mine). This ticket removes 7 tests
+(5 in `merged-table-columns.test.ts`, 1 schema-skip case in the merge test, 1
+`customer_id` column assertion) and adds 9 (5 `notification-recipient.test.ts`,
+1 `notify.test.ts`, 3 `listing-availability.test.ts`).
+
+`npm run typecheck` and `npm run lint` are clean for every file this ticket
+touched. `npm run check` cannot be run to completion right now: another worker's
+in-flight `app/config.ts` fails the `complexity` lint rule and their
+`app/test/build-test-app.ts` is mid-edit against a widened `AppConfig`. Both are
+outside this ticket's territory.

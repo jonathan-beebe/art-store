@@ -17,18 +17,19 @@ export async function conversationTopics(
   const listingIds = idsOf(conversations, (conversation) => conversation.listingId)
   const fulfillmentIds = idsOf(conversations, (conversation) => conversation.fulfillmentId)
 
-  const [listings, fulfillments] = await Promise.all([
+  const listings =
     listingIds.length === 0
       ? []
-      : db.selectFrom('listings').select(['id', 'title']).where('id', 'in', listingIds).execute(),
+      : await db.selectFrom('listings').select(['id', 'title']).where('id', 'in', listingIds).execute()
+
+  const fulfillments =
     fulfillmentIds.length === 0
       ? []
-      : db
+      : await db
           .selectFrom('fulfillments')
           .select(['id', 'orderId'])
           .where('id', 'in', fulfillmentIds)
-          .execute(),
-  ])
+          .execute()
 
   const titlesById = new Map(listings.map((listing) => [listing.id, listing.title]))
   const orderIdsById = new Map(fulfillments.map((row) => [row.id, row.orderId]))
