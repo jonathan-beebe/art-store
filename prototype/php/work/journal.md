@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:17:05:00 — FEAT-015 — done: AdminSeeder + MessagingSeeder (one conversation per kind, 11 messages with a read/unread spread, one published FAQ), SmokeTest ask→reply→publish→visible walk, README seeded-accounts update; 1099 tests / 2460 assertions
+- 2026-08-23:16:51:43 — FEAT-015 — started
 - 2026-08-23:16:38:45 — FEAT-014 — reviewed: two full support round trips through the admin site (seller and storefront), admin replies to a blocked customer, 404 on a bogus seller/customer id for the two message-X POSTs, admin inbox pinned to six queries across both support kinds; two-admins-two-threads confirmed faithful to the design's participant-pair subject; 1090 tests / 2425 assertions, 100.0% coverage
 - 2026-08-23:16:31:07 — FEAT-014 — done: admin inbox/thread/reply, message-seller and message-customer from detail pages, AdminLayoutComposer nav badge, shared seller+admin messaging Blade components, NotifyOfMessage null-url guard retired; 1083 tests / 2397 assertions, 100.0% coverage
 - 2026-08-23:16:23:17 — FEAT-014 — started

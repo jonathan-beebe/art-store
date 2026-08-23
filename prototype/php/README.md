@@ -77,7 +77,7 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1090 tests (2425 assertions), run by Pest — `it()`/`test()` functions, no
+1099 tests (2460 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
@@ -127,12 +127,13 @@ from scratch.
 
 ## Seeded accounts
 
-`make fresh` seeds four sellers, one customer, 29 listings, three orders, and
-one completed payout. Every account signs in through the debug magic link (see
-below).
+`make fresh` seeds one admin, four sellers, one customer, 29 listings, three
+orders, one completed payout, and one conversation of each messaging kind.
+Every account signs in through the debug magic link (see below).
 
 | Role | Shop / name | Email |
 | --- | --- | --- |
+| Admin | Reese Calloway | admin@example.com |
 | Seller | Terra & Glaze Ceramics | maya@example.com |
 | Seller | North Light Editions | noah@example.com |
 | Seller | Priya Anand Textile Studio | priya@example.com |
@@ -142,6 +143,12 @@ below).
 Casey has three favorites and order history with two sellers: a paid order
 awaiting shipment and a delivered, paid-out order with Maya, and a shipped
 order with Noah.
+
+Priya, Casey, and the admin each have an unread message waiting: Casey asked
+Priya about "Woodfired Vase, Tall" on the storefront, Priya answered, and that
+answer is published as the listing's one FAQ entry; Casey and Noah have a
+thread on Casey's shipped order; Priya and the admin have a support thread,
+and so do Casey and the admin.
 
 ## Magic links
 

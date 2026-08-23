@@ -8,12 +8,16 @@ use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\Admin;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingEvent;
+use App\Models\ListingFaq;
+use App\Models\Message;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
@@ -103,5 +107,17 @@ it('releases and pays out the delivered order', function (): void {
 });
 
 it('notifies sellers and the customer', function (): void {
-    expect(DatabaseNotification::count())->toBe(5);
+    // 5 from order history, 11 from the seeded messaging threads — one
+    // notification per posted message.
+    expect(DatabaseNotification::count())->toBe(16);
+});
+
+it('seeds one admin who can sign in at /admin/login', function (): void {
+    expect(Admin::where('email', AdminSeeder::EMAIL)->count())->toBe(1);
+});
+
+it('seeds one conversation of every messaging kind and one published FAQ', function (): void {
+    expect(Conversation::count())->toBe(4)
+        ->and(Message::count())->toBe(11)
+        ->and(ListingFaq::count())->toBe(1);
 });
