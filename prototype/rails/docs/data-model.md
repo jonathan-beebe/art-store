@@ -1,10 +1,12 @@
 # Data model
 
-Generated from `src/db/schema.rb` (version `2026_08_22_000212`). Active
+Generated from `src/db/schema.rb` (version `2026_08_23_000105`). Active
 Storage's own tables (`active_storage_attachments`, `active_storage_blobs`,
 `active_storage_variant_records`) are omitted — nothing in the domain reads
 or writes them directly; `Listing#image_url` falls back to a generated
-placeholder when no blob is attached.
+placeholder when no blob is attached. `solid_cable_messages` is omitted the
+same way — Solid Cable owns it, and it holds the broadcast queue rather than
+any part of the domain.
 
 Question: what tables exist, what does each row mean, and how do they
 connect?
@@ -130,18 +132,50 @@ erDiagram
     }
     notifications {
         id id PK
-        string recipient_type "Seller|Customer"
+        string recipient_type "Seller|Customer|Admin"
         id recipient_id "polymorphic, no FK"
         string subject
         text body
         string url "nullable"
         timestamp read_at "nullable"
     }
+    admins {
+        id id PK
+        string email UK
+        string name
+        timestamp email_verified_at
+    }
+    conversations {
+        id id PK
+        string kind "admin_seller|admin_customer|fulfillment|listing_question"
+        id seller_id FK "nullable, filled by the kind"
+        id customer_id FK "nullable, filled by the kind"
+        id admin_id FK "nullable, filled by the kind"
+        string subject_type "nullable, Listing|Fulfillment"
+        id subject_id "polymorphic, no FK"
+        timestamp last_message_at
+    }
+    messages {
+        id id PK
+        id conversation_id FK
+        string sender_type "Seller|Customer|Admin"
+        id sender_id "polymorphic, no FK"
+        text body
+        timestamp read_at "nullable, read by the side that did not send it"
+    }
+    listing_faqs {
+        id id PK
+        id listing_id FK
+        text question
+        text answer
+        id source_message_id FK "nullable, -> messages"
+        timestamp published_at "the row exists only while published"
+    }
     magic_links {
         id id PK
         string token_digest UK
         string email
-        string actor_type "seller|customer"
+        string actor_type "seller|customer|admin"
         string redirect_to "nullable"
         timestamp expires_at
         timestamp consumed_at "nullable"
@@ -170,18 +204,42 @@ erDiagram
     orders ||--o{ fulfillments : split_by_seller
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
+    admins ||--o{ notifications : receives
+    admins ||--o{ conversations : "admin side"
+    sellers ||--o{ conversations : "seller side"
+    customers ||--o{ conversations : "customer side"
+    listings ||--o{ conversations : "subject of a listing_question"
+    fulfillments ||--o{ conversations : "subject of a fulfillment thread"
+    conversations ||--o{ messages : holds
+    listings ||--o{ listing_faqs : publishes
+    messages ||--o| listing_faqs : "answer an entry came from"
 ```
 
 Caveats:
 
 - `magic_links` has no foreign key to `sellers` or `customers` — it matches by
   `email` string plus `actor_type`, so it is drawn without a relationship line
-  above. A seller and a customer can share an email address; each gets its own
-  row in its own table.
+  above. A seller, a customer and an admin can share an email address; each
+  gets its own row in its own table.
 - `notifications` addresses a polymorphic `recipient` (`recipient_type` is
-  `Seller` or `Customer`), so the table carries no foreign key to either. An
-  anonymous-customer merge re-points rows by `recipient_id` the same way it
-  re-points `favorites` or `orders`.
+  `Seller`, `Customer` or `Admin`), so the table carries no foreign key to any
+  of them. An anonymous-customer merge re-points rows by `recipient_id` the
+  same way it re-points `favorites` or `orders`.
+- `conversations` fills two of its three participant columns and leaves the
+  third null; which two is `kind`, and `Conversation::KINDS` is the one place
+  that says so. `subject_type`/`subject_id` are polymorphic and null for the
+  two support kinds. The indexes are one per participant column paired with
+  `last_message_at` (the inbox's order) plus
+  `(kind, subject_type, subject_id)` (find-or-open).
+- `messages.read_at` is one column for both sides. Every kind has exactly two
+  participants, so the reader of a message is always the participant who did
+  not send it, and `Message.unread_for(reader)` is the single definition of
+  unread.
+- `listing_faqs` rows exist only while published: `published_at` is
+  `null: false` and unpublishing deletes the row, so the storefront reads the
+  table with no predicate of its own. `source_message_id` is nullable — an
+  entry outlives the answer it was lifted from, and an entry can be written
+  from scratch.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one (`order.payments.order(:id).last`).

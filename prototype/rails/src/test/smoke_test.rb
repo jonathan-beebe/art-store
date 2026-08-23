@@ -19,6 +19,8 @@ class SmokeTest < ActionDispatch::IntegrationTest
   APPROVED_CARD = "4242 4242 4242 4242".freeze
   CARRIER = "Royal Mail".freeze
   TRACKING_NUMBER = "RM123456789GB".freeze
+  QUESTION = "Is the canvas sold stretched, or rolled?".freeze
+  ANSWER = "It ships stretched on a poplar frame, wrapped in glassine.".freeze
 
   # A Wednesday, so the week the delivery lands in is the week the payout run
   # settles whatever day the suite runs on.
@@ -50,6 +52,11 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     run_weekly_payout
     read_earnings(seller)
+
+    thread = ask_the_seller_a_question(listing)
+    answer_from_the_inbox(thread)
+    publish_the_answer(listing, thread)
+    read_the_listing_as_a_stranger(listing)
 
     assert_equal visitor.id, order.reload.customer_id
   end
@@ -252,6 +259,73 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.assert_select "[data-payout] [data-cell=amount]", text: NET_LABEL
 
     assert_equal NET_CENTS, seller.reload.escrow_balance.paid_out.cents
+  end
+
+  # The piece is sold by now, and a sold listing keeps its storefront page, so
+  # the question form is still there for the buyer to use.
+  def ask_the_seller_a_question(listing)
+    @customer_browser.get shop_listing_path(listing.slug)
+    @customer_browser.assert_select "form[action=?]", shop_listing_questions_path(slug: listing.slug)
+
+    @customer_browser.post shop_listing_questions_path(slug: listing.slug),
+      params: { message: { body: QUESTION } }
+
+    Conversation.sole.tap do |thread|
+      @customer_browser.assert_redirected_to shop_conversation_path(thread)
+      @customer_browser.follow_redirect!
+      @customer_browser.assert_select "[data-message] p", text: QUESTION
+
+      assert_equal "listing_question", thread.kind
+      assert_equal listing, thread.subject
+    end
+  end
+
+  def answer_from_the_inbox(thread)
+    @seller_browser.get seller_conversations_path
+    @seller_browser.assert_select "[data-conversation=#{thread.id}] [data-unread-count=?]", "1"
+
+    @seller_browser.get seller_conversation_path(thread)
+    @seller_browser.assert_select "[data-message] p", text: QUESTION
+    assert_equal 0, thread.unread_count_for(thread.seller)
+
+    @seller_browser.post seller_conversation_messages_path(thread), params: { message: { body: ANSWER } }
+
+    @seller_browser.assert_redirected_to seller_conversation_path(thread)
+    @seller_browser.follow_redirect!
+    @seller_browser.assert_select "[data-message] p", text: ANSWER
+
+    assert_equal 1, thread.unread_count_for(thread.customer)
+  end
+
+  # The thread offers the pair it already holds; the form carries the answer it
+  # came from.
+  def publish_the_answer(listing, thread)
+    @seller_browser.assert_select "#publish_faq_listing_faq_question", value: QUESTION
+    answer = thread.latest_message_from(thread.seller)
+
+    @seller_browser.post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: QUESTION, answer: ANSWER, source_message_id: answer.id }
+    }
+
+    @seller_browser.assert_redirected_to seller_listing_faqs_path(listing)
+    @seller_browser.follow_redirect!
+    @seller_browser.assert_select "[data-flash=notice]", text: /Published to the listing/
+
+    ListingFaq.sole.tap do |faq|
+      assert_equal listing, faq.listing
+      assert_equal answer, faq.source_message
+    end
+  end
+
+  # Nobody had to ask the question again: a browser with no cookie and no
+  # account reads it on the listing page.
+  def read_the_listing_as_a_stranger(listing)
+    stranger = open_session
+    stranger.get shop_listing_path(listing.slug)
+
+    stranger.assert_response :success
+    stranger.assert_select "[data-faq] dt", text: QUESTION
+    stranger.assert_select "[data-faq] dd", text: ANSWER
   end
 
   # The prototype has no mailbox, so the link is read back off the page that

@@ -6,6 +6,7 @@ require_relative "seeds/sellers"
 require_relative "seeds/listings"
 require_relative "seeds/customers"
 require_relative "seeds/order_history"
+require_relative "seeds/messaging"
 
 if Seller.exists?
   puts "Database already seeded, skipping."
@@ -15,7 +16,9 @@ else
   Seeds::Listings.create_all
   Seeds::Customers.create_all
   Seeds::OrderHistory.create_all
+  Seeds::Messaging.create_all
 
   puts "Seeded #{Admin.count} admin, #{Seller.count} sellers, #{Listing.count} listings, " \
-       "#{Customer.count} customers, #{Order.count} orders."
+       "#{Customer.count} customers, #{Order.count} orders, #{Conversation.count} conversations, " \
+       "#{Message.count} messages, #{ListingFaq.count} published FAQ."
 end

@@ -3,12 +3,13 @@
 A two-sided marketplace for hand-made art: sellers list one-of-a-kind or
 limited-quantity pieces, customers browse and buy them. Payment is captured
 at checkout but held in escrow per seller until the customer confirms
-delivery, then settled into a weekly payout.
+delivery, then settled into a weekly payout. An admin runs the desk both
+sides reach for support.
 
 Question: what are the entities in the product, and how does value move
 between them at the concept level? (Table-level shape: `docs/data-model.md`.
 Sequence and state detail: `docs/orders.md`, `docs/escrow.md`,
-`docs/identity.md`.)
+`docs/identity.md`, `docs/messaging.md`.)
 
 ```mermaid
 flowchart LR
@@ -43,8 +44,9 @@ flowchart LR
     payout -->|"pays"| seller
 ```
 
-Smaller catalog and identity concepts (listing event, favorite, cart item,
-order item, magic link, customer merge, notification) sit off this diagram —
+Smaller catalog, identity and messaging concepts (listing event, favorite,
+cart item, order item, magic link, customer merge, notification, conversation,
+message, listing FAQ) sit off this diagram —
 they support the entities shown rather than carrying their own flow. Each
 gets its own section below.
 
@@ -66,6 +68,7 @@ a magic link.
 - ships Fulfillments
 - receives Ledger entries and Payouts
 - receives Notifications
+- is the seller side of Conversations, and publishes Listing FAQs
 
 **In code.** `Seller` (table `sellers`).
 
@@ -86,6 +89,7 @@ conditions: anonymous (`email` null) → guest with an unverified address
 - has Favorites, a Cart, and Listing events
 - places Orders
 - receives Notifications
+- is the customer side of Conversations
 - may be the source or the target of a Customer merge
 
 **In code.** `Customer` (table `customers`).
@@ -110,10 +114,31 @@ merge).
 **In code.** No separate model or enum — `Customer#anonymous?`,
 `Customer.claim`.
 
+### Admin
+
+**Who/what.** An operator of the platform, working the admin site at
+`/admin`.
+
+**Why it exists.** Someone has to answer a seller's or a customer's support
+thread and look up either side's account.
+
+**Lifecycle.** None. Admin rows are seeded — `Admin.claim` finds a row and
+creates none, so an address with no `admins` row reaches no session.
+
+**Relates to.**
+- reads Sellers and Customers on the admin dashboard and their account pages
+- is the admin side of `admin_seller` and `admin_customer` Conversations
+- receives Notifications
+
+**In code.** `Admin` (table `admins`), with `Admin.claim`, `Admin.on_duty`
+(the first admin by id — who a support thread opens against) and
+`Admin#display_name`.
+
 ### Platform
 
-**Who/what.** The marketplace operator. Not a database row — a role played
-by the code that takes a cut of each sale and settles seller payouts.
+**Who/what.** The marketplace as a party to the money: the side that takes a
+cut of each sale and settles seller payouts. A role played by the code; the
+Admin is the person who works the desk.
 
 **Why it exists.** Names who the platform fee belongs to and who runs the
 weekly payout job.
@@ -147,6 +172,7 @@ its own page. See "sold" in Vocabulary notes.
 - records Listing events
 - favorited by Customers via Favorite
 - held in Cart items, sold as Order items
+- the subject of `listing_question` Conversations, and publishes Listing FAQs
 
 **In code.** `Listing` (table `listings`), which carries the `status` enum,
 `TRANSITIONS`, `on_storefront`, `purchasable?`, `take_stock!` /
@@ -296,6 +322,7 @@ tracked per (order, seller) pair rather than per order.
 - produces Ledger entries when the order is paid (`held`), when delivered
   (`released`), and when included in a Payout (`paid_out`)
 - carries the Platform fee taken from its subtotal
+- the subject of the `fulfillment` Conversation its two sides keep
 
 **In code.** `Fulfillment` (table `fulfillments`), transitioned by
 `Fulfillment#ship!` / `Fulfillment#deliver!`. See "Vocabulary notes" for the
@@ -398,6 +425,7 @@ with no table; persisted as `payouts.period_start`/`period_end`).
 
 ## Identity and messaging
 
+
 ### Magic link
 
 **Who/what.** A one-time, expiring, hashed token that signs someone in
@@ -440,22 +468,90 @@ account holding the address.
 
 ### Notification
 
-**Who/what.** A message shown in a seller's or a customer's header: "Item
-sold" or "Order shipped."
+**Who/what.** A message shown in a seller's, a customer's or an admin's
+header: "Item sold", "Order shipped" or "New message."
 
-**Why it exists.** Tells each side of a transaction when the other side has
-acted, without email.
+**Why it exists.** Tells each side when the other side has acted, without
+email.
 
 **Lifecycle.** Unread → read (`read_at` set). No other state.
 
 **Relates to.**
-- belongs to exactly one Seller or one Customer (never both)
-- raised by an Order reaching `paid` (seller) or a Fulfillment reaching
-  `shipped` (customer)
+- belongs to exactly one Seller, Customer or Admin
+- raised by an Order reaching `paid` (seller), a Fulfillment reaching
+  `shipped` (customer), or a Conversation gaining a message (the counterpart)
+- carries the recipient's own path: the three sites read the same
+  conversation under three URLs
 
 **In code.** `Notification` (table `notifications`), addressed to a polymorphic
-`recipient` and written by `Notification.item_sold` and
-`Notification.order_shipped`.
+`recipient` and written by `Notification.item_sold`,
+`Notification.order_shipped` and `Notification.new_message`.
+
+### Conversation
+
+**Who/what.** One thread between two actors: a seller and the desk, a
+customer and the desk, a seller and a customer about an order, or a seller
+and a customer about a listing.
+
+**Why it exists.** Every pairing on the marketplace needs somewhere to talk,
+and one thread per (kind, participants, subject) means "message this seller"
+reaches the place the last message came from.
+
+**Lifecycle.** None as a status. A thread is opened by the first message and
+moves to the top of both inboxes on every message (`last_message_at`).
+
+**Relates to.**
+- names exactly two participants — which two is its `kind`
+- may hang off a subject: a Listing (`listing_question`) or a Fulfillment
+  (`fulfillment`)
+- holds Messages
+- files a Notification to the counterpart on every message
+- travels with an anonymous Customer through a merge
+
+**In code.** `Conversation` (table `conversations`), whose `KINDS` is the one
+source for the participant pair, the subject class and the topic, with
+`Conversation.open`, `.involving`, `#post!`, `#read_by!`,
+`#counterpart_of`, `#topic` and `#thread_path_for`. Full detail:
+`docs/messaging.md`.
+
+### Message
+
+**Who/what.** One thing one participant said in a conversation.
+
+**Why it exists.** The unit a thread page renders, an unread count counts,
+and an FAQ entry can be lifted from.
+
+**Lifecycle.** Unread → read (`read_at` set when the other side opens the
+thread). No other state.
+
+**Relates to.**
+- belongs to one Conversation
+- sent by one Seller, Customer or Admin (polymorphic `sender`)
+- may be the source of a Listing FAQ
+
+**In code.** `Message` (table `messages`), with `BODY_LIMIT` (2000) and
+`Message.unread_for`, the single definition of unread. `after_create_commit`
+broadcasts the row to both sides and the counterpart's badge.
+
+### Listing FAQ
+
+**Who/what.** One answered question published on a listing page for every
+visitor.
+
+**Why it exists.** An answer a seller has already written is worth more on
+the listing than in one buyer's thread.
+
+**Lifecycle.** None — the row exists only while the entry is published, and
+unpublishing deletes it.
+
+**Relates to.**
+- belongs to one Listing
+- may record the Message its answer was lifted from (`source_message`,
+  nullable — the entry outlives the thread)
+
+**In code.** `ListingFaq` (table `listing_faqs`), with `QUESTION_LIMIT`
+(500), `ANSWER_LIMIT` (2000), `ListingFaq.draft_from` (the pair a thread
+offers) and `ListingFaq.publish`.
 
 ## Decisions
 
@@ -515,6 +611,16 @@ stored as its own row (its outcome becomes a Payment).
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = nil`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.
+- "Thread" and "conversation" are the same thing: the page says thread, the
+  table and the model say `Conversation`.
+- "The desk" = the `Admin.on_duty` row, which is the first admin by id. Both
+  support buttons open against it, and no code assigns threads to anyone
+  else.
+- "Unread" is defined once, on the message: `read_at` is null and the reader
+  did not send it (`Message.unread_for`). The nav badge, the inbox row badge
+  and the marking done on opening a thread all read that one scope.
+- "Published" on an FAQ entry = the row exists. There is no draft state and
+  no `published` flag; unpublishing deletes the row.
 - Seller-portal controllers are written in compact form (`class
   Seller::XController < Seller::BaseController`) — `app/models/seller.rb`
   already defines `Seller` as a class, so `module Seller` elsewhere under

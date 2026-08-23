@@ -58,8 +58,38 @@ class SeedsTest < ActiveSupport::TestCase
     assert_equal delivered_fulfillment.net_cents, payout.amount_cents
   end
 
+  test "it seeds one thread of every kind, each ending unread" do
+    assert_equal %w[admin_customer admin_seller fulfillment listing_question],
+      Conversation.distinct.order(:kind).pluck(:kind)
+    assert_equal 4, Conversation.count
+    assert_equal 9, Message.count
+
+    Conversation.find_each do |conversation|
+      reader = conversation.counterpart_of(conversation.messages.oldest_first.last.sender)
+
+      assert_equal 1, conversation.unread_count_for(reader), "#{conversation.kind} has nothing waiting"
+    end
+  end
+
+  test "it seeds the fulfillment thread against the shipped order" do
+    conversation = Conversation.fulfillment.sole
+
+    assert_equal Fulfillment.shipped.sole, conversation.subject
+    assert_equal conversation.subject.seller, conversation.seller
+  end
+
+  test "it publishes one answer from a listing question" do
+    faq = ListingFaq.sole
+    conversation = Conversation.listing_question.sole
+
+    assert_equal conversation.subject, faq.listing
+    assert_equal conversation.latest_message_from(conversation.customer).body, faq.question
+    assert_equal conversation.latest_message_from(conversation.seller), faq.source_message
+  end
+
   test "it notifies sellers and the customer" do
-    assert_equal 5, Notification.count
+    assert_equal 14, Notification.count
+    assert_equal 9, Notification.where(subject: "New message").count
   end
 
   test "it does not duplicate data on a second run" do
