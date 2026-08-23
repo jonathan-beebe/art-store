@@ -2,13 +2,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify, { type FastifyInstance } from 'fastify'
 import fastifyCookie from '@fastify/cookie'
+import { TEST_CONFIG } from '../test/build-test-app.ts'
 import { addFlash } from './flash.ts'
 
 const COOKIE_SECRET = 'flash-test-cookie-secret'
 
-async function buildFlashApp(): Promise<FastifyInstance> {
+async function buildFlashApp(secureCookies = false): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
   await app.register(fastifyCookie, { secret: COOKIE_SECRET })
+  app.decorate('config', { ...TEST_CONFIG, secureCookies })
   addFlash(app)
 
   app.post('/set', (request, reply) => {
@@ -94,6 +96,15 @@ test('a signed cookie holding something other than a flash is ignored', async (t
   })
 
   assert.deepEqual(taken.json(), {})
+})
+
+test('the flash cookie is Secure where the config says the app is served over TLS', async (t) => {
+  const app = await buildFlashApp(true)
+  t.after(() => app.close())
+
+  const set = await app.inject({ method: 'POST', url: '/set', payload: { notice: 'Saved' } })
+
+  assert.equal(set.cookies.find((cookie) => cookie.name === 'flash')?.secure, true)
 })
 
 test('flash keys the schema does not know are dropped', async (t) => {

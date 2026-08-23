@@ -1,7 +1,7 @@
 ---
 id: BUG-006
 type: bug
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -125,3 +125,111 @@ on that file if worked concurrently.
 - 05-shell-ops.md — "`config` is decorated on the instance and never read"
 - 05-shell-ops.md — "No security headers on any response"
 - FEAT-015 (implements the `mail` delivery this ticket's `Host`-header fix protects)
+
+## Working
+
+Re-validated every claim against the code before changing anything. All of it
+still held: the partial had no guard and all three layouts included it
+unconditionally, `COOKIE_SECRET` had a working default, no `secure` and no
+`trustProxy` anywhere, `requestOrigin` was `request.protocol` + `request.host`,
+and no response carried a security header. The one part that had moved on:
+`config.uploadsDir` already existed and `app.ts` already read it (BUG-002), so
+`config` was no longer wholly dead code — the rest of that observation stood.
+
+### Changed
+
+- `app/config.ts` — `NODE_ENV` parses into `environment`
+  (`development` | `test` | `production`, default `development`); `PUBLIC_URL`
+  is an optional URL reduced to its origin; `TRUST_PROXY` is a boolean.
+  `COOKIE_SECRET` lost its schema default and now falls back to the
+  development secret only outside production. `refuseUnsafeProduction` throws
+  before the config is built when production has no `COOKIE_SECRET`, or has
+  `MAGIC_LINK_DELIVERY=flash` — a delivery that prints the sign-in link into
+  the page that asked for it. Three booleans are derived once and read
+  everywhere: `secureCookies` (production, or an `https:` public url),
+  `showsDebugMagicLinks` (not production, and the flash delivery), and
+  `trustProxy`.
+- `app/plugins/security-headers.ts` (new) — one root `onSend` hook adding
+  `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+  strict-origin-when-cross-origin`, and a `default-src 'self'` CSP. No
+  dependency: the list is four constants. `data:` is in `img-src` because a
+  listing with no photograph renders `placeholderImageDataUri`, a base64
+  `data:image/svg+xml` — verified in `core/listings/placeholder-image.ts` and
+  asserted in the test. `style-src 'self'` and `script-src 'self'` need no
+  relaxation: `grep` finds no `<script` and no `style="` in any of the
+  templates.
+- `app/app.ts` — `trustProxy: config.trustProxy` on the Fastify instance, and
+  `addSecurityHeaders(app)` first among the root plugins.
+- `app/plugins/identity.ts`, `app/plugins/flash.ts` — one line each:
+  `secure: this.server.config.secureCookies` in the cookie options.
+- `app/sites/auth/request-origin.ts` — returns `config.publicUrl` when set,
+  the request's own origin otherwise. Kept the signature, so all six call
+  sites (sign-in, checkout, the auth redirect, favorites, seller FAQs, admin
+  moderation) get the configured origin without changing a line.
+- `app/plugins/site-render.ts` — every page is handed
+  `showsDebugMagicLinks`; the three layouts pass it into the partial, and
+  `views/partials/debug-alert.ejs` renders only when it is true *and* a link
+  is in the flash.
+- `app/test/build-test-app.ts` — `TEST_CONFIG` gained the five new fields
+  (`environment: 'test'`, no public url, no proxy, insecure cookies, debug
+  links on) so the existing suite and the smoke test keep working unchanged.
+- `README.md` — the Configuration table now carries all ten variables with
+  what each decides, the two production refusals, and a Security headers
+  section.
+
+### Decisions
+
+- **No `SECURE_COOKIES` variable.** The ticket offered it or deriving from
+  `PUBLIC_URL`; `secureCookies` is derived (production or an `https:` public
+  url). One fewer knob, and no way to configure a deployment into a state
+  where it is served over TLS and says otherwise.
+- **`MAGIC_LINK_DELIVERY` keeps its `flash` default.** The ticket suggested
+  flipping it to `mail` so an unconfigured deployment fails loudly. It fails
+  loudly now for the reason that matters — production refuses `flash`
+  outright — and keeping the default preserves the zero-config development
+  flow the Outcome asks for. Flipping it would break `make up` on a clone.
+- **`showsDebugMagicLinks` reads `!isProduction && delivery === 'flash'`**,
+  in that order, so both operands are reachable: production boots with the
+  mail delivery and takes the first branch. The condition is belt-and-braces
+  with the boot refusal, and this ordering keeps it testable rather than
+  dead.
+- **An unknown `NODE_ENV` is refused** rather than treated as development,
+  matching how the other enums parse.
+- `mail` still throws `NotImplementedError` — FEAT-015 replaces it with the
+  outbox.
+
+### Left alone
+
+- `app/delivery/*` — selection did not change, so neither did the deliveries.
+- `docker-compose.yml` — `NODE_ENV` defaults to `development` and
+  `MAGIC_LINK_DELIVERY` to `flash`, so the dev flow needs no new variable.
+- The `/uploads/` `setHeaders` nosniff in `app.ts` — now redundant with the
+  root hook, but it belongs to BUG-002 and a static route setting its own
+  header costs nothing.
+- `app/plugins/flash.test.ts` needed a `config` decorator on its bare Fastify
+  app, since `setFlash` now reads one; that is the only edit outside the
+  files above.
+
+### Tests
+
+`npm run check` green: **1,382 tests, 0 failures**, 99.54% lines / 96.60%
+branches. 1,362 before (a moving baseline — other tickets are landing tests
+in the same tree). The 20 added:
+
+- `config.test.ts` (+9) — every rule: the environment union, both production
+  refusals, a production boot that succeeds, `showsDebugMagicLinks` per
+  delivery, `secureCookies` across production and both public-url schemes,
+  a public url reduced to its origin, a malformed public url, `TRUST_PROXY`.
+- `plugins/security-headers.test.ts` (+4, new) — the full header set on a
+  storefront page, on `/health`, on a 404, and the placeholder image the
+  policy has to allow.
+- `app.test.ts` (+5, new) — a production app renders no sign-in link even
+  with one sitting in the flash (the flash delivery is deliberately still
+  wired underneath, so the view guard is what is being tested), a development
+  app still prints it, `Secure` on the identity and flash cookies in
+  production and off in development, and a magic link built from `PUBLIC_URL`
+  while the request carries `Host: attacker.example`.
+- `sites/auth/request-origin.test.ts` (+1) — the public url wins over the
+  host header.
+- `plugins/flash.test.ts` (+1) — the flash cookie is `Secure` when the config
+  says so.

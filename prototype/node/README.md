@@ -48,14 +48,43 @@ Then open:
 `src/app/config.ts` parses these from the environment; `docker-compose.yml`
 sets `HOST` and `PORT` for the container.
 
-| Variable | Default |
+| Variable | Default | What it decides |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | One of `development`, `test`, `production`. Production is the strict boot: the two rules below, plus `Secure` cookies. |
+| `HOST` | `0.0.0.0` | The interface the server binds. |
+| `PORT` | `4000` | The port it listens on. |
+| `DATABASE_FILE` | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`. |
+| `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
+| `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
+| `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
+| `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `mail` throws `NotImplementedError`. |
+| `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
+
+Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
+`https:` origin — there is no separate switch for it.
+
+A production boot refuses to start rather than run unsafely: without
+`COOKIE_SECRET` (a shared default makes an admin cookie forgeable), and with
+`MAGIC_LINK_DELIVERY=flash` (it prints sign-in links into the page that asked
+for one). Both throw from `loadConfig` with the reason.
+
+## Security headers
+
+`app/plugins/security-headers.ts` adds one `onSend` hook at the root, so a
+page, the JSON health check, an uploaded file, and a 404 all answer with the
+same set:
+
+| Header | Value |
 | --- | --- |
-| `HOST` | `0.0.0.0` |
-| `PORT` | `4000` |
-| `DATABASE_FILE` | `storage/development.sqlite3` |
-| `COOKIE_SECRET` | a development default (minimum 16 characters) |
-| `LOG_LEVEL` | `info` |
-| `MAGIC_LINK_DELIVERY` | `flash` (`mail` throws `NotImplementedError`) |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'` |
+
+`data:` is in `img-src` for the generated SVG placeholder a listing with no
+photograph renders inline. No page has a script tag or an inline style, so
+nothing else needs a relaxation.
 
 ## Health
 
@@ -490,7 +519,8 @@ prototype/node/
                            order-history/messaging/page-views/demo-data.ts
       delivery/            MagicLinkDelivery port + flash and mail implementations
       plugins/             flash.ts, form-body.ts, identity.ts, page-views.ts,
-                           site-render.ts, unread-messages.ts
+                           security-headers.ts, site-render.ts,
+                           unread-messages.ts
       sites/               shop/, seller/, admin/, auth/ — each a plugin with
                            routes/, views/, and (except auth) queries/
       views/partials/      debug-alert.ejs, flash.ejs

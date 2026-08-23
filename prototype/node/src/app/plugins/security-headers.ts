@@ -1,0 +1,32 @@
+import type { FastifyInstance } from 'fastify'
+
+/**
+ * The policy every response carries. `data:` is in `img-src` because a listing
+ * with no photograph renders a generated SVG placeholder inline; nothing else
+ * loads from anywhere but this origin, and no page has a script tag.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "img-src 'self' data:",
+  "style-src 'self'",
+  "script-src 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ')
+
+const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Content-Security-Policy': CONTENT_SECURITY_POLICY,
+}
+
+/**
+ * One hook at the root, so a page, a JSON health check, an uploaded file, and
+ * a 404 all answer with the same headers and no route can forget them.
+ */
+export function addSecurityHeaders(app: FastifyInstance): void {
+  app.addHook('onSend', async (_request, reply) => {
+    reply.headers(SECURITY_HEADERS)
+  })
+}

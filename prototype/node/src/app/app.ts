@@ -13,6 +13,7 @@ import { addFlash } from './plugins/flash.ts'
 import { addHealth } from './plugins/health.ts'
 import { addIdentity } from './plugins/identity.ts'
 import { addPageViewRollup } from './plugins/page-views.ts'
+import { addSecurityHeaders } from './plugins/security-headers.ts'
 import { addUnreadMessages } from './plugins/unread-messages.ts'
 import { adminSite } from './sites/admin/index.ts'
 import { authSite } from './sites/auth/index.ts'
@@ -52,7 +53,12 @@ export function buildApp({
   config,
   magicLinkDelivery,
 }: AppDependencies): FastifyInstance {
-  const app = Fastify({ logger: { level: config.logLevel } })
+  // trustProxy is what makes request.protocol and request.host read the
+  // forwarded headers, so it is on only where a proxy is known to set them.
+  const app = Fastify({
+    logger: { level: config.logLevel },
+    trustProxy: config.trustProxy,
+  })
 
   app.decorate('db', db)
   app.decorate('clock', clock)
@@ -80,6 +86,7 @@ export function buildApp({
   // shared partials by the same path every other template uses.
   app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
 
+  addSecurityHeaders(app)
   addHealth(app)
   addFlash(app)
   addIdentity(app)

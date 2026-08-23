@@ -70,6 +70,7 @@ export function addIdentity(app: FastifyInstance): void {
         sameSite: 'lax',
         signed: true,
         maxAge: COOKIE_LIFETIME_SECONDS,
+        secure: this.server.config.secureCookies,
       })
     },
   )
