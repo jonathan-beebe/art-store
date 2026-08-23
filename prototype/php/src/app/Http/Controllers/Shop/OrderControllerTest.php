@@ -85,3 +85,14 @@ it('refuses another customer reading the order', function () use ($paidOrderFor)
 
     $this->get(route('shop.order', $order))->assertNotFound();
 });
+
+it('offers a form to message the seller for each fulfillment', function () use ($paidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
+    $fulfillment = $order->fulfillments()->sole();
+
+    $response = $this->get(route('shop.order', $order));
+
+    $response->assertSee('Message the seller');
+    $response->assertSee(route('shop.order.messages', [$order, $fulfillment]), escape: false);
+});

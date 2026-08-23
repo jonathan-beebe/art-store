@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:16:06:36 — FEAT-013 — done: storefront ask-a-seller-question, inbox/thread/reply, support/order-message open-or-find, published FAQ list, ShopLayoutComposer nav badge, blocked-customer read-only, anonymous-ask-then-verify merge; 1043 tests / 2302 assertions, 100.0% coverage
+- 2026-08-23:15:53:42 — FEAT-013 — started
 - 2026-08-23:15:47:02 — FEAT-012 — reviewed: per-thread unread count moved to a Conversation::withUnreadCountFor scope with the unread_count property declared, str()->limit in the inbox view, five probe tests (mixed-kind inbox, fixed six-query render, refused reply leaves the thread unread, DELETE of an off-listing faq, the fulfillment subject key FEAT-013 will ask for); 1004 tests / 2208 assertions, 100.0% coverage
 - 2026-08-23:15:35:50 — FEAT-012 — done: seller messaging pages (inbox, thread, reply), support/order-message open-or-find, listing FAQ publish/reword/unpublish, SellerLayoutComposer nav badge; 999 tests / 2196 assertions, 100.0% coverage
 - 2026-08-23:15:12:04 — FEAT-012 — started

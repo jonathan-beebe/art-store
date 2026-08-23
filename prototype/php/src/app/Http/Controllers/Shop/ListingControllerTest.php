@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Shop;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\ListingEvent;
+use App\Models\ListingFaq;
 
 it('shows the listing in full', function (): void {
     $listing = $this->listing($this->seller('Blue Kiln Studio'), [
@@ -59,4 +60,36 @@ it('keeps a draft listing off the storefront', function (): void {
     $this->listing($this->seller(), ['slug' => 'unfinished', 'status' => ListingStatus::Draft]);
 
     $this->get('/art/unfinished')->assertNotFound();
+});
+
+it('offers a form to ask the seller a question', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('Ask the seller a question');
+    $response->assertSee(route('shop.listing.questions', $listing), escape: false);
+});
+
+it('lists the sellers published questions and answers', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    ListingFaq::factory()->create([
+        'listing_id' => $listing->id,
+        'question' => 'Does this ship framed?',
+        'answer' => 'Yes, in a black wood frame.',
+        'published_at' => $this->moment('2026-08-20 09:00:00'),
+    ]);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('Does this ship framed?');
+    $response->assertSee('Yes, in a black wood frame.');
+});
+
+it('shows no questions and answers section for a listing with none published', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertDontSee('Questions &amp; answers', escape: false);
 });

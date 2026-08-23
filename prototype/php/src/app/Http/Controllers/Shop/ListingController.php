@@ -20,7 +20,7 @@ final class ListingController extends ShopController
         $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
 
         return view('shop.listing', [
-            'listing' => $listing->load('seller'),
+            'listing' => $listing->load('seller', 'faqs'),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
         ]);

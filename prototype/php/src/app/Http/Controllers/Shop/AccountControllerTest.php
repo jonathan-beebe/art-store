@@ -31,6 +31,14 @@ it('offers a sign out form', function (): void {
     $response->assertSee('action="'.route('auth.customer.logout').'"', escape: false);
 });
 
+it('offers a link to contact support', function (): void {
+    $this->actingAs(Customer::factory()->create(), 'customer');
+
+    $response = $this->get('/account');
+
+    $response->assertSee('href="'.route('shop.support').'"', escape: false);
+});
+
 it('lists the notifications of the customer', function () use ($notify): void {
     $shopper = Customer::factory()->create();
     $this->actingAs($shopper, 'customer');

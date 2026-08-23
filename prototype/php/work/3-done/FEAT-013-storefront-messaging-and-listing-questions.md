@@ -1,7 +1,7 @@
 ---
 id: FEAT-013
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -51,3 +51,78 @@ The question that becomes an FAQ starts here, and it has to start without a sign
 
 ## Related work
 - FEAT-010, FEAT-011, FEAT-012. FEAT-002 (anonymous identity and merge) is the reason the anonymous ask works.
+
+## Working
+
+Re-validated: no route under `routes/shop.php` reached the messaging tables
+before this ticket; `shop.messages.*`, `shop.listing.questions`,
+`shop.support`, and `shop.order.messages` all had to be added.
+
+### Decisions
+
+- **`MessageController`, `SupportController`, `OrderMessageController` mirror
+  their seller counterparts almost line for line**, swapping
+  `$this->authorize()`/`Gate::inspect()` for `$this->authorizeVisitor()`/
+  `Gate::forUser($this->visitor())->inspect()` per `ShopController`'s
+  visitor-is-middleware-resolved shape. No FAQ-publish section on the
+  storefront's thread view — publishing stays a seller-only action.
+- **`AskSellerRequest::authorize()` returns a `Response`** the same way
+  `PublishFaqRequest` does, checking `$this->listing()->status
+  ->isOnStorefront()` against the route-bound listing — the ownership-before-
+  validation ordering `docs/architecture.md` describes (a `FormRequest`
+  validates only after `authorize()` allows), so a draft or archived listing
+  404s even when the submitted body would otherwise fail validation. The
+  block check can't live there, because the conversation a listing question
+  posts to does not exist until the controller opens it.
+- **`ListingQuestionController` opens the conversation, then calls
+  `$this->authorizeVisitor('post', $conversation)` before posting** — the same
+  `ConversationPolicy::post` a reply goes through, so a blocked customer's
+  question is refused with the policy's words. `OpenConversation` runs first
+  because there is no conversation to authorize against until it does; a
+  blocked customer's ask therefore opens an empty thread rather than none,
+  the same idempotent-open tradeoff FEAT-012 accepted for a failed reply.
+- **The merge test lives in `ListingQuestionControllerTest`**: a visitor with
+  no cookie asks a question, a *different* customer already holds the email
+  the visitor later verifies, and the magic link's `MergeAnonymousCustomer`
+  folds the anonymous thread onto the existing account (asserted by
+  `Conversation::sole()->id` staying the same row while `customer_id` moves,
+  and `Message::unreadBy($verified)` reading zero for the visitor's own
+  question). The first attempt at this test verified an address nobody held
+  yet, which claims the anonymous row in place rather than merging it into a
+  second account — not a bug, just the wrong fixture for what "merge" means.
+- **Watch-item #2 resolved by moving, not weakening**: `NotifyOfMessageTest`'s
+  "leaves the url null" case now sends to an `admin` recipient over an
+  `admin_seller` thread, since `admin.messages.show` still has no route. Added
+  a matching customer-side case (`shop.messages.show` now resolves to a real
+  URL) beside the existing seller one, so both sites this ticket did not
+  break stay asserted for real rather than by absence.
+- **Watch-item #4 held by construction**: `OrderMessageController` builds
+  `ConversationSubject::fulfillment($fulfillment->seller_id, $order
+  ->customer_id, $fulfillment->id)` — the same (seller, customer, fulfillment)
+  argument order `seller.orders.messages` uses — pinned by a test asserting
+  the exact `subjectKey()` match, mirroring FEAT-012's own probe for this.
+- **No fixed query-count test needed adjusting** (watch-item #4's other
+  half): grepping the storefront test tree found no
+  `expectsDatabaseQueryCount` assertions before this ticket, so the new
+  `unreadMessageCount` query on `ShopLayoutComposer` had nothing pinned to
+  move.
+- Listing page: the ask form and the published Q&A list are plain sections
+  under the existing article, not a new component — matching the storefront's
+  existing hand-rolled-Tailwind-per-page style rather than seller's shared
+  Blade partials.
+
+### Verification
+
+`make check` (Pint → PHPStan level max → full Pest suite): Pint clean on 423
+files, 0 PHPStan errors, **1043 tests passed, 2302 assertions** (from the
+1004/2208 baseline). `make coverage`: 100.0%. `tests/SidecarsTest` passes with
+every new class covered. `php artisan route:list` confirms `shop.messages.*`,
+`shop.listing.questions`, `shop.support`, and `shop.order.messages` all
+register with the exact names and methods `docs/messaging.md`'s route table
+specifies, inside `customer.identity` and outside `auth.customer`.
+`GuardedRoutesTest` needed no changes: none of the new routes carry
+`auth.customer`.
+
+### Found, not fixed
+
+- Nothing outside scope.
