@@ -6,14 +6,17 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 15
-- IMPRV: 1
+- IMPRV: 2
 - MAINT: 2
 - A11Y: 1
 - RFCTR: 16
-- BUG: 1
+- BUG: 3
 
 ## Log
 
+- 2026-08-23:15:22:10 — IMPRV-001 — defined: Inbox query cost, thread-page assignment, and doc corrections from the review
+- 2026-08-23:15:21:54 — BUG-002 — defined: A refused FAQ publish moves the seller off the thread and drops the source message
+- 2026-08-23:15:21:40 — BUG-001 — defined: Customer merge can duplicate a thread and find-or-open then splits the pair
 - 2026-08-23:15:11:10 — FEAT-014 — done: Seeds::Messaging opens one thread of each kind against the seeded admin, sellers, casey and the shipped fulfillment with nine messages and the listing question's answer published as an FAQ through draft_from and publish, each reply reading the thread it replies in so every thread ends on one unread message, all behind the existing Seller.exists? guard and counted on the seeded-counts line; the smoke walk gains the buyer's question, the seller's inbox reply, the publish carrying source_message_id and a cookieless browser reading the pair on the listing page; docs/messaging.md mirrors the Node doc's three questions and adds live updates, architecture.md, data-model.md, ontology.md and README.md carry the three sites, the admin actor, the messaging tables and the Hotwire stack, and review.md drops the no-app/javascript claim, maps the feature to its routes and tests and states the two prototypes' live implementations side by side; make fresh, a curl walk of all three sites and 737 runs at 100% line coverage (this commit)
 - 2026-08-23:14:53:27 — FEAT-014 — started
 - 2026-08-23:14:51:25 — FEAT-013 — done: turbo-rails, importmap-rails and solid_cable with action_cable/engine on, config/importmap.rb pinning application and @hotwired/turbo-rails from the gem's assets and javascript_importmap_tags in the three layouts; Solid Cable on the single database the gem documents for that shape, its schema as a normal migration so make fresh and db:prepare both reach it; each thread page subscribes with turbo_stream_from @conversation, current_<actor> and Message after_create_commit appends the site's own message partial to each participant's stream, with broadcast_replace_to [actor, :unread_messages] moving the counterpart's badge on a post and the reader's on read_by!, both through the partial the layouts render; after-commit means a rolled-back post sends nothing and signed stream names keep one actor off another's stream; the four redirects after a PATCH or DELETE answer :see_other for Turbo; 734 runs at 100% line coverage (this commit)
