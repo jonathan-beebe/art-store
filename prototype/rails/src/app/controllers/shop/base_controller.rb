@@ -19,9 +19,5 @@ module Shop
     def order_of_customer(id)
       current_customer.orders.find(id)
     end
-
-    def now
-      Time.current
-    end
   end
 end

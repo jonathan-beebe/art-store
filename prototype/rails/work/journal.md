@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-22:21:04:18 — RFCTR-013 — done: Shop::CartItemsController#create/#destroy and Shop::NotificationReadsController#create replace carts#add/#remove and notifications#update behind the same paths, verbs and route helper names; favorites keep toggle because the test posts twice to flip it; Shop::BaseController#now deleted and its callers fall back on the model default; 527 runs at 100% line coverage (this commit)
+- 2026-08-22:21:01:37 — RFCTR-013 — started
 - 2026-08-22:20:58:38 — RFCTR-011 — done: app/domain and app/support dissolved into app/models; Money, TransitionError, Page and PlaceholderImage are plain top-level classes, the search and report objects folded into Listing.search, Seller#display_name, Seller#listing_status_counts, ListingEvent::Totals and ListingEvent::Day; config/application.rb has no autoloader configuration and zeitwerk:check passes on the defaults; docs and README rewritten to the stock Rails shape; 527 runs at 100% line coverage (this commit and 1f305cc)
 - 2026-08-22:20:49:42 — RFCTR-011 — started
 - 2026-08-22:20:47:00 — RFCTR-012 — done: MagicLinkMailer sends the sign-in link with deliver_later and the debug alert became a MAGIC_LINK_DEBUG_ALERT flash beside it; delivery_method is :test in development as well as test; app/delivery and test/delivery deleted, their coverage replaced by test/mailers plus enqueue assertions in the sessions and checkout tests; 531 runs at 100% line coverage (this commit)

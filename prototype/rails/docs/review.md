@@ -32,7 +32,7 @@ is `@import "tailwindcss"` and nothing else.
 | --- | --- | --- | --- |
 | Browse | done | `root` (search, medium filter, pagination), `shop_listing` | `Shop::StorefrontControllerTest`, `Shop::ListingsControllerTest`, `ListingTest`, `PageTest` |
 | Favorite | done | `shop_favorites`, `shop_toggle_favorite` | `Shop::FavoritesControllerTest`, `CustomerTest` |
-| Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `CartTest`, `CartItemTest` |
+| Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `Shop::CartItemsControllerTest`, `CartTest`, `CartItemTest` |
 | Purchase | done | `shop_checkout`, `shop_place_order`, `shop_pay_order` | `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest` |
 | Anonymous customer id per visitor | done | every storefront route, via `CustomerIdentity` | `CustomerIdentityConcernTest` |
 | Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `CustomerTest`, `Auth::MagicLinksControllerTest` |
@@ -49,7 +49,7 @@ is `@import "tailwindcss"` and nothing else.
 | --- | --- | --- | --- |
 | Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `NotificationTest` |
 | Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `FulfillmentTest` |
-| Notify customers of shipment | done | `shop_account` inbox | `Shop::AccountControllerTest` |
+| Notify customers of shipment | done | `shop_account` inbox, `shop_read_notification` | `Shop::AccountControllerTest`, `Shop::NotificationReadsControllerTest` |
 | Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `LedgerEntryTest` |
 | Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
 | Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `PayoutTest`, `PayoutPeriodTest` |
@@ -122,14 +122,11 @@ is `@import "tailwindcss"` and nothing else.
 2. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller_earnings` and the controller says so.
    `payouts:run` is the real entry point.
-3. **17 files under `app/` have no test of their own**: `ApplicationController`,
-   the three base controllers, `Shop::NotificationsController`, the three
-   controller concerns, the two helpers, `ApplicationMailer`,
-   `ApplicationRecord`, the `EmailAddress` concern, `TransitionError`, and
-   `CustomerMerge`, `Favorite` and `OrderItem`. Every one is at 100% line
-   coverage through the tests of its callers; `Shop::NotificationsController`
-   is the only one with behavior of its own, covered by
-   `Shop::AccountControllerTest`.
+3. **16 files under `app/` have no test of their own**: `ApplicationController`,
+   the three base controllers, the three controller concerns, the two helpers,
+   `ApplicationMailer`, `ApplicationRecord`, the `EmailAddress` concern,
+   `TransitionError`, and `CustomerMerge`, `Favorite` and `OrderItem`. Every
+   one is at 100% line coverage through the tests of its callers.
 4. **A merge can leave a customer holding two carts.**
    `Customer#absorb` re-points the anonymous cart rather than
    folding it into the account's cart, and `Customer#current_cart` then shops with
@@ -161,7 +158,6 @@ is `@import "tailwindcss"` and nothing else.
    `payouts:run` as the single entry point. Closes gap 2.
 4. Add order cancellation for `pending_verification` and `awaiting_payment`
    orders, returning the stock to the listing. Closes gap 5.
-5. Give `Shop::NotificationsController` its own test, and delete or use the
-   model relations no caller reads. Closes gap 3.
+5. Delete or use the model relations no caller reads. Shrinks gap 3.
 6. Attach real images in `db/seeds.rb` and add libvips to the image so the
    storefront can ask for a thumbnail variant. Closes gaps 6 and 8.

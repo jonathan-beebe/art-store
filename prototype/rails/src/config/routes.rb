@@ -41,8 +41,8 @@ Rails.application.routes.draw do
     post "art/:slug/favorite", to: "favorites#toggle", as: :toggle_favorite
 
     get "cart", to: "carts#show", as: :cart
-    post "cart/:slug", to: "carts#add", as: :add_to_cart
-    delete "cart/:slug", to: "carts#remove", as: :remove_from_cart
+    post "cart/:slug", to: "cart_items#create", as: :add_to_cart
+    delete "cart/:slug", to: "cart_items#destroy", as: :remove_from_cart
 
     get "checkout", to: "checkouts#show", as: :checkout
     post "checkout", to: "checkouts#create", as: :place_order
@@ -55,7 +55,7 @@ Rails.application.routes.draw do
       to: "delivery_confirmations#create", as: :confirm_delivery
 
     get "account", to: "account#show", as: :account
-    post "account/notifications/:id/read", to: "notifications#update", as: :read_notification
+    post "account/notifications/:id/read", to: "notification_reads#create", as: :read_notification
   end
 
   root "shop/storefront#show"

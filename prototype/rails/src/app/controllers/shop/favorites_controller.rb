@@ -10,7 +10,7 @@ module Shop
     def toggle
       listing = Listing.on_storefront.find_by!(slug: params[:slug])
 
-      current_customer.toggle_favorite(listing, at: now)
+      current_customer.toggle_favorite(listing)
 
       redirect_back fallback_location: shop_listing_path(slug: listing.slug)
     end
