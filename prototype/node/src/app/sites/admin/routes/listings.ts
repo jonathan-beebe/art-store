@@ -32,12 +32,12 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
   )
 }
 
-async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> {
   const id = parseIdParam(request.params)
-  if (id === null) return reply.code(404).type('text/plain').send('Not found')
+  if (id === null) return reply.callNotFound()
 
   const detail = await listingDetail({ db: request.server.db }, id)
-  if (detail === null) return reply.code(404).type('text/plain').send('Not found')
+  if (detail === null) return reply.callNotFound()
 
   return reply.render(
     'listing',

@@ -14,10 +14,6 @@ import { parseIdParam } from '../../../plugins/id-param.ts'
 
 const replyForm = z.object({ body: z.string() })
 
-function notFound(reply: FastifyReply): FastifyReply {
-  return reply.code(404).type('text/plain').send('Not found')
-}
-
 function actionContext(request: FastifyRequest): ActionContext {
   return { db: request.server.db, clock: request.server.clock }
 }
@@ -43,12 +39,12 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
 
 async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> {
   const conversationId = parseIdParam(request.params)
-  if (conversationId === null) return notFound(reply)
+  if (conversationId === null) return reply.callNotFound()
 
   const context = actionContext(request)
   const actor = adminActor(request)
   const thread = await conversationThread(context, { conversationId, actor })
-  if (thread === null) return notFound(reply)
+  if (thread === null) return reply.callNotFound()
 
   await markConversationRead(context, { conversationId, reader: actor })
 
@@ -60,12 +56,12 @@ async function postReply(
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
   const conversationId = parseIdParam(request.params)
-  if (conversationId === null) return notFound(reply)
+  if (conversationId === null) return reply.callNotFound()
 
   const context = actionContext(request)
   const actor = adminActor(request)
   const thread = await conversationThread(context, { conversationId, actor })
-  if (thread === null) return notFound(reply)
+  if (thread === null) return reply.callNotFound()
 
   const destination = `/admin/messages/${conversationId}`
   const submitted = replyForm.safeParse(request.body)
@@ -93,11 +89,11 @@ async function messageSeller(
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
   const sellerId = parseIdParam(request.params)
-  if (sellerId === null) return notFound(reply)
+  if (sellerId === null) return reply.callNotFound()
 
   const context = actionContext(request)
   const detail = await sellerDetail(context, sellerId)
-  if (detail === null) return notFound(reply)
+  if (detail === null) return reply.callNotFound()
 
   const conversation = await openConversation(context, {
     kind: 'admin_seller',
@@ -113,11 +109,11 @@ async function messageCustomer(
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
   const customerId = parseIdParam(request.params)
-  if (customerId === null) return notFound(reply)
+  if (customerId === null) return reply.callNotFound()
 
   const context = actionContext(request)
   const detail = await customerDetail(context, customerId)
-  if (detail === null) return notFound(reply)
+  if (detail === null) return reply.callNotFound()
 
   const conversation = await openConversation(context, {
     kind: 'admin_customer',

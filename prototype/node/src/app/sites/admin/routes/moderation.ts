@@ -8,6 +8,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { BAD_REQUEST, renderErrorPage } from '../../../plugins/error-pages.ts'
 import { formBody } from '../../../plugins/form-body.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
@@ -42,12 +43,12 @@ type ModerationCommand<Submitted extends { redirect_to?: string }> = {
 function moderationRoute<Submitted extends { redirect_to?: string }>(
   command: ModerationCommand<Submitted>,
 ) {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> => {
     const subjectId = parseIdParam(request.params)
-    if (subjectId === null) return notFound(reply)
+    if (subjectId === null) return reply.callNotFound()
 
     const parsed = command.form.safeParse(formBody(request))
-    if (!parsed.success) return badRequest(reply)
+    if (!parsed.success) return renderErrorPage(reply, BAD_REQUEST)
 
     const submitted = parsed.data
     const destination = resolveLocalRedirect(submitted.redirect_to, {
@@ -73,14 +74,6 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
 
     return reply.redirect(destination)
   }
-}
-
-function notFound(reply: FastifyReply): FastifyReply {
-  return reply.code(404).type('text/plain').send('Not found')
-}
-
-function badRequest(reply: FastifyReply): FastifyReply {
-  return reply.code(400).type('text/plain').send('Bad request')
 }
 
 function actionContext(request: FastifyRequest): ActionContext {

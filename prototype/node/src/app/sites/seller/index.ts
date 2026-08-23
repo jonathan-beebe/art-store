@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyPluginCallback } from 'fastify'
 import multipart from '@fastify/multipart'
+import { addNotFoundPage } from '../../plugins/error-pages.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
 import { requireSeller } from '../../plugins/identity.ts'
 import { countUnreadMessages } from '../../plugins/unread-messages.ts'
@@ -14,17 +15,22 @@ import { notificationsRoutes } from './routes/notifications.ts'
 import { ordersRoutes } from './routes/orders.ts'
 
 export const sellerSite: FastifyPluginCallback = (portal, _options, done) => {
-  addSiteRender(portal, { pages: 'sites/seller/views', layout: 'sites/seller/views/layout' })
+  const renderPage = addSiteRender(portal, {
+    pages: 'sites/seller/views',
+    layout: 'sites/seller/views/layout',
+  })
   portal.register(multipart, {
     attachFieldsToBody: true,
     limits: { fileSize: MAX_IMAGE_UPLOAD_BYTES, files: 1 },
   })
   portal.addHook('preHandler', countUnreadMessages('seller'))
 
-  // Scoped to this site: a file over the limit throws while the multipart
-  // body is still parsing, before @fastify/multipart's default JSON 413
-  // would otherwise answer — the listing form re-renders with a field error
-  // instead.
+  addNotFoundPage(portal, renderPage)
+
+  // A file over the limit throws while the multipart body is still parsing, so
+  // it never reaches a route: the listing form re-renders with a field error
+  // rather than the generic error page. Rethrowing anything else hands it to
+  // the root handler.
   portal.setErrorHandler(async (error: FastifyError, request, reply) => {
     if (error.code === 'FST_REQ_FILE_TOO_LARGE') return renderOversizedImageForm(request, reply)
     throw error

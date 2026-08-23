@@ -9,6 +9,7 @@ import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
+import { addErrorPage } from './plugins/error-pages.ts'
 import { addFlash } from './plugins/flash.ts'
 import { addHealth } from './plugins/health.ts'
 import { addIdentity } from './plugins/identity.ts'
@@ -86,6 +87,7 @@ export function buildApp({
   // shared partials by the same path every other template uses.
   app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
 
+  addErrorPage(app)
   addSecurityHeaders(app)
   addHealth(app)
   addFlash(app)

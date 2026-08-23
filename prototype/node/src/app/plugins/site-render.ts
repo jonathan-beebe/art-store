@@ -7,6 +7,13 @@ export type SiteRenderOptions = {
   layout: string
 }
 
+/** One site's pages, rendered onto any reply the app holds. */
+export type SitePageRenderer = (
+  reply: FastifyReply,
+  page: string,
+  data?: Record<string, unknown>,
+) => FastifyReply
+
 declare module 'fastify' {
   interface FastifyReply {
     render(page: string, data?: Record<string, unknown>): FastifyReply
@@ -23,22 +30,32 @@ declare module 'fastify' {
  *
  * Called inside a site plugin, never at the root: each site needs its own
  * layout, and Fastify keeps the decorator inside the context that added it.
+ * The renderer it returns is the same page-writing for a reply that never
+ * reached this site's routes and so carries no `render` of its own.
  */
-export function addSiteRender(site: FastifyInstance, options: SiteRenderOptions): void {
+export function addSiteRender(
+  site: FastifyInstance,
+  options: SiteRenderOptions,
+): SitePageRenderer {
+  const renderPage: SitePageRenderer = (reply, page, data = {}) =>
+    reply.view(
+      `${options.pages}/${page}`,
+      {
+        ...data,
+        flash: reply.takeFlash(),
+        identity: reply.request.identity,
+        unreadMessageCount: reply.request.unreadMessageCount,
+        showsDebugMagicLinks: reply.server.config.showsDebugMagicLinks,
+      },
+      { layout: options.layout },
+    )
+
   site.decorateReply(
     'render',
     function (this: FastifyReply, page: string, data: Record<string, unknown> = {}) {
-      return this.view(
-        `${options.pages}/${page}`,
-        {
-          ...data,
-          flash: this.takeFlash(),
-          identity: this.request.identity,
-          unreadMessageCount: this.request.unreadMessageCount,
-          showsDebugMagicLinks: this.server.config.showsDebugMagicLinks,
-        },
-        { layout: options.layout },
-      )
+      return renderPage(this, page, data)
     },
   )
+
+  return renderPage
 }

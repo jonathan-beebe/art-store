@@ -24,9 +24,12 @@ export function shopPage(data: ShopPageData): ShopPageData {
 
 /**
  * What a visitor gets for art that was never public, for a listing an admin
- * removed, and for someone else's order: the same page, so nothing here says
- * whether the thing exists.
+ * removed, and for someone else's order: the storefront's own 404 page, the
+ * same one a mistyped url reaches, so nothing here says whether the thing
+ * exists.
  */
 export function renderNotFound(reply: FastifyReply): FastifyReply {
-  return reply.status(404).render('not-found', shopPage({ title: 'Not found' }))
+  reply.callNotFound()
+
+  return reply
 }
