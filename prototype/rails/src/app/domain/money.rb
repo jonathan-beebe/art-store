@@ -36,13 +36,7 @@ module Domain
     end
 
     def format
-      Kernel.format("%s$%s.%02d", cents.negative? ? "-" : "", grouped_dollars, cents.abs % 100)
-    end
-
-    private
-
-    def grouped_dollars
-      (cents.abs / 100).to_s.reverse.scan(/\d{1,3}/).join(",").reverse
+      ActiveSupport::NumberHelper.number_to_currency(cents / 100.0)
     end
   end
 end

@@ -1,7 +1,7 @@
 ---
 id: RFCTR-003
 type: refactor
-status: open
+status: resolved
 created: 2026-08-22
 ---
 
@@ -65,3 +65,18 @@ before. The one difference is accented letters — `parameterize` transliterates
 pins it. No seeded title carries an accent, so no seeded slug moved.
 
 `first_free` is unchanged.
+
+### C4 — money
+
+`Money#format` now calls `ActiveSupport::NumberHelper.number_to_currency(cents / 100.0)` and the
+private `grouped_dollars` is gone. The default currency format puts the sign before the symbol, so
+`-50` still renders `-$0.50`. Every cents value from -5000 to 5000, two thousand random values up to
+$20,000,000 and a handful past $1,000,000,000 render the same string as the old `Kernel.format`
+call, so the float division loses nothing at the amounts this app holds.
+
+Seeds run clean against a fresh test database and the money strings the controller tests assert are
+unchanged.
+
+## Deferred
+
+`ListingSlug` stays a module; RFCTR-005 folds it into `Listing`.
