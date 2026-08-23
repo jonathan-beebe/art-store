@@ -6,13 +6,16 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 15
-- IMPRV: 2
+- IMPRV: 3
 - MAINT: 2
 - A11Y: 1
 - RFCTR: 16
-- BUG: 3
+- BUG: 4
 
 ## Log
+
+- 2026-08-23:18:56:07 — IMPRV-002 — defined: Two operators produce twin support threads and the support button reaches only one
+- 2026-08-23:18:55:39 — BUG-003 — defined: A killed test run poisons the test database and the next run fails without naming why
 
 - 2026-08-23:15:41:37 — IMPRV-001 — done: Conversation.unread_counts_for groups a whole inbox's counts into one query returning a hash that answers 0 for a quiet thread, MessagingSite#index adds includes(:subject, :seller, :customer, :admin) for the participants counterpart_of reads, and one seller's inbox goes from 7/21/45 queries at 1/8/20 rows to 7 at all three, asserted through a count_queries helper on sql.active_record; Conversation#unread_count_for reads the plural so the rule keeps one definition; the seller thread page's FAQ draft became a controller assignment under BUG-002; architecture.md cites two broadcast assertions the suite runs in place of two it does not, messaging.md says what holds between the nav badge, the inbox row and the marking, states the inbox's constant cost and the second-admin case where Admin.on_duty and current_admin give a seller two threads both titled Art Store support, and ontology.md loses a stray blank line; 750 runs at 100% line coverage (this commit)
 - 2026-08-23:15:36:47 — IMPRV-001 — started
