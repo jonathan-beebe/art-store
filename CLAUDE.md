@@ -33,6 +33,10 @@ PHP 8000, Rails 3000, Node 4000. The three never collide.
 
 ## Git worktrees
 
+Create every worktree under the repository root's `.claude/worktrees/`
+directory (`git worktree add .claude/worktrees/<branch> <base>`), never as a
+sibling of the repository.
+
 Docker Compose derives the project name from the directory name, so two
 checkouts of the same prototype (the main repo and a worktree) share one
 compose project and replace each other's container. Bring the other stack
