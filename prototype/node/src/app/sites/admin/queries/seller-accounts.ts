@@ -2,6 +2,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import { addCents, type Cents } from '../../../core/money.ts'
+import { shopName } from '../../../core/shop/shop-name.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
 export type SellerOption = { id: number; name: string }
@@ -45,7 +46,7 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
     .orderBy('id')
     .execute()
 
-  return sellers.map((seller) => ({ id: seller.id, name: seller.shopName ?? seller.email }))
+  return sellers.map((seller) => ({ id: seller.id, name: shopName(seller) }))
 }
 
 function toAccount(

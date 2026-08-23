@@ -16,7 +16,7 @@ import { listingImageSource } from '../../../core/listings/placeholder-image.ts'
 import { LISTING_STATUSES, availableListingTransitions, isBlockedByRemoval } from '../../../core/listings/listing-status.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
 import { dollarsInputValue, formatCents } from '../../../core/money.ts'
-import { activityTimeline } from '../../../core/reports/activity-timeline.ts'
+import { activityTimeline, activityWindow } from '../../../core/reports/activity-timeline.ts'
 import { activityTotals } from '../../../core/reports/activity-totals.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
@@ -36,7 +36,6 @@ import {
 } from '../queries/listings.ts'
 
 const ACTIVITY_WINDOW_DAYS = 14
-const ACTIVITY_WINDOW_MS = ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000
 const OVERSIZED_IMAGE_MESSAGE = `Upload an image under ${MAX_IMAGE_UPLOAD_MB} MB.`
 
 const statusChangeSchema = z.object({ status: z.enum(LISTING_STATUSES) })
@@ -265,9 +264,10 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
 
   const { db, clock } = request.server
   const now = clock.now()
+  const window = activityWindow(now, ACTIVITY_WINDOW_DAYS)
   const [eventTotals, dailyCounts, sales, removal] = await Promise.all([
     listingEventTotals(db, listing.id),
-    listingEventCountsByDay(db, listing.id, new Date(now.getTime() - ACTIVITY_WINDOW_MS)),
+    listingEventCountsByDay(db, listing.id, window.since),
     salesForListing(db, listing.id),
     activeListingRemoval({ db }, listing.id),
   ])
@@ -277,7 +277,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
     listing,
     imageSrc: listingImageSource(listing.imagePath, listing.title),
     totals: activityTotals(eventTotals),
-    days: activityTimeline(dailyCounts, { endsOn: now, days: ACTIVITY_WINDOW_DAYS }),
+    days: activityTimeline(dailyCounts, { endsOn: now, days: window.days }),
     sales,
     removal,
     transitions: availableListingTransitions(listing.status, removal !== null),

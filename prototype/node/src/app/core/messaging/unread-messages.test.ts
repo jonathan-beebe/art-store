@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  isSentBy,
   isUnreadBy,
   totalUnreadMessages,
   unreadCountsByConversation,
@@ -10,6 +11,18 @@ import {
 function marker(overrides: Partial<ReadMarker> = {}): ReadMarker {
   return { conversationId: 1, senderType: 'seller', senderId: 1, readAt: null, ...overrides }
 }
+
+test('isSentBy is true for the actor named as the sender', () => {
+  assert.equal(isSentBy(marker(), { type: 'seller', id: 1 }), true)
+})
+
+test('isSentBy is false for a different actor of the same type', () => {
+  assert.equal(isSentBy(marker(), { type: 'seller', id: 9 }), false)
+})
+
+test('isSentBy is false for an actor of a different type', () => {
+  assert.equal(isSentBy(marker(), { type: 'customer', id: 1 }), false)
+})
 
 test('an unread message from the other side is unread by the reader', () => {
   assert.equal(isUnreadBy(marker(), { type: 'customer', id: 2 }), true)

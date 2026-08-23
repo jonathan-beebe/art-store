@@ -1,7 +1,7 @@
 ---
 id: RFCTR-002
 type: refactor
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -241,3 +241,121 @@ first keeps IMPRV-002's route-body changes small and stable.
 - 02-types-boundaries.md — "`MagicLinkStatus` is a bare literal union"
 - 01-deps-platform.md — "`[...].reverse().find()` where `findLast` exists"
 - IMPRV-002 (validation on routes) depends on this ticket landing first
+
+## Working
+
+Scope change: skipped the sub-item "Storefront visibility is a core predicate
+and, separately, hand-written SQL in two dialects" — `isOnStorefront` /
+`STOREFRONT_STATUSES` / `BROWSABLE_STATUSES` and the three query files
+(`find-storefront-listings.ts`, `find-favorite-listings.ts`,
+`listing-availability.ts`). Per the orchestrator's brief, another ticket
+absorbs it. `app/core/listings/listing-availability.ts` was left untouched.
+
+Verified against the code: every other sub-item in the Problem section still
+applied as described, including the whitespace-only `shopName ?? email`
+inline fallback at `seller-accounts.ts:48` (`sellerOptions`), which is a
+second occurrence of the same bug beyond the three the ticket names at
+ledger-rows.ts/payout-rows.ts, since `sellerAccounts` reads its seller names
+through `sellerOptions`.
+
+Changed:
+- `app/core/messaging/faq-prefill.ts` (new) — `faqPrefill(messages)`, moved
+  out of `seller/routes/messages.ts`'s `faqPrefillFrom`, using `findLast`.
+- `app/core/messaging/participant-name.ts` — `counterpartName`, `senderName`,
+  `ABSENT_COUNTERPART`, `ParticipantNames` moved in from
+  `actions/messaging/conversation-participants.ts`, which now only reads the
+  database and re-exports the type. Callers (`conversation-thread.ts`,
+  `conversation-inbox.ts`, and both test files) import the pure functions
+  from core directly.
+- `app/core/messaging/conversation-subject.ts` — `ConversationOpening` is a
+  discriminated union over `kind` with each variant's ids non-optional;
+  `conversationSubject` flattens it with a `switch`; `missingConversationParts`
+  and its `TypeError` are gone (the shape is now enforced at compile time).
+  `open-conversation.ts` no longer checks for missing parts and builds its
+  `where` clause from `participantColumnsOf`/`subjectColumnOf`
+  (`conversation-kind.ts`) instead of a flat 5-column list — `KIND_SHAPES`
+  stays module-private, reached through those two existing accessors rather
+  than exported directly, since nothing outside `conversation-kind.ts` needs
+  the table itself.
+- `app/core/messaging/conversation-access.ts` — `ConversationActor` is now
+  `{ type: 'customer'; id; isBlocked: boolean } | { type: 'seller' | 'admin'; id }`.
+  Added `ConversationParticipant` (`{ type; id }`, no standing) as the
+  parameter type for `isConversationParticipant`/`otherParticipants` and (via
+  `unread-messages.ts`) `isSentBy`/`isUnreadBy` — those never needed
+  `isBlocked`, and requiring it there would have forced every unread-count and
+  notification call site to fabricate a standing it doesn't have.
+  `conversationAccess`'s `mayPost` reads
+  `actor.type !== 'customer' || !actor.isBlocked`. `conversation-actor.ts`
+  builds `{ type: actor.type, id: actor.id }` for seller/admin (no field to
+  forget to set) and only fills `isBlocked` for a customer.
+- `app/core/messaging/unread-messages.ts` — added `isSentBy(message, actor)`;
+  `isUnreadBy` is now `readAt === null && !isSentBy(...)`.
+  `conversation-thread.ts`'s `toThreadMessage` calls `isSentBy` instead of
+  its inline `senderType === actor.type && senderId === actor.id`.
+- `app/core/reports/activity-timeline.ts` — added
+  `activityWindow(endsOn, days): { since, days }`, built on the same
+  `shiftUtcDays` as `activityTimeline`, `since` at UTC midnight of the
+  timeline's first day. `seller/routes/listings.ts`'s `show` route replaced
+  `ACTIVITY_WINDOW_MS` (a fixed-millisecond subtraction) with
+  `activityWindow(now, ACTIVITY_WINDOW_DAYS)` and passes `window.since` to
+  the query and `window.days` to `activityTimeline`, so the two can no longer
+  drift.
+- `app/core/customers/customer-merge-plan.ts` — `planCustomerMerge` returns
+  `favoritesToMove`/`favoritesToDrop` (anonymous favorites partitioned against
+  what the verified customer already has) instead of the deduped
+  `favoriteListingIds` union. `merge-anonymous-customer.ts`'s `applyFavorites`
+  now only deletes `plan.favoritesToDrop` and repoints the rest — it no
+  longer recomputes the same set the plan already decided, and no longer
+  takes the raw `favorites` read as a parameter.
+- `app/core/auth/magic-link-status.ts` — added `MAGIC_LINK_STATUSES` as-const
+  array; `MagicLinkStatus` is now derived from it.
+- `app/actions/messaging/open-support-conversation.ts` (new) —
+  `openSupportConversation(context, { actorType, actorId })`, returning
+  `{ outcome: 'opened'; conversation } | { outcome: 'no-admin' }`. Both
+  `seller/routes/messages.ts`'s and `shop/routes/messages.ts`'s `/support`
+  handlers now call it instead of running the "first admin by id" query and
+  the not-found branch inline; each keeps its own flash copy and redirect
+  target, since those differ per site.
+- `app/sites/seller/routes/listings.ts` — the activity-window lines in `show`
+  use `activityWindow`; `ACTIVITY_WINDOW_MS` is deleted.
+- `app/sites/admin/queries/ledger-rows.ts`, `payout-rows.ts`,
+  `seller-accounts.ts` (`sellerOptions`) — all three now call `shopName(row)`
+  instead of `row.shopName ?? row.email`.
+- `app/sites/admin/routes/customers.ts` — the detail page title calls
+  `customerName(detail.customer)` (so an anonymous customer now titles
+  `Guest #<id>` instead of `Customer <id>`) instead of
+  `detail.customer.email ?? \`Customer ${id}\``.
+- `app/sites/admin/routes/sellers.ts` — the detail page title calls
+  `shopName(detail.seller)` instead of `detail.seller.shopName ?? detail.seller.email`.
+- `app/sites/admin/queries/listing-rows.ts` — added
+  `REMOVED_FILTERS = [...] as const` beside `ListingRemovedFilter`, which is
+  now derived from it. `app/sites/admin/routes/listings.ts` imports the array
+  instead of declaring its own copy.
+
+Left alone: `MessagingActor` (`actions/messaging/conversation-actor.ts`,
+`{ type: ActorType; id: number }`) and the new core `ConversationParticipant`
+are structurally identical. Not merged, to keep core's types free of an
+actions-layer import — a duplicate shape across the two layers, not a
+duplicate declaration one layer could just reuse.
+
+Consequential fix outside the listed file set: `app/plugins/unread-messages.test.ts`
+built a `ConversationOpening` from a loosely-typed helper parameter
+(`{ kind: 'admin_seller' | 'admin_customer'; sellerId?; customerId? }`); the
+new discriminated union no longer accepts that shape, so the helper's
+parameter type was tightened to the same two-variant union. No behavior
+changed, only the test helper's type.
+
+`npm run check` (typecheck, lint, coverage-gated suite — the coverage script
+and thresholds changed concurrently under FEAT-014 while this ticket was in
+progress) is green: 1312 tests passing, 0 failing, exit 0, coverage 99.67%
+lines / 95.65% branches / 99.80% funcs (thresholds 95/90). Net new/changed
+tests from this ticket, across the touched files: `faq-prefill.test.ts` +4,
+`open-support-conversation.test.ts` +4, `participant-name.test.ts` +5,
+`unread-messages.test.ts` +3,
+`activity-timeline.test.ts` +4, `customer-merge-plan.test.ts` favorites tests
+rewritten (2 removed, 4 added), `magic-link-status.test.ts` +1,
+`ledger-rows.test.ts`/`payout-rows.test.ts`/`seller-accounts.test.ts` +1 each,
+`customers.test.ts` +2, `sellers.test.ts` +1, `open-conversation.test.ts` −1
+(the now-unrepresentable TypeError case), `conversation-subject.test.ts`
+rewritten for the union shape. An exact whole-suite before/after delta was not
+captured, since other workers are committing to this same tree concurrently.

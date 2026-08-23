@@ -3,8 +3,10 @@ export type CartLine = { listingId: number; quantity: number }
 export type CustomerMergePlan = {
   /** The verified customer's cart after the fold, one line per listing. */
   cartLines: readonly CartLine[]
-  /** The verified customer's favorites after the fold, no duplicates. */
-  favoriteListingIds: readonly number[]
+  /** Anonymous favorites the verified customer does not already have — repoint these rows. */
+  favoritesToMove: readonly number[]
+  /** Anonymous favorites that duplicate one the verified customer already has — delete these rows. */
+  favoritesToDrop: readonly number[]
 }
 
 function foldCartLines(
@@ -34,11 +36,33 @@ function foldCartLines(
   return lines
 }
 
-function foldFavoriteIds(
+/**
+ * Splits the anonymous customer's favorites into the ones that can move
+ * (nothing named that listing yet) and the ones that must be dropped instead
+ * (the verified customer already favorited it, so moving the row would
+ * duplicate it).
+ */
+function partitionFavorites(
   verifiedIds: readonly number[],
   anonymousIds: readonly number[],
-): number[] {
-  return [...new Set([...verifiedIds, ...anonymousIds])]
+): Pick<CustomerMergePlan, 'favoritesToMove' | 'favoritesToDrop'> {
+  const alreadyFavorited = new Set(verifiedIds)
+  const seen = new Set<number>()
+  const favoritesToMove: number[] = []
+  const favoritesToDrop: number[] = []
+
+  for (const listingId of anonymousIds) {
+    if (seen.has(listingId)) continue
+    seen.add(listingId)
+
+    if (alreadyFavorited.has(listingId)) {
+      favoritesToDrop.push(listingId)
+    } else {
+      favoritesToMove.push(listingId)
+    }
+  }
+
+  return { favoritesToMove, favoritesToDrop }
 }
 
 export function planCustomerMerge(input: {
@@ -51,6 +75,6 @@ export function planCustomerMerge(input: {
 }): CustomerMergePlan {
   return {
     cartLines: foldCartLines(input.verifiedCartLines, input.anonymousCartLines, input.stockByListing),
-    favoriteListingIds: foldFavoriteIds(input.verifiedFavoriteListingIds, input.anonymousFavoriteListingIds),
+    ...partitionFavorites(input.verifiedFavoriteListingIds, input.anonymousFavoriteListingIds),
   }
 }

@@ -1,5 +1,5 @@
 import type { ActorType } from '../auth/actor-type.ts'
-import type { ConversationActor } from './conversation-access.ts'
+import type { ConversationParticipant } from './conversation-access.ts'
 
 /** What the fold needs off a message row: who sent it, and whether it was read. */
 export type ReadMarker = {
@@ -9,11 +9,17 @@ export type ReadMarker = {
   readAt: string | null
 }
 
+/** Whether this actor sent this message. */
+export function isSentBy(
+  message: Pick<ReadMarker, 'senderType' | 'senderId'>,
+  actor: ConversationParticipant,
+): boolean {
+  return message.senderType === actor.type && message.senderId === actor.id
+}
+
 /** Whether this reader has this one message still to read. */
-export function isUnreadBy(message: ReadMarker, reader: ConversationActor): boolean {
-  return (
-    message.readAt === null && !(message.senderType === reader.type && message.senderId === reader.id)
-  )
+export function isUnreadBy(message: ReadMarker, reader: ConversationParticipant): boolean {
+  return message.readAt === null && !isSentBy(message, reader)
 }
 
 /**
@@ -23,7 +29,7 @@ export function isUnreadBy(message: ReadMarker, reader: ConversationActor): bool
  */
 export function unreadCountsByConversation(
   messages: readonly ReadMarker[],
-  reader: ConversationActor,
+  reader: ConversationParticipant,
 ): ReadonlyMap<number, number> {
   const counts = new Map<number, number>()
   for (const message of messages) {

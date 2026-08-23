@@ -1,5 +1,6 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
+import { customerName } from '../../../core/messaging/participant-name.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
 import { adminPage } from '../page.ts'
 import { customerDetail } from '../queries/customer-detail.ts'
@@ -23,9 +24,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const detail = await customerDetail({ db: request.server.db }, id)
   if (detail === null) return reply.callNotFound()
 
-  const title = detail.customer.email ?? `Customer ${detail.customer.id}`
-
-  return reply.render('customer', adminPage(title, detail))
+  return reply.render('customer', adminPage(customerName(detail.customer), detail))
 }
 
 export const customerRoutes: FastifyPluginCallback = (admin, _options, done) => {

@@ -5,7 +5,8 @@ import type { ListingStatus } from '../../../core/listings/listing-status.ts'
 import type { RemovalKind } from '../../../core/moderation/listing-removal.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 
-export type ListingRemovedFilter = 'any' | 'removed' | 'visible'
+export const REMOVED_FILTERS = ['any', 'removed', 'visible'] as const
+export type ListingRemovedFilter = (typeof REMOVED_FILTERS)[number]
 
 export type ListingRowFilters = {
   status?: ListingStatus

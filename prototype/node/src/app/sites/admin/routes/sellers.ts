@@ -1,4 +1,5 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import { shopName } from '../../../core/shop/shop-name.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
 import { adminPage } from '../page.ts'
 import { sellerDetail } from '../queries/seller-detail.ts'
@@ -17,9 +18,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const detail = await sellerDetail({ db: request.server.db }, id)
   if (detail === null) return reply.callNotFound()
 
-  const title = detail.seller.shopName ?? detail.seller.email
-
-  return reply.render('seller', adminPage(title, detail))
+  return reply.render('seller', adminPage(shopName(detail.seller), detail))
 }
 
 export const sellerRoutes: FastifyPluginCallback = (admin, _options, done) => {

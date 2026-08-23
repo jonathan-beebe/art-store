@@ -5,9 +5,7 @@ import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
 import { adminPage } from '../page.ts'
 import { listingDetail } from '../queries/listing-detail.ts'
-import { listingRows, type ListingRemovedFilter } from '../queries/listing-rows.ts'
-
-const REMOVED_FILTERS = ['any', 'removed', 'visible'] as const
+import { listingRows, REMOVED_FILTERS, type ListingRemovedFilter } from '../queries/listing-rows.ts'
 
 const listingsQuery = z.object({
   status: z.enum(LISTING_STATUSES).optional(),

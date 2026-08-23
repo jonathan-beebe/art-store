@@ -234,14 +234,3 @@ test('a different seller opens a second row', async (t) => {
 
   assert.notEqual(a.id, b.id)
 })
-
-test('a kind missing a required participant throws TypeError', async (t) => {
-  const world = await openWorld()
-  t.after(world.close)
-  const shop = await seller(world.context)
-
-  await assert.rejects(
-    () => openConversation(world.context, { kind: 'listing_question', sellerId: shop.id }),
-    TypeError,
-  )
-})

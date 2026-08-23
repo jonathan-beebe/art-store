@@ -1,10 +1,11 @@
 import type { ActionContext } from '../action-context.ts'
 import { conversationActor, type MessagingActor } from './conversation-actor.ts'
-import { counterpartName, participantNames, senderName } from './conversation-participants.ts'
+import { participantNames } from './conversation-participants.ts'
 import { conversationTopicOf } from './conversation-topics.ts'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { conversationAccess } from '../../core/messaging/conversation-access.ts'
-import { isUnreadBy } from '../../core/messaging/unread-messages.ts'
+import { counterpartName, senderName } from '../../core/messaging/participant-name.ts'
+import { isSentBy, isUnreadBy } from '../../core/messaging/unread-messages.ts'
 import type { Conversation, Message } from '../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { Timestamp } from '../../db/timestamp.ts'
@@ -90,7 +91,7 @@ function toThreadMessage(
     sentAt: message.sentAt,
     senderType: message.senderType,
     senderName: senderName(message, names),
-    isMine: message.senderType === actor.type && message.senderId === actor.id,
+    isMine: isSentBy(message, actor),
     isUnread: isUnreadBy(message, actor),
   }
 }

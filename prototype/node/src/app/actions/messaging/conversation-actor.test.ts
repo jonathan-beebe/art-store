@@ -29,22 +29,22 @@ async function admin(context: ActionContext) {
   return found
 }
 
-test('a seller carries isBlocked false without needing a row for that id', async (t) => {
+test('a seller carries no isBlocked flag and needs no row for that id', async (t) => {
   const world = await openWorld()
   t.after(world.close)
 
   const actor = await conversationActor(world.context, { type: 'seller', id: 999 })
 
-  assert.equal(actor.isBlocked, false)
+  assert.deepEqual(actor, { type: 'seller', id: 999 })
 })
 
-test('an admin carries isBlocked false without needing a row for that id', async (t) => {
+test('an admin carries no isBlocked flag and needs no row for that id', async (t) => {
   const world = await openWorld()
   t.after(world.close)
 
   const actor = await conversationActor(world.context, { type: 'admin', id: 999 })
 
-  assert.equal(actor.isBlocked, false)
+  assert.deepEqual(actor, { type: 'admin', id: 999 })
 })
 
 test('a blocked customer carries isBlocked true', async (t) => {
@@ -56,7 +56,8 @@ test('a blocked customer carries isBlocked true', async (t) => {
 
   const actor = await conversationActor(world.context, { type: 'customer', id: buyer.id })
 
-  assert.equal(actor.isBlocked, true)
+  assert.equal(actor.type, 'customer')
+  assert.equal(actor.type === 'customer' && actor.isBlocked, true)
 })
 
 test('an unblocked customer carries isBlocked false', async (t) => {
@@ -66,5 +67,6 @@ test('an unblocked customer carries isBlocked false', async (t) => {
 
   const actor = await conversationActor(world.context, { type: 'customer', id: buyer.id })
 
-  assert.equal(actor.isBlocked, false)
+  assert.equal(actor.type, 'customer')
+  assert.equal(actor.type === 'customer' && actor.isBlocked, false)
 })

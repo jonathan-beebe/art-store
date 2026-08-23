@@ -1,8 +1,9 @@
 import type { ActionContext } from '../action-context.ts'
 import type { MessagingActor } from './conversation-actor.ts'
-import { counterpartName, participantNames } from './conversation-participants.ts'
+import { participantNames } from './conversation-participants.ts'
 import { conversationTopics } from './conversation-topics.ts'
 import { participantColumn } from '../../core/messaging/conversation-kind.ts'
+import { counterpartName } from '../../core/messaging/participant-name.ts'
 import { conversationPath } from '../../core/messaging/conversation-path.ts'
 import {
   totalUnreadMessages,

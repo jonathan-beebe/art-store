@@ -105,6 +105,29 @@ test('the seller detail page shows listings, an active removal, fulfillments, an
   assert.match(response.body, /href="\/admin\/listings\/\d+"/)
 })
 
+test('the seller detail page titles a blank shop name by the address before the @, not the whole address', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+
+  const sellerId = await createSeller(context, '   ')
+  const seller = await testApp.db
+    .selectFrom('sellers')
+    .selectAll()
+    .where('id', '=', sellerId)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/sellers/${sellerId}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, new RegExp(`<title>${seller.email.split('@')[0]} — Admin</title>`))
+  assert.doesNotMatch(response.body, new RegExp(`<title>${seller.email} — Admin</title>`))
+})
+
 test('a seller id that names nobody is 404', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

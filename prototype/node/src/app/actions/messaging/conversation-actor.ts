@@ -14,7 +14,7 @@ export async function conversationActor(
   { db }: Pick<ActionContext, 'db'>,
   actor: MessagingActor,
 ): Promise<ConversationActor> {
-  if (actor.type !== 'customer') return { ...actor, isBlocked: false }
+  if (actor.type !== 'customer') return { type: actor.type, id: actor.id }
 
-  return { ...actor, isBlocked: (await activeCustomerBlock({ db }, actor.id)) !== null }
+  return { type: 'customer', id: actor.id, isBlocked: (await activeCustomerBlock({ db }, actor.id)) !== null }
 }

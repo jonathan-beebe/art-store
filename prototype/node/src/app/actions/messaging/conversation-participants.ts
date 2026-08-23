@@ -1,18 +1,9 @@
 import type { ActionContext } from '../action-context.ts'
-import type { MessagingActor } from './conversation-actor.ts'
-import type { ActorType } from '../../core/auth/actor-type.ts'
-import {
-  otherParticipants,
-  type ConversationParticipants,
-} from '../../core/messaging/conversation-access.ts'
-import { customerName } from '../../core/messaging/participant-name.ts'
+import type { ConversationParticipants } from '../../core/messaging/conversation-access.ts'
+import { customerName, type ParticipantNames } from '../../core/messaging/participant-name.ts'
 import { shopName } from '../../core/shop/shop-name.ts'
 
-/** What each side of a thread is called, keyed by actor type and id. */
-export type ParticipantNames = Readonly<Record<ActorType, ReadonlyMap<number, string>>>
-
-/** What a thread with only one side left shows where the counterpart goes. */
-const ABSENT_COUNTERPART = 'Art Store'
+export type { ParticipantNames } from '../../core/messaging/participant-name.ts'
 
 /**
  * The display name of everyone named in these conversations, read in one pass
@@ -51,26 +42,6 @@ export async function participantNames(
     customer: new Map(customers.map((customer) => [customer.id, customerName(customer)])),
     admin: new Map(admins.map((admin) => [admin.id, admin.name])),
   }
-}
-
-/** Who this actor is talking to in this conversation. */
-export function counterpartName(
-  conversation: ConversationParticipants,
-  actor: MessagingActor,
-  names: ParticipantNames,
-): string {
-  const other = otherParticipants(conversation, actor)[0]
-  if (other === undefined) return ABSENT_COUNTERPART
-
-  return names[other.type].get(other.id) ?? ABSENT_COUNTERPART
-}
-
-/** What one message's sender is called. */
-export function senderName(
-  sender: { senderType: ActorType; senderId: number },
-  names: ParticipantNames,
-): string {
-  return names[sender.senderType].get(sender.senderId) ?? ABSENT_COUNTERPART
 }
 
 function idsOf(

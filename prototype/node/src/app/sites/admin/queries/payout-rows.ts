@@ -1,5 +1,6 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import type { Cents } from '../../../core/money.ts'
+import { shopName } from '../../../core/shop/shop-name.ts'
 import type { Day } from '../../../db/commerce-schema.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
@@ -43,7 +44,7 @@ export async function payoutRows(
   return rows.map((row) => ({
     id: row.id,
     sellerId: row.sellerId,
-    sellerName: row.shopName ?? row.email,
+    sellerName: shopName({ shopName: row.shopName, email: row.email }),
     periodStart: row.periodStart,
     periodEnd: row.periodEnd,
     amountCents: row.amountCents,

@@ -51,7 +51,7 @@ export async function mergeAnonymousCustomer(
     })
 
     await repointOwnedRows(trx, schema, sides)
-    await applyFavorites(trx, schema, sides, favorites, plan)
+    await applyFavorites(trx, schema, sides, plan)
     await applyCart(trx, schema, sides, carts, plan)
 
     await trx
@@ -109,15 +109,11 @@ async function applyFavorites(
   db: AppDatabase,
   schema: MergedTableColumns,
   sides: MergeSides,
-  favorites: FavoriteSides,
   plan: CustomerMergePlan,
 ): Promise<void> {
   if (!hasFavorites(schema)) return
 
-  const alreadyFavorited = new Set(favorites.verified)
-  const moving = plan.favoriteListingIds.filter((listingId) => !alreadyFavorited.has(listingId))
-
-  await deleteFavoritesOutside(db, sides.anonymousCustomerId, moving)
+  await deleteFavorites(db, sides.anonymousCustomerId, plan.favoritesToDrop)
 
   await sql`
     update favorites set customer_id = ${sides.verifiedCustomerId}
@@ -125,19 +121,16 @@ async function applyFavorites(
   `.execute(db)
 }
 
-async function deleteFavoritesOutside(
+async function deleteFavorites(
   db: AppDatabase,
   customerId: number,
-  keptListingIds: readonly number[],
+  listingIds: readonly number[],
 ): Promise<void> {
-  if (keptListingIds.length === 0) {
-    await sql`delete from favorites where customer_id = ${customerId}`.execute(db)
-    return
-  }
+  if (listingIds.length === 0) return
 
   await sql`
     delete from favorites
-    where customer_id = ${customerId} and listing_id not in (${sql.join(keptListingIds)})
+    where customer_id = ${customerId} and listing_id in (${sql.join(listingIds)})
   `.execute(db)
 }
 

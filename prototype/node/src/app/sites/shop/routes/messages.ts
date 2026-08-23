@@ -5,6 +5,7 @@ import { inboxConversations } from '../../../actions/messaging/conversation-inbo
 import { conversationThread } from '../../../actions/messaging/conversation-thread.ts'
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
+import { openSupportConversation } from '../../../actions/messaging/open-support-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import type { AppDatabase } from '../../../db/database.ts'
@@ -115,25 +116,15 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
   })
 
   shop.get('/support', async (request, reply) => {
-    const admin = await shop.db
-      .selectFrom('admins')
-      .select('id')
-      .orderBy('id')
-      .limit(1)
-      .executeTakeFirst()
-    if (admin === undefined) {
+    const customer = storefrontCustomer(request)
+    const result = await openSupportConversation(context, { actorType: 'customer', actorId: customer.id })
+
+    if (result.outcome === 'no-admin') {
       reply.setFlash({ alert: 'Support is not available right now.' })
       return await reply.redirect('/account')
     }
 
-    const customer = storefrontCustomer(request)
-    const conversation = await openConversation(context, {
-      kind: 'admin_customer',
-      customerId: customer.id,
-      adminId: admin.id,
-    })
-
-    return await reply.redirect(`/messages/${conversation.id}`)
+    return await reply.redirect(`/messages/${result.conversation.id}`)
   })
 
   shop.post('/orders/:id/fulfillments/:fulfillmentId/messages', async (request, reply) => {
