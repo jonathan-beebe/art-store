@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\View\Composers;
 
 use App\Actions\Cart\AddToCart;
-use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Notifications\RecipientType;
-use App\Models\Notification;
+use App\Notifications\OrderShipped;
 
 it('counts the items the visitor is carrying', function (): void {
     $visitor = $this->visitor();
@@ -25,7 +23,7 @@ it('counts the items the visitor is carrying', function (): void {
 
 it('counts the notifications the visitor has not read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
-    Notification::to(RecipientType::Customer, $visitor->id, NotificationMessage::orderShipped(1, 'Royal Mail', 'RM1'));
+    $visitor->notify(new OrderShipped(1, 'Royal Mail', 'RM1'));
 
     $response = $this->actingAs($visitor, 'customer')->get('/');
 

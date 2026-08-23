@@ -27,4 +27,18 @@ final readonly class NotificationMessage
             null,
         );
     }
+
+    /**
+     * The shape an inbox row stores and a page reads back.
+     *
+     * @return array{subject: string, body: string, url: string|null}
+     */
+    public function toArray(): array
+    {
+        return [
+            'subject' => $this->subject,
+            'body' => $this->body,
+            'url' => $this->url,
+        ];
+    }
 }

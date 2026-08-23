@@ -12,9 +12,11 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\LedgerEntry;
-use App\Models\Notification;
 use App\Models\Payout;
 use App\Models\Seller;
+use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
+use Illuminate\Notifications\DatabaseNotification;
 
 /**
  * Walks the whole order lifecycle across two sellers. Every other action test
@@ -47,7 +49,7 @@ it('runs an order from the cart to the weekly payout', function (): void {
     $order = app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
 
     expect($order->status)->toBe(OrderStatus::Paid)
-        ->and(Notification::query()->where('subject', 'Item sold')->count())->toBe(2)
+        ->and(DatabaseNotification::query()->where('type', ItemSold::class)->count())->toBe(2)
         ->and($heldPerSeller($painter, $printer))->toBe([40500, 10800]);
 
     $paintingShipment = $order->fulfillments()->where('seller_id', $painter->id)->sole();
@@ -58,7 +60,7 @@ it('runs an order from the cart to the weekly payout', function (): void {
 
     app(MarkShipped::class)($printShipment, 'FedEx', '7712349', $this->moment('2026-08-21 12:00:00'));
     expect($order)->toHaveStatus(OrderStatus::Shipped);
-    expect(Notification::query()->where('subject', 'Order shipped')->count())->toBe(2);
+    expect(DatabaseNotification::query()->where('type', OrderShipped::class)->count())->toBe(2);
 
     app(ConfirmDelivered::class)($paintingShipment->refresh(), $this->moment('2026-08-22 09:00:00'));
     expect($order)->toHaveStatus(OrderStatus::Shipped);

@@ -17,7 +17,7 @@ sequenceDiagram
     participant Checkout as CheckoutController
     participant Place as PlaceOrder
     participant Finalize as FinalizeOrder
-    participant Notify
+    participant Listener as NotifySellerOfSale
     participant Pay as OrderPaymentController
 
     Customer->>Checkout: POST /checkout (email, shipping, card?)
@@ -28,7 +28,8 @@ sequenceDiagram
     alt purchaser's email is verified
         Checkout->>Finalize: __invoke(order, card_number, now)
         Finalize->>Finalize: charge, status -> paid, hold escrow per fulfillment
-        Finalize->>Notify: itemSold(order, fulfillment.net()) per seller
+        Finalize->>Listener: OrderPaid (after commit)
+        Listener->>Listener: ItemSold notification per seller
         Checkout-->>Customer: redirect /orders/{order}
     else guest, email unverified
         Checkout->>Checkout: SendMagicLink(email, redirect_to=/orders/{order}/pay)
@@ -37,12 +38,15 @@ sequenceDiagram
         Customer->>Pay: POST /orders/{order}/pay (card_number)
         Pay->>Finalize: __invoke(order, card_number, now)
         Finalize->>Finalize: charge, status -> paid, hold escrow per fulfillment
-        Finalize->>Notify: itemSold(order, fulfillment.net()) per seller
+        Finalize->>Listener: OrderPaid (after commit)
+        Listener->>Listener: ItemSold notification per seller
         Pay-->>Customer: redirect /orders/{order}
     end
 ```
 
-Caveats: a declined card sets `payment_failed` and restores the stock
+Caveats: `OrderPaid` is dispatched inside the action's transaction and the
+listener implements `ShouldHandleEventsAfterCommit`, so a rolled-back charge
+tells nobody. A declined card sets `payment_failed` and restores the stock
 `PlaceOrder` took (`ListingStatus::Sold -> ForSale` when the listing had
 reached zero); the order page and `/orders/{order}/pay` both post to
 `FinalizeOrder` again for a retry. `FinalizeOrder` writes one `payments` row
@@ -92,8 +96,9 @@ stateDiagram-v2
 ```
 
 Source of truth: `App\Domain\Orders\FulfillmentStatus::transitions()`,
-verified by `FulfillmentStatusTest`. `MarkShipped` notifies the customer
-("Order shipped") and rolls the order status up; `ConfirmDelivered` releases
+verified by `FulfillmentStatusTest`. `MarkShipped` rolls the order status up
+and dispatches `FulfillmentShipped`, which `NotifyCustomerOfShipment` turns
+into the customer's "Order shipped" notification after the commit; `ConfirmDelivered` releases
 the fulfillment's held escrow (see `docs/escrow.md`) and rolls the order
 status up. Delivery confirmation is the customer clicking a button on the
 order page — a stand-in for carrier tracking in this prototype.

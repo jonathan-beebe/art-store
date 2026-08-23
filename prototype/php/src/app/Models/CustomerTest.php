@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
-use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Notifications\RecipientType;
+use App\Domain\Money\Money;
+use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
 
 it('is anonymous when it has no email', function (): void {
     expect((new Customer)->isAnonymous())->toBeTrue();
@@ -51,11 +52,15 @@ it('reads its favorites and the listings behind them', function (): void {
 
 it('reads the notifications addressed to it', function (): void {
     $customer = $this->verifiedCustomer();
-    Notification::to(RecipientType::Customer, $customer->id, NotificationMessage::orderShipped(4, 'USPS', '94001'));
-    Notification::to(RecipientType::Seller, $this->seller()->id, NotificationMessage::orderShipped(5, 'USPS', '94002'));
+    $customer->notify(new OrderShipped(4, 'USPS', '94001'));
+    $this->seller()->notify(new ItemSold(5, Money::fromCents(9000)));
 
     expect($customer->notifications()->count())->toBe(1)
-        ->and($customer->notifications()->unread()->count())->toBe(1);
+        ->and($customer->unreadNotifications()->count())->toBe(1);
+});
+
+it('is named by the morph alias its notifications are addressed to', function (): void {
+    expect((new Customer)->getMorphClass())->toBe('customer');
 });
 
 it('reads the listing events it left', function (): void {

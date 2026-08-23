@@ -20,9 +20,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Actions',
     '../app/Console/Commands',
+    '../app/Events',
     '../app/Http/Controllers/Seller',
     '../app/Http/Requests/Seller',
+    '../app/Listeners',
     '../app/Models',
+    '../app/Notifications',
     '../app/Policies',
 );
 

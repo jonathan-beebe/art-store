@@ -20,8 +20,8 @@ final class DashboardController extends SellerController
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'openFulfillments' => $seller->fulfillments()->where('status', FulfillmentStatus::AwaitingShipment)->count(),
             'balance' => $seller->escrowBalance(),
-            'unreadNotifications' => $seller->notifications()->unread()->count(),
-            'notifications' => $seller->notifications()->latest('id')->limit(self::RECENT_NOTIFICATIONS)->get(),
+            'unreadNotifications' => $seller->unreadNotifications()->count(),
+            'notifications' => $seller->notifications()->limit(self::RECENT_NOTIFICATIONS)->get(),
         ]);
     }
 }

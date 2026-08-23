@@ -11,20 +11,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('notifications', function (Blueprint $table): void {
-            $table->id();
-            // Exactly one of the two recipients is set. Separate columns rather
-            // than a recipient type and id keep the foreign keys real and let
-            // an anonymous customer merge re-point rows by customer_id.
-            $table->foreignId('seller_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('customer_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->string('subject');
-            $table->text('body');
-            $table->string('url')->nullable();
+            $table->uuid('id')->primary();
+            $table->string('type');
+            // The recipient is a seller or a customer, named by the morph map
+            // in AppServiceProvider rather than by a class string.
+            $table->morphs('notifiable');
+            $table->json('data');
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
 
-            $table->index(['seller_id', 'read_at']);
-            $table->index(['customer_id', 'read_at']);
+            $table->index(['notifiable_type', 'notifiable_id', 'read_at']);
         });
     }
 

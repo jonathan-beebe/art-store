@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
-use App\Actions\Notifications\Notify;
 use App\Domain\Escrow\LedgerMovement;
-use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Notifications\RecipientType;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\FakeCard;
 use App\Domain\Payments\PaymentOutcome;
 use App\Domain\Payments\PaymentStatus;
+use App\Events\OrderPaid;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Order;
@@ -21,8 +19,6 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class FinalizeOrder
 {
-    public function __construct(private Notify $notify) {}
-
     public function __invoke(Order $order, string $cardNumber, DateTimeImmutable $now): Order
     {
         $decision = FakeCard::decide($cardNumber);
@@ -62,13 +58,9 @@ final readonly class FinalizeOrder
 
         foreach ($order->fulfillments as $fulfillment) {
             $this->holdInEscrow($fulfillment, $now);
-
-            ($this->notify)(
-                RecipientType::Seller,
-                $fulfillment->seller_id,
-                NotificationMessage::itemSold($order->id, $fulfillment->net()),
-            );
         }
+
+        OrderPaid::dispatch($order, $now);
     }
 
     private function holdInEscrow(Fulfillment $fulfillment, DateTimeImmutable $now): void

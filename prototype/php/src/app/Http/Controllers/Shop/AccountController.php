@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Models\Notification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Notifications\DatabaseNotification;
 
 final class AccountController extends ShopController
 {
@@ -16,15 +16,15 @@ final class AccountController extends ShopController
 
         return view('shop.account', [
             'customer' => $visitor,
-            'notifications' => $visitor->notifications()->orderByDesc('id')->get(),
+            'notifications' => $visitor->notifications()->get(),
         ]);
     }
 
-    public function readNotification(Notification $notification): RedirectResponse
+    public function readNotification(DatabaseNotification $notification): RedirectResponse
     {
         $this->authorizeVisitor('markRead', $notification);
 
-        $notification->markRead($this->now());
+        $notification->markAsRead();
 
         return redirect()->route('shop.account');
     }

@@ -4,24 +4,39 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Models\Notification;
+use App\Domain\Money\Money;
+use App\Models\Customer;
+use App\Models\Seller;
+use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
+use Illuminate\Notifications\DatabaseNotification;
 
-it('lets a seller mark their own notification read', function (): void {
+$soldTo = function (Seller $seller): DatabaseNotification {
+    $seller->notify(new ItemSold(4, Money::fromCents(9000)));
+
+    return $seller->notifications()->sole();
+};
+
+$shippedTo = function (Customer $customer): DatabaseNotification {
+    $customer->notify(new OrderShipped(4, 'USPS', '9400111899'));
+
+    return $customer->notifications()->sole();
+};
+
+it('lets a seller mark their own notification read', function () use ($soldTo): void {
     $seller = $this->seller();
-    $notification = Notification::create(['seller_id' => $seller->id, 'subject' => 'Item sold', 'body' => 'A print sold.']);
 
-    expect((new NotificationPolicy)->markRead($seller, $notification)->allowed())->toBeTrue();
+    expect((new NotificationPolicy)->markRead($seller, $soldTo($seller))->allowed())->toBeTrue();
 });
 
-it('lets a customer mark their own notification read', function (): void {
+it('lets a customer mark their own notification read', function () use ($shippedTo): void {
     $customer = $this->verifiedCustomer();
-    $notification = Notification::create(['customer_id' => $customer->id, 'subject' => 'Order shipped', 'body' => 'On its way.']);
 
-    expect((new NotificationPolicy)->markRead($customer, $notification)->allowed())->toBeTrue();
+    expect((new NotificationPolicy)->markRead($customer, $shippedTo($customer))->allowed())->toBeTrue();
 });
 
-it('answers not found for another sellers notification', function (): void {
-    $notification = Notification::create(['seller_id' => $this->seller('Other Studio')->id, 'subject' => 'Item sold', 'body' => 'A print sold.']);
+it('answers not found for another sellers notification', function () use ($soldTo): void {
+    $notification = $soldTo($this->seller('Other Studio'));
 
     $response = (new NotificationPolicy)->markRead($this->seller(), $notification);
 
@@ -29,8 +44,8 @@ it('answers not found for another sellers notification', function (): void {
         ->and($response->status())->toBe(404);
 });
 
-it('answers not found for another customers notification', function (): void {
-    $notification = Notification::create(['customer_id' => $this->verifiedCustomer()->id, 'subject' => 'Order shipped', 'body' => 'On its way.']);
+it('answers not found for another customers notification', function () use ($shippedTo): void {
+    $notification = $shippedTo($this->verifiedCustomer());
 
     $response = (new NotificationPolicy)->markRead($this->verifiedCustomer(), $notification);
 
@@ -38,10 +53,11 @@ it('answers not found for another customers notification', function (): void {
         ->and($response->status())->toBe(404);
 });
 
-it('reads the recipient column of the site asking, not the row alone', function (): void {
-    $seller = $this->seller();
+it('reads the recipient type as well as the id, which the two sites number apart', function () use ($shippedTo): void {
     $customer = $this->verifiedCustomer();
-    $notification = Notification::create(['customer_id' => $customer->id, 'subject' => 'Order shipped', 'body' => 'On its way.']);
+    $seller = $this->seller();
+    $notification = $shippedTo($customer);
 
-    expect((new NotificationPolicy)->markRead($seller, $notification)->denied())->toBeTrue();
+    expect($seller->id)->toBe($customer->id)
+        ->and((new NotificationPolicy)->markRead($seller, $notification)->denied())->toBeTrue();
 });

@@ -83,6 +83,9 @@ arch()->preset()->laravel()
         // Named for the artisan command it registers (`payouts:run`), not
         // suffixed `Command` — the one command in the app.
         'App\Console\Commands\RunWeeklyPayouts',
+        // A delivery channel is not a notification, and Laravel's own docs
+        // home for a custom channel is App\Notifications\Channels.
+        'App\Notifications\Channels',
     ]);
 
 arch()->preset()->security();

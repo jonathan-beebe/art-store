@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Domain\Money\Money;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
+use App\Models\Seller;
+use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -71,4 +75,28 @@ it('skips a customer-owned table that does not exist', function (): void {
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
     expect(CustomerMerge::count())->toBe(1);
+});
+
+it('re-points the notifications addressed to the anonymous customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    $anonymous->notify(new OrderShipped(4, 'USPS', '94001'));
+    $bystander->notify(new OrderShipped(5, 'USPS', '94002'));
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($verified->notifications()->count())->toBe(1)
+        ->and($anonymous->notifications()->count())->toBe(0)
+        ->and($bystander->notifications()->count())->toBe(1);
+});
+
+it('leaves a seller notification where it is when a customer merges', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $seller = Seller::factory()->create();
+    $seller->notify(new ItemSold(4, Money::fromCents(9000)));
+
+    app(MergeAnonymousCustomer::class)($anonymous, Customer::factory()->create());
+
+    expect($seller->notifications()->count())->toBe(1);
 });

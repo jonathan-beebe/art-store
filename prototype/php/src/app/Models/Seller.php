@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Override;
 
 #[Fillable(['email', 'name', 'shop_name', 'email_verified_at'])]
@@ -20,6 +21,8 @@ class Seller extends Authenticatable
 {
     /** @use HasFactory<SellerFactory> */
     use HasFactory;
+
+    use Notifiable;
 
     /**
      * @return array<string, string>
@@ -54,12 +57,6 @@ class Seller extends Authenticatable
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
-    }
-
-    /** @return HasMany<Notification, $this> */
-    public function notifications(): HasMany
-    {
-        return $this->hasMany(Notification::class);
     }
 
     /**

@@ -33,16 +33,16 @@ flowchart TD
     entry["Entry: routes/*.php, app/Providers"] --> coord
     coord["Coordination: app/Http/Controllers, app/Actions, app/Console"] --> core
     coord --> adapters
-    adapters["Adapters: app/Models (Eloquent), app/Support/MagicLinkDelivery, resources/views"] --> core
+    adapters["Adapters: app/Models (Eloquent), app/Notifications, resources/views"] --> core
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
-| Adapters | `app/Models/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. The magic-link delivery port implementations, Blade views, and the composers that fill a layout. |
-| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), binds `ShopLayoutComposer` to `layouts.shop`, and registers `@visitorCan`. `routes/console.php` holds the schedule. |
+| Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
+| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -73,8 +73,10 @@ that produces it, and every controller calls it.
   `AddToCart`, `ToggleFavorite`, `RecordListingEvent`, `RunWeeklyPayout`) and
   the identity ones (`SendMagicLink`, `SignInSeller`, `SignInCustomer`,
   `ClaimCustomerIdentity`) alike. No action calls `now()`.
-- Model writes that stamp a time take it too: `Notification::markRead($at)`,
-  `MagicLink::consume($now)`, `MagicLink::statusAt($now)`.
+- Model writes that stamp a time take it too: `MagicLink::consume($now)`,
+  `MagicLink::statusAt($now)`. The exception is the framework's
+  `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
+  frozen by `travelTo()`, but not handed in.
 - `RunWeeklyPayouts` (the artisan command) is the one other producer: a console
   run has no controller, so it reads `now()` or parses `--as-of`.
 
@@ -96,8 +98,8 @@ session.
 ### Authorization
 
 Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
-`Notification $notification`, `Order $order`; the storefront listing binds by
-slug) and then authorizes it. `app/Policies` holds the rules:
+`DatabaseNotification $notification`, `Order $order`; the storefront listing
+binds by slug) and then authorizes it. `app/Policies` holds the rules:
 
 | Policy | Abilities | Actor |
 | --- | --- | --- |
@@ -143,10 +145,13 @@ model. Both extend `App\Http\Controllers\Controller`, which holds the clock
 - Passwordless. A `magic_links` row holds a hashed token, an `email`, an
   `actor_type` (`seller` | `customer`), `expires_at`, `consumed_at`, and an
   optional `redirect_to`.
-- Delivery is a port: `App\Support\MagicLinkDelivery\MagicLinkDelivery`
-  (interface) with `SessionFlashMagicLinkDelivery` (prototype: flash the URL so
-  the layout prints it in a debug alert) and a stubbed `MailMagicLinkDelivery`
-  (the hook for real email). Bound in a service provider from config.
+- Delivery is a notification: `App\Notifications\MagicLinkIssued`, sent to the
+  address rather than to a row (`Notification::route(...)`, an
+  `AnonymousNotifiable`) because the person may have no row yet.
+  `config/magic_links.php` names the channel: `session` is
+  `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
+  both layouts print it in a debug alert; `mail` is the framework's mail
+  channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
 - Customers: every visitor gets a `customers` row with `email = null`, id stored
   in an encrypted cookie `customer_id`. Verifying an email either claims that
   row (first time) or **merges** the anonymous row into the existing verified
@@ -185,13 +190,13 @@ erDiagram
     sellers ||--o{ payouts : receives
     payouts ||--o{ ledger_entries : settles
     customers ||--o{ customer_merges : merges
-    notifications }o--|| sellers : notifies
-    notifications }o--|| customers : notifies
 ```
 
-`magic_links` is deliberately absent: it has no foreign key to `sellers` or
-`customers`, only an `email` string plus `actor_type`. Full column list and
-both `customer_merges` foreign keys: `docs/data-model.md`.
+`magic_links` and `notifications` are deliberately absent: neither holds a
+foreign key to `sellers` or `customers`. A magic link matches on an `email`
+string plus `actor_type`; a notification names its recipient with a morph type
+and id. Full column list and both `customer_merges` foreign keys:
+`docs/data-model.md`.
 
 ### Listing status
 
@@ -249,14 +254,42 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 
 ### Notifications
 
-`notifications` rows (nullable `seller_id`, nullable `customer_id` — exactly
-one is set per row, subject, body, url, read_at) shown in each site's header.
-The domain-facing name for which column is set is
-`App\Domain\Notifications\RecipientType`, and `RecipientType::column()` names
-the column it fills; `Notification::to($recipient, $id, $message)` is the
-named constructor that writes the row. Seller receives "Item sold" when an order is finalized to `paid`;
-customer receives "Order shipped" when a fulfillment is marked shipped. The
-same port shape as magic links will carry email later.
+A business moment is an event, and what someone is told about it is a
+notification:
+
+```mermaid
+flowchart LR
+    finalize["FinalizeOrder"] -- "OrderPaid" --> sale["NotifySellerOfSale"]
+    ship["MarkShipped"] -- "FulfillmentShipped" --> shipment["NotifyCustomerOfShipment"]
+    sale -- "ItemSold" --> seller["Seller (Notifiable)"]
+    shipment -- "OrderShipped" --> customer["Customer (Notifiable)"]
+    seller --> inbox[("notifications")]
+    customer --> inbox
+```
+
+- Events (`App\Events\OrderPaid`, `App\Events\FulfillmentShipped`) are
+  `final readonly`, carry the model plus the instant, and are dispatched from
+  inside the action's transaction.
+- Listeners (`App\Listeners\NotifySellerOfSale`,
+  `App\Listeners\NotifyCustomerOfShipment`) implement
+  `ShouldHandleEventsAfterCommit`, so a rolled-back transaction tells nobody
+  and no delivery runs with the transaction still open.
+- Notifications (`App\Notifications\ItemSold`,
+  `App\Notifications\OrderShipped`) extend
+  `Illuminate\Notifications\Notification`. `via()` reads
+  `config('notifications.channels')` — `database` alone by default, with
+  `mail` a comma away; `toArray()` and `toMail()` both come from
+  `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
+  email say the same thing.
+- `Seller` and `Customer` are `Notifiable`. Rows land in Laravel's
+  `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
+  `data` json, `read_at`) and are read back as
+  `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
+  morph alias `seller` or `customer`, which is what
+  `App\Domain\Notifications\RecipientType` names; `AppServiceProvider`
+  enforces that map.
+- Each site renders its own inbox from `$notification->data`, counts
+  `unreadNotifications()`, and marks one read with `markAsRead()`.
 
 ## Testing
 
@@ -267,9 +300,9 @@ same port shape as magic links will carry email later.
   `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
   files need: `Tests\CommerceTestCase` for `app/Actions`,
-  `app/Console/Commands`, `app/Http/Controllers/Seller`,
-  `app/Http/Requests/Seller`, `app/Models`, and
-  `app/Policies`; `Tests\StorefrontTestCase` for
+  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Seller`,
+  `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
+  `app/Notifications`, and `app/Policies`; `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
   `app/View/Composers`, and `tests/SmokeTest.php`;
   `Tests\TestCase` alone for `routes/`;
@@ -291,11 +324,12 @@ same port shape as magic links will carry email later.
   every class under `App\Actions` is final and invokable; controllers do not
   use the `DB` facade; no debug functions anywhere; `env()` only in
   `config/`, never under `App`; every file declares strict types — plus
-  Pest's `laravel` and `security` presets (with three `ignoring` entries:
+  Pest's `laravel` and `security` presets (with four `ignoring` entries:
   `App\Http\Controllers`
   for action-verb route methods, `App\Domain` for enums that live beside the
-  concept they model, and `App\Console\Commands\RunWeeklyPayouts` for its
-  artisan command name).
+  concept they model, `App\Console\Commands\RunWeeklyPayouts` for its
+  artisan command name, and `App\Notifications\Channels` for a delivery
+  channel, which is not itself a notification).
 - `tests/SidecarsTest.php` asserts every non-abstract, non-interface,
   non-enum, non-trait class under `app/` has a sidecar, against a maintained
   list of exceptions (classes covered by another file's tests, or with no
@@ -307,6 +341,8 @@ same port shape as magic links will carry email later.
 - Core tests (`app/Domain/**`) need no app boot, no database, no doubles.
 - Coordination tests (controllers, actions, commands) run against in-memory
   SQLite; they drive HTTP and assert on rendered HTML and database state.
+  `Event::fake([...])` and `Notification::fake()` cover "something was sent";
+  what an inbox shows is asserted through the page that renders it.
 - Coverage via `pcov`: `composer test:coverage` prints a text summary and
   writes `coverage/`. Targets: ≥ 90% on `app/Domain`, ≥ 80% overall — the
   actual numbers are FEAT-008's to report, in `docs/review.md`.
@@ -316,7 +352,7 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (647 tests, 1480 assertions). `make analyse` and `make lint`
+  full Pest suite (665 tests, 1496 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

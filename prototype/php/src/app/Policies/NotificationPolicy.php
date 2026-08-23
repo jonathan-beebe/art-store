@@ -5,23 +5,22 @@ declare(strict_types=1);
 namespace App\Policies;
 
 use App\Models\Customer;
-use App\Models\Notification;
 use App\Models\Seller;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Notifications\DatabaseNotification;
 
 /**
- * One notification row carries either a seller or a customer, so the
- * recipient column to compare depends on which site is asking.
+ * A notification row names its recipient by morph type and id, so both the
+ * side asking and the row's owner have to match.
  */
 final class NotificationPolicy
 {
-    public function markRead(Seller|Customer $reader, Notification $notification): Response
+    public function markRead(Seller|Customer $reader, DatabaseNotification $notification): Response
     {
-        $recipientId = $reader instanceof Seller
-            ? $notification->seller_id
-            : $notification->customer_id;
+        $isRecipient = $notification->notifiable_type === $reader->getMorphClass()
+            && $notification->notifiable_id === $reader->id;
 
-        return $recipientId === $reader->id
+        return $isRecipient
             ? Response::allow()
             : Response::denyAsNotFound();
     }

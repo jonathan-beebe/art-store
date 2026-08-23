@@ -14,6 +14,10 @@ it('resolves a display name', function (array $attributes, string $expected): vo
     'email alone' => [['email' => 'artist@example.com'], 'artist@example.com'],
 ]);
 
+it('is named by the morph alias its notifications are addressed to', function (): void {
+    expect((new Seller)->getMorphClass())->toBe('seller');
+});
+
 it('counts its listings by status without loading one', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['status' => ListingStatus::Draft]);

@@ -14,11 +14,11 @@ use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingEvent;
-use App\Models\Notification;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Seller;
+use Illuminate\Notifications\DatabaseNotification;
 
 beforeEach(function (): void {
     $this->seed();
@@ -74,5 +74,5 @@ it('releases and pays out the delivered order', function (): void {
 });
 
 it('notifies sellers and the customer', function (): void {
-    expect(Notification::count())->toBe(5);
+    expect(DatabaseNotification::count())->toBe(5);
 });

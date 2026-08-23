@@ -11,6 +11,10 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
+    // Listener discovery reflects over every file under app/Listeners, and the
+    // sidecar test beside each listener is one of them. AppServiceProvider
+    // names the event/listener pairs instead.
+    ->withEvents(discover: false)
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',

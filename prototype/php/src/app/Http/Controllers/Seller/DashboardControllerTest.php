@@ -8,8 +8,9 @@ use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Money\Money;
 use App\Models\Fulfillment;
-use App\Models\Notification;
+use App\Notifications\ItemSold;
 
 it('renders the seller dashboard', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
@@ -91,8 +92,9 @@ it('makes a delivered order available', function (): void {
 
 it('counts unread notifications', function (): void {
     $seller = $this->seller();
-    Notification::create(['seller_id' => $seller->id, 'subject' => 'Item sold', 'body' => 'A print sold.']);
-    Notification::create(['seller_id' => $seller->id, 'subject' => 'Read one', 'body' => 'Seen.', 'read_at' => now()]);
+    $seller->notify(new ItemSold(41, Money::fromCents(9000)));
+    $seller->notify(new ItemSold(42, Money::fromCents(9000)));
+    $seller->notifications()->firstOrFail()->markAsRead();
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
@@ -101,15 +103,17 @@ it('counts unread notifications', function (): void {
 
 it('shows the five most recent notifications', function (): void {
     $seller = $this->seller();
+    $this->freezeTime();
     foreach (range(1, 6) as $number) {
-        Notification::create(['seller_id' => $seller->id, 'subject' => "Notice {$number}", 'body' => 'Body.']);
+        $this->travel(1)->minutes();
+        $seller->notify(new ItemSold($number, Money::fromCents(9000)));
     }
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
     $response->assertViewHas('notifications', fn ($notifications): bool => $notifications->count() === 5);
-    $response->assertSee('Notice 6');
-    $response->assertDontSee('Notice 1');
+    $response->assertSee('Order #6 is paid.');
+    $response->assertDontSee('Order #1 is paid.');
 });
 
 it('renders on a fixed number of queries however many rows the seller holds', function (): void {
@@ -118,7 +122,6 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
         $this->listing($seller, ['status' => ListingStatus::ForSale, 'title' => "Print {$number}"]);
     }
     $this->deliveredFulfillmentFor($seller, priceCents: 10000);
-    Notification::create(['seller_id' => $seller->id, 'subject' => 'Item sold', 'body' => 'A print sold.']);
 
     $response = $this->actingAs($seller, 'seller')
         ->expectsDatabaseQueryCount(5)

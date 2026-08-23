@@ -28,6 +28,10 @@ final readonly class MergeAnonymousCustomer
                 DB::table($table)->where($column, $anonymous->id)->update([$column => $verified->id]);
             }
 
+            // A notification names its recipient by morph type and id, so the
+            // relation re-points only the rows addressed to this customer.
+            $anonymous->notifications()->update(['notifiable_id' => $verified->id]);
+
             // The anonymous row survives the merge so a cookie still holding its
             // id resolves forward instead of starting the visitor over.
             CustomerMerge::create([

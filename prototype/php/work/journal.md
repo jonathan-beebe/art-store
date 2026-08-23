@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:10:28:14 — RFCTR-008 — started
+- 2026-08-23:10:28:14 — RFCTR-007 — done: OrderPaid and FulfillmentShipped events with after-commit listeners; ItemSold, OrderShipped, MagicLinkIssued as Laravel notifications on the database channel plus a SessionFlashChannel; notifications table in the framework shape with a morph map; MagicLinkDelivery port and Notify action removed
 - 2026-08-23:09:58:43 — RFCTR-007 — started
 - 2026-08-23:09:58:43 — RFCTR-006 — done: Status tally, activity window, and ledger balances grouped in SQL; Model::shouldBeStrict outside production; ShopLayoutComposer carries the header counts; payouts:run scheduled weekly with a test; PHPStan 2 -> 0
 - 2026-08-23:09:40:17 — RFCTR-006 — started

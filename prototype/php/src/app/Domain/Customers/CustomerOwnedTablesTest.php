@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Customers;
 
-it('covers every table a merge re-points', function (): void {
+it('covers every table holding a customer foreign key that a merge re-points', function (): void {
     expect(array_keys(CustomerOwnedTables::all()))
-        ->toBe(['favorites', 'carts', 'orders', 'listing_events', 'notifications']);
+        ->toBe(['favorites', 'carts', 'orders', 'listing_events']);
 });
 
 it('names the column holding the customer for every table', function (): void {

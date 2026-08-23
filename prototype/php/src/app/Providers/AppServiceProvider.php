@@ -4,42 +4,27 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Notifications\RecipientType;
+use App\Events\FulfillmentShipped;
+use App\Events\OrderPaid;
+use App\Listeners\NotifyCustomerOfShipment;
+use App\Listeners\NotifySellerOfSale;
+use App\Models\Customer;
+use App\Models\Seller;
+use App\Policies\NotificationPolicy;
 use App\Support\CustomerIdentity;
-use App\Support\MagicLinkDelivery\MagicLinkDelivery;
-use App\Support\MagicLinkDelivery\MailMagicLinkDelivery;
-use App\Support\MagicLinkDelivery\SessionFlashMagicLinkDelivery;
 use App\View\Composers\ShopLayoutComposer;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
-use InvalidArgumentException;
-use Override;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    #[Override]
-    public function register(): void
-    {
-        $this->app->bind(MagicLinkDelivery::class, function (Application $app): MagicLinkDelivery {
-            $channel = config('magic_links.delivery');
-
-            if ($channel === 'session') {
-                return new SessionFlashMagicLinkDelivery($app->make('session.store'));
-            }
-
-            return match ($channel) {
-                'mail' => new MailMagicLinkDelivery,
-                default => throw new InvalidArgumentException("Unknown magic link delivery [{$channel}]."),
-            };
-        });
-    }
-
     /**
      * Bootstrap any application services.
      */
@@ -49,6 +34,24 @@ class AppServiceProvider extends ServiceProvider
         // never selected is a defect anywhere but production, where the page
         // still has to render.
         Model::shouldBeStrict(! $this->app->isProduction());
+
+        // A notification names its recipient by one of these two words rather
+        // than a class string, so `notifications.notifiable_type` reads the
+        // way the domain talks and survives a class moving.
+        Relation::enforceMorphMap([
+            RecipientType::Seller->value => Seller::class,
+            RecipientType::Customer->value => Customer::class,
+        ]);
+
+        // The inbox rows are the framework's model, so the policy that guards
+        // them is registered rather than discovered.
+        Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
+
+        // What each business moment tells someone. Both listeners implement
+        // ShouldHandleEventsAfterCommit, so nothing is sent for a transaction
+        // that rolls back.
+        Event::listen(OrderPaid::class, NotifySellerOfSale::class);
+        Event::listen(FulfillmentShipped::class, NotifyCustomerOfShipment::class);
 
         // The header counts belong to the layout that renders them, so every
         // storefront page gets them without its controller passing them along.

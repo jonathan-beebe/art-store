@@ -10,8 +10,9 @@ use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\LedgerEntry;
-use App\Models\Notification;
+use App\Notifications\ItemSold;
 use DomainException;
+use Illuminate\Support\Facades\Notification;
 
 it('pays the order with an approved card', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
@@ -60,15 +61,17 @@ it('holds one amount per seller on a paid order', function (): void {
 });
 
 it('tells each seller their item sold on a paid order', function (): void {
+    Notification::fake();
     $seller = $this->seller();
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller, ['price_cents' => 45000]));
 
     app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
 
-    $notification = Notification::query()->sole();
-    expect($notification->seller_id)->toBe($seller->id)
-        ->and($notification->subject)->toBe('Item sold')
-        ->and($notification->body)->toContain('$405.00');
+    Notification::assertSentTo(
+        $seller,
+        ItemSold::class,
+        fn (ItemSold $notification): bool => str_contains($notification->toArray($seller)['body'], '$405.00'),
+    );
 });
 
 it('fails the payment for a declined card', function (): void {
@@ -91,12 +94,13 @@ it('puts the stock back on the storefront for a declined card', function (): voi
 });
 
 it('holds nothing and tells nobody for a declined card', function (): void {
+    Notification::fake();
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
 
     app(FinalizeOrder::class)($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
 
-    expect(LedgerEntry::query()->count())->toBe(0)
-        ->and(Notification::query()->count())->toBe(0);
+    expect(LedgerEntry::query()->count())->toBe(0);
+    Notification::assertNothingSent();
 });
 
 it('pays the order and takes the stock again on a retry with a good card', function (): void {

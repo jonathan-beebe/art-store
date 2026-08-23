@@ -237,7 +237,8 @@ A multi-seller order's status rolls up from its Fulfillments
 - contains Order items
 - attempts Payments
 - splits by seller into Fulfillments
-- triggers a "Item sold" Notification to each seller when it reaches `paid`
+- raises `OrderPaid` when it reaches `paid`, which tells each seller their
+  item sold
 
 **In code.** `App\Models\Order`, `App\Domain\Orders\OrderStatus` (enum),
 `Purchaser`, `ShippingAddress`, `OrderPayment` (table `orders`).
@@ -291,6 +292,8 @@ tracked per (order, seller) pair rather than per order.
 - belongs to one Order and one Seller
 - produces Ledger entries when the order is paid (`held`), when delivered
   (`released`), and when included in a Payout (`paid_out`)
+- raises `FulfillmentShipped` when it ships, which tells the customer their
+  order is on its way
 - carries the Platform fee taken from its subtotal
 
 **In code.** `App\Models\Fulfillment`,
@@ -407,7 +410,9 @@ once). Sequence diagrams: `docs/identity.md`.
 - carries an `actor_type` and an optional post-verification redirect
 
 **In code.** `App\Models\MagicLink`, `App\Domain\Auth\ActorType`,
-`MagicLinkStatus`, `MagicLinkToken`, `EmailNormalizer` (table `magic_links`).
+`MagicLinkStatus`, `MagicLinkToken`, `EmailNormalizer` (table `magic_links`);
+delivered as the `App\Notifications\MagicLinkIssued` notification on the
+channel `config/magic_links.php` names.
 An address stays a `string` end to end; `EmailNormalizer::normalize()` is the
 one place that lowercases and trims it, so a form and a magic-link row match.
 
@@ -425,8 +430,9 @@ resolves to `MergeAnonymousInto`; never undone.
 
 **Relates to.**
 - points one anonymous Customer at the verified Customer it merged into
-- triggers re-pointing of that customer's Favorites, Cart, Orders, Listing
-  events, and Notifications (`CustomerOwnedTables::all()`)
+- triggers re-pointing of that customer's Favorites, Cart, Orders, and
+  Listing events (`CustomerOwnedTables::all()`), plus the Notifications
+  addressed to it, which move through the morph relation
 
 **In code.** `App\Models\CustomerMerge`,
 `App\Domain\Customers\CustomerIdentityPlan`, `CustomerIdentityAction`,
@@ -438,18 +444,22 @@ resolves to `MergeAnonymousInto`; never undone.
 sold" or "Order shipped."
 
 **Why it exists.** Tells each side of a transaction when the other side has
-acted, without email.
+acted. The in-app inbox is the prototype's only channel; the same message
+goes out by email the day `config/notifications.php` names `mail`.
 
 **Lifecycle.** Unread → read (`read_at` set). No other state.
 
 **Relates to.**
-- belongs to exactly one Seller or one Customer (never both)
-- raised by an Order reaching `paid` (seller) or a Fulfillment reaching
-  `shipped` (customer)
+- is addressed to exactly one Seller or one Customer, by morph type and id
+- raised by the `OrderPaid` event (seller) or the `FulfillmentShipped` event
+  (customer), each carried to its recipient by a listener
 
-**In code.** `App\Models\Notification`,
-`App\Domain\Notifications\RecipientType` (enum),
-`NotificationMessage` (table `notifications`).
+**In code.** `Illuminate\Notifications\DatabaseNotification` (table
+`notifications`), written by `App\Notifications\ItemSold` and
+`App\Notifications\OrderShipped`; the words a row carries come from
+`App\Domain\Notifications\NotificationMessage`, and the two recipient kinds
+are `App\Domain\Notifications\RecipientType` (enum), whose values are the
+morph aliases stored in `notifiable_type`.
 
 ## Decisions
 

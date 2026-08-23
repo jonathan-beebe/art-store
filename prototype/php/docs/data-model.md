@@ -121,12 +121,11 @@ erDiagram
         timestamp occurred_at
     }
     notifications {
-        id id PK
-        id seller_id FK "nullable"
-        id customer_id FK "nullable, exactly one recipient FK is set"
-        string subject
-        text body
-        string url "nullable"
+        uuid id PK
+        string type "the notification class that wrote the row"
+        string notifiable_type "seller|customer (morph alias)"
+        id notifiable_id "id within that table"
+        json data "subject, body, url"
         timestamp read_at "nullable"
     }
     magic_links {
@@ -144,12 +143,10 @@ erDiagram
     sellers ||--o{ fulfillments : ships
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
-    sellers ||--o{ notifications : receives
     customers ||--o{ listing_events : records
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
-    customers ||--o{ notifications : receives
     customers ||--o{ customer_merges : "merged from (anonymous)"
     customers ||--o{ customer_merges : "merged into (verified)"
     listings ||--o{ listing_events : has
@@ -170,11 +167,15 @@ Caveats:
   by `email` string plus `actor_type`, so it is drawn without a relationship
   line above. A seller and a customer can share an email address; each gets
   its own row in its own table.
-- `notifications` has two nullable recipient columns (`seller_id`,
-  `customer_id`) rather than a polymorphic `recipient_type` /
-  `recipient_id` pair. Exactly one is set per row. This keeps both foreign
-  keys real and lets an anonymous-customer merge re-point rows by
-  `customer_id` the same way it re-points `favorites` or `orders`.
+- `notifications` is Laravel's own table, filled by the notification classes
+  in `app/Notifications` and read back as
+  `Illuminate\Notifications\DatabaseNotification`. It names its recipient
+  with a morph pair rather than a foreign key, so it is drawn without a
+  relationship line above. `notifiable_type` holds the morph alias `seller` or
+  `customer` — `AppServiceProvider` enforces that map from
+  `App\Domain\Notifications\RecipientType`, so the column reads as words
+  rather than class names. An anonymous-customer merge re-points the rows
+  whose `notifiable_type` is `customer` through the morph relation.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one (`orderByDesc('id')->first()`).

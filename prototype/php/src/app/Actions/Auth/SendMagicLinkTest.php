@@ -7,6 +7,9 @@ namespace App\Actions\Auth;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkToken;
 use App\Models\MagicLink;
+use App\Notifications\MagicLinkIssued;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Notification;
 
 $send = function (string $email, ActorType $actorType, ?string $redirectTo = null): string {
     app(SendMagicLink::class)($email, $actorType, $redirectTo, now()->toDateTimeImmutable());
@@ -49,4 +52,19 @@ it('carries the page the visitor was heading for', function () use ($send): void
     $send('shopper@example.com', ActorType::Customer, '/checkout');
 
     expect(MagicLink::sole()->redirect_to)->toBe('/checkout');
+});
+
+it('sends the link to the address that asked for it', function (): void {
+    Notification::fake();
+
+    app(SendMagicLink::class)('Artist@Example.com', ActorType::Seller, null, now()->toDateTimeImmutable());
+
+    Notification::assertSentOnDemand(
+        MagicLinkIssued::class,
+        fn (MagicLinkIssued $notification, array $channels, AnonymousNotifiable $notifiable): bool => $notifiable->routes[MagicLinkIssued::channel()] === 'artist@example.com',
+    );
+});
+
+it('flashes the link for the debug alert to render', function () use ($send): void {
+    expect($send('artist@example.com', ActorType::Seller))->toContain('/auth/magic/');
 });

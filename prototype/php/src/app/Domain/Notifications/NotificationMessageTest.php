@@ -23,3 +23,11 @@ it('tells the customer who is carrying a shipment', function (): void {
         ->and($message->body)->toContain('USPS')
         ->and($message->body)->toContain('9400111899');
 });
+
+it('hands an inbox row its subject, body, and url', function (): void {
+    expect(NotificationMessage::orderShipped(4, 'USPS', '94001')->toArray())->toBe([
+        'subject' => 'Order shipped',
+        'body' => 'Order #4 shipped with USPS. Tracking number 94001.',
+        'url' => null,
+    ]);
+});

@@ -8,8 +8,8 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Fulfillment;
-use App\Models\Notification;
 use App\Models\Seller;
+use Illuminate\Notifications\DatabaseNotification;
 
 $paidFulfillment = function (Seller $seller): Fulfillment {
     $order = test()->orderFor(test()->verifiedCustomer(), test()->listing($seller));
@@ -54,7 +54,9 @@ it('notifies the customer', function () use ($paidFulfillment, $form): void {
 
     $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    expect(Notification::where('customer_id', $fulfillment->order->customer_id)->count())->toBe(1);
+    expect(DatabaseNotification::where('notifiable_id', $fulfillment->order->customer_id)
+        ->where('notifiable_type', 'customer')
+        ->count())->toBe(1);
 });
 
 it('refuses to ship a fulfillment that already shipped', function () use ($paidFulfillment, $form): void {

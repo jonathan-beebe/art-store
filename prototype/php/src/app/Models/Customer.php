@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Override;
 
 #[Fillable(['email', 'name', 'email_verified_at'])]
@@ -19,6 +20,8 @@ class Customer extends Authenticatable
 {
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
+
+    use Notifiable;
 
     /**
      * @return array<string, string>
@@ -53,12 +56,6 @@ class Customer extends Authenticatable
     public function favoriteListings(): BelongsToMany
     {
         return $this->belongsToMany(Listing::class, 'favorites');
-    }
-
-    /** @return HasMany<Notification, $this> */
-    public function notifications(): HasMany
-    {
-        return $this->hasMany(Notification::class);
     }
 
     /** @return HasMany<ListingEvent, $this> */

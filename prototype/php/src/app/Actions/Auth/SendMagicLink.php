@@ -8,15 +8,14 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Auth\MagicLinkToken;
 use App\Models\MagicLink;
-use App\Support\MagicLinkDelivery\MagicLinkDelivery;
+use App\Notifications\MagicLinkIssued;
 use DateInterval;
 use DateTimeImmutable;
+use Illuminate\Support\Facades\Notification;
 
 final readonly class SendMagicLink
 {
     private const TOKEN_BYTES = 40;
-
-    public function __construct(private MagicLinkDelivery $delivery) {}
 
     public function __invoke(string $email, ActorType $actorType, ?string $redirectTo, DateTimeImmutable $now): void
     {
@@ -32,6 +31,9 @@ final readonly class SendMagicLink
             'expires_at' => $now->add(new DateInterval("PT{$expiryMinutes}M")),
         ]);
 
-        $this->delivery->deliver($address, route('auth.magic.verify', $token));
+        // The recipient is an address, not a row: a link can be the first thing
+        // a seller or a customer ever receives.
+        Notification::route(MagicLinkIssued::channel(), $address)
+            ->notify(new MagicLinkIssued(route('auth.magic.verify', $token)));
     }
 }

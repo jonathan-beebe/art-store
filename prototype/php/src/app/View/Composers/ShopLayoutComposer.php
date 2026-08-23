@@ -23,7 +23,7 @@ final readonly class ShopLayoutComposer
 
         $view->with([
             'cartItemCount' => (int) $visitor->currentCart()->items()->sum('quantity'),
-            'unreadNotificationCount' => $visitor->notifications()->unread()->count(),
+            'unreadNotificationCount' => $visitor->unreadNotifications()->count(),
         ]);
     }
 }

@@ -46,9 +46,9 @@ with no component library and no font download; `Dockerfile` and
 
 | Requirement | Status | Route | Test |
 | --- | --- | --- | --- |
-| Tell sellers an item sold | done | `seller.notifications.index` | `Seller\NotificationControllerTest`, `Domain\Notifications\NotificationMessageTest`, `Policies\NotificationPolicyTest` |
+| Tell sellers an item sold | done | `seller.notifications.index` | `Seller\NotificationControllerTest`, `Listeners\NotifySellerOfSaleTest`, `Notifications\ItemSoldTest`, `Policies\NotificationPolicyTest` |
 | Walk sellers through fulfillment | done | `seller.orders.show`, `seller.orders.ship` | `Seller\ShipmentControllerTest`, `Requests\Seller\MarkShippedRequestTest`, `Actions\Fulfillment\MarkShippedTest` |
-| Notify customers of shipment | done | `shop.account` inbox | `Shop\AccountControllerTest` |
+| Notify customers of shipment | done | `shop.account` inbox | `Shop\AccountControllerTest`, `Listeners\NotifyCustomerOfShipmentTest`, `Notifications\OrderShippedTest` |
 | Escrow held on payment, released on delivery | done | `shop.order.delivered` | `Actions\Fulfillment\ConfirmDeliveredTest`, `Domain\Escrow\LedgerBalanceTest`, `Policies\FulfillmentPolicyTest` |
 | Report of sold goods and funds due | done | `seller.earnings` | `Seller\EarningsControllerTest` |
 | Pay out at the end of every week | done | `payouts:run`, `seller.earnings.payout` | `Console\Commands\RunWeeklyPayoutsTest`, `Domain\Escrow\PayoutPeriodTest` |
@@ -86,8 +86,8 @@ with no component library and no font download; `Dockerfile` and
 | Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
 | Customer site for browsing | done | `/` |
 | Mocked cart and payment with a fake card, success and failure | done | `Domain\Payments\FakeCard` — 4242… approves, 4000…0002 and 4000…9995 decline, anything else is an invalid number |
-| Magic links for both sides, printed to the screen in a debug alert | done | `SessionFlashMagicLinkDelivery` → `partials/debug-alert` |
-| A hook where email goes later | done | `Support\MagicLinkDelivery\MailMagicLinkDelivery` (bound by `config/magic_links.php` → `delivery=mail`), `Actions\Notifications\Notify::deliverByEmail()` |
+| Magic links for both sides, printed to the screen in a debug alert | done | `Notifications\MagicLinkIssued` on `Notifications\Channels\SessionFlashChannel` → `partials/debug-alert` |
+| A hook where email goes later | done | `toMail()` on every notification; `config/magic_links.php` → `delivery=mail` and `config/notifications.php` → `channels` turn it on |
 | Guest checkout requiring verification before the order finalizes | done | `Shop\CheckoutController::place` |
 | Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-008 |
 | Delivered in `./prototype/php/` with a complete README and a docs folder | done | `README.md`, `docs/` |
@@ -101,31 +101,28 @@ with no component library and no font download; `Dockerfile` and
    `Actions\Customers\MergeAnonymousCustomerTest`.
 2. **Eloquent models are at 86.07% line coverage.** The 17 uncovered lines are
    inverse `belongsTo` relations no caller reads yet (`Cart::customer`,
-   `LedgerEntry::seller`, `ListingEvent::listing`, `Notification::customer`,
-   `Payment::order`, `Payout::seller`, and the like). Either a caller or a
+   `LedgerEntry::seller`, `ListingEvent::listing`, `Payment::order`,
+   `Payout::seller`, and the like). Either a caller or a
    deletion closes this.
-3. **`AppServiceProvider` has one uncovered line**: the throw for an unknown
-   `magic_links.delivery` value.
-4. **Mail delivery throws.** `MailMagicLinkDelivery::deliver()` raises
-   `LogicException`, and `Notify::deliverByEmail()` is empty. Setting
-   `MAGIC_LINK_DELIVERY=mail` breaks sign-in. This is the hook, not an
-   implementation.
-5. **The payout button pays every seller**, not the signed-in one. It is
+3. **Mail is written but unproven.** Every notification implements
+   `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS` turn
+   the channel on, but no mailer is configured beyond `MAIL_MAILER=log`, so
+   nothing has been sent to a real inbox.
+4. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller.earnings` and the flash says so.
-6. **Shipment tracking is a text field.** No carrier integration; the customer
+5. **Shipment tracking is a text field.** No carrier integration; the customer
    confirms delivery from the order page.
-7. **No order cancellation route.** `OrderStatus::Cancelled` exists in the
+6. **No order cancellation route.** `OrderStatus::Cancelled` exists in the
    domain with no way to reach it over HTTP.
-8. **`FEAT-005`'s source landed inside `FEAT-004`'s commits.** A history
+7. **`FEAT-005`'s source landed inside `FEAT-004`'s commits.** A history
    artifact of parallel agents; the tree is correct.
 
 ## Suggested next steps
 
 1. Give the four untested action classes their sidecars, and delete or use the
    unread model relations. Closes gaps 1 and 2.
-2. Implement `MailMagicLinkDelivery` against Laravel's mailer and give `Notify`
-   the same port shape. Closes gap 4 and removes the debug alert from the
-   demo path.
+2. Point `MAIL_MAILER` at a real transport and turn on the `mail` channel,
+   which closes gap 3 and removes the debug alert from the demo path.
 3. Scope the payout button to the signed-in seller, or move it behind an
    artisan-only path and keep `payouts:run` as the single entry point.
 4. Add order cancellation for `pending_verification` orders, with the stock

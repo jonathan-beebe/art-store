@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Notifications\Notify;
-use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Notifications\RecipientType;
 use App\Models\Customer;
-use App\Models\Notification;
+use App\Notifications\OrderShipped;
+use Illuminate\Notifications\DatabaseNotification;
 
-$notify = function (Customer $customer, int $orderId): Notification {
-    return app(Notify::class)(
-        RecipientType::Customer,
-        $customer->id,
-        NotificationMessage::orderShipped($orderId, 'Royal Mail', 'RM123456789GB'),
-    );
+$notify = function (Customer $customer, int $orderId): DatabaseNotification {
+    $customer->notify(new OrderShipped($orderId, 'Royal Mail', 'RM123456789GB'));
+
+    return $customer->notifications()->firstOrFail();
 };
 
 it('shows the verified address', function (): void {
@@ -44,7 +40,7 @@ it('lists the notifications of the customer', function () use ($notify): void {
     $response = $this->get('/account');
 
     $response->assertSee('Order shipped');
-    $response->assertSee('Order #41 shipped with Royal Mail.');
+    $response->assertSee('Order #41 shipped with Royal Mail. Tracking number RM123456789GB.');
     $response->assertDontSee('Order #77');
 });
 

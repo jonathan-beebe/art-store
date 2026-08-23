@@ -143,16 +143,17 @@ order with Noah.
 Passwordless on both sides. Ask for a link at `/seller/login` or `/login` with
 any email address — the first link for a seller address creates the account.
 
-There is no mailbox. `SessionFlashMagicLinkDelivery` flashes the URL to the
-session and both layouts render it in the yellow **debug alert** at the top of
-the page, so the link is on screen right after you submit the form. Links
-expire after 15 minutes and work once.
+There is no mailbox. The link is an `App\Notifications\MagicLinkIssued`
+notification delivered on `App\Notifications\Channels\SessionFlashChannel`,
+which flashes the URL to the session; both layouts render it in the yellow
+**debug alert** at the top of the page, so the link is on screen right after
+you submit the form. Links expire after 15 minutes and work once.
 
-The email hook is `config/magic_links.php` → `delivery`. Set
-`MAGIC_LINK_DELIVERY=mail` and it binds
-`App\Support\MagicLinkDelivery\MailMagicLinkDelivery`, which currently throws —
-implement `deliver()` there. In-app notifications carry the same hook:
-`App\Actions\Notifications\Notify::deliverByEmail()`.
+`config/magic_links.php` → `delivery` picks the channel. Set
+`MAGIC_LINK_DELIVERY=mail` and the same notification goes out as email
+instead. Seller and customer notifications have their own switch:
+`config/notifications.php` → `channels`, `database` by default, or
+`NOTIFICATION_CHANNELS=database,mail` to send both.
 
 ## Fake cards
 

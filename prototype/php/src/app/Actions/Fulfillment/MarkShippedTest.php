@@ -8,9 +8,12 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
-use App\Models\Notification;
 use App\Models\Order;
+use App\Notifications\OrderShipped;
 use DomainException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 
 beforeEach(function (): void {
     $this->paidOrder = function (Customer $customer): Order {
@@ -54,13 +57,32 @@ it('partially ships the order when one of two fulfillments ships', function (): 
 it('tells the customer the order shipped', function (): void {
     $customer = $this->verifiedCustomer();
     $order = ($this->paidOrder)($customer);
+    Notification::fake();
 
     app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    $notification = Notification::query()->where('customer_id', $customer->id)->sole();
-    expect($notification->subject)->toBe('Order shipped')
-        ->and($notification->body)->toContain('USPS')
-        ->and($notification->body)->toContain('9400111899');
+    Notification::assertSentTo(
+        $customer,
+        OrderShipped::class,
+        fn (OrderShipped $notification): bool => $notification->toArray($customer)['body']
+            === "Order #{$order->id} shipped with USPS. Tracking number 9400111899.",
+    );
+});
+
+it('tells nobody when the shipment is rolled back', function (): void {
+    $customer = $this->verifiedCustomer();
+    $order = ($this->paidOrder)($customer);
+    $fulfillment = $order->fulfillments()->sole();
+    Notification::fake();
+
+    rescue(fn () => DB::transaction(function () use ($fulfillment): void {
+        app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+
+        throw new RuntimeException('the carrier never took it');
+    }), report: false);
+
+    Notification::assertNothingSent();
+    expect($fulfillment)->toHaveStatus(FulfillmentStatus::AwaitingShipment);
 });
 
 it('refuses to ship a fulfillment twice', function (): void {
