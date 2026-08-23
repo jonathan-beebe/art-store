@@ -64,7 +64,7 @@ flowchart TD
     removalRow --> availability["activeListingRemoval -> isOnStorefront false"]
     availability --> browse["/ and search drop the listing"]
     availability --> page["/art/:slug answers 404"]
-    availability --> portal["/seller/listings/:id shows the reason;<br/>sellerListingTransitions drops for_sale"]
+    availability --> portal["/seller/listings/:id shows the reason;<br/>availableListingTransitions drops for_sale"]
     removalRow --> lift{"kind"}
     lift -- temporary --> lifted["canLiftRemoval true:<br/>.../removals/lift sets lifted_at"]
     lift -- permanent --> refused["canLiftRemoval false:<br/>the lift is refused"]
@@ -84,10 +84,11 @@ page for every miss (unknown slug, draft, removed, someone else's order), so
 nothing reveals whether a thing exists.
 
 The seller keeps their own page for a removed listing and reads the reason
-there. `sellerListingTransitions(status, hasActiveRemoval)` is the core's
-transition table with `for_sale` filtered out while a removal stands, and it
-feeds both the status buttons and the status-change route's refusal — so a
-seller cannot put a removed piece back on the storefront.
+there. `availableListingTransitions(status, hasActiveRemoval)`
+(`app/core/listings/listing-status.ts`) is `LISTING_STATUS_TRANSITIONS` with
+`for_sale` filtered out while a removal stands, and it feeds both the status
+buttons and the status-change route's refusal — so a seller cannot put a
+removed piece back on the storefront.
 
 At most one active removal per listing and one active block per customer.
 Raising a temporary removal to a permanent one is lift then remove, which leaves

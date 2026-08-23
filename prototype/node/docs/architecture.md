@@ -440,10 +440,12 @@ off it.
   `app/sites/shop/storefront-fixtures.ts`. Both build through the real actions
   rather than inserting rows, so a fixture cannot drift from what the
   application writes.
-- `app/test/smoke.test.ts` holds the cross-site walks: all three sites serving
-  their own layout off one stylesheet; a listing question answered and published
-  as an FAQ that then shows on the storefront; an admin messaging a seller who
-  reads it.
+- `app/test/smoke.test.ts` holds the cross-site walks over HTTP: all three
+  sites serving their own layout off one stylesheet; a listing travelling from
+  the seller signing in to their weekly payout; a listing question answered and
+  published as an FAQ that then shows on the storefront; an admin removing a
+  listing and it leaving the storefront; an admin blocking a customer and
+  checkout refusing; an admin messaging a seller who reads it.
 - TDD: failing sidecar test, make it pass, refactor. A feature ticket is done
   when its flow has an integration test that walks it end to end.
 - `make docs-check` renders every Mermaid block under `docs/` through

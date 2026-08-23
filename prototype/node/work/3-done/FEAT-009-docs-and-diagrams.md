@@ -1,7 +1,7 @@
 ---
 id: FEAT-009
 type: feature
-status: open
+status: resolved
 created: 2026-08-22
 ---
 
@@ -49,7 +49,7 @@ The doc was written before any code existed. Fifteen things had drifted.
 | 11 | ER diagram missing `cart_items` and the FAQ-from-message edge; table count implied 15 | Added both; said 23 tables in nine migrations and which four the overview leaves to `data-model.md`. |
 | 12 | Messaging "Opened from" column named pages, not routes | Replaced with the real paths. Added `planConversation`, `conversationPath`, `read_at`-per-message and why, FAQ rows existing only while published, the first-admin-by-id support counterpart, `MESSAGE_BODY_MAX_LENGTH`. |
 | 13 | Analytics said "an `onResponse` hook upserts" with no names | `addPageViewRollup` (root), `isCountablePageView`, `pageViewSite` off `request.routeOptions.url`, `recordPageView`, and the unique index that makes it one statement. |
-| 14 | Testing claimed `app/test/smoke.test.ts` "walks the whole product in one test" (checkout, payout, moderation) | It does not. It holds three cross-site tests: three sites off one stylesheet; question → answer → published FAQ; admin messages a seller. The end-to-end money walk is `app/actions/orders/order-lifecycle.test.ts` over `app/test/commerce-world.ts`. Corrected, plus a command table (`npm test` / `coverage` / `typecheck` / `lint` / `check`), the real helper names, and the per-site fixtures. |
+| 14 | Testing claimed `app/test/smoke.test.ts` "walks the whole product in one test" (checkout, payout, moderation) | It held three cross-site tests and no money walk. FEAT-010 added the missing ones mid-ticket; the doc now lists the six that exist (three sites off one stylesheet, sign-in to weekly payout, question → FAQ, removal leaves the storefront, block refuses checkout, admin messages a seller) and names `app/actions/orders/order-lifecycle.test.ts` over `app/test/commerce-world.ts` as the action-level walk. Added a command table (`npm test` / `coverage` / `typecheck` / `lint` / `check`), the real helper names, and the per-site fixtures. |
 | 15 | Repository layout and the skills-mapping table were both speculative | Layout rewritten against the tree. `npm test -- <path>` does not scope `node --test`; corrected to `node --test <file>`, and `buildApp` → `buildTestApp` for integration tests. |
 
 ### Docs written
@@ -97,17 +97,18 @@ image. Nothing but Docker is needed on the host.
 
 ### Found in the code, left as-is
 
-- `app/test/smoke.test.ts` does not walk checkout → pay → ship → deliver →
-  payout → moderation end to end, which `docs/architecture.md` had promised.
-  The action-level walk exists (`order-lifecycle.test.ts`) and the HTTP-level
-  pieces are covered by each site's route tests, so the doc was corrected
-  rather than the test — `src/**` belongs to FEAT-010.
 - `NotificationDelivery` has no implementation and `buildApp` never sets
   `ActionContext.notificationDelivery`, so the port is dead wiring today. The
   docs say so rather than describing an in-app implementation that does not
   exist.
 - BUG-001 (admin lift routes 500 on a bodiless POST) was fixed by a parallel
   agent mid-ticket; `docs/admin.md` describes the `formBody` shape that landed.
+- FEAT-010 moved `sellerListingTransitions`
+  (`app/sites/seller/listing-transitions.ts`) into the core as
+  `availableListingTransitions` (`app/core/listings/listing-status.ts`) and
+  filled out `app/test/smoke.test.ts` while this ticket was open. Both docs
+  follow the code as it now stands; anything FEAT-010 lands after this commit
+  needs a re-read of `docs/architecture.md` and `docs/admin.md`.
 
 ### Not committed
 
