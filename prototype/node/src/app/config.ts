@@ -14,7 +14,7 @@ type LogLevel = (typeof LOG_LEVELS)[number]
 
 const environmentSchema = z.object({
   HOST: z.string().min(1).default('0.0.0.0'),
-  PORT: z.coerce.number().int().positive().default(3000),
+  PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_FILE: z.string().min(1).default('storage/development.sqlite3'),
   // Signs the flash and identity cookies. A deployment overrides it; the
   // prototype ships a default so a clone runs with no configuration.

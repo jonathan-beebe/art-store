@@ -6,7 +6,7 @@ export GID := $(shell id -g)
 
 up:
 	docker compose up -d
-	@echo "http://localhost:3000"
+	@echo "http://localhost:4000"
 
 down:
 	docker compose down

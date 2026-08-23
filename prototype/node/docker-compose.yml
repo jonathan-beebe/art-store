@@ -8,8 +8,8 @@ services:
     volumes:
       - ./src:/var/www/src
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 4000
     command: ["node", "--watch", "app/server.ts"]

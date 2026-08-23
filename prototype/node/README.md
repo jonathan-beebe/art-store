@@ -27,9 +27,9 @@ the image builds and better-sqlite3 resolves; later runs take seconds.
 
 Then open:
 
-- Storefront — <http://localhost:3000/>
-- Seller portal — <http://localhost:3000/seller>
-- Admin site — <http://localhost:3000/admin>
+- Storefront — <http://localhost:4000/>
+- Seller portal — <http://localhost:4000/seller>
+- Admin site — <http://localhost:4000/admin>
 
 `make down` stops the stack. `make logs` follows the server output.
 
@@ -41,7 +41,7 @@ sets `HOST` and `PORT` for the container.
 | Variable | Default |
 | --- | --- |
 | `HOST` | `0.0.0.0` |
-| `PORT` | `3000` |
+| `PORT` | `4000` |
 | `DATABASE_FILE` | `storage/development.sqlite3` |
 | `COOKIE_SECRET` | a development default (minimum 16 characters) |
 | `LOG_LEVEL` | `info` |
