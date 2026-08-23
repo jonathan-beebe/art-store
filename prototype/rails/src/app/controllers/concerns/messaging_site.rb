@@ -6,8 +6,13 @@ module MessagingSite
   extend ActiveSupport::Concern
   include ThreadPage
 
+  # Both participants and the subject are read for every row, and the unread
+  # counts arrive as one hash, so the page costs the same whether it lists one
+  # thread or twenty.
   def index
-    @conversations = Conversation.involving(current_participant).includes(:subject)
+    @conversations =
+      Conversation.involving(current_participant).includes(:subject, :seller, :customer, :admin).to_a
+    @unread_counts = Conversation.unread_counts_for(current_participant, @conversations)
   end
 
   def show

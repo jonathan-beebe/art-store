@@ -48,6 +48,15 @@ action redirects to the thread. Both support controllers open against
 prototype has no assignment model; with no admin row the controller redirects
 back with "Nobody is on the support desk yet."
 
+The admin site's own Message buttons open against `current_admin` instead, so
+the operator writing is the one named on the thread. With one seeded admin the
+two doors reach one thread. With a second `admins` row, a seller who presses
+Support and is then messaged by that second operator holds two `admin_seller`
+threads: `topic` for the support kinds is the desk rather than the operator, so
+both inbox rows read "Art Store support" and the counterpart's name is what
+tells them apart. Assignment is what would settle which operator a thread
+belongs to, and this prototype has none.
+
 ## A question becomes a published FAQ
 
 Question: what runs between a shopper asking about a listing and that answer
@@ -170,8 +179,8 @@ flowchart LR
     actor --> scope["Message.unread_for(self)<br/>.where(conversation: conversations)"]
     scope --> rule["read_at IS NULL<br/>AND sender is not the reader"]
     rule --> badge["data-unread-messages"]
-    inbox["conversations/index"] --> per["conversation.unread_count_for(actor)"]
-    per --> same["messages.unread_for(actor).count"]
+    inbox["MessagingSite#index"] --> per["Conversation.unread_counts_for(actor, conversations)"]
+    per --> same["Message.unread_for(actor)<br/>.where(conversation:).group(:conversation_id).count"]
     same --> rule
     open["MessagingSite#show"] --> mark["conversation.read_by!(reader)"]
     mark --> update["messages.unread_for(reader).update_all(read_at:)"]
@@ -181,7 +190,19 @@ flowchart LR
 Caveats: `Message.unread_for(reader)` is the single definition — a message is
 unread for a reader while `read_at` is null and that reader is not its sender.
 The nav badge, the per-thread badge in an inbox row, and the marking done when
-a thread opens all pass through that one scope, so the three cannot disagree.
+a thread opens read that one scope, so the three answer the same question the
+same way at the moment each runs. What arrives afterwards reaches two of them:
+a broadcast replaces the nav badge and appends to an open thread page, while
+the rows of an inbox page already rendered hold the numbers they were drawn
+with until the next load.
+
+`MessagingSite#index` costs the same number of queries whatever the inbox
+holds. `Conversation.unread_counts_for(actor, conversations)` groups the whole
+page's counts into one query and hands the view a hash that answers 0 for a
+thread with nothing unread, and `includes(:subject, :seller, :customer,
+:admin)` loads the row's subject and both participants, which is what
+`#counterpart_of` reads. A 20-row inbox costs what a 1-row inbox costs;
+`Seller::ConversationsControllerTest` asserts the two are equal.
 
 `Messaging` is the concern `Seller`, `Customer` and `Admin` include. It gives
 each of them `conversations`, `sent_messages`, `unread_message_count`,

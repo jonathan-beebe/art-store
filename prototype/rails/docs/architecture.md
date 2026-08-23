@@ -319,11 +319,10 @@ broadcasts are in [`messaging.md`](messaging.md), beside
 - Broadcasts are asserted with `Turbo::Broadcastable::TestHelper`, which the
   `turbo-rails` engine mixes into `ActiveSupport::TestCase` on load — the
   suite includes nothing of its own. `config/cable.yml` uses the `test`
-  adapter, so
-  `assert_turbo_stream_broadcasts [conversation, participant], count: 1` and
-  `assert_no_turbo_stream_broadcasts` read what a post or a read enqueued
-  without a running cable server. A rolled-back post asserts through the same
-  helper, since the broadcasts are after-commit.
+  adapter, so `capture_turbo_stream_broadcasts([conversation, seller])` and
+  `assert_turbo_stream_broadcasts([seller, :unread_messages], count: 0)` read
+  what a post or a read enqueued without a running cable server. A rolled-back
+  post asserts through the same helper, since the broadcasts are after-commit.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
   per-group summary (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` is
   one global line-coverage minimum (`make coverage` sets it to 80); the suite

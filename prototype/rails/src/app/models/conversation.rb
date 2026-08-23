@@ -140,8 +140,18 @@ class Conversation < ApplicationRecord
     messages.where(sender: actor).order(created_at: :desc, id: :desc).first
   end
 
+  # How many messages in each of these threads the actor has not read, by
+  # conversation id. One query serves a whole inbox. A thread with nothing
+  # unread on it is absent from the group, so the hash answers 0 for it.
+  def self.unread_counts_for(actor, conversations)
+    counts = Message.unread_for(actor).where(conversation: conversations).group(:conversation_id).count
+    counts.default = 0
+
+    counts
+  end
+
   def unread_count_for(actor)
-    messages.unread_for(actor).count
+    self.class.unread_counts_for(actor, [self])[id]
   end
 
   # Opening a thread reads what the other side sent. Returns how many messages

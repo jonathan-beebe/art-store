@@ -9,7 +9,7 @@
 <% else %>
   <ul class="mt-12 max-w-3xl divide-y divide-neutral-100 border-y border-neutral-100">
     <% @conversations.each do |conversation| %>
-      <% unread = conversation.unread_count_for(current_customer) %>
+      <% unread = @unread_counts[conversation.id] %>
       <li data-conversation="<%= conversation.id %>" class="py-6">
         <div class="flex flex-wrap items-baseline justify-between gap-4">
           <p class="text-lg">

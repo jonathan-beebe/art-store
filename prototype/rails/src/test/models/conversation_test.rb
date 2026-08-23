@@ -303,6 +303,20 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal 0, conversation.unread_count_for(buyer)
   end
 
+  test "the unread counts of a whole inbox read one thread at a time" do
+    shop = create_seller
+    buyer = create_verified_customer
+    asked = listing_question(shop, buyer)
+    asked.post!(buyer, "Is the frame included?")
+    asked.post!(buyer, "And does it ship rolled?")
+    quiet = listing_question(shop, buyer, title: "Meadow at Low Tide")
+
+    counts = Conversation.unread_counts_for(shop, [asked, quiet])
+
+    assert_equal 2, counts[asked.id]
+    assert_equal 0, counts[quiet.id]
+  end
+
   test "reading a thread zeroes the reader's count and leaves their own messages alone" do
     shop = create_seller
     buyer = create_verified_customer

@@ -425,7 +425,6 @@ with no table; persisted as `payouts.period_start`/`period_end`).
 
 ## Identity and messaging
 
-
 ### Magic link
 
 **Who/what.** A one-time, expiring, hashed token that signs someone in

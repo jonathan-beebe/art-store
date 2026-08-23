@@ -101,4 +101,18 @@ module IntegrationHelpers
   def create_listing_event(listing, event_type, occurred_at)
     listing.record_event!(event_type, at: occurred_at)
   end
+
+  # The statements one request sends to the database, leaving out the schema
+  # reads Active Record does once per column set and the transaction each test
+  # runs inside. A page whose cost follows its row count asserts on this.
+  def count_queries
+    counted = 0
+    counter = ->(_name, _started, _finished, _id, payload) {
+      counted += 1 unless payload[:cached] || ["SCHEMA", "TRANSACTION"].include?(payload[:name])
+    }
+
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
+
+    counted
+  end
 end

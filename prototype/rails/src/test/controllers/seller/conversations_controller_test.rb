@@ -38,6 +38,22 @@ class Seller::ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-conversation=?]", question.id.to_s, text: /1 unread/
   end
 
+  test "the inbox costs the same number of queries whatever it holds" do
+    seller = signed_in_seller
+    question = listing_question(seller)
+    question.post!(question.customer, "Is this still available?")
+    one_row = count_queries { get seller_conversations_path }
+
+    19.times do
+      another = listing_question(seller)
+      another.post!(another.customer, "And this one?")
+    end
+    twenty_rows = count_queries { get seller_conversations_path }
+
+    assert_select "[data-conversation]", 20
+    assert_equal one_row, twenty_rows
+  end
+
   test "another seller's threads stay off the inbox" do
     signed_in_seller
     listing_question(other_seller)

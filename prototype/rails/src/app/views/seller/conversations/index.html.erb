@@ -7,7 +7,7 @@
 <% else %>
   <ul class="mt-4 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
     <% @conversations.each do |conversation| %>
-      <% unread = conversation.unread_count_for(current_seller) %>
+      <% unread = @unread_counts[conversation.id] %>
       <li data-conversation="<%= conversation.id %>" class="flex flex-wrap items-baseline gap-x-4 gap-y-1 p-4">
         <p class="font-medium">
           <%= link_to conversation.counterpart_of(current_seller).display_name,
