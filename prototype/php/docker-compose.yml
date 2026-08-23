@@ -6,4 +6,14 @@ services:
       - ./src:/var/www/src
     ports:
       - "8000:8000"
-    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    environment:
+      # artisan serve is PHP's built-in server: one worker handles one
+      # request at a time. The live unread badge holds a request open for up
+      # to UnreadCountStream::LIFETIME_SECONDS, so with a single worker one
+      # open stream would stall every other page on the site. 5 workers
+      # leaves room for a handful of open streams (one per signed-in tab
+      # across the three sites) plus the page requests browsing generates.
+      # --no-reload below is required for PHP_CLI_SERVER_WORKERS to take
+      # effect at all.
+      PHP_CLI_SERVER_WORKERS: "5"
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]

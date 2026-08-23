@@ -1,8 +1,9 @@
 # Art Store prototype (PHP / Laravel)
 
 A two-sided art marketplace prototype: a seller portal at `/seller` and a
-customer storefront at `/`. One Laravel app, one SQLite file, no JavaScript
-required.
+customer storefront at `/`. One Laravel app, one SQLite file, and every page
+works with JavaScript off — the one script in the tree is a progressive
+enhancement, not a requirement.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -207,7 +208,20 @@ make assets
 
 Blade templates reference the build with `@vite(['resources/css/app.css'])`; the
 compiled file lands in `src/public/build/`, which is not committed. There is no
-JavaScript bundle and no `<script>` tag in any view.
+JavaScript bundle.
+
+## JavaScript
+
+One file, `src/public/live-badge.js`, ~20 dependency-free lines served
+directly rather than through Vite. All three layouts load it with
+`<script defer>` and it does one thing: open an `EventSource` against the
+site's `/events` route and update the "Messages" nav link's count when a new
+message arrives while the page is open. It returns immediately when
+`EventSource` is undefined, and every page renders its own correct count from
+the server on every load regardless — sign in, browse, message, checkout, and
+every other action is a form POST plus a redirect, and all of it works with
+JavaScript disabled. See `docs/messaging.md` § "The live badge" for the
+stream's shape and cost.
 
 ## Layout
 

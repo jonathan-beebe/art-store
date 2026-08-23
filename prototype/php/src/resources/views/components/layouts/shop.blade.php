@@ -28,7 +28,7 @@
                 <a href="{{ route('shop.favorites') }}" class="hover:text-neutral-900">Favorites</a>
                 <a href="{{ route('shop.cart') }}" class="hover:text-neutral-900">Cart @isset($cartItemCount)({{ $cartItemCount }})@endisset</a>
                 <a href="{{ route('shop.orders') }}" class="hover:text-neutral-900">Orders</a>
-                <a href="{{ route('shop.messages.index') }}" class="hover:text-neutral-900">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
+                <a href="{{ route('shop.messages.index') }}" class="hover:text-neutral-900" data-live-badge="Messages" data-events-url="{{ route('shop.events') }}">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
 
                 @auth('customer')
                     <a href="{{ route('shop.account') }}" class="hover:text-neutral-900">
@@ -56,5 +56,7 @@
 
         {{ $slot }}
     </main>
+
+    <script defer src="{{ asset('live-badge.js') }}"></script>
 </body>
 </html>

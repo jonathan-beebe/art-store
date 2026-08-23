@@ -6,6 +6,7 @@ use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\DeliveryConfirmationController;
+use App\Http\Controllers\Shop\EventsController;
 use App\Http\Controllers\Shop\FavoriteController;
 use App\Http\Controllers\Shop\ListingController;
 use App\Http\Controllers\Shop\ListingQuestionController;
@@ -46,6 +47,7 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::get('/events', EventsController::class)->name('events');
 
     Route::get('/support', SupportController::class)->name('support');
 

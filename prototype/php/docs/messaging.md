@@ -266,28 +266,36 @@ Caveats: `response()->eventStream()` is Laravel's own — a generator whose
 yields become `text/event-stream` frames, with `connection_aborted()` checked
 between them. Each site serves its own `/events` route inside its own guard
 group (`auth.seller`, `customer.identity`, `auth.admin`), so a stream can only
-ever read the actor the request authenticated as. The generator holds a
-deadline computed from `Controller::now()` rather than running forever, and the
-browser's `EventSource` reconnects after the stream ends, which also bounds how
-long a stale connection can hold anything. The tick interval and the deadline
-are **(decided at build time)**.
+ever read the actor the request authenticated as. `App\Support\UnreadCountStream`
+is the generator: it reads no id from the request, only the actor its caller
+already resolved. The controller computes the deadline from `Controller::now()`
+before the stream opens; the generator's own loop then reads `now()` again on
+every tick to compare against it, since that loop runs in the imperative shell
+(`app/Support`), not `app/Domain`. The browser's `EventSource` reconnects after
+the stream ends, which also bounds how long a stale connection can hold
+anything. The tick interval and the deadline are named constants on
+`UnreadCountStream`: `TICK_SECONDS = 2`, `LIFETIME_SECONDS = 25`.
 
 Two costs, stated rather than hidden. One open stream holds one PHP worker for
 its whole lifetime: `artisan serve` runs PHP's built-in server, which handles
-one request per worker, so `PHP_CLI_SERVER_WORKERS` is set in
-`docker-compose.yml` and the number of concurrent readers this prototype
-supports is that value minus the workers pages need. And the generator polls —
-one `count` per tick per open stream — because this deployable has no queue,
-no broadcaster, and no shared bus. Both facts live in a comment on the stream
-as well as here.
+one request per worker, so `PHP_CLI_SERVER_WORKERS` is set to `5` in
+`docker-compose.yml` (alongside `--no-reload`, which the built-in server
+requires for that variable to take effect at all) and the number of concurrent
+readers this prototype supports is that value minus the workers pages need.
+And the generator polls — one `count` per tick per open stream — because this
+deployable has no queue, no broadcaster, and no shared bus. Both facts live in
+a comment on the stream as well as here.
 
 The client is one `<script defer>` per layout over ~20 lines of dependency-free
-JavaScript: open an `EventSource`, write the number into the badge span. It
-returns before anything else when `EventSource` is absent. Every page still
-works with JavaScript off — the composer already rendered the count server-side
-and every write is a form POST. This is the first `<script>` tag in the tree,
-so `README.md` and `docs/review.md`'s "no `<script>` tag in any view" claim are
-rewritten to say what is there and what still holds without it.
+JavaScript (`src/public/live-badge.js`, served directly rather than through
+Vite): open an `EventSource` against the "Messages" nav link's own
+`data-events-url`, write the number back into that link's text on every
+`unread` frame. It returns before anything else when `EventSource` is absent.
+Every page still works with JavaScript off — the composer already rendered the
+count server-side and every write is a form POST. This is the first
+`<script>` tag in the tree, so `README.md` and `docs/review.md`'s "no
+`<script>` tag in any view" claim are rewritten to say what is there and what
+still holds without it.
 
 The session driver is `database`, so a held request does not block the same
 browser's other requests behind a session file lock.

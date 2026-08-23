@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Seller\DashboardController;
 use App\Http\Controllers\Seller\EarningsController;
+use App\Http\Controllers\Seller\EventsController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingFaqController;
 use App\Http\Controllers\Seller\ListingStatusController;
@@ -39,6 +40,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::get('events', EventsController::class)->name('events');
 
     Route::get('support', SupportController::class)->name('support');
 });

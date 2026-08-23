@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:17:16:52 — FEAT-016 — done: UnreadCountStream generator over Sleep::fake-testable deadline loop, seller/shop/admin /events routes behind their own guards, live-badge.js (~20 lines, no dep) wired into all three layouts without touching existing badge markup, PHP_CLI_SERVER_WORKERS+--no-reload in docker-compose.yml, README/docs/review/docs/messaging JavaScript claims rewritten; 1107 tests / 2491 assertions, 100.0% coverage
+- 2026-08-23:17:07:44 — FEAT-016 — started
 - 2026-08-23:17:06:00 — FEAT-015 — reviewed: seeder idempotence probed live (make fresh twice, then both seeders again over the seeded database — counts identical), FAQ source_message_id pinned to Priya's answer, exact per-actor unread counts, smoke walk now asserts the thread page the asker lands on and shows the published answer to a second visitor; 1099 tests / 2467 assertions, 100.0% coverage
 - 2026-08-23:17:05:00 — FEAT-015 — done: AdminSeeder + MessagingSeeder (one conversation per kind, 11 messages with a read/unread spread, one published FAQ), SmokeTest ask→reply→publish→visible walk, README seeded-accounts update; 1099 tests / 2460 assertions
 - 2026-08-23:16:51:43 — FEAT-015 — started

@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CustomerBlockController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerMessageController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\EventsController;
 use App\Http\Controllers\Admin\LiftCustomerBlockController;
 use App\Http\Controllers\Admin\MessageController;
 use App\Http\Controllers\Admin\SellerController;
@@ -29,4 +30,5 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::get('events', EventsController::class)->name('events');
 });

@@ -73,7 +73,7 @@ with no component library and no font download; `Dockerfile` and
 | SQLite | done | `config/database.php`, `database/database.sqlite` |
 | Tailwind | done | `package.json` — `tailwindcss` v4 through Vite |
 | Semantic HTML + CSS | done | `resources/views/**` |
-| No JavaScript required | done | no `<script>` in any Blade file; `resources/js` does not exist; Vite input is `resources/css/app.css` alone |
+| No JavaScript required | done | every page works and every action completes with JavaScript off; the one `<script defer>` in each layout (`src/public/live-badge.js`, ~20 dependency-free lines) is a progressive enhancement — it keeps the unread-message badge current over the `/events` SSE stream while a page sits open, and returns immediately when `EventSource` is absent |
 
 ## Development workflow
 
