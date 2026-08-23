@@ -18,7 +18,7 @@ final class CartController extends ShopController
     {
         $cart = $this->visitor()->currentCart()->load('items.listing.seller');
 
-        return $this->page('shop.cart', [
+        return view('shop.cart', [
             'cart' => $cart,
             'totals' => CartTotals::from($cart->lines()),
         ]);

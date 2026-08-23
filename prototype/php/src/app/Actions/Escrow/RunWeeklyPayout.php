@@ -36,6 +36,7 @@ final readonly class RunWeeklyPayout
     {
         return LedgerEntry::query()
             ->occurredBy($period->end)
+            ->totalledByType()
             ->get()
             ->groupBy('seller_id')
             ->map(fn (Collection $entries): LedgerBalance => LedgerBalance::from(

@@ -21,3 +21,15 @@ it('narrows to the entries settled by a moment', function (): void {
     expect(LedgerEntry::query()->occurredBy($this->moment('2026-08-21 00:00:00'))->count())->toBe(1)
         ->and(LedgerEntry::query()->occurredBy($this->moment('2026-08-23 00:00:00'))->count())->toBe(2);
 });
+
+it('sums the entries of each seller and type into one row apiece', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
+    $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
+
+    $rows = LedgerEntry::query()->totalledByType()->get();
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows->firstWhere('type', LedgerEntryType::Held)?->amount())->toBeMoney(27000)
+        ->and($rows->firstWhere('type', LedgerEntryType::Released)?->amount())->toBeMoney(27000);
+});

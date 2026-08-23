@@ -91,3 +91,16 @@ it('lists the payouts of this seller only', function (): void {
     $response->assertSee('Aug 10, 2026');
     $response->assertDontSee('$42.00');
 });
+
+it('renders on a fixed number of queries however many entries the ledger holds', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
+    $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
+    $this->deliveredFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
+
+    $response = $this->actingAs($seller, 'seller')
+        ->expectsDatabaseQueryCount(5)
+        ->get('/seller/earnings');
+
+    $response->assertOk();
+});

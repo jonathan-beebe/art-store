@@ -68,4 +68,20 @@ class LedgerEntry extends Model
     {
         $query->where('occurred_at', '<=', $moment);
     }
+
+    /**
+     * One row per (seller, type), its `amount_cents` the sum the database
+     * added up. A ledger fold only ever adds amounts of the same type
+     * together, so one summed row per type stands in for every entry behind
+     * it.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function totalledByType(Builder $query): void
+    {
+        $query->select('seller_id', 'type')
+            ->selectRaw('sum(amount_cents) as amount_cents')
+            ->groupBy('seller_id', 'type');
+    }
 }

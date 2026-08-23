@@ -21,7 +21,7 @@ final class StorefrontController extends ShopController
             $this->submitted($request, 'medium'),
         );
 
-        return $this->page('shop.home', [
+        return view('shop.home', [
             'search' => $search,
             'media' => $this->mediaForSale(),
             'listings' => $this->matching($search)->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),

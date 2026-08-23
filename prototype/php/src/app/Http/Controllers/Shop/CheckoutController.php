@@ -26,7 +26,7 @@ final class CheckoutController extends ShopController
             return redirect()->route('shop.cart');
         }
 
-        return $this->page('shop.checkout', [
+        return view('shop.checkout', [
             'cart' => $cart,
             'totals' => CartTotals::from($cart->lines()),
             'visitor' => $visitor,

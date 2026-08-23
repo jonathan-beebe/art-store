@@ -99,3 +99,18 @@ it('lists the sales of the listing', function (): void {
     $response->assertViewHas('sales', fn ($sales): bool => $sales->count() === 1);
     $response->assertSee("#{$order->id}");
 });
+
+it('renders on a fixed number of queries however many events the listing recorded', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $recordListingEvent = app(RecordListingEvent::class);
+    foreach (range(1, 20) as $hour) {
+        $recordListingEvent($listing, null, ListingEventType::View, new DateTimeImmutable(now()->toDateTimeString()));
+    }
+
+    $response = $this->actingAs($seller, 'seller')
+        ->expectsDatabaseQueryCount(4)
+        ->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+});

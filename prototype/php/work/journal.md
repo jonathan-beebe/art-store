@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:09:58:43 — RFCTR-007 — started
+- 2026-08-23:09:58:43 — RFCTR-006 — done: Status tally, activity window, and ledger balances grouped in SQL; Model::shouldBeStrict outside production; ShopLayoutComposer carries the header counts; payouts:run scheduled weekly with a test; PHPStan 2 -> 0
 - 2026-08-23:09:40:17 — RFCTR-006 — started
 - 2026-08-23:09:40:17 — RFCTR-005 — done: Status enums own label/isOnStorefront/awaitsPayment/retakesStockOnRetry, both StatusLabel classes removed, named and private constructors across app/Domain, EmailAddress renamed EmailNormalizer, final readonly actions, #[Override] on 20 sites, global customer() helper removed, one clock on Controller; PHPStan 3 -> 2
 - 2026-08-23:09:23:58 — RFCTR-005 — started

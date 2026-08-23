@@ -10,6 +10,7 @@ use App\Models\Payout;
 use DateMalformedStringException;
 use DateTimeImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
 final class RunWeeklyPayouts extends Command
 {
@@ -37,6 +38,9 @@ final class RunWeeklyPayouts extends Command
         $this->info("Payout period {$period->label()}");
 
         $payouts = $runWeeklyPayout($asOf);
+
+        // One query names every seller about to be listed.
+        Collection::make($payouts)->load('seller');
 
         foreach ($payouts as $payout) {
             $this->line("{$payout->seller->displayName()} {$payout->amount()->format()}");

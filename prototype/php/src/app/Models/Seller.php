@@ -62,10 +62,31 @@ class Seller extends Authenticatable
         return $this->hasMany(Notification::class);
     }
 
+    /**
+     * How many listings the seller holds in each status, counted by the
+     * database.
+     *
+     * @return array<string, int> status value => count
+     */
+    public function listingCountsByStatus(): array
+    {
+        $counts = [];
+
+        foreach ($this->listings()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
+    }
+
     public function escrowBalance(): LedgerBalance
     {
         return LedgerBalance::from(
-            array_values($this->ledgerEntries->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all()),
+            array_values($this->ledgerEntries()
+                ->totalledByType()
+                ->get()
+                ->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())
+                ->all()),
         );
     }
 

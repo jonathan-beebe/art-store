@@ -14,7 +14,7 @@ final class AccountController extends ShopController
     {
         $visitor = $this->visitor();
 
-        return $this->page('shop.account', [
+        return view('shop.account', [
             'customer' => $visitor,
             'notifications' => $visitor->notifications()->orderByDesc('id')->get(),
         ]);

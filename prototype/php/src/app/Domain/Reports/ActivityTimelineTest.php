@@ -62,3 +62,14 @@ it('rejects a window shorter than a day', function (): void {
     expect(fn () => ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 09:00:00'), 0))
         ->toThrow(InvalidArgumentException::class);
 });
+
+it('opens the window at midnight on the oldest day it covers', function (): void {
+    $first = ActivityTimeline::firstDay(new DateTimeImmutable('2026-08-22 17:30:00'), 14);
+
+    expect($first->format('Y-m-d H:i:s'))->toBe('2026-08-09 00:00:00');
+});
+
+it('rejects a window shorter than a day when naming its first day', function (): void {
+    expect(fn () => ActivityTimeline::firstDay(new DateTimeImmutable('2026-08-22 09:00:00'), 0))
+        ->toThrow(InvalidArgumentException::class);
+});

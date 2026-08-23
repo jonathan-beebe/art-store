@@ -12,7 +12,7 @@ final class OrderController extends ShopController
 {
     public function index(): View
     {
-        return $this->page('shop.orders', [
+        return view('shop.orders', [
             'orders' => $this->visitor()->orders()
                 ->with('items')
                 ->orderByDesc('id')
@@ -27,7 +27,7 @@ final class OrderController extends ShopController
         $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order', 'latestPayment']);
         $isVerified = $this->visitor()->isVerified();
 
-        return $this->page('shop.order', [
+        return view('shop.order', [
             'order' => $order,
             'fulfillments' => $order->fulfillments,
             'itemsBySeller' => $order->items->groupBy('seller_id'),

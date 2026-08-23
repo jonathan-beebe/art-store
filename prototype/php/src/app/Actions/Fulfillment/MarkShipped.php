@@ -36,6 +36,8 @@ final readonly class MarkShipped
                 'shipped_at' => $now,
             ]);
 
+            $fulfillment->load('order.fulfillments');
+
             $order = ($this->rollUpOrderStatus)($fulfillment->order);
 
             ($this->notify)(

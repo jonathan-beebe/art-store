@@ -17,7 +17,7 @@ final class OrderPaymentController extends ShopController
     {
         $this->authorizeVisitor('view', $order);
 
-        return $this->elsewhere($order) ?? $this->page('shop.pay', [
+        return $this->elsewhere($order) ?? view('shop.pay', [
             'order' => $order,
             'payment' => $order->load('latestPayment')->latestPayment,
         ]);

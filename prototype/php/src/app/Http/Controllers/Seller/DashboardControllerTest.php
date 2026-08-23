@@ -111,3 +111,18 @@ it('shows the five most recent notifications', function (): void {
     $response->assertSee('Notice 6');
     $response->assertDontSee('Notice 1');
 });
+
+it('renders on a fixed number of queries however many rows the seller holds', function (): void {
+    $seller = $this->seller();
+    foreach (range(1, 6) as $number) {
+        $this->listing($seller, ['status' => ListingStatus::ForSale, 'title' => "Print {$number}"]);
+    }
+    $this->deliveredFulfillmentFor($seller, priceCents: 10000);
+    Notification::create(['seller_id' => $seller->id, 'subject' => 'Item sold', 'body' => 'A print sold.']);
+
+    $response = $this->actingAs($seller, 'seller')
+        ->expectsDatabaseQueryCount(5)
+        ->get('/seller');
+
+    $response->assertOk();
+});

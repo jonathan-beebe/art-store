@@ -73,3 +73,26 @@ it('pays nothing again on a second run of the same week', function (): void {
 
     expect(Payout::count())->toBe(1);
 });
+
+it('reads the whole ledger once and then writes two rows per payout', function (): void {
+    foreach (['Blue Kiln Studio', 'Rye Press', 'Cedar Works'] as $shopName) {
+        $seller = $this->seller($shopName);
+
+        foreach (['RM1', 'RM2'] as $trackingNumber) {
+            $this->deliveredFulfillmentFor(
+                $seller,
+                orderedAt: $this->moment('2026-08-17 10:00:00'),
+                trackingNumber: $trackingNumber,
+                shippedAt: $this->moment('2026-08-18 10:00:00'),
+                deliveredAt: $this->moment('2026-08-19 10:00:00'),
+            );
+        }
+    }
+
+    $response = $this->actingAs($this->seller('Blue Kiln Studio'), 'seller')
+        ->expectsDatabaseQueryCount(7)
+        ->post('/seller/earnings/payouts');
+
+    $response->assertRedirect(route('seller.earnings'));
+    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '3 payout(s)'));
+});

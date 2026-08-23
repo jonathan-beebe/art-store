@@ -40,9 +40,9 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
-| Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). The magic-link delivery port implementations, Blade views. |
+| Adapters | `app/Models/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. The magic-link delivery port implementations, Blade views, and the composers that fill a layout. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `app/Providers` | Wiring only. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), binds `ShopLayoutComposer` to `layouts.shop`, and registers `@visitorCan`. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -224,8 +224,13 @@ moves `awaiting_shipment → shipped → delivered`.
 - Payout period = Monday–Sunday. `php artisan payouts:run {--as-of=}` creates
   one `payouts` row per seller for all `released` amounts not yet paid out, as
   of the end of the most recent completed week. Period math is pure
-  (`App\Domain\Escrow\PayoutPeriod`). The seller portal exposes a debug "Run
-  weekly payout now" button for testing.
+  (`App\Domain\Escrow\PayoutPeriod`). `routes/console.php` schedules it
+  `weeklyOn(1, '02:00')` — the Monday after a period closes. The seller portal
+  exposes a debug "Run weekly payout now" button for testing.
+- One query reads the whole ledger: `LedgerEntry::totalledByType()` sums
+  `amount_cents` per (seller, type), and `LedgerBalance::from()` folds those
+  summed movements. The payout run bounds it by `occurred_at <= period.end`;
+  `Seller::escrowBalance()` leaves it unbounded.
 - Ledger flowchart, `payouts:run` sequence diagram, and a worked $100 example:
   `docs/escrow.md`.
 
@@ -265,8 +270,9 @@ same port shape as magic links will carry email later.
   `app/Console/Commands`, `app/Http/Controllers/Seller`,
   `app/Http/Requests/Seller`, `app/Models`, and
   `app/Policies`; `Tests\StorefrontTestCase` for
-  `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`, and
-  `tests/SmokeTest.php`;
+  `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
+  `app/View/Composers`, and `tests/SmokeTest.php`;
+  `Tests\TestCase` alone for `routes/`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
   `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
 - A repeated fixture is a protected method on `Tests\CommerceTestCase`
@@ -310,7 +316,7 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (630 tests, 1440 assertions). `make analyse` and `make lint`
+  full Pest suite (647 tests, 1480 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

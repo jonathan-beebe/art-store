@@ -29,8 +29,11 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
 pest()->extend(Tests\StorefrontTestCase::class)->in(
     '../app/Http/Controllers/Shop',
     '../app/Http/Requests/Shop',
+    '../app/View/Composers',
     'SmokeTest.php',
 );
+
+pest()->extend(Tests\TestCase::class)->in('../routes');
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',

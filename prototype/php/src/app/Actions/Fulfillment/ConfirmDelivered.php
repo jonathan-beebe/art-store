@@ -33,6 +33,8 @@ final readonly class ConfirmDelivered
                 'occurred_at' => $now,
             ]);
 
+            $fulfillment->load('order.fulfillments');
+
             ($this->rollUpOrderStatus)($fulfillment->order);
 
             return $fulfillment;

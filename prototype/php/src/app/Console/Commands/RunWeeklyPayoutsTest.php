@@ -47,3 +47,22 @@ it('settles as of the application clock when --as-of is omitted', function (): v
         ->expectsOutputToContain('2026-08-17 to 2026-08-23')
         ->assertSuccessful();
 });
+
+it('names every paid seller', function (): void {
+    foreach (['Blue Kiln Studio', 'Rye Press'] as $shopName) {
+        $seller = $this->seller($shopName);
+        $order = app(FinalizeOrder::class)(
+            $this->orderFor($this->verifiedCustomer(), $this->listing($seller, ['price_cents' => 10000])),
+            '4242 4242 4242 4242',
+            $this->moment('2026-08-20 10:00:00'),
+        );
+        $fulfillment = app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '94001', $this->moment('2026-08-20 11:00:00'));
+        app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-21 11:00:00'));
+    }
+
+    $this->artisan('payouts:run', ['--as-of' => '2026-08-24'])
+        ->expectsOutputToContain('Blue Kiln Studio $90.00')
+        ->expectsOutputToContain('Rye Press $90.00')
+        ->expectsOutputToContain('2 seller(s) paid.')
+        ->assertSuccessful();
+});

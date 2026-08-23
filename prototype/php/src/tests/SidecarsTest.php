@@ -23,7 +23,6 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Models/CartItem.php' => null,
         'app/Models/CustomerMerge.php' => null,
         'app/Models/Favorite.php' => null,
-        'app/Models/ListingEvent.php' => null,
         'app/Models/Payout.php' => null,
         'app/Providers/AppServiceProvider.php' => null,
         'app/Support/CustomerIdentity.php' => null,

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Listings\ListingStatus;
+
 it('resolves a display name', function (array $attributes, string $expected): void {
     expect((new Seller($attributes))->displayName())->toBe($expected);
 })->with([
@@ -11,3 +13,31 @@ it('resolves a display name', function (array $attributes, string $expected): vo
     'name without a shop name' => [['email' => 'artist@example.com', 'name' => 'Ada Painter'], 'Ada Painter'],
     'email alone' => [['email' => 'artist@example.com'], 'artist@example.com'],
 ]);
+
+it('counts its listings by status without loading one', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $this->listing($seller, ['status' => ListingStatus::ForSale]);
+    $this->listing($seller, ['status' => ListingStatus::ForSale]);
+    $this->listing($this->seller('Other Studio'), ['status' => ListingStatus::ForSale]);
+
+    $this->expectsDatabaseQueryCount(1);
+
+    expect($seller->listingCountsByStatus())->toBe([
+        ListingStatus::Draft->value => 1,
+        ListingStatus::ForSale->value => 2,
+    ]);
+});
+
+it('reads its escrow balance out of one grouped query', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
+    $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
+    $this->shippedFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
+
+    $this->expectsDatabaseQueryCount(1);
+    $balance = $seller->escrowBalance();
+
+    expect($balance->available)->toBeMoney(27000)
+        ->and($balance->held)->toBeMoney(27000);
+});

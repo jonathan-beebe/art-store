@@ -12,6 +12,7 @@ use App\Domain\Money\Money;
 use App\Support\PlaceholderImage;
 use Closure;
 use Database\Factories\ListingFactory;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,6 +25,7 @@ use Override;
 
 /**
  * @property-read Seller $seller
+ * @property-read int $tally  only on a row the `countedByStatus` scope selected
  */
 #[Fillable([
     'seller_id', 'title', 'slug', 'description', 'price_cents',
@@ -131,6 +133,19 @@ class Listing extends Model
         $query->where('status', ListingStatus::ForSale);
     }
 
+    /**
+     * One row per status the seller's listings hold, carrying how many hold it.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function countedByStatus(Builder $query): void
+    {
+        $query->select('status')
+            ->selectRaw('count(*) as tally')
+            ->groupBy('status');
+    }
+
     /** @param Builder<$this> $query */
     #[Scope]
     protected function withEventCounts(Builder $query): void
@@ -147,6 +162,23 @@ class Listing extends Model
         $this->loadCount(self::eventCounts());
 
         return $this;
+    }
+
+    /**
+     * How many events of each type the listing recorded on each day from $from
+     * onward, grouped by the database.
+     *
+     * @return array<string, array<string, int>> day (Y-m-d) => event type value => count
+     */
+    public function eventCountsByDateSince(DateTimeImmutable $from): array
+    {
+        $counts = [];
+
+        foreach ($this->events()->dailyCountsSince($from)->get() as $row) {
+            $counts[$row->day][$row->type->value] = $row->tally;
+        }
+
+        return $counts;
     }
 
     /**

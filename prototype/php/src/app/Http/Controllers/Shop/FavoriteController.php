@@ -13,7 +13,7 @@ final class FavoriteController extends ShopController
 {
     public function index(): View
     {
-        return $this->page('shop.favorites', [
+        return view('shop.favorites', [
             'listings' => $this->visitor()->favoriteListings()
                 ->with('seller')
                 ->orderByDesc('listings.id')

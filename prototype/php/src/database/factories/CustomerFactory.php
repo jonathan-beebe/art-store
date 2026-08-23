@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 use Override;
 
 /**
@@ -23,6 +24,7 @@ class CustomerFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'name' => fake()->name(),
             'email_verified_at' => now(),
+            'remember_token' => Str::random(10),
         ];
     }
 
