@@ -15,7 +15,7 @@ sequenceDiagram
     actor Customer
     participant Checkout as Shop::CheckoutsController
     participant Order
-    participant Notify
+    participant Notification
     participant Pay as Shop::OrderPaymentsController
 
     Customer->>Checkout: POST /checkout (email, shipping, card?)
@@ -26,7 +26,7 @@ sequenceDiagram
     alt the buyer's email is verified
         Checkout->>Order: pay!(card_number)
         Order->>Order: charge, status -> paid, hold escrow per fulfillment
-        Order->>Notify: item_sold(order, fulfillment.net) per seller
+        Order->>Notification: item_sold(fulfillment) per seller
         Checkout-->>Customer: redirect /orders/:id
     else guest, email unverified
         Checkout->>Checkout: send_magic_link(email, redirect_to: /orders/:id/pay)
@@ -36,7 +36,7 @@ sequenceDiagram
         Pay->>Order: mark_awaiting_payment! (pending_verification -> awaiting_payment)
         Pay->>Order: pay!(card_number)
         Order->>Order: charge, status -> paid, hold escrow per fulfillment
-        Order->>Notify: item_sold(order, fulfillment.net) per seller
+        Order->>Notification: item_sold(fulfillment) per seller
         Pay-->>Customer: redirect /orders/:id
     end
 ```

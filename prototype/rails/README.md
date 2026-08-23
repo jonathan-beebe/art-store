@@ -122,9 +122,9 @@ make coverage
 ```
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
-line per group (Domain, Actions, Controllers, Models). `COVERAGE_MIN` sets the
+line per group (Domain, Controllers, Models). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 645 runs and 100% line coverage.
+suite stands at 531 runs and 100% line coverage.
 
 ## Database
 
@@ -167,12 +167,12 @@ prototype/rails/
   work/                tickets and journal
   src/                 the Rails application
     app/domain/        pure domain core
-    app/actions/       one class per verb, sequencing core and adapters
+    app/models/        the records and the behaviour that belongs to them
     app/controllers/   one namespace per site: shop/, seller/, auth/
     app/delivery/      the magic-link delivery port and its two implementations
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
-    test/              mirrors app/: domain/, actions/, controllers/, models/
+    test/              mirrors app/: domain/, controllers/, models/
     test/test_helper.rb SimpleCov and the Rails test base
     test/support/      the record builders and the HTTP sign-in helpers
     test/smoke_test.rb  the whole product in one walk
@@ -210,7 +210,7 @@ MAGIC_LINK_EXPIRY_MINUTES=15
 Two hooks are where email goes when it exists:
 `src/app/delivery/mail_magic_link_delivery.rb` (`MailMagicLinkDelivery#deliver`,
 selected by `MAGIC_LINK_DELIVERY=mail`) for sign-in links, and
-`src/app/actions/notifications/notify.rb` (`Notify#deliver_by_email`) for the
+`src/app/models/notification.rb` (`Notification#deliver_by_email`) for the
 "Item sold" and "Order shipped" notifications, which reach the in-app inbox
 today.
 

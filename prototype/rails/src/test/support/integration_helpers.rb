@@ -85,8 +85,8 @@ module IntegrationHelpers
     fulfillment.deliver!(at: moment("2026-08-22 09:00:00"))
   end
 
-  def create_notification(seller, subject: "Item sold", **attributes)
-    Notification.create!({ seller: seller, subject: subject, body: "Order #1 is paid." }.merge(attributes))
+  def create_notification(recipient, subject: "Item sold", **attributes)
+    Notification.create!({ recipient: recipient, subject: subject, body: "Order #1 is paid." }.merge(attributes))
   end
 
   def create_listing_event(listing, event_type, occurred_at)

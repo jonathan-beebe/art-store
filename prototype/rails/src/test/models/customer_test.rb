@@ -106,7 +106,7 @@ class CustomerTest < ActiveSupport::TestCase
     event = listing.events.create!(
       customer: anonymous, event_type: "view", occurred_at: Time.current
     )
-    notification = Notification.create!(customer: anonymous, subject: "Order placed", body: "Order #1 is open.")
+    notification = Notification.create!(recipient: anonymous, subject: "Order placed", body: "Order #1 is open.")
 
     verified.absorb(anonymous)
 
@@ -114,7 +114,7 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal verified, cart.reload.customer
     assert_equal verified, order.reload.customer
     assert_equal verified, event.reload.customer
-    assert_equal verified, notification.reload.customer
+    assert_equal verified, notification.reload.recipient
   end
 
   test "absorb leaves the rows of a bystander where they are" do

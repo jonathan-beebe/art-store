@@ -9,7 +9,7 @@ class Customer < ApplicationRecord
   has_many :carts, dependent: :destroy
   has_many :favorites, dependent: :destroy
   has_many :listing_events, dependent: :nullify
-  has_many :notifications, dependent: :destroy
+  has_many :notifications, as: :recipient, dependent: :destroy
   has_many :orders, dependent: :restrict_with_error
 
   scope :verified, -> { where.not(email: nil) }
@@ -89,7 +89,13 @@ class Customer < ApplicationRecord
   # instead of starting the visitor over.
   def absorb(anonymous)
     transaction do
-      MERGED_ASSOCIATIONS.each { |association| anonymous.public_send(association).update_all(customer_id: id) }
+      MERGED_ASSOCIATIONS.each do |association|
+        # Each association names the column it points back through: notifications
+        # arrive at a polymorphic `recipient_id`, the rest at `customer_id`.
+        foreign_key = self.class.reflect_on_association(association).foreign_key
+        anonymous.public_send(association).update_all(foreign_key => id)
+      end
+
       merges_absorbed.create!(anonymous_customer: anonymous)
     end
 

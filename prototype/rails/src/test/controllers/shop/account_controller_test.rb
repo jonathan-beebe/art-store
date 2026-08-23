@@ -82,7 +82,7 @@ module Shop
     private
 
     def notify(customer, subject)
-      Notification.create!(customer: customer, subject: subject, body: "Tracking RM123.")
+      Notification.create!(recipient: customer, subject: subject, body: "Tracking RM123.")
     end
 
     def signed_cookie_for(customer_id)

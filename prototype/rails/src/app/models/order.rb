@@ -192,11 +192,7 @@ class Order < ApplicationRecord
     fulfillments.each do |fulfillment|
       LedgerEntry.hold(fulfillment, at: at)
 
-      Notifications::Notify.new.call(
-        recipient_type: Domain::Notifications::RecipientType::SELLER,
-        recipient_id: fulfillment.seller_id,
-        message: Domain::Notifications::NotificationMessage.item_sold(id, fulfillment.net)
-      )
+      Notification.item_sold(fulfillment)
     end
   end
 

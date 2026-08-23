@@ -11,7 +11,6 @@ SimpleCov.start do
   cover "{app,lib}/**/*.rb"
 
   group "Domain", "app/domain"
-  group "Actions", "app/actions"
   group "Controllers", "app/controllers"
   group "Models", "app/models"
 

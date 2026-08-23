@@ -33,7 +33,7 @@ class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
     post seller_order_shipment_path(fulfillment), params: shipment
 
     assert_equal "shipped", fulfillment.order.reload.status
-    assert_equal "Order shipped", Notification.where(customer_id: fulfillment.order.customer_id).last.subject
+    assert_equal "Order shipped", fulfillment.order.customer.notifications.last.subject
   end
 
   test "a shipment with no carrier is refused" do

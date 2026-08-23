@@ -49,7 +49,7 @@ class Fulfillment < ApplicationRecord
     transaction do
       update!(status: :shipped, shipped_at: at)
       order.roll_up_status!
-      tell_the_customer
+      Notification.order_shipped(self)
     end
 
     self
@@ -99,13 +99,5 @@ class Fulfillment < ApplicationRecord
     return if can_transition_to?(target)
 
     errors.add(:base, "A fulfillment cannot move from #{status} to #{target}.")
-  end
-
-  def tell_the_customer
-    Notifications::Notify.new.call(
-      recipient_type: Domain::Notifications::RecipientType::CUSTOMER,
-      recipient_id: order.customer_id,
-      message: Domain::Notifications::NotificationMessage.order_shipped(order.id, carrier, tracking_number)
-    )
   end
 end

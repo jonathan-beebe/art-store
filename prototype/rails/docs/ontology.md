@@ -453,9 +453,9 @@ acted, without email.
 - raised by an Order reaching `paid` (seller) or a Fulfillment reaching
   `shipped` (customer)
 
-**In code.** `Notification`, `Domain::Notifications::RecipientType` (enum),
-`NotificationMessage` (table `notifications`), sent by
-`Notifications::Notify`.
+**In code.** `Notification` (table `notifications`), addressed to a polymorphic
+`recipient` and written by `Notification.item_sold` and
+`Notification.order_shipped`.
 
 ## Decisions
 
@@ -515,7 +515,7 @@ stored as its own row (its outcome becomes a Payment).
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = nil`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.
-- Action class namespaces are the plural directory name (`Notifications::`),
-  not the singular concept name — `app/models/seller.rb` already defines
-  `Seller` as a class, so a singular `module Seller` under
-  `app/actions/seller/` collides with the model. See `docs/architecture.md`.
+- Seller-portal controllers are written in compact form (`class
+  Seller::XController < Seller::BaseController`) — `app/models/seller.rb`
+  already defines `Seller` as a class, so `module Seller` elsewhere under
+  `app/` collides with the model. See `docs/architecture.md`.

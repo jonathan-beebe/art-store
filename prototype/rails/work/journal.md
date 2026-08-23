@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-22:20:39:08 — RFCTR-010 — done: notifications belong to a polymorphic recipient, Notification.item_sold/order_shipped write their own messages and Notification#read!/deliver_by_email carry the rest; a reversible migration converts the two nullable foreign keys; app/actions and app/domain/notifications deleted, their tests folded into test/models/notification_test.rb; 531 runs at 100% line coverage (this commit)
+- 2026-08-22:20:28:47 — RFCTR-010 — started
 - 2026-08-22:20:26:07 — RFCTR-009 — done: LedgerEntry writes and folds escrow (hold/release/pay_out, LedgerEntry::Balance), Payout.run_weekly performs the weekly settlement, PayoutPeriod is a plain model, the 10% fee is Fulfillment.fee_for/net_for; app/actions/escrow, app/domain/escrow and Domain::Reports::PayoutSummary deleted, their tests folded into test/models; 534 runs at 100% line coverage (this commit)
 - 2026-08-22:20:19:43 — RFCTR-009 — started
 - 2026-08-22:20:15:32 — RFCTR-008 — done: Fulfillment ships and delivers itself behind its own transition table, validating the carrier and tracking number, releasing the escrow and notifying the customer; app/actions/fulfillments and app/domain/orders deleted, their tests folded into test/models/fulfillment_test.rb; Order rolls up from its fulfillment records; 534 runs at 100% line coverage (this commit)

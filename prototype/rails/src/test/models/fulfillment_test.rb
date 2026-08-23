@@ -73,7 +73,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     ship(order.fulfillments.sole)
 
-    notification = Notification.where(customer_id: buyer.id).sole
+    notification = buyer.notifications.sole
     assert_equal "Order shipped", notification.subject
     assert_includes notification.body, "9400111899"
   end

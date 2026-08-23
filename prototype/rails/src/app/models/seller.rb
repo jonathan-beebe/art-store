@@ -5,7 +5,7 @@ class Seller < ApplicationRecord
   has_many :fulfillments
   has_many :ledger_entries
   has_many :payouts
-  has_many :notifications
+  has_many :notifications, as: :recipient, dependent: :destroy
 
   # A verified link is the whole of the seller sign-up flow: the first one for
   # an address creates the account.

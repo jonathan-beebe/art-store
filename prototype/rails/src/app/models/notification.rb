@@ -1,15 +1,38 @@
 class Notification < ApplicationRecord
-  RECIPIENT_COLUMNS = {
-    Domain::Notifications::RecipientType::SELLER => :seller_id,
-    Domain::Notifications::RecipientType::CUSTOMER => :customer_id
-  }.freeze
-
-  belongs_to :seller, optional: true
-  belongs_to :customer, optional: true
+  belongs_to :recipient, polymorphic: true
 
   scope :unread, -> { where(read_at: nil) }
 
-  def self.recipient_column(recipient_type)
-    RECIPIENT_COLUMNS.fetch(recipient_type)
+  def self.item_sold(fulfillment)
+    deliver(
+      recipient: fulfillment.seller,
+      subject: "Item sold",
+      body: "Order ##{fulfillment.order_id} is paid. #{fulfillment.net.format} is held until the customer confirms delivery."
+    )
+  end
+
+  def self.order_shipped(fulfillment)
+    deliver(
+      recipient: fulfillment.order.customer,
+      subject: "Order shipped",
+      body: "Order ##{fulfillment.order_id} shipped with #{fulfillment.carrier}. " \
+            "Tracking number #{fulfillment.tracking_number}."
+    )
+  end
+
+  private_class_method def self.deliver(attributes)
+    notification = create!(attributes)
+    notification.deliver_by_email
+
+    notification
+  end
+
+  def read!(at: Time.current)
+    update!(read_at: at)
+  end
+
+  # The prototype delivers to the in-app inbox only. Mail hangs off this hook,
+  # behind the same port shape as MagicLinkDelivery.
+  def deliver_by_email
   end
 end

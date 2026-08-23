@@ -32,7 +32,7 @@ Functional core / imperative shell. Dependencies point inward only.
 ```mermaid
 flowchart TD
     entry["Entry: config/routes.rb, config/initializers"] --> coord
-    coord["Coordination: app/controllers, app/actions, lib/tasks"] --> core
+    coord["Coordination: app/controllers, lib/tasks"] --> core
     coord --> adapters
     adapters["Adapters: app/models (ActiveRecord), app/delivery, app/views"] --> core
     core["Core: app/domain/** — plain Ruby, no I/O, no clock, no random"]
@@ -43,19 +43,17 @@ flowchart TD
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
 | Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
 `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`), the plain value objects a record folds into (`LedgerEntry::Balance`, `PayoutPeriod`), the magic-link delivery port implementations, ERB views. |
-| Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
+| Coordination | `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
-Naming follows the `naming` skill: actions are verb phrases (`Notify`), model
-methods are the verb a record answers to (`Order#pay!`, `Fulfillment#ship!`,
-`Payout.run_weekly`, `Listing#take_stock!`), events are past tense.
+Naming follows the `naming` skill: model methods are the verb a record answers
+to (`Order#pay!`, `Fulfillment#ship!`, `Payout.run_weekly`,
+`Listing#take_stock!`), events are past tense.
 
-Action namespaces are the plural directory name — `Notifications::` — not the
-singular the ticket originally asked for. Rails makes
-every `app/*` directory a Zeitwerk root, and `app/models/seller.rb` already
-defines `Seller` as a class, so `app/actions/seller/` declaring `module
-Seller` raises `TypeError: Seller is not a module`. The same
-collision makes every seller-portal controller `class Seller::XController <
+Rails makes every `app/*` directory a Zeitwerk root, and `app/models/seller.rb`
+already defines `Seller` as a class, so a `seller/` directory elsewhere under
+`app/` declaring `module Seller` raises `TypeError: Seller is not a module`.
+That collision makes every seller-portal controller `class Seller::XController <
 Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
 `Auth::` have no matching model and stay `module`.
 
@@ -219,10 +217,11 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 
 ### Notifications
 
-`notifications` rows (nullable `seller_id` / `customer_id`, subject, body, url,
-read_at) shown in each site's header. Seller receives "Item sold" on paid;
-customer receives "Order shipped" on shipped. `Notify#deliver_by_email` is the
-email hook.
+`notifications` rows (polymorphic `recipient`, subject, body, url, read_at)
+shown in each site's header. `Notification.item_sold` files "Item sold" under
+the seller when an order is paid; `Notification.order_shipped` files "Order
+shipped" under the customer when a fulfillment departs.
+`Notification#deliver_by_email` is the email hook.
 
 ## Testing
 
@@ -244,10 +243,10 @@ email hook.
   rows it asks about.
 - Core tests (`test/domain/**`) exercise the file under test — no database, no
   doubles.
-- Coordination tests (controllers, actions, tasks) run against the test SQLite
+- Coordination tests (controllers, tasks) run against the test SQLite
   database; they drive HTTP and assert on rendered HTML and DB state.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
-  per-group summary (Domain, Actions, Controllers, Models). `COVERAGE_MIN` is
+  per-group summary (Domain, Controllers, Models). `COVERAGE_MIN` is
   one global line-coverage minimum (`make coverage` sets it to 80) — SimpleCov
   reports the Domain group's percentage but nothing enforces a higher
   threshold on it specifically; it has stayed near 100% in practice because

@@ -47,7 +47,7 @@ is `@import "tailwindcss"` and nothing else.
 
 | Requirement | Status | Route helper | Test |
 | --- | --- | --- | --- |
-| Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `Domain::Notifications::NotificationMessageTest` |
+| Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `NotificationTest` |
 | Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `FulfillmentTest` |
 | Notify customers of shipment | done | `shop_account` inbox | `Shop::AccountControllerTest` |
 | Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `LedgerEntryTest` |
@@ -87,7 +87,7 @@ is `@import "tailwindcss"` and nothing else.
 | Customer site for browsing | done | `/` |
 | Mocked cart and payment with a fake card, success and failure | done | `FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is an invalid number |
 | Magic links for both sides, printed to the screen in a debug alert | done | `FlashMagicLinkDelivery` → `layouts/_debug_alert` |
-| A hook where email goes later | done | `MailMagicLinkDelivery` (selected by `MAGIC_LINK_DELIVERY=mail`), `Notifications::Notify#deliver_by_email` |
+| A hook where email goes later | done | `MailMagicLinkDelivery` (selected by `MAGIC_LINK_DELIVERY=mail`), `Notification#deliver_by_email` |
 | Guest checkout requiring verification before the order finalizes | done | `Shop::CheckoutsController#create` → `Shop::OrderPaymentsController` |
 | Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-008 |
 | Delivered in `./prototype/rails/` with a complete README and a docs folder | done | `README.md`, `docs/` |
@@ -115,7 +115,7 @@ is `@import "tailwindcss"` and nothing else.
 ## Known gaps
 
 1. **Mail delivery raises.** `MailMagicLinkDelivery#deliver` raises
-   `NotImplementedError` and `Notify#deliver_by_email` does nothing. Setting
+   `NotImplementedError` and `Notification#deliver_by_email` does nothing. Setting
    `MAGIC_LINK_DELIVERY=mail` breaks sign-in. This is the hook, not an
    implementation.
 2. **The payout button pays every seller**, not the signed-in one. It is
@@ -150,9 +150,9 @@ is `@import "tailwindcss"` and nothing else.
 
 ## Suggested next steps
 
-1. Implement `MailMagicLinkDelivery` against Action Mailer and give `Notify`
-   the same port shape. Closes gap 1 and removes the debug alert from the demo
-   path.
+1. Implement `MailMagicLinkDelivery` against Action Mailer and give
+   `Notification#deliver_by_email` the same port shape. Closes gap 1 and
+   removes the debug alert from the demo path.
 2. Fold the anonymous cart into the account's cart during the merge, so one
    customer has one cart. Closes gap 4.
 3. Scope the payout button to the signed-in seller, or drop it and keep

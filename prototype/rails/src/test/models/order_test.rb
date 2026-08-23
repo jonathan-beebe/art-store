@@ -159,7 +159,7 @@ class OrderTest < ActiveSupport::TestCase
     pay(order_for(create_verified_customer, create_listing(shop)), APPROVED_CARD)
 
     notification = Notification.sole
-    assert_equal shop.id, notification.seller_id
+    assert_equal shop, notification.recipient
     assert_equal "Item sold", notification.subject
     assert_includes notification.body, "$405.00"
   end
