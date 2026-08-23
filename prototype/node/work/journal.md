@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:19:08:42 — FEAT-001 — done: dockerized Node 24 + Fastify foundation — three site plugins with layouts and the debug alert, buildApp composition root, Kysely migrator, node:test sidecars, typecheck/lint/coverage gates, Tailwind CLI
 - 2026-08-22:18:38:04 — FEAT-001 — started
 - 2026-08-22:20:40:00 — FEAT-010 — defined: final validation — clean first run, smoke test, coverage, review, README
 - 2026-08-22:20:40:00 — FEAT-009 — defined: docs — drift check, feature docs, data model, ontology, render check
