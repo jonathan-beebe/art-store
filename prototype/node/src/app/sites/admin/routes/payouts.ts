@@ -26,7 +26,7 @@ export const payoutRoutes: FastifyPluginCallback = (admin, _options, done) => {
         rows: await payoutRows(context, { sellerId: seller }),
         sellers: await sellerOptions(context),
         selectedSeller: seller,
-        today: toTimestamp(admin.clock.now()),
+        asOfDate: toTimestamp(admin.clock.now()).slice(0, 10),
       }),
     )
   })

@@ -146,3 +146,19 @@ test('a page past the end lands on the last page that exists', async (t) => {
   assert.match(response.body, /Page 1 of 1/)
   assert.match(response.body, /Harbour at dusk/)
 })
+
+test('a pagination link repeats the search that led to it', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  for (let number = 1; number <= 13; number += 1) {
+    await listArtwork(testApp, { sellerId: seller.id, title: `Harbour study ${number}`, medium: 'Oil on canvas' })
+  }
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/?q=harbour&medium=${encodeURIComponent('Oil on canvas')}`,
+  })
+
+  assert.match(response.body, /href="\/\?q=harbour&amp;medium=Oil%20on%20canvas&amp;page=2"/)
+})

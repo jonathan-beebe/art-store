@@ -16,9 +16,11 @@ const VIEW_HELPERS = { dayLabel, formatCents, listingImageSource, shopName, stat
  * is in it. */
 const PAGE_DEFAULTS = { searchTerm: '' }
 
-export type ShopPageData = Record<string, unknown>
-
-export function shopPage(data: ShopPageData): ShopPageData {
+/** Every storefront page's render data: the shared helpers and defaults,
+ * plus whatever the route adds. */
+export function shopPage<T extends Record<string, unknown>>(
+  data: T,
+): typeof VIEW_HELPERS & typeof PAGE_DEFAULTS & T {
   return { ...VIEW_HELPERS, ...PAGE_DEFAULTS, ...data }
 }
 

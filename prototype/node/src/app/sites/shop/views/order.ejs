@@ -73,7 +73,7 @@
         <% fulfillment.items.forEach(function (item) { %>
         <li class="flex items-baseline justify-between gap-6 text-base">
           <span><%= item.title %> &times; <%= item.quantity %></span>
-          <span><%= formatCents(item.unitPriceCents * item.quantity) %></span>
+          <span><%= formatCents(item.lineTotalCents) %></span>
         </li>
         <% }) %>
       </ul>

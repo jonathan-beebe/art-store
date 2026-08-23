@@ -1,11 +1,4 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title><%= title %> — Art Store</title>
-    <link rel="stylesheet" href="/app.css" />
-  </head>
+<%- include('views/partials/head', { title, titleSuffix: 'Art Store' }) %>
   <body class="min-h-screen bg-white text-neutral-900 antialiased">
     <%- include('views/partials/debug-alert', { flash, showsDebugMagicLinks }) %>
     <%- include('views/partials/flash', { flash }) %>
@@ -31,11 +24,10 @@
           <a href="/favorites" class="hover:text-amber-700">Favorites</a>
           <a href="/cart" class="hover:text-amber-700">Cart</a>
           <a href="/orders" class="hover:text-amber-700">Orders</a>
-          <a href="/messages" class="hover:text-amber-700">Messages<span
-            data-messages-badge
-            class="ml-1 rounded-full bg-amber-600 px-2 py-0.5 text-xs text-white empty:hidden"
-            <% if (unreadMessageCount > 0) { %>data-unread-messages="<%= unreadMessageCount %>"<% } %>
-          ><% if (unreadMessageCount > 0) { %><%= unreadMessageCount %><% } %></span></a>
+          <a href="/messages" class="hover:text-amber-700">Messages<%- include('views/partials/unread-badge', {
+            classes: 'ml-1 rounded-full bg-amber-600 px-2 py-0.5 text-xs text-white empty:hidden',
+            unreadMessageCount,
+          }) %></a>
           <% if (identity.customer && identity.customer.email) { %>
           <a href="/account" class="hover:text-amber-700">Account</a>
           <form method="post" action="/logout">
@@ -48,6 +40,7 @@
       </div>
     </header>
 
+    <%# the page's already-escaped markup %>
     <main class="mx-auto max-w-6xl px-6 pb-28 pt-16"><%- body %></main>
 
     <footer class="mx-auto max-w-6xl px-6 pb-16 text-xs text-neutral-400">

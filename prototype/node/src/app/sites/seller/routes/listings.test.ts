@@ -145,6 +145,18 @@ test('the index offers only the transitions the lifecycle allows', async (t) => 
   assert.doesNotMatch(response.body, /data-status-button="sold"/)
 })
 
+test('a status button reads the transition it offers, computed by statusButtons', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  await createTestListing(testApp, seller.id)
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/seller/listings', cookies: seller.cookies })
+
+  assert.match(response.body, />Mark for sale</)
+  assert.match(response.body, />Mark archived</)
+})
+
 test('the new listing form asks for every field', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -215,6 +227,9 @@ test('a listing with no title is refused', async (t) => {
 
   assert.equal(response.statusCode, 422)
   assert.match(response.body, /data-field-error="listing_title"[^>]*>Enter a title\./)
+  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error" aria-invalid="true"/)
+  // A field with no error of its own carries neither attribute.
+  assert.doesNotMatch(response.body, /id="listing_medium"[^>]*aria-describedby/)
 })
 
 test('creating a listing attaches an uploaded image whose bytes sniff as a real PNG', async (t) => {

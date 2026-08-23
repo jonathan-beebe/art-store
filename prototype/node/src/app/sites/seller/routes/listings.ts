@@ -17,10 +17,11 @@ import type { Listing } from '../../../db/commerce-schema.ts'
 import { dollarsInputValue, formatCents } from '../../../core/money.ts'
 import { activityTimeline, activityWindow } from '../../../core/reports/activity-timeline.ts'
 import { activityTotals } from '../../../core/reports/activity-totals.ts'
-import { statusLabel } from '../../../core/status-label.ts'
+import { statusButtons, statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
+import { listingFormFieldsView } from '../listing-form-fields-view.ts'
 import {
   listingDraftFieldsFrom,
   parseListingFormBody,
@@ -120,13 +121,17 @@ export async function renderOversizedImageForm(request: FastifyRequest, reply: F
     return reply.code(422).render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
-      fields: editFieldsFrom(listing),
+      fields: listingFormFieldsView(editFieldsFrom(listing), errors),
       errors,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
   }
 
-  return reply.code(422).render('listings/new', { title: 'New listing', fields: emptyDraftFields(), errors })
+  return reply.code(422).render('listings/new', {
+    title: 'New listing',
+    fields: listingFormFieldsView(emptyDraftFields(), errors),
+    errors,
+  })
 }
 
 async function findOwnedListing(request: FastifyRequest, reply: FastifyReply): Promise<Listing | null> {
@@ -156,13 +161,13 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
     imageSrc: listingImageSource(listing.imagePath, listing.title),
   }))
 
-  return reply.render('listings/index', { title: 'Listings', rows, statusLabel, formatCents })
+  return reply.render('listings/index', { title: 'Listings', rows, statusLabel, statusButtons, formatCents })
 }
 
 async function newForm(_request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   return reply.render('listings/new', {
     title: 'New listing',
-    fields: emptyDraftFields(),
+    fields: listingFormFieldsView(emptyDraftFields(), NO_ERRORS),
     errors: NO_ERRORS,
   })
 }
@@ -173,7 +178,11 @@ async function create(request: FastifyRequest, reply: FastifyReply): Promise<Fas
   const fields = listingDraftFieldsFrom(body, uploadedImage?.format ?? null)
   const draft = parseListingDraft(fields)
   if (!draft.ok) {
-    return reply.code(422).render('listings/new', { title: 'New listing', fields, errors: draft.errors })
+    return reply.code(422).render('listings/new', {
+      title: 'New listing',
+      fields: listingFormFieldsView(fields, draft.errors),
+      errors: draft.errors,
+    })
   }
 
   const { db, clock, config } = request.server
@@ -197,7 +206,7 @@ async function editForm(request: FastifyRequest, reply: FastifyReply): Promise<F
   return reply.render('listings/edit', {
     title: `Edit ${listing.title}`,
     listing,
-    fields: editFieldsFrom(listing),
+    fields: listingFormFieldsView(editFieldsFrom(listing), NO_ERRORS),
     errors: NO_ERRORS,
     imageSrc: listingImageSource(listing.imagePath, listing.title),
   })
@@ -215,7 +224,7 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
     return reply.code(422).render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
-      fields,
+      fields: listingFormFieldsView(fields, draft.errors),
       errors: draft.errors,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
@@ -281,6 +290,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
     removal,
     transitions: availableListingTransitions(listing.status, removal !== null),
     statusLabel,
+    statusButtons,
     formatCents,
     formatDate,
     formatDay,

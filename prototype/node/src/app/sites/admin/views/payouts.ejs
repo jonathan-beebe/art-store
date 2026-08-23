@@ -6,7 +6,7 @@
     <select id="seller" name="seller" class="rounded border border-neutral-400 bg-white px-2 py-1">
       <option value="">All sellers</option>
       <% sellers.forEach((seller) => { %>
-      <option value="<%= seller.id %>" <%= selectedSeller === seller.id ? 'selected' : '' %>><%= seller.name %></option>
+      <option value="<%= seller.id %>" <% if (selectedSeller === seller.id) { %>selected<% } %>><%= seller.name %></option>
       <% }) %>
     </select>
   </div>
@@ -52,7 +52,7 @@
         type="date"
         id="as_of"
         name="as_of"
-        value="<%= today.slice(0, 10) %>"
+        value="<%= asOfDate %>"
         class="rounded border border-neutral-400 bg-white px-2 py-1"
       />
     </div>

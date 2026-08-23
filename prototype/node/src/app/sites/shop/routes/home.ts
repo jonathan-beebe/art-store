@@ -1,7 +1,7 @@
 import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
 import { listingPage } from '../../../core/shop/listing-page.ts'
-import { parseListingSearch } from '../../../core/shop/listing-search.ts'
+import { filterQuery, parseListingSearch } from '../../../core/shop/listing-search.ts'
 import {
   countStorefrontListings,
   findStorefrontListings,
@@ -34,6 +34,7 @@ export const homeRoutes: FastifyPluginCallback = (shop, _options, done) => {
         title: search.term === null ? 'Original art' : `Art matching “${search.term}”`,
         searchTerm: search.term ?? '',
         search,
+        filterQuery: filterQuery(search),
         page,
         listings: await findStorefrontListings(shop.db, { search, page }),
         media: await findStorefrontMedia(shop.db),

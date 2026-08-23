@@ -25,7 +25,7 @@
   <li class="flex flex-wrap items-center gap-6 py-6">
     <img
       src="<%= listingImageSource(line.imagePath, line.title) %>"
-      alt="<%= line.title %>"
+      alt=""
       class="aspect-square w-24 rounded-xl bg-neutral-50 object-cover"
     />
 
@@ -34,7 +34,7 @@
       <p class="mt-1 text-sm text-neutral-500">Quantity <%= line.quantity %></p>
     </div>
 
-    <p class="text-lg"><%= formatCents(line.unitPriceCents * line.quantity) %></p>
+    <p class="text-lg"><%= formatCents(line.lineTotalCents) %></p>
 
     <form method="post" action="/cart/<%= line.slug %>/remove">
       <button

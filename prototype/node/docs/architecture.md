@@ -22,7 +22,7 @@ sequences and state machines: [`identity.md`](identity.md),
 | Runtime | Node, native type stripping (`node app/server.ts`, no build step, no `tsx`) | `node:24-bookworm-slim` |
 | Language | TypeScript, `erasableSyntaxOnly` (no `enum`, no parameter properties, no namespaces), `verbatimModuleSyntax`, `tsc --noEmit` for type checking only | 5.9.3 |
 | HTTP | Fastify | 5.12.1 |
-| Views | EJS via `@fastify/view` | ejs 6.0.1, @fastify/view 12.0.0 |
+| Views | EJS via `@fastify/view`; raw `<%- %>` output is reserved for `include(...)` and a layout's `<%- body %>` — every other value renders through the escaping `<%= %>` | ejs 6.0.1, @fastify/view 12.0.0 |
 | Forms, cookies, static, uploads | `@fastify/formbody`, `@fastify/cookie` (signed cookies), `@fastify/static`, `@fastify/multipart` | 9.0.0, 11.1.2, 10.1.3, 10.1.1 |
 | Database | `node:sqlite` behind `app/db/node-sqlite-dialect.ts`, an owned Kysely dialect (`CamelCasePlugin`) + Kysely `Migrator` with `FileMigrationProvider`, both imported from `kysely/migration` | built in, kysely 0.29.5 |
 | Validation at the edge | zod (`parse, don't validate`) | 4.4.3 |

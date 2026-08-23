@@ -16,7 +16,7 @@ import type { ShippingAddress } from '../../../core/orders/shipping-address.ts'
 import { formBody } from '../../../http/form-body.ts'
 import { signedInActorId } from '../../../plugins/identity.ts'
 import { magicLinkUrl } from '../../auth/request-origin.ts'
-import { SHIPPING_FIELDS, shippingFromForm } from '../checkout-fields.ts'
+import { missingFieldLabels, SHIPPING_FIELDS, shippingFromForm } from '../checkout-fields.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
 import { shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
@@ -51,7 +51,7 @@ function renderCheckout(reply: FastifyReply, view: CheckoutView, status = 200): 
       email: view.email,
       shipping: view.shipping,
       isVerified: view.isVerified,
-      missingParts: view.missingParts,
+      missingFieldLabels: missingFieldLabels(view.missingParts),
       unavailable: view.unavailable,
       lines: view.contents.lines,
       totals: view.contents.totals,

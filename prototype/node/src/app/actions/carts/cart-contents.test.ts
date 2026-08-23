@@ -83,3 +83,19 @@ test('it carries the listing details a page needs', async (t) => {
   assert.equal(line?.status, 'for_sale')
   assert.equal(line?.availableQuantity, 4)
 })
+
+test('a line carries its own total, priced through cartLineTotal', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const art = await createListing(context, sellerId, { priceCents: 4_500, quantity: 3 })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: art.id, quantity: 3 })
+
+  const contents = await cartContents(context, cart.id)
+
+  assert.equal(contents.lines[0]?.lineTotalCents, 13_500)
+})
