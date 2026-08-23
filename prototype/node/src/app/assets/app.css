@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* The stylesheet lives beside the source it styles, so the scan starts one
+   level up at the application root. */
+@source "../";

@@ -1,0 +1,58 @@
+<div class="flex flex-wrap items-center gap-4">
+  <h1 class="text-lg font-semibold">Fulfillments</h1>
+</div>
+
+<form method="get" action="/admin/fulfillments" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-neutral-300 bg-white p-3">
+  <div>
+    <label for="status" class="block text-neutral-600">Status</label>
+    <select id="status" name="status" class="mt-1 rounded border border-neutral-400 px-2 py-1">
+      <option value="">All</option>
+      <% statuses.forEach(function (status) { %>
+        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= statusLabel(status) %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div>
+    <label for="seller" class="block text-neutral-600">Seller id</label>
+    <input id="seller" name="seller" type="number" min="1" value="<%= filters.seller %>" class="mt-1 w-24 rounded border border-neutral-400 px-2 py-1">
+  </div>
+  <button type="submit" class="rounded bg-neutral-900 px-4 py-2 font-medium text-white">Filter</button>
+</form>
+
+<% if (fulfillments.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No fulfillments match these filters.' }) %>
+<% } else { %>
+  <div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">Fulfillments</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Fulfillment</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Subtotal</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Fee</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Shipped</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Delivered</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% fulfillments.forEach(function (fulfillment) { %>
+          <tr data-fulfillment="<%= fulfillment.id %>">
+            <th scope="row" class="px-4 py-2 font-normal">#<%= fulfillment.id %></th>
+            <td class="px-4 py-2">#<%= fulfillment.orderId %></td>
+            <td data-cell="seller" class="px-4 py-2"><%= fulfillment.sellerName %></td>
+            <td data-cell="status" class="px-4 py-2"><%= statusLabel(fulfillment.status) %></td>
+            <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>
+            <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.feeCents) %></td>
+            <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>
+            <td class="px-4 py-2"><%= formatMoment(fulfillment.shippedAt) %></td>
+            <td class="px-4 py-2"><%= formatMoment(fulfillment.deliveredAt) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>

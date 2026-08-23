@@ -1,0 +1,123 @@
+<h1 class="text-lg font-semibold" data-seller="<%= seller.id %>"><%= seller.shopName ?? seller.email %></h1>
+<dl class="mt-2 text-neutral-600">
+  <div><dt class="inline text-neutral-500">Email</dt> <dd class="inline"><%= seller.email %></dd></div>
+  <div><dt class="inline text-neutral-500">Joined</dt> <dd class="inline"><%= formatMoment(seller.createdAt) %></dd></div>
+</dl>
+
+<form method="post" action="/admin/sellers/<%= seller.id %>/messages" class="mt-4">
+  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+    Message seller
+  </button>
+</form>
+
+<dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+  <%- include('sites/admin/views/partials/stat', { key: 'held', label: 'Held', value: formatCents(balance.heldCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'available', label: 'Available', value: formatCents(balance.availableCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'paid-out', label: 'Paid out', value: formatCents(balance.paidOutCents) }) %>
+</dl>
+
+<section class="mt-6" aria-labelledby="listings-heading">
+  <h2 id="listings-heading" class="font-semibold text-neutral-700">Listings</h2>
+  <% if (listings.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No listings yet.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This seller's listings</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Price</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Removal</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% listings.forEach((listing) => { %>
+        <tr data-listing="<%= listing.id %>">
+          <th scope="row" class="px-4 py-3 font-normal">
+            <a href="/admin/listings/<%= listing.id %>" class="font-medium underline"><%= listing.title %></a>
+          </th>
+          <td data-cell="status" class="px-4 py-3"><%= statusLabel(listing.status) %></td>
+          <td data-cell="price" class="px-4 py-3 text-right tabular-nums"><%= formatCents(listing.priceCents) %></td>
+          <td data-cell="quantity" class="px-4 py-3 text-right tabular-nums"><%= listing.quantity %></td>
+          <td data-cell="removal" class="px-4 py-3">
+            <% if (listing.removal) { %>
+            <span data-removal-kind="<%= listing.removal.kind %>"><%= statusLabel(listing.removal.kind) %></span>:
+            <%= listing.removal.reason %>
+            <% } else { %>
+            <span class="text-neutral-500">&mdash;</span>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="fulfillments-heading">
+  <h2 id="fulfillments-heading" class="font-semibold text-neutral-700">Fulfillments</h2>
+  <% if (fulfillments.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No fulfillments yet.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This seller's fulfillments</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Subtotal</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Fee</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% fulfillments.forEach((fulfillment) => { %>
+        <tr data-fulfillment="<%= fulfillment.id %>">
+          <th scope="row" class="px-4 py-3 font-normal">
+            <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
+          </th>
+          <td data-cell="status" class="px-4 py-3"><%= statusLabel(fulfillment.status) %></td>
+          <td data-cell="subtotal" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>
+          <td data-cell="fee" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.feeCents) %></td>
+          <td data-cell="net" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="payouts-heading">
+  <h2 id="payouts-heading" class="font-semibold text-neutral-700">Payouts</h2>
+  <% if (payouts.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No payouts yet.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This seller's payouts</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Period</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% payouts.forEach((payout) => { %>
+        <tr data-payout="<%= payout.id %>">
+          <td class="px-4 py-3"><%= payout.periodStart %> &ndash; <%= payout.periodEnd %></td>
+          <td data-cell="amount" class="px-4 py-3 text-right tabular-nums"><%= formatCents(payout.amountCents) %></td>
+          <td class="px-4 py-3"><%= formatMoment(payout.paidAt) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>

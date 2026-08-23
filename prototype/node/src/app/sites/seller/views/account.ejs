@@ -1,0 +1,21 @@
+<h1 class="text-2xl font-semibold">Your account</h1>
+<dl class="mt-4 space-y-2 text-sm">
+  <div>
+    <dt class="text-neutral-500">Email</dt>
+    <dd><%= identity.seller.email %></dd>
+  </div>
+  <% if (identity.seller.shopName) { %>
+  <div>
+    <dt class="text-neutral-500">Shop name</dt>
+    <dd><%= identity.seller.shopName %></dd>
+  </div>
+  <% } %>
+</dl>
+<form method="post" action="/seller/logout" class="mt-6">
+  <button
+    type="submit"
+    class="cursor-pointer rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
+  >
+    Sign out
+  </button>
+</form>

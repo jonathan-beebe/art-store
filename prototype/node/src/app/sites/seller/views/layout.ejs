@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title><%= title %> — Seller portal</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body class="min-h-screen bg-neutral-100 text-neutral-900 antialiased">
+    <%- include('views/partials/debug-alert', { flash }) %>
+    <%- include('views/partials/flash', { flash }) %>
+    <header class="border-b border-neutral-300 bg-white">
+      <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm">
+        <a href="/seller" class="font-semibold">Seller portal</a>
+        <% if (identity.seller) { %>
+        <ul class="flex gap-4 text-neutral-600">
+          <li><a href="/seller/listings" class="hover:text-neutral-900">Listings</a></li>
+          <li><a href="/seller/orders" class="hover:text-neutral-900">Orders</a></li>
+          <li>
+            <a href="/seller/messages" class="hover:text-neutral-900">Messages<% if (unreadMessageCount > 0) { %>
+              <span data-unread-messages="<%= unreadMessageCount %>" class="ml-1 rounded bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white"><%= unreadMessageCount %></span>
+            <% } %></a>
+          </li>
+          <li><a href="/seller/earnings" class="hover:text-neutral-900">Earnings</a></li>
+          <li><a href="/seller/notifications" class="hover:text-neutral-900">Notifications</a></li>
+          <li><a href="/seller/support" class="hover:text-neutral-900">Support</a></li>
+        </ul>
+        <% } %>
+        <ul class="ml-auto flex gap-4 text-neutral-600">
+          <li><a href="/" class="hover:text-neutral-900">Storefront</a></li>
+          <% if (identity.seller) { %>
+          <li><a href="/seller/account" class="hover:text-neutral-900">Account</a></li>
+          <li>
+            <form method="post" action="/seller/logout">
+              <button type="submit" class="cursor-pointer hover:text-neutral-900">Sign out</button>
+            </form>
+          </li>
+          <% } else { %>
+          <li><a href="/seller/login" class="hover:text-neutral-900">Sign in</a></li>
+          <% } %>
+        </ul>
+      </nav>
+    </header>
+    <main class="mx-auto max-w-6xl px-4 py-8"><%- body %></main>
+  </body>
+</html>

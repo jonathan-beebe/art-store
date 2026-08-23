@@ -1,0 +1,25 @@
+<h1 class="text-2xl font-semibold">Messages</h1>
+
+<% if (conversations.length === 0) { %>
+  <p class="mt-4 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing yet.</p>
+<% } else { %>
+  <ul class="mt-4 divide-y divide-neutral-200 rounded border border-neutral-300 bg-white">
+    <% conversations.forEach(function (conversation) { %>
+      <li data-conversation="<%= conversation.id %>" class="flex flex-wrap items-start gap-4 p-4">
+        <div>
+          <p class="font-medium">
+            <%= conversation.counterpart %>
+            <% if (conversation.unreadCount > 0) { %>
+              <span data-unread-count="<%= conversation.unreadCount %>" class="ml-1 rounded bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white"><%= conversation.unreadCount %></span>
+            <% } %>
+          </p>
+          <p class="mt-1 text-sm text-neutral-600"><%= conversation.topic %></p>
+          <% if (conversation.preview) { %>
+            <p class="mt-1 text-sm text-neutral-500"><%= conversation.preview %></p>
+          <% } %>
+        </div>
+        <a href="<%= conversation.path %>" class="ml-auto text-sm underline">Open</a>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>

@@ -1,0 +1,49 @@
+# Work Journal
+
+## Next ticket numbers
+
+- RSRCH: 1
+- DSGN: 1
+- ARCH: 1
+- FEAT: 11
+- IMPRV: 1
+- MAINT: 1
+- A11Y: 1
+- RFCTR: 1
+- BUG: 2
+
+## Log
+
+- 2026-08-22:21:59:58 — FEAT-010 — done: final validation — clean first run from an empty tree in 27s, a curl walk of 116 checks with no 500, a six-test smoke walk from the seller's sign-in to the weekly payout, the removal rule and `dollarsInputValue` moved into `app/core`, one `statusLabel` and one `parseIdParam` for all three sites, nine dead exports deleted, `runWeeklyPayout` no longer collides on an already-settled period, plus `docs/review.md` and a rewritten `README.md`
+- 2026-08-22:21:35:03 — FEAT-009 — done: docs — architecture.md corrected against the code (versions, app/plugins, site queries, commerce-schema, cli, delivery ports, customerStanding under core/moderation, the order state machine, the smoke test), plus identity/orders/escrow/messaging/admin/data-model/ontology docs and a README index, and `make docs-check` rendering all 19 Mermaid blocks through minlag/mermaid-cli
+- 2026-08-22:21:19:35 — BUG-001 — done: no admin write route answers 500 for a bodiless post — `formBody(request)` reads an absent body as an empty form at every throwing `zod.parse` site across all four sites, and `moderationRoute` safeParses and answers 400 when the form does not hold together
+- 2026-08-22:21:14:19 — FEAT-010 — started
+- 2026-08-22:21:11:55 — BUG-001 — started
+- 2026-08-22:21:09:04 — FEAT-009 — started
+- 2026-08-22:21:08:15 — BUG-001 — defined: admin lift routes answer 500 when the request has no body
+- 2026-08-22:21:05:34 — FEAT-007 — done: messaging center — one `conversations` table across four kinds with `messages` and `listing_faqs`, pure access/find-or-open/unread-fold/validation in app/core/messaging, six actions plus the shared inbox and thread reads, inboxes and threads on all three sites, ask-a-question on the listing page with FAQ publish/edit/unpublish, support and fulfillment threads, in-app notification per message, unread badges in every layout, seeded demo threads and one published FAQ
+- 2026-08-22:20:37:31 — FEAT-007 — started
+- 2026-08-22:20:30:42 — FEAT-006 — done: admin site — dashboard, sellers/customers, filterable listings/orders/fulfillments/payouts/ledger tables, accounting that reconciles with the ledger, site stats, the four moderation writes behind one route factory, the weekly payout run, everything behind requireAdmin, and a root onResponse page-view rollup
+- 2026-08-22:20:27:27 — FEAT-005 — done: customer storefront — paged/searchable grid, listing page with view events and an empty FAQ section, favorites, cart, checkout that pays a verified customer and emails a guest a link redirecting to the pay page, decline-with-retry and stock return, orders with per-seller fulfillments, cancel, confirm-delivery, account notifications; search/paging/checkout-form ported pure into app/core/shop
+- 2026-08-23:01:27:28 — FEAT-004 — done: seller portal — dashboard, listings (index/new/edit/show, multipart image upload, removal-aware status buttons), fulfillments grouped by status with mark-shipped, earnings (held/available/paid out, sold-goods, payout history, no payout button), notifications inbox; four pure reports ported into app/core/reports; requireSeller everywhere, cross-seller and non-numeric ids 404 on read and write
+- 2026-08-22:20:06:00 — FEAT-008 — done: seed data and demo reset — 4 verified sellers with shops and a 29-listing catalog across six media (one under temporary removal), casey@example.com with favorites/views/cart/orders in paid/shipped/delivered, a blocked customer, 3 anonymous browsers, 14 days of page-view counts, all driven through the FEAT-003 actions on a frozen clock
+- 2026-08-22:20:03:52 — FEAT-008 — started
+- 2026-08-22:19:54:09 — FEAT-005 — started
+- 2026-08-22:19:53:20 — FEAT-006 — started
+- 2026-08-23:00:52:28 — FEAT-004 — started
+- 2026-08-22:19:45:49 — FEAT-002 — done: magic-link identity for sellers, customers, and admins — one delivery port with a flash and a mail hook, seeded-only admins, anonymous customer per storefront request, and an anonymous-to-verified merge folded by a pure plan
+- 2026-08-22:19:44:16 — FEAT-003 — done: commerce domain core — 15 tables, pure core for listings/cart/orders/payments/escrow/notifications/moderation/analytics, actions over { db, clock } in transactions, weekly payouts CLI, lifecycle/decline/cancel tests
+- 2026-08-22:19:14:58 — FEAT-003 — started
+- 2026-08-22:19:14:11 — FEAT-002 — started
+- 2026-08-22:19:08:42 — FEAT-001 — done: dockerized Node 24 + Fastify foundation — three site plugins with layouts and the debug alert, buildApp composition root, Kysely migrator, node:test sidecars, typecheck/lint/coverage gates, Tailwind CLI
+- 2026-08-22:18:38:04 — FEAT-001 — started
+- 2026-08-22:20:40:00 — FEAT-010 — defined: final validation — clean first run, smoke test, coverage, review, README
+- 2026-08-22:20:40:00 — FEAT-009 — defined: docs — drift check, feature docs, data model, ontology, render check
+- 2026-08-22:20:40:00 — FEAT-008 — defined: seed data and demo reset
+- 2026-08-22:20:40:00 — FEAT-007 — defined: messaging center with listing questions and FAQ publishing
+- 2026-08-22:20:40:00 — FEAT-006 — defined: admin site — users, orders, accounting, site stats, moderation
+- 2026-08-22:20:40:00 — FEAT-005 — defined: customer storefront — browse, favorite, cart, guest checkout, pay, orders
+- 2026-08-22:20:40:00 — FEAT-004 — defined: seller portal — listings, activity, fulfillments, earnings, notifications
+- 2026-08-22:20:40:00 — FEAT-003 — defined: commerce domain core
+- 2026-08-22:20:40:00 — FEAT-002 — defined: magic-link identity for sellers, customers, admins with anonymous merge
+- 2026-08-22:20:40:00 — FEAT-001 — defined: dockerized Node 24 + Fastify foundation with sidecar node:test and Tailwind

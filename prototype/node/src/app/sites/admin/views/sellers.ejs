@@ -1,0 +1,40 @@
+<h1 class="text-lg font-semibold">Sellers</h1>
+
+<% if (rows.length === 0) { %>
+<%- include('sites/admin/views/partials/empty', { message: 'No sellers yet.' }) %>
+<% } else { %>
+<div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <table class="w-full text-left">
+    <caption class="sr-only">Every seller</caption>
+    <thead class="border-b border-neutral-300 bg-neutral-50">
+      <tr>
+        <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Joined</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Listings</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Fulfillments</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Held</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Available</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Paid out</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Removed</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-200">
+      <% rows.forEach((row) => { %>
+      <tr data-seller="<%= row.id %>">
+        <th scope="row" class="px-4 py-3 font-normal">
+          <a href="/admin/sellers/<%= row.id %>" class="font-medium underline"><%= row.shopName ?? row.email %></a>
+          <div class="text-neutral-500"><%= row.email %></div>
+        </th>
+        <td class="px-4 py-3"><%= formatMoment(row.createdAt) %></td>
+        <td data-cell="listings" class="px-4 py-3 text-right tabular-nums"><%= row.listingCount %></td>
+        <td data-cell="fulfillments" class="px-4 py-3 text-right tabular-nums"><%= row.fulfillmentCount %></td>
+        <td data-cell="held" class="px-4 py-3 text-right tabular-nums"><%= formatCents(row.heldCents) %></td>
+        <td data-cell="available" class="px-4 py-3 text-right tabular-nums"><%= formatCents(row.availableCents) %></td>
+        <td data-cell="paid-out" class="px-4 py-3 text-right tabular-nums"><%= formatCents(row.paidOutCents) %></td>
+        <td data-cell="removed" class="px-4 py-3 text-right tabular-nums"><%= row.removedListingCount %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>

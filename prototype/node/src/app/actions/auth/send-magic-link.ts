@@ -1,0 +1,55 @@
+import { randomBytes } from 'node:crypto'
+import type { Clock } from '../../clock.ts'
+import type { ActorType } from '../../core/auth/actor-type.ts'
+import { normalizeEmail } from '../../core/auth/email-address.ts'
+import { magicLinkExpiresAt } from '../../core/auth/magic-link-status.ts'
+import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
+import type { AppDatabase } from '../../db/database.ts'
+import { toTimestamp } from '../../db/timestamp.ts'
+import type { MagicLinkDelivery } from '../../delivery/magic-link-delivery.ts'
+import type { Flash } from '../../plugins/flash.ts'
+
+const TOKEN_BYTES = 32
+
+export type SendMagicLinkDependencies = {
+  db: AppDatabase
+  clock: Clock
+  delivery: MagicLinkDelivery
+  /** Turns a token into the URL to click; the host it needs belongs to the request. */
+  magicLinkUrl(token: string): string
+}
+
+export type SendMagicLinkInput = {
+  email: string
+  actorType: ActorType
+  redirectTo?: string | null
+}
+
+/**
+ * Issues one link and hands it to the delivery, returning whatever the delivery
+ * wants the next page to show. The token itself is never stored, so this is the
+ * only moment it exists.
+ */
+export async function sendMagicLink(
+  { db, clock, delivery, magicLinkUrl }: SendMagicLinkDependencies,
+  { email, actorType, redirectTo = null }: SendMagicLinkInput,
+): Promise<Flash> {
+  const token = randomBytes(TOKEN_BYTES).toString('hex')
+  const address = normalizeEmail(email)
+  const issuedAt = clock.now()
+
+  await db
+    .insertInto('magicLinks')
+    .values({
+      tokenDigest: digestMagicLinkToken(token),
+      email: address,
+      actorType,
+      redirectTo,
+      expiresAt: toTimestamp(magicLinkExpiresAt(issuedAt)),
+      consumedAt: null,
+      createdAt: toTimestamp(issuedAt),
+    })
+    .execute()
+
+  return delivery.deliver({ email: address, url: magicLinkUrl(token), actorType })
+}

@@ -1,0 +1,63 @@
+<h1 class="text-2xl font-semibold">Ledger</h1>
+
+<form method="get" action="/admin/ledger" class="mt-4 flex flex-wrap items-end gap-3">
+  <div>
+    <label for="seller" class="block text-neutral-600">Seller</label>
+    <select id="seller" name="seller" class="rounded border border-neutral-400 bg-white px-2 py-1">
+      <option value="">All sellers</option>
+      <% sellers.forEach((seller) => { %>
+      <option value="<%= seller.id %>" <%= selectedSeller === seller.id ? 'selected' : '' %>><%= seller.name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div>
+    <label for="type" class="block text-neutral-600">Entry type</label>
+    <select id="type" name="type" class="rounded border border-neutral-400 bg-white px-2 py-1">
+      <option value="">All types</option>
+      <% entryTypes.forEach((entryType) => { %>
+      <option value="<%= entryType %>" <%= selectedType === entryType ? 'selected' : '' %>><%= statusLabel(entryType) %></option>
+      <% }) %>
+    </select>
+  </div>
+  <button type="submit" class="rounded border border-neutral-400 bg-white px-4 py-2 font-medium">Filter</button>
+</form>
+
+<dl class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+  <%- include('sites/admin/views/partials/stat', { key: 'held', label: 'Held', value: formatCents(totals.heldCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'available', label: 'Available', value: formatCents(totals.availableCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'paid-out', label: 'Paid out', value: formatCents(totals.paidOutCents) }) %>
+</dl>
+
+<% if (rows.length === 0) { %>
+<%- include('sites/admin/views/partials/empty', { message: 'No ledger entries match this filter.' }) %>
+<% } else { %>
+<div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <table class="w-full text-left">
+    <caption class="sr-only">Every ledger entry matching the filter above</caption>
+    <thead class="border-b border-neutral-300 bg-neutral-50">
+      <tr>
+        <th scope="col" class="px-4 py-2 font-semibold">Entry</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Type</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Fulfillment</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Payout</th>
+        <th scope="col" class="px-4 py-2 font-semibold">Occurred at</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-200">
+      <% rows.forEach((entry) => { %>
+      <tr data-entry="<%= entry.id %>">
+        <th scope="row" class="px-4 py-2 font-normal">#<%= entry.id %></th>
+        <td data-cell="seller" class="px-4 py-2"><%= entry.sellerName %></td>
+        <td data-cell="type" class="px-4 py-2"><%= statusLabel(entry.entryType) %></td>
+        <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= formatCents(entry.amountCents) %></td>
+        <td data-cell="fulfillment" class="px-4 py-2"><%= entry.fulfillmentId === null ? '—' : `#${entry.fulfillmentId}` %></td>
+        <td data-cell="payout" class="px-4 py-2"><%= entry.payoutId === null ? '—' : `#${entry.payoutId}` %></td>
+        <td data-cell="occurred-at" class="px-4 py-2"><%= formatMoment(entry.occurredAt) %></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>

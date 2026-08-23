@@ -1,0 +1,107 @@
+import type { Selectable } from 'kysely'
+import type { Clock } from '../../clock.ts'
+import type { ActorType } from '../../core/auth/actor-type.ts'
+import { magicLinkStatus } from '../../core/auth/magic-link-status.ts'
+import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
+import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
+import type { AppDatabase } from '../../db/database.ts'
+import type { MagicLinkTable } from '../../db/schema.ts'
+import { fromNullableTimestamp, fromTimestamp, toTimestamp } from '../../db/timestamp.ts'
+import { claimSellerIdentity } from './claim-seller-identity.ts'
+import { findAdminByEmail } from './find-admin-by-email.ts'
+
+export type MagicLinkRefusal = 'expired' | 'consumed' | 'unrecognized'
+
+export type MagicLinkSignIn =
+  | { outcome: 'unknown' }
+  | { outcome: 'refused'; actorType: ActorType; refusal: MagicLinkRefusal }
+  | { outcome: 'signedIn'; actorType: ActorType; actorId: number; redirectTo: string | null }
+
+export type SignInWithMagicLinkInput = {
+  token: string
+  /** The customer the identity cookie points at; only a customer link reads it. */
+  currentCustomerId: number | null
+}
+
+export type SignInWithMagicLinkDependencies = {
+  db: AppDatabase
+  clock: Clock
+}
+
+/**
+ * Spends one link and returns who it signed in. Every refusal names the side of
+ * the marketplace that asked, so the caller knows which sign-in page to send
+ * the visitor back to.
+ */
+export async function signInWithMagicLink(
+  { db, clock }: SignInWithMagicLinkDependencies,
+  { token, currentCustomerId }: SignInWithMagicLinkInput,
+): Promise<MagicLinkSignIn> {
+  const link = await db
+    .selectFrom('magicLinks')
+    .selectAll()
+    .where('tokenDigest', '=', digestMagicLinkToken(token))
+    .executeTakeFirst()
+
+  if (link === undefined) return { outcome: 'unknown' }
+
+  const now = clock.now()
+  const status = magicLinkStatus(
+    {
+      expiresAt: fromTimestamp(link.expiresAt),
+      consumedAt: fromNullableTimestamp(link.consumedAt),
+    },
+    now,
+  )
+
+  if (status !== 'usable') return { outcome: 'refused', actorType: link.actorType, refusal: status }
+  if (!(await consume(db, link.id, now))) {
+    return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
+  }
+
+  const actorId = await claimActor({ db, clock }, link, currentCustomerId)
+
+  if (actorId === null) {
+    return { outcome: 'refused', actorType: link.actorType, refusal: 'unrecognized' }
+  }
+
+  return {
+    outcome: 'signedIn',
+    actorType: link.actorType,
+    actorId,
+    redirectTo: link.redirectTo,
+  }
+}
+
+/**
+ * Spends the link, reporting whether this request is the one that spent it. The
+ * `consumed_at is null` clause is what makes a link work exactly once when two
+ * requests arrive together.
+ */
+async function consume(db: AppDatabase, linkId: number, now: Date): Promise<boolean> {
+  const result = await db
+    .updateTable('magicLinks')
+    .set({ consumedAt: toTimestamp(now) })
+    .where('id', '=', linkId)
+    .where('consumedAt', 'is', null)
+    .executeTakeFirst()
+
+  return result.numUpdatedRows > 0n
+}
+
+/** Returns null when the link names an actor the application will not create. */
+async function claimActor(
+  { db, clock }: SignInWithMagicLinkDependencies,
+  link: Selectable<MagicLinkTable>,
+  currentCustomerId: number | null,
+): Promise<number | null> {
+  switch (link.actorType) {
+    case 'seller':
+      return (await claimSellerIdentity({ db, clock }, link.email)).id
+    case 'customer':
+      return (await claimCustomerIdentity({ db, clock }, { email: link.email, currentCustomerId }))
+        .id
+    case 'admin':
+      return (await findAdminByEmail({ db }, link.email))?.id ?? null
+  }
+}

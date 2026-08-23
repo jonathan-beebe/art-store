@@ -1,0 +1,39 @@
+<div class="mt-4">
+  <label for="card_number" class="block text-base">Card number</label>
+  <input
+    type="text"
+    name="card_number"
+    id="card_number"
+    required
+    inputmode="numeric"
+    autocomplete="cc-number"
+    placeholder="4242 4242 4242 4242"
+    class="mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg"
+  />
+</div>
+
+<div class="mt-4 flex gap-4">
+  <div class="flex-1">
+    <label for="card_expiry" class="block text-base">Expiry</label>
+    <input
+      type="text"
+      name="card_expiry"
+      id="card_expiry"
+      autocomplete="cc-exp"
+      placeholder="04 / 30"
+      class="mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg"
+    />
+  </div>
+
+  <div class="flex-1">
+    <label for="card_cvc" class="block text-base">CVC</label>
+    <input
+      type="text"
+      name="card_cvc"
+      id="card_cvc"
+      autocomplete="cc-csc"
+      placeholder="123"
+      class="mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg"
+    />
+  </div>
+</div>

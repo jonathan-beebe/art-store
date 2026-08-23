@@ -1,0 +1,19 @@
+<h1 class="text-xl font-semibold">Your account</h1>
+<dl class="mt-4 space-y-2 text-sm">
+  <div>
+    <dt class="text-neutral-500">Name</dt>
+    <dd><%= identity.admin.name %></dd>
+  </div>
+  <div>
+    <dt class="text-neutral-500">Email</dt>
+    <dd><%= identity.admin.email %></dd>
+  </div>
+</dl>
+<form method="post" action="/admin/logout" class="mt-6">
+  <button
+    type="submit"
+    class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+  >
+    Sign out
+  </button>
+</form>

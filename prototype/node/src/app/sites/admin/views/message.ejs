@@ -1,0 +1,32 @@
+<h1 class="text-lg font-semibold" data-conversation="<%= thread.conversation.id %>"><%= thread.counterpart %></h1>
+<p class="mt-1 text-neutral-600"><%= thread.topic %></p>
+
+<ol class="mt-4 space-y-3">
+  <% thread.messages.forEach((message) => { %>
+  <li data-message="<%= message.id %>" data-sender-type="<%= message.senderType %>" class="rounded border border-neutral-300 bg-white p-3">
+    <p class="text-neutral-500">
+      <span data-cell="sender" class="font-medium text-neutral-700"><%= message.senderName %></span>
+      &middot;
+      <span data-cell="sent-at"><%= formatMoment(message.sentAt) %></span>
+    </p>
+    <p class="mt-1 whitespace-pre-wrap text-neutral-900"><%= message.body %></p>
+  </li>
+  <% }) %>
+</ol>
+
+<% if (thread.mayPost) { %>
+<form method="post" action="/admin/messages/<%= thread.conversation.id %>" class="mt-6 max-w-xl space-y-3">
+  <div>
+    <label for="body" class="block text-sm font-medium text-neutral-700">Reply</label>
+    <textarea
+      name="body"
+      id="body"
+      required
+      class="mt-1 block w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
+    ></textarea>
+  </div>
+  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+    Send
+  </button>
+</form>
+<% } %>
