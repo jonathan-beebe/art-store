@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\View\Composers;
 
-use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\CustomerIdentity;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 
 /**
@@ -27,13 +25,7 @@ final readonly class ShopLayoutComposer
         $view->with([
             'cartItemCount' => (int) $visitor->currentCart()->items()->sum('quantity'),
             'unreadNotificationCount' => $visitor->unreadNotifications()->count(),
-            'unreadMessageCount' => Message::query()
-                ->unreadBy($visitor)
-                ->whereHas('conversation', function (Builder $query) use ($visitor): Builder {
-                    /** @var Builder<Conversation> $query */
-                    return $query->withParticipant($visitor);
-                })
-                ->count(),
+            'unreadMessageCount' => Message::query()->unreadInInboxOf($visitor)->count(),
         ]);
     }
 }

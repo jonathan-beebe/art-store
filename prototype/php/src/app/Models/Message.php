@@ -74,4 +74,22 @@ class Message extends Model
                     ->orWhere('sender_id', '!=', $reader->id);
             });
     }
+
+    /**
+     * Everything waiting for a reader across the threads they are in — the
+     * total a site's nav badge carries. `unreadBy` says what unread means;
+     * this narrows it to the reader's own threads, so a message between two
+     * other people never lands on their count.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function unreadInInboxOf(Builder $query, Seller|Customer|Admin $reader): void
+    {
+        $query->unreadBy($reader)
+            ->whereHas('conversation', function (Builder $conversations) use ($reader): void {
+                /** @var Builder<Conversation> $conversations */
+                $conversations->withParticipant($reader);
+            });
+    }
 }

@@ -9,7 +9,10 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Message;
+use App\Notifications\MessageReceived;
+use App\Support\CustomerIdentity;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 
 it('lets a visitor who has never signed in ask and land on the thread', function (): void {
@@ -25,6 +28,24 @@ it('lets a visitor who has never signed in ask and land on the thread', function
         ->and($conversation->listing_id)->toBe($listing->id)
         ->and(Message::sole()->body)->toBe('Does this ship framed?');
     $response->assertRedirect(route('shop.messages.show', $conversation));
+    // The identity the question hangs on is carried forward to the next visit.
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $asker->id);
+});
+
+it('tells the seller a question is waiting', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+    $this->visitor();
+    Notification::fake();
+
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Does this ship framed?']);
+
+    Notification::assertSentTo(
+        $seller,
+        MessageReceived::class,
+        fn (MessageReceived $notification): bool => $notification->toArray($seller)['url']
+            === route('seller.messages.show', Conversation::sole()),
+    );
 });
 
 it('finds the same thread on a second question about the same listing', function (): void {
@@ -64,11 +85,47 @@ it('opens the thread but refuses the question while blocked', function (): void 
     $visitor = $this->visitor();
     CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    Notification::fake();
 
     $response = $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
 
     $response->assertForbidden();
     expect(Message::count())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+it('opens no second thread when a blocked visitor asks again', function (): void {
+    $visitor = $this->visitor();
+    CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Hello?']);
+
+    // The thread opens before the policy refuses the post, so a blocked
+    // visitor leaves an empty one behind. The subject key is what keeps it
+    // to one however many times they try.
+    expect(Conversation::count())->toBe(1)
+        ->and(Message::count())->toBe(0);
+});
+
+it('reads the empty thread as an inbox row with no preview on both sites', function (): void {
+    $visitor = $this->visitor();
+    CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
+    $seller = $this->seller('Blue Kiln Studio');
+    $this->listing($seller, ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
+
+    $visitorInbox = $this->get('/messages');
+    $sellerInbox = $this->actingAs($seller, 'seller')->get('/seller/messages');
+
+    $visitorInbox->assertOk();
+    $visitorInbox->assertSee('Blue Kiln Studio');
+    $visitorInbox->assertSee('Harbour at Dawn');
+    $sellerInbox->assertOk();
+    $sellerInbox->assertSee("Customer #{$visitor->id}");
+    $sellerInbox->assertSee('Harbour at Dawn');
+    $sellerInbox->assertDontSee('unread');
 });
 
 it('finds the anonymous thread on the verified account after the asker verifies', function (): void {
@@ -99,4 +156,21 @@ it('finds the anonymous thread on the verified account after the asker verifies'
         // The visitor's own question was theirs, so it must not read back as
         // unread now that it belongs to the verified account.
         ->and(Message::query()->unreadBy($verified)->count())->toBe(0);
+});
+
+it('carries the question to the seller and the answer back to the visitor', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+    $this->visitor();
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Does this ship framed?']);
+    $conversation = Conversation::sole();
+
+    $sellerThread = $this->actingAs($seller, 'seller')->get(route('seller.messages.show', $conversation));
+    $this->actingAs($seller, 'seller')
+        ->post(route('seller.messages.store', $conversation), ['body' => 'Yes, in black wood.']);
+
+    $sellerThread->assertSee('Does this ship framed?');
+    $this->get('/')->assertSee('Messages (1)', escape: false);
+    $this->get(route('shop.messages.show', $conversation))->assertSee('Yes, in black wood.');
+    $this->get('/')->assertDontSee('Messages (1)', escape: false);
 });

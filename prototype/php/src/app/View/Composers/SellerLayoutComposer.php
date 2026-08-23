@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\View\Composers;
 
-use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Seller;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 
 /**
@@ -25,12 +23,6 @@ final readonly class SellerLayoutComposer
             return;
         }
 
-        $view->with('unreadMessageCount', Message::query()
-            ->unreadBy($seller)
-            ->whereHas('conversation', function (Builder $query) use ($seller): Builder {
-                /** @var Builder<Conversation> $query */
-                return $query->withParticipant($seller);
-            })
-            ->count());
+        $view->with('unreadMessageCount', Message::query()->unreadInInboxOf($seller)->count());
     }
 }

@@ -126,3 +126,44 @@ specifies, inside `customer.identity` and outside `auth.customer`.
 ### Found, not fixed
 
 - Nothing outside scope.
+
+## Review
+
+The route table, the authorization shape, and the anonymous path match
+`docs/messaging.md`: all six routes sit inside `customer.identity` and outside
+`auth.customer`, `shop.order.messages` scopes its fulfillment to the order,
+and every read and write settles ownership through
+`ConversationPolicy::view`'s `denyAsNotFound`. Probed and held: an anonymous
+POST mints the identity cookie, opens the thread, and notifies the seller with
+the seller-side URL; a draft or archived listing 404s before a thread exists;
+another customer's conversation, order, and fulfillment all 404 on GET and
+POST with no message row written; support finds the first admin by id, reuses
+the thread on a second visit, and flashes with no admin seeded; the merge test
+asserts the row survives on the verified account with its `subject_key`
+rewritten and the visitor's own question reading as read.
+
+Changed in review. The nav total was restated in both layout composers —
+`unreadBy` plus a `whereHas('conversation', withParticipant)` nobody's test
+pinned, so the clause could be deleted with the suite still green. It is now
+`Message::unreadInInboxOf`, one scope over the two existing definitions, read
+by both composers and covered by a sidecar case that counts a stranger's
+thread out. Six tests added: the seller is notified by an anonymous ask, a
+blocked visitor's ask tells nobody and opens exactly one empty thread however
+many times they try, that empty thread renders as a row with a name, a topic,
+and no preview on both inboxes, the POST mints the identity cookie, a blocked
+visitor can still favorite, and one walk carries a question from the
+storefront to the seller's reply and back to the visitor's badge and thread.
+
+The empty thread a blocked customer's ask leaves behind is accepted for the
+prototype: it renders on both inboxes as a named row with no preview, it stays
+one row, and nothing is sent about it.
+
+`make check`: Pint clean on 423 files, 0 PHPStan errors, **1049 tests, 2322
+assertions**. `make coverage`: 100.0%.
+
+### Found, not fixed
+
+- `SellerLayoutComposerTest` and `ShopLayoutComposerTest` still pin only their
+  own actor's count; the stranger's-thread case lives on `MessageTest` beside
+  the scope. Enough to hold the rule, one level below the composers.
+
