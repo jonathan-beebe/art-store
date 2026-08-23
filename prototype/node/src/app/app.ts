@@ -58,6 +58,18 @@ export function buildApp({
   app.register(fastifyCookie, { secret: config.cookieSecret })
   app.register(fastifyFormbody)
   app.register(fastifyStatic, { root: PUBLIC_ROOT, prefix: '/' })
+  // A more specific prefix than the root registration above, so it wins for
+  // anything under /uploads/ — the only place a browser-uploaded file is
+  // served from. nosniff stops a browser from executing a served file as
+  // script no matter what content type it guesses.
+  app.register(fastifyStatic, {
+    root: config.uploadsDir,
+    prefix: '/uploads/',
+    decorateReply: false,
+    setHeaders: (reply) => {
+      reply.header('X-Content-Type-Options', 'nosniff')
+    },
+  })
 
   // Templates are addressed from the app root, so a site layout reaches the
   // shared partials by the same path every other template uses.

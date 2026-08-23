@@ -1,4 +1,4 @@
-import type { ListingDraftFields } from '../../core/listings/listing-draft.ts'
+import type { ListingDraftFields, UploadedImageFormat } from '../../core/listings/listing-draft.ts'
 
 export type MultipartField = { type: 'field'; value: unknown }
 export type MultipartFilePart = {
@@ -26,12 +26,16 @@ export function uploadedImagePart(body: MultipartBody): MultipartFilePart | null
   return part !== undefined && part.type === 'file' && part.filename !== '' ? part : null
 }
 
-/** The listing form's text fields, plus the content type of any uploaded
- * image, in the shape `listingDraftErrors` and `parseListingDraft` read. */
-export function listingDraftFieldsFrom(body: MultipartBody): ListingDraftFields {
-  const image = uploadedImagePart(body)
+/** The listing form's text fields, plus the uploaded image's sniffed format
+ * (the route reads the bytes and sniffs it — a multipart part's own filename
+ * and `Content-Type` decide nothing), in the shape `listingDraftErrors` and
+ * `parseListingDraft` read. */
+export function listingDraftFieldsFrom(
+  body: MultipartBody,
+  imageFormat: UploadedImageFormat | null,
+): ListingDraftFields {
   const fields: Record<string, string> = {}
   for (const name of TEXT_FIELDS) fields[name] = textValue(body, name)
 
-  return { ...fields, imageContentType: image?.mimetype ?? null }
+  return { ...fields, imageFormat }
 }

@@ -1,11 +1,16 @@
 import { parseDollars, type Cents } from '../money.ts'
+import type { ImageFormat } from './image-format.ts'
 
 const LINE_LIMIT = 255
 const DESCRIPTION_LIMIT = 5_000
 const QUANTITY_LIMIT = 999
 const DOLLARS_PATTERN = /^\d+(\.\d{1,2})?$/
 const WHOLE_NUMBER_PATTERN = /^\d+$/
-const IMAGE_CONTENT_TYPE_PATTERN = /^image\//
+
+/** What an uploaded image sniffed as: a recognized format, `'unrecognized'`
+ * for bytes that matched none of them, or `null`/`undefined` for no upload
+ * at all. Never the browser's filename or `Content-Type` header. */
+export type UploadedImageFormat = ImageFormat | 'unrecognized'
 
 export type ListingDraftFields = {
   title?: string
@@ -14,7 +19,7 @@ export type ListingDraftFields = {
   dimensions?: string
   price?: string
   quantity?: string
-  imageContentType?: string | null
+  imageFormat?: UploadedImageFormat | null
 }
 
 export type ListingDraftErrors = Partial<
@@ -44,8 +49,8 @@ function quantityError(value: string | undefined): string | undefined {
   return `The quantity is a whole number from 0 to ${QUANTITY_LIMIT}.`
 }
 
-function imageError(contentType: string | null | undefined): string | undefined {
-  if (contentType === null || contentType === undefined || IMAGE_CONTENT_TYPE_PATTERN.test(contentType)) {
+function imageError(imageFormat: UploadedImageFormat | null | undefined): string | undefined {
+  if (imageFormat === null || imageFormat === undefined || imageFormat !== 'unrecognized') {
     return undefined
   }
   return 'Upload an image file.'
@@ -59,7 +64,7 @@ export function listingDraftErrors(fields: ListingDraftFields): ListingDraftErro
     ['dimensions', lineError(fields.dimensions, LINE_LIMIT, 'dimensions')],
     ['price', priceError(fields.price)],
     ['quantity', quantityError(fields.quantity)],
-    ['image', imageError(fields.imageContentType)],
+    ['image', imageError(fields.imageFormat)],
   ]
 
   return Object.fromEntries(entries.filter(([, message]) => message !== undefined)) as ListingDraftErrors

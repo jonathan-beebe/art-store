@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import { loadConfig } from './config.ts'
+
+// Mirrors the PUBLIC_ROOT convention config.ts and app.ts both resolve from
+// their own directory, which is this file's directory too.
+const DEFAULT_UPLOADS_DIR = path.join(import.meta.dirname, '..', 'public', 'uploads')
 
 test('an empty environment yields the development defaults', () => {
   const config = loadConfig({})
@@ -12,6 +17,7 @@ test('an empty environment yields the development defaults', () => {
     cookieSecret: 'art-store-prototype-cookie-secret',
     logLevel: 'info',
     magicLinkDelivery: 'flash',
+    uploadsDir: DEFAULT_UPLOADS_DIR,
   })
 })
 
@@ -23,6 +29,7 @@ test('the environment overrides every default', () => {
     COOKIE_SECRET: 'a-secret-long-enough-to-sign',
     LOG_LEVEL: 'silent',
     MAGIC_LINK_DELIVERY: 'mail',
+    UPLOADS_DIR: '/var/data/uploads',
   })
 
   assert.equal(config.host, '127.0.0.1')
@@ -31,6 +38,7 @@ test('the environment overrides every default', () => {
   assert.equal(config.cookieSecret, 'a-secret-long-enough-to-sign')
   assert.equal(config.logLevel, 'silent')
   assert.equal(config.magicLinkDelivery, 'mail')
+  assert.equal(config.uploadsDir, '/var/data/uploads')
 })
 
 test('unrelated environment variables are ignored', () => {

@@ -55,17 +55,21 @@ test('a sold out edition may be zero', () => {
   assert.deepEqual(listingDraftErrors(fields({ quantity: '0' })), {})
 })
 
-test('an upload that is not an image is refused', () => {
-  const errors = listingDraftErrors(fields({ imageContentType: 'application/pdf' }))
+test('an upload whose bytes sniffed as no known format is refused', () => {
+  const errors = listingDraftErrors(fields({ imageFormat: 'unrecognized' }))
   assert.equal(errors.image, 'Upload an image file.')
 })
 
-test('an image upload is accepted', () => {
-  assert.deepEqual(listingDraftErrors(fields({ imageContentType: 'image/png' })), {})
+test('an image upload sniffed as a known format is accepted', () => {
+  assert.deepEqual(listingDraftErrors(fields({ imageFormat: 'png' })), {})
+  assert.deepEqual(listingDraftErrors(fields({ imageFormat: 'jpeg' })), {})
+  assert.deepEqual(listingDraftErrors(fields({ imageFormat: 'gif' })), {})
+  assert.deepEqual(listingDraftErrors(fields({ imageFormat: 'webp' })), {})
 })
 
 test('a form with no upload asks for none', () => {
-  assert.deepEqual(listingDraftErrors(fields({ imageContentType: null })), {})
+  assert.deepEqual(listingDraftErrors(fields({ imageFormat: null })), {})
+  assert.deepEqual(listingDraftErrors(fields({})), {})
 })
 
 test('it converts the price to cents', () => {

@@ -20,19 +20,19 @@ test('listingDraftFieldsFrom reads every text field', () => {
     quantity: textField('2'),
   }
 
-  assert.deepEqual(listingDraftFieldsFrom(body), {
+  assert.deepEqual(listingDraftFieldsFrom(body, null), {
     title: 'Harbour at Dusk',
     description: 'Oil on canvas.',
     medium: 'Oil',
     dimensions: '40 x 60 cm',
     price: '249.00',
     quantity: '2',
-    imageContentType: null,
+    imageFormat: null,
   })
 })
 
 test('a field left out of the body reads as an empty string', () => {
-  const fields = listingDraftFieldsFrom({})
+  const fields = listingDraftFieldsFrom({}, null)
 
   assert.equal(fields.title, '')
 })
@@ -52,8 +52,14 @@ test('uploadedImagePart reads a missing field as no image', () => {
   assert.equal(uploadedImagePart({}), null)
 })
 
-test('listingDraftFieldsFrom carries the uploaded image content type', () => {
-  const fields = listingDraftFieldsFrom({ image: filePart('harbour.png', 'image/png') })
+test('listingDraftFieldsFrom carries the sniffed image format the caller passes, not the part itself', () => {
+  const fields = listingDraftFieldsFrom({ image: filePart('harbour.png', 'image/png') }, 'png')
 
-  assert.equal(fields.imageContentType, 'image/png')
+  assert.equal(fields.imageFormat, 'png')
+})
+
+test('listingDraftFieldsFrom carries an unrecognized format through unchanged', () => {
+  const fields = listingDraftFieldsFrom({ image: filePart('evil.html', 'image/anything') }, 'unrecognized')
+
+  assert.equal(fields.imageFormat, 'unrecognized')
 })

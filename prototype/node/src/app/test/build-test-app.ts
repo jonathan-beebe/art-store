@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { claimSellerIdentity } from '../actions/auth/claim-seller-identity.ts'
 import { findAdminByEmail } from '../actions/auth/find-admin-by-email.ts'
@@ -14,6 +17,8 @@ import { flashMagicLinkDelivery } from '../delivery/flash-magic-link-delivery.ts
 /** Frozen so payout periods and link expiries read the same whatever day it is. */
 export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
 
+/** `uploadsDir` here is never read: `buildTestApp` always builds a fresh
+ * per-test temp directory unless a caller supplies its own `config`. */
 export const TEST_CONFIG: AppConfig = {
   host: '127.0.0.1',
   port: 0,
@@ -21,6 +26,7 @@ export const TEST_CONFIG: AppConfig = {
   cookieSecret: 'test-cookie-secret-long-enough',
   logLevel: 'silent',
   magicLinkDelivery: 'flash',
+  uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
 }
 
 export type TestApp = {
@@ -39,10 +45,20 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
   await migrateToLatest(db)
 
   const clock = overrides.clock ?? fixedClock(TEST_INSTANT)
+
+  // A config override brings its own uploadsDir; otherwise each test app
+  // gets an isolated temp directory removed with everything else it built.
+  let uploadsDir: string | null = null
+  let config = overrides.config
+  if (config === undefined) {
+    uploadsDir = await mkdtemp(path.join(tmpdir(), 'art-store-uploads-'))
+    config = { ...TEST_CONFIG, uploadsDir }
+  }
+
   const app = buildApp({
     db,
     clock,
-    config: overrides.config ?? TEST_CONFIG,
+    config,
     magicLinkDelivery: overrides.magicLinkDelivery ?? flashMagicLinkDelivery,
   })
   await app.ready()
@@ -54,6 +70,7 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
     close: async () => {
       await app.close()
       await db.destroy()
+      if (uploadsDir !== null) await rm(uploadsDir, { recursive: true, force: true })
     },
   }
 }

@@ -1,4 +1,3 @@
-import path from 'node:path'
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
@@ -10,7 +9,9 @@ import {
   parseListingDraft,
   type ListingDraftErrors,
   type ListingDraftFields,
+  type UploadedImageFormat,
 } from '../../../core/listings/listing-draft.ts'
+import { sniffImageFormat, type ImageFormat } from '../../../core/listings/image-format.ts'
 import { listingImageSource } from '../../../core/listings/placeholder-image.ts'
 import { LISTING_STATUSES, availableListingTransitions, isBlockedByRemoval } from '../../../core/listings/listing-status.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
@@ -22,8 +23,9 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
 import { listingDraftFieldsFrom, uploadedImagePart, type MultipartBody } from '../listing-form.ts'
-import { saveUploadedListingImage } from '../listing-image-upload.ts'
+import { MAX_IMAGE_UPLOAD_MB, saveUploadedListingImage } from '../listing-image-upload.ts'
 import { sellerNotFound } from '../not-found.ts'
+import { identityCookieValue } from '../../../plugins/identity.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
 import { listingEventCountsByDay, listingEventTotals, salesForListing } from '../queries/listing-activity.ts'
 import {
@@ -35,7 +37,7 @@ import {
 
 const ACTIVITY_WINDOW_DAYS = 14
 const ACTIVITY_WINDOW_MS = ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000
-const UPLOADS_DIR = path.join(import.meta.dirname, '..', '..', '..', '..', 'public', 'uploads')
+const OVERSIZED_IMAGE_MESSAGE = `Upload an image under ${MAX_IMAGE_UPLOAD_MB} MB.`
 
 const statusChangeSchema = z.object({ status: z.enum(LISTING_STATUSES) })
 
@@ -54,11 +56,71 @@ function editFieldsFrom(listing: Listing): ListingDraftFields {
   }
 }
 
-async function imagePathFromUpload(body: MultipartBody): Promise<string | undefined> {
-  const image = uploadedImagePart(body)
-  if (image === null) return undefined
+type UploadedImage = { buffer: Buffer; format: UploadedImageFormat }
 
-  return saveUploadedListingImage(UPLOADS_DIR, await image.toBuffer(), image.mimetype, image.filename)
+/** Reads the uploaded part's bytes and sniffs its format — the part's own
+ * filename and `Content-Type` decide nothing. Null when the field was left
+ * empty. */
+async function readUploadedImage(body: MultipartBody): Promise<UploadedImage | null> {
+  const image = uploadedImagePart(body)
+  if (image === null) return null
+
+  const buffer = await image.toBuffer()
+
+  return { buffer, format: sniffImageFormat(buffer) ?? 'unrecognized' }
+}
+
+/** The upload once `listingDraftErrors` has already refused an unrecognized
+ * format — narrows `format` to a real `ImageFormat` for the caller. */
+function acceptedUploadedImage(uploadedImage: UploadedImage | null): { buffer: Buffer; format: ImageFormat } | null {
+  if (uploadedImage === null || uploadedImage.format === 'unrecognized') return null
+
+  return { buffer: uploadedImage.buffer, format: uploadedImage.format }
+}
+
+async function savedImagePath(uploadsDir: string, uploadedImage: UploadedImage | null): Promise<string | undefined> {
+  const accepted = acceptedUploadedImage(uploadedImage)
+  if (accepted === null) return undefined
+
+  return saveUploadedListingImage(uploadsDir, accepted.buffer, accepted.format)
+}
+
+/** The seller id an identity cookie names, read independent of the
+ * `preHandler` identity hooks — a multipart part too large for the size
+ * limit throws while the body is still parsing, before any `preHandler`
+ * (including the one that resolves `request.currentSeller`) has run. */
+async function sellerIdFromIdentityCookie(request: FastifyRequest): Promise<number | null> {
+  const raw = identityCookieValue(request, 'seller')
+  if (raw === null) return null
+
+  const id = Number(raw)
+
+  return Number.isInteger(id) && id >= 1 ? id : null
+}
+
+/**
+ * The listing form re-rendered with an image field error, for a multipart
+ * upload @fastify/multipart refused as too large before any route handler
+ * ran. Shows the listing's saved fields on an edit URL for its owner,
+ * otherwise the blank new-listing form.
+ */
+export async function renderOversizedImageForm(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+  const errors: ListingDraftErrors = { image: OVERSIZED_IMAGE_MESSAGE }
+  const id = parseIdParam(request.params)
+  const sellerId = id === null ? null : await sellerIdFromIdentityCookie(request)
+  const listing = id === null || sellerId === null ? null : await ownedListing(request.server.db, sellerId, id)
+
+  if (listing !== null) {
+    return reply.code(422).render('listings/edit', {
+      title: `Edit ${listing.title}`,
+      listing,
+      fields: editFieldsFrom(listing),
+      errors,
+      imageSrc: listingImageSource(listing.imagePath, listing.title),
+    })
+  }
+
+  return reply.code(422).render('listings/new', { title: 'New listing', fields: emptyDraftFields(), errors })
 }
 
 async function findOwnedListing(request: FastifyRequest, reply: FastifyReply): Promise<Listing | null> {
@@ -103,16 +165,21 @@ async function newForm(_request: FastifyRequest, reply: FastifyReply): Promise<F
 
 async function create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   const body = request.body as MultipartBody
-  const fields = listingDraftFieldsFrom(body)
+  const uploadedImage = await readUploadedImage(body)
+  const fields = listingDraftFieldsFrom(body, uploadedImage?.format ?? null)
   const errors = listingDraftErrors(fields)
   if (Object.keys(errors).length > 0) {
     return reply.code(422).render('listings/new', { title: 'New listing', fields, errors })
   }
 
-  const { db, clock } = request.server
+  const { db, clock, config } = request.server
   const listing = await createListing(
     { db, clock },
-    { sellerId: currentSellerId(request), draft: parseListingDraft(fields), imagePath: await imagePathFromUpload(body) },
+    {
+      sellerId: currentSellerId(request),
+      draft: parseListingDraft(fields),
+      imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
+    },
   )
 
   reply.setFlash({ notice: `"${listing.title}" is saved as a draft.` })
@@ -137,7 +204,8 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
   if (listing === null) return reply
 
   const body = request.body as MultipartBody
-  const fields = listingDraftFieldsFrom(body)
+  const uploadedImage = await readUploadedImage(body)
+  const fields = listingDraftFieldsFrom(body, uploadedImage?.format ?? null)
   const errors = listingDraftErrors(fields)
   if (Object.keys(errors).length > 0) {
     return reply.code(422).render('listings/edit', {
@@ -149,10 +217,14 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
     })
   }
 
-  const { db, clock } = request.server
+  const { db, clock, config } = request.server
   const updated = await updateListing(
     { db, clock },
-    { listingId: listing.id, draft: parseListingDraft(fields), imagePath: await imagePathFromUpload(body) },
+    {
+      listingId: listing.id,
+      draft: parseListingDraft(fields),
+      imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
+    },
   )
 
   reply.setFlash({ notice: `"${updated.title}" is updated.` })
