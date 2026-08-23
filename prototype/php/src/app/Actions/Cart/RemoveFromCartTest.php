@@ -4,33 +4,26 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
-use Tests\CommerceTestCase;
+it('takes a listing back out of the cart', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $seller = $this->seller();
+    $kept = $this->listing($seller);
+    $removed = $this->listing($seller);
+    $addToCart = app(AddToCart::class);
+    $now = $this->moment('2026-08-20 09:00:00');
+    $addToCart($cart, $kept, 1, $now);
+    $addToCart($cart, $removed, 1, $now);
 
-final class RemoveFromCartTest extends CommerceTestCase
-{
-    public function test_it_takes_a_listing_back_out_of_the_cart(): void
-    {
-        $cart = $this->cartFor($this->verifiedCustomer());
-        $seller = $this->seller();
-        $kept = $this->listing($seller);
-        $removed = $this->listing($seller);
-        $addToCart = app(AddToCart::class);
-        $now = $this->moment('2026-08-20 09:00:00');
-        $addToCart($cart, $kept, 1, $now);
-        $addToCart($cart, $removed, 1, $now);
+    app(RemoveFromCart::class)($cart, $removed);
 
-        app(RemoveFromCart::class)($cart, $removed);
+    expect($cart->items()->pluck('listing_id')->all())->toBe([$kept->id]);
+});
 
-        $this->assertSame([$kept->id], $cart->items()->pluck('listing_id')->all());
-    }
+it('changes nothing when removing a listing the cart never held', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller());
 
-    public function test_removing_a_listing_the_cart_never_held_changes_nothing(): void
-    {
-        $cart = $this->cartFor($this->verifiedCustomer());
-        $listing = $this->listing($this->seller());
+    app(RemoveFromCart::class)($cart, $listing);
 
-        app(RemoveFromCart::class)($cart, $listing);
-
-        $this->assertSame(0, $cart->items()->count());
-    }
-}
+    expect($cart->items()->count())->toBe(0);
+});

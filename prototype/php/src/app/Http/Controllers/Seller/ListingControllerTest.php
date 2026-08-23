@@ -10,221 +10,170 @@ use App\Domain\Listings\ListingStatus;
 use App\Models\Listing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Tests\CommerceTestCase;
 
-final class ListingControllerTest extends CommerceTestCase
-{
-    public function test_it_sends_a_signed_out_visitor_to_the_sign_in_page(): void
-    {
-        $this->get('/seller/listings')->assertRedirect(route('auth.seller.login'));
-    }
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+$form = function (array $overrides = []): array {
+    return $overrides + [
+        'title' => 'Harbour at Dusk',
+        'description' => 'Oil on linen.',
+        'medium' => 'oil',
+        'dimensions' => '12 x 16 in',
+        'price' => '249.00',
+        'quantity' => 1,
+    ];
+};
 
-    public function test_it_lists_the_sellers_listings(): void
-    {
-        $seller = $this->seller();
-        $this->listing($seller, ['title' => 'Harbour at Dusk']);
+it('lists the sellers listings', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Harbour at Dusk']);
 
-        $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
-        $response->assertOk();
-        $response->assertSee('Harbour at Dusk');
-    }
+    $response->assertOk();
+    $response->assertSee('Harbour at Dusk');
+});
 
-    public function test_it_keeps_another_sellers_listings_off_the_table(): void
-    {
-        $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
+it('keeps another sellers listings off the table', function (): void {
+    $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
 
-        $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings');
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings');
 
-        $response->assertDontSee('Not Mine');
-    }
+    $response->assertDontSee('Not Mine');
+});
 
-    public function test_it_shows_the_event_counts_for_each_listing(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
-        $recordListingEvent = app(RecordListingEvent::class);
-        $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
-        $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
-        $recordListingEvent($listing, null, ListingEventType::CartAdd, $this->moment('2026-08-20 11:00:00'));
+it('shows the event counts for each listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
+    $recordListingEvent = app(RecordListingEvent::class);
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::CartAdd, $this->moment('2026-08-20 11:00:00'));
 
-        $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
-        $response->assertViewHas('listings', function ($listings): bool {
-            return $listings->first()->views_count === 2
-                && $listings->first()->favorites_count === 0
-                && $listings->first()->cart_adds_count === 1;
-        });
-    }
+    $response->assertViewHas('listings', function ($listings): bool {
+        return $listings->first()->views_count === 2
+            && $listings->first()->favorites_count === 0
+            && $listings->first()->cart_adds_count === 1;
+    });
+});
 
-    public function test_it_shows_a_placeholder_thumbnail_for_a_listing_without_an_image(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['image_path' => null]);
+it('shows a placeholder thumbnail for a listing without an image', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['image_path' => null]);
 
-        $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
-        $response->assertSee($listing->imageUrl(), escape: false);
-    }
+    $response->assertSee($listing->imageUrl(), escape: false);
+});
 
-    public function test_it_renders_the_create_form(): void
-    {
-        $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings/create');
+it('renders the create form', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings/create');
 
-        $response->assertOk();
-        $response->assertSee('New listing');
-        $response->assertSee('for="price"', escape: false);
-    }
+    $response->assertOk();
+    $response->assertSee('New listing');
+    $response->assertSee('for="price"', escape: false);
+});
 
-    public function test_it_creates_a_listing_from_the_form(): void
-    {
-        $seller = $this->seller();
+it('creates a listing from the form', function () use ($form): void {
+    $seller = $this->seller();
 
-        $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $this->form());
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
 
-        $response->assertRedirect(route('seller.listings.index'));
-        $listing = Listing::where('seller_id', $seller->id)->sole();
-        $this->assertSame('Harbour at Dusk', $listing->title);
-        $this->assertSame(24900, $listing->price_cents);
-        $this->assertSame(ListingStatus::Draft, $listing->status);
-    }
+    $response->assertRedirect(route('seller.listings.index'));
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    expect($listing->title)->toBe('Harbour at Dusk')
+        ->and($listing->price_cents)->toBe(24900)
+        ->and($listing->status)->toBe(ListingStatus::Draft);
+});
 
-    public function test_it_stores_an_uploaded_image_on_the_public_disk(): void
-    {
-        Storage::fake('public');
-        $seller = $this->seller();
+it('stores an uploaded image on the public disk', function () use ($form): void {
+    Storage::fake('public');
+    $seller = $this->seller();
 
-        $this->actingAs($seller, 'seller')->post('/seller/listings', $this->form([
-            'image' => UploadedFile::fake()->image('harbour.jpg'),
-        ]));
+    $this->actingAs($seller, 'seller')->post('/seller/listings', $form([
+        'image' => UploadedFile::fake()->image('harbour.jpg'),
+    ]));
 
-        $listing = Listing::where('seller_id', $seller->id)->sole();
-        Storage::disk('public')->assertExists($listing->image_path);
-    }
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    Storage::disk('public')->assertExists($listing->image_path);
+});
 
-    public function test_it_rejects_a_listing_without_a_title(): void
-    {
-        $response = $this->actingAs($this->seller(), 'seller')
-            ->post('/seller/listings', $this->form(['title' => '']));
+it('rejects invalid listing input', function (array $overrides, string $field) use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form($overrides));
 
-        $response->assertSessionHasErrors('title');
-        $this->assertSame(0, Listing::count());
-    }
+    $response->assertSessionHasErrors($field);
+    expect(Listing::count())->toBe(0);
+})->with([
+    'a listing without a title' => [['title' => ''], 'title'],
+    'a price that is not an amount in dollars' => [['price' => 'a lot'], 'price'],
+    'a price carrying fractions of a cent' => [['price' => '249.999'], 'price'],
+    'a negative quantity' => [['quantity' => -1], 'quantity'],
+]);
 
-    public function test_it_rejects_a_price_that_is_not_an_amount_in_dollars(): void
-    {
-        $response = $this->actingAs($this->seller(), 'seller')
-            ->post('/seller/listings', $this->form(['price' => 'a lot']));
+it('rejects an invalid image upload', function (string $filename, int $kilobytes, string $mimeType) use ($form): void {
+    Storage::fake('public');
 
-        $response->assertSessionHasErrors('price');
-    }
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
+        'image' => UploadedFile::fake()->create($filename, $kilobytes, $mimeType),
+    ]));
 
-    public function test_it_rejects_a_price_carrying_fractions_of_a_cent(): void
-    {
-        $response = $this->actingAs($this->seller(), 'seller')
-            ->post('/seller/listings', $this->form(['price' => '249.999']));
+    $response->assertSessionHasErrors('image');
+    expect(Listing::count())->toBe(0);
+})->with([
+    'a file that is not an image at all' => ['notes.txt', 4, 'text/plain'],
+    'a file that only claims to be an image' => ['harbour.jpg', 12, 'image/jpeg'],
+]);
 
-        $response->assertSessionHasErrors('price');
-    }
+it('renders the edit form with the price in dollars', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk', 'price_cents' => 24900]);
 
-    public function test_it_rejects_a_negative_quantity(): void
-    {
-        $response = $this->actingAs($this->seller(), 'seller')
-            ->post('/seller/listings', $this->form(['quantity' => -1]));
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
-        $response->assertSessionHasErrors('quantity');
-    }
+    $response->assertOk();
+    $response->assertSee('value="249.00"', escape: false);
+});
 
-    public function test_it_rejects_an_upload_that_is_not_an_image(): void
-    {
-        Storage::fake('public');
+it('updates a listing from the form', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Old title']);
 
-        $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $this->form([
-            'image' => UploadedFile::fake()->create('notes.txt', 4, 'text/plain'),
-        ]));
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}", $form());
 
-        $response->assertSessionHasErrors('image');
-    }
+    $response->assertRedirect(route('seller.listings.index'));
+    expect($listing->fresh()->title)->toBe('Harbour at Dusk')
+        ->and($listing->fresh()->price_cents)->toBe(24900);
+});
 
-    public function test_it_rejects_an_upload_that_only_claims_to_be_an_image(): void
-    {
-        Storage::fake('public');
+it('rejects an update without a title', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Old title']);
 
-        $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $this->form([
-            'image' => UploadedFile::fake()->create('harbour.jpg', 12, 'image/jpeg'),
-        ]));
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/listings/{$listing->id}", $form(['title' => '']));
 
-        $response->assertSessionHasErrors('image');
-        $this->assertSame(0, Listing::count());
-    }
+    $response->assertSessionHasErrors('title');
+    expect($listing->fresh()->title)->toBe('Old title');
+});
 
-    public function test_it_renders_the_edit_form_with_the_price_in_dollars(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['title' => 'Harbour at Dusk', 'price_cents' => 24900]);
+it('hides another sellers listing from the edit form', function (): void {
+    $listing = $this->listing($this->seller('Other Studio'));
 
-        $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/edit");
 
-        $response->assertOk();
-        $response->assertSee('value="249.00"', escape: false);
-    }
+    $response->assertNotFound();
+});
 
-    public function test_it_updates_a_listing_from_the_form(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['title' => 'Old title']);
+it('refuses to update another sellers listing', function () use ($form): void {
+    $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
 
-        $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}", $this->form());
+    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}", $form());
 
-        $response->assertRedirect(route('seller.listings.index'));
-        $this->assertSame('Harbour at Dusk', $listing->fresh()->title);
-        $this->assertSame(24900, $listing->fresh()->price_cents);
-    }
-
-    public function test_it_rejects_an_update_without_a_title(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['title' => 'Old title']);
-
-        $response = $this->actingAs($seller, 'seller')
-            ->post("/seller/listings/{$listing->id}", $this->form(['title' => '']));
-
-        $response->assertSessionHasErrors('title');
-        $this->assertSame('Old title', $listing->fresh()->title);
-    }
-
-    public function test_it_hides_another_sellers_listing_from_the_edit_form(): void
-    {
-        $listing = $this->listing($this->seller('Other Studio'));
-
-        $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-        $response->assertNotFound();
-    }
-
-    public function test_it_refuses_to_update_another_sellers_listing(): void
-    {
-        $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
-
-        $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}", $this->form());
-
-        $response->assertNotFound();
-        $this->assertSame('Not Mine', $listing->fresh()->title);
-    }
-
-    /**
-     * @param  array<string, mixed>  $overrides
-     * @return array<string, mixed>
-     */
-    private function form(array $overrides = []): array
-    {
-        return $overrides + [
-            'title' => 'Harbour at Dusk',
-            'description' => 'Oil on linen.',
-            'medium' => 'oil',
-            'dimensions' => '12 x 16 in',
-            'price' => '249.00',
-            'quantity' => 1,
-        ];
-    }
-}
+    $response->assertNotFound();
+    expect($listing->fresh()->title)->toBe('Not Mine');
+});

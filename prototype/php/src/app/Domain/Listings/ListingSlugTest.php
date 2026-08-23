@@ -4,35 +4,25 @@ declare(strict_types=1);
 
 namespace App\Domain\Listings;
 
-use PHPUnit\Framework\TestCase;
+it('slugs the title', function (): void {
+    expect(ListingSlug::firstFree('Harbour at Dusk', []))->toBe('harbour-at-dusk');
+});
 
-final class ListingSlugTest extends TestCase
-{
-    public function test_it_slugs_the_title(): void
-    {
-        $this->assertSame('harbour-at-dusk', ListingSlug::firstFree('Harbour at Dusk', []));
-    }
+it('numbers a slug another listing already holds', function (): void {
+    expect(ListingSlug::firstFree('Harbour at Dusk', ['harbour-at-dusk']))->toBe('harbour-at-dusk-2');
+});
 
-    public function test_it_numbers_a_slug_another_listing_already_holds(): void
-    {
-        $this->assertSame('harbour-at-dusk-2', ListingSlug::firstFree('Harbour at Dusk', ['harbour-at-dusk']));
-    }
+it('keeps counting past a numbered slug', function (): void {
+    $taken = ['harbour-at-dusk', 'harbour-at-dusk-2', 'harbour-at-dusk-3'];
 
-    public function test_it_keeps_counting_past_a_numbered_slug(): void
-    {
-        $taken = ['harbour-at-dusk', 'harbour-at-dusk-2', 'harbour-at-dusk-3'];
+    expect(ListingSlug::firstFree('Harbour at Dusk', $taken))->toBe('harbour-at-dusk-4');
+});
 
-        $this->assertSame('harbour-at-dusk-4', ListingSlug::firstFree('Harbour at Dusk', $taken));
-    }
+it('falls back to a word when the title slugs to nothing', function (): void {
+    expect(ListingSlug::firstFree('—', []))->toBe('listing')
+        ->and(ListingSlug::base('—'))->toBe('listing');
+});
 
-    public function test_it_falls_back_to_a_word_when_the_title_slugs_to_nothing(): void
-    {
-        $this->assertSame('listing', ListingSlug::firstFree('—', []));
-        $this->assertSame('listing', ListingSlug::base('—'));
-    }
-
-    public function test_its_base_ignores_what_is_already_taken(): void
-    {
-        $this->assertSame('harbour-at-dusk', ListingSlug::base('Harbour at Dusk'));
-    }
-}
+it('ignores what is already taken for its base', function (): void {
+    expect(ListingSlug::base('Harbour at Dusk'))->toBe('harbour-at-dusk');
+});

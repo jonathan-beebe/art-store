@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Listings;
 
-use Illuminate\Support\Str;
-
 final class ListingSlug
 {
     private const FALLBACK = 'listing';
@@ -15,7 +13,16 @@ final class ListingSlug
      */
     public static function base(string $title): string
     {
-        return Str::slug($title) ?: self::FALLBACK;
+        return self::transliterate($title) ?: self::FALLBACK;
+    }
+
+    private static function transliterate(string $title): string
+    {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $title) ?: '';
+        $lower = mb_strtolower($ascii);
+        $hyphenated = preg_replace('/[^a-z0-9]+/', '-', $lower) ?? '';
+
+        return trim($hyphenated, '-');
     }
 
     /**

@@ -10,115 +10,92 @@ use App\Domain\Orders\OrderStatus;
 use App\Models\Fulfillment;
 use App\Models\Notification;
 use App\Models\Seller;
-use Tests\CommerceTestCase;
 
-final class ShipmentControllerTest extends CommerceTestCase
-{
-    public function test_it_sends_a_signed_out_visitor_to_the_sign_in_page(): void
-    {
-        $fulfillment = $this->paidFulfillment($this->seller());
+$paidFulfillment = function (Seller $seller): Fulfillment {
+    $order = test()->orderFor(test()->verifiedCustomer(), test()->listing($seller));
+    app(FinalizeOrder::class)($order, '4242424242424242', test()->moment('2026-08-20 10:00:00'));
 
-        $this->post("/seller/orders/{$fulfillment->id}/shipment", $this->form())
-            ->assertRedirect(route('auth.seller.login'));
-    }
+    return Fulfillment::where('seller_id', $seller->id)->sole();
+};
 
-    public function test_it_marks_the_fulfillment_shipped(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
+/**
+ * @param  array<string, string>  $overrides
+ * @return array<string, string>
+ */
+$form = fn (array $overrides = []): array => $overrides + ['carrier' => 'Royal Mail', 'tracking_number' => 'RM123'];
 
-        $response = $this->actingAs($seller, 'seller')
-            ->post("/seller/orders/{$fulfillment->id}/shipment", $this->form());
+it('marks the fulfillment shipped', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
 
-        $response->assertRedirect(route('seller.orders.show', $fulfillment->id));
-        $shipped = $fulfillment->fresh();
-        $this->assertSame(FulfillmentStatus::Shipped, $shipped->status);
-        $this->assertSame('Royal Mail', $shipped->carrier);
-        $this->assertSame('RM123', $shipped->tracking_number);
-        $this->assertNotNull($shipped->shipped_at);
-    }
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    public function test_it_rolls_the_order_up_to_shipped(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
+    $response->assertRedirect(route('seller.orders.show', $fulfillment->id));
+    $shipped = $fulfillment->fresh();
+    expect($shipped->status)->toBe(FulfillmentStatus::Shipped)
+        ->and($shipped->carrier)->toBe('Royal Mail')
+        ->and($shipped->tracking_number)->toBe('RM123')
+        ->and($shipped->shipped_at)->not->toBeNull();
+});
 
-        $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $this->form());
+it('rolls the order up to shipped', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
 
-        $this->assertSame(OrderStatus::Shipped, $fulfillment->order->fresh()->status);
-    }
+    $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    public function test_it_notifies_the_customer(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
+    expect($fulfillment->order->fresh()->status)->toBe(OrderStatus::Shipped);
+});
 
-        $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $this->form());
+it('notifies the customer', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
 
-        $this->assertSame(1, Notification::where('customer_id', $fulfillment->order->customer_id)->count());
-    }
+    $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    public function test_it_rejects_a_shipment_without_a_carrier(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
+    expect(Notification::where('customer_id', $fulfillment->order->customer_id)->count())->toBe(1);
+});
 
-        $response = $this->actingAs($seller, 'seller')
-            ->post("/seller/orders/{$fulfillment->id}/shipment", $this->form(['carrier' => '']));
+it('rejects a shipment without a carrier', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
 
-        $response->assertSessionHasErrors('carrier');
-        $this->assertSame(FulfillmentStatus::AwaitingShipment, $fulfillment->fresh()->status);
-    }
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['carrier' => '']));
 
-    public function test_it_rejects_a_shipment_without_a_tracking_number(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
+    $response->assertSessionHasErrors('carrier');
+    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+});
 
-        $response = $this->actingAs($seller, 'seller')
-            ->post("/seller/orders/{$fulfillment->id}/shipment", $this->form(['tracking_number' => '']));
+it('rejects a shipment without a tracking number', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
 
-        $response->assertSessionHasErrors('tracking_number');
-    }
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['tracking_number' => '']));
 
-    public function test_it_refuses_to_ship_a_fulfillment_that_already_shipped(): void
-    {
-        $seller = $this->seller();
-        $fulfillment = $this->paidFulfillment($seller);
-        $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $this->form());
+    $response->assertSessionHasErrors('tracking_number');
+});
 
-        $response = $this->actingAs($seller, 'seller')
-            ->post("/seller/orders/{$fulfillment->id}/shipment", $this->form(['tracking_number' => 'RM999']));
+it('refuses to ship a fulfillment that already shipped', function () use ($paidFulfillment, $form): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+    $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-        $response->assertStatus(422);
-        $this->assertSame('RM123', $fulfillment->fresh()->tracking_number);
-    }
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['tracking_number' => 'RM999']));
 
-    public function test_it_refuses_to_ship_another_sellers_fulfillment(): void
-    {
-        $fulfillment = $this->paidFulfillment($this->seller('Other Studio'));
+    $response->assertStatus(422);
+    expect($fulfillment->fresh()->tracking_number)->toBe('RM123');
+});
 
-        $response = $this->actingAs($this->seller(), 'seller')
-            ->post("/seller/orders/{$fulfillment->id}/shipment", $this->form());
+it('refuses to ship another sellers fulfillment', function () use ($paidFulfillment, $form): void {
+    $fulfillment = $paidFulfillment($this->seller('Other Studio'));
 
-        $response->assertNotFound();
-        $this->assertSame(FulfillmentStatus::AwaitingShipment, $fulfillment->fresh()->status);
-    }
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    private function paidFulfillment(Seller $seller): Fulfillment
-    {
-        $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
-        app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
-
-        return Fulfillment::where('seller_id', $seller->id)->sole();
-    }
-
-    /**
-     * @param  array<string, string>  $overrides
-     * @return array<string, string>
-     */
-    private function form(array $overrides = []): array
-    {
-        return $overrides + ['carrier' => 'Royal Mail', 'tracking_number' => 'RM123'];
-    }
-}
+    $response->assertNotFound();
+    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+});

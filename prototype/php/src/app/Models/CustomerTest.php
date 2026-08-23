@@ -4,19 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use PHPUnit\Framework\TestCase;
+it('is anonymous when it has no email', function (): void {
+    expect((new Customer)->isAnonymous())->toBeTrue();
+});
 
-final class CustomerTest extends TestCase
-{
-    public function test_a_customer_without_an_address_is_anonymous(): void
-    {
-        $this->assertTrue((new Customer)->isAnonymous());
-    }
+it('is not anonymous once it has an email', function (): void {
+    $customer = new Customer(['email' => 'shopper@example.com']);
 
-    public function test_a_customer_with_an_address_is_not_anonymous(): void
-    {
-        $customer = new Customer(['email' => 'shopper@example.com']);
-
-        $this->assertFalse($customer->isAnonymous());
-    }
-}
+    expect($customer->isAnonymous())->toBeFalse();
+});

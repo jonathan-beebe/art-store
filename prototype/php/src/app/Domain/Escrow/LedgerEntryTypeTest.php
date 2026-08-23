@@ -4,15 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Escrow;
 
-use PHPUnit\Framework\TestCase;
-
-final class LedgerEntryTypeTest extends TestCase
-{
-    public function test_it_names_the_three_stages_money_passes_through(): void
-    {
-        $this->assertSame(
-            ['held', 'released', 'paid_out'],
-            array_column(LedgerEntryType::cases(), 'value'),
-        );
-    }
-}
+it('names the three stages money passes through', function (): void {
+    expect(array_column(LedgerEntryType::cases(), 'value'))
+        ->toBe(['held', 'released', 'paid_out']);
+});

@@ -176,25 +176,50 @@ same port shape as magic links will carry email later.
 
 ## Testing
 
-- Pest (ships with PHPUnit underneath). Tests are **sidecars**: `Foo.php` →
+- Pest, `it()`/`test()` functions with `beforeEach`, no PHPUnit classes
+  outside `tests/*TestCase.php`. Tests are **sidecars**: `Foo.php` →
   `FooTest.php` in the same directory. `phpunit.xml` scans `app/`, `routes/`,
   and `database/` for `*Test.php` (the last one added for the seeders under
   `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
-  files already `extends`: `Tests\CommerceTestCase` for `app/Actions`,
+  files need: `Tests\CommerceTestCase` for `app/Actions`,
   `app/Console/Commands`, `app/Http/Controllers/Seller`, and
   `app/Models/ListingTest.php`; `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop` and `tests/SmokeTest.php`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
   `app/Http/Middleware`, and `database/seeders`.
+- A repeated fixture is a protected method on `Tests\CommerceTestCase`
+  (`cartWithOneListing()`, `paidOrderWithTwoSellers()`,
+  `shippedFulfillmentFor()`, `deliveredFulfillmentFor()`); a fixture used by
+  one file is bound as a property in that file's `beforeEach`
+  (`$this->paidOrder = function (...) {...};`).
+- Tabulated input/output shapes are datasets: inline `->with([...])` or a
+  file-local `dataset()` call at the top of the sidecar. Named datasets
+  declared in `tests/Pest.php` do not resolve from sidecars under `app/`
+  (dataset scope is `tests/`), so the suite keeps datasets inline or
+  file-local instead of a shared library.
+- `tests/Arch.php` enforces the layer rules: `App\Domain` uses nothing from
+  `App\Models`, `App\Http`, `App\Actions`, `App\Console`,
+  `Illuminate\Database`, or facades, and calls no clock/random functions;
+  every class under `App\Actions` is final and invokable; controllers do not
+  use the `DB` facade; no debug functions anywhere; `env()` only in
+  `config/`, never under `App`; every file declares strict types — plus
+  Pest's `laravel` and `security` presets (with three `ignoring` entries:
+  `App\Http\Controllers`
+  for action-verb route methods, `App\Domain` for enums that live beside the
+  concept they model, and `App\Console\Commands\RunWeeklyPayouts` for its
+  artisan command name).
+- `tests/SidecarsTest.php` asserts every non-abstract, non-interface,
+  non-enum, non-trait class under `app/` has a sidecar, against a maintained
+  list of exceptions (classes covered by another file's tests, or with no
+  independently testable behavior); a second assertion fails if any
+  exception's sidecar now exists, so the list can only shrink.
 - One exception to the sidecar rule: `tests/SmokeTest.php`, the end-to-end
   walk, has no production file to sit beside. It is its own `Smoke` testsuite
   (`make smoke`) and runs inside `make test` as well.
-- Core tests (`app/Domain/**`) extend `PHPUnit\Framework\TestCase` — no app
-  boot, no database, no doubles.
-- Coordination tests (controllers, actions, commands) extend `Tests\TestCase`
-  with `RefreshDatabase` against in-memory SQLite; they drive HTTP and assert
-  on rendered HTML and database state.
+- Core tests (`app/Domain/**`) need no app boot, no database, no doubles.
+- Coordination tests (controllers, actions, commands) run against in-memory
+  SQLite; they drive HTTP and assert on rendered HTML and database state.
 - Coverage via `pcov`: `composer test:coverage` prints a text summary and
   writes `coverage/`. Targets: ≥ 90% on `app/Domain`, ≥ 80% overall — the
   actual numbers are FEAT-008's to report, in `docs/review.md`.
@@ -204,8 +229,9 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite. `make analyse` and `make lint` run the first two alone,
-  against the file tree only (`--no-deps`, no web server).
+  full Pest suite (485 tests, 1123 assertions). `make analyse` and `make lint`
+  run the first two alone, against the file tree only (`--no-deps`, no web
+  server).
 
 ## Repository layout
 

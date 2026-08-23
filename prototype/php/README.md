@@ -76,12 +76,23 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-471 tests, run by Pest. Tests are sidecars: `Money.php` and `MoneyTest.php` sit
-in the same directory. `phpunit.xml` scans `app/`, `routes/`, and `database/`
-for `*Test.php`; there is no `tests/Feature` or `tests/Unit`. Domain tests
-extend `PHPUnit\Framework\TestCase`; HTTP tests extend `Tests\TestCase`.
-`tests/Pest.php` binds `Tests\CommerceTestCase`, `Tests\StorefrontTestCase`,
-and `Tests\TestCase` + `RefreshDatabase` to the sidecar directories they serve.
+485 tests (1123 assertions), run by Pest — `it()`/`test()` functions, no
+PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
+and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
+`routes/`, and `database/` for `*Test.php`; there is no `tests/Feature` or
+`tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
+`Tests\StorefrontTestCase`, and `Tests\TestCase` + `RefreshDatabase` to the
+sidecar directories they serve. Tabulated input/output shapes are Pest
+datasets, declared inline with `->with([...])` or file-local with `dataset()`
+at the top of the sidecar — named datasets in `tests/Pest.php` are out of
+reach of sidecars under `app/`, so the suite keeps none there.
+
+`tests/Arch.php` enforces the layer rules from `docs/architecture.md`
+(`App\Domain` stays pure, `App\Actions` classes are final and invokable,
+controllers skip the `DB` facade, no debug calls, strict types everywhere)
+plus Pest's `laravel` and `security` presets. `tests/SidecarsTest.php` asserts
+every non-abstract class under `app/` has a sidecar test file, against a
+maintained, shrink-only list of exceptions.
 
 Static analysis (`make analyse`) runs PHPStan/Larastan at `level: max` over
 `app`, `database`, and `routes`; formatting (`make lint`) runs Pint with

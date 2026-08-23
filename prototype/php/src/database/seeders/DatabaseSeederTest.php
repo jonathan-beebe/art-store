@@ -19,82 +19,60 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Seller;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-class DatabaseSeederTest extends TestCase
-{
-    use RefreshDatabase;
+beforeEach(function (): void {
+    $this->seed();
+});
 
-    public function test_it_seeds_four_verified_sellers(): void
-    {
-        $this->seed();
+it('seeds four verified sellers', function (): void {
+    expect(Seller::count())->toBe(4)
+        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(4);
+});
 
-        $this->assertSame(4, Seller::count());
-        $this->assertSame(4, Seller::whereNotNull('email_verified_at')->count());
-    }
+it('seeds listings across statuses and media', function (): void {
+    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(24)
+        ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
+        ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
 
-    public function test_it_seeds_listings_across_statuses_and_media(): void
-    {
-        $this->seed();
+    expect(Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all())
+        ->toBe(['ceramic', 'painting', 'photography', 'print', 'sculpture', 'textile']);
+});
 
-        $this->assertSame(24, Listing::where('status', ListingStatus::ForSale)->count());
-        $this->assertSame(3, Listing::where('status', ListingStatus::Draft)->count());
-        $this->assertSame(2, Listing::where('status', ListingStatus::Sold)->count());
+it('seeds one verified customer with favorites', function (): void {
+    $customer = Customer::where('email', 'casey@example.com')->first();
 
-        $media = Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all();
-        $this->assertSame(['ceramic', 'painting', 'photography', 'print', 'sculpture', 'textile'], $media);
-    }
+    expect($customer)->not->toBeNull();
+    expect($customer->email_verified_at)->not->toBeNull();
+    expect(Favorite::where('customer_id', $customer->id)->count())->toBe(3);
+    expect(ListingEvent::count())->toBeGreaterThanOrEqual(6);
+});
 
-    public function test_it_seeds_one_verified_customer_with_favorites(): void
-    {
-        $this->seed();
+it('seeds order history for two sellers', function (): void {
+    expect(Order::count())->toBe(3)
+        ->and(Order::where('status', '!=', OrderStatus::PendingVerification)->count())->toBe(3);
 
-        $customer = Customer::where('email', 'casey@example.com')->first();
+    expect(Fulfillment::where('status', FulfillmentStatus::AwaitingShipment)->count())->toBe(1)
+        ->and(Fulfillment::where('status', FulfillmentStatus::Shipped)->count())->toBe(1)
+        ->and(Fulfillment::where('status', FulfillmentStatus::Delivered)->count())->toBe(1);
 
-        $this->assertNotNull($customer);
-        $this->assertNotNull($customer->email_verified_at);
-        $this->assertSame(3, Favorite::where('customer_id', $customer->id)->count());
-        $this->assertGreaterThanOrEqual(6, ListingEvent::count());
-    }
+    expect(Fulfillment::query()->distinct()->pluck('seller_id'))->toHaveCount(2);
 
-    public function test_it_seeds_order_history_for_two_sellers(): void
-    {
-        $this->seed();
+    expect(Payment::count())->toBe(3);
+});
 
-        $this->assertSame(3, Order::count());
-        $this->assertSame(3, Order::where('status', '!=', OrderStatus::PendingVerification)->count());
+it('releases and pays out the delivered order', function (): void {
+    expect(LedgerEntry::where('type', LedgerEntryType::Held)->count())->toBe(3)
+        ->and(LedgerEntry::where('type', LedgerEntryType::Released)->count())->toBe(1)
+        ->and(LedgerEntry::where('type', LedgerEntryType::PaidOut)->count())->toBe(1);
 
-        $this->assertSame(1, Fulfillment::where('status', FulfillmentStatus::AwaitingShipment)->count());
-        $this->assertSame(1, Fulfillment::where('status', FulfillmentStatus::Shipped)->count());
-        $this->assertSame(1, Fulfillment::where('status', FulfillmentStatus::Delivered)->count());
+    expect(Payout::count())->toBe(1);
 
-        $sellerIds = Fulfillment::query()->distinct()->pluck('seller_id');
-        $this->assertCount(2, $sellerIds);
+    $deliveredFulfillment = Fulfillment::where('status', FulfillmentStatus::Delivered)->firstOrFail();
+    $payout = Payout::firstOrFail();
+    expect($payout->seller_id)->toBe($deliveredFulfillment->seller_id)
+        ->and($payout->amount_cents)->toBe($deliveredFulfillment->net_cents);
+});
 
-        $this->assertSame(3, Payment::count());
-    }
-
-    public function test_it_releases_and_pays_out_the_delivered_order(): void
-    {
-        $this->seed();
-
-        $this->assertSame(3, LedgerEntry::where('type', LedgerEntryType::Held)->count());
-        $this->assertSame(1, LedgerEntry::where('type', LedgerEntryType::Released)->count());
-        $this->assertSame(1, LedgerEntry::where('type', LedgerEntryType::PaidOut)->count());
-
-        $this->assertSame(1, Payout::count());
-
-        $deliveredFulfillment = Fulfillment::where('status', FulfillmentStatus::Delivered)->firstOrFail();
-        $payout = Payout::firstOrFail();
-        $this->assertSame($deliveredFulfillment->seller_id, $payout->seller_id);
-        $this->assertSame($deliveredFulfillment->net_cents, $payout->amount_cents);
-    }
-
-    public function test_it_notifies_sellers_and_the_customer(): void
-    {
-        $this->seed();
-
-        $this->assertSame(5, Notification::count());
-    }
-}
+it('notifies sellers and the customer', function (): void {
+    expect(Notification::count())->toBe(5);
+});

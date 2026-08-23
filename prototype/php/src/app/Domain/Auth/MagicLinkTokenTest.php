@@ -4,22 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Auth;
 
-use PHPUnit\Framework\TestCase;
+it('hashes a token with sha256', function (): void {
+    expect(MagicLinkToken::hash('abc'))->toBe(hash('sha256', 'abc'));
+});
 
-final class MagicLinkTokenTest extends TestCase
-{
-    public function test_it_hashes_a_token_with_sha256(): void
-    {
-        $this->assertSame(hash('sha256', 'abc'), MagicLinkToken::hash('abc'));
-    }
+it('hashes the same token to the same digest', function (): void {
+    expect(MagicLinkToken::hash('abc'))->toBe(MagicLinkToken::hash('abc'));
+});
 
-    public function test_it_hashes_the_same_token_to_the_same_digest(): void
-    {
-        $this->assertSame(MagicLinkToken::hash('abc'), MagicLinkToken::hash('abc'));
-    }
-
-    public function test_it_hashes_different_tokens_to_different_digests(): void
-    {
-        $this->assertNotSame(MagicLinkToken::hash('abc'), MagicLinkToken::hash('abd'));
-    }
-}
+it('hashes different tokens to different digests', function (): void {
+    expect(MagicLinkToken::hash('abc'))->not->toBe(MagicLinkToken::hash('abd'));
+});

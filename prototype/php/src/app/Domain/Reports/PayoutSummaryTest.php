@@ -4,29 +4,21 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use PHPUnit\Framework\TestCase;
+it('counts the payouts a run wrote', function (): void {
+    $summary = PayoutSummary::of([9000, 4500]);
 
-final class PayoutSummaryTest extends TestCase
-{
-    public function test_it_counts_the_payouts_a_run_wrote(): void
-    {
-        $summary = PayoutSummary::of([9000, 4500]);
+    expect($summary->count)->toBe(2);
+});
 
-        $this->assertSame(2, $summary->count);
-    }
+it('totals the amounts paid out', function (): void {
+    $summary = PayoutSummary::of([9000, 4500]);
 
-    public function test_it_totals_the_amounts_paid_out(): void
-    {
-        $summary = PayoutSummary::of([9000, 4500]);
+    expect($summary->total->format())->toBe('$135.00');
+});
 
-        $this->assertSame('$135.00', $summary->total->format());
-    }
+it('totals zero for a run that paid nobody', function (): void {
+    $summary = PayoutSummary::of([]);
 
-    public function test_a_run_that_paid_nobody_totals_zero(): void
-    {
-        $summary = PayoutSummary::of([]);
-
-        $this->assertSame(0, $summary->count);
-        $this->assertSame('$0.00', $summary->total->format());
-    }
-}
+    expect($summary->count)->toBe(0)
+        ->and($summary->total->format())->toBe('$0.00');
+});

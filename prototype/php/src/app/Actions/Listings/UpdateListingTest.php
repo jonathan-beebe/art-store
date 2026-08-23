@@ -10,85 +10,66 @@ use App\Domain\Money\Money;
 use App\Models\Listing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Tests\CommerceTestCase;
 
-final class UpdateListingTest extends CommerceTestCase
-{
-    public function test_it_writes_the_drafted_fields(): void
-    {
-        $listing = $this->listing($this->seller(), ['title' => 'Old title', 'price_cents' => 100]);
+$draft = fn (): ListingDraft => new ListingDraft(
+    'Harbour at Dawn',
+    'Oil on linen.',
+    'oil',
+    '12 x 16 in',
+    Money::fromCents(9900),
+    1,
+);
 
-        ($this->updateListing())($listing, $this->draft());
+it('writes the drafted fields', function () use ($draft): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Old title', 'price_cents' => 100]);
 
-        $this->assertSame('Harbour at Dawn', $listing->fresh()->title);
-        $this->assertSame(9900, $listing->fresh()->price_cents);
-    }
+    app(UpdateListing::class)($listing, $draft());
 
-    public function test_it_keeps_the_slug_a_renamed_listing_was_shared_under(): void
-    {
-        $listing = $this->listing($this->seller(), ['title' => 'Old title', 'slug' => 'old-title']);
+    expect($listing->fresh())->title->toBe('Harbour at Dawn')->price_cents->toBe(9900);
+});
 
-        ($this->updateListing())($listing, $this->draft());
+it('keeps the slug a renamed listing was shared under', function () use ($draft): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Old title', 'slug' => 'old-title']);
 
-        $this->assertSame('old-title', $listing->fresh()->slug);
-    }
+    app(UpdateListing::class)($listing, $draft());
 
-    public function test_it_keeps_the_status_the_listing_already_had(): void
-    {
-        $listing = $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
+    expect($listing->fresh()->slug)->toBe('old-title');
+});
 
-        ($this->updateListing())($listing, $this->draft());
+it('keeps the status the listing already had', function () use ($draft): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
 
-        $this->assertSame(ListingStatus::ForSale, $listing->fresh()->status);
-    }
+    app(UpdateListing::class)($listing, $draft());
 
-    public function test_it_keeps_the_image_when_the_form_uploads_none(): void
-    {
-        $listing = $this->listing($this->seller(), ['image_path' => 'listings/kept.jpg']);
+    expect($listing)->toHaveStatus(ListingStatus::ForSale);
+});
 
-        ($this->updateListing())($listing, $this->draft());
+it('keeps the image when the form uploads none', function () use ($draft): void {
+    $listing = $this->listing($this->seller(), ['image_path' => 'listings/kept.jpg']);
 
-        $this->assertSame('listings/kept.jpg', $listing->fresh()->image_path);
-    }
+    app(UpdateListing::class)($listing, $draft());
 
-    public function test_it_replaces_the_image_and_deletes_the_file_it_replaced(): void
-    {
-        Storage::fake('public');
-        Storage::disk('public')->put('listings/old.jpg', 'old');
-        $listing = $this->listing($this->seller(), ['image_path' => 'listings/old.jpg']);
+    expect($listing->fresh()->image_path)->toBe('listings/kept.jpg');
+});
 
-        ($this->updateListing())($listing, $this->draft(), UploadedFile::fake()->image('new.jpg'));
+it('replaces the image and deletes the file it replaced', function () use ($draft): void {
+    Storage::fake('public');
+    Storage::disk('public')->put('listings/old.jpg', 'old');
+    $listing = $this->listing($this->seller(), ['image_path' => 'listings/old.jpg']);
 
-        $this->assertNotSame('listings/old.jpg', $listing->fresh()->image_path);
-        Storage::disk('public')->assertMissing('listings/old.jpg');
-        Storage::disk('public')->assertExists($listing->fresh()->image_path);
-    }
+    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
 
-    public function test_it_leaves_other_listings_alone(): void
-    {
-        $seller = $this->seller();
-        $listing = $this->listing($seller, ['title' => 'Mine']);
-        $other = $this->listing($seller, ['title' => 'Untouched']);
+    expect($listing->fresh()->image_path)->not->toBe('listings/old.jpg');
+    Storage::disk('public')->assertMissing('listings/old.jpg');
+    Storage::disk('public')->assertExists($listing->fresh()->image_path);
+});
 
-        ($this->updateListing())($listing, $this->draft());
+it('leaves other listings alone', function () use ($draft): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Mine']);
+    $other = $this->listing($seller, ['title' => 'Untouched']);
 
-        $this->assertSame('Untouched', Listing::find($other->id)->title);
-    }
+    app(UpdateListing::class)($listing, $draft());
 
-    private function updateListing(): UpdateListing
-    {
-        return app(UpdateListing::class);
-    }
-
-    private function draft(): ListingDraft
-    {
-        return new ListingDraft(
-            'Harbour at Dawn',
-            'Oil on linen.',
-            'oil',
-            '12 x 16 in',
-            Money::fromCents(9900),
-            1,
-        );
-    }
-}
+    expect(Listing::find($other->id)->title)->toBe('Untouched');
+});

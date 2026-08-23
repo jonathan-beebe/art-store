@@ -1,7 +1,7 @@
 ---
 id: RFCTR-001
 type: refactor
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -35,3 +35,39 @@ The brief scores the prototype on test quality in Pest style; the suite is the m
 
 ## Related work
 - MAINT-001
+
+## Working
+- Fixture bindings: a general fixture used across files lives as a protected
+  method on `Tests\CommerceTestCase` (`cartWithOneListing()`,
+  `paidOrderWithTwoSellers()`, and the pre-existing `shippedFulfillmentFor()` /
+  `deliveredFulfillmentFor()`). A file-specific helper is bound as a property
+  in `beforeEach` (`$this->paidOrder = function (...) {...};`, called as
+  `($this->paidOrder)(...)`), which needs no `use (&...)`. No file carries a
+  top-level `$var = null;` plus by-reference closure any more.
+- Dataset scoping: named datasets declared in `tests/Pest.php` do not resolve
+  from sidecars under `app/` (dataset scope is `tests/`). Inline `->with([...])`
+  arrays and file-local `dataset()` calls at the top of a sidecar both work and
+  are what the suite uses.
+- Guarded-routes tests (`app/Http/Controllers/Seller/GuardedRoutesTest.php`,
+  `app/Http/Controllers/Shop/GuardedRoutesTest.php`) loop over
+  `Route::getRoutes()` inside the `it()` body rather than feeding a Pest
+  dataset, because datasets are built before the app boots — the route table
+  does not exist yet at dataset-evaluation time.
+- `tests/Arch.php`'s `arch()->preset()->laravel()` carries three `ignoring`
+  entries: `App\Http\Controllers` (action verbs like `place`/`pay`/`toggle`
+  don't fit the preset's REST-only method vocabulary), `App\Domain` (domain
+  enums live beside the concept they model, not centralized under
+  `App\Enums`), and `App\Console\Commands\RunWeeklyPayouts` (named for the
+  artisan command signature it registers, not suffixed `Command`).
+- `tests/SidecarsTest.php` carries 23 sidecar exceptions, 4 with a "covered by"
+  pointer to the file that exercises them; a second assertion now fails if any
+  exception's sidecar exists on disk, so the list can only shrink.
+- Test counts: 471 tests / 1101 assertions before this ticket, 485 tests /
+  1123 assertions after.
+- Consolidated helpers: `CommerceTestCase::shippedFulfillmentFor()` and
+  `deliveredFulfillmentFor()` (pre-existing, now also used by
+  `RunWeeklyPayoutTest` and `ConfirmDeliveredTest`), plus the two added in
+  this pass, `cartWithOneListing()` and `paidOrderWithTwoSellers()`.
+- `App\Domain\Listings\ListingSlug` inlines transliteration with
+  `iconv`/`mb_strtolower`/`preg_replace` and no longer imports
+  `Illuminate\Support\Str`.

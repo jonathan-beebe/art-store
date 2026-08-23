@@ -8,33 +8,27 @@ use App\Domain\Favorites\FavoriteChange;
 use App\Domain\Listings\ListingEventType;
 use App\Models\Favorite;
 use App\Models\ListingEvent;
-use Tests\CommerceTestCase;
 
-final class ToggleFavoriteTest extends CommerceTestCase
-{
-    public function test_it_adds_a_favorite_and_records_the_event(): void
-    {
-        $customer = $this->anonymousCustomer();
-        $listing = $this->listing($this->seller());
+it('adds a favorite and records the event', function (): void {
+    $customer = $this->anonymousCustomer();
+    $listing = $this->listing($this->seller());
 
-        $change = app(ToggleFavorite::class)($customer, $listing, $this->moment('2026-08-20 08:00:00'));
+    $change = app(ToggleFavorite::class)($customer, $listing, $this->moment('2026-08-20 08:00:00'));
 
-        $this->assertSame(FavoriteChange::Added, $change);
-        $this->assertSame($listing->id, Favorite::sole()->listing_id);
-        $this->assertSame(ListingEventType::Favorite, ListingEvent::sole()->type);
-    }
+    expect($change)->toBe(FavoriteChange::Added)
+        ->and(Favorite::sole()->listing_id)->toBe($listing->id)
+        ->and(ListingEvent::sole()->type)->toBe(ListingEventType::Favorite);
+});
 
-    public function test_it_removes_a_favorite_and_records_the_event(): void
-    {
-        $customer = $this->anonymousCustomer();
-        $listing = $this->listing($this->seller());
-        $toggle = app(ToggleFavorite::class);
-        $toggle($customer, $listing, $this->moment('2026-08-20 08:00:00'));
+it('removes a favorite and records the event', function (): void {
+    $customer = $this->anonymousCustomer();
+    $listing = $this->listing($this->seller());
+    $toggle = app(ToggleFavorite::class);
+    $toggle($customer, $listing, $this->moment('2026-08-20 08:00:00'));
 
-        $change = $toggle($customer, $listing, $this->moment('2026-08-20 08:05:00'));
+    $change = $toggle($customer, $listing, $this->moment('2026-08-20 08:05:00'));
 
-        $this->assertSame(FavoriteChange::Removed, $change);
-        $this->assertSame(0, Favorite::count());
-        $this->assertSame(ListingEventType::Unfavorite, ListingEvent::orderByDesc('id')->first()->type);
-    }
-}
+    expect($change)->toBe(FavoriteChange::Removed)
+        ->and(Favorite::count())->toBe(0)
+        ->and(ListingEvent::orderByDesc('id')->first()->type)->toBe(ListingEventType::Unfavorite);
+});

@@ -34,3 +34,18 @@ pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Middleware',
     '../database/seeders',
 );
+
+/*
+|--------------------------------------------------------------------------
+| Expectations
+|--------------------------------------------------------------------------
+*/
+
+expect()->extend('toBeMoney', function (int $cents) {
+    return expect($this->value)->toBeInstanceOf(App\Domain\Money\Money::class)
+        ->and($this->value->cents)->toBe($cents);
+});
+
+expect()->extend('toHaveStatus', function (UnitEnum $status) {
+    return expect($this->value->fresh()?->status)->toBe($status);
+});

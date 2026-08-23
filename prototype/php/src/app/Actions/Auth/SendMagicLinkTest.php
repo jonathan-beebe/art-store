@@ -7,62 +7,46 @@ namespace App\Actions\Auth;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkToken;
 use App\Models\MagicLink;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-final class SendMagicLinkTest extends TestCase
-{
-    use RefreshDatabase;
+$send = function (string $email, ActorType $actorType, ?string $redirectTo = null): string {
+    app(SendMagicLink::class)($email, $actorType, $redirectTo);
 
-    public function test_it_stores_only_the_hash_of_the_token_it_delivers(): void
-    {
-        $url = $this->send('Artist@Example.com', ActorType::Seller);
+    return session('debug_magic_link');
+};
 
-        $token = basename(parse_url($url, PHP_URL_PATH));
-        $link = MagicLink::sole();
+it('stores only the hash of the token it delivers', function () use ($send): void {
+    $url = $send('Artist@Example.com', ActorType::Seller);
+    $token = basename(parse_url($url, PHP_URL_PATH));
 
-        $this->assertSame(MagicLinkToken::hash($token), $link->token_hash);
-        $this->assertStringNotContainsString($token, $link->token_hash);
-    }
+    expect(MagicLink::sole()->token_hash)
+        ->toBe(MagicLinkToken::hash($token))
+        ->not->toContain($token);
+});
 
-    public function test_it_normalizes_the_address_on_the_link(): void
-    {
-        $this->send('Artist@Example.com', ActorType::Seller);
+it('normalizes the address on the link', function () use ($send): void {
+    $send('Artist@Example.com', ActorType::Seller);
 
-        $this->assertSame('artist@example.com', MagicLink::sole()->email);
-    }
+    expect(MagicLink::sole()->email)->toBe('artist@example.com');
+});
 
-    public function test_it_records_the_actor_the_link_signs_in(): void
-    {
-        $this->send('shopper@example.com', ActorType::Customer);
+it('records the actor the link signs in', function () use ($send): void {
+    $send('shopper@example.com', ActorType::Customer);
 
-        $this->assertSame(ActorType::Customer, MagicLink::sole()->actor_type);
-    }
+    expect(MagicLink::sole()->actor_type)->toBe(ActorType::Customer);
+});
 
-    public function test_it_expires_the_link_after_the_configured_window(): void
-    {
-        config(['magic_links.expiry_minutes' => 15]);
-        $this->freezeTime();
+it('expires the link after the configured window', function () use ($send): void {
+    config(['magic_links.expiry_minutes' => 15]);
+    $this->freezeTime();
 
-        $this->send('artist@example.com', ActorType::Seller);
+    $send('artist@example.com', ActorType::Seller);
 
-        $this->assertSame(
-            now()->addMinutes(15)->format('Y-m-d H:i:s'),
-            MagicLink::sole()->expires_at->format('Y-m-d H:i:s'),
-        );
-    }
+    expect(MagicLink::sole()->expires_at->format('Y-m-d H:i:s'))
+        ->toBe(now()->addMinutes(15)->format('Y-m-d H:i:s'));
+});
 
-    public function test_it_carries_the_page_the_visitor_was_heading_for(): void
-    {
-        $this->send('shopper@example.com', ActorType::Customer, '/checkout');
+it('carries the page the visitor was heading for', function () use ($send): void {
+    $send('shopper@example.com', ActorType::Customer, '/checkout');
 
-        $this->assertSame('/checkout', MagicLink::sole()->redirect_to);
-    }
-
-    private function send(string $email, ActorType $actorType, ?string $redirectTo = null): string
-    {
-        $this->app->call(fn (SendMagicLink $send) => $send($email, $actorType, $redirectTo));
-
-        return session('debug_magic_link');
-    }
-}
+    expect(MagicLink::sole()->redirect_to)->toBe('/checkout');
+});

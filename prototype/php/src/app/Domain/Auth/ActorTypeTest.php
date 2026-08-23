@@ -4,25 +4,23 @@ declare(strict_types=1);
 
 namespace App\Domain\Auth;
 
-use PHPUnit\Framework\TestCase;
+it('names its own guard per actor', function (ActorType $actor, string $guard): void {
+    expect($actor->guard())->toBe($guard);
+})->with([
+    'seller' => [ActorType::Seller, 'seller'],
+    'customer' => [ActorType::Customer, 'customer'],
+]);
 
-final class ActorTypeTest extends TestCase
-{
-    public function test_each_actor_names_its_own_guard(): void
-    {
-        $this->assertSame('seller', ActorType::Seller->guard());
-        $this->assertSame('customer', ActorType::Customer->guard());
-    }
+it('lands on its own site per actor', function (ActorType $actor, string $routeName): void {
+    expect($actor->homeRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'seller.dashboard'],
+    'customer' => [ActorType::Customer, 'shop.account'],
+]);
 
-    public function test_each_actor_lands_on_its_own_site(): void
-    {
-        $this->assertSame('seller.dashboard', ActorType::Seller->homeRouteName());
-        $this->assertSame('shop.account', ActorType::Customer->homeRouteName());
-    }
-
-    public function test_each_actor_signs_in_on_its_own_site(): void
-    {
-        $this->assertSame('auth.seller.login', ActorType::Seller->loginRouteName());
-        $this->assertSame('auth.customer.login', ActorType::Customer->loginRouteName());
-    }
-}
+it('signs in on its own site per actor', function (ActorType $actor, string $routeName): void {
+    expect($actor->loginRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'auth.seller.login'],
+    'customer' => [ActorType::Customer, 'auth.customer.login'],
+]);

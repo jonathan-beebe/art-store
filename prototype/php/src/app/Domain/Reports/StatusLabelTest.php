@@ -7,19 +7,16 @@ namespace App\Domain\Reports;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
-use PHPUnit\Framework\TestCase;
+use BackedEnum;
 
-final class StatusLabelTest extends TestCase
-{
-    public function test_it_reads_a_single_word_status_as_a_sentence(): void
-    {
-        $this->assertSame('Draft', StatusLabel::of(ListingStatus::Draft));
-    }
+it('reads a single-word status as a sentence', function (): void {
+    expect(StatusLabel::of(ListingStatus::Draft))->toBe('Draft');
+});
 
-    public function test_it_replaces_the_underscores_of_a_multi_word_status(): void
-    {
-        $this->assertSame('For sale', StatusLabel::of(ListingStatus::ForSale));
-        $this->assertSame('Awaiting shipment', StatusLabel::of(FulfillmentStatus::AwaitingShipment));
-        $this->assertSame('Pending verification', StatusLabel::of(OrderStatus::PendingVerification));
-    }
-}
+it('replaces the underscores of a multi-word status', function (BackedEnum $status, string $expected): void {
+    expect(StatusLabel::of($status))->toBe($expected);
+})->with([
+    'for sale' => [ListingStatus::ForSale, 'For sale'],
+    'awaiting shipment' => [FulfillmentStatus::AwaitingShipment, 'Awaiting shipment'],
+    'pending verification' => [OrderStatus::PendingVerification, 'Pending verification'],
+]);
