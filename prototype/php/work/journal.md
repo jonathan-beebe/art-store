@@ -6,14 +6,27 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 10
-- IMPRV: 1
-- MAINT: 1
+- IMPRV: 2
+- MAINT: 3
 - A11Y: 1
-- RFCTR: 1
-- BUG: 1
+- RFCTR: 9
+- BUG: 3
 
 ## Log
 
+- 2026-08-23:07:15:58 — MAINT-002 — defined: Final validation — analyzer at zero on app and tests, docs current
+- 2026-08-23:07:15:58 — IMPRV-001 — defined: Behavioral test gaps, factories for every model, and seeders through actions
+- 2026-08-23:07:15:58 — RFCTR-008 — defined: Blade components and resourceful seller routes
+- 2026-08-23:07:15:58 — RFCTR-007 — defined: Domain events and the Laravel notification subsystem
+- 2026-08-23:07:15:58 — RFCTR-006 — defined: Database-side aggregation, strict models, and a scheduled payout
+- 2026-08-23:07:15:58 — RFCTR-005 — defined: Domain polish — enums own their questions, value objects own their construction
+- 2026-08-23:07:15:58 — RFCTR-004 — defined: Cohesive models, relations, and money accessors
+- 2026-08-23:07:15:58 — RFCTR-003 — defined: Form requests and typed input for every write route
+- 2026-08-23:07:15:58 — RFCTR-002 — defined: Policies, scoped route bindings, and a seller base controller
+- 2026-08-23:07:15:58 — BUG-002 — defined: Defects the analyzer surfaced
+- 2026-08-23:07:15:58 — BUG-001 — defined: Checkout returns 500 when a cart line left the storefront
+- 2026-08-23:07:15:58 — RFCTR-001 — defined: Pest-style sidecar suite with datasets and architecture rules
+- 2026-08-23:07:15:58 — MAINT-001 — defined: Static analysis and lint gate with strict types and typed models
 - 2026-08-22:15:09:29 — FEAT-009 — done: `docs/ontology.md` — 26 entities (roles, catalog, buying, money, identity/messaging, decisions), one concept-level Mermaid diagram (10 boxes, 3 subgraphs), and Vocabulary notes covering the seller portal's "Orders" = Fulfillments
 - 2026-08-22:15:07:59 — FEAT-008 — done: Clean first run from an empty checkout, 471 tests green at 98.20% lines (100% on app/Domain), a `make smoke` end-to-end walk from seller sign-in to weekly payout, gd added so listing uploads are content-verified, and docs/review.md mapping the brief to routes and tests
 - 2026-08-22:15:06:29 — FEAT-009 — started
