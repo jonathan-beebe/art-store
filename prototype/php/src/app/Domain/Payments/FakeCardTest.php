@@ -18,7 +18,7 @@ namespace App\Domain\Payments;
 */
 $GLOBALS['fakeCardForcePregReplaceNull'] = false;
 
-function preg_replace($pattern, $replacement, $subject)
+function preg_replace(string $pattern, string $replacement, string $subject): ?string
 {
     return $GLOBALS['fakeCardForcePregReplaceNull'] ? null : \preg_replace($pattern, $replacement, $subject);
 }

@@ -22,7 +22,7 @@ it('signs an existing owner in without creating a second row', function (): void
 
     expect(Customer::count())->toBe(1)
         ->and($customer->is($owner))->toBeTrue()
-        ->and($customer->fresh()->email_verified_at)->not->toBeNull();
+        ->and($customer->refresh()->email_verified_at)->not->toBeNull();
 });
 
 it('claims the anonymous row the cookie points at when nobody else owns the address', function (): void {

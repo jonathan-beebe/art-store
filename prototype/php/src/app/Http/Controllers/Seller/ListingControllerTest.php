@@ -12,6 +12,7 @@ use App\Domain\Reports\DailyActivity;
 use App\Models\Listing;
 use App\Models\Seller;
 use DateTimeImmutable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -69,10 +70,13 @@ it('shows the event counts for each listing', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
-    $response->assertViewHas('listings', function ($listings): bool {
-        return $listings->first()->views_count === 2
-            && $listings->first()->favorites_count === 0
-            && $listings->first()->cart_adds_count === 1;
+    $response->assertViewHas('listings', function (Collection $listings): bool {
+        /** @var Collection<int, Listing> $listings */
+        $listing = $listings->sole();
+
+        return $listing->views_count === 2
+            && $listing->favorites_count === 0
+            && $listing->cart_adds_count === 1;
     });
 });
 
@@ -114,7 +118,8 @@ it('stores an uploaded image on the public disk', function () use ($form): void 
     ]));
 
     $listing = Listing::where('seller_id', $seller->id)->sole();
-    Storage::disk('public')->assertExists($listing->image_path);
+    expect($listing->image_path)->not->toBeNull();
+    Storage::disk('public')->assertExists((string) $listing->image_path);
 });
 
 it('creates the listing without an image and tells the seller when the upload fails', function () use ($form): void {
@@ -156,7 +161,9 @@ it('totals the events of the listing', function () use ($recordedActivity): void
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
     $response->assertViewHas('listing', function (Listing $listing): bool {
-        return $listing->views_count === 2 && $listing->favorites_count === 1 && $listing->cart_adds_count === 1;
+        return $listing->views_count === 2
+            && $listing->favorites_count === 1
+            && $listing->cart_adds_count === 1;
     });
 });
 
@@ -191,9 +198,10 @@ it('leaves events older than the window off the breakdown', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', fn (array $days): bool => array_sum(
-        array_map(fn (DailyActivity $day): int => $day->total(), $days),
-    ) === 0);
+    $response->assertViewHas('days', function (array $days): bool {
+        /** @var list<DailyActivity> $days */
+        return array_sum(array_map(fn (DailyActivity $day): int => $day->total(), $days)) === 0;
+    });
 });
 
 it('lists the sales of the listing', function (): void {
@@ -204,7 +212,7 @@ it('lists the sales of the listing', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('sales', fn ($sales): bool => $sales->count() === 1);
+    $response->assertViewHas('sales', fn (Collection $sales): bool => $sales->count() === 1);
     $response->assertSee("#{$order->id}");
 });
 
@@ -249,8 +257,9 @@ it('updates a listing from the form', function () use ($form): void {
     $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form());
 
     $response->assertRedirect(route('seller.listings.index'));
-    expect($listing->fresh()->title)->toBe('Harbour at Dusk')
-        ->and($listing->fresh()->price_cents)->toBe(24900);
+    $listing->refresh();
+    expect($listing->title)->toBe('Harbour at Dusk')
+        ->and($listing->price_cents)->toBe(24900);
 });
 
 it('rejects an update without a title', function () use ($form): void {
@@ -261,7 +270,7 @@ it('rejects an update without a title', function () use ($form): void {
         ->put("/seller/listings/{$listing->id}", $form(['title' => '']));
 
     $response->assertSessionHasErrors('title');
-    expect($listing->fresh()->title)->toBe('Old title');
+    expect($listing->refresh()->title)->toBe('Old title');
 });
 
 it('keeps the previous image when a replacement upload fails', function () use ($form): void {
@@ -274,7 +283,7 @@ it('keeps the previous image when a replacement upload fails', function () use (
         'image' => UploadedFile::fake()->image('harbour.jpg'),
     ]));
 
-    expect($listing->fresh()->image_path)->toBe('listings/old.jpg');
+    expect($listing->refresh()->image_path)->toBe('listings/old.jpg');
 });
 
 it('hides another sellers listing from the edit form', function (): void {
@@ -291,5 +300,5 @@ it('refuses to update another sellers listing', function () use ($form): void {
     $response = $this->actingAs($this->seller(), 'seller')->put("/seller/listings/{$listing->id}", $form());
 
     $response->assertNotFound();
-    expect($listing->fresh()->title)->toBe('Not Mine');
+    expect($listing->refresh()->title)->toBe('Not Mine');
 });

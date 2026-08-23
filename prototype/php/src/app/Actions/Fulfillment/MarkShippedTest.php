@@ -15,31 +15,28 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
-beforeEach(function (): void {
-    $this->paidOrder = function (Customer $customer): Order {
-        return app(FinalizeOrder::class)(
-            $this->orderFor($customer, $this->listing($this->seller(), ['price_cents' => 45000])),
-            '4242 4242 4242 4242',
-            $this->moment('2026-08-20 10:00:00'),
-        );
-    };
-});
+$paidOrder = function (Customer $customer): Order {
+    return app(FinalizeOrder::class)(
+        test()->orderFor($customer, test()->listing(test()->seller(), ['price_cents' => 45000])),
+        '4242 4242 4242 4242',
+        test()->moment('2026-08-20 10:00:00'),
+    );
+};
 
-it('records the carrier and the tracking number', function (): void {
-    $order = ($this->paidOrder)($this->verifiedCustomer());
+it('records the carrier and the tracking number', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
     $fulfillment = $order->fulfillments()->sole();
 
     $fulfillment = app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    expect($fulfillment)
-        ->status->toBe(FulfillmentStatus::Shipped)
-        ->carrier->toBe('USPS')
-        ->tracking_number->toBe('9400111899')
-        ->and($fulfillment->shipped_at->format('Y-m-d H:i:s'))->toBe('2026-08-21 11:00:00');
+    expect($fulfillment->status)->toBe(FulfillmentStatus::Shipped)
+        ->and($fulfillment->carrier)->toBe('USPS')
+        ->and($fulfillment->tracking_number)->toBe('9400111899')
+        ->and($fulfillment->shipped_at?->format('Y-m-d H:i:s'))->toBe('2026-08-21 11:00:00');
 });
 
-it('ships the order when its only fulfillment ships', function (): void {
-    $order = ($this->paidOrder)($this->verifiedCustomer());
+it('ships the order when its only fulfillment ships', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
 
     app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
@@ -49,14 +46,14 @@ it('ships the order when its only fulfillment ships', function (): void {
 it('partially ships the order when one of two fulfillments ships', function (): void {
     $order = $this->paidOrderWithTwoSellers();
 
-    app(MarkShipped::class)($order->fulfillments()->orderBy('id')->first(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+    app(MarkShipped::class)($order->fulfillments()->orderBy('id')->firstOrFail(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
     expect($order)->toHaveStatus(OrderStatus::PartiallyShipped);
 });
 
-it('tells the customer the order shipped', function (): void {
+it('tells the customer the order shipped', function () use ($paidOrder): void {
     $customer = $this->verifiedCustomer();
-    $order = ($this->paidOrder)($customer);
+    $order = $paidOrder($customer);
     Notification::fake();
 
     app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
@@ -69,9 +66,9 @@ it('tells the customer the order shipped', function (): void {
     );
 });
 
-it('tells nobody when the shipment is rolled back', function (): void {
+it('tells nobody when the shipment is rolled back', function () use ($paidOrder): void {
     $customer = $this->verifiedCustomer();
-    $order = ($this->paidOrder)($customer);
+    $order = $paidOrder($customer);
     $fulfillment = $order->fulfillments()->sole();
     Notification::fake();
 
@@ -85,8 +82,8 @@ it('tells nobody when the shipment is rolled back', function (): void {
     expect($fulfillment)->toHaveStatus(FulfillmentStatus::AwaitingShipment);
 });
 
-it('refuses to ship a fulfillment twice', function (): void {
-    $order = ($this->paidOrder)($this->verifiedCustomer());
+it('refuses to ship a fulfillment twice', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
     $markShipped = app(MarkShipped::class);
     $fulfillment = $markShipped($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 

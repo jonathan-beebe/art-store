@@ -36,189 +36,6 @@ $price = fn (): Money => Money::fromDollars(SMOKE_PRICE_DOLLARS);
 
 $net = fn (): Money => Fee::net($price());
 
-$magicLinkRenderedIn = function (string $html): string {
-    $found = preg_match('#href="([^"]*/auth/magic/[^"]+)"#', $html, $matches) === 1;
-    test()->assertTrue($found, 'The debug alert rendered no magic link.');
-
-    return $matches[1];
-};
-
-$signInSeller = function () use ($magicLinkRenderedIn): Seller {
-    test()->post('/seller/login', ['email' => SMOKE_SELLER_EMAIL])
-        ->assertRedirect(route('auth.seller.login'));
-
-    $page = test()->get(route('auth.seller.login'));
-    $page->assertOk()->assertSee('Debug magic link:');
-
-    test()->get($magicLinkRenderedIn($page->getContent()))->assertRedirect(route('seller.dashboard'));
-    test()->assertAuthenticated('seller');
-
-    $seller = Seller::sole();
-    expect($seller->email)->toBe(SMOKE_SELLER_EMAIL)
-        ->and($seller->email_verified_at)->not->toBeNull();
-
-    return $seller;
-};
-
-$createListing = function () use ($price): Listing {
-    test()->post('/seller/listings', [
-        'title' => SMOKE_LISTING_TITLE,
-        'description' => 'Oil on linen.',
-        'medium' => 'Painting',
-        'dimensions' => '40 x 60 cm',
-        'price' => SMOKE_PRICE_DOLLARS,
-        'quantity' => 1,
-        'image' => UploadedFile::fake()->image('meadow.jpg'),
-    ])->assertRedirect();
-
-    $listing = Listing::sole();
-    expect($listing->status)->toBe(ListingStatus::Draft)
-        ->and($listing->price_cents)->toBe($price()->cents);
-    Storage::disk('public')->assertExists($listing->image_path);
-
-    return $listing;
-};
-
-$markForSale = function (Listing $listing): void {
-    test()->post("/seller/listings/{$listing->id}/status", ['status' => ListingStatus::ForSale->value])
-        ->assertRedirect(route('seller.listings.index'));
-
-    expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
-};
-
-/**
- * The storefront hands a first-time visitor an anonymous customer row and
- * an identity cookie; the test client does not keep the one the middleware
- * queues, so the walk pins its visitor up front.
- */
-$arriveAsAnonymousVisitor = function (): Customer {
-    test()->get('/')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
-
-    $visitor = Customer::sole();
-    expect($visitor->email)->toBeNull();
-
-    return test()->arriveAs($visitor);
-};
-
-$viewListing = function (Listing $listing) use ($price): void {
-    test()->get("/art/{$listing->slug}")
-        ->assertOk()
-        ->assertSee(SMOKE_LISTING_TITLE)
-        ->assertSee($price()->format());
-
-    test()->assertDatabaseHas('listing_events', ['listing_id' => $listing->id, 'type' => 'view']);
-};
-
-$favoriteListing = function (Listing $listing): void {
-    test()->post("/art/{$listing->slug}/favorite")->assertRedirect();
-
-    test()->assertDatabaseHas('favorites', ['listing_id' => $listing->id]);
-    test()->get('/favorites')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
-};
-
-$addListingToCart = function (Listing $listing): void {
-    test()->post("/cart/{$listing->slug}")->assertRedirect(route('shop.cart'));
-
-    test()->assertDatabaseHas('cart_items', ['listing_id' => $listing->id, 'quantity' => 1]);
-    test()->get('/cart')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
-};
-
-/**
- * A guest is never asked for a card: the order is placed unpaid and waits
- * for the address behind it to be verified.
- */
-$placeGuestOrder = function () use ($price): Order {
-    test()->get('/checkout')->assertOk()->assertDontSee('Card number');
-
-    $placed = test()->post('/checkout', [
-        'email' => SMOKE_CUSTOMER_EMAIL,
-        'shipping_name' => 'Casey Whitfield',
-        'shipping_line1' => '18 Harbour Road',
-        'shipping_city' => 'Bristol',
-        'shipping_region' => 'Bristol',
-        'shipping_postal_code' => 'BS1 5TY',
-        'shipping_country' => 'GB',
-    ]);
-
-    $order = Order::sole();
-    $placed->assertRedirect(route('shop.order', $order));
-    expect($order->status)->toBe(OrderStatus::PendingVerification)
-        ->and($order->total_cents)->toBe($price()->cents);
-
-    return $order;
-};
-
-$verifyEmailFromDebugAlert = function (Order $order) use ($magicLinkRenderedIn): void {
-    $page = test()->get(route('shop.order', $order));
-    $page->assertOk()->assertSee('Check your email');
-
-    test()->get($magicLinkRenderedIn($page->getContent()))
-        ->assertRedirect(route('shop.order.pay', $order, absolute: false));
-
-    test()->assertAuthenticated('customer');
-    expect(Customer::sole()->email_verified_at)->not->toBeNull();
-};
-
-$payWithApprovedCard = function (Order $order) use ($net): void {
-    test()->get(route('shop.order.pay', $order))->assertOk()->assertSee('Card number');
-
-    test()->post(route('shop.order.pay.submit', $order), ['card_number' => '4242 4242 4242 4242'])
-        ->assertRedirect(route('shop.order', $order));
-
-    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
-    test()->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'approved', 'card_last_four' => '4242']);
-    test()->assertDatabaseHas('ledger_entries', ['type' => 'held', 'amount_cents' => $net()->cents]);
-};
-
-$seeTheSaleAsSeller = function (Order $order): Fulfillment {
-    test()->get('/seller/notifications')
-        ->assertOk()
-        ->assertSee('Item sold')
-        ->assertSee("Order #{$order->id} is paid.");
-
-    $fulfillment = Fulfillment::sole();
-    expect($fulfillment->status)->toBe(FulfillmentStatus::AwaitingShipment);
-
-    test()->get('/seller/orders')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
-
-    return $fulfillment;
-};
-
-$markShipped = function (Fulfillment $fulfillment): void {
-    test()->post("/seller/orders/{$fulfillment->id}/shipment", [
-        'carrier' => 'Royal Mail',
-        'tracking_number' => 'RM123456789GB',
-    ])->assertRedirect(route('seller.orders.show', $fulfillment->id));
-
-    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Shipped);
-    test()->get(route('seller.orders.show', $fulfillment->id))->assertOk()->assertSee('RM123456789GB');
-};
-
-$confirmDelivery = function (Order $order, Fulfillment $fulfillment) use ($net): void {
-    test()->get(route('shop.order', $order))->assertOk()->assertSee('Confirm delivery');
-
-    test()->post(route('shop.order.delivered', [$order, $fulfillment]))
-        ->assertRedirect(route('shop.order', $order));
-
-    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Delivered)
-        ->and($order->refresh()->status)->toBe(OrderStatus::Delivered);
-    test()->assertDatabaseHas('ledger_entries', ['type' => 'released', 'amount_cents' => $net()->cents]);
-};
-
-$runWeeklyPayout = function () use ($net): void {
-    $nextMonday = (new DateTimeImmutable(SMOKE_FROZEN_NOW))->modify('next monday')->format('Y-m-d');
-
-    expect(Artisan::call('payouts:run', ['--as-of' => $nextMonday]))->toBe(0);
-    expect(Payout::sole()->amount_cents)->toBe($net()->cents);
-};
-
-$readEarningsAsSeller = function (Seller $seller) use ($net): void {
-    $page = test()->get('/seller/earnings');
-
-    $page->assertOk()->assertSee($net()->format());
-    expect($seller->fresh()->escrowBalance()->paidOut->cents)->toBe($net()->cents);
-};
-
 /**
  * One walk of the whole product over HTTP, from an empty database to a
  * seller's payout. Every step drives a real route and asserts both the
@@ -228,23 +45,191 @@ $readEarningsAsSeller = function (Seller $seller) use ($net): void {
  * customer is pinned by the identity cookie, which is what the storefront
  * uses to tell visitors apart.
  */
-it('carries a listing from seller sign-in to weekly payout', function () use (
-    $signInSeller,
-    $createListing,
-    $markForSale,
-    $arriveAsAnonymousVisitor,
-    $viewListing,
-    $favoriteListing,
-    $addListingToCart,
-    $placeGuestOrder,
-    $verifyEmailFromDebugAlert,
-    $payWithApprovedCard,
-    $seeTheSaleAsSeller,
-    $markShipped,
-    $confirmDelivery,
-    $runWeeklyPayout,
-    $readEarningsAsSeller,
-): void {
+it('carries a listing from seller sign-in to weekly payout', function () use ($price, $net): void {
+    $magicLinkRenderedIn = function (string|false $html): string {
+        if (! is_string($html) || preg_match('#href="([^"]*/auth/magic/[^"]+)"#', $html, $matches) !== 1) {
+            $this->fail('The debug alert rendered no magic link.');
+        }
+
+        return $matches[1];
+    };
+
+    $signInSeller = function () use ($magicLinkRenderedIn): Seller {
+        $this->post('/seller/login', ['email' => SMOKE_SELLER_EMAIL])
+            ->assertRedirect(route('auth.seller.login'));
+
+        $page = $this->get(route('auth.seller.login'));
+        $page->assertOk()->assertSee('Debug magic link:');
+
+        $this->get($magicLinkRenderedIn($page->getContent()))->assertRedirect(route('seller.dashboard'));
+        $this->assertAuthenticated('seller');
+
+        $seller = Seller::sole();
+        expect($seller->email)->toBe(SMOKE_SELLER_EMAIL)
+            ->and($seller->email_verified_at)->not->toBeNull();
+
+        return $seller;
+    };
+
+    $createListing = function () use ($price): Listing {
+        $this->post('/seller/listings', [
+            'title' => SMOKE_LISTING_TITLE,
+            'description' => 'Oil on linen.',
+            'medium' => 'Painting',
+            'dimensions' => '40 x 60 cm',
+            'price' => SMOKE_PRICE_DOLLARS,
+            'quantity' => 1,
+            'image' => UploadedFile::fake()->image('meadow.jpg'),
+        ])->assertRedirect();
+
+        $listing = Listing::sole();
+        expect($listing->status)->toBe(ListingStatus::Draft)
+            ->and($listing->price_cents)->toBe($price()->cents);
+        Storage::disk('public')->assertExists($listing->image_path ?? $this->fail('The listing saved no image.'));
+
+        return $listing;
+    };
+
+    $markForSale = function (Listing $listing): void {
+        $this->post("/seller/listings/{$listing->id}/status", ['status' => ListingStatus::ForSale->value])
+            ->assertRedirect(route('seller.listings.index'));
+
+        expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
+    };
+
+    /**
+     * The storefront hands a first-time visitor an anonymous customer row and
+     * an identity cookie; the test client does not keep the one the middleware
+     * queues, so the walk pins its visitor up front.
+     */
+    $arriveAsAnonymousVisitor = function (): Customer {
+        $this->get('/')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
+
+        $visitor = Customer::sole();
+        expect($visitor->email)->toBeNull();
+
+        return $this->arriveAs($visitor);
+    };
+
+    $viewListing = function (Listing $listing) use ($price): void {
+        $this->get("/art/{$listing->slug}")
+            ->assertOk()
+            ->assertSee(SMOKE_LISTING_TITLE)
+            ->assertSee($price()->format());
+
+        $this->assertDatabaseHas('listing_events', ['listing_id' => $listing->id, 'type' => 'view']);
+    };
+
+    $favoriteListing = function (Listing $listing): void {
+        $this->post("/art/{$listing->slug}/favorite")->assertRedirect();
+
+        $this->assertDatabaseHas('favorites', ['listing_id' => $listing->id]);
+        $this->get('/favorites')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
+    };
+
+    $addListingToCart = function (Listing $listing): void {
+        $this->post("/cart/{$listing->slug}")->assertRedirect(route('shop.cart'));
+
+        $this->assertDatabaseHas('cart_items', ['listing_id' => $listing->id, 'quantity' => 1]);
+        $this->get('/cart')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
+    };
+
+    /**
+     * A guest is never asked for a card: the order is placed unpaid and waits
+     * for the address behind it to be verified.
+     */
+    $placeGuestOrder = function () use ($price): Order {
+        $this->get('/checkout')->assertOk()->assertDontSee('Card number');
+
+        $placed = $this->post('/checkout', [
+            'email' => SMOKE_CUSTOMER_EMAIL,
+            'shipping_name' => 'Casey Whitfield',
+            'shipping_line1' => '18 Harbour Road',
+            'shipping_city' => 'Bristol',
+            'shipping_region' => 'Bristol',
+            'shipping_postal_code' => 'BS1 5TY',
+            'shipping_country' => 'GB',
+        ]);
+
+        $order = Order::sole();
+        $placed->assertRedirect(route('shop.order', $order));
+        expect($order->status)->toBe(OrderStatus::PendingVerification)
+            ->and($order->total_cents)->toBe($price()->cents);
+
+        return $order;
+    };
+
+    $verifyEmailFromDebugAlert = function (Order $order) use ($magicLinkRenderedIn): void {
+        $page = $this->get(route('shop.order', $order));
+        $page->assertOk()->assertSee('Check your email');
+
+        $this->get($magicLinkRenderedIn($page->getContent()))
+            ->assertRedirect(route('shop.order.pay', $order, absolute: false));
+
+        $this->assertAuthenticated('customer');
+        expect(Customer::sole()->email_verified_at)->not->toBeNull();
+    };
+
+    $payWithApprovedCard = function (Order $order) use ($net): void {
+        $this->get(route('shop.order.pay', $order))->assertOk()->assertSee('Card number');
+
+        $this->post(route('shop.order.pay.submit', $order), ['card_number' => '4242 4242 4242 4242'])
+            ->assertRedirect(route('shop.order', $order));
+
+        expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'status' => 'approved', 'card_last_four' => '4242']);
+        $this->assertDatabaseHas('ledger_entries', ['type' => 'held', 'amount_cents' => $net()->cents]);
+    };
+
+    $seeTheSaleAsSeller = function (Order $order): Fulfillment {
+        $this->get('/seller/notifications')
+            ->assertOk()
+            ->assertSee('Item sold')
+            ->assertSee("Order #{$order->id} is paid.");
+
+        $fulfillment = Fulfillment::sole();
+        expect($fulfillment->status)->toBe(FulfillmentStatus::AwaitingShipment);
+
+        $this->get('/seller/orders')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
+
+        return $fulfillment;
+    };
+
+    $markShipped = function (Fulfillment $fulfillment): void {
+        $this->post("/seller/orders/{$fulfillment->id}/shipment", [
+            'carrier' => 'Royal Mail',
+            'tracking_number' => 'RM123456789GB',
+        ])->assertRedirect(route('seller.orders.show', $fulfillment->id));
+
+        expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Shipped);
+        $this->get(route('seller.orders.show', $fulfillment->id))->assertOk()->assertSee('RM123456789GB');
+    };
+
+    $confirmDelivery = function (Order $order, Fulfillment $fulfillment) use ($net): void {
+        $this->get(route('shop.order', $order))->assertOk()->assertSee('Confirm delivery');
+
+        $this->post(route('shop.order.delivered', [$order, $fulfillment]))
+            ->assertRedirect(route('shop.order', $order));
+
+        expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Delivered)
+            ->and($order->refresh()->status)->toBe(OrderStatus::Delivered);
+        $this->assertDatabaseHas('ledger_entries', ['type' => 'released', 'amount_cents' => $net()->cents]);
+    };
+
+    $runWeeklyPayout = function () use ($net): void {
+        $nextMonday = (new DateTimeImmutable(SMOKE_FROZEN_NOW))->modify('next monday')->format('Y-m-d');
+
+        expect(Artisan::call('payouts:run', ['--as-of' => $nextMonday]))->toBe(0);
+        expect(Payout::sole()->amount_cents)->toBe($net()->cents);
+    };
+
+    $readEarningsAsSeller = function (Seller $seller) use ($net): void {
+        $page = $this->get('/seller/earnings');
+
+        $page->assertOk()->assertSee($net()->format());
+        expect($seller->refresh()->escrowBalance()->paidOut->cents)->toBe($net()->cents);
+    };
+
     $this->travelTo(new DateTimeImmutable(SMOKE_FROZEN_NOW));
     Storage::fake('public');
 

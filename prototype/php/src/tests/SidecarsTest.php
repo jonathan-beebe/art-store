@@ -12,6 +12,7 @@ use Symfony\Component\Finder\Finder;
  * exists is stale and must be removed, so the list can only shrink.
  */
 it('gives every class under app a sidecar test', function (): void {
+    /** @var array<string, string> $exceptions */
     $exceptions = [];
 
     $base = dirname(__DIR__);

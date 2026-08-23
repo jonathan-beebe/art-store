@@ -9,6 +9,6 @@ it('reads the customer and the listing it links', function (): void {
     $listing = $this->listing($this->seller());
     $favorite = Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
 
-    expect($favorite->customer->is($customer))->toBeTrue()
-        ->and($favorite->listing->is($listing))->toBeTrue();
+    expect($favorite->customer()->sole()->is($customer))->toBeTrue()
+        ->and($favorite->listing()->sole()->is($listing))->toBeTrue();
 });

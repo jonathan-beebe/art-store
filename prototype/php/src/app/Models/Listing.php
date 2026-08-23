@@ -26,6 +26,9 @@ use Override;
 /**
  * @property-read Seller $seller
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
+ * @property-read int $views_count  only after `withEventCounts` or `loadEventCounts`
+ * @property-read int $favorites_count  only after `withEventCounts` or `loadEventCounts`
+ * @property-read int $cart_adds_count  only after `withEventCounts` or `loadEventCounts`
  */
 #[Fillable([
     'seller_id', 'title', 'slug', 'description', 'price_cents',

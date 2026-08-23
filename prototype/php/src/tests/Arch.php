@@ -73,9 +73,18 @@ arch('every class under App declares strict types')
 arch()->preset()->laravel()
     ->ignoring([
         // Action verbs like `place`, `pay`, `toggle`, `markRead` name what
-        // each route does; the preset's REST-only method vocabulary does not
-        // fit a seller/customer split with actions beyond index/show/store/update.
-        'App\Http\Controllers',
+        // each route does; the preset's REST-only method vocabulary reaches
+        // only as far as index/show/store/update. Every other controller is
+        // held to it.
+        'App\Http\Controllers\Auth\CustomerLoginController',
+        'App\Http\Controllers\Auth\SellerLoginController',
+        'App\Http\Controllers\Auth\SignOutController',
+        'App\Http\Controllers\Seller\NotificationController',
+        'App\Http\Controllers\Shop\AccountController',
+        'App\Http\Controllers\Shop\CartController',
+        'App\Http\Controllers\Shop\CheckoutController',
+        'App\Http\Controllers\Shop\FavoriteController',
+        'App\Http\Controllers\Shop\OrderPaymentController',
         // Domain enums live beside the concept they model (docs/architecture.md:
         // "domain enums name states"), not centralized under App\Enums as the
         // preset assumes.
@@ -86,6 +95,9 @@ arch()->preset()->laravel()
         // A delivery channel is not a notification, and Laravel's own docs
         // home for a custom channel is App\Notifications\Channels.
         'App\Notifications\Channels',
+        // The storefront's abstract form request carries the visitor its
+        // children validate against; the rules belong to the children.
+        'App\Http\Requests\Shop\ShopRequest',
     ]);
 
 arch()->preset()->security();

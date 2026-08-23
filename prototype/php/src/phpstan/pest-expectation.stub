@@ -1,0 +1,24 @@
+<?php
+
+namespace Pest;
+
+/**
+ * Pest's own tags on the class, plus the two expectations tests/Pest.php
+ * registers with `expect()->extend()`.
+ *
+ * @template TValue
+ *
+ * @property \Pest\Expectations\OppositeExpectation<TValue> $not
+ * @property \Pest\Expectations\EachExpectation<TValue> $each
+ * @property \Pest\Arch\PendingArchExpectation $classes
+ * @property \Pest\Arch\PendingArchExpectation $traits
+ * @property \Pest\Arch\PendingArchExpectation $interfaces
+ * @property \Pest\Arch\PendingArchExpectation $enums
+ *
+ * @method self<TValue> toBeMoney(int $cents)
+ * @method self<TValue> toHaveStatus(\UnitEnum $status)
+ *
+ * @mixin \Pest\Mixins\Expectation<TValue>
+ * @mixin \Pest\Arch\PendingArchExpectation
+ */
+final class Expectation {}

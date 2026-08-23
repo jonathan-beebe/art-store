@@ -29,7 +29,7 @@ it('reads the seller and fulfillment behind a held entry, with no payout yet', f
     $entry = $fulfillment->ledgerEntries()->where('type', LedgerEntryType::Held)->sole();
 
     expect($entry->seller->is($seller))->toBeTrue()
-        ->and($entry->fulfillment->is($fulfillment))->toBeTrue()
+        ->and($entry->fulfillment()->sole()->is($fulfillment))->toBeTrue()
         ->and($entry->payout)->toBeNull();
 });
 
@@ -38,7 +38,7 @@ it('reads the payout a paid-out entry settled through', function (): void {
     $payout = app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'))[0];
     $paidOut = LedgerEntry::where('type', LedgerEntryType::PaidOut)->sole();
 
-    expect($paidOut->payout->is($payout))->toBeTrue()
+    expect($paidOut->payout()->sole()->is($payout))->toBeTrue()
         ->and($paidOut->fulfillment)->toBeNull();
 });
 

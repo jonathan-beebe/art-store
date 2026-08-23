@@ -25,7 +25,8 @@ it('writes the drafted fields', function () use ($draft): void {
 
     app(UpdateListing::class)($listing, $draft());
 
-    expect($listing->fresh())->title->toBe('Harbour at Dawn')->price_cents->toBe(9900);
+    expect($listing->refresh()->title)->toBe('Harbour at Dawn')
+        ->and($listing->price_cents)->toBe(9900);
 });
 
 it('keeps the slug a renamed listing was shared under', function () use ($draft): void {
@@ -33,7 +34,7 @@ it('keeps the slug a renamed listing was shared under', function () use ($draft)
 
     app(UpdateListing::class)($listing, $draft());
 
-    expect($listing->fresh()->slug)->toBe('old-title');
+    expect($listing->refresh()->slug)->toBe('old-title');
 });
 
 it('keeps the status the listing already had', function () use ($draft): void {
@@ -49,7 +50,7 @@ it('keeps the image when the form uploads none', function () use ($draft): void 
 
     app(UpdateListing::class)($listing, $draft());
 
-    expect($listing->fresh()->image_path)->toBe('listings/kept.jpg');
+    expect($listing->refresh()->image_path)->toBe('listings/kept.jpg');
 });
 
 it('replaces the image and deletes the file it replaced', function () use ($draft): void {
@@ -59,9 +60,12 @@ it('replaces the image and deletes the file it replaced', function () use ($draf
 
     app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
 
-    expect($listing->fresh()->image_path)->not->toBe('listings/old.jpg');
+    $imagePath = $listing->refresh()->image_path;
+
+    expect($imagePath)->not->toBeNull();
+    expect($imagePath)->not->toBe('listings/old.jpg');
     Storage::disk('public')->assertMissing('listings/old.jpg');
-    Storage::disk('public')->assertExists($listing->fresh()->image_path);
+    Storage::disk('public')->assertExists((string) $imagePath);
 });
 
 it('keeps the previous image and does not delete it when the write fails', function () use ($draft): void {
@@ -72,7 +76,7 @@ it('keeps the previous image and does not delete it when the write fails', funct
 
     app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
 
-    expect($listing->fresh()->image_path)->toBe('listings/old.jpg');
+    expect($listing->refresh()->image_path)->toBe('listings/old.jpg');
 });
 
 it('leaves other listings alone', function () use ($draft): void {
@@ -82,5 +86,5 @@ it('leaves other listings alone', function () use ($draft): void {
 
     app(UpdateListing::class)($listing, $draft());
 
-    expect(Listing::find($other->id)->title)->toBe('Untouched');
+    expect(Listing::findOrFail($other->id)->title)->toBe('Untouched');
 });

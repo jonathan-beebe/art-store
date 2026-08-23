@@ -94,7 +94,7 @@ it('shows the delivered timestamp', function () use ($paidFulfillment): void {
     $seller = $this->seller();
     $fulfillment = $paidFulfillment($seller);
     app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM123', $this->moment('2026-08-21 10:00:00'));
-    app(ConfirmDelivered::class)($fulfillment->fresh(), $this->moment('2026-08-23 09:00:00'));
+    app(ConfirmDelivered::class)($fulfillment->refresh(), $this->moment('2026-08-23 09:00:00'));
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 

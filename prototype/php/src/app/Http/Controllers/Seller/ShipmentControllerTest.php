@@ -32,7 +32,7 @@ it('marks the fulfillment shipped', function () use ($paidFulfillment, $form): v
         ->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
     $response->assertRedirect(route('seller.orders.show', $fulfillment->id));
-    $shipped = $fulfillment->fresh();
+    $shipped = $fulfillment->refresh();
     expect($shipped->status)->toBe(FulfillmentStatus::Shipped)
         ->and($shipped->carrier)->toBe('Royal Mail')
         ->and($shipped->tracking_number)->toBe('RM123')
@@ -45,7 +45,7 @@ it('rolls the order up to shipped', function () use ($paidFulfillment, $form): v
 
     $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
-    expect($fulfillment->order->fresh()->status)->toBe(OrderStatus::Shipped);
+    expect($fulfillment->order->refresh()->status)->toBe(OrderStatus::Shipped);
 });
 
 it('notifies the customer', function () use ($paidFulfillment, $form): void {
@@ -72,7 +72,7 @@ it('refuses to ship a fulfillment that already shipped', function () use ($paidF
 
     $response->assertOk();
     $response->assertSee('A fulfillment cannot move from shipped to shipped.');
-    expect($fulfillment->fresh()->tracking_number)->toBe('RM123');
+    expect($fulfillment->refresh()->tracking_number)->toBe('RM123');
 });
 
 it('refuses to ship another sellers fulfillment', function () use ($paidFulfillment, $form): void {
@@ -82,5 +82,5 @@ it('refuses to ship another sellers fulfillment', function () use ($paidFulfillm
         ->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
     $response->assertNotFound();
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
 });

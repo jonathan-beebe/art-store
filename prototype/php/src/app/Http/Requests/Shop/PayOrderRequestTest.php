@@ -19,7 +19,7 @@ it('refuses a payment the card field cannot carry', function (array $submitted, 
     $response = $this->post(route('shop.order.pay', $order), $submitted);
 
     $response->assertSessionHasErrors($field);
-    expect($order->fresh()->status)->toBe(OrderStatus::AwaitingPayment);
+    expect($order->refresh()->status)->toBe(OrderStatus::AwaitingPayment);
 })->with([
     'no card at all' => [[], 'card_number'],
     'an empty card field' => [['card_number' => ''], 'card_number'],

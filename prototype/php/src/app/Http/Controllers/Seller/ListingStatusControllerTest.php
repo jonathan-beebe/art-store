@@ -14,7 +14,7 @@ it('puts a draft up for sale', function (): void {
         ->post("/seller/listings/{$listing->id}/status", ['status' => 'for_sale']);
 
     $response->assertRedirect(route('seller.listings.index'));
-    expect($listing->fresh()->status)->toBe(ListingStatus::ForSale);
+    expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
 });
 
 it('archives a listing that is for sale', function (): void {
@@ -24,7 +24,7 @@ it('archives a listing that is for sale', function (): void {
     $this->actingAs($seller, 'seller')
         ->post("/seller/listings/{$listing->id}/status", ['status' => 'archived']);
 
-    expect($listing->fresh()->status)->toBe(ListingStatus::Archived);
+    expect($listing->refresh()->status)->toBe(ListingStatus::Archived);
 });
 
 it('renders only the transitions the status allows', function (): void {
@@ -45,5 +45,5 @@ it('refuses to change another sellers listing', function (): void {
         ->post("/seller/listings/{$listing->id}/status", ['status' => 'for_sale']);
 
     $response->assertNotFound();
-    expect($listing->fresh()->status)->toBe(ListingStatus::Draft);
+    expect($listing->refresh()->status)->toBe(ListingStatus::Draft);
 });

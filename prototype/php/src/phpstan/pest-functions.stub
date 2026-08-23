@@ -1,0 +1,32 @@
+<?php
+
+/**
+ * Pest runs a test closure bound to the TestCase class that tests/Pest.php
+ * maps the file's directory to, and declares the closure scope as
+ * `Pest\PendingCalls\TestCall` instead. `Tests\StorefrontTestCase` is the
+ * deepest class in the binding hierarchy — Tests\TestCase, then
+ * Tests\CommerceTestCase, then Tests\StorefrontTestCase — so naming it here
+ * gives every test file the members of the base class it actually runs on.
+ */
+
+/**
+ * @param-closure-this \Tests\StorefrontTestCase  $closure
+ */
+function beforeEach(?\Closure $closure = null): \Pest\PendingCalls\BeforeEachCall {}
+
+/**
+ * @param-closure-this \Tests\StorefrontTestCase  $closure
+ */
+function afterEach(?\Closure $closure = null): \Pest\PendingCalls\AfterEachCall {}
+
+/**
+ * @param-closure-this \Tests\StorefrontTestCase  $closure
+ *
+ * @return \Pest\PendingCalls\TestCall
+ */
+function test(?string $description = null, ?\Closure $closure = null): \Pest\PendingCalls\TestCall {}
+
+/**
+ * @param-closure-this \Tests\StorefrontTestCase  $closure
+ */
+function it(string $description, ?\Closure $closure = null): \Pest\PendingCalls\TestCall {}

@@ -13,7 +13,7 @@ it('puts the upload in the listings folder of the public disk', function (): voi
     $path = (new StoreListingImage)(UploadedFile::fake()->image('harbour.jpg'));
 
     expect($path)->toStartWith('listings/');
-    Storage::disk('public')->assertExists($path);
+    Storage::disk('public')->assertExists((string) $path);
 });
 
 it('gives two uploads of the same name separate paths', function (): void {

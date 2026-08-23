@@ -16,11 +16,12 @@ it('pays a seller whose delivery landed inside the period', function (): void {
     $payouts = app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'));
 
     expect($payouts)->toHaveCount(1);
-    expect($payouts[0])
-        ->seller_id->toBe($seller->id)
-        ->amount_cents->toBe(40500)
-        ->and($payouts[0]->period_start->format('Y-m-d'))->toBe('2026-08-17')
-        ->and($payouts[0]->period_end->format('Y-m-d'))->toBe('2026-08-23');
+
+    $payout = $payouts[0];
+    expect($payout->seller_id)->toBe($seller->id)
+        ->and($payout->amount_cents)->toBe(40500)
+        ->and($payout->period_start->format('Y-m-d'))->toBe('2026-08-17')
+        ->and($payout->period_end->format('Y-m-d'))->toBe('2026-08-23');
 });
 
 it('writes a matching paid-out ledger entry inside the period', function (): void {
@@ -30,9 +31,8 @@ it('writes a matching paid-out ledger entry inside the period', function (): voi
     $payouts = app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'));
 
     $entry = LedgerEntry::query()->where('type', LedgerEntryType::PaidOut)->sole();
-    expect($entry)
-        ->amount_cents->toBe(-40500)
-        ->payout_id->toBe($payouts[0]->id)
+    expect($entry->amount_cents)->toBe(-40500)
+        ->and($entry->payout_id)->toBe($payouts[0]->id)
         ->and($entry->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 23:59:59');
 });
 

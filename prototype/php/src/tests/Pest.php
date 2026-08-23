@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Money\Money;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 /*
@@ -54,10 +56,19 @@ pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
 */
 
 expect()->extend('toBeMoney', function (int $cents) {
-    return expect($this->value)->toBeInstanceOf(App\Domain\Money\Money::class)
-        ->and($this->value->cents)->toBe($cents);
+    expect($this->value)->toBeInstanceOf(Money::class);
+
+    /** @var Money $money */
+    $money = $this->value;
+
+    return expect($money->cents)->toBe($cents);
 });
 
 expect()->extend('toHaveStatus', function (UnitEnum $status) {
-    return expect($this->value->fresh()?->status)->toBe($status);
+    expect($this->value)->toBeInstanceOf(Model::class);
+
+    /** @var Model $model */
+    $model = $this->value;
+
+    return expect($model->fresh()?->getAttribute('status'))->toBe($status);
 });

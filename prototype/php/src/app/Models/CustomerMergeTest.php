@@ -9,6 +9,6 @@ it('reads the anonymous customer and the customer it was merged into', function 
     $verified = Customer::factory()->create();
     $merge = CustomerMerge::create(['anonymous_customer_id' => $anonymous->id, 'customer_id' => $verified->id]);
 
-    expect($merge->anonymousCustomer->is($anonymous))->toBeTrue()
-        ->and($merge->customer->is($verified))->toBeTrue();
+    expect($merge->anonymousCustomer()->sole()->is($anonymous))->toBeTrue()
+        ->and($merge->customer()->sole()->is($verified))->toBeTrue();
 });

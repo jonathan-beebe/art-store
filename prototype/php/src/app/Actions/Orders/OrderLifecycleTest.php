@@ -24,11 +24,13 @@ use Illuminate\Notifications\DatabaseNotification;
  */
 it('runs an order from the cart to the weekly payout', function (): void {
     $balanceOf = fn (Seller $seller): LedgerBalance => LedgerBalance::from(
-        LedgerEntry::query()
-            ->where('seller_id', $seller->id)
-            ->get()
-            ->map(fn (LedgerEntry $entry) => $entry->toMovement())
-            ->all(),
+        array_values(
+            LedgerEntry::query()
+                ->where('seller_id', $seller->id)
+                ->get()
+                ->map(fn (LedgerEntry $entry) => $entry->toMovement())
+                ->all(),
+        ),
     );
     $heldPerSeller = fn (Seller ...$sellers): array => array_map(fn (Seller $seller): int => $balanceOf($seller)->held->cents, $sellers);
     $availablePerSeller = fn (Seller ...$sellers): array => array_map(fn (Seller $seller): int => $balanceOf($seller)->available->cents, $sellers);
@@ -81,11 +83,13 @@ it('runs an order from the cart to the weekly payout', function (): void {
 
 it('returns the stock on a declined card and completes the order on retry', function (): void {
     $balanceOf = fn (Seller $seller): LedgerBalance => LedgerBalance::from(
-        LedgerEntry::query()
-            ->where('seller_id', $seller->id)
-            ->get()
-            ->map(fn (LedgerEntry $entry) => $entry->toMovement())
-            ->all(),
+        array_values(
+            LedgerEntry::query()
+                ->where('seller_id', $seller->id)
+                ->get()
+                ->map(fn (LedgerEntry $entry) => $entry->toMovement())
+                ->all(),
+        ),
     );
     $heldPerSeller = fn (Seller ...$sellers): array => array_map(fn (Seller $seller): int => $balanceOf($seller)->held->cents, $sellers);
     $paidOutPerSeller = fn (Seller ...$sellers): array => array_map(fn (Seller $seller): int => $balanceOf($seller)->paidOut->cents, $sellers);
@@ -100,14 +104,14 @@ it('returns the stock on a declined card and completes the order on retry', func
 
     expect($order->status)->toBe(OrderStatus::PaymentFailed);
     expect($listing)->toHaveStatus(ListingStatus::ForSale);
-    expect($listing->fresh()->quantity)->toBe(1)
+    expect($listing->refresh()->quantity)->toBe(1)
         ->and(LedgerEntry::query()->count())->toBe(0);
 
     $order = $finalizeOrder($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:05:00'));
 
     expect($order->status)->toBe(OrderStatus::Paid);
     expect($listing)->toHaveStatus(ListingStatus::Sold);
-    expect($listing->fresh()->quantity)->toBe(0)
+    expect($listing->refresh()->quantity)->toBe(0)
         ->and($order->payments()->orderBy('id')->pluck('status')->all())->toBe([PaymentStatus::Declined, PaymentStatus::Approved])
         ->and($heldPerSeller($seller))->toBe([40500]);
 

@@ -30,7 +30,7 @@ it('refuses a shipment the parcel cannot be traced by', function (array $overrid
         ->post("/seller/orders/{$fulfillment->id}/shipment", $form($overrides));
 
     $response->assertSessionHasErrors($field);
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
 })->with([
     'no carrier' => [['carrier' => ''], 'carrier'],
     'a carrier longer than the column' => [['carrier' => str_repeat('a', 256)], 'carrier'],
@@ -46,7 +46,7 @@ it('answers another sellers fulfillment before it validates the form', function 
 
     $response->assertNotFound();
     $response->assertSessionHasNoErrors();
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
 });
 
 it('reads the carrier and tracking number the seller typed', function () use ($form): void {

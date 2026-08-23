@@ -22,7 +22,7 @@ it('signs a returning seller in without touching an address already verified', f
     app(SignInSeller::class)('artist@example.com', $this->moment('2026-08-20 09:00:00'));
 
     expect(Seller::count())->toBe(1)
-        ->and($seller->fresh()->email_verified_at?->format('Y-m-d H:i:s'))->toBe($verifiedAt);
+        ->and($seller->refresh()->email_verified_at?->format('Y-m-d H:i:s'))->toBe($verifiedAt);
 });
 
 it('logs the seller in on the seller guard', function (): void {

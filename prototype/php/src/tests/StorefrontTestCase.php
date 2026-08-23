@@ -14,12 +14,12 @@ use App\Support\CustomerIdentity;
  */
 abstract class StorefrontTestCase extends CommerceTestCase
 {
-    protected function visitor(): Customer
+    public function visitor(): Customer
     {
         return $this->arriveAs($this->anonymousCustomer());
     }
 
-    protected function arriveAs(Customer $customer): Customer
+    public function arriveAs(Customer $customer): Customer
     {
         $this->withCookie(CustomerIdentity::COOKIE, (string) $customer->id);
 

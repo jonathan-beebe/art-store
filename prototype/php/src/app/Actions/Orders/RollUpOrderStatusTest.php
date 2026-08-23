@@ -9,7 +9,7 @@ use App\Domain\Orders\OrderStatus;
 
 it('is partially shipped when a paid order has one of two fulfillments shipped', function (): void {
     $order = $this->paidOrderWithTwoSellers();
-    $order->fulfillments()->orderBy('id')->first()->update(['status' => FulfillmentStatus::Shipped]);
+    $order->fulfillments()->orderBy('id')->firstOrFail()->update(['status' => FulfillmentStatus::Shipped]);
 
     $order = app(RollUpOrderStatus::class)($order->load('fulfillments'));
 

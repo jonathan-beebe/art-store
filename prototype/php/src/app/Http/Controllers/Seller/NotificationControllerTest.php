@@ -42,7 +42,7 @@ it('marks a notification read', function () use ($notify): void {
     $response = $this->actingAs($seller, 'seller')->post("/seller/notifications/{$notification->id}/read");
 
     $response->assertRedirect(route('seller.notifications.index'));
-    expect($notification->fresh()->read_at)->not->toBeNull();
+    expect($notification->refresh()->read_at)->not->toBeNull();
 });
 
 it('stops offering to mark a read notification read', function () use ($notify): void {
@@ -61,5 +61,5 @@ it('refuses to mark another sellers notification read', function () use ($notify
     $response = $this->actingAs($this->seller(), 'seller')->post("/seller/notifications/{$notification->id}/read");
 
     $response->assertNotFound();
-    expect($notification->fresh()->read_at)->toBeNull();
+    expect($notification->refresh()->read_at)->toBeNull();
 });

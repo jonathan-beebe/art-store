@@ -29,5 +29,5 @@ it('reads the customer it belongs to', function (): void {
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
 
-    expect($cart->customer->is($customer))->toBeTrue();
+    expect($cart->customer()->sole()->is($customer))->toBeTrue();
 });

@@ -13,19 +13,25 @@ use Illuminate\Support\Facades\Route as RouteFacade;
  * controller, so a new seller-guarded route is covered automatically.
  */
 it('sends a signed-out visitor to seller sign-in for every seller-guarded route', function (): void {
-    $routes = collect(RouteFacade::getRoutes())
+    $routes = collect(RouteFacade::getRoutes()->getRoutes())
         ->filter(fn (Route $route): bool => in_array('auth.seller', $route->gatherMiddleware(), true));
 
     expect($routes)->not->toBeEmpty();
 
     foreach ($routes as $route) {
-        $uri = $route->uri();
-        foreach ($route->parameterNames() as $parameter) {
-            $uri = preg_replace('/\{'.preg_quote($parameter, '/').'\??\}/', '1', (string) $uri);
-        }
-        $method = collect($route->methods())->first(fn (string $method): bool => $method !== 'HEAD');
+        /** @var list<string> $parameterNames */
+        $parameterNames = $route->parameterNames();
 
-        $response = $this->call($method, '/'.ltrim((string) $uri, '/'));
+        /** @var list<string> $methods */
+        $methods = $route->methods();
+
+        $uri = $route->uri();
+        foreach ($parameterNames as $parameter) {
+            $uri = (string) preg_replace('/\{'.preg_quote($parameter, '/').'\??\}/', '1', $uri);
+        }
+        $method = collect($methods)->firstOrFail(fn (string $method): bool => $method !== 'HEAD');
+
+        $response = $this->call($method, '/'.ltrim($uri, '/'));
 
         $response->assertRedirect(route('auth.seller.login'));
     }

@@ -61,6 +61,7 @@ it('fails the payment on a declined payment outcome', function (): void {
 });
 
 it('rolls up fulfillment statuses into an order status', function (array $fulfillments, OrderStatus $expected): void {
+    /** @var list<FulfillmentStatus> $fulfillments */
     expect(OrderStatus::fromFulfillments($fulfillments))->toBe($expected);
 })->with([
     'all awaiting shipment leaves the order paid' => [

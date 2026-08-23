@@ -93,9 +93,12 @@ into the same verified one twice writes one `customer_merges` row —
 row back with `firstOrCreate` instead of failing on it.
 
 A `redirect_to` naming a `/seller` path is never followed on a customer link,
-even when it is otherwise local: `MagicLinkVerificationController` falls back
-to `shop.account`. A customer link carries no seller session, so following it
-there would only land on the seller login wall.
+even when it is otherwise local: the link falls back to `shop.account`. A
+customer link carries no seller session, so following it there would only land
+on the seller login wall. Both halves of that answer are the domain's:
+`LocalRedirect::resolve($requested, $actor, $fallback, $origin)` keeps a target
+only when it stays on this site and `ActorType::allowsPath()` says the actor
+belongs on it.
 
 ## Which identity a storefront request resolves to
 

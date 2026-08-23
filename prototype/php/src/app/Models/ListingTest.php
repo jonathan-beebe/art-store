@@ -65,7 +65,7 @@ it('sells items off its quantity', function (): void {
 
     $listing->sell(2);
 
-    expect($listing->fresh()->quantity)->toBe(1)
+    expect($listing->refresh()->quantity)->toBe(1)
         ->and($listing)->toHaveStatus(ListingStatus::ForSale);
 });
 
@@ -74,7 +74,7 @@ it('is sold once the last item goes', function (): void {
 
     $listing->sell(1);
 
-    expect($listing->fresh()->quantity)->toBe(0)
+    expect($listing->refresh()->quantity)->toBe(0)
         ->and($listing)->toHaveStatus(ListingStatus::Sold);
 });
 
@@ -82,7 +82,7 @@ it('refuses a sale of more than it holds, and writes nothing', function (): void
     $listing = $this->listing($this->seller(), ['quantity' => 1]);
 
     expect(fn () => $listing->sell(2))->toThrow(DomainException::class)
-        ->and($listing->fresh()->quantity)->toBe(1);
+        ->and($listing->refresh()->quantity)->toBe(1);
 });
 
 it('refuses a sale of a listing that left the storefront', function (): void {
@@ -97,7 +97,7 @@ it('restocks items a sale took', function (): void {
 
     $listing->restock(1);
 
-    expect($listing->fresh()->quantity)->toBe(1)
+    expect($listing->refresh()->quantity)->toBe(1)
         ->and($listing)->toHaveStatus(ListingStatus::ForSale);
 });
 

@@ -1,5 +1,6 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - vendor/pestphp/pest/extension.neon
 
 parameters:
     level: max
@@ -7,11 +8,14 @@ parameters:
     checkConfigTypes: true
     configDirectories:
         - config
+    stubFiles:
+        - phpstan/pest-refs.stub
+        - phpstan/pest-functions.stub
+        - phpstan/pest-test-call.stub
+        - phpstan/pest-tap-proxy.stub
+        - phpstan/pest-expectation.stub
     paths:
         - app
         - database
         - routes
-    excludePaths:
-        - app/**/*Test.php
-        - database/**/*Test.php
-        - routes/**/*Test.php
+        - tests

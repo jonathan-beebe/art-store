@@ -24,7 +24,7 @@ it('reads the latest of its payment attempts', function (): void {
         'processed_at' => $this->moment('2026-08-20 10:05:00'),
     ]);
 
-    expect($order->latestPayment->is($retry))->toBeTrue();
+    expect($order->latestPayment()->sole()->is($retry))->toBeTrue();
 });
 
 it('has no latest payment before the first attempt', function (): void {

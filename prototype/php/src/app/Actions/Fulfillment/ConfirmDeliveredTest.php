@@ -18,7 +18,7 @@ it('records when the parcel arrived', function (): void {
     $fulfillment = app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00'));
 
     expect($fulfillment->status)->toBe(FulfillmentStatus::Delivered)
-        ->and($fulfillment->delivered_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
+        ->and($fulfillment->delivered_at?->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
 });
 
 it('releases the escrow hold on delivery', function (): void {
@@ -27,10 +27,9 @@ it('releases the escrow hold on delivery', function (): void {
     app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00'));
 
     $entry = LedgerEntry::query()->where('type', LedgerEntryType::Released)->sole();
-    expect($entry)
-        ->amount_cents->toBe(40500)
-        ->seller_id->toBe($fulfillment->seller_id)
-        ->fulfillment_id->toBe($fulfillment->id)
+    expect($entry->amount_cents)->toBe(40500)
+        ->and($entry->seller_id)->toBe($fulfillment->seller_id)
+        ->and($entry->fulfillment_id)->toBe($fulfillment->id)
         ->and($entry->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
 });
 
@@ -47,11 +46,11 @@ it('releases the escrow once when delivery is confirmed twice', function (): voi
     $confirmDelivered = app(ConfirmDelivered::class);
     $confirmDelivered($fulfillment, $this->moment('2026-08-23 14:00:00'));
 
-    expect(fn () => $confirmDelivered($fulfillment->fresh(), $this->moment('2026-08-24 14:00:00')))
+    expect(fn () => $confirmDelivered($fulfillment->refresh(), $this->moment('2026-08-24 14:00:00')))
         ->toThrow(DomainRuleViolation::class, 'A fulfillment cannot move from delivered to delivered.');
 
     expect(LedgerEntry::query()->where('type', LedgerEntryType::Released)->count())->toBe(1)
-        ->and($fulfillment->fresh()->delivered_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
+        ->and($fulfillment->refresh()->delivered_at?->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
 });
 
 it('refuses a fulfillment that never shipped', function (): void {

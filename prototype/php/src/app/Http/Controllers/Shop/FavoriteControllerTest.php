@@ -8,6 +8,8 @@ use App\Domain\Listings\ListingEventType;
 use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\ListingEvent;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
 it('favorites a listing and records the event', function (): void {
     $visitor = $this->visitor();
@@ -30,7 +32,7 @@ it('removes the favorite when favorited twice', function (): void {
     $this->post('/art/harbour-at-dawn/favorite');
 
     expect(Favorite::count())->toBe(0)
-        ->and(ListingEvent::orderBy('id')->get()->pluck('type')->all())
+        ->and(ListingEvent::orderBy('id')->pluck('type')->all())
         ->toBe([ListingEventType::Favorite, ListingEventType::Unfavorite]);
 });
 
@@ -41,7 +43,7 @@ it('survives the merge when favorited before signing in', function (): void {
     $this->post('/art/harbour-at-dawn/favorite');
 
     $this->post('/login', ['email' => 'shopper@example.com']);
-    $this->get(session('debug_magic_link'));
+    $this->get(Arr::string(Session::all(), 'debug_magic_link'));
 
     $this->get('/favorites')->assertSee('Harbour at Dawn');
     expect(Favorite::count())->toBe(1);

@@ -47,12 +47,13 @@ it('seeds each listing through CreateListing, so every slug is a plain collision
 });
 
 it('seeds the two sold-out listings by title, reached by selling out real stock', function (): void {
-    expect(Listing::where('title', 'Copper Patina Bowl')->firstOrFail())
-        ->status->toBe(ListingStatus::Sold)
-        ->quantity->toBe(0);
-    expect(Listing::where('title', 'Wet Plate Collodion Portrait')->firstOrFail())
-        ->status->toBe(ListingStatus::Sold)
-        ->quantity->toBe(0);
+    $bowl = Listing::where('title', 'Copper Patina Bowl')->firstOrFail();
+    $portrait = Listing::where('title', 'Wet Plate Collodion Portrait')->firstOrFail();
+
+    expect($bowl->status)->toBe(ListingStatus::Sold)
+        ->and($bowl->quantity)->toBe(0)
+        ->and($portrait->status)->toBe(ListingStatus::Sold)
+        ->and($portrait->quantity)->toBe(0);
 });
 
 it('seeds the three draft listings by title', function (): void {
@@ -62,9 +63,8 @@ it('seeds the three draft listings by title', function (): void {
 });
 
 it('seeds one verified customer with favorites', function (): void {
-    $customer = Customer::where('email', 'casey@example.com')->first();
+    $customer = Customer::where('email', 'casey@example.com')->sole();
 
-    expect($customer)->not->toBeNull();
     expect($customer->email_verified_at)->not->toBeNull();
     expect(Favorite::where('customer_id', $customer->id)->count())->toBe(3);
     expect(ListingEvent::count())->toBeGreaterThanOrEqual(6);

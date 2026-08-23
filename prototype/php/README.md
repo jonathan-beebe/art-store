@@ -76,7 +76,7 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-485 tests (1123 assertions), run by Pest — `it()`/`test()` functions, no
+733 tests (1643 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php`; there is no `tests/Feature` or
@@ -92,10 +92,14 @@ reach of sidecars under `app/`, so the suite keeps none there.
 controllers skip the `DB` facade, no debug calls, strict types everywhere)
 plus Pest's `laravel` and `security` presets. `tests/SidecarsTest.php` asserts
 every non-abstract class under `app/` has a sidecar test file, against a
-maintained, shrink-only list of exceptions.
+shrink-only list of exceptions that is currently empty.
 
 Static analysis (`make analyse`) runs PHPStan/Larastan at `level: max` over
-`app`, `database`, and `routes`; formatting (`make lint`) runs Pint with
+`app`, `database`, `routes`, and `tests` — the sidecar tests are analysed with
+the code they cover, and there are no `excludePaths` and no `ignoreErrors`.
+`src/phpstan/*.stub` gives PHPStan the types Pest carries in traits and in
+`expect()->extend()`: the test case a Pest closure runs on, the two custom
+expectations, and the arch DSL. Formatting (`make lint`) runs Pint with
 `declare(strict_types=1)` enforced on every file.
 
 `src/tests/SmokeTest.php` is the exception to the sidecar rule: one HTTP walk of
@@ -105,7 +109,7 @@ file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
 `make test` as well.
 
 `make coverage` prints a text summary and writes HTML to `src/coverage/` (pcov
-is in the image). Current: **98.20% lines overall, 100% on `app/Domain`**.
+is in the image). Current: **100.0% of lines**.
 
 ## Database
 
@@ -211,25 +215,32 @@ prototype/php/
   src/                 the Laravel application
     app/Domain/        pure domain core, sidecar tests beside each class
     app/Actions/       one job each, sequencing core + models
-    app/Http/          controllers per site: Shop/, Seller/, Auth/
+    app/Models/        Eloquent: relations, casts, scopes, invariant writes
+    app/Http/          controllers, form requests and middleware per site:
+                       Shop/, Seller/, Auth/
+    app/Policies/      ownership and "is this form worth offering"
+    app/Events/        past-tense business moments
+    app/Listeners/     who hears about an event
+    app/Notifications/ what they are told, plus Channels/
     routes/            web.php requires auth.php, shop.php, seller.php
-    resources/views/   layouts/shop, layouts/seller, partials/debug-alert
-    tests/             base test cases and SmokeTest
+    resources/views/   components/layouts/{shop,seller}, components/debug-alert,
+                       components/listing-card, components/form/field, and a
+                       page per route under shop/ and seller/
+    phpstan/           stub files that type Pest's traits for the analyser
+    tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```
 
 ## Known gaps
 
 Full list with next steps in [`docs/review.md`](docs/review.md).
 
-- Email delivery is a hook, not an implementation. `MAGIC_LINK_DELIVERY=mail`
-  throws.
-- Four action classes under `app/Actions/Auth` and `app/Actions/Customers` have
-  no sidecar test. All four are at 100% line coverage through the controller
-  tests that drive them.
-- Eloquent models sit at 86.07% line coverage. The uncovered lines are inverse
-  `belongsTo` relations no caller reads yet.
+- Email delivery is a hook, not an implementation. Every notification has a
+  `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS=database,mail`
+  switch the channel, but `MAIL_MAILER` points at `log`.
 - No order cancellation route; `OrderStatus::Cancelled` exists in the domain
   with no way to reach it over HTTP.
+- A cart holding a line the listing can no longer supply still shows a live
+  Checkout button. The write refuses and names the item.
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.

@@ -9,6 +9,8 @@ use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\ListingEvent;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
 it('adds a listing to the cart and records the event', function (): void {
     $visitor = $this->visitor();
@@ -93,7 +95,7 @@ it('survives the merge when the cart was filled before signing in', function ():
     $this->post('/cart/harbour-at-dawn');
 
     $this->post('/login', ['email' => 'shopper@example.com']);
-    $this->get(session('debug_magic_link'));
+    $this->get(Arr::string(Session::all(), 'debug_magic_link'));
 
     $response = $this->get('/cart');
 

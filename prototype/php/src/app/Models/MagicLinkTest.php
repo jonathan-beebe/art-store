@@ -44,6 +44,6 @@ it('stamps and closes a link once consumed', function () use ($link): void {
 
     $created->consume(now()->toDateTimeImmutable());
 
-    expect($created->fresh()->consumed_at)->not->toBeNull();
-    expect($created->fresh()->statusAt(now()->toDateTimeImmutable()))->toBe(MagicLinkStatus::Consumed);
+    expect($created->refresh()->consumed_at)->not->toBeNull();
+    expect($created->refresh()->statusAt(now()->toDateTimeImmutable()))->toBe(MagicLinkStatus::Consumed);
 });

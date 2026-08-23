@@ -8,17 +8,21 @@ use App\Models\Customer;
 use App\Models\MagicLink;
 use App\Models\Seller;
 use App\Support\CustomerIdentity;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
-$sellerLinkFor = function (string $email): string {
+$flashedLink = fn (): string => Arr::string(Session::all(), 'debug_magic_link');
+
+$sellerLinkFor = function (string $email) use ($flashedLink): string {
     test()->post('/seller/login', ['email' => $email]);
 
-    return session('debug_magic_link');
+    return $flashedLink();
 };
 
-$customerLinkFor = function (string $email, ?string $redirectTo = null): string {
+$customerLinkFor = function (string $email, ?string $redirectTo = null) use ($flashedLink): string {
     test()->post('/login', array_filter(['email' => $email, 'redirect_to' => $redirectTo]));
 
-    return session('debug_magic_link');
+    return $flashedLink();
 };
 
 it('gives a first-time seller an account and lands them on the dashboard', function () use ($sellerLinkFor): void {
@@ -37,7 +41,7 @@ it('signs a returning seller in to the same account', function () use ($sellerLi
     $this->get($sellerLinkFor('Artist@Example.com'));
 
     expect(Seller::count())->toBe(1);
-    $this->assertAuthenticatedAs($seller->fresh(), 'seller');
+    $this->assertAuthenticatedAs($seller->refresh(), 'seller');
 });
 
 it('refuses an expired link', function () use ($sellerLinkFor): void {
@@ -86,9 +90,9 @@ it('lets an anonymous customer claim their own row', function () use ($customerL
 
     $response->assertRedirect(route('shop.account'));
     $response->assertCookie(CustomerIdentity::COOKIE, (string) $anonymous->id);
-    $this->assertAuthenticatedAs($anonymous->fresh(), 'customer');
+    $this->assertAuthenticatedAs($anonymous->refresh(), 'customer');
     expect(Customer::count())->toBe(1)
-        ->and($anonymous->fresh()->email)->toBe('shopper@example.com');
+        ->and($anonymous->email)->toBe('shopper@example.com');
     $this->assertDatabaseCount('customer_merges', 0);
 });
 
@@ -101,7 +105,7 @@ it('merges an anonymous customer into the account that owns the address', functi
 
     $response->assertRedirect(route('shop.account'));
     $response->assertCookie(CustomerIdentity::COOKIE, (string) $verified->id);
-    $this->assertAuthenticatedAs($verified->fresh(), 'customer');
+    $this->assertAuthenticatedAs($verified->refresh(), 'customer');
     $this->assertDatabaseHas('customer_merges', [
         'anonymous_customer_id' => $anonymous->id,
         'customer_id' => $verified->id,
@@ -125,7 +129,7 @@ it('marks a guest order address verified once verified', function () use ($custo
 
     $this->get($customerLinkFor('shopper@example.com'));
 
-    expect($customer->fresh()->email_verified_at)->not->toBeNull();
+    expect($customer->refresh()->email_verified_at)->not->toBeNull();
 });
 
 it('honours a local destination on the link', function () use ($customerLinkFor): void {
@@ -134,11 +138,11 @@ it('honours a local destination on the link', function () use ($customerLinkFor)
     $response->assertRedirect('/checkout');
 });
 
-it('ignores a destination on another host', function (): void {
+it('ignores a destination on another host', function () use ($flashedLink): void {
     $this->post('/login', ['email' => 'shopper@example.com']);
     MagicLink::sole()->forceFill(['redirect_to' => 'http://evil.example/steal'])->save();
 
-    $response = $this->get(session('debug_magic_link'));
+    $response = $this->get($flashedLink());
 
     $response->assertRedirect(route('shop.account'));
 });

@@ -28,17 +28,17 @@ abstract class CommerceTestCase extends TestCase
 {
     use RefreshDatabase;
 
-    protected function seller(string $shopName = 'Blue Kiln Studio'): Seller
+    public function seller(string $shopName = 'Blue Kiln Studio'): Seller
     {
         return Seller::factory()->create(['shop_name' => $shopName]);
     }
 
-    protected function verifiedCustomer(): Customer
+    public function verifiedCustomer(): Customer
     {
         return Customer::factory()->create();
     }
 
-    protected function anonymousCustomer(): Customer
+    public function anonymousCustomer(): Customer
     {
         return Customer::factory()->anonymous()->create();
     }
@@ -46,12 +46,12 @@ abstract class CommerceTestCase extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      */
-    protected function listing(Seller $seller, array $attributes = []): Listing
+    public function listing(Seller $seller, array $attributes = []): Listing
     {
         return Listing::factory()->create($attributes + ['seller_id' => $seller->id]);
     }
 
-    protected function purchaser(Customer $customer): Purchaser
+    public function purchaser(Customer $customer): Purchaser
     {
         return Purchaser::onAccount(
             $customer->id,
@@ -60,7 +60,7 @@ abstract class CommerceTestCase extends TestCase
         );
     }
 
-    protected function cartFor(Customer $customer): Cart
+    public function cartFor(Customer $customer): Cart
     {
         return Cart::create(['customer_id' => $customer->id]);
     }
@@ -68,7 +68,7 @@ abstract class CommerceTestCase extends TestCase
     /**
      * A cart holding one listing at the given price, added by the given customer.
      */
-    protected function cartWithOneListing(Customer $customer, int $priceCents): Cart
+    public function cartWithOneListing(Customer $customer, int $priceCents): Cart
     {
         $cart = $this->cartFor($customer);
         $listing = $this->listing($this->seller(), ['price_cents' => $priceCents]);
@@ -80,7 +80,7 @@ abstract class CommerceTestCase extends TestCase
     /**
      * Walks a customer through the storefront up to the point of payment.
      */
-    protected function orderFor(Customer $customer, Listing ...$listings): Order
+    public function orderFor(Customer $customer, Listing ...$listings): Order
     {
         $cart = $this->cartFor($customer);
         $addToCart = app(AddToCart::class);
@@ -100,7 +100,7 @@ abstract class CommerceTestCase extends TestCase
     /**
      * A paid order split across two sellers, one fulfillment each.
      */
-    protected function paidOrderWithTwoSellers(): Order
+    public function paidOrderWithTwoSellers(): Order
     {
         $order = $this->orderFor(
             $this->verifiedCustomer(),
@@ -111,7 +111,7 @@ abstract class CommerceTestCase extends TestCase
         return app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
     }
 
-    protected function shippingAddress(): ShippingAddress
+    public function shippingAddress(): ShippingAddress
     {
         return ShippingAddress::to(
             name: 'Ada Lovelace',
@@ -124,7 +124,7 @@ abstract class CommerceTestCase extends TestCase
         );
     }
 
-    protected function moment(string $when): DateTimeImmutable
+    public function moment(string $when): DateTimeImmutable
     {
         return new DateTimeImmutable($when);
     }
@@ -133,7 +133,7 @@ abstract class CommerceTestCase extends TestCase
      * Carries a listing through checkout, payment, and shipment for the given
      * seller. Shared by every test that needs a fulfillment already in transit.
      */
-    protected function shippedFulfillmentFor(
+    public function shippedFulfillmentFor(
         Seller $seller,
         ?Customer $customer = null,
         int $priceCents = 10000,
@@ -155,7 +155,7 @@ abstract class CommerceTestCase extends TestCase
     /**
      * As {@see self::shippedFulfillmentFor()}, carried one step further to delivered.
      */
-    protected function deliveredFulfillmentFor(
+    public function deliveredFulfillmentFor(
         Seller $seller,
         ?Customer $customer = null,
         int $priceCents = 10000,
@@ -167,6 +167,6 @@ abstract class CommerceTestCase extends TestCase
     ): Fulfillment {
         $fulfillment = $this->shippedFulfillmentFor($seller, $customer, $priceCents, $carrier, $trackingNumber, $orderedAt, $shippedAt);
 
-        return app(ConfirmDelivered::class)($fulfillment->fresh(), $deliveredAt ?? $this->moment('2026-08-22 10:00:00'));
+        return app(ConfirmDelivered::class)($fulfillment->refresh(), $deliveredAt ?? $this->moment('2026-08-22 10:00:00'));
     }
 }

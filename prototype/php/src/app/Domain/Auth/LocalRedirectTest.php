@@ -8,7 +8,7 @@ it('resolves a requested target', function (?string $requested, string $expected
     $origin = 'http://localhost:8000';
     $fallback = '/account';
 
-    expect(LocalRedirect::resolve($requested, $fallback, $origin))->toBe($expected);
+    expect(LocalRedirect::resolve($requested, ActorType::Customer, $fallback, $origin))->toBe($expected);
 })->with([
     'a missing target falls back' => [null, '/account'],
     'a blank target falls back' => ['   ', '/account'],
@@ -20,7 +20,16 @@ it('resolves a requested target', function (?string $requested, string $expected
     'a protocol-relative url falls back' => ['//evil.example/steal', '/account'],
     'a backslash-escaped path falls back' => ['/\\evil.example/steal', '/account'],
     'a target carrying a newline falls back' => ["/checkout\nSet-Cookie: x=1", '/account'],
+    'the seller portal falls back for a customer' => ['/seller', '/account'],
+    'a path inside the seller portal falls back for a customer' => ['/seller/orders/1', '/account'],
+    'an absolute seller url falls back for a customer' => ['http://localhost:8000/seller/listings', '/account'],
+    'a path that only prefixes the seller portal is kept' => ['/sellers-guide', '/sellers-guide'],
 ]);
+
+it('keeps a seller on the seller portal', function (): void {
+    expect(LocalRedirect::resolve('/seller/orders/1', ActorType::Seller, '/dashboard', 'http://localhost:8000'))
+        ->toBe('/seller/orders/1');
+});
 
 it('keeps a local target on its own', function (): void {
     expect(LocalRedirect::keepIfLocal('/checkout', 'http://localhost:8000'))->toBe('/checkout');

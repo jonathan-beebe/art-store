@@ -315,11 +315,11 @@ flowchart LR
   A test reaches for `Model::factory()->create([...])` for a plain row and for
   the action walk (below) only when the row's *lifecycle* — not just its
   final shape — is what the test is about.
-- A repeated fixture is a protected method on `Tests\CommerceTestCase`
+- A repeated fixture is a public method on `Tests\CommerceTestCase`
   (`cartWithOneListing()`, `paidOrderWithTwoSellers()`,
   `shippedFulfillmentFor()`, `deliveredFulfillmentFor()`); a fixture used by
-  one file is bound as a property in that file's `beforeEach`
-  (`$this->paidOrder = function (...) {...};`).
+  one file is a closure declared at the top of that file and pulled into each
+  test with `use ($fixture)`, reaching the running test case through `test()`.
 - Tabulated input/output shapes are datasets: inline `->with([...])` or a
   file-local `dataset()` call at the top of the sidecar. Named datasets
   declared in `tests/Pest.php` do not resolve from sidecars under `app/`
@@ -331,12 +331,19 @@ flowchart LR
   every class under `App\Actions` is final and invokable; controllers do not
   use the `DB` facade; no debug functions anywhere; `env()` only in
   `config/`, never under `App`; every file declares strict types — plus
-  Pest's `laravel` and `security` presets (with four `ignoring` entries:
-  `App\Http\Controllers`
-  for action-verb route methods, `App\Domain` for enums that live beside the
-  concept they model, `App\Console\Commands\RunWeeklyPayouts` for its
-  artisan command name, and `App\Notifications\Channels` for a delivery
-  channel, which is not itself a notification).
+  Pest's `laravel` and `security` presets. The preset's `ignoring` list names
+  one class at a time rather than a namespace: the nine controllers whose
+  route methods are action verbs (`CartController::add`,
+  `CheckoutController::place`, `FavoriteController::toggle`,
+  `OrderPaymentController::pay`, `AccountController::readNotification`,
+  `NotificationController::markRead`, `SignOutController::seller`/`customer`,
+  and the two `LoginController::send` pairs), `App\Domain` for enums that live
+  beside the concept they model, `App\Console\Commands\RunWeeklyPayouts` for
+  its artisan command name, `App\Notifications\Channels` for a delivery
+  channel, which is not itself a notification, and
+  `App\Http\Requests\Shop\ShopRequest`, the abstract base whose children
+  hold the rules. Every other controller is held to the preset's REST method
+  vocabulary.
 - `tests/SidecarsTest.php` asserts every non-abstract, non-interface,
   non-enum, non-trait class under `app/` has a sidecar, against a maintained
   list of exceptions (classes covered by another file's tests, or with no
@@ -351,17 +358,28 @@ flowchart LR
   `Event::fake([...])` and `Notification::fake()` cover "something was sent";
   what an inbox shows is asserted through the page that renders it.
 - Coverage via `pcov`: `composer test:coverage` prints a text summary and
-  writes `coverage/`. Targets: ≥ 90% on `app/Domain`, ≥ 80% overall — the
-  actual numbers are FEAT-008's to report, in `docs/review.md`.
+  writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
 - The gate: `make check` (`composer check`) runs Pint (`declare_strict_types`
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
-  `level: max` over `app`, `database`, `routes` (model casts and config types
-  understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (721 tests, 1600 assertions). `make analyse` and `make lint`
-  run the first two alone, against the file tree only (`--no-deps`, no web
+  `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
+  config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
+  then the full Pest suite (733 tests, 1643 assertions). `make analyse` and `make lint` run
+  the first two alone, against the file tree only (`--no-deps`, no web
   server).
+- Sidecar tests are analysed at the same level as the code they cover: there
+  are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
+  test case, the custom expectations, and the arch DSL through traits and
+  `expect()->extend()`, none of which static analysis can follow, so
+  `src/phpstan/*.stub` declares them: `Pest\PendingCalls\TestCall` and
+  `Pest\Support\HigherOrderTapProxy` mix in `Tests\StorefrontTestCase` (the
+  deepest of the three base classes, so every file gets the members its own
+  base carries), `Pest\Expectation` gains `toBeMoney()` and `toHaveStatus()`,
+  and `pest-refs.stub` declares the classes those stubs name, which is what
+  PHPStan's stub validator resolves against. A higher-order expectation chain
+  (`expect($order)->status->toBe(...)`) resolves to `mixed`, so the suite
+  writes `expect($order->status)->toBe(...)->and(...)` instead.
 
 ## Repository layout
 
@@ -381,6 +399,6 @@ prototype/php/
 | Skill says | Here it means |
 | --- | --- |
 | `npm run test:run -- <pattern>` | `docker compose run --rm app composer test -- --filter <pattern>` |
-| Vitest unit test | PHPUnit test extending `PHPUnit\Framework\TestCase`, sidecar file |
-| React Testing Library integration test | PHPUnit feature test extending `Tests\TestCase`, driving `$this->get()/post()` |
+| Vitest unit test | Pest `it()` in a sidecar file, no app boot |
+| React Testing Library integration test | Pest `it()` bound to `Tests\CommerceTestCase` or `Tests\StorefrontTestCase`, driving `$this->get()/post()` |
 | `src/` | `prototype/php/src/` |

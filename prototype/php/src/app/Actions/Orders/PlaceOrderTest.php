@@ -18,11 +18,10 @@ it('turns the cart into an order the customer can pay for', function (): void {
 
     $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($order)
-        ->status->toBe(OrderStatus::AwaitingPayment)
-        ->subtotal_cents->toBe(45000)
-        ->total_cents->toBe(45000)
-        ->finalized_at->toBeNull()
+    expect($order->status)->toBe(OrderStatus::AwaitingPayment)
+        ->and($order->subtotal_cents)->toBe(45000)
+        ->and($order->total_cents)->toBe(45000)
+        ->and($order->finalized_at)->toBeNull()
         ->and($order->placed_at->format('Y-m-d H:i:s'))->toBe('2026-08-20 09:00:00');
 });
 
@@ -41,11 +40,10 @@ it('copies the shipping address onto the order', function (): void {
 
     $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($order)
-        ->shipping_name->toBe('Ada Lovelace')
-        ->shipping_line1->toBe('12 Analytical Way')
-        ->shipping_line2->toBeNull()
-        ->shipping_postal_code->toBe('EC1A 1BB');
+    expect($order->shipping_name)->toBe('Ada Lovelace')
+        ->and($order->shipping_line1)->toBe('12 Analytical Way')
+        ->and($order->shipping_line2)->toBeNull()
+        ->and($order->shipping_postal_code)->toBe('EC1A 1BB');
 });
 
 it('snapshots the title and price of every item', function (): void {
@@ -56,10 +54,11 @@ it('snapshots the title and price of every item', function (): void {
 
     $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($order->items()->sole())
-        ->title->toBe('Harbour at Dusk')
-        ->unit_price_cents->toBe(45000)
-        ->seller_id->toBe($listing->seller_id);
+    $item = $order->items()->sole();
+
+    expect($item->title)->toBe('Harbour at Dusk')
+        ->and($item->unit_price_cents)->toBe(45000)
+        ->and($item->seller_id)->toBe($listing->seller_id);
 });
 
 it('splits the order into one fulfillment per seller', function (): void {
@@ -105,7 +104,10 @@ it('takes the stock the order claims', function (): void {
 
     app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($listing->fresh())->quantity->toBe(1)->status->toBe(ListingStatus::ForSale);
+    $listing->refresh();
+
+    expect($listing->quantity)->toBe(1)
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
 it('marks a listing sold when the order claims the last of it', function (): void {
@@ -116,7 +118,10 @@ it('marks a listing sold when the order claims the last of it', function (): voi
 
     app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($listing->fresh())->quantity->toBe(0)->status->toBe(ListingStatus::Sold);
+    $listing->refresh();
+
+    expect($listing->quantity)->toBe(0)
+        ->and($listing->status)->toBe(ListingStatus::Sold);
 });
 
 it('empties the cart', function (): void {
@@ -147,7 +152,8 @@ it('refuses a listing that left the storefront while it sat in the cart', functi
     expect($place)->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” is no longer for sale.')
         ->and(Order::count())->toBe(0)
         ->and($cart->items()->count())->toBe(1)
-        ->and($listing->fresh())->quantity->toBe(1)->status->toBe(ListingStatus::Archived);
+        ->and($listing->refresh()->quantity)->toBe(1)
+        ->and($listing->status)->toBe(ListingStatus::Archived);
 });
 
 it('refuses a listing whose last unit sold to someone else', function (): void {

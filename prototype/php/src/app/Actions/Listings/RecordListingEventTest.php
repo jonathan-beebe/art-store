@@ -12,10 +12,9 @@ it('records a view against the listing and the customer', function (): void {
 
     $event = app(RecordListingEvent::class)($listing, $customer->id, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
 
-    expect($event)
-        ->listing_id->toBe($listing->id)
-        ->customer_id->toBe($customer->id)
-        ->type->toBe(ListingEventType::View)
+    expect($event->listing_id)->toBe($listing->id)
+        ->and($event->customer_id)->toBe($customer->id)
+        ->and($event->type)->toBe(ListingEventType::View)
         ->and($event->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-20 09:00:00');
 });
 
@@ -38,10 +37,9 @@ it('counts the events a listing has collected', function (): void {
     $record($listing, $customer->id, ListingEventType::Favorite, $now);
     $record($listing, $customer->id, ListingEventType::CartAdd, $now);
 
-    $counted = $listing->newQuery()->withEventCounts()->find($listing->id);
+    $counted = $listing->newQuery()->withEventCounts()->findOrFail($listing->id);
 
-    expect($counted)
-        ->views_count->toBe(2)
-        ->favorites_count->toBe(1)
-        ->cart_adds_count->toBe(1);
+    expect($counted->views_count)->toBe(2)
+        ->and($counted->favorites_count)->toBe(1)
+        ->and($counted->cart_adds_count)->toBe(1);
 });

@@ -8,6 +8,8 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
 use App\Models\Order;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
 $fillCart = function (): void {
     test()->listing(test()->seller(), ['slug' => 'harbour-at-dawn', 'price_cents' => 24500]);
@@ -92,13 +94,13 @@ it('carries the guest order to their account and pays it on verification', funct
     $this->post('/checkout', $checkoutFields());
     $order = Order::sole();
 
-    $this->get(session('debug_magic_link'))->assertRedirect(route('shop.order.pay', $order));
-    expect($order->fresh()->customer_id)->toBe($shopper->id);
+    $this->get(Arr::string(Session::all(), 'debug_magic_link'))->assertRedirect(route('shop.order.pay', $order));
+    expect($order->refresh()->customer_id)->toBe($shopper->id);
 
     $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
 
     $response->assertRedirect(route('shop.order', $order));
-    expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
 });
 
 it('lets a verified customer pay as they place the order', function () use ($fillCart, $checkoutFields): void {
@@ -135,7 +137,7 @@ it('sends the shopper back to the cart when a line was archived while it sat the
     $response->assertRedirect(route('shop.cart'));
     $response->assertSessionHasErrors();
     expect(Order::count())->toBe(0)
-        ->and($listing->fresh()->quantity)->toBe(1);
+        ->and($listing->refresh()->quantity)->toBe(1);
 });
 
 it('names the item that sold to someone else and marks it on the cart page', function () use ($checkoutFields): void {

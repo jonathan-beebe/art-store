@@ -30,5 +30,5 @@ it('removes a favorite and records the event', function (): void {
 
     expect($change)->toBe(FavoriteChange::Removed)
         ->and(Favorite::count())->toBe(0)
-        ->and(ListingEvent::orderByDesc('id')->first()->type)->toBe(ListingEventType::Unfavorite);
+        ->and(ListingEvent::orderByDesc('id')->firstOrFail()->type)->toBe(ListingEventType::Unfavorite);
 });

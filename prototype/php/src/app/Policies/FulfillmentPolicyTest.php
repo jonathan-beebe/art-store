@@ -8,6 +8,7 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Seller;
+use Illuminate\Auth\Access\Response;
 
 $awaitingShipment = function (Seller $seller, ?Customer $customer = null): Fulfillment {
     $order = test()->orderFor($customer ?? test()->verifiedCustomer(), test()->listing($seller));
@@ -20,14 +21,20 @@ it('lets the selling seller act on their own fulfillment', function (string $abi
     $seller = $this->seller();
     $fulfillment = $awaitingShipment($seller);
 
-    expect((new FulfillmentPolicy)->{$ability}($seller, $fulfillment)->allowed())->toBeTrue();
+    $response = (new FulfillmentPolicy)->{$ability}($seller, $fulfillment);
+    expect($response)->toBeInstanceOf(Response::class);
+
+    /** @var Response $response */
+    expect($response->allowed())->toBeTrue();
 })->with(['view', 'update']);
 
 it('answers not found for another sellers fulfillment', function (string $ability) use ($awaitingShipment): void {
     $fulfillment = $awaitingShipment($this->seller('Other Studio'));
 
     $response = (new FulfillmentPolicy)->{$ability}($this->seller(), $fulfillment);
+    expect($response)->toBeInstanceOf(Response::class);
 
+    /** @var Response $response */
     expect($response->denied())->toBeTrue()
         ->and($response->status())->toBe(404);
 })->with(['view', 'update', 'ship']);

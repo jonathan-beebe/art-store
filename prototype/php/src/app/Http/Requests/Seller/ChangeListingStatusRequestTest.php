@@ -14,7 +14,7 @@ it('rejects a status change the lifecycle does not allow', function (ListingStat
         ->post("/seller/listings/{$listing->id}/status", ['status' => $attempted]);
 
     $response->assertSessionHasErrors('status');
-    expect($listing->fresh()->status)->toBe($initial);
+    expect($listing->refresh()->status)->toBe($initial);
 })->with([
     'a transition the lifecycle does not allow' => [ListingStatus::Draft, 'sold'],
     'a status that is not a listing status at all' => [ListingStatus::Draft, 'on_fire'],
@@ -31,5 +31,5 @@ it('answers another sellers listing before it reads the status', function (): vo
 
     $response->assertNotFound();
     $response->assertSessionHasNoErrors();
-    expect($listing->fresh()->status)->toBe(ListingStatus::Draft);
+    expect($listing->refresh()->status)->toBe(ListingStatus::Draft);
 });

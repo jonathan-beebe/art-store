@@ -8,9 +8,20 @@ final class LocalRedirect
 {
     private function __construct() {} // @codeCoverageIgnore
 
-    public static function resolve(?string $requested, string $fallback, string $origin): string
+    /**
+     * The destination a signed-in actor lands on: the target it asked for when
+     * that target stays on this site and belongs to the actor, the fallback
+     * otherwise.
+     */
+    public static function resolve(?string $requested, ActorType $actor, string $fallback, string $origin): string
     {
-        return self::keepIfLocal($requested, $origin) ?? $fallback;
+        $target = self::keepIfLocal($requested, $origin);
+
+        if ($target === null || ! $actor->allowsPath(self::pathOf($target))) {
+            return $fallback;
+        }
+
+        return $target;
     }
 
     /**
@@ -37,5 +48,10 @@ final class LocalRedirect
         }
 
         return null;
+    }
+
+    private static function pathOf(string $target): string
+    {
+        return (string) parse_url($target, PHP_URL_PATH);
     }
 }

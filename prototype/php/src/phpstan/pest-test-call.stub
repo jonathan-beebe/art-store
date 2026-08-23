@@ -1,0 +1,16 @@
+<?php
+
+namespace Pest\PendingCalls;
+
+/**
+ * `arch()` and a no-argument `test()` both answer with this class, which
+ * forwards to the running test case and to Pest's expectation API through
+ * traits that `@mixin` cannot reach.
+ *
+ * @method \Pest\Expectation<mixed> expect(mixed $value)
+ * @method \Pest\Expectation<mixed> and(mixed $value)
+ * @method \Pest\Preset preset()
+ *
+ * @mixin \Tests\StorefrontTestCase
+ */
+final class TestCall {}

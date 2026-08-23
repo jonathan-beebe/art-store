@@ -15,7 +15,8 @@ it('puts a listing in the cart', function (): void {
 
     $item = app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 09:00:00'));
 
-    expect($item)->listing_id->toBe($listing->id)->quantity->toBe(2);
+    expect($item->listing_id)->toBe($listing->id)
+        ->and($item->quantity)->toBe(2);
 });
 
 it('raises the quantity on one line when the same listing is added twice', function (): void {
@@ -54,7 +55,8 @@ it('records the add as a listing event', function (): void {
 
     app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
 
-    expect(ListingEvent::query()->sole())
-        ->type->toBe(ListingEventType::CartAdd)
-        ->customer_id->toBe($customer->id);
+    $event = ListingEvent::query()->sole();
+
+    expect($event->type)->toBe(ListingEventType::CartAdd)
+        ->and($event->customer_id)->toBe($customer->id);
 });

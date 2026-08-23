@@ -10,20 +10,28 @@ use App\Models\MagicLink;
 use App\Notifications\MagicLinkIssued;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 
 $send = function (string $email, ActorType $actorType, ?string $redirectTo = null): string {
     app(SendMagicLink::class)($email, $actorType, $redirectTo, now()->toDateTimeImmutable());
 
-    return session('debug_magic_link');
+    $url = session('debug_magic_link');
+
+    return is_string($url)
+        ? $url
+        : throw new RuntimeException('SendMagicLink flashed no link to the session.');
 };
 
 it('stores only the hash of the token it delivers', function () use ($send): void {
     $url = $send('Artist@Example.com', ActorType::Seller);
-    $token = basename(parse_url($url, PHP_URL_PATH));
+    $path = parse_url($url, PHP_URL_PATH);
+    expect($path)->toBeString();
+    $token = basename((string) $path);
 
-    expect(MagicLink::sole()->token_hash)
-        ->toBe(MagicLinkToken::hash($token))
-        ->not->toContain($token);
+    $tokenHash = MagicLink::sole()->token_hash;
+
+    expect($tokenHash)->toBe(MagicLinkToken::hash($token))
+        ->and($tokenHash)->not->toContain($token);
 });
 
 it('normalizes the address on the link', function () use ($send): void {

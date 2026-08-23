@@ -1,0 +1,54 @@
+<?php
+
+/*
+ * PHPStan validates stub files against a reflection provider that knows PHP's
+ * own classes and the classes stub files declare, so every class the stubs
+ * beside this one name is declared here. Each declaration repeats the PHPDoc
+ * Pest puts on the class, because a stub's PHPDoc is the one the analysis uses.
+ */
+
+namespace Tests {
+    abstract class StorefrontTestCase {}
+}
+
+namespace Pest {
+    final class Preset {}
+}
+
+namespace Pest\Expectations {
+    /**
+     * @template TValue
+     *
+     * @mixin \Pest\Expectation<TValue>
+     */
+    final class OppositeExpectation {}
+
+    /**
+     * @template TValue
+     *
+     * @mixin \Pest\Expectation<TValue>
+     */
+    final class EachExpectation {}
+}
+
+namespace Pest\Arch {
+    /**
+     * @mixin \Pest\Expectation<array<int, string>|string>
+     */
+    final class PendingArchExpectation {}
+}
+
+namespace Pest\Mixins {
+    /**
+     * @template TValue
+     *
+     * @mixin \Pest\Expectation<TValue>
+     */
+    final class Expectation {}
+}
+
+namespace Pest\PendingCalls {
+    final class BeforeEachCall {}
+
+    final class AfterEachCall {}
+}

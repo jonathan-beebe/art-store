@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-23:11:58:51 — MAINT-002 — done: PHPStan level max at 0 over app, database, routes, and the Pest sidecars (five Pest stubs, no ignores); make check exits 0 in ~32s; 733 tests at 100% lines; both sites walked on seeded data; README, architecture, review, identity docs current
 - 2026-08-23:11:22:14 — MAINT-002 — started
 - 2026-08-23:11:22:14 — IMPRV-001 — done: Behavior tests for the payout button, customer-link redirect guard, merge idempotency and chains, PayoutPeriod year boundary, upload size, search edges; factories for all 15 models; ListingSeeder and CustomerSeeder through actions; sidecar exception list emptied; 100% line coverage
 - 2026-08-23:10:45:20 — IMPRV-001 — started

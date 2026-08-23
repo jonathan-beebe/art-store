@@ -30,7 +30,7 @@ it('reads the listing and customer it was recorded for', function (): void {
     app(RecordListingEvent::class)($listing, $customer->id, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
     $event = $listing->events()->sole();
 
-    expect($event->listing->is($listing))->toBeTrue()
+    expect($event->listing()->sole()->is($listing))->toBeTrue()
         ->and($event->customer?->is($customer))->toBeTrue();
 });
 

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Listings\ListingStatus;
 
 it('resolves a display name', function (array $attributes, string $expected): void {
+    /** @var array<string, mixed> $attributes */
     expect((new Seller($attributes))->displayName())->toBe($expected);
 })->with([
     'shop name wins' => [['email' => 'artist@example.com', 'name' => 'Ada Painter', 'shop_name' => 'Ada Studio'], 'Ada Studio'],

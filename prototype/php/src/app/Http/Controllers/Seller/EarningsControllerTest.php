@@ -7,9 +7,11 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Escrow\LedgerBalance;
 use App\Models\Fulfillment;
 use App\Models\Payout;
 use App\Models\Seller;
+use Illuminate\Database\Eloquent\Collection;
 
 $paidFulfillment = function (Seller $seller, int $priceCents, string $title = 'Harbour at Dusk'): Fulfillment {
     $order = test()->orderFor(
@@ -54,18 +56,18 @@ it('holds a paid sale in escrow', function () use ($paidFulfillment): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
 
-    $response->assertViewHas('balance', fn ($balance): bool => $balance->held->cents === 9000 && $balance->available->cents === 0);
+    $response->assertViewHas('balance', fn (LedgerBalance $balance): bool => $balance->held->cents === 9000 && $balance->available->cents === 0);
 });
 
 it('moves a delivered sale to available', function () use ($paidFulfillment): void {
     $seller = $this->seller();
     $fulfillment = $paidFulfillment($seller, 10000);
     app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM1', $this->moment('2026-08-21 10:00:00'));
-    app(ConfirmDelivered::class)($fulfillment->fresh(), $this->moment('2026-08-22 10:00:00'));
+    app(ConfirmDelivered::class)($fulfillment->refresh(), $this->moment('2026-08-22 10:00:00'));
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
 
-    $response->assertViewHas('balance', fn ($balance): bool => $balance->available->cents === 9000);
+    $response->assertViewHas('balance', fn (LedgerBalance $balance): bool => $balance->available->cents === 9000);
 });
 
 it('lists the payouts of this seller only', function (): void {
@@ -87,7 +89,7 @@ it('lists the payouts of this seller only', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
 
-    $response->assertViewHas('payouts', fn ($payouts): bool => $payouts->count() === 1);
+    $response->assertViewHas('payouts', fn (Collection $payouts): bool => $payouts->count() === 1);
     $response->assertSee('Aug 10, 2026');
     $response->assertDontSee('$42.00');
 });

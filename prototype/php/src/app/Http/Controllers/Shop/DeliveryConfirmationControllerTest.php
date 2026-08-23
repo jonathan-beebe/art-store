@@ -20,8 +20,8 @@ it('lets the customer confirm delivery', function (): void {
     $response = $this->post(route('shop.order.delivered', [$fulfillment->order_id, $fulfillment->id]));
 
     $response->assertRedirect(route('shop.order', $fulfillment->order_id));
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::Delivered)
-        ->and($fulfillment->order->fresh()->status)->toBe(OrderStatus::Delivered);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Delivered)
+        ->and($fulfillment->order->refresh()->status)->toBe(OrderStatus::Delivered);
 });
 
 it('refuses to confirm a delivery that was already confirmed', function (): void {
@@ -35,7 +35,7 @@ it('refuses to confirm a delivery that was already confirmed', function (): void
 
     $response->assertOk();
     $response->assertSee('A fulfillment cannot move from delivered to delivered.');
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::Delivered);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Delivered);
 });
 
 it('refuses a fulfillment that belongs to another order', function (): void {
@@ -46,7 +46,7 @@ it('refuses a fulfillment that belongs to another order', function (): void {
     $response = $this->post(route('shop.order.delivered', [$mine->order_id, $theirs->id]));
 
     $response->assertNotFound();
-    expect($theirs->fresh()->status)->toBe(FulfillmentStatus::Shipped);
+    expect($theirs->refresh()->status)->toBe(FulfillmentStatus::Shipped);
 });
 
 it('refuses to let another customer confirm delivery', function (): void {
@@ -62,5 +62,5 @@ it('refuses to let another customer confirm delivery', function (): void {
     $response = $this->post(route('shop.order.delivered', [$fulfillment->order_id, $fulfillment->id]));
 
     $response->assertNotFound();
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::Shipped);
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Shipped);
 });

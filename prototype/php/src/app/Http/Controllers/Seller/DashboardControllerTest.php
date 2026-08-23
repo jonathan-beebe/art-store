@@ -7,10 +7,13 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
+use App\Domain\Reports\ListingStatusCount;
 use App\Models\Fulfillment;
 use App\Notifications\ItemSold;
+use Illuminate\Database\Eloquent\Collection;
 
 it('renders the seller dashboard', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
@@ -44,6 +47,7 @@ it('counts the sellers listings by status', function (): void {
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
     $response->assertViewHas('tally', function (array $tally): bool {
+        /** @var list<ListingStatusCount> $tally */
         return $tally[0]->count === 1 && $tally[1]->count === 2 && $tally[2]->count === 0;
     });
 });
@@ -54,7 +58,10 @@ it('leaves another sellers listings out of the counts', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertViewHas('tally', fn (array $tally): bool => $tally[1]->count === 0);
+    $response->assertViewHas('tally', function (array $tally): bool {
+        /** @var list<ListingStatusCount> $tally */
+        return $tally[1]->count === 0;
+    });
 });
 
 it('counts the fulfillments awaiting shipment', function (): void {
@@ -83,11 +90,11 @@ it('makes a delivered order available', function (): void {
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
     $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
     app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM1', $this->moment('2026-08-21 10:00:00'));
-    app(ConfirmDelivered::class)($fulfillment->fresh(), $this->moment('2026-08-22 10:00:00'));
+    app(ConfirmDelivered::class)($fulfillment->refresh(), $this->moment('2026-08-22 10:00:00'));
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertViewHas('balance', fn ($balance): bool => $balance->available->cents === 9000 && $balance->held->cents === 0);
+    $response->assertViewHas('balance', fn (LedgerBalance $balance): bool => $balance->available->cents === 9000 && $balance->held->cents === 0);
 });
 
 it('counts unread notifications', function (): void {
@@ -111,7 +118,7 @@ it('shows the five most recent notifications', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertViewHas('notifications', fn ($notifications): bool => $notifications->count() === 5);
+    $response->assertViewHas('notifications', fn (Collection $notifications): bool => $notifications->count() === 5);
     $response->assertSee('Order #6 is paid.');
     $response->assertDontSee('Order #1 is paid.');
 });

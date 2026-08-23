@@ -43,7 +43,7 @@ it('sends an unverified visitor submitting a card to sign in first', function ()
     $response->assertRedirect(route('auth.customer.login', [
         'redirect_to' => route('shop.order.pay', $order, absolute: false),
     ]));
-    expect($order->fresh()->status)->toBe(OrderStatus::PendingVerification);
+    expect($order->refresh()->status)->toBe(OrderStatus::PendingVerification);
 });
 
 it('refuses to let another customer read or pay the order', function (string $method) use ($unpaidOrderFor): void {
@@ -71,10 +71,10 @@ it('reports a declined card and pays on retry', function () use ($unpaidOrderFor
 
     $declined->assertSee('Your card was declined.');
     $declined->assertSee('name="card_number"', escape: false);
-    expect($order->fresh()->status)->toBe(OrderStatus::PaymentFailed);
+    expect($order->refresh()->status)->toBe(OrderStatus::PaymentFailed);
 
     $retried = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
 
     $retried->assertRedirect(route('shop.order', $order));
-    expect($order->fresh()->status)->toBe(OrderStatus::Paid);
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
 });

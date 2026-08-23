@@ -22,13 +22,12 @@ $draft = fn (): ListingDraft => ListingDraft::of(
 it('writes the drafted fields', function () use ($draft): void {
     $listing = app(CreateListing::class)($this->seller(), $draft());
 
-    expect($listing)
-        ->title->toBe('Harbour at Dusk')
-        ->description->toBe('Oil on linen.')
-        ->medium->toBe('oil')
-        ->dimensions->toBe('12 x 16 in')
-        ->price_cents->toBe(24500)
-        ->quantity->toBe(2);
+    expect($listing->title)->toBe('Harbour at Dusk')
+        ->and($listing->description)->toBe('Oil on linen.')
+        ->and($listing->medium)->toBe('oil')
+        ->and($listing->dimensions)->toBe('12 x 16 in')
+        ->and($listing->price_cents)->toBe(24500)
+        ->and($listing->quantity)->toBe(2);
 });
 
 it('starts a listing as a draft', function () use ($draft): void {
@@ -71,7 +70,9 @@ it('stores an uploaded image on the public disk', function () use ($draft): void
 
     $listing = app(CreateListing::class)($this->seller(), $draft(), UploadedFile::fake()->image('harbour.jpg'));
 
-    expect($listing->image_path)->not->toBeNull();
-    expect($listing->image_path)->toStartWith('listings/');
-    Storage::disk('public')->assertExists($listing->image_path);
+    $imagePath = $listing->image_path;
+
+    expect($imagePath)->not->toBeNull();
+    expect($imagePath)->toStartWith('listings/');
+    Storage::disk('public')->assertExists((string) $imagePath);
 });

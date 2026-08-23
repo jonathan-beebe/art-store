@@ -52,7 +52,7 @@ it('marks a notification read', function () use ($notify): void {
     $response = $this->post(route('shop.account.notifications.read', $notification));
 
     $response->assertRedirect(route('shop.account'));
-    expect($notification->fresh()->read_at)->not->toBeNull();
+    expect($notification->refresh()->read_at)->not->toBeNull();
 });
 
 it('leaves another customer notification alone', function () use ($notify): void {
@@ -62,5 +62,5 @@ it('leaves another customer notification alone', function () use ($notify): void
     $response = $this->post(route('shop.account.notifications.read', $notification));
 
     $response->assertNotFound();
-    expect($notification->fresh()->read_at)->toBeNull();
+    expect($notification->refresh()->read_at)->toBeNull();
 });

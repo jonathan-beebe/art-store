@@ -20,7 +20,7 @@ it('pays the order with an approved card', function (): void {
     $order = app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
 
     expect($order->status)->toBe(OrderStatus::Paid)
-        ->and($order->finalized_at->format('Y-m-d H:i:s'))->toBe('2026-08-20 10:00:00');
+        ->and($order->finalized_at?->format('Y-m-d H:i:s'))->toBe('2026-08-20 10:00:00');
 });
 
 it('records the payment for an approved card', function (): void {
@@ -28,11 +28,12 @@ it('records the payment for an approved card', function (): void {
 
     app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
 
-    expect($order->payments()->sole())
-        ->status->toBe(PaymentStatus::Approved)
-        ->amount_cents->toBe(45000)
-        ->card_last_four->toBe('4242')
-        ->decline_reason->toBeNull();
+    $payment = $order->payments()->sole();
+
+    expect($payment->status)->toBe(PaymentStatus::Approved)
+        ->and($payment->amount_cents)->toBe(45000)
+        ->and($payment->card_last_four)->toBe('4242')
+        ->and($payment->decline_reason)->toBeNull();
 });
 
 it('holds the seller net in escrow for a paid order', function (): void {
@@ -41,11 +42,12 @@ it('holds the seller net in escrow for a paid order', function (): void {
 
     app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
 
-    expect(LedgerEntry::query()->sole())
-        ->type->toBe(LedgerEntryType::Held)
-        ->amount_cents->toBe(40500)
-        ->seller_id->toBe($seller->id)
-        ->fulfillment_id->toBe($order->fulfillments()->sole()->id);
+    $entry = LedgerEntry::query()->sole();
+
+    expect($entry->type)->toBe(LedgerEntryType::Held)
+        ->and($entry->amount_cents)->toBe(40500)
+        ->and($entry->seller_id)->toBe($seller->id)
+        ->and($entry->fulfillment_id)->toBe($order->fulfillments()->sole()->id);
 });
 
 it('holds one amount per seller on a paid order', function (): void {
@@ -90,7 +92,8 @@ it('puts the stock back on the storefront for a declined card', function (): voi
 
     app(FinalizeOrder::class)($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
 
-    expect($listing->fresh())->quantity->toBe(1)->status->toBe(ListingStatus::ForSale);
+    expect($listing->refresh()->quantity)->toBe(1)
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
 it('holds nothing and tells nobody for a declined card', function (): void {
@@ -113,7 +116,8 @@ it('pays the order and takes the stock again on a retry with a good card', funct
 
     expect($order->status)->toBe(OrderStatus::Paid)
         ->and($order->payments()->count())->toBe(2);
-    expect($listing->fresh())->quantity->toBe(0)->status->toBe(ListingStatus::Sold);
+    expect($listing->refresh()->quantity)->toBe(0)
+        ->and($listing->status)->toBe(ListingStatus::Sold);
     expect(LedgerEntry::query()->sole()->amount_cents)->toBe(40500);
 });
 

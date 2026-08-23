@@ -87,7 +87,7 @@ it('answers another sellers listing before it validates the form', function () u
 
     $response->assertNotFound();
     $response->assertSessionHasNoErrors();
-    expect($listing->fresh()->title)->toBe('Not Mine');
+    expect($listing->refresh()->title)->toBe('Not Mine');
 });
 
 it('reads the typed fields into a draft', function () use ($form): void {
