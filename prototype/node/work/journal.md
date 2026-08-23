@@ -13,6 +13,10 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:07:48:30 — RFCTR-001 — done: escrow balance folding, one-payout-per-period, and as-of day parse consolidated into core
+- 2026-08-23:07:37:45 — FEAT-012 — started
+- 2026-08-23:07:36:40 — RFCTR-001 — started
+- 2026-08-23:07:36:30 — BUG-002 — started
 - 2026-08-23:22:15:24 — FEAT-017 — defined: final validation and documentation refresh
 - 2026-08-23:22:15:23 — IMPRV-008 — defined: plugins are Fastify plugins, type-aware lint, printed route table
 - 2026-08-23:22:15:22 — IMPRV-007 — defined: templates interpolate finished view models

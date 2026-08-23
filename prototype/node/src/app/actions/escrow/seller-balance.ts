@@ -12,7 +12,7 @@ export async function sellerBalance(
   sellerId: number,
   occurredBy?: Timestamp,
 ): Promise<LedgerBalance> {
-  const movements = await ledgerMovements(context, occurredBy)
+  const movements = await ledgerMovements(context, occurredBy, sellerId)
 
-  return ledgerBalance(movements.filter((movement) => movement.sellerId === sellerId))
+  return ledgerBalance(movements)
 }

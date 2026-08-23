@@ -1,7 +1,7 @@
 ---
 id: RFCTR-001
 type: refactor
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -131,3 +131,95 @@ IMPRV-002's route-body changes small and stable.
 - 01-deps-platform.md — "Argument parsing hand-rolled where `node:util.parseArgs` exists"
 - 02-types-boundaries.md — "CLI arguments are read ad hoc rather than parsed once"
 - IMPRV-002 (validation on routes) depends on this ticket landing first
+
+## Working
+
+Re-validated the problem against the code as described; all five findings
+still applied as written, nothing was skipped.
+
+**Verified**: `npm run check` (typecheck + eslint + tests) from
+`prototype/node/src` is green except one pre-existing `tsc` error in
+`app/sites/seller/index.ts` — that file is another worker's uncommitted,
+in-progress change outside this ticket's territory, not touched here. All
+other files touched by this ticket typecheck and lint clean.
+
+**Changed**:
+- `app/core/escrow/ledger-balance.ts` — added `SellerLedgerMovement` type and
+  `ledgerBalancesBySeller`, the one fold shared by the payout action and the
+  two admin queries that used to fold independently.
+- `app/core/escrow/payout-plan.ts` (new) — `planWeeklyPayout({ balances,
+  settledSellerIds, period })` returns `PayoutIntent[]` (seller, amount,
+  period bounds); the one-payout-per-period rule now lives here instead of
+  as an inline `if` in the action. `payoutTotal(payouts)` sums a payout list
+  for the flash message.
+- `app/core/escrow/payout-day.ts` (new) — `parseAsOfDay(value, fallback)`,
+  the one "which day is this run for" parse shared by the CLI and the admin
+  route. Throws on a value that isn't `YYYY-MM-DD`.
+- `app/actions/escrow/ledger-movements.ts` — `ledgerMovements` takes an
+  optional `sellerId` third argument and pushes it into the `WHERE`.
+- `app/actions/escrow/seller-balance.ts` — passes `sellerId` through to
+  `ledgerMovements` instead of reading the whole ledger and filtering in JS.
+- `app/actions/escrow/run-weekly-payout.ts` — folds with
+  `ledgerBalancesBySeller`, decides with `planWeeklyPayout`, and `payOut`
+  now just writes the `PayoutIntent` it's given; no balance math or
+  settled-seller check left in the action.
+- `app/sites/admin/queries/seller-accounts.ts`,
+  `app/sites/admin/queries/seller-rows.ts` — local `balancesBySeller`
+  helpers deleted, both call `ledgerBalancesBySeller` on the shared
+  `ledgerMovements` read.
+- `app/sites/admin/routes/payouts.ts` — local `parseSellerId`, `parseAsOf`,
+  and `DAY_PATTERN` deleted; seller filter folded into the zod query schema
+  (`z.coerce.number().int().positive().optional()`), date parsing calls
+  `parseAsOfDay`, flash total calls `payoutTotal`.
+- `app/sites/admin/routes/ledger.ts` — local `parseSellerId`/`parseEntryType`
+  deleted; both filters folded into the zod query schema
+  (`z.enum(LEDGER_ENTRY_TYPES).optional().catch(undefined)` for type, same
+  seller coercion as payouts.ts).
+- `app/cli/parse-as-of.ts` — now a thin `node:util.parseArgs` reader
+  (`strict: true`, `as-of` typed `string`) that calls `parseAsOfDay`; accepts
+  both `--as-of=DATE` and `--as-of DATE`, throws on any other flag.
+- `app/db/migrate.ts` — `--fresh` read via `node:util.parseArgs` instead of
+  `process.argv.includes`, so it can't be tripped by `--fresh` appearing as
+  another flag's value.
+- `app/actions/moderation/current-customer-standing.ts`,
+  `app/actions/moderation/active-customer-block.ts` — added
+  `.where('liftedAt', 'is', null)`, so both queries use the
+  `(customer_id, lifted_at)` index instead of reading a customer's whole
+  block history.
+- Tests: extended `app/core/escrow/ledger-balance.test.ts` and
+  `app/actions/escrow/seller-balance.test.ts`; new
+  `app/core/escrow/payout-plan.test.ts` and
+  `app/core/escrow/payout-day.test.ts`; rewrote
+  `app/cli/parse-as-of.test.ts` for the new argv contract (space-separated
+  form, unrecognized-flag case; dropped the old "flag from anywhere" case,
+  which relied on an unknown `--quiet` flag no longer being tolerated).
+
+**Left alone**: `app/actions/escrow/run-weekly-payout.ts`'s `PayoutIntent`
+carries `periodStart`/`periodEnd` as plain strings rather than re-deriving
+them from `period` in the shell, so `payOut` only writes what core decided.
+`app/sites/admin/queries/platform-money.ts` also calls `ledgerMovements` but
+was left untouched — it's outside this ticket's territory and its one-arg
+call site still works unchanged since `occurredBy`/`sellerId` stayed
+optional. Left the seller-id and entry-type zod schemas defined per-route
+(payouts.ts, ledger.ts) rather than factored into one shared module — the
+ticket's "filters parsed by one zod schema" reads as "each route parses its
+own filters through one schema, not two-plus-a-manual-function," matching
+the existing convention already live in `orders.ts`/`fulfillments.ts`; no
+third file was named in the ticket's touched-files list or the worker's
+territory for a shared schema module. Did not add `.catch()` to the seller
+filter (only the ticket-specified `entryType` gets one) — this matches the
+ticket's literal schema and the sibling admin routes, but note: selecting
+"All sellers" from the filter `<select>` submits `seller=` (empty string),
+which `z.coerce.number().int().positive()` rejects rather than treating as
+absent. This is pre-existing behavior already live in `orders.ts` (`customer`
+input) and `fulfillments.ts` (`seller` input) — the same UI shape, same
+schema pattern, same latent issue — not introduced by this ticket and not
+covered by any existing test; flagging it rather than fixing it here since
+it's outside this ticket's scope.
+
+**Test counts**: 1183 before → 1205 after (full suite). New/changed test
+files: `app/core/escrow/ledger-balance.test.ts` (+4),
+`app/core/escrow/payout-plan.test.ts` (+10, new file),
+`app/core/escrow/payout-day.test.ts` (+6, new file),
+`app/actions/escrow/seller-balance.test.ts` (+1),
+`app/cli/parse-as-of.test.ts` (net +1, contract changed).

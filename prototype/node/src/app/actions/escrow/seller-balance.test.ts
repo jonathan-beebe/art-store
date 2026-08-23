@@ -75,6 +75,21 @@ test('bounding with occurredBy excludes a later entry', async (t) => {
   assert.equal(balance.availableCents, 0)
 })
 
+test('another seller’s movements never reach this seller’s balance', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context, 'Blue Kiln Studio')
+  const otherShop = await createSeller(context, 'Rye Press')
+  await insertLedgerEntry(world, shop, 'held', 40_500, '2026-08-20T10:00:00.000Z')
+  await insertLedgerEntry(world, otherShop, 'held', 9_000, '2026-08-20T10:00:00.000Z')
+
+  const balance = await sellerBalance(context, shop)
+
+  assert.equal(balance.heldCents, 40_500)
+})
+
 async function insertLedgerEntry(
   world: Awaited<ReturnType<typeof openCommerceWorld>>,
   sellerId: number,

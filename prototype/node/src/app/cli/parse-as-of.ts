@@ -1,18 +1,19 @@
-const AS_OF_FLAG = '--as-of='
+import { parseArgs } from 'node:util'
+import { parseAsOfDay } from '../core/escrow/payout-day.ts'
 
 /**
- * Reads `--as-of=2026-08-24` off a command line. Without the flag the caller's
- * fallback stands, so a cron entry needs no date and a re-run of a past period
- * can name one.
+ * Reads `--as-of=2026-08-24` or `--as-of 2026-08-24` off a command line.
+ * Without the flag the caller's fallback stands, so a cron entry needs no
+ * date and a re-run of a past period can name one. Any flag other than
+ * `--as-of` is a caller mistake, so `parseArgs` throws rather than silently
+ * ignoring it.
  */
 export function parseAsOf(argv: readonly string[], fallback: Date): Date {
-  const flag = argv.find((argument) => argument.startsWith(AS_OF_FLAG))
-  if (flag === undefined) return fallback
+  const { values } = parseArgs({
+    args: [...argv],
+    options: { 'as-of': { type: 'string' } },
+    strict: true,
+  })
 
-  const asOf = new Date(flag.slice(AS_OF_FLAG.length))
-  if (Number.isNaN(asOf.getTime())) {
-    throw new Error(`${AS_OF_FLAG}DATE needs a date, got ${JSON.stringify(flag)}`)
-  }
-
-  return asOf
+  return parseAsOfDay(values['as-of'], fallback)
 }

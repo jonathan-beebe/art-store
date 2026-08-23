@@ -1,10 +1,16 @@
+import { parseArgs } from 'node:util'
 import { loadConfig } from '../config.ts'
 import { openDatabase, removeDatabaseFile } from './database.ts'
 import { migrateToLatest } from './migrator.ts'
 
 const config = loadConfig(process.env)
 
-if (process.argv.includes('--fresh')) {
+const { values } = parseArgs({
+  options: { fresh: { type: 'boolean', default: false } },
+  strict: true,
+})
+
+if (values.fresh) {
   await removeDatabaseFile(config.databaseFile)
   console.log(`removed ${config.databaseFile}`)
 }

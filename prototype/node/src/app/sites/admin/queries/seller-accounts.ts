@@ -1,6 +1,6 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { ledgerMovements, type SellerLedgerMovement } from '../../../actions/escrow/ledger-movements.ts'
-import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
+import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import { addCents, type Cents } from '../../../core/money.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
@@ -31,7 +31,7 @@ export async function sellerAccounts(
   context: Pick<ActionContext, 'db'>,
 ): Promise<readonly SellerAccount[]> {
   const sellers = await sellerOptions(context)
-  const balances = balancesBySeller(await ledgerMovements(context))
+  const balances = ledgerBalancesBySeller(await ledgerMovements(context))
   const payoutTotals = await payoutTotalsBySeller(context)
   const lifetimeSales = await lifetimeSalesBySeller(context)
 
@@ -50,7 +50,7 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
 
 function toAccount(
   seller: SellerOption,
-  balances: Map<number, LedgerBalance>,
+  balances: ReadonlyMap<number, LedgerBalance>,
   payoutTotals: Map<number, Cents>,
   lifetimeSales: Map<number, LifetimeSales>,
 ): SellerAccount {
@@ -68,15 +68,6 @@ function toAccount(
     lifetimeFeeCents: lifetime.feeCents,
     lifetimeNetCents: lifetime.netCents,
   }
-}
-
-function balancesBySeller(movements: readonly SellerLedgerMovement[]): Map<number, LedgerBalance> {
-  const bySeller = new Map<number, SellerLedgerMovement[]>()
-  for (const movement of movements) {
-    bySeller.set(movement.sellerId, [...(bySeller.get(movement.sellerId) ?? []), movement])
-  }
-
-  return new Map([...bySeller].map(([sellerId, own]) => [sellerId, ledgerBalance(own)]))
 }
 
 async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<number, Cents>> {
