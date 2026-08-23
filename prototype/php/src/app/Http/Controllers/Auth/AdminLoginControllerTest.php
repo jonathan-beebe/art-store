@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Domain\Auth\ActorType;
 use App\Models\Admin;
 use App\Models\MagicLink;
+use Database\Seeders\AdminSeeder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 
@@ -66,6 +67,37 @@ it('flashes the link for the debug alert only when the address admits an admin',
     $this->post('/admin/login', ['email' => 'ops@example.com']);
 
     expect(Arr::string(Session::all(), 'debug_magic_link'))->toStartWith(url('/auth/magic').'/');
+});
+
+it('flashes a debug notice naming the seeded admin address for an address with no admin row', function (): void {
+    $this->post('/admin/login', ['email' => 'nobody@example.com']);
+
+    expect(Arr::string(Session::all(), 'debug_notice'))
+        ->toContain('nobody@example.com')
+        ->toContain(AdminSeeder::EMAIL);
+});
+
+it('shows the debug notice on the redirected page for an address with no admin row', function (): void {
+    $response = $this->followingRedirects()->post('/admin/login', ['email' => 'nobody@example.com']);
+
+    $response->assertSee('nobody@example.com')
+        ->assertSee(AdminSeeder::EMAIL);
+});
+
+it('flashes no debug notice for an address with an admin row', function (): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+
+    $this->post('/admin/login', ['email' => 'ops@example.com']);
+
+    expect(Session::all())->not->toHaveKey('debug_notice');
+});
+
+it('flashes no debug notice under mail delivery', function (): void {
+    config(['magic_links.delivery' => 'mail']);
+
+    $this->post('/admin/login', ['email' => 'nobody@example.com']);
+
+    expect(Session::all())->not->toHaveKey('debug_notice');
 });
 
 it('sends a signed in admin to the dashboard', function (): void {
