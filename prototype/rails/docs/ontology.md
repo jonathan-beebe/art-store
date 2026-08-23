@@ -183,10 +183,9 @@ them to the cart.
 - belongs to one Customer and one Listing
 - toggling one also records a Listing event (`favorite`/`unfavorite`)
 
-**In code.** `Favorite`, `Domain::Shop::FavoriteChange` (enum: `added` |
-`removed`) (table `favorites`), toggled by `Favorites::ToggleFavorite`. See
-"Vocabulary notes" for why the enum lives under `Domain::Shop::`, not a
-`Domain::Favorites::` module.
+**In code.** `Favorite` (table `favorites`), toggled by
+`Customer#toggle_favorite`, which returns `:added` or `:removed` and records
+the matching listing event.
 
 ## Buying
 
@@ -199,13 +198,14 @@ before placing one order.
 
 **Lifecycle.** None as a status; exists per customer, spawns an Order on
 checkout. A merge can leave a customer with two cart rows (`carts.customer_id`
-is not unique); `Carts::CurrentCart` picks the one with the most items.
+is not unique); `Customer#current_cart` picks the one with the most items.
 
 **Relates to.**
 - belongs to one Customer
 - contains Cart items
 
-**In code.** `Cart`, `Domain::Cart::CartTotals` (table `carts`).
+**In code.** `Cart` (table `carts`), which carries `add`, `remove`,
+`item_count`, `subtotal` and `subtotals_by_seller`.
 
 ### Cart item
 
@@ -219,8 +219,8 @@ is not unique); `Carts::CurrentCart` picks the one with the most items.
 - belongs to one Cart
 - references one Listing
 
-**In code.** `CartItem`, `Domain::Cart::CartLine`, `CartQuantity` (table
-`cart_items`), managed by `Carts::AddToCart` / `Carts::RemoveFromCart`.
+**In code.** `CartItem` (table `cart_items`), written by `Cart#add` and
+`Cart#remove`; `CartItem#total` is the line's unit price times its quantity.
 
 ### Order
 
@@ -515,12 +515,8 @@ stored as its own row (its outcome becomes a Payment).
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = nil`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.
-- Action class namespaces are the plural directory name (`Carts::`,
-  `Fulfillments::`, `Orders::`, `Listings::`), not the singular concept name —
-  `app/models/cart.rb` and `fulfillment.rb` already define `Cart` and
-  `Fulfillment` as classes, so a singular `module Cart` under
-  `app/actions/cart/` collides with the model. See `docs/architecture.md`.
-- `Domain::Shop::FavoriteChange` lives under `Domain::Shop::`, not a
-  `Domain::Favorites::` module that would mirror the `Favorite` table —
-  favoriting exists only on the customer storefront, so its domain rule sits
-  with the rest of `app/domain/shop/`.
+- Action class namespaces are the plural directory name (`Fulfillments::`,
+  `Orders::`, `Notifications::`, `Escrow::`), not the singular concept name —
+  `app/models/fulfillment.rb` already defines `Fulfillment` as a class, so a
+  singular `module Fulfillment` under `app/actions/fulfillment/` collides with
+  the model. See `docs/architecture.md`.

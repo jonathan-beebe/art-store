@@ -67,9 +67,7 @@ module TestRecords
 
   def cart_holding(customer, *listings)
     cart_for(customer).tap do |cart|
-      listings.each do |listing|
-        Carts::AddToCart.new.call(cart: cart, listing: listing, quantity: 1, now: moment("2026-08-20 08:00:00"))
-      end
+      listings.each { |listing| cart.add(listing, at: moment("2026-08-20 08:00:00")) }
     end
   end
 

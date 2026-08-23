@@ -4,7 +4,7 @@ module Shop
 
     def show
       @items = current_cart.items.includes(listing: :seller).order(:id)
-      @totals = Domain::Cart::CartTotals.from(current_cart.lines)
+      @subtotal = current_cart.subtotal
     end
 
     def add
@@ -12,13 +12,13 @@ module Shop
 
       return redirect_to shop_listing_path(slug: listing.slug), alert: SOLD_OUT unless listing.purchasable?
 
-      Carts::AddToCart.new.call(cart: current_cart, listing: listing, quantity: requested_quantity, now: now)
+      current_cart.add(listing, quantity: requested_quantity, at: now)
 
       redirect_to shop_cart_path
     end
 
     def remove
-      Carts::RemoveFromCart.new.call(cart: current_cart, listing: Listing.on_storefront.find_by!(slug: params[:slug]))
+      current_cart.remove(Listing.on_storefront.find_by!(slug: params[:slug]))
 
       redirect_to shop_cart_path
     end

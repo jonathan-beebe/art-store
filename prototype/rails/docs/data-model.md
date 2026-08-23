@@ -190,7 +190,7 @@ Caveats:
   positive, `paid_out` is negative. See `docs/escrow.md`.
 - `carts.customer_id` is not unique — `Customer#absorb` can
   re-point a second cart onto a customer that already has one
-  (`Carts::CurrentCart` picks the one with the most items).
+  (`Customer#current_cart` picks the one with the most items).
 - Two columns are named `entry_type` / `event_type` rather than `type`:
   `type` is Active Record's reserved single-table-inheritance column, and
   renaming beat disabling inheritance on `LedgerEntry` and `ListingEvent`.

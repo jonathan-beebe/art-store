@@ -45,9 +45,7 @@ module Seeds
       favorited_at = Time.utc(2026, 7, 1, 9, 10, 0)
 
       FAVORITE_TITLES.each do |title|
-        favorite = listing(title)
-        Favorite.create!(customer_id: customer.id, listing_id: favorite.id)
-        favorite.record_event!("favorite", customer_id: customer.id, at: favorited_at)
+        customer.toggle_favorite(listing(title), at: favorited_at)
         favorited_at += 1.minute
       end
     end

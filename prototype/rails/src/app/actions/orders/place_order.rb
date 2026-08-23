@@ -1,13 +1,14 @@
 module Orders
   class PlaceOrder
     def call(cart:, purchaser:, shipping:, now:)
+      raise ArgumentError, "an order needs at least one item" if cart.empty?
+
       items = cart.items.includes(:listing).to_a
-      totals = Domain::Cart::CartTotals.for_checkout(items.map(&:to_line))
 
       cart.transaction do
-        order = open_order(purchaser, shipping, totals, now)
+        order = open_order(purchaser, shipping, cart.subtotal, now)
         snapshot_items(order, items)
-        split_by_seller(order, totals)
+        split_by_seller(order, cart.subtotals_by_seller)
         take_stock(items)
         cart.items.destroy_all
 
@@ -17,14 +18,14 @@ module Orders
 
     private
 
-    def open_order(purchaser, shipping, totals, now)
+    def open_order(purchaser, shipping, subtotal, now)
       Order.create!(
         shipping.to_h.transform_keys { |part| :"shipping_#{part}" }.merge(
           customer_id: purchaser.id,
           email: purchaser.email,
           status: Domain::Orders::OrderStatus.for_placement(purchaser),
-          subtotal_cents: totals.subtotal.cents,
-          total_cents: totals.subtotal.cents,
+          subtotal_cents: subtotal.cents,
+          total_cents: subtotal.cents,
           placed_at: now
         )
       )
@@ -42,8 +43,8 @@ module Orders
       end
     end
 
-    def split_by_seller(order, totals)
-      totals.subtotals_by_seller.each do |seller_id, subtotal|
+    def split_by_seller(order, subtotals_by_seller)
+      subtotals_by_seller.each do |seller_id, subtotal|
         order.fulfillments.create!(
           seller_id: seller_id,
           subtotal_cents: subtotal.cents,

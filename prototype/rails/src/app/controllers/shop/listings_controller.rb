@@ -6,7 +6,7 @@ module Shop
       @listing.record_event!("view", customer_id: current_customer.id, at: now)
 
       @purchasable = @listing.purchasable?
-      @favorited = current_customer.favorites.exists?(listing: @listing)
+      @favorited = current_customer.favorited?(@listing)
     end
   end
 end

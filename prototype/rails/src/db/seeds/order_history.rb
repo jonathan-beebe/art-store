@@ -29,7 +29,7 @@ module Seeds
       cart = Cart.create!(customer_id: customer.id)
       listing = Listing.find_by!(title: listing_title)
 
-      Carts::AddToCart.new.call(cart: cart, listing: listing, quantity: 1, now: placed_at)
+      cart.add(listing, at: placed_at)
       order = Orders::PlaceOrder.new.call(cart: cart, purchaser: purchaser, shipping: shipping_address, now: placed_at)
 
       Orders::FinalizeOrder.new.call(order: order, card_number: APPROVED_CARD, now: placed_at + 5.minutes)

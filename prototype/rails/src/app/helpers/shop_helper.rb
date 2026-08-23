@@ -1,12 +1,8 @@
 module ShopHelper
   # The header carries these on every storefront page, including the sign-in
   # page, which runs under the shop layout without a Shop::BaseController.
-  def current_cart
-    @current_cart ||= Carts::CurrentCart.new.call(customer: current_customer)
-  end
-
   def cart_item_count
-    current_cart.items.sum(:quantity)
+    current_cart.item_count
   end
 
   def unread_notification_count

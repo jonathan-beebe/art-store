@@ -41,7 +41,7 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`), the magic-link delivery port implementations, ERB views. |
+| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Customer#toggle_favorite`), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
@@ -49,15 +49,15 @@ Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `RunWeeklyPayout`), domain enums name states (`OrderStatus`), events are past
 tense.
 
-Action namespaces are the plural directory name — `Carts::`, `Fulfillments::`,
-`Orders::`, `Listings::`, `Notifications::`, `Escrow::`, `Favorites::` — not
-the singular the ticket originally asked for. Rails makes every `app/*` directory a Zeitwerk root, and `app/models/cart.rb`
-/ `fulfillment.rb` / `seller.rb` already define `Cart`, `Fulfillment`, `Seller`
-as classes, so `app/actions/cart/` declaring `module Cart` raises `TypeError:
-Cart is not a module`. The same collision makes every seller-portal controller
-`class Seller::XController < Seller::BaseController` (compact form) instead of
-`module Seller`; `Shop::`, `Auth::`, and `Favorites::` have no
-matching model and stay `module`.
+Action namespaces are the plural directory name — `Fulfillments::`, `Orders::`,
+`Notifications::`, `Escrow::` — not the singular the ticket originally asked
+for. Rails makes every `app/*` directory a Zeitwerk root, and
+`app/models/fulfillment.rb` / `seller.rb` already define `Fulfillment` and
+`Seller` as classes, so `app/actions/fulfillment/` declaring `module
+Fulfillment` raises `TypeError: Fulfillment is not a module`. The same
+collision makes every seller-portal controller `class Seller::XController <
+Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
+`Auth::` have no matching model and stay `module`.
 
 ## Sites
 

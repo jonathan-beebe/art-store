@@ -58,7 +58,7 @@ module Orders
     test "it takes the stock the order claims" do
       art = create_listing(quantity: 3)
       cart = cart_for(create_verified_customer)
-      Carts::AddToCart.new.call(cart: cart, listing: art, quantity: 2, now: moment("2026-08-20 08:00:00"))
+      cart.add(art, quantity: 2, at: moment("2026-08-20 08:00:00"))
 
       PlaceOrder.new.call(cart: cart, purchaser: purchaser(cart.customer), shipping: shipping_address,
                           now: moment("2026-08-20 09:00:00"))

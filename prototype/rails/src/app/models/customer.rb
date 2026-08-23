@@ -41,6 +41,35 @@ class Customer < ApplicationRecord
     email.nil?
   end
 
+  # A merge hands the verified customer whatever cart the anonymous visitor was
+  # filling, so one customer can own two. The one holding the most items is the
+  # one they were shopping with.
+  def current_cart
+    carts.includes(:items).max_by { |cart| [cart.items.size, cart.id] } || carts.create!
+  end
+
+  # One button favorites and unfavorites, so what it does follows from what the
+  # visitor has saved already. Returns :added or :removed.
+  def toggle_favorite(listing, at: Time.current)
+    saved = favorites.find_by(listing: listing)
+
+    if saved
+      saved.destroy!
+      listing.record_event!("unfavorite", customer_id: id, at: at)
+
+      return :removed
+    end
+
+    favorites.create!(listing: listing)
+    listing.record_event!("favorite", customer_id: id, at: at)
+
+    :added
+  end
+
+  def favorited?(listing)
+    favorites.exists?(listing: listing)
+  end
+
   def claim_address(email)
     update!(email: email, email_verified_at: Time.current)
 

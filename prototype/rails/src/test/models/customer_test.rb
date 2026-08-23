@@ -180,4 +180,65 @@ class CustomerTest < ActiveSupport::TestCase
   test "from_cookie resolves nothing for a cookie holding a meaningless id" do
     assert_nil Customer.from_cookie(0)
   end
+
+  test "a visitor with no cart gets one" do
+    shopper = create_anonymous_customer
+
+    cart = shopper.current_cart
+
+    assert_equal shopper, cart.customer
+    assert_empty cart.items
+  end
+
+  test "the visitor keeps the same cart on a second call" do
+    shopper = create_anonymous_customer
+
+    assert_equal shopper.current_cart, shopper.current_cart
+  end
+
+  test "a merged customer keeps shopping with the cart holding items" do
+    shopper = create_verified_customer
+    cart_for(shopper)
+    filled = cart_holding(shopper, create_listing)
+
+    assert_equal filled, shopper.current_cart
+  end
+
+  test "it saves a favorite and records the event" do
+    shopper = create_verified_customer
+    listing = create_listing
+
+    assert_equal :added, shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
+    assert shopper.favorited?(listing)
+    assert_equal ["favorite"], listing.events.pluck(:event_type)
+  end
+
+  test "toggling twice drops the favorite and records the event" do
+    shopper = create_verified_customer
+    listing = create_listing
+    shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
+
+    assert_equal :removed, shopper.toggle_favorite(listing, at: moment("2026-08-20 09:05:00"))
+    refute shopper.favorited?(listing)
+    assert_equal %w[favorite unfavorite], listing.events.order(:occurred_at).pluck(:event_type)
+  end
+
+  test "it records the favorite against the visitor who saved it" do
+    shopper = create_verified_customer
+    listing = create_listing
+
+    shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
+
+    assert_equal shopper.id, listing.events.sole.customer_id
+  end
+
+  test "one visitor saving leaves another visitor alone" do
+    shopper = create_verified_customer
+    other = create_verified_customer
+    listing = create_listing
+    shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
+
+    assert_equal :added, other.toggle_favorite(listing, at: moment("2026-08-20 09:01:00"))
+    assert shopper.favorited?(listing)
+  end
 end

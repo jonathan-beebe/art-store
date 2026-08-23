@@ -65,7 +65,7 @@ module IntegrationHelpers
   def create_paid_order(listing)
     buyer = create_verified_customer(email: unique_email("buyer"))
     cart = Cart.create!(customer: buyer)
-    Carts::AddToCart.new.call(cart: cart, listing: listing, quantity: 1, now: moment("2026-08-20 08:00:00"))
+    cart.add(listing, at: moment("2026-08-20 08:00:00"))
 
     order = Orders::PlaceOrder.new.call(
       cart: cart, purchaser: purchaser(buyer), shipping: shipping_address, now: moment("2026-08-20 09:00:00")

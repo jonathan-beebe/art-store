@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-22:19:47:54 — RFCTR-006 — done: Cart carries add/remove/empty?/item_count/subtotal/subtotals_by_seller, CartItem validates its quantity and totals its line, Customer carries current_cart/toggle_favorite/favorited?; the four cart and favorite actions, Domain::Cart and FavoriteChange deleted, their tests folded into test/models; current_cart moved to the CustomerIdentity concern as a helper_method; 573 runs at 100% line coverage (this commit)
+- 2026-08-22:19:43:45 — RFCTR-006 — started
 - 2026-08-22:19:39:25 — RFCTR-005 — done: Listing validates its own fields, converts dollars to cents, assigns its slug and holds the transition table, the storefront scope, purchasable? and record_event!; the seller form is form_with model: and the controller the stock new/create/edit/update shape; five domain modules and four listing actions deleted, their tests folded into test/models/listing_test.rb; 584 runs at 100% line coverage (this commit)
 - 2026-08-22:19:28:27 — RFCTR-005 — started
 - 2026-08-22:19:24:27 — RFCTR-004 — done: MagicLink issues, finds and consumes its own links behind an actor_type enum, Seller.claim and Customer.claim/absorb/from_cookie replace the five identity actions and six domain modules, email normalization and shape live in an EmailAddress concern, the merge moves rows through associations; 609 runs at 100% line coverage (this commit)

@@ -31,8 +31,8 @@ is `@import "tailwindcss"` and nothing else.
 | Requirement | Status | Route helper | Test |
 | --- | --- | --- | --- |
 | Browse | done | `root` (search, medium filter, pagination), `shop_listing` | `Shop::StorefrontControllerTest`, `Shop::ListingsControllerTest`, `Domain::Shop::ListingSearchTest`, `Domain::Shop::PageTest` |
-| Favorite | done | `shop_favorites`, `shop_toggle_favorite` | `Shop::FavoritesControllerTest`, `Favorites::ToggleFavoriteTest` |
-| Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `Carts::AddToCartTest`, `Carts::RemoveFromCartTest` |
+| Favorite | done | `shop_favorites`, `shop_toggle_favorite` | `Shop::FavoritesControllerTest`, `CustomerTest` |
+| Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `CartTest`, `CartItemTest` |
 | Purchase | done | `shop_checkout`, `shop_place_order`, `shop_pay_order` | `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest` |
 | Anonymous customer id per visitor | done | every storefront route, via `CustomerIdentity` | `CustomerIdentityConcernTest` |
 | Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `CustomerTest`, `Auth::MagicLinksControllerTest` |
@@ -130,7 +130,7 @@ is `@import "tailwindcss"` and nothing else.
    `Shop::AccountControllerTest`.
 4. **A merge can leave a customer holding two carts.**
    `Customer#absorb` re-points the anonymous cart rather than
-   folding it into the account's cart, and `Carts::CurrentCart` then shops with
+   folding it into the account's cart, and `Customer#current_cart` then shops with
    whichever holds more items. Items in the other cart are still in the
    database and no page shows them.
 5. **No order cancellation.** `OrderStatus::CANCELLED` and the stock it would

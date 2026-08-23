@@ -8,7 +8,7 @@ module Shop
       post shop_add_to_cart_path(slug: listing.slug)
 
       assert_redirected_to shop_cart_path
-      assert_equal 1, Carts::CurrentCart.new.call(customer: visiting_customer).items.sole.quantity
+      assert_equal 1, visiting_customer.current_cart.items.sole.quantity
       assert_equal "cart_add", listing.events.sole.event_type
     end
 
@@ -17,7 +17,7 @@ module Shop
 
       post shop_add_to_cart_path(slug: listing.slug), params: { quantity: 3 }
 
-      assert_equal 3, Carts::CurrentCart.new.call(customer: visiting_customer).items.sole.quantity
+      assert_equal 3, visiting_customer.current_cart.items.sole.quantity
     end
 
     test "it never holds more of a listing than the seller has left" do
@@ -25,7 +25,7 @@ module Shop
 
       post shop_add_to_cart_path(slug: listing.slug), params: { quantity: 9 }
 
-      assert_equal 2, Carts::CurrentCart.new.call(customer: visiting_customer).items.sole.quantity
+      assert_equal 2, visiting_customer.current_cart.items.sole.quantity
     end
 
     test "it shows the lines and the subtotal" do
@@ -48,7 +48,7 @@ module Shop
       delete shop_remove_from_cart_path(slug: listing.slug)
 
       assert_redirected_to shop_cart_path
-      assert_empty Carts::CurrentCart.new.call(customer: visiting_customer).items
+      assert_empty visiting_customer.current_cart.items
     end
 
     test "it refuses a listing that is not for sale" do
@@ -58,7 +58,7 @@ module Shop
 
       assert_redirected_to shop_listing_path(slug: listing.slug)
       assert_equal "That listing is no longer for sale.", flash[:alert]
-      assert_empty Carts::CurrentCart.new.call(customer: visiting_customer).items
+      assert_empty visiting_customer.current_cart.items
     end
 
     test "a listing that was never public cannot reach a cart" do

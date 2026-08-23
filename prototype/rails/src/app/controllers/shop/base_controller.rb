@@ -8,10 +8,6 @@ module Shop
 
     private
 
-    def current_cart
-      @current_cart ||= Carts::CurrentCart.new.call(customer: current_customer)
-    end
-
     # The account behind the request once the visitor has proved the address in
     # this session. A cookie alone leaves them a guest at checkout.
     def verified_account

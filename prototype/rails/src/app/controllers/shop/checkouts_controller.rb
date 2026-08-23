@@ -5,7 +5,7 @@ module Shop
     INCOMPLETE = "Enter an email address and a full shipping address.".freeze
 
     def show
-      return redirect_to shop_cart_path if current_cart.items.empty?
+      return redirect_to shop_cart_path if current_cart.empty?
 
       @form = blank_form
       load_summary
@@ -14,7 +14,7 @@ module Shop
     # The card is only asked for once the address behind the order is verified,
     # which is why a guest leaves here with a link instead of a receipt.
     def create
-      return redirect_to shop_cart_path if current_cart.items.empty?
+      return redirect_to shop_cart_path if current_cart.empty?
 
       @form = submitted_form
       return reject_incomplete unless @form.complete?
@@ -74,7 +74,7 @@ module Shop
 
     def load_summary
       @items = current_cart.items.includes(:listing).order(:id)
-      @totals = Domain::Cart::CartTotals.from(current_cart.lines)
+      @subtotal = current_cart.subtotal
     end
   end
 end
