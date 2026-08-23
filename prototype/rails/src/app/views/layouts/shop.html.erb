@@ -30,6 +30,12 @@
           <%= link_to "Favorites", shop_favorites_path, class: "hover:text-neutral-900" %>
           <%= link_to "Cart (#{cart_item_count})", shop_cart_path, class: "hover:text-neutral-900" %>
           <%= link_to "Orders", shop_orders_path, class: "hover:text-neutral-900" %>
+          <%= link_to shop_conversations_path, class: "flex items-center gap-2 hover:text-neutral-900" do %>
+            Messages
+            <% if unread_message_count.positive? %>
+              <span data-unread-messages class="rounded-full bg-amber-600 px-2 py-0.5 text-xs text-white"><%= unread_message_count %></span>
+            <% end %>
+          <% end %>
           <% if customer_signed_in? %>
             <%= link_to "Account (#{unread_notification_count})", shop_account_path, class: "hover:text-neutral-900" %>
             <%= button_to "Sign out", customer_logout_path, method: :post, form_class: "inline", class: "hover:text-neutral-900" %>

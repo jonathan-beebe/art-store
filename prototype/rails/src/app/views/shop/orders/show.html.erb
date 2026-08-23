@@ -57,11 +57,17 @@
           <% end %>
         </ul>
 
-        <% if fulfillment.shipped? %>
-          <%= button_to "Confirm delivery", shop_confirm_delivery_path(order_id: @order.id, id: fulfillment.id),
-                method: :post, form_class: "mt-6",
+        <div class="mt-6 flex flex-wrap gap-3">
+          <% if fulfillment.shipped? %>
+            <%= button_to "Confirm delivery", shop_confirm_delivery_path(order_id: @order.id, id: fulfillment.id),
+                  method: :post,
+                  class: "rounded-full border border-neutral-300 px-6 py-2 text-base hover:border-neutral-900" %>
+          <% end %>
+
+          <%= button_to "Message the seller",
+                shop_fulfillment_conversation_path(order_id: @order.id, id: fulfillment.id), method: :post,
                 class: "rounded-full border border-neutral-300 px-6 py-2 text-base hover:border-neutral-900" %>
-        <% end %>
+        </div>
       </section>
     <% end %>
   </div>

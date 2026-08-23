@@ -1,0 +1,36 @@
+<% content_for :title, "#{@conversation.topic} — Art Store admin" %>
+
+<div class="flex flex-wrap items-center gap-4">
+  <h1 class="text-lg font-semibold"><%= @conversation.topic %></h1>
+  <p data-cell="counterpart" class="text-slate-400">
+    with <%= @conversation.counterpart_of(current_admin).display_name %>
+  </p>
+  <%= link_to "All messages", admin_conversations_path, class: "ml-auto underline" %>
+</div>
+
+<ol class="mt-6 max-w-2xl space-y-3">
+  <% @messages.each do |message| %>
+    <li data-message="<%= message.id %>" class="rounded border border-slate-700 bg-slate-800 p-4">
+      <p class="text-slate-400">
+        <%= message.sender.display_name %> &middot;
+        <%= message.created_at.strftime("%b %-d, %Y %-l:%M%P") %>
+      </p>
+      <p class="mt-1 whitespace-pre-line"><%= message.body %></p>
+    </li>
+  <% end %>
+</ol>
+
+<%= form_with model: @message, url: admin_conversation_messages_path(@conversation),
+      html: { class: "mt-6 max-w-2xl rounded border border-slate-700 bg-slate-800 p-4" } do |form| %>
+  <%= form.label :body, "Reply", class: "block font-medium" %>
+  <%= form.text_area :body, rows: 4, maxlength: Message::BODY_LIMIT,
+        "aria-describedby": @message.errors[:body].first && "message_body-error",
+        class: "mt-1 block w-full border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100" %>
+  <% if @message.errors[:body].first %>
+    <p id="message_body-error" data-field-error="message_body" class="mt-1 text-red-300">
+      <%= @message.errors[:body].first %>
+    </p>
+  <% end %>
+
+  <%= form.submit "Send", class: "mt-4 bg-slate-100 px-4 py-2 font-medium text-slate-900" %>
+<% end %>

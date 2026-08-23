@@ -28,6 +28,7 @@ Rails.application.routes.draw do
 
     resources :orders, only: %i[index show] do
       resource :shipment, only: :create, controller: "shipments"
+      resource :conversation, only: :create, controller: "order_conversations"
     end
 
     get "earnings", to: "earnings#show", as: :earnings
@@ -36,13 +37,28 @@ Rails.application.routes.draw do
     resources :notifications, only: :index do
       resource :read, only: :create, controller: "notification_reads"
     end
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
+
+    resource :support, only: :create
   end
 
   namespace :admin do
     root "dashboard#show"
 
-    resources :sellers, only: :show
-    resources :customers, only: :show
+    resources :sellers, only: :show do
+      resource :conversation, only: :create, controller: "seller_conversations"
+    end
+
+    resources :customers, only: :show do
+      resource :conversation, only: :create, controller: "customer_conversations"
+    end
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
   end
 
   namespace :shop, path: "" do
@@ -64,9 +80,17 @@ Rails.application.routes.draw do
     post "orders/:id/pay", to: "order_payments#create", as: :pay_order
     post "orders/:order_id/fulfillments/:id/delivered",
       to: "delivery_confirmations#create", as: :confirm_delivery
+    post "orders/:order_id/fulfillments/:id/conversation",
+      to: "fulfillment_conversations#create", as: :fulfillment_conversation
 
     get "account", to: "account#show", as: :account
     post "account/notifications/:id/read", to: "notification_reads#create", as: :read_notification
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
+
+    resource :support, only: :create
   end
 
   root "shop/storefront#show"

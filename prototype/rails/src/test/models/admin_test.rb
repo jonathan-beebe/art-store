@@ -37,6 +37,22 @@ class AdminTest < ActiveSupport::TestCase
     assert_equal 0, Admin.count
   end
 
+  test "the desk a support thread opens against is the first admin by id" do
+    desk = create_admin(email: "ops@example.com")
+    create_admin(email: "later@example.com")
+
+    assert_equal desk, Admin.on_duty
+  end
+
+  test "with no admin row nobody is on the desk" do
+    assert_nil Admin.on_duty
+  end
+
+  test "an operator reads as their name, and as their address while they have none" do
+    assert_equal "Ops", create_admin(name: "Ops").display_name
+    assert_equal "ops", create_admin(name: " ", email: "ops@example.com").display_name
+  end
+
   test "an admin holds the notifications filed under them" do
     admin = create_admin
     notification = Notification.create!(recipient: admin, subject: "Support", body: "A seller wrote in.")

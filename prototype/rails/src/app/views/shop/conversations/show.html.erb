@@ -1,0 +1,35 @@
+<% content_for :title, "#{@conversation.topic} — Art Store" %>
+
+<p><%= link_to "All messages", shop_conversations_path, class: "text-base text-neutral-500 underline" %></p>
+
+<h1 class="mt-3 text-4xl font-light tracking-tight"><%= @conversation.topic %></h1>
+<p data-cell="counterpart" class="mt-3 text-lg text-neutral-500">
+  with <%= @conversation.counterpart_of(current_customer).display_name %>
+</p>
+
+<ol class="mt-12 max-w-2xl space-y-8">
+  <% @messages.each do |message| %>
+    <li data-message="<%= message.id %>">
+      <p class="text-sm text-neutral-500">
+        <%= message.sender.display_name %> &middot;
+        <%= message.created_at.strftime("%b %-d, %Y %-l:%M%P") %>
+      </p>
+      <p class="mt-1 whitespace-pre-line text-lg"><%= message.body %></p>
+    </li>
+  <% end %>
+</ol>
+
+<%= form_with model: @message, url: shop_conversation_messages_path(@conversation),
+      html: { class: "mt-12 max-w-2xl" } do |form| %>
+  <%= form.label :body, "Reply", class: "sr-only" %>
+  <%= form.text_area :body, rows: 4, maxlength: Message::BODY_LIMIT, placeholder: "Write a reply…",
+        "aria-describedby": @message.errors[:body].first && "message_body-error",
+        class: "w-full rounded-2xl border border-neutral-300 px-5 py-4 text-lg" %>
+  <% if @message.errors[:body].first %>
+    <p id="message_body-error" data-field-error="message_body" class="mt-2 text-base text-red-700">
+      <%= @message.errors[:body].first %>
+    </p>
+  <% end %>
+
+  <%= form.submit "Send", class: "mt-4 rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
+<% end %>

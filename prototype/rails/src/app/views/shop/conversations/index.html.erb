@@ -1,0 +1,31 @@
+<% content_for :title, "Messages — Art Store" %>
+
+<h1 class="text-4xl font-light tracking-tight">Messages</h1>
+
+<% if @conversations.empty? %>
+  <p class="mt-10 text-lg text-neutral-500">
+    Nothing here yet. Ask a seller a question or contact support to start a conversation.
+  </p>
+<% else %>
+  <ul class="mt-12 max-w-3xl divide-y divide-neutral-100 border-y border-neutral-100">
+    <% @conversations.each do |conversation| %>
+      <% unread = conversation.unread_count_for(current_customer) %>
+      <li data-conversation="<%= conversation.id %>" class="py-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-4">
+          <p class="text-lg">
+            <%= link_to conversation.counterpart_of(current_customer).display_name,
+                  shop_conversation_path(conversation), class: "hover:text-amber-700" %>
+          </p>
+          <p class="text-base text-neutral-500"><%= conversation.last_message_at.strftime("%b %-d, %Y %-l:%M%P") %></p>
+        </div>
+
+        <p data-cell="topic" class="mt-1 text-base text-neutral-500"><%= conversation.topic %></p>
+
+        <span data-unread-count="<%= unread %>"
+              class="mt-3 inline-block rounded-full px-3 py-0.5 text-xs <%= unread.positive? ? "bg-amber-600 text-white" : "text-neutral-400" %>">
+          <%= unread.positive? ? "#{unread} unread" : "Read" %>
+        </span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
