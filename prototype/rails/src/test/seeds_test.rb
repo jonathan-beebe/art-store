@@ -39,9 +39,9 @@ class SeedsTest < ActiveSupport::TestCase
   end
 
   test "it releases and pays out the delivered order" do
-    assert_equal 3, LedgerEntry.where(entry_type: Domain::Escrow::LedgerEntryType::HELD).count
-    assert_equal 1, LedgerEntry.where(entry_type: Domain::Escrow::LedgerEntryType::RELEASED).count
-    assert_equal 1, LedgerEntry.where(entry_type: Domain::Escrow::LedgerEntryType::PAID_OUT).count
+    assert_equal 3, LedgerEntry.held.count
+    assert_equal 1, LedgerEntry.released.count
+    assert_equal 1, LedgerEntry.paid_out.count
 
     payout = Payout.sole
     delivered_fulfillment = Fulfillment.delivered.sole

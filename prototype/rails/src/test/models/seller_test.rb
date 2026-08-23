@@ -44,4 +44,13 @@ class SellerTest < ActiveSupport::TestCase
 
     assert_equal existing, Seller.claim("ARTIST@Example.com")
   end
+
+  test "a seller reads their escrow balance off their own ledger" do
+    shop = create_seller
+    other = create_seller
+    paid_order_for(create_verified_customer, create_listing(shop))
+
+    assert_equal 40_500, shop.escrow_balance.held.cents
+    assert_equal 0, other.escrow_balance.held.cents
+  end
 end

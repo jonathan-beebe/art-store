@@ -81,10 +81,6 @@ module TestRecords
     order_for(customer, *listings).pay!(APPROVED_CARD, at: moment("2026-08-20 10:00:00"))
   end
 
-  def balance_of(seller)
-    Domain::Escrow::LedgerBalance.from(LedgerEntry.where(seller: seller).map(&:to_movement))
-  end
-
   def moment(text)
     Time.zone.parse(text)
   end

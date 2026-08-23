@@ -17,7 +17,7 @@ a stated gap; **missing** — not built.
 | Activity per listing: views, favorites, cart adds | done | `seller_listing` | `Seller::ListingsControllerTest`, `Domain::Reports::ActivityTimelineTest` |
 | Reports on sales | done | `seller_earnings` (Sales table) | `Seller::EarningsControllerTest` |
 | Tools for fulfillment | done | `seller_orders`, `seller_order`, `seller_order_shipment` | `Seller::OrdersControllerTest`, `Seller::ShipmentsControllerTest` |
-| Accumulated earnings and payouts | done | `seller_earnings`, `seller_earnings_payout` | `Seller::EarningsControllerTest`, `Seller::PayoutsControllerTest`, `Escrow::RunWeeklyPayoutTest` |
+| Accumulated earnings and payouts | done | `seller_earnings`, `seller_earnings_payout` | `Seller::EarningsControllerTest`, `Seller::PayoutsControllerTest`, `PayoutTest` |
 | Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `root` | `SmokeTest` |
 | Magic links, no passwords | done | `verify_magic_link` | `Auth::MagicLinksControllerTest` |
 | Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `layouts/seller` | none (visual) |
@@ -50,9 +50,9 @@ is `@import "tailwindcss"` and nothing else.
 | Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `Domain::Notifications::NotificationMessageTest` |
 | Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `FulfillmentTest` |
 | Notify customers of shipment | done | `shop_account` inbox | `Shop::AccountControllerTest` |
-| Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `Domain::Escrow::LedgerBalanceTest` |
+| Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `LedgerEntryTest` |
 | Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
-| Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `Domain::Escrow::PayoutPeriodTest` |
+| Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `PayoutTest`, `PayoutPeriodTest` |
 
 ## Tech stack
 

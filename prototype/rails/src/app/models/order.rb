@@ -89,8 +89,8 @@ class Order < ApplicationRecord
       order.fulfillments.create!(
         seller_id: seller_id,
         subtotal_cents: subtotal.cents,
-        fee_cents: Domain::Escrow::Fee.platform(subtotal).cents,
-        net_cents: Domain::Escrow::Fee.net(subtotal).cents
+        fee_cents: Fulfillment.fee_for(subtotal).cents,
+        net_cents: Fulfillment.net_for(subtotal).cents
       )
     end
   end
@@ -190,14 +190,7 @@ class Order < ApplicationRecord
 
   def hold_in_escrow(at)
     fulfillments.each do |fulfillment|
-      hold = Domain::Escrow::LedgerMovement.hold(fulfillment.net)
-
-      fulfillment.ledger_entries.create!(
-        seller_id: fulfillment.seller_id,
-        entry_type: hold.entry_type,
-        amount_cents: hold.amount.cents,
-        occurred_at: at
-      )
+      LedgerEntry.hold(fulfillment, at: at)
 
       Notifications::Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::SELLER,

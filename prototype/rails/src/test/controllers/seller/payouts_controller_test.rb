@@ -18,7 +18,7 @@ class Seller::PayoutsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to seller_earnings_path
     payout = seller.payouts.sole
     assert_equal 40_500, payout.amount_cents
-    assert_equal Domain::Escrow::PayoutPeriod.ending_before(Time.current).first_day, payout.period_start
+    assert_equal PayoutPeriod.ending_before(Time.current).first_day, payout.period_start
   end
 
   test "it reports how many payouts it wrote and what they came to" do
@@ -59,6 +59,6 @@ class Seller::PayoutsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def backdate_ledger_to_last_completed_week
-    LedgerEntry.update_all(occurred_at: Domain::Escrow::PayoutPeriod.ending_before(Time.current).ends_at - 1.day)
+    LedgerEntry.update_all(occurred_at: PayoutPeriod.ending_before(Time.current).ends_at - 1.day)
   end
 end

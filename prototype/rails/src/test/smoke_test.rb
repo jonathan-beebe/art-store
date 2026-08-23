@@ -192,7 +192,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     assert_equal "paid", order.reload.status
     assert_equal "4242", order.payments.sole.card_last_four
-    assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::HELD)
+    assert_equal NET_CENTS, LedgerEntry.held.sole.amount_cents
   end
 
   def read_the_sale(order)
@@ -233,11 +233,11 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     assert_predicate fulfillment.reload, :delivered?
     assert_equal "delivered", order.reload.status
-    assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::RELEASED)
+    assert_equal NET_CENTS, LedgerEntry.released.sole.amount_cents
   end
 
   def run_weekly_payout
-    payouts = Escrow::RunWeeklyPayout.new.call(as_of: Time.zone.parse(NEXT_MONDAY))
+    payouts = Payout.run_weekly(as_of: Time.zone.parse(NEXT_MONDAY))
 
     assert_equal 1, payouts.length
     assert_equal NET_CENTS, Payout.sole.amount_cents
@@ -261,10 +261,6 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     assert_not_nil alert, "The debug alert rendered no magic link."
     alert["href"]
-  end
-
-  def ledger_amount_cents(entry_type)
-    LedgerEntry.where(entry_type: entry_type).sole.amount_cents
   end
 
   def uploaded_image

@@ -25,7 +25,7 @@ module Seeds
       ship(delivered, "USPS", "9400111899223197428490", Time.utc(2026, 7, 8, 10, 0, 0))
       deliver(delivered, Time.utc(2026, 7, 10, 14, 0, 0))
 
-      Escrow::RunWeeklyPayout.new.call(as_of: Time.utc(2026, 7, 16, 9, 0, 0))
+      Payout.run_weekly(as_of: Time.utc(2026, 7, 16, 9, 0, 0))
     end
 
     def place_and_pay(customer, listing_title, placed_at)

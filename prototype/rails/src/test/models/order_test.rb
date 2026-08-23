@@ -135,7 +135,7 @@ class OrderTest < ActiveSupport::TestCase
     order = pay(order_for(create_verified_customer, create_listing(shop)), APPROVED_CARD)
 
     entry = LedgerEntry.sole
-    assert_equal Domain::Escrow::LedgerEntryType::HELD, entry.entry_type
+    assert_predicate entry, :held?
     assert_equal 40_500, entry.amount_cents
     assert_equal shop.id, entry.seller_id
     assert_equal order.fulfillments.sole.id, entry.fulfillment_id

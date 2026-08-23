@@ -38,7 +38,7 @@ class OrderLifecycleTest < ActiveSupport::TestCase
     assert_predicate order.reload, :delivered?
     assert_equal [40_500, 10_800], available_per_seller(painter, printer)
 
-    payouts = Escrow::RunWeeklyPayout.new.call(as_of: moment("2026-08-24 09:00:00"))
+    payouts = Payout.run_weekly(as_of: moment("2026-08-24 09:00:00"))
 
     assert_equal 2, payouts.size
     assert_equal({ painter.id => 40_500, printer.id => 10_800 }, Payout.order(:seller_id).pluck(:seller_id, :amount_cents).to_h)
@@ -70,7 +70,7 @@ class OrderLifecycleTest < ActiveSupport::TestCase
     fulfillment = ship(order.fulfillments.sole, "USPS", "9400111899", "2026-08-21 11:00:00")
     deliver(fulfillment, "2026-08-22 09:00:00")
 
-    payouts = Escrow::RunWeeklyPayout.new.call(as_of: moment("2026-08-24 09:00:00"))
+    payouts = Payout.run_weekly(as_of: moment("2026-08-24 09:00:00"))
 
     assert_equal [40_500], payouts.map(&:amount_cents)
     assert_equal [40_500], paid_out_per_seller(shop)
@@ -87,14 +87,14 @@ class OrderLifecycleTest < ActiveSupport::TestCase
   end
 
   def held_per_seller(*sellers)
-    sellers.map { |shop| balance_of(shop).held.cents }
+    sellers.map { |shop| shop.escrow_balance.held.cents }
   end
 
   def available_per_seller(*sellers)
-    sellers.map { |shop| balance_of(shop).available.cents }
+    sellers.map { |shop| shop.escrow_balance.available.cents }
   end
 
   def paid_out_per_seller(*sellers)
-    sellers.map { |shop| balance_of(shop).paid_out.cents }
+    sellers.map { |shop| shop.escrow_balance.paid_out.cents }
   end
 end

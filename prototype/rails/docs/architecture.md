@@ -42,17 +42,16 @@ flowchart TD
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
 | Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
-`Fulfillment#deliver!`, `Listing#take_stock!`), the magic-link delivery port implementations, ERB views. |
+`Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`), the plain value objects a record folds into (`LedgerEntry::Balance`, `PayoutPeriod`), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
-Naming follows the `naming` skill: actions are verb phrases (`Notify`,
-`RunWeeklyPayout`), model methods are the verb a record answers to
-(`Order#pay!`, `Fulfillment#ship!`, `Listing#take_stock!`), events are past
-tense.
+Naming follows the `naming` skill: actions are verb phrases (`Notify`), model
+methods are the verb a record answers to (`Order#pay!`, `Fulfillment#ship!`,
+`Payout.run_weekly`, `Listing#take_stock!`), events are past tense.
 
-Action namespaces are the plural directory name — `Notifications::`,
-`Escrow::` — not the singular the ticket originally asked for. Rails makes
+Action namespaces are the plural directory name — `Notifications::` — not the
+singular the ticket originally asked for. Rails makes
 every `app/*` directory a Zeitwerk root, and `app/models/seller.rb` already
 defines `Seller` as a class, so `app/actions/seller/` declaring `module
 Seller` raises `TypeError: Seller is not a module`. The same
@@ -186,20 +185,24 @@ owns.
   Record's single-table inheritance, same reason `listing_events.event_type`
   isn't `type`) is `held` (+net, written when the order pays), `released`
   (+net, written when the fulfillment is delivered), or `paid_out` (−amount,
-  written when included in a payout). `Domain::Escrow::LedgerBalance.from`
-  folds a seller's entries: `held = held_total − released_total`; `available =
-  released_total + paid_out_total` (the `paid_out` entries are already
-  negative, so this nets down as money leaves); `paid_out = −paid_out_total`
-  (a positive lifetime figure).
-- Platform fee: 10% of the fulfillment subtotal (`Domain::Escrow::Fee`),
-  computed once at order placement (`Order.place`) and stored on the
-  `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal − fee.
-  `Order#pay!` (hold) and `Fulfillment#deliver!` (release) move
+  written when included in a payout). `LedgerEntry.balance` (through
+  `Seller#escrow_balance`) folds a seller's entries: `held = held_total −
+  released_total`; `available = released_total + paid_out_total` (the
+  `paid_out` entries are already negative, so this nets down as money leaves);
+  `paid_out = −paid_out_total` (a positive lifetime figure). The three writers
+  `LedgerEntry.hold` / `.release` / `.pay_out` are the only code that picks a
+  sign.
+- Platform fee: 10% of the fulfillment subtotal
+  (`Fulfillment::PLATFORM_FEE_PERCENT`, `Fulfillment.fee_for` /
+  `Fulfillment.net_for`), computed once at order placement (`Order.place`) and
+  stored on the `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal −
+  fee. `Order#pay!` (hold) and `Fulfillment#deliver!` (release) move
   `fulfillment.net` through escrow rather than recomputing it.
-- Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` creates one
-  `payouts` row per seller for released-not-paid amounts as of the most
-  recently completed week. Period math is pure (`Domain::Escrow::PayoutPeriod`).
-  The seller portal exposes a debug "Run weekly payout now" button.
+- Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` calls
+  `Payout.run_weekly(as_of:)`, which creates one `payouts` row per seller for
+  released-not-paid amounts as of the most recently completed week. Period math
+  is pure (`PayoutPeriod`, a `Data` value object with no table). The seller
+  portal exposes a debug "Run weekly payout now" button.
 
 ### Fake payment
 

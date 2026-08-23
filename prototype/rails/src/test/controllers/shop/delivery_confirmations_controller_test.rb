@@ -11,7 +11,7 @@ module Shop
       assert_redirected_to shop_order_path(order)
       assert_predicate fulfillment.reload, :delivered?
       assert_equal "delivered", order.reload.status
-      assert_includes fulfillment.ledger_entries.pluck(:entry_type), Domain::Escrow::LedgerEntryType::RELEASED
+      assert_predicate fulfillment.ledger_entries.released, :one?
     end
 
     test "a fulfillment that has not shipped cannot be confirmed" do

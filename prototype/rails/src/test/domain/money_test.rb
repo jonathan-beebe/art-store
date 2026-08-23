@@ -10,6 +10,11 @@ module Domain
       assert_raises(ArgumentError) { Money.from_cents("12.34") }
     end
 
+    test "zero is nothing, and the seed a sum of amounts starts from" do
+      assert_equal 0, Money.zero.cents
+      assert_equal 1500, [Money.from_cents(500), Money.from_cents(1000)].sum(Money.zero).cents
+    end
+
     test "amounts with the same cents are equal" do
       assert_equal Money.from_cents(500), Money.from_cents(500)
     end

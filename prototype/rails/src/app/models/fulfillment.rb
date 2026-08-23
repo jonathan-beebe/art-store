@@ -18,6 +18,10 @@ class Fulfillment < ApplicationRecord
   # A fulfillment the customer is waiting on rather than the seller.
   DEPARTED = %w[shipped delivered].freeze
 
+  # The platform takes a tenth of every sale off the top; the seller nets the
+  # rest, and that net is what moves through escrow.
+  PLATFORM_FEE_PERCENT = 10
+
   # A shipment the customer can follow needs both parts, and the seller's form
   # asks for the pair, so the refusal is one sentence.
   MISSING_DETAILS = "A shipment needs a carrier and a tracking number.".freeze
@@ -27,6 +31,14 @@ class Fulfillment < ApplicationRecord
   validate :shipment_is_trackable, on: :ship
   validate(on: :ship) { must_move_to("shipped") }
   validate(on: :deliver) { must_move_to("delivered") }
+
+  def self.fee_for(subtotal)
+    subtotal.percent(PLATFORM_FEE_PERCENT)
+  end
+
+  def self.net_for(subtotal)
+    Domain::Money.from_cents(subtotal.cents - fee_for(subtotal).cents)
+  end
 
   # The seller hands the package over: the fulfillment records how to follow
   # it, the order catches up, and the customer is told where to look.
@@ -50,7 +62,7 @@ class Fulfillment < ApplicationRecord
 
     transaction do
       update!(status: :delivered, delivered_at: at)
-      release_escrow(at)
+      LedgerEntry.release(self, at: at)
       order.roll_up_status!
     end
 
@@ -94,17 +106,6 @@ class Fulfillment < ApplicationRecord
       recipient_type: Domain::Notifications::RecipientType::CUSTOMER,
       recipient_id: order.customer_id,
       message: Domain::Notifications::NotificationMessage.order_shipped(order.id, carrier, tracking_number)
-    )
-  end
-
-  def release_escrow(at)
-    release = Domain::Escrow::LedgerMovement.release(net)
-
-    ledger_entries.create!(
-      seller_id: seller_id,
-      entry_type: release.entry_type,
-      amount_cents: release.amount.cents,
-      occurred_at: at
     )
   end
 end

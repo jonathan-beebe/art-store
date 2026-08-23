@@ -79,8 +79,8 @@ class Seller::EarningsControllerTest < ActionDispatch::IntegrationTest
   private
 
   def settle_last_completed_week
-    period = Domain::Escrow::PayoutPeriod.ending_before(Time.current)
+    period = PayoutPeriod.ending_before(Time.current)
     LedgerEntry.update_all(occurred_at: period.ends_at - 1.day)
-    Escrow::RunWeeklyPayout.new.call(as_of: Time.current)
+    Payout.run_weekly
   end
 end

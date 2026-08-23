@@ -9,6 +9,10 @@ module Domain
       new(cents: cents)
     end
 
+    def self.zero
+      from_cents(0)
+    end
+
     def self.from_dollars(text)
       pattern = /\A(?<sign>-)?\$?(?<dollars>\d{1,3}(?:,\d{3})*|\d+)(?:\.(?<cents>\d{2}))?\z/
       match = pattern.match(text.to_s.strip)

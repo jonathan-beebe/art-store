@@ -18,6 +18,6 @@ class Seller < ApplicationRecord
   end
 
   def escrow_balance
-    Domain::Escrow::LedgerBalance.from(ledger_entries.map(&:to_movement))
+    ledger_entries.balance
   end
 end

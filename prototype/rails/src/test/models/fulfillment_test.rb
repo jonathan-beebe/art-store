@@ -123,7 +123,7 @@ class FulfillmentTest < ActiveSupport::TestCase
     shop = create_seller
     fulfillment = deliver(ship(awaiting_shipment(shop)))
 
-    entry = fulfillment.ledger_entries.find_by(entry_type: Domain::Escrow::LedgerEntryType::RELEASED)
+    entry = fulfillment.ledger_entries.released.sole
     assert_equal 40_500, entry.amount_cents
     assert_equal shop.id, entry.seller_id
     assert_equal moment("2026-08-22 09:00:00"), entry.occurred_at
@@ -134,7 +134,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     deliver(ship(awaiting_shipment(shop)))
 
-    balance = balance_of(shop)
+    balance = shop.escrow_balance
     assert_equal 0, balance.held.cents
     assert_equal 40_500, balance.available.cents
   end
@@ -160,6 +160,27 @@ class FulfillmentTest < ActiveSupport::TestCase
     assert_equal 45_000, fulfillment.subtotal.cents
     assert_equal 4_500, fulfillment.fee.cents
     assert_equal 40_500, fulfillment.net.cents
+  end
+
+  test "the platform takes a tenth and the seller keeps the rest" do
+    subtotal = Domain::Money.from_cents(45_000)
+
+    assert_equal 4500, Fulfillment.fee_for(subtotal).cents
+    assert_equal 40_500, Fulfillment.net_for(subtotal).cents
+  end
+
+  test "the fee and the net add back up" do
+    subtotal = Domain::Money.from_cents(4999)
+
+    assert_equal subtotal.cents, Fulfillment.fee_for(subtotal).cents + Fulfillment.net_for(subtotal).cents
+  end
+
+  test "half a cent of fee rounds away from zero" do
+    assert_equal 5, Fulfillment.fee_for(Domain::Money.from_cents(45)).cents
+  end
+
+  test "nothing owes nothing" do
+    assert_equal 0, Fulfillment.fee_for(Domain::Money.zero).cents
   end
 
   private
