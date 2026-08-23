@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-22:20:30:42 — FEAT-006 — done: admin site — dashboard, sellers/customers, filterable listings/orders/fulfillments/payouts/ledger tables, accounting that reconciles with the ledger, site stats, the four moderation writes behind one route factory, the weekly payout run, everything behind requireAdmin, and a root onResponse page-view rollup
+- 2026-08-22:20:27:27 — FEAT-005 — done: customer storefront — paged/searchable grid, listing page with view events and an empty FAQ section, favorites, cart, checkout that pays a verified customer and emails a guest a link redirecting to the pay page, decline-with-retry and stock return, orders with per-seller fulfillments, cancel, confirm-delivery, account notifications; search/paging/checkout-form ported pure into app/core/shop
+- 2026-08-23:01:27:28 — FEAT-004 — done: seller portal — dashboard, listings (index/new/edit/show, multipart image upload, removal-aware status buttons), fulfillments grouped by status with mark-shipped, earnings (held/available/paid out, sold-goods, payout history, no payout button), notifications inbox; four pure reports ported into app/core/reports; requireSeller everywhere, cross-seller and non-numeric ids 404 on read and write
 - 2026-08-22:20:06:00 — FEAT-008 — done: seed data and demo reset — 4 verified sellers with shops and a 29-listing catalog across six media (one under temporary removal), casey@example.com with favorites/views/cart/orders in paid/shipped/delivered, a blocked customer, 3 anonymous browsers, 14 days of page-view counts, all driven through the FEAT-003 actions on a frozen clock
 - 2026-08-22:20:03:52 — FEAT-008 — started
 - 2026-08-22:19:54:09 — FEAT-005 — started
