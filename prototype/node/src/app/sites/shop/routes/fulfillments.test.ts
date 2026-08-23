@@ -91,7 +91,7 @@ test('confirming delivery closes the fulfillment and releases the escrow', async
   assert.equal(released.length, 1)
 })
 
-test('a fulfillment the seller has not shipped cannot be confirmed', async (t) => {
+test('a fulfillment the seller has not shipped cannot be confirmed, and flashes why', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
@@ -104,11 +104,12 @@ test('a fulfillment the seller has not shipped cannot be confirmed', async (t) =
     cookies: customer.cookies,
   })
 
-  assert.equal(response.statusCode, 404)
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, `/orders/${order.id}`)
   assert.deepEqual(await fulfillmentState(testApp, fulfillment.id), before)
 })
 
-test('confirming a delivery twice is refused the second time', async (t) => {
+test('confirming a delivery twice redirects with a flash the second time instead of erroring', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
@@ -132,7 +133,8 @@ test('confirming a delivery twice is refused the second time', async (t) => {
     cookies: customer.cookies,
   })
 
-  assert.equal(again.statusCode, 404)
+  assert.equal(again.statusCode, 302)
+  assert.equal(again.headers.location, `/orders/${order.id}`)
   const afterSecond = await fulfillmentState(testApp, fulfillment.id)
   assert.deepEqual(afterSecond, afterFirst)
   assert.equal(afterSecond.fulfillment.status, 'delivered')

@@ -38,6 +38,7 @@ export const orderRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
   shop.post('/orders/:id/cancel', async (request, reply) => {
     const found = await loadCustomerOrder(shop, request)
+    // Fast 404 for a status cancelOrder would refuse anyway — transitionOrder is the authority.
     if (found === null || !isCancellable(found.order.status)) return renderNotFound(reply)
 
     await cancelOrder({ db: shop.db, clock: shop.clock }, found.order.id)

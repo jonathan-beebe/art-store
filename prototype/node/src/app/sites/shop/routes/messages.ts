@@ -7,7 +7,9 @@ import { markConversationRead } from '../../../actions/messaging/mark-conversati
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { openSupportConversation } from '../../../actions/messaging/open-support-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { runInTransaction } from '../../../actions/transaction.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import type { Conversation } from '../../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { formBody } from '../../../plugins/form-body.ts'
 import { parseIdParam } from '../../../plugins/id-param.ts'
@@ -92,18 +94,28 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
     if (found === null) return renderNotFound(reply)
 
     const customer = storefrontCustomer(request)
-    const conversation = await openConversation(context, {
-      kind: 'listing_question',
-      sellerId: found.listing.sellerId,
-      customerId: customer.id,
-      listingId: found.listing.id,
-    })
+    const body = questionBody.parse(formBody(request)).body
 
+    let conversation: Conversation
     try {
-      await postMessage(context, {
-        conversationId: conversation.id,
-        sender: { type: 'customer', id: customer.id },
-        body: questionBody.parse(formBody(request)).body,
+      // A refused first message must leave no conversation behind, so the open
+      // and the post run as one transaction: `postMessage`'s `TransitionError`
+      // escapes it uncaught here, which is what rolls the open back too.
+      conversation = await runInTransaction(context, async (transacted) => {
+        const opened = await openConversation(transacted, {
+          kind: 'listing_question',
+          sellerId: found.listing.sellerId,
+          customerId: customer.id,
+          listingId: found.listing.id,
+        })
+
+        await postMessage(transacted, {
+          conversationId: opened.id,
+          sender: { type: 'customer', id: customer.id },
+          body,
+        })
+
+        return opened
       })
     } catch (error) {
       if (!(error instanceof TransitionError)) throw error

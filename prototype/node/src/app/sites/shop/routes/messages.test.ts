@@ -229,7 +229,7 @@ test('posting a reply appends and redirects; an empty body flashes and appends n
   assert.equal(afterReply.length, 2)
 })
 
-test('a bodiless question POST redirects instead of failing', async (t) => {
+test('a bodiless question POST redirects instead of failing, and leaves no conversation behind', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -244,6 +244,32 @@ test('a bodiless question POST redirects instead of failing', async (t) => {
 
   assert.equal(response.statusCode, 302)
   assert.equal(response.headers.location, '/art/harbour-at-dusk')
+
+  const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversations.length, 0)
+})
+
+test('a blocked customer asking a listing question is refused, and leaves no conversation behind', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await blockCustomer(testApp, { customerId: customer.id, adminId: admin.id })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    payload: { body: 'Is this framed?' },
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, '/art/harbour-at-dusk')
+
+  const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversations.length, 0)
 })
 
 test('an anonymous customer can ask a question on a listing and read the thread', async (t) => {

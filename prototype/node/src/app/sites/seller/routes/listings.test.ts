@@ -605,6 +605,43 @@ test('a removed listing shows the removal kind and reason and cannot be put back
   assert.match(follow.body, /removed by an admin and cannot be put back on sale/)
 })
 
+test('a removed listing cannot go back on sale even through a transition the lifecycle table allows', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+  await testApp.db.updateTable('listings').set({ status: 'sold' }).where('id', '=', listing.id).execute()
+  await testApp.db
+    .insertInto('listingRemovals')
+    .values({
+      listingId: listing.id,
+      adminId: admin.id,
+      kind: 'permanent',
+      reason: 'Reported as counterfeit.',
+      createdAt: new Date().toISOString(),
+      liftedAt: null,
+    })
+    .execute()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/status`,
+    cookies: seller.cookies,
+    payload: { status: 'for_sale' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db.selectFrom('listings').selectAll().where('id', '=', listing.id).executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'sold')
+  const follow = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/listings',
+    cookies: { ...seller.cookies, ...flashCookie(response) },
+  })
+  assert.match(follow.body, /removed by an admin and cannot be put back on sale/)
+})
+
 test("the activity page totals the events of the seller's own listing", async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

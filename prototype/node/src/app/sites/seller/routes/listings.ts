@@ -13,7 +13,7 @@ import {
 } from '../../../core/listings/listing-draft.ts'
 import { sniffImageFormat, type ImageFormat } from '../../../core/listings/image-format.ts'
 import { listingImageSource } from '../../../core/listings/placeholder-image.ts'
-import { LISTING_STATUSES, availableListingTransitions, isBlockedByRemoval } from '../../../core/listings/listing-status.ts'
+import { LISTING_STATUSES, availableListingTransitions } from '../../../core/listings/listing-status.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
 import { dollarsInputValue, formatCents } from '../../../core/money.ts'
 import { activityTimeline, activityWindow } from '../../../core/reports/activity-timeline.ts'
@@ -241,10 +241,6 @@ async function changeStatus(request: FastifyRequest, reply: FastifyReply): Promi
   if (!parsed.success) return refuseStatusChange(reply, 'Choose a status to change to.')
 
   const { db, clock } = request.server
-  const removal = await activeListingRemoval({ db }, listing.id)
-  if (isBlockedByRemoval(parsed.data.status, removal !== null)) {
-    return refuseStatusChange(reply, 'This listing was removed by an admin and cannot be put back on sale.')
-  }
 
   try {
     const updated = await changeListingStatus({ db, clock }, { listingId: listing.id, status: parsed.data.status })

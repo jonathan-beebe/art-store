@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
+import { TransitionError } from '../../../core/transition-error.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { renderNotFound } from '../shop-page.ts'
 
@@ -17,11 +18,17 @@ export const fulfillmentRoutes: FastifyPluginCallback = (shop, _options, done) =
     if (found === null || !asked.success) return renderNotFound(reply)
 
     const fulfillment = found.fulfillments.find((candidate) => candidate.id === asked.data.fulfillmentId)
-    if (fulfillment === undefined || !fulfillment.canConfirmDelivery) return renderNotFound(reply)
+    if (fulfillment === undefined) return renderNotFound(reply)
 
-    await confirmDelivered({ db: shop.db, clock: shop.clock }, fulfillment.id)
+    try {
+      await confirmDelivered({ db: shop.db, clock: shop.clock }, fulfillment.id)
+    } catch (error) {
+      if (!(error instanceof TransitionError)) throw error
+      reply.setFlash({ alert: error.message })
+      return await reply.redirect(`/orders/${found.order.id}`)
+    }
+
     reply.setFlash({ notice: 'Thank you — the seller has been paid out of escrow.' })
-
     return await reply.redirect(`/orders/${found.order.id}`)
   })
 
