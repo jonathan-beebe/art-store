@@ -17,9 +17,11 @@
           <li><a href="/seller/listings" class="hover:text-neutral-900">Listings</a></li>
           <li><a href="/seller/orders" class="hover:text-neutral-900">Orders</a></li>
           <li>
-            <a href="/seller/messages" class="hover:text-neutral-900">Messages<% if (unreadMessageCount > 0) { %>
-              <span data-unread-messages="<%= unreadMessageCount %>" class="ml-1 rounded bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white"><%= unreadMessageCount %></span>
-            <% } %></a>
+            <a href="/seller/messages" class="hover:text-neutral-900">Messages<span
+              data-messages-badge
+              class="ml-1 rounded bg-neutral-900 px-1.5 py-0.5 text-xs font-medium text-white empty:hidden"
+              <% if (unreadMessageCount > 0) { %>data-unread-messages="<%= unreadMessageCount %>"<% } %>
+            ><% if (unreadMessageCount > 0) { %><%= unreadMessageCount %><% } %></span></a>
           </li>
           <li><a href="/seller/earnings" class="hover:text-neutral-900">Earnings</a></li>
           <li><a href="/seller/notifications" class="hover:text-neutral-900">Notifications</a></li>
@@ -42,5 +44,6 @@
       </nav>
     </header>
     <main class="mx-auto max-w-6xl px-4 py-8"><%- body %></main>
+    <script defer src="/app.js"></script>
   </body>
 </html>

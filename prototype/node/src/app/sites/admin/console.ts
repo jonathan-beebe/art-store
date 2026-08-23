@@ -12,6 +12,7 @@ import { outboxRoutes } from './routes/outbox.ts'
 import { payoutRoutes } from './routes/payouts.ts'
 import { sellerRoutes } from './routes/sellers.ts'
 import { statsRoutes } from './routes/stats.ts'
+import { unreadEventsRoute } from '../../plugins/events.ts'
 import { requireAdmin } from '../../plugins/identity.ts'
 
 /**
@@ -34,6 +35,7 @@ export const adminConsoleRoutes: FastifyPluginCallback = (operations, _options, 
   operations.register(moderationRoutes)
   operations.register(messageRoutes)
   operations.register(outboxRoutes)
+  operations.register(unreadEventsRoute('admin'))
 
   done()
 }

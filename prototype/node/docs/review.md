@@ -85,7 +85,7 @@ a stated gap; **missing** — not built.
 | zod | done | `src/package.json` — `zod ^4.4.3`; parsed at every route boundary (e.g. `app/sites/seller/listing-form.ts`) |
 | Tailwind CLI | done | `src/package.json` — `@tailwindcss/cli ^4.3.3`; `app/assets/app.css` → `public/app.css` |
 | `node:test` sidecars on Node 24 | done | `npm test` runs `node --test 'app/**/*.test.ts'` — 190 sidecar files |
-| Not a React SPA; server-rendered, no client JS required | done | zero `<script>` tags across the 57 templates under `app/**/*.ejs`; every flow is a form POST |
+| Not a React SPA; server-rendered, no client JS required | done | every flow is a form POST, and every page renders and works with JavaScript off. One `<script defer src="/app.js">` sits in the three site layouts (`app/sites/*/views/layout.ejs`) and no other template carries a tag; those 21 dependency-free lines (`public/app.js`) subscribe to `GET <prefix>/events` and refresh the unread-message badge the layout already rendered — `app/plugins/events.ts`, `app/plugins/events.test.ts` |
 
 ## Development workflow
 

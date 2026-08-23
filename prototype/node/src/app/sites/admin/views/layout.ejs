@@ -25,9 +25,11 @@
           <a href="/admin/ledger" class="hover:text-white">Ledger</a>
           <a href="/admin/stats" class="hover:text-white">Site stats</a>
           <a href="/admin/outbox" class="hover:text-white">Outbox</a>
-          <a href="/admin/messages" class="hover:text-white">Messages<% if (unreadMessageCount > 0) { %>
-            <span data-unread-messages="<%= unreadMessageCount %>" class="ml-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-neutral-900"><%= unreadMessageCount %></span>
-          <% } %></a>
+          <a href="/admin/messages" class="hover:text-white">Messages<span
+            data-messages-badge
+            class="ml-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-neutral-900 empty:hidden"
+            <% if (unreadMessageCount > 0) { %>data-unread-messages="<%= unreadMessageCount %>"<% } %>
+          ><% if (unreadMessageCount > 0) { %><%= unreadMessageCount %><% } %></span></a>
         </nav>
         <div class="ml-auto flex items-center gap-4 text-neutral-300">
           <a href="/admin/account" class="hover:text-white"><%= identity.admin.email %></a>
@@ -43,5 +45,6 @@
       </div>
     </header>
     <main class="mx-auto max-w-7xl px-4 py-6"><%- body %></main>
+    <script defer src="/app.js"></script>
   </body>
 </html>

@@ -3,7 +3,8 @@ import type { FastifyInstance } from 'fastify'
 /**
  * The policy every response carries. `data:` is in `img-src` because a listing
  * with no photograph renders a generated SVG placeholder inline; nothing else
- * loads from anywhere but this origin, and no page has a script tag.
+ * loads from anywhere but this origin, and the one script a layout carries is
+ * served from it.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",

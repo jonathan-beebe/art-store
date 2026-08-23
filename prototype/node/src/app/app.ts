@@ -5,11 +5,14 @@ import fastifyFormbody from '@fastify/formbody'
 import fastifyStatic from '@fastify/static'
 import fastifyView from '@fastify/view'
 import ejs from 'ejs'
+import type pino from 'pino'
 import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
+import { loggingOptions } from './logging.ts'
 import { addErrorPage } from './plugins/error-pages.ts'
+import { addEvents } from './plugins/events.ts'
 import { addFlash } from './plugins/flash.ts'
 import { addHealth } from './plugins/health.ts'
 import { addIdentity } from './plugins/identity.ts'
@@ -26,6 +29,10 @@ export type AppDependencies = {
   clock: Clock
   config: AppConfig
   magicLinkDelivery: MagicLinkDelivery
+  /** Overrides where the request logger writes. Unset in the running app, so
+   * Fastify's own logger writes to stdout; a test passes one to capture what
+   * was logged. */
+  loggerStream?: pino.DestinationStream
 }
 
 declare module 'fastify' {
@@ -53,11 +60,12 @@ export function buildApp({
   clock,
   config,
   magicLinkDelivery,
+  loggerStream,
 }: AppDependencies): FastifyInstance {
   // trustProxy is what makes request.protocol and request.host read the
   // forwarded headers, so it is on only where a proxy is known to set them.
   const app = Fastify({
-    logger: { level: config.logLevel },
+    ...loggingOptions(config, { stream: loggerStream }),
     trustProxy: config.trustProxy,
   })
 
@@ -94,6 +102,7 @@ export function buildApp({
   addIdentity(app)
   addPageViewRollup(app)
   addUnreadMessages(app)
+  addEvents(app)
 
   app.register(authSite)
   app.register(shopSite)

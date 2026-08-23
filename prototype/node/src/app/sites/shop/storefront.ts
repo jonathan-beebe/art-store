@@ -1,4 +1,5 @@
 import type { FastifyPluginCallback } from 'fastify'
+import { unreadEventsRoute } from '../../plugins/events.ts'
 import { resolveCustomerIdentity } from '../../plugins/identity.ts'
 import { cartRoutes } from './routes/carts.ts'
 import { checkoutRoutes } from './routes/checkout.ts'
@@ -30,6 +31,7 @@ export const storefrontRoutes: FastifyPluginCallback = (storefront, _options, do
   storefront.register(fulfillmentRoutes)
   storefront.register(notificationRoutes)
   storefront.register(messageRoutes)
+  storefront.register(unreadEventsRoute('customer'))
 
   done()
 }

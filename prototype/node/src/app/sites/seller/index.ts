@@ -1,6 +1,7 @@
 import type { FastifyError, FastifyPluginCallback } from 'fastify'
 import multipart from '@fastify/multipart'
 import { addNotFoundPage } from '../../plugins/error-pages.ts'
+import { unreadEventsRoute } from '../../plugins/events.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
 import { requireSeller } from '../../plugins/identity.ts'
 import { countUnreadMessages } from '../../plugins/unread-messages.ts'
@@ -48,6 +49,7 @@ export const sellerSite: FastifyPluginCallback = (portal, _options, done) => {
     guarded.register(notificationsRoutes)
     guarded.register(messagesRoutes)
     guarded.register(faqsRoutes)
+    guarded.register(unreadEventsRoute('seller'))
 
     guardedDone()
   })
