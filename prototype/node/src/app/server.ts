@@ -2,10 +2,16 @@ import { buildApp } from './app.ts'
 import { systemClock } from './clock.ts'
 import { loadConfig } from './config.ts'
 import { openDatabase } from './db/database.ts'
+import { selectMagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 
 const config = loadConfig(process.env)
 const db = openDatabase(config.databaseFile)
-const app = buildApp({ db, clock: systemClock, config })
+const app = buildApp({
+  db,
+  clock: systemClock,
+  config,
+  magicLinkDelivery: selectMagicLinkDelivery(config.magicLinkDelivery),
+})
 
 app.addHook('onClose', async () => {
   await db.destroy()

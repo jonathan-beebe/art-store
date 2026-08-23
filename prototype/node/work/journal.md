@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:19:45:49 — FEAT-002 — done: magic-link identity for sellers, customers, and admins — one delivery port with a flash and a mail hook, seeded-only admins, anonymous customer per storefront request, and an anonymous-to-verified merge folded by a pure plan
 - 2026-08-22:19:44:16 — FEAT-003 — done: commerce domain core — 15 tables, pure core for listings/cart/orders/payments/escrow/notifications/moderation/analytics, actions over { db, clock } in transactions, weekly payouts CLI, lifecycle/decline/cancel tests
 - 2026-08-22:19:14:58 — FEAT-003 — started
 - 2026-08-22:19:14:11 — FEAT-002 — started

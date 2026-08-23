@@ -8,8 +8,11 @@ import ejs from 'ejs'
 import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
+import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { addFlash } from './plugins/flash.ts'
+import { addIdentity } from './plugins/identity.ts'
 import { adminSite } from './sites/admin/index.ts'
+import { authSite } from './sites/auth/index.ts'
 import { sellerSite } from './sites/seller/index.ts'
 import { shopSite } from './sites/shop/index.ts'
 
@@ -17,6 +20,7 @@ export type AppDependencies = {
   db: AppDatabase
   clock: Clock
   config: AppConfig
+  magicLinkDelivery: MagicLinkDelivery
 }
 
 declare module 'fastify' {
@@ -24,6 +28,7 @@ declare module 'fastify' {
     db: AppDatabase
     clock: Clock
     config: AppConfig
+    magicLinkDelivery: MagicLinkDelivery
   }
 }
 
@@ -35,12 +40,18 @@ const PUBLIC_ROOT = path.join(APP_ROOT, '..', 'public')
  * dependency, so a test builds the same app over an in-memory database and a
  * frozen clock.
  */
-export function buildApp({ db, clock, config }: AppDependencies): FastifyInstance {
+export function buildApp({
+  db,
+  clock,
+  config,
+  magicLinkDelivery,
+}: AppDependencies): FastifyInstance {
   const app = Fastify({ logger: { level: config.logLevel } })
 
   app.decorate('db', db)
   app.decorate('clock', clock)
   app.decorate('config', config)
+  app.decorate('magicLinkDelivery', magicLinkDelivery)
 
   app.register(fastifyCookie, { secret: config.cookieSecret })
   app.register(fastifyFormbody)
@@ -51,7 +62,9 @@ export function buildApp({ db, clock, config }: AppDependencies): FastifyInstanc
   app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
 
   addFlash(app)
+  addIdentity(app)
 
+  app.register(authSite)
   app.register(shopSite)
   app.register(sellerSite, { prefix: '/seller' })
   app.register(adminSite, { prefix: '/admin' })

@@ -15,8 +15,9 @@ declare module 'fastify' {
 
 /**
  * Gives one site a `reply.render(page)` that finds the page among that site's
- * templates, wraps it in that site's layout, and hands every layout the flash —
- * so a route reads as one line and no route can forget the debug alert.
+ * templates, wraps it in that site's layout, and hands every layout the flash
+ * and the request's identity — so a route reads as one line, and no route can
+ * forget the debug alert or the header's sign-in state.
  *
  * Called inside a site plugin, never at the root: each site needs its own
  * layout, and Fastify keeps the decorator inside the context that added it.
@@ -27,7 +28,7 @@ export function addSiteRender(site: FastifyInstance, options: SiteRenderOptions)
     function (this: FastifyReply, page: string, data: Record<string, unknown> = {}) {
       return this.view(
         `${options.pages}/${page}`,
-        { ...data, flash: this.takeFlash() },
+        { ...data, flash: this.takeFlash(), identity: this.request.identity },
         { layout: options.layout },
       )
     },

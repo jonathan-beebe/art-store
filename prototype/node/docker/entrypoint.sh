@@ -11,6 +11,10 @@ fi
 
 node app/db/migrate.ts
 
+# The platform operators are reference data, not demo data: /admin is
+# unreachable without them and seeding them twice adds nobody.
+node app/db/seed.ts
+
 # Tailwind scans the EJS templates, so the stylesheet is rebuilt on every start
 # rather than only when public/app.css is missing.
 npm run --silent assets

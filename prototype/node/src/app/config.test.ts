@@ -11,6 +11,7 @@ test('an empty environment yields the development defaults', () => {
     databaseFile: 'storage/development.sqlite3',
     cookieSecret: 'art-store-prototype-cookie-secret',
     logLevel: 'info',
+    magicLinkDelivery: 'flash',
   })
 })
 
@@ -21,6 +22,7 @@ test('the environment overrides every default', () => {
     DATABASE_FILE: 'storage/test.sqlite3',
     COOKIE_SECRET: 'a-secret-long-enough-to-sign',
     LOG_LEVEL: 'silent',
+    MAGIC_LINK_DELIVERY: 'mail',
   })
 
   assert.equal(config.host, '127.0.0.1')
@@ -28,6 +30,7 @@ test('the environment overrides every default', () => {
   assert.equal(config.databaseFile, 'storage/test.sqlite3')
   assert.equal(config.cookieSecret, 'a-secret-long-enough-to-sign')
   assert.equal(config.logLevel, 'silent')
+  assert.equal(config.magicLinkDelivery, 'mail')
 })
 
 test('unrelated environment variables are ignored', () => {
@@ -47,4 +50,8 @@ test('a cookie secret too short to sign is refused', () => {
 
 test('an unknown log level is refused', () => {
   assert.throws(() => loadConfig({ LOG_LEVEL: 'chatty' }))
+})
+
+test('an unknown magic link delivery is refused rather than silently dropping links', () => {
+  assert.throws(() => loadConfig({ MAGIC_LINK_DELIVERY: 'carrier-pigeon' }))
 })

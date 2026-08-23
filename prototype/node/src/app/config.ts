@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import {
+  MAGIC_LINK_DELIVERIES,
+  type MagicLinkDeliveryName,
+} from './delivery/magic-link-delivery.ts'
 
 export type AppConfig = {
   host: string
@@ -6,6 +10,7 @@ export type AppConfig = {
   databaseFile: string
   cookieSecret: string
   logLevel: LogLevel
+  magicLinkDelivery: MagicLinkDeliveryName
 }
 
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
@@ -20,6 +25,7 @@ const environmentSchema = z.object({
   // prototype ships a default so a clone runs with no configuration.
   COOKIE_SECRET: z.string().min(16).default('art-store-prototype-cookie-secret'),
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
+  MAGIC_LINK_DELIVERY: z.enum(MAGIC_LINK_DELIVERIES).default('flash'),
 })
 
 export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
@@ -31,5 +37,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     databaseFile: parsed.DATABASE_FILE,
     cookieSecret: parsed.COOKIE_SECRET,
     logLevel: parsed.LOG_LEVEL,
+    magicLinkDelivery: parsed.MAGIC_LINK_DELIVERY,
   }
 }
