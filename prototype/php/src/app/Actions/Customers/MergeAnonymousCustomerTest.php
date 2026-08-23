@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\CustomerMerge;
+use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
+use DateTimeImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -155,4 +158,19 @@ it('does not read the verified customer\'s own merged message as unread to them'
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
     expect($conversation->messages()->unreadBy($verified)->count())->toBe(0);
+});
+
+it('keeps one thread per subject after the merge', function (): void {
+    $seller = Seller::factory()->create();
+    $listing = Listing::factory()->create(['seller_id' => $seller->id]);
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $now = new DateTimeImmutable('2026-08-20 09:00:00');
+    Conversation::openFor(ConversationSubject::listingQuestion($seller->id, $anonymous->id, $listing->id), $now);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    Conversation::openFor(ConversationSubject::listingQuestion($seller->id, $verified->id, $listing->id), $now);
+
+    expect(Conversation::count())->toBe(1);
 });

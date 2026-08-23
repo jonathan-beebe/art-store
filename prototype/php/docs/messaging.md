@@ -375,12 +375,25 @@ Question: an anonymous customer who has been asking questions verifies an
 address — what follows them?
 
 `App\Domain\Customers\CustomerOwnedTables::all()` gains
-`'conversations' => 'customer_id'` and `'customer_blocks' => 'customer_id'`, so
-`MergeAnonymousCustomer` re-points both inside the transaction it already runs.
-Messages the anonymous row sent name their sender by morph type and id, the way
-notifications do, so they re-point through the relation rather than through the
-table list — which is what keeps the unread rule honest afterwards, since a
-message the verified customer sent must not read as unread to them.
+`'customer_blocks' => 'customer_id'`, so `MergeAnonymousCustomer` re-points it
+inside the transaction it already runs. Two things move without the table list,
+because a blind column write would leave part of the row behind:
+
+- **Sent messages.** They name their sender by morph type and id, the way
+  notifications do, so they re-point through the relation — which is what
+  keeps the unread rule honest afterwards, since a message the verified
+  customer sent must not read as unread to them.
+- **Conversations.** `subject_key` names the participants as well as the
+  column does, so `Conversation::moveCustomer()` writes both together. A
+  thread left holding the anonymous customer's key would be found by no later
+  ask for its subject, and the next `OpenConversation` for it would open a
+  second thread beside the first. Where the verified customer already holds
+  the thread for a subject the anonymous row also asked about, the moved
+  thread folds into it: its messages re-point, `last_message_at` is read back
+  from the newest of them, and the moved row is deleted.
+
+`ConversationSubject::for(kind, ids)` is what rebuilds a key from a row's own
+columns; the four named factories build one from scratch.
 
 The anonymous row survives the merge, `customer_merges` records it, and a stale
 cookie resolves forward to the verified customer and lands on the same threads.

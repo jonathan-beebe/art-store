@@ -94,6 +94,34 @@ class Conversation extends Model
     }
 
     /**
+     * Moves one customer's threads onto the customer they merged into.
+     * `subject_key` names the thread's participants, so the column and the
+     * key move together: a thread left holding the merged customer's key is
+     * found by no later ask for its subject, and the next one opens a second
+     * thread beside it. Where the verified customer already holds the thread
+     * for a subject, the moved one folds into it.
+     */
+    public static function moveCustomer(Customer $from, Customer $to): void
+    {
+        foreach ($from->conversations()->get() as $conversation) {
+            $subjectKey = ConversationSubject::for(
+                $conversation->kind,
+                ['customer_id' => $to->id] + $conversation->idColumns(),
+            )->subjectKey();
+
+            $existing = self::query()->where('subject_key', $subjectKey)->first();
+
+            if ($existing === null) {
+                $conversation->update(['customer_id' => $to->id, 'subject_key' => $subjectKey]);
+
+                continue;
+            }
+
+            $existing->absorb($conversation);
+        }
+    }
+
+    /**
      * This actor's participant id on the thread, or null when the kind holds
      * no column for that actor type — the read behind every ownership check.
      */
@@ -133,6 +161,39 @@ class Conversation extends Model
         }
 
         return null;
+    }
+
+    /**
+     * The id columns a subject reads, keyed the way it names them.
+     *
+     * @return array<string, int|null>
+     */
+    private function idColumns(): array
+    {
+        return [
+            'seller_id' => $this->seller_id,
+            'customer_id' => $this->customer_id,
+            'admin_id' => $this->admin_id,
+            'listing_id' => $this->listing_id,
+            'fulfillment_id' => $this->fulfillment_id,
+        ];
+    }
+
+    /**
+     * Takes over another thread's messages and drops it — how two threads
+     * that turn out to name one subject become one. `last_message_at` is the
+     * newest message's instant, so it is read back rather than carried over.
+     */
+    private function absorb(self $other): void
+    {
+        $other->messages()->update(['conversation_id' => $this->id]);
+        $other->delete();
+
+        $newest = $this->messages()->max('sent_at');
+
+        if ($newest !== null) {
+            $this->update(['last_message_at' => $newest]);
+        }
     }
 
     /**

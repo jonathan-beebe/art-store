@@ -296,13 +296,14 @@ flowchart LR
   `mail` a comma away; `toArray()` and `toMail()` both come from
   `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
   email say the same thing.
-- `Seller` and `Customer` are `Notifiable`. Rows land in Laravel's
+- `Seller`, `Customer`, and `Admin` are `Notifiable`. Rows land in Laravel's
   `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
   `data` json, `read_at`) and are read back as
   `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
-  morph alias `seller` or `customer`, which is what
-  `App\Domain\Notifications\RecipientType` names; `AppServiceProvider`
-  enforces that map.
+  morph alias `seller`, `customer`, or `admin`, which is what
+  `App\Domain\Auth\ActorType` names; `AppServiceProvider`
+  enforces that one map for both `notifications.notifiable_type` and
+  `messages.sender_type`.
 - Each site renders its own inbox from `$notification->data`, counts
   `unreadNotifications()`, and marks one read with `markAsRead()`.
 

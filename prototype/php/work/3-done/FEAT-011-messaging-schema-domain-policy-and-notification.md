@@ -107,3 +107,66 @@ Verification: `make check` — 931 tests passed, 2041 assertions (baseline
 
 Found, not fixed: nothing outside scope — no routes/controllers/views were
 touched, per the ticket.
+
+## Review
+
+Reviewed against `docs/architecture.md` and the four contract sections of
+`docs/messaging.md`. The unread rule holds one definition (`Message::unreadBy`;
+no second `read_at` predicate exists outside it and the migration's index).
+`ConversationPolicy::view` denies as not found and `post` is `view` plus
+`Customer::canShop()`, so a seller or an admin who is a participant always
+posts. `subject_key` carries the kind ahead of the participant letters
+(`listing_question:s3:c9:l24`), so no two kinds collide on one key and every
+kind's duplicate is caught by `conversations_subject_key_unique`. The
+concurrent-open race is the framework's: `firstOrCreate` falls through to
+`createOrFirst`, which catches `UniqueConstraintViolationException` behind a
+savepoint and re-reads. `NotifyOfMessage`'s three route names match the design's
+route tables exactly (`seller.messages.show`, `shop.messages.show`,
+`admin.messages.show`), so the `Route::has()` guard starts resolving the moment
+FEAT-012 through FEAT-014 register them. The body and draft limits have one
+definition each on `MessageBody` and `FaqDraft`. Nothing references the retired
+`RecipientType`.
+
+Fixed: **a merge left a conversation's `subject_key` naming the anonymous
+customer.** `CustomerOwnedTables` moved `conversations.customer_id` with a blind
+column write, so a merged thread kept a key describing a customer who no longer
+holds it — the next `OpenConversation` for that subject found nothing and opened
+a second thread beside the first (proved by a failing test before the fix).
+`conversations` leaves the table list and `Conversation::moveCustomer()` writes
+the column and the key together; where the verified customer already holds the
+thread for a subject, the moved one folds into it (messages re-point,
+`last_message_at` is read back from the newest of them, the row is deleted).
+`ConversationSubject::for(kind, ids)` — the factory the design's own flowchart
+names — rebuilds a key from a row's columns. Also corrected `docs/architecture.md`,
+`docs/data-model.md`, and `docs/ontology.md`, which still named `RecipientType`,
+and added the three messaging tables to `docs/data-model.md`'s ER diagram and
+caveats.
+
+Verification: `make check` — 941 tests passed, 2056 assertions, 0 PHPStan
+errors, Pint clean. `make coverage` — 100.0%.
+
+## Review — found, not fixed
+
+- **`ConversationFactory` states build a `subject_key` that overrides
+  contradict.** `Conversation::factory()->listingQuestion()->create(['seller_id'
+  => $seller->id])` writes the key for the seller the state created, not the one
+  the override names, so the row is internally inconsistent. No production path
+  reads those rows, but a FEAT-012+ controller test that builds a fixture that
+  way and then exercises `OpenConversation` will see a second thread open. A
+  `forSubject(ConversationSubject $subject)` state would close it.
+- **`OpenConversation` and `PostMessage` are two transactions.**
+  `OpenConversation` wraps nothing and `PostMessage` opens its own, so a
+  controller that opens a thread and posts the first message into it can leave a
+  thread with no message if the post fails. Whoever composes them (FEAT-012 for
+  `seller.orders.messages`, FEAT-013 for `shop.listing.questions`) decides
+  whether the pair needs one transaction around it.
+- **`ontology.md` has no Conversation, Message, or Listing FAQ entity.** The
+  catalogue stops at the commerce entities; the three messaging ones want the
+  same who/why/lifecycle/relates-to treatment.
+- **`ConversationPolicy::post` denies with no words.** `Response::deny()` carries
+  the framework's default sentence. It copies `FulfillmentPolicy::whenAllowed()`
+  exactly, so the two are consistent, but `docs/messaging.md` says a blocked
+  customer's submission "is refused with the policy's words".
+- **`UpdateListingFaq` and `UnpublishListingFaq` take an unused
+  `DateTimeImmutable $now`.** Uniform signature across the six Messaging actions,
+  at the cost of two parameters nothing reads.

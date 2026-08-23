@@ -84,3 +84,65 @@ it('scopes threads to the given participant', function (): void {
 
     expect(Conversation::query()->withParticipant($seller)->pluck('id')->all())->toBe([$mine->id]);
 });
+
+it('moves a thread to another customer, key and column together', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $conversation = Conversation::openFor(
+        ConversationSubject::listingQuestion($seller->id, $anonymous->id, $listing->id),
+        $this->moment('2026-08-20 09:00:00'),
+    );
+
+    Conversation::moveCustomer($anonymous, $verified);
+
+    expect($conversation->fresh()?->customer_id)->toBe($verified->id)
+        ->and($conversation->fresh()?->subject_key)
+        ->toBe(ConversationSubject::listingQuestion($seller->id, $verified->id, $listing->id)->subjectKey());
+});
+
+it('folds a moved thread into the one the other customer already holds', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $held = Conversation::openFor(
+        ConversationSubject::listingQuestion($seller->id, $verified->id, $listing->id),
+        $this->moment('2026-08-01 09:00:00'),
+    );
+    $moved = Conversation::openFor(
+        ConversationSubject::listingQuestion($seller->id, $anonymous->id, $listing->id),
+        $this->moment('2026-08-02 09:00:00'),
+    );
+    $message = Message::factory()->from($anonymous)->create([
+        'conversation_id' => $moved->id,
+        'sent_at' => $this->moment('2026-08-02 09:00:00'),
+    ]);
+
+    Conversation::moveCustomer($anonymous, $verified);
+
+    expect(Conversation::count())->toBe(1)
+        ->and($message->fresh()?->conversation_id)->toBe($held->id)
+        ->and($held->fresh()?->last_message_at?->format('Y-m-d H:i:s'))->toBe('2026-08-02 09:00:00');
+});
+
+it('leaves the surviving thread when neither side carries a message', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $held = Conversation::openFor(
+        ConversationSubject::listingQuestion($seller->id, $verified->id, $listing->id),
+        $this->moment('2026-08-01 09:00:00'),
+    );
+    Conversation::openFor(
+        ConversationSubject::listingQuestion($seller->id, $anonymous->id, $listing->id),
+        $this->moment('2026-08-02 09:00:00'),
+    );
+
+    Conversation::moveCustomer($anonymous, $verified);
+
+    expect(Conversation::count())->toBe(1)
+        ->and($held->fresh()?->last_message_at?->format('Y-m-d H:i:s'))->toBe('2026-08-01 09:00:00');
+});

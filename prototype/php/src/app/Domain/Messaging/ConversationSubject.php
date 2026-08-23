@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Messaging;
 
+use InvalidArgumentException;
+
 /**
  * What a thread is about: the kind, its two participants, and — for the two
  * kinds that carry one — the row it is a subject of. `subjectKey()` folds
@@ -61,6 +63,32 @@ final readonly class ConversationSubject
     }
 
     /**
+     * The subject a row already names, rebuilt from its kind and its id
+     * columns — what a row whose participant ids moved reads to recompute
+     * its key.
+     *
+     * @param  array<string, int|null>  $ids  the row's id columns, keyed by column name
+     */
+    public static function for(ConversationKind $kind, array $ids): self
+    {
+        $participantIds = [];
+
+        foreach ($kind->participantColumns() as $column) {
+            $participantIds[$column] = self::id($kind, $ids, $column);
+        }
+
+        $subjectColumn = $kind->subjectColumn();
+
+        return new self(
+            $kind,
+            $participantIds,
+            $subjectColumn === null
+                ? null
+                : ['column' => $subjectColumn, 'id' => self::id($kind, $ids, $subjectColumn)],
+        );
+    }
+
+    /**
      * `kind:<letter><id>:<letter><id>[:<letter><id>]` — one non-null string
      * with no hole a unique index can slip through.
      */
@@ -94,5 +122,13 @@ final readonly class ConversationSubject
         }
 
         return $columns;
+    }
+
+    /**
+     * @param  array<string, int|null>  $ids
+     */
+    private static function id(ConversationKind $kind, array $ids, string $column): int
+    {
+        return $ids[$column] ?? throw new InvalidArgumentException("A {$kind->value} conversation names a {$column}.");
     }
 }

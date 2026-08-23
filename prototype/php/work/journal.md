@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:15:08:00 — FEAT-011 — reviewed: fixed a merge leaving conversations.subject_key naming the anonymous customer (duplicate threads after verification); Conversation::moveCustomer re-keys and folds, ConversationSubject::for rebuilds a key from a row; docs carry the messaging tables and drop RecipientType; 941 tests / 2056 assertions, 100.0% coverage
 - 2026-08-23:14:55:11 — FEAT-011 — done: messaging schema, domain (ConversationKind/Subject, MessageBody, FaqDraft), models+factories, ConversationPolicy, six Messaging actions, MessagePosted/NotifyOfMessage/MessageReceived, merge extension; 931 tests / 2041 assertions, 100.0% coverage
 - 2026-08-23:14:38:02 — FEAT-011 — started
 - 2026-08-23:14:29:48 — FEAT-010 — reviewed: arch rules now run in the gate, SignInAdmin refuses an unknown address, unused admin base controller dropped, docs carry the third site; 826 tests / 1887 assertions, 100.0% coverage
