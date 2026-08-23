@@ -18,11 +18,7 @@ module Auth
       link.consume!(now)
       sign_in(link)
 
-      redirect_to Domain::Auth::LocalRedirect.resolve(
-        link.redirect_to,
-        fallback: path_for(link.actor_type.home_route),
-        origin: request.base_url
-      )
+      redirect_to url_from(link.redirect_to) || path_for(link.actor_type.home_route)
     end
 
     private

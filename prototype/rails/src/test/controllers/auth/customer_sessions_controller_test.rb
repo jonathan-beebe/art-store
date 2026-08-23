@@ -25,12 +25,34 @@ module Auth
       assert_select "input[type=hidden][name=redirect_to][value=?]", "/orders/7/pay"
     end
 
-    test "the sign-in page drops a destination on another host" do
-      get customer_login_path(redirect_to: "http://evil.example/steal")
+    test "the sign-in page keeps an absolute destination on this host" do
+      get customer_login_path(redirect_to: "http://www.example.com/orders/7/pay")
 
-      assert_select "input[type=hidden][name=redirect_to]" do |fields|
-        assert_nil fields.sole["value"]
-      end
+      assert_select "input[type=hidden][name=redirect_to][value=?]", "http://www.example.com/orders/7/pay"
+    end
+
+    test "the sign-in page drops a destination on another host" do
+      assert_nil held_destination("http://evil.example/steal")
+    end
+
+    test "the sign-in page drops a host that only prefixes this one" do
+      assert_nil held_destination("http://www.example.com.evil.example/steal")
+    end
+
+    test "the sign-in page drops a protocol relative destination" do
+      assert_nil held_destination("//evil.example/steal")
+    end
+
+    test "the sign-in page drops a backslash escaped destination" do
+      assert_nil held_destination("/\\evil.example/steal")
+    end
+
+    test "the sign-in page drops a destination carrying a newline" do
+      assert_nil held_destination("/checkout\nSet-Cookie: x=1")
+    end
+
+    test "the sign-in page drops a blank destination" do
+      assert_nil held_destination("   ")
     end
 
     test "submitting an address issues a customer link" do
@@ -91,6 +113,16 @@ module Auth
       get root_path
 
       assert_predicate Customer.find(signed_cookie(CustomerIdentity::COOKIE)), :anonymous?
+    end
+
+    private
+
+    # The value the sign-in form carries forward, or nil when the destination
+    # was refused.
+    def held_destination(requested)
+      get customer_login_path(redirect_to: requested)
+
+      assert_select("input[type=hidden][name=redirect_to]").sole["value"]
     end
   end
 end

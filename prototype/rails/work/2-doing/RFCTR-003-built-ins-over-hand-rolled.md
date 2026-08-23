@@ -38,3 +38,20 @@ helper in every view, so a copy in `SellerHelper` alongside the one in `ShopHelp
 shadowed by load order and never run — coverage caught it as a dead line. Seller views call
 `status_label`; `Seller::ListingStatusesController` and `Domain::Reports::ListingStatusCount#label`
 call `humanize` directly.
+
+### C2 — local redirects
+
+`ActionController::Redirecting#url_from` parses the location with `URI` and keeps it when the host
+matches the request host, or when there is no host and the path starts with a single `/`. Checked
+against the cases the deleted unit test pinned: foreign host, a host that only prefixes this one,
+protocol-relative, `/\evil`, a target carrying a newline and a blank target all come back nil; a
+root-relative path and an absolute URL on this host come back unchanged. The backslash and newline
+cases fall out of `URI` raising, which `url_from` rescues.
+
+Those cases now live in `test/controllers/auth/customer_sessions_controller_test.rb` (what the
+sign-in form carries forward) and `test/controllers/auth/magic_links_controller_test.rb` (where
+verification lands when the link itself holds the destination). `Auth::BaseController#local_redirect`
+is gone; the two call sites call `url_from` directly.
+
+`url_from` compares the host alone, where the deleted module compared the whole origin. An absolute
+URL on this host with a different scheme or port is now kept. No route depends on the difference.

@@ -91,6 +91,36 @@ module Auth
       assert_redirected_to shop_account_path
     end
 
+    test "verification keeps an absolute destination on this host" do
+      follow_link_holding("http://www.example.com/orders/7/pay")
+
+      assert_redirected_to "http://www.example.com/orders/7/pay"
+    end
+
+    test "a link holding another host lands on the portal instead" do
+      follow_link_holding("http://evil.example/steal")
+
+      assert_redirected_to seller_root_path
+    end
+
+    test "a link holding a protocol relative destination lands on the portal instead" do
+      follow_link_holding("//evil.example/steal")
+
+      assert_redirected_to seller_root_path
+    end
+
+    test "a link holding a backslash escaped destination lands on the portal instead" do
+      follow_link_holding("/\\evil.example/steal")
+
+      assert_redirected_to seller_root_path
+    end
+
+    test "a link holding a destination with a newline lands on the portal instead" do
+      follow_link_holding("/checkout\nSet-Cookie: x=1")
+
+      assert_redirected_to seller_root_path
+    end
+
     test "an anonymous visitor with a new address claims the anonymous row in place" do
       get root_path
       anonymous_id = signed_cookie(CustomerIdentity::COOKIE)
@@ -128,6 +158,16 @@ module Auth
 
       assert_equal existing.id, signed_cookie(CustomerIdentity::COOKIE)
       assert_equal customers_before, Customer.count
+    end
+
+    private
+
+    # A destination that never passed through the sign-in form reaches the app
+    # here, so the link is written with it in place.
+    def follow_link_holding(destination)
+      token, = create_magic_link(redirect_to: destination)
+
+      get verify_magic_link_path(token)
     end
   end
 end

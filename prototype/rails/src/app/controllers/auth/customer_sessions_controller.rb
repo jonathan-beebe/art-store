@@ -5,12 +5,12 @@ module Auth
     def new
       return redirect_to shop_account_path if customer_signed_in?
 
-      @redirect_to = local_redirect(params[:redirect_to])
+      @redirect_to = url_from(params[:redirect_to])
     end
 
     def create
       email = params[:email]
-      @redirect_to = local_redirect(params[:redirect_to])
+      @redirect_to = url_from(params[:redirect_to])
 
       unless Domain::Auth::EmailAddress.valid?(email)
         flash.now[:alert] = "Enter an email address to sign in."
