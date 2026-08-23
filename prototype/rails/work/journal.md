@@ -7,13 +7,16 @@
 - ARCH: 1
 - FEAT: 9
 - IMPRV: 1
-- MAINT: 1
+- MAINT: 2
 - A11Y: 1
-- RFCTR: 14
+- RFCTR: 16
 - BUG: 1
 
 ## Log
 
+- 2026-08-22:21:06:12 — MAINT-001 — defined: Small leftovers from the refactor sweep
+- 2026-08-22:21:06:12 — RFCTR-015 — defined: Split Listing's activity reporting into a concern; Fulfillment computes its own fee
+- 2026-08-22:21:06:12 — RFCTR-014 — defined: Notifications reach email through a mailer
 - 2026-08-22:21:04:18 — RFCTR-013 — done: Shop::CartItemsController#create/#destroy and Shop::NotificationReadsController#create replace carts#add/#remove and notifications#update behind the same paths, verbs and route helper names; favorites keep toggle because the test posts twice to flip it; Shop::BaseController#now deleted and its callers fall back on the model default; 527 runs at 100% line coverage (this commit)
 - 2026-08-22:21:01:37 — RFCTR-013 — started
 - 2026-08-22:20:58:38 — RFCTR-011 — done: app/domain and app/support dissolved into app/models; Money, TransitionError, Page and PlaceholderImage are plain top-level classes, the search and report objects folded into Listing.search, Seller#display_name, Seller#listing_status_counts, ListingEvent::Totals and ListingEvent::Day; config/application.rb has no autoloader configuration and zeitwerk:check passes on the defaults; docs and README rewritten to the stock Rails shape; 527 runs at 100% line coverage (this commit and 1f305cc)
