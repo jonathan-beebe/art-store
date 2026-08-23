@@ -15,19 +15,9 @@ final class OrderPaymentController extends ShopController
 {
     public function show(Order $order): View|RedirectResponse
     {
-        $order = $this->orderOfVisitor($order);
+        $this->authorizeVisitor('view', $order);
 
-        if (! OrderPayment::awaitsPayment($order->status)) {
-            return redirect()->route('shop.order', $order);
-        }
-
-        if (! $this->isPayable($order)) {
-            return redirect()->route('auth.customer.login', [
-                'redirect_to' => route('shop.order.pay', $order, absolute: false),
-            ]);
-        }
-
-        return $this->page('shop.pay', [
+        return $this->elsewhere($order) ?? $this->page('shop.pay', [
             'order' => $order,
             'payment' => $order->payments()->orderByDesc('id')->first(),
         ]);
@@ -35,18 +25,37 @@ final class OrderPaymentController extends ShopController
 
     public function pay(Request $request, Order $order, FinalizeOrder $finalizeOrder): RedirectResponse
     {
-        $order = $this->orderOfVisitor($order);
-        $submitted = $request->validate(['card_number' => ['required', 'string', 'max:32']]);
+        $this->authorizeVisitor('pay', $order);
 
-        abort_unless($this->isPayable($order), 404);
+        if ($elsewhere = $this->elsewhere($order)) {
+            return $elsewhere;
+        }
 
-        $finalizeOrder($order, $submitted['card_number'], $this->now());
+        $request->validate(['card_number' => ['required', 'string', 'max:32']]);
+
+        $finalizeOrder($order, $request->string('card_number')->toString(), $this->now());
 
         return redirect()->route('shop.order', $order);
     }
 
-    private function isPayable(Order $order): bool
+    /**
+     * Where a visitor goes when this order takes no card from them right now:
+     * back to the order once it is past paying, or to sign-in while the
+     * address behind it is unverified. The card form and its submission
+     * answer both the same way.
+     */
+    private function elsewhere(Order $order): ?RedirectResponse
     {
-        return OrderPayment::isPayableBy($order->status, $this->visitor()->email_verified_at !== null);
+        if (! OrderPayment::awaitsPayment($order->status)) {
+            return redirect()->route('shop.order', $order);
+        }
+
+        if (! OrderPayment::isPayableBy($order->status, $this->visitor()->email_verified_at !== null)) {
+            return redirect()->route('auth.customer.login', [
+                'redirect_to' => route('shop.order.pay', $order, absolute: false),
+            ]);
+        }
+
+        return null;
     }
 }

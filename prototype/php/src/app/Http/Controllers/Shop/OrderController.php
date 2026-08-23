@@ -23,7 +23,9 @@ final class OrderController extends ShopController
 
     public function show(Order $order): View
     {
-        $order = $this->orderOfVisitor($order)->load(['items.seller', 'fulfillments.seller']);
+        $this->authorizeVisitor('view', $order);
+
+        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order']);
         $isVerified = $this->visitor()->email_verified_at !== null;
 
         return $this->page('shop.order', [

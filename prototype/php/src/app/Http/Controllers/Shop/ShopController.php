@@ -9,15 +9,15 @@ use App\Domain\Notifications\RecipientType;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Notification;
-use App\Models\Order;
 use DateTimeImmutable;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
 /**
  * Shared ground for the storefront pages: the visitor behind the request, the
- * counts the header carries on every page, and the ownership rule that keeps
- * one customer out of another's orders.
+ * counts the header carries on every page, and the gate every page authorizes
+ * against.
  */
 abstract class ShopController extends Controller
 {
@@ -51,13 +51,11 @@ abstract class ShopController extends Controller
     }
 
     /**
-     * Someone else's order is not theirs to read, pay, or receive, and saying
-     * "not found" tells them nothing about whether it exists.
+     * The visitor is resolved by middleware rather than signed in on a guard,
+     * so every storefront gate check names them instead of reading one.
      */
-    protected function orderOfVisitor(Order $order): Order
+    protected function authorizeVisitor(string $ability, mixed $subject): void
     {
-        abort_unless($order->customer_id === $this->visitor()->id, 404);
-
-        return $order;
+        Gate::forUser($this->visitor())->authorize($ability, $subject);
     }
 }

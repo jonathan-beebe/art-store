@@ -22,6 +22,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Console/Commands',
     '../app/Http/Controllers/Seller',
     '../app/Models/ListingTest.php',
+    '../app/Policies',
 );
 
 pest()->extend(Tests\StorefrontTestCase::class)->in(

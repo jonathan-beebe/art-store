@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Customer;
@@ -65,6 +66,15 @@ it('shows the carrier and tracking once shipped', function () use ($paidOrderFor
 it('offers no delivery confirmation before shipping', function () use ($paidOrderFor): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());
     $order = $paidOrderFor($shopper);
+
+    $this->get(route('shop.order', $order))->assertDontSee('Confirm delivery');
+});
+
+it('offers no delivery confirmation once delivered', function () use ($paidOrderFor, $ship): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
+    $ship($order->fulfillments()->sole());
+    app(ConfirmDelivered::class)($order->fulfillments()->sole(), $this->moment('2026-08-22 09:00:00'));
 
     $this->get(route('shop.order', $order))->assertDontSee('Confirm delivery');
 });

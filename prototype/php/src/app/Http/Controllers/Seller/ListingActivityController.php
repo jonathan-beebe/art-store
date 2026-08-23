@@ -5,28 +5,25 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Reports\ActivityTimeline;
-use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\ListingEvent;
 use App\Models\OrderItem;
-use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\View\View;
 
-final class ListingActivityController extends Controller
+final class ListingActivityController extends SellerController
 {
     private const WINDOW_DAYS = 14;
 
-    public function __invoke(string $listing): View
+    public function __invoke(Listing $listing): View
     {
-        $seller = auth('seller')->user();
-        $listing = $seller->listings()->withEventCounts()->findOrFail($listing);
+        $this->authorize('view', $listing);
 
         return view('seller.listings.show', [
-            'listing' => $listing,
+            'listing' => $listing->loadEventCounts(),
             'days' => ActivityTimeline::lastDays(
                 $this->eventCountsByDate($listing),
-                new DateTimeImmutable(now()->toDateTimeString()),
+                $this->now(),
                 self::WINDOW_DAYS,
             ),
             'windowDays' => self::WINDOW_DAYS,
@@ -42,7 +39,9 @@ final class ListingActivityController extends Controller
         return $listing->events()
             ->get(['id', 'type', 'occurred_at'])
             ->groupBy(fn (ListingEvent $event): string => $event->occurred_at->format('Y-m-d'))
-            ->map(fn ($events) => $events->countBy(fn (ListingEvent $event): string => $event->type->value)->all())
+            ->map(fn (Collection $events): array => $events
+                ->countBy(fn (ListingEvent $event): string => $event->type->value)
+                ->all())
             ->all();
     }
 

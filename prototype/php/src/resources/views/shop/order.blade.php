@@ -1,7 +1,6 @@
 @extends('layouts.shop')
 
 @use('App\Domain\Money\Money')
-@use('App\Domain\Orders\FulfillmentStatus')
 @use('App\Domain\Shop\StatusLabel')
 
 @section('title', 'Order #'.$order->id.' — Art Store')
@@ -67,14 +66,14 @@
                         @endforeach
                     </ul>
 
-                    @if ($fulfillment->status === FulfillmentStatus::Shipped)
+                    @visitorCan('confirmDelivery', $fulfillment)
                         <form method="POST" action="{{ route('shop.order.delivered', [$order, $fulfillment]) }}" class="mt-6">
                             @csrf
                             <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
                                 Confirm delivery
                             </button>
                         </form>
-                    @endif
+                    @endvisitorCan
                 </section>
             @endforeach
         </div>

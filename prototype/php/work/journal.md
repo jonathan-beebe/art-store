@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-23:08:50:20 — RFCTR-003 — started
+- 2026-08-23:08:50:20 — RFCTR-002 — done: Policies for Listing, Fulfillment, Order, Notification with denyAsNotFound; seller routes bind models; SellerController base; scoped delivered route; @can/@visitorCan on the ship and deliver forms; PHPStan 44 -> 19
+- 2026-08-23:08:32:39 — RFCTR-002 — started
 - 2026-08-23:08:32:31 — BUG-002 — done: Failed image writes, malformed --as-of, null card input, a two-case PaymentOutcome, a typed DailyActivity date, and tests pinning the encrypted identity cookie
 - 2026-08-23:08:32:31 — BUG-001 — done: DomainRuleViolation mapped once to a flashed error; checkout returns the shopper to the cart naming the unavailable item instead of a 500
 - 2026-08-23:08:15:37 — BUG-002 — started

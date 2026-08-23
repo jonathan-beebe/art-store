@@ -9,6 +9,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
 use App\Support\PlaceholderImage;
+use Closure;
 use Database\Factories\ListingFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -89,10 +90,29 @@ class Listing extends Model
     #[Scope]
     protected function withEventCounts(Builder $query): void
     {
-        $query->withCount([
+        $query->withCount(self::eventCounts());
+    }
+
+    /**
+     * The same three counts the `withEventCounts` scope selects, for a listing
+     * already in hand — a route-bound model, say.
+     */
+    public function loadEventCounts(): self
+    {
+        $this->loadCount(self::eventCounts());
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, Closure(Builder<ListingEvent>): Builder<ListingEvent>>
+     */
+    private static function eventCounts(): array
+    {
+        return [
             'events as views_count' => fn (Builder $events) => $events->where('type', ListingEventType::View),
             'events as favorites_count' => fn (Builder $events) => $events->where('type', ListingEventType::Favorite),
             'events as cart_adds_count' => fn (Builder $events) => $events->where('type', ListingEventType::CartAdd),
-        ]);
+        ];
     }
 }

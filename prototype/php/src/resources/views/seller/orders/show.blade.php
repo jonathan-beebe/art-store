@@ -1,6 +1,5 @@
 @extends('layouts.seller')
 @use('App\Domain\Money\Money')
-@use('App\Domain\Orders\FulfillmentStatus')
 @use('App\Domain\Reports\StatusLabel')
 
 @section('title', 'Order #'.$fulfillment->order_id.' — Art Store seller')
@@ -64,7 +63,7 @@
     <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
         <h2 id="shipment-heading" class="font-semibold text-gray-700">Shipment</h2>
 
-        @if ($fulfillment->status === FulfillmentStatus::AwaitingShipment)
+        @can('ship', $fulfillment)
             <form method="POST" action="{{ route('seller.orders.ship', $fulfillment->id) }}"
                   class="mt-2 rounded border border-gray-300 bg-white p-4">
                 @csrf
@@ -106,6 +105,6 @@
                     <dd class="mt-1">{{ $fulfillment->delivered_at->format('M j, Y g:ia') }}</dd>
                 @endif
             </dl>
-        @endif
+        @endcan
     </section>
 @endsection

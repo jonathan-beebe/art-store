@@ -13,10 +13,10 @@ a stated gap; **missing** — not built.
 | --- | --- | --- | --- |
 | Create an account | done | `auth.seller.login`, `auth.seller.send`, `auth.magic.verify` | `Auth\SellerLoginControllerTest`, `Auth\MagicLinkVerificationControllerTest` |
 | Add items straight after sign-in | done | `seller.listings.create`, `seller.listings.store` | `Seller\ListingControllerTest` |
-| Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest` |
+| Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest`, `Policies\ListingPolicyTest` |
 | Activity per listing: views, favorites, cart adds | done | `seller.listings.show` | `Seller\ListingActivityControllerTest`, `Domain\Reports\ActivityTimelineTest` |
 | Reports on sales | done | `seller.earnings` (Sales table) | `Seller\EarningsControllerTest` |
-| Tools for fulfillment | done | `seller.orders.index`, `.show`, `.ship` | `Seller\OrderControllerTest`, `Seller\ShipmentControllerTest` |
+| Tools for fulfillment | done | `seller.orders.index`, `.show`, `.ship` | `Seller\OrderControllerTest`, `Seller\ShipmentControllerTest`, `Policies\FulfillmentPolicyTest` |
 | Accumulated earnings and payouts | done | `seller.earnings`, `seller.earnings.payout` | `Seller\EarningsControllerTest`, `Seller\PayoutControllerTest`, `Actions\Escrow\RunWeeklyPayoutTest` |
 | Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `shop.home` | `Tests\SmokeTest` |
 | Magic links, no passwords | done | `auth.magic.verify` | `Auth\MagicLinkVerificationControllerTest` |
@@ -32,7 +32,7 @@ with no component library and no font download; `Dockerfile` and
 | --- | --- | --- | --- |
 | Browse | done | `shop.home` (search + medium filter), `shop.listing` | `Shop\StorefrontControllerTest`, `Shop\ListingControllerTest`, `Domain\Shop\ListingSearchTest` |
 | Favorite | done | `shop.favorites`, `shop.favorites.toggle` | `Shop\FavoriteControllerTest`, `Actions\Favorites\ToggleFavoriteTest` |
-| Purchase | done | `shop.cart.add`, `shop.checkout.place`, `shop.order.pay.submit` | `Shop\CartControllerTest`, `Shop\CheckoutControllerTest`, `Shop\OrderPaymentControllerTest` |
+| Purchase | done | `shop.cart.add`, `shop.checkout.place`, `shop.order.pay.submit` | `Shop\CartControllerTest`, `Shop\CheckoutControllerTest`, `Shop\OrderPaymentControllerTest`, `Policies\OrderPolicyTest` |
 | Anonymous customer id per visitor | done | every `shop.*` route, via `customer.identity` | `Http\Middleware\ResolveCustomerIdentityTest` |
 | Anonymous ids merge into the account on sign-in | done | `auth.magic.verify` | `Actions\Customers\MergeAnonymousCustomerTest`, `Domain\Customers\CustomerIdentityPlanTest` |
 | Magic links, no passwords | done | `auth.customer.login`, `auth.customer.send` | `Auth\CustomerLoginControllerTest` |
@@ -46,10 +46,10 @@ with no component library and no font download; `Dockerfile` and
 
 | Requirement | Status | Route | Test |
 | --- | --- | --- | --- |
-| Tell sellers an item sold | done | `seller.notifications.index` | `Seller\NotificationControllerTest`, `Domain\Notifications\NotificationMessageTest` |
+| Tell sellers an item sold | done | `seller.notifications.index` | `Seller\NotificationControllerTest`, `Domain\Notifications\NotificationMessageTest`, `Policies\NotificationPolicyTest` |
 | Walk sellers through fulfillment | done | `seller.orders.show`, `seller.orders.ship` | `Seller\ShipmentControllerTest`, `Actions\Fulfillment\MarkShippedTest` |
 | Notify customers of shipment | done | `shop.account` inbox | `Shop\AccountControllerTest` |
-| Escrow held on payment, released on delivery | done | `shop.order.delivered` | `Actions\Fulfillment\ConfirmDeliveredTest`, `Domain\Escrow\LedgerBalanceTest` |
+| Escrow held on payment, released on delivery | done | `shop.order.delivered` | `Actions\Fulfillment\ConfirmDeliveredTest`, `Domain\Escrow\LedgerBalanceTest`, `Policies\FulfillmentPolicyTest` |
 | Report of sold goods and funds due | done | `seller.earnings` | `Seller\EarningsControllerTest` |
 | Pay out at the end of every week | done | `payouts:run`, `seller.earnings.payout` | `Console\Commands\RunWeeklyPayoutsTest`, `Domain\Escrow\PayoutPeriodTest` |
 

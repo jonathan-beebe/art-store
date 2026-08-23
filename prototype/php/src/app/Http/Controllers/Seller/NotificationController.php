@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Http\Controllers\Controller;
+use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
-final class NotificationController extends Controller
+final class NotificationController extends SellerController
 {
     public function index(): View
     {
         return view('seller.notifications', [
-            'notifications' => auth('seller')->user()->notifications()->latest('id')->get(),
+            'notifications' => $this->seller()->notifications()->latest('id')->get(),
         ]);
     }
 
-    public function markRead(string $notification): RedirectResponse
+    public function markRead(Notification $notification): RedirectResponse
     {
-        $notification = auth('seller')->user()->notifications()->findOrFail($notification);
+        $this->authorize('markRead', $notification);
 
         $notification->update(['read_at' => now()]);
 

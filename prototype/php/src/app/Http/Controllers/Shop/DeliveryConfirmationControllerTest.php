@@ -38,6 +38,17 @@ it('refuses to confirm a delivery that was already confirmed', function (): void
     expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::Delivered);
 });
 
+it('refuses a fulfillment that belongs to another order', function (): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $mine = $this->shippedFulfillmentFor($this->seller(), $shopper);
+    $theirs = $this->shippedFulfillmentFor($this->seller('Other Studio'), $shopper);
+
+    $response = $this->post(route('shop.order.delivered', [$mine->order_id, $theirs->id]));
+
+    $response->assertNotFound();
+    expect($theirs->fresh()->status)->toBe(FulfillmentStatus::Shipped);
+});
+
 it('refuses to let another customer confirm delivery', function (): void {
     $fulfillment = $this->shippedFulfillmentFor(
         $this->seller(),

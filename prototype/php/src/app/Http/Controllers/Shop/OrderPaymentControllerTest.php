@@ -34,12 +34,25 @@ it('sends an unverified visitor to sign in first', function () use ($unpaidOrder
     ]));
 });
 
-it('refuses to let another customer pay the order', function () use ($unpaidOrderFor): void {
+it('sends an unverified visitor submitting a card to sign in first', function () use ($unpaidOrderFor): void {
+    $visitor = $this->visitor();
+    $order = $unpaidOrderFor($visitor);
+
+    $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertRedirect(route('auth.customer.login', [
+        'redirect_to' => route('shop.order.pay', $order, absolute: false),
+    ]));
+    expect($order->fresh()->status)->toBe(OrderStatus::PendingVerification);
+});
+
+it('refuses to let another customer read or pay the order', function (string $method) use ($unpaidOrderFor): void {
     $order = $unpaidOrderFor($this->verifiedCustomer());
     $this->arriveAs($this->verifiedCustomer());
 
-    $this->get(route('shop.order.pay', $order))->assertNotFound();
-});
+    $this->call($method, route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242'])
+        ->assertNotFound();
+})->with(['GET', 'POST']);
 
 it('sends a paid order back to the order page', function () use ($unpaidOrderFor): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());

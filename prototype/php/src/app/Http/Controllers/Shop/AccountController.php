@@ -26,7 +26,7 @@ final class AccountController extends ShopController
 
     public function readNotification(Notification $notification): RedirectResponse
     {
-        abort_unless($notification->customer_id === $this->visitor()->id, 404);
+        $this->authorizeVisitor('markRead', $notification);
 
         $notification->update(['read_at' => now()]);
 

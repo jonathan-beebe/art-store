@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Listings\RecordListingEvent;
+use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 
 it('surfaces only listings for sale on the storefront', function (): void {
@@ -21,6 +23,22 @@ it('reads whether it can still be bought', function (): void {
     expect($this->listing($seller)->isPurchasable())->toBeTrue()
         ->and($this->listing($seller, ['status' => ListingStatus::Archived])->isPurchasable())->toBeFalse()
         ->and($this->listing($seller, ['status' => ListingStatus::ForSale, 'quantity' => 0])->isPurchasable())->toBeFalse();
+});
+
+it('counts its events by type, whether queried or already in hand', function (): void {
+    $listing = $this->listing($this->seller());
+    $recordListingEvent = app(RecordListingEvent::class);
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::Favorite, $this->moment('2026-08-20 11:00:00'));
+
+    $queried = Listing::query()->withEventCounts()->findOrFail($listing->id);
+    $loaded = $listing->loadEventCounts();
+
+    expect($queried->views_count)->toBe(2)
+        ->and($loaded->views_count)->toBe(2)
+        ->and($loaded->favorites_count)->toBe(1)
+        ->and($loaded->cart_adds_count)->toBe(0);
 });
 
 it('reads its price as money', function (): void {

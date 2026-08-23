@@ -5,22 +5,21 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Fulfillment\MarkShipped;
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Seller\MarkShippedRequest;
-use DateTimeImmutable;
+use App\Models\Fulfillment;
 use Illuminate\Http\RedirectResponse;
 
-final class ShipmentController extends Controller
+final class ShipmentController extends SellerController
 {
-    public function __invoke(MarkShippedRequest $request, string $fulfillment, MarkShipped $markShipped): RedirectResponse
+    public function __invoke(MarkShippedRequest $request, Fulfillment $fulfillment, MarkShipped $markShipped): RedirectResponse
     {
-        $fulfillment = auth('seller')->user()->fulfillments()->findOrFail($fulfillment);
+        $this->authorize('update', $fulfillment);
 
         $markShipped(
             $fulfillment,
             $request->string('carrier')->toString(),
             $request->string('tracking_number')->toString(),
-            new DateTimeImmutable(now()->toDateTimeString()),
+            $this->now(),
         );
 
         return redirect()

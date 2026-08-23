@@ -6,18 +6,17 @@ namespace App\Http\Controllers\Seller;
 
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Reports\ListingStatusTally;
-use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\View\View;
 
-final class DashboardController extends Controller
+final class DashboardController extends SellerController
 {
     private const RECENT_NOTIFICATIONS = 5;
 
     public function __invoke(): View
     {
-        $seller = auth('seller')->user();
+        $seller = $this->seller();
 
         return view('seller.dashboard', [
             'tally' => ListingStatusTally::from($this->listingCountsByStatus($seller)),

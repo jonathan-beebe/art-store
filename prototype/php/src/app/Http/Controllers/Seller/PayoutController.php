@@ -6,16 +6,14 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Domain\Reports\PayoutSummary;
-use App\Http\Controllers\Controller;
 use App\Models\Payout;
-use DateTimeImmutable;
 use Illuminate\Http\RedirectResponse;
 
-final class PayoutController extends Controller
+final class PayoutController extends SellerController
 {
     public function __invoke(RunWeeklyPayout $runWeeklyPayout): RedirectResponse
     {
-        $payouts = $runWeeklyPayout(new DateTimeImmutable(now()->toDateTimeString()));
+        $payouts = $runWeeklyPayout($this->now());
 
         $summary = PayoutSummary::of(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts));
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
@@ -39,6 +40,18 @@ it('delivers the order on its last delivery', function (): void {
     app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00'));
 
     expect($fulfillment->order)->toHaveStatus(OrderStatus::Delivered);
+});
+
+it('releases the escrow once when delivery is confirmed twice', function (): void {
+    $fulfillment = $this->shippedFulfillmentFor($this->seller(), priceCents: 45000);
+    $confirmDelivered = app(ConfirmDelivered::class);
+    $confirmDelivered($fulfillment, $this->moment('2026-08-23 14:00:00'));
+
+    expect(fn () => $confirmDelivered($fulfillment->fresh(), $this->moment('2026-08-24 14:00:00')))
+        ->toThrow(DomainRuleViolation::class, 'A fulfillment cannot move from delivered to delivered.');
+
+    expect(LedgerEntry::query()->where('type', LedgerEntryType::Released)->count())->toBe(1)
+        ->and($fulfillment->fresh()->delivered_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00');
 });
 
 it('refuses a fulfillment that never shipped', function (): void {
