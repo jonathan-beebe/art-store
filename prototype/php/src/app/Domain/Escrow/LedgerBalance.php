@@ -12,7 +12,7 @@ final readonly class LedgerBalance
 
     public function isPayable(): bool
     {
-        return $this->available->cents > 0;
+        return $this->available->isPositive();
     }
 
     /**
@@ -21,23 +21,25 @@ final readonly class LedgerBalance
     public static function from(array $movements): self
     {
         $totals = [
-            LedgerEntryType::Held->value => 0,
-            LedgerEntryType::Released->value => 0,
-            LedgerEntryType::PaidOut->value => 0,
+            LedgerEntryType::Held->value => Money::zero(),
+            LedgerEntryType::Released->value => Money::zero(),
+            LedgerEntryType::PaidOut->value => Money::zero(),
         ];
 
         foreach ($movements as $movement) {
-            $totals[$movement->type->value] += $movement->amount->cents;
+            $totals[$movement->type->value] = $totals[$movement->type->value]->add($movement->amount);
         }
 
         $held = $totals[LedgerEntryType::Held->value];
         $released = $totals[LedgerEntryType::Released->value];
+        // A payout movement carries a negative amount, so what has left escrow
+        // is what the available balance adds and the paid-out total negates.
         $paidOut = $totals[LedgerEntryType::PaidOut->value];
 
         return new self(
-            Money::fromCents($held - $released),
-            Money::fromCents($released + $paidOut),
-            Money::fromCents(-$paidOut),
+            $held->subtract($released),
+            $released->add($paidOut),
+            Money::zero()->subtract($paidOut),
         );
     }
 }

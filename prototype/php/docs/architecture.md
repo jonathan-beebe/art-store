@@ -40,7 +40,7 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Readonly classes, enums, static functions. Receives time/ids as parameters. Unit tested without doubles. |
-| Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models (thin: relations, casts, scopes), the magic-link delivery port implementations, Blade views. |
+| Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). The magic-link delivery port implementations, Blade views. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
 | Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `app/Providers` | Wiring only. |
 
@@ -227,8 +227,9 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 `notifications` rows (nullable `seller_id`, nullable `customer_id` — exactly
 one is set per row, subject, body, url, read_at) shown in each site's header.
 The domain-facing name for which column is set is
-`App\Domain\Notifications\RecipientType`; `Notification::recipientColumn()`
-maps it. Seller receives "Item sold" when an order is finalized to `paid`;
+`App\Domain\Notifications\RecipientType`, and `RecipientType::column()` names
+the column it fills; `Notification::to($recipient, $id, $message)` is the
+named constructor that writes the row. Seller receives "Item sold" when an order is finalized to `paid`;
 customer receives "Order shipped" when a fulfillment is marked shipped. The
 same port shape as magic links will carry email later.
 
@@ -242,7 +243,7 @@ same port shape as magic links will carry email later.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
   files need: `Tests\CommerceTestCase` for `app/Actions`,
   `app/Console/Commands`, `app/Http/Controllers/Seller`,
-  `app/Http/Requests/Seller`, `app/Models/ListingTest.php`, and
+  `app/Http/Requests/Seller`, `app/Models`, and
   `app/Policies`; `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`, and
   `tests/SmokeTest.php`;
@@ -289,7 +290,7 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (586 tests, 1359 assertions). `make analyse` and `make lint`
+  full Pest suite (620 tests, 1431 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

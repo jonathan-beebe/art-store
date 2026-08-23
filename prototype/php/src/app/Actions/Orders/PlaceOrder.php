@@ -6,7 +6,6 @@ namespace App\Actions\Orders;
 
 use App\Domain\Cart\CartTotals;
 use App\Domain\Escrow\Fee;
-use App\Domain\Listings\ListingStock;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
@@ -36,7 +35,10 @@ final class PlaceOrder
 
             $this->snapshotItems($order, $cart);
             $this->splitBySeller($order, $totals);
-            $this->takeStock($cart);
+
+            foreach ($cart->items as $item) {
+                $item->listing->sell($item->quantity);
+            }
 
             $cart->items()->delete();
 
@@ -68,15 +70,6 @@ final class PlaceOrder
                 'fee_cents' => Fee::platform($subtotal)->cents,
                 'net_cents' => Fee::net($subtotal)->cents,
             ]);
-        }
-    }
-
-    private function takeStock(Cart $cart): void
-    {
-        foreach ($cart->items as $item) {
-            $listing = $item->listing;
-            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity, $listing->title);
-            $listing->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
         }
     }
 }

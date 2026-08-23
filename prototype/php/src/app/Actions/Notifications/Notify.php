@@ -12,12 +12,7 @@ final class Notify
 {
     public function __invoke(RecipientType $recipient, int $recipientId, NotificationMessage $message): Notification
     {
-        $notification = Notification::create([
-            Notification::recipientColumn($recipient) => $recipientId,
-            'subject' => $message->subject,
-            'body' => $message->body,
-            'url' => $message->url,
-        ]);
+        $notification = Notification::to($recipient, $recipientId, $message);
 
         $this->deliverByEmail($notification);
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Money\Money;
 use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -30,5 +31,10 @@ class Payment extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function amount(): Money
+    {
+        return Money::fromCents($this->amount_cents);
     }
 }

@@ -1,5 +1,4 @@
 @extends('layouts.seller')
-@use('App\Domain\Money\Money')
 @use('App\Domain\Reports\StatusLabel')
 
 @section('title', 'Earnings — Art Store seller')
@@ -54,8 +53,8 @@
                                     <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="underline">#{{ $fulfillment->order_id }}</a>
                                 </th>
                                 <td class="px-4 py-2">{{ $fulfillment->order->items->pluck('title')->join(', ') }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($fulfillment->subtotal_cents)->format() }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($fulfillment->fee_cents)->format() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->subtotal() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->fee() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->net()->format() }}</td>
                                 <td class="px-4 py-2">{{ StatusLabel::of($fulfillment->status) }}</td>
                             </tr>

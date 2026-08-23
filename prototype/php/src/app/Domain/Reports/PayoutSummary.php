@@ -11,10 +11,13 @@ final readonly class PayoutSummary
     private function __construct(public int $count, public Money $total) {}
 
     /**
-     * @param  list<int>  $amountsInCents  one entry per payout a run wrote
+     * @param  list<Money>  $amounts  one entry per payout a run wrote
      */
-    public static function of(array $amountsInCents): self
+    public static function of(array $amounts): self
     {
-        return new self(count($amountsInCents), Money::fromCents(array_sum($amountsInCents)));
+        return new self(
+            count($amounts),
+            array_reduce($amounts, fn (Money $total, Money $amount): Money => $total->add($amount), Money::zero()),
+        );
     }
 }

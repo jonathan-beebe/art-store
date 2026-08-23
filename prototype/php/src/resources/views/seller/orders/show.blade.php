@@ -1,5 +1,4 @@
 @extends('layouts.seller')
-@use('App\Domain\Money\Money')
 @use('App\Domain\Reports\StatusLabel')
 
 @section('title', 'Order #'.$fulfillment->order_id.' — Art Store seller')
@@ -45,7 +44,7 @@
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">{{ $item->title }}</th>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $item->quantity }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($item->unit_price_cents)->format() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $item->unitPrice() }}</td>
                             </tr>
                         @endforeach
                     </tbody>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -34,12 +35,14 @@ class Notification extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public static function recipientColumn(RecipientType $recipient): string
+    public static function to(RecipientType $recipient, int $recipientId, NotificationMessage $message): self
     {
-        return match ($recipient) {
-            RecipientType::Seller => 'seller_id',
-            RecipientType::Customer => 'customer_id',
-        };
+        return self::create([
+            $recipient->column() => $recipientId,
+            'subject' => $message->subject,
+            'body' => $message->body,
+            'url' => $message->url,
+        ]);
     }
 
     /** @param Builder<$this> $query */
@@ -47,12 +50,5 @@ class Notification extends Model
     protected function unread(Builder $query): void
     {
         $query->whereNull('read_at');
-    }
-
-    /** @param Builder<$this> $query */
-    #[Scope]
-    protected function for(Builder $query, RecipientType $recipient, int $recipientId): void
-    {
-        $query->where(self::recipientColumn($recipient), $recipientId);
     }
 }

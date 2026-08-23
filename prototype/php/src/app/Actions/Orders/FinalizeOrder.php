@@ -6,7 +6,6 @@ namespace App\Actions\Orders;
 
 use App\Actions\Notifications\Notify;
 use App\Domain\Escrow\LedgerMovement;
-use App\Domain\Listings\ListingStock;
 use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
 use App\Domain\Orders\OrderStatus;
@@ -34,7 +33,7 @@ final class FinalizeOrder
             // A declined charge put the stock back on the storefront, so a retry
             // has to claim it again before the order can be paid.
             match ($order->status) {
-                OrderStatus::PaymentFailed => $this->takeStock($order),
+                OrderStatus::PaymentFailed => $this->sellItems($order),
                 default => null,
             };
 
@@ -51,7 +50,7 @@ final class FinalizeOrder
 
             match ($outcome) {
                 PaymentOutcome::Approved => $this->completePayment($order, $now),
-                PaymentOutcome::Declined => $this->releaseStock($order),
+                PaymentOutcome::Declined => $this->restockItems($order),
             };
 
             return $order->refresh();
@@ -86,21 +85,17 @@ final class FinalizeOrder
         ]);
     }
 
-    private function takeStock(Order $order): void
+    private function sellItems(Order $order): void
     {
         foreach ($order->items as $item) {
-            $listing = $item->listing;
-            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity, $listing->title);
-            $listing->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
+            $item->listing->sell($item->quantity);
         }
     }
 
-    private function releaseStock(Order $order): void
+    private function restockItems(Order $order): void
     {
         foreach ($order->items as $item) {
-            $listing = $item->listing;
-            $stock = ListingStock::afterRestock($listing->quantity, $listing->status, $item->quantity);
-            $listing->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
+            $item->listing->restock($item->quantity);
         }
     }
 }

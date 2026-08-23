@@ -17,6 +17,6 @@ final class Fee
 
     public static function net(Money $subtotal): Money
     {
-        return Money::fromCents($subtotal->cents - self::platform($subtotal)->cents);
+        return $subtotal->subtract(self::platform($subtotal));
     }
 }

@@ -50,9 +50,14 @@ class LedgerEntry extends Model
         return $this->belongsTo(Payout::class);
     }
 
+    public function amount(): Money
+    {
+        return Money::fromCents($this->amount_cents);
+    }
+
     public function toMovement(): LedgerMovement
     {
-        return LedgerMovement::of($this->type, Money::fromCents($this->amount_cents));
+        return LedgerMovement::of($this->type, $this->amount());
     }
 
     /** @param Builder<$this> $query */

@@ -23,6 +23,36 @@ it('leaves the operands untouched when adding', function (): void {
     expect($subtotal->cents)->toBe(1234);
 });
 
+it('starts at zero', function (): void {
+    expect(Money::zero()->cents)->toBe(0);
+});
+
+it('subtracts another amount', function (): void {
+    expect(Money::fromCents(1300)->subtract(Money::fromCents(66))->cents)->toBe(1234);
+});
+
+it('subtracts past zero into a negative amount', function (): void {
+    expect(Money::zero()->subtract(Money::fromCents(66))->cents)->toBe(-66);
+});
+
+it('equals another amount of the same cents', function (): void {
+    expect(Money::fromCents(1234)->equals(Money::fromCents(1234)))->toBeTrue()
+        ->and(Money::fromCents(1234)->equals(Money::fromCents(1235)))->toBeFalse();
+});
+
+it('reads whether it is above zero', function (int $cents, bool $isPositive, bool $isZero): void {
+    expect(Money::fromCents($cents)->isPositive())->toBe($isPositive)
+        ->and(Money::fromCents($cents)->isZero())->toBe($isZero);
+})->with([
+    'an amount to pay out' => [9000, true, false],
+    'nothing' => [0, false, true],
+    'an amount owed' => [-9000, false, false],
+]);
+
+it('renders as its formatted amount in a string', function (): void {
+    expect((string) Money::fromCents(1234))->toBe('$12.34');
+});
+
 it('multiplies by a quantity', function (): void {
     expect(Money::fromCents(1234)->multiply(3)->cents)->toBe(3702);
 });

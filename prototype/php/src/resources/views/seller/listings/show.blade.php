@@ -1,5 +1,4 @@
 @extends('layouts.seller')
-@use('App\Domain\Money\Money')
 @use('App\Domain\Reports\StatusLabel')
 
 @section('title', $listing->title.' — Art Store seller')
@@ -83,7 +82,7 @@
                                 <td class="px-4 py-2">{{ $sale->order->placed_at?->format('M j, Y') }}</td>
                                 <td class="px-4 py-2">{{ StatusLabel::of($sale->order->status) }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $sale->quantity }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($sale->unit_price_cents)->format() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $sale->unitPrice() }}</td>
                             </tr>
                         @endforeach
                     </tbody>

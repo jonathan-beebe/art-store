@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Money\Money;
 use App\Domain\Orders\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property-read Customer $customer
@@ -56,5 +58,26 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * The attempt a page reports on: after a decline and a retry, the latest
+     * one is what the shopper is looking at.
+     *
+     * @return HasOne<Payment, $this>
+     */
+    public function latestPayment(): HasOne
+    {
+        return $this->payments()->one()->latestOfMany();
+    }
+
+    public function subtotal(): Money
+    {
+        return Money::fromCents($this->subtotal_cents);
+    }
+
+    public function total(): Money
+    {
+        return Money::fromCents($this->total_cents);
     }
 }

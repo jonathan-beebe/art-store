@@ -54,6 +54,16 @@ class Fulfillment extends Model
         return $this->hasMany(LedgerEntry::class);
     }
 
+    public function subtotal(): Money
+    {
+        return Money::fromCents($this->subtotal_cents);
+    }
+
+    public function fee(): Money
+    {
+        return Money::fromCents($this->fee_cents);
+    }
+
     public function net(): Money
     {
         return Money::fromCents($this->net_cents);

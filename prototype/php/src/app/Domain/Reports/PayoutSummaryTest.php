@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
+use App\Domain\Money\Money;
+
 it('counts the payouts a run wrote', function (): void {
-    $summary = PayoutSummary::of([9000, 4500]);
+    $summary = PayoutSummary::of([Money::fromCents(9000), Money::fromCents(4500)]);
 
     expect($summary->count)->toBe(2);
 });
 
 it('totals the amounts paid out', function (): void {
-    $summary = PayoutSummary::of([9000, 4500]);
+    $summary = PayoutSummary::of([Money::fromCents(9000), Money::fromCents(4500)]);
 
     expect($summary->total->format())->toBe('$135.00');
 });

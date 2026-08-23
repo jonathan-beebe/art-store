@@ -9,6 +9,7 @@ use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -29,13 +30,11 @@ class MagicLink extends Model
         ];
     }
 
-    /**
-     * @param  Builder<$this>  $query
-     * @return Builder<$this>
-     */
-    public function scopeForToken(Builder $query, string $token): Builder
+    /** @param Builder<$this> $query */
+    #[Scope]
+    protected function forToken(Builder $query, string $token): void
     {
-        return $query->where('token_hash', MagicLinkToken::hash($token));
+        $query->where('token_hash', MagicLinkToken::hash($token));
     }
 
     public function statusAt(Carbon $now): MagicLinkStatus

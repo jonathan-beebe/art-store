@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Escrow\RunWeeklyPayout;
+use App\Domain\Money\Money;
 use App\Domain\Reports\PayoutSummary;
 use App\Models\Payout;
 use Illuminate\Http\RedirectResponse;
@@ -15,10 +16,10 @@ final class PayoutController extends SellerController
     {
         $payouts = $runWeeklyPayout($this->now());
 
-        $summary = PayoutSummary::of(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts));
+        $summary = PayoutSummary::of(array_map(fn (Payout $payout): Money => $payout->amount(), $payouts));
 
         return redirect()
             ->route('seller.earnings')
-            ->with('status', "Weekly payout run: {$summary->count} payout(s) totalling {$summary->total->format()}.");
+            ->with('status', "Weekly payout run: {$summary->count} payout(s) totalling {$summary->total}.");
     }
 }

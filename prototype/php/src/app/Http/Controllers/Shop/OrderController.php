@@ -13,8 +13,7 @@ final class OrderController extends ShopController
     public function index(): View
     {
         return $this->page('shop.orders', [
-            'orders' => Order::query()
-                ->where('customer_id', $this->visitor()->id)
+            'orders' => $this->visitor()->orders()
                 ->with('items')
                 ->orderByDesc('id')
                 ->get(),
@@ -25,14 +24,14 @@ final class OrderController extends ShopController
     {
         $this->authorizeVisitor('view', $order);
 
-        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order']);
-        $isVerified = $this->visitor()->email_verified_at !== null;
+        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order', 'latestPayment']);
+        $isVerified = $this->visitor()->isVerified();
 
         return $this->page('shop.order', [
             'order' => $order,
             'fulfillments' => $order->fulfillments,
             'itemsBySeller' => $order->items->groupBy('seller_id'),
-            'payment' => $order->payments()->orderByDesc('id')->first(),
+            'payment' => $order->latestPayment,
             'awaitsPayment' => OrderPayment::awaitsPayment($order->status),
             'isPayable' => OrderPayment::isPayableBy($order->status, $isVerified),
         ]);

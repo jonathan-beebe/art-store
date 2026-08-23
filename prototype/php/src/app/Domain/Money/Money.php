@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Domain\Money;
 
 use InvalidArgumentException;
+use Stringable;
 
-final readonly class Money
+final readonly class Money implements Stringable
 {
     private function __construct(public int $cents) {}
 
     public static function fromCents(int $cents): self
     {
         return new self($cents);
+    }
+
+    public static function zero(): self
+    {
+        return new self(0);
     }
 
     /**
@@ -38,6 +44,11 @@ final readonly class Money
         return new self($this->cents + $other->cents);
     }
 
+    public function subtract(self $other): self
+    {
+        return new self($this->cents - $other->cents);
+    }
+
     public function multiply(int $quantity): self
     {
         if ($quantity < 0) {
@@ -60,10 +71,30 @@ final readonly class Money
         return new self($sign * intdiv(abs($scaled) + 50, 100));
     }
 
+    public function equals(self $other): bool
+    {
+        return $this->cents === $other->cents;
+    }
+
+    public function isPositive(): bool
+    {
+        return $this->cents > 0;
+    }
+
+    public function isZero(): bool
+    {
+        return $this->cents === 0;
+    }
+
     public function format(): string
     {
         $sign = $this->cents < 0 ? '-' : '';
 
         return $sign.'$'.number_format(abs($this->cents) / 100, 2, '.', ',');
+    }
+
+    public function __toString(): string
+    {
+        return $this->format();
     }
 }

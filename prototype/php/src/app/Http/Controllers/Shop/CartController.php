@@ -16,7 +16,7 @@ final class CartController extends ShopController
 {
     public function show(): View
     {
-        $cart = ($this->currentCart)($this->visitor())->load('items.listing.seller');
+        $cart = $this->visitor()->currentCart()->load('items.listing.seller');
 
         return $this->page('shop.cart', [
             'cart' => $cart,
@@ -27,7 +27,7 @@ final class CartController extends ShopController
     public function add(AddToCartRequest $request, Listing $listing, AddToCart $addToCart): RedirectResponse
     {
         $addToCart(
-            ($this->currentCart)($this->visitor()),
+            $this->visitor()->currentCart(),
             $listing,
             $request->quantity(),
             $this->now(),
@@ -38,7 +38,7 @@ final class CartController extends ShopController
 
     public function remove(Listing $listing, RemoveFromCart $removeFromCart): RedirectResponse
     {
-        $removeFromCart(($this->currentCart)($this->visitor()), $listing);
+        $removeFromCart($this->visitor()->currentCart(), $listing);
 
         return redirect()->route('shop.cart');
     }

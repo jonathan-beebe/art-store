@@ -50,8 +50,8 @@ final class OrderController extends SellerController
      */
     private function fulfillments(Seller $seller): Builder
     {
-        return $seller->fulfillments()
-            ->getQuery()
+        return Fulfillment::query()
+            ->whereBelongsTo($seller)
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
             ->latest('id');
     }

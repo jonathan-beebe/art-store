@@ -1,6 +1,5 @@
 @extends('layouts.shop')
 
-@use('App\Domain\Money\Money')
 @use('App\Domain\Shop\StatusLabel')
 
 @section('title', 'Order #'.$order->id.' — Art Store')
@@ -9,7 +8,7 @@
     <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
-        {{ StatusLabel::humanize($order->status->value) }} · {{ Money::fromCents($order->total_cents)->format() }}
+        {{ StatusLabel::humanize($order->status->value) }} · {{ $order->total() }}
     </p>
 
     @if ($awaitsPayment && ! $isPayable)
@@ -36,7 +35,7 @@
                 @include('shop.partials.card-fields')
 
                 <button type="submit" class="mt-8 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
-                    Pay {{ Money::fromCents($order->total_cents)->format() }}
+                    Pay {{ $order->total() }}
                 </button>
             </form>
         </section>
@@ -61,7 +60,7 @@
                         @foreach ($itemsBySeller[$fulfillment->seller_id] ?? [] as $item)
                             <li class="flex items-baseline justify-between gap-6 text-base">
                                 <span>{{ $item->title }} × {{ $item->quantity }}</span>
-                                <span>{{ Money::fromCents($item->unit_price_cents)->multiply($item->quantity)->format() }}</span>
+                                <span>{{ $item->lineTotal() }}</span>
                             </li>
                         @endforeach
                     </ul>

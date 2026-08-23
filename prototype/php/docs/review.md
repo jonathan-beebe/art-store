@@ -13,7 +13,7 @@ a stated gap; **missing** — not built.
 | --- | --- | --- | --- |
 | Create an account | done | `auth.seller.login`, `auth.seller.send`, `auth.magic.verify` | `Auth\SellerLoginControllerTest`, `Requests\Auth\SendMagicLinkRequestTest`, `Auth\MagicLinkVerificationControllerTest` |
 | Add items straight after sign-in | done | `seller.listings.create`, `seller.listings.store` | `Seller\ListingControllerTest`, `Requests\Seller\ListingRequestTest` |
-| Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest`, `Requests\Seller\ListingRequestTest`, `Requests\Seller\ChangeListingStatusRequestTest`, `Policies\ListingPolicyTest` |
+| Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest`, `Requests\Seller\ListingRequestTest`, `Requests\Seller\ChangeListingStatusRequestTest`, `Models\ListingTest`, `Policies\ListingPolicyTest` |
 | Activity per listing: views, favorites, cart adds | done | `seller.listings.show` | `Seller\ListingActivityControllerTest`, `Domain\Reports\ActivityTimelineTest` |
 | Reports on sales | done | `seller.earnings` (Sales table) | `Seller\EarningsControllerTest` |
 | Tools for fulfillment | done | `seller.orders.index`, `.show`, `.ship` | `Seller\OrderControllerTest`, `Seller\ShipmentControllerTest`, `Requests\Seller\MarkShippedRequestTest`, `Policies\FulfillmentPolicyTest` |

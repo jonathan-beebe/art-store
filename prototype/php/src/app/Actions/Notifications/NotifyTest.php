@@ -7,7 +7,6 @@ namespace App\Actions\Notifications;
 use App\Domain\Money\Money;
 use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
-use App\Models\Notification;
 
 it('writes a row addressed to a seller', function (): void {
     $seller = $this->seller();
@@ -48,6 +47,6 @@ it('shows an unread notification for its recipient only', function (): void {
     $notify(RecipientType::Seller, $seller->id, NotificationMessage::itemSold(4, Money::fromCents(9000)));
     $notify(RecipientType::Customer, $customer->id, NotificationMessage::orderShipped(4, 'USPS', '94001'));
 
-    expect(Notification::query()->unread()->for(RecipientType::Seller, $seller->id)->count())->toBe(1)
-        ->and(Notification::query()->unread()->for(RecipientType::Customer, $customer->id)->count())->toBe(1);
+    expect($seller->notifications()->unread()->count())->toBe(1)
+        ->and($customer->notifications()->unread()->count())->toBe(1);
 });

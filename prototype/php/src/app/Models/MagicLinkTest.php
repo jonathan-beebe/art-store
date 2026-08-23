@@ -7,10 +7,6 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
-
-uses(TestCase::class, RefreshDatabase::class);
 
 $link = fn (string $token): MagicLink => MagicLink::create([
     'token_hash' => MagicLinkToken::hash($token),

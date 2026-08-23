@@ -20,7 +20,7 @@ final class CheckoutController extends ShopController
     public function show(): View|RedirectResponse
     {
         $visitor = $this->visitor();
-        $cart = ($this->currentCart)($visitor)->load('items.listing.seller');
+        $cart = $visitor->currentCart()->load('items.listing.seller');
 
         if ($cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
@@ -46,7 +46,7 @@ final class CheckoutController extends ShopController
         SendMagicLink $sendMagicLink,
     ): RedirectResponse {
         $visitor = $this->visitor();
-        $cart = ($this->currentCart)($visitor);
+        $cart = $visitor->currentCart();
 
         if ($cart->items()->doesntExist()) {
             return redirect()->route('shop.cart');

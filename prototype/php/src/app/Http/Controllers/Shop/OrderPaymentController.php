@@ -19,7 +19,7 @@ final class OrderPaymentController extends ShopController
 
         return $this->elsewhere($order) ?? $this->page('shop.pay', [
             'order' => $order,
-            'payment' => $order->payments()->orderByDesc('id')->first(),
+            'payment' => $order->load('latestPayment')->latestPayment,
         ]);
     }
 

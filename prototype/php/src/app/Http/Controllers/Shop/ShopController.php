@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Cart\CurrentCart;
-use App\Domain\Notifications\RecipientType;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\Notification;
 use DateTimeImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -21,8 +18,6 @@ use RuntimeException;
  */
 abstract class ShopController extends Controller
 {
-    public function __construct(protected readonly CurrentCart $currentCart) {}
-
     protected function visitor(): Customer
     {
         return customer() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');
@@ -42,11 +37,8 @@ abstract class ShopController extends Controller
         $visitor = $this->visitor();
 
         return view($view, $data + [
-            'cartItemCount' => (int) ($this->currentCart)($visitor)->items()->sum('quantity'),
-            'unreadNotificationCount' => Notification::query()
-                ->for(RecipientType::Customer, $visitor->id)
-                ->unread()
-                ->count(),
+            'cartItemCount' => (int) $visitor->currentCart()->items()->sum('quantity'),
+            'unreadNotificationCount' => $visitor->notifications()->unread()->count(),
         ]);
     }
 

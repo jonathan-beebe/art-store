@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:09:23:58 — RFCTR-005 — started
+- 2026-08-23:09:23:58 — RFCTR-004 — done: Listing owns sell/restock/changeStatusTo, Customer relations and currentCart replace CurrentCart, Money accessors on every cents column, Money equals/subtract/isPositive/__toString, Notification::to, latestPayment; PHPStan 4 -> 3
 - 2026-08-23:09:09:48 — RFCTR-004 — started
 - 2026-08-23:09:09:48 — RFCTR-003 — done: Five new form requests with to*() accessors, Rule::requiredIf and Rule::enum, ShippingAddress::to and Purchaser::forCheckout, CheckoutPurchaser removed; PHPStan 19 -> 4
 - 2026-08-23:08:50:20 — RFCTR-003 — started

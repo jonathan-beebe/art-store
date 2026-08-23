@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Listings\ListingStock;
 use App\Domain\Money\Money;
 use App\Support\PlaceholderImage;
 use Closure;
@@ -62,6 +63,12 @@ class Listing extends Model
         return $this->hasMany(Favorite::class);
     }
 
+    /** @return HasMany<OrderItem, $this> */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);
@@ -70,6 +77,42 @@ class Listing extends Model
     public function isPurchasable(): bool
     {
         return ListingAvailability::isPurchasable($this->status, $this->quantity);
+    }
+
+    /**
+     * Hands the given number of items to a buyer, reaching `sold` at nothing
+     * left.
+     */
+    public function sell(int $quantity): self
+    {
+        return $this->applyStock(ListingStock::afterSale($this->quantity, $this->status, $quantity, $this->title));
+    }
+
+    /**
+     * Puts items a sale took back on the shelf, and a sold-out listing back on
+     * the storefront.
+     */
+    public function restock(int $quantity): self
+    {
+        return $this->applyStock(ListingStock::afterRestock($this->quantity, $this->status, $quantity));
+    }
+
+    public function changeStatusTo(ListingStatus $next): self
+    {
+        $this->update(['status' => $this->status->transitionTo($next)]);
+
+        return $this;
+    }
+
+    /**
+     * The one place quantity and status are written together, so the pair the
+     * core decided on is the pair the row holds.
+     */
+    private function applyStock(ListingStock $stock): self
+    {
+        $this->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
+
+        return $this;
     }
 
     public function imageUrl(): string

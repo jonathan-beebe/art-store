@@ -50,8 +50,7 @@ final class ListingActivityController extends SellerController
      */
     private function sales(Listing $listing): Collection
     {
-        return OrderItem::query()
-            ->where('listing_id', $listing->id)
+        return $listing->orderItems()
             ->with('order')
             ->latest('id')
             ->get();

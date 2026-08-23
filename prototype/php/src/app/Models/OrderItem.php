@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Money\Money;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,5 +44,15 @@ class OrderItem extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
+    }
+
+    public function unitPrice(): Money
+    {
+        return Money::fromCents($this->unit_price_cents);
+    }
+
+    public function lineTotal(): Money
+    {
+        return $this->unitPrice()->multiply($this->quantity);
     }
 }

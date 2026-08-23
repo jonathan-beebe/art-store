@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Notifications\RecipientType;
 use App\Models\Notification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -17,10 +16,7 @@ final class AccountController extends ShopController
 
         return $this->page('shop.account', [
             'customer' => $visitor,
-            'notifications' => Notification::query()
-                ->for(RecipientType::Customer, $visitor->id)
-                ->orderByDesc('id')
-                ->get(),
+            'notifications' => $visitor->notifications()->orderByDesc('id')->get(),
         ]);
     }
 
