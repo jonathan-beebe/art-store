@@ -41,7 +41,7 @@ Every filter is optional and an empty value means "all": the console submits
 Reads live in `app/sites/admin/queries/`, one module per table a page shows,
 each taking `Pick<ActionContext, 'db'>` and returning cents and ISO strings;
 `adminPage(title, data)` hands the templates `formatCents`, `formatMoment`, and
-`formatLabel`, so no route builds a display string.
+`statusLabel`, so no route builds a display string.
 
 Balances are folded, never queried per seller: the sellers list, the accounting
 page, and the ledger page each read `ledgerMovements` once and fold with

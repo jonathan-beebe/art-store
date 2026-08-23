@@ -34,7 +34,8 @@ the Tailwind stylesheet with `npm run assets`, then starts the server with
 Measured from an empty tree — no `src/node_modules`, no SQLite file, no
 `src/public/app.css`: `make build` and `make up` together took **29 seconds**
 to the healthcheck reporting `healthy`, inside which `npm ci`
-installed 230 packages, eleven migrations applied from nothing, the seed wrote
+installed 230 packages (of the 260 in the lockfile; the rest are
+platform-specific optional binaries npm skips), eleven migrations applied from nothing, the seed wrote
 2 admins, 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
 4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
 `public/app.css`. Add the one-time pull of `node:24.19.0-bookworm-slim` on a
@@ -227,7 +228,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make docs-check` | `./docker/docs-check.sh` |
 | `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
-| `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
+| `make fresh` | `docker compose stop app`, then `npm run fresh`, then `npm run seed`, then `docker compose start app` |
 | `make seed` | `docker compose run --rm app npm run seed` |
 | `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
 | `make outbox` | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))` |
@@ -355,7 +356,8 @@ make seed       # add the platform admins and demo data; running it twice adds n
 
 Every column holding a string union carries a `CHECK` constraint built from the
 same `as const` array TypeScript reads, so a status the union does not admit
-cannot reach the file. Those constraints live in the original `create`
+cannot reach the file (`page_view_counts.site` is the one exception — nothing
+but the rollup writes it). Those constraints live in the original `create`
 migrations rather than in later ones, so **a database created before they
 landed is not upgraded by `make migrate` — run `make fresh`.**
 
@@ -453,8 +455,8 @@ Message rendering is a pure core function —
 `renderMailMessage` (`app/core/notifications/mail-message.ts`) — taking the
 `Message-ID` and the date as inputs, so it is unit tested against literal
 strings. Headers are `From`, `To`, `Subject`, `Date`, `Message-ID`,
-`MIME-Version`, and a `text/plain; charset="utf-8"` content type; every line
-ends CRLF, and a CR or LF inside a header value is folded to a space so
+`MIME-Version`, a `text/plain; charset="utf-8"` content type, and
+`Content-Transfer-Encoding: 8bit`; every line ends CRLF, and a CR or LF inside a header value is folded to a space so
 nothing can open a header of its own.
 
 ## Paying
@@ -609,13 +611,15 @@ prototype/node/
                            identity.ts, page-views.ts, root-plugin.ts,
                            security-headers.ts, site-render.ts,
                            unread-messages.ts
-      sites/               shop/, seller/, admin/, auth/ — each a plugin with
-                           routes/, views/, and (except auth) queries/
+      sites/               shop/, seller/, admin/ — each a plugin with routes/,
+                           views/, queries/; auth/ is three flat files
+                           (index.ts, sign-in-routes.ts, request-origin.ts)
       views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
                            unread-badge.ejs
       cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
                            parse-as-of.ts
-      test/                build-test-app.ts, commerce-world.ts, smoke.test.ts
+      test/                build-test-app.ts, commerce-world.ts, log-lines.ts,
+                           smoke.test.ts
       assets/app.css       Tailwind source
     public/                app.css (built, not committed), app.js, uploads/
     storage/               development.sqlite3 and outbox/ (neither committed)

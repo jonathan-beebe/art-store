@@ -12,7 +12,9 @@ in a migration fails the suite rather than a page.
 Every column holding a string union carries a `CHECK` constraint built from the
 same `as const` array TypeScript reads — `status in ('draft', 'for_sale',
 'sold', 'archived')` and the like — so a value the union does not admit cannot
-reach the file. Those constraints live in the original `create` migrations
+reach the file. One exception: `page_view_counts.site` is typed `PageViewSite`
+but has no constraint, because nothing outside `pageViewSite(pathPattern)` ever
+writes it. Those constraints live in the original `create` migrations
 rather than in later ones, so **a development database created before them is
 not upgraded by `make migrate`; it needs `make fresh`**, which deletes the file,
 re-applies every migration, and re-seeds.
@@ -200,7 +202,7 @@ erDiagram
     }
     page_view_counts {
         integer id PK
-        text site "shop|seller|admin"
+        text site "shop|seller|admin, by convention — no check"
         text path_pattern "the route pattern, /art/:slug"
         text day "UK with site and path_pattern"
         integer count "default 0, incremented on conflict"
@@ -319,8 +321,9 @@ recipient who is outside the system.
   polymorphic reference beat three nullable columns, because a message has
   exactly one sender and the column is never joined for a merge.
 - **`conversations` fills two of its three participant columns and at most one
-  subject column**, decided by `kind`. `missingConversationParts` is the pure
-  check; the index on `(kind, listing_id, fulfillment_id)` serves the
+  subject column**, decided by `kind`. `participantColumnsOf(kind)` and
+  `subjectColumnOf(kind)` (`app/core/messaging/conversation-kind.ts`) are the
+  pure readers of which; the index on `(kind, listing_id, fulfillment_id)` serves the
   find-or-open lookup, and one index per participant column paired with
   `last_message_at` serves the three inboxes.
 - **A `listing_faqs` row exists only while it is published.** `published_at` is

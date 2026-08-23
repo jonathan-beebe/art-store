@@ -288,3 +288,41 @@ container).
 
 Test counts: 1,534 → **1,536** (the two smoke tests). Coverage 99.57 / 97.22 /
 99.47, unchanged by the two dropped insert literals.
+
+### Second pass: an independent audit of the rewritten docs
+
+After the rewrite, ran a read-only sweep of every backticked identifier, route,
+and number in `README.md` and `docs/` against `src/app`. Six more mismatches
+found and fixed, all of them older than this ticket:
+
+1. `docs/admin.md` named `formatLabel` as the third admin view helper; it is
+   `statusLabel` (`app/sites/admin/page.ts`), and `formatLabel` exists nowhere.
+2. `docs/data-model.md` named `missingConversationParts` as the pure check over
+   a conversation's participant and subject columns; no such function exists.
+   Replaced with `participantColumnsOf` / `subjectColumnOf`
+   (`app/core/messaging/conversation-kind.ts`).
+3. Two package counts contradicted each other — "230 packages" in the run
+   narratives, "260 packages" in the stack notes. Both are true of different
+   things: the lockfile holds 260 entries and `npm ci` reports installing 230,
+   skipping platform-specific optional binaries. Both places now say which.
+4. "Every column holding a string union carries a `CHECK` constraint" was false
+   for one column: `page_view_counts.site` is typed `PageViewSite` but its
+   migration adds no check. Stated as the one exception in all three places that
+   made the claim, and marked in the ER diagram, rather than adding a constraint
+   — that would be a migration edit inside IMPRV-004's territory and would
+   invalidate the clean run already recorded above.
+5. `README.md`'s Commands table described `make fresh` as "run fresh, then seed,
+   then restart". The target stops the app **first**, which is the whole point:
+   a server left running holds the deleted database file open. Corrected.
+6. `README.md` and `docs/architecture.md` both described `app/sites/auth/` as
+   having `routes/` and `views/` directories. It is three flat files and has no
+   pages of its own.
+
+Four smaller corrections in the same pass: the `changed` event skips `OPTIONS`
+as well as `GET`/`HEAD`; the stack table's runtime cell said `node:24-bookworm-slim`
+where the `Dockerfile` pins `node:24.19.0-bookworm-slim`; the README's mail
+header list omitted `Content-Transfer-Encoding: 8bit`; and both layout blocks
+missed `app/test/log-lines.ts`.
+
+`make docs-check` re-run after these edits: 21 diagrams, 0 failed. Every
+backticked `app/**` path in every doc resolves to a file that exists.

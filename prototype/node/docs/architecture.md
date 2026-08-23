@@ -304,7 +304,9 @@ Every column holding a string union carries a `CHECK` constraint built from
 that union's `as const` array (`status in ('draft', 'for_sale', …)`), so a value
 TypeScript would refuse cannot reach the file either; money and quantity columns
 carry range checks, and `notifications` carries one asserting exactly one of
-its three recipient columns is set. `app/db/schema-fidelity.test.ts` reads the
+its three recipient columns is set. `page_view_counts.site` is the one union
+column without a constraint — nothing but `pageViewSite(pathPattern)` writes
+it. `app/db/schema-fidelity.test.ts` reads the
 applied schema back and asserts the row types match it.
 
 Those constraints were added to the original `create` migrations rather than
@@ -552,8 +554,8 @@ off it.
   `GET <prefix>/events` as `text/event-stream` inside each site's own identity
   guard; the stream sends `retry: 3000`, the count now, and the count again each
   time it moves. What makes it move is a payload-free `changed` on `app.events`,
-  fired by a root `onResponse` hook after any request that wrote (non-GET/HEAD,
-  status under 400) — settled after commit, so no stream can read a count that a
+  fired by a root `onResponse` hook after any request that wrote (anything but
+  `GET`, `HEAD`, or `OPTIONS`, answering under 400) — settled after commit, so no stream can read a count that a
   rollback is about to undo. 21 dependency-free lines of `public/app.js`, loaded
   by one `<script defer>` per layout, write the number into the badge the layout
   already rendered. With JavaScript off the badge is simply the number the page
@@ -694,13 +696,16 @@ prototype/node/
       http/            zod-type-provider.ts (validator compiler), request-schema.ts
       plugins/         error-pages, events, flash, health, identity, page-views,
                        root-plugin, security-headers, site-render, unread-messages
-      sites/           shop/, seller/, admin/, auth/ — each a plugin with
-                       routes/, views/, queries/, and its own helpers
+      sites/           shop/, seller/, admin/ — each a plugin with routes/,
+                       views/, queries/ and its own helpers; auth/ is three
+                       flat files (index.ts, sign-in-routes.ts,
+                       request-origin.ts) and has no pages of its own
       views/partials/  shared partials: debug-alert.ejs, flash.ejs, head.ejs,
                        unread-badge.ejs
       cli/             run-payouts.ts, drain-outbox.ts, print-routes.ts,
                        parse-as-of.ts
-      test/            build-test-app.ts, commerce-world.ts, smoke.test.ts
+      test/            build-test-app.ts, commerce-world.ts, log-lines.ts,
+                       smoke.test.ts
       assets/app.css   Tailwind source
     public/            app.css (built, not committed), app.js, uploads/
     storage/           development.sqlite3 and outbox/ (neither committed)

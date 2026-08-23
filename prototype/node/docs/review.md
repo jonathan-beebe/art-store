@@ -124,7 +124,8 @@ refinement batch landed.
   files with their `-wal`/`-shm` siblings, and `src/storage/outbox/` removed,
   then one `docker compose up -d --build`. **29 seconds** from an empty tree to
   the compose healthcheck reporting `healthy`. Inside that: `npm ci` installed
-  230 packages, eleven migrations applied from nothing, `seed.ts` wrote 2 admins
+  230 of the lockfile's 260 packages — the rest are platform-specific optional
+  binaries npm skips — eleven migrations applied from nothing, `seed.ts` wrote 2 admins
   then 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
   4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
   `public/app.css`. Nothing in the README or the entrypoint needed correcting.
