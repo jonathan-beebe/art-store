@@ -5,7 +5,7 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 10
+- FEAT: 18
 - IMPRV: 2
 - MAINT: 3
 - A11Y: 1
@@ -14,6 +14,14 @@
 
 ## Log
 
+- 2026-08-23:13:50:48 — FEAT-017 — defined: Final validation and documentation refresh
+- 2026-08-23:13:50:48 — FEAT-016 — defined: Live unread badge over eventstream sse
+- 2026-08-23:13:50:48 — FEAT-015 — defined: Seed data for messaging and smoke walk
+- 2026-08-23:13:50:48 — FEAT-014 — defined: Admin messaging inbox and threads
+- 2026-08-23:13:50:48 — FEAT-013 — defined: Storefront messaging and listing questions
+- 2026-08-23:13:50:48 — FEAT-012 — defined: Seller portal messaging and listing faqs
+- 2026-08-23:13:50:48 — FEAT-011 — defined: Messaging schema domain policy and notification
+- 2026-08-23:13:50:48 — FEAT-010 — defined: Minimal admin actor and site with customer blocks
 - 2026-08-23:11:58:51 — MAINT-002 — done: PHPStan level max at 0 over app, database, routes, and the Pest sidecars (five Pest stubs, no ignores); make check exits 0 in ~32s; 733 tests at 100% lines; both sites walked on seeded data; README, architecture, review, identity docs current
 - 2026-08-23:11:22:14 — MAINT-002 — started
 - 2026-08-23:11:22:14 — IMPRV-001 — done: Behavior tests for the payout button, customer-link redirect guard, merge idempotency and chains, PayoutPeriod year boundary, upload size, search edges; factories for all 15 models; ListingSeeder and CustomerSeeder through actions; sidecar exception list emptied; 100% line coverage
