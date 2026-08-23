@@ -11,6 +11,10 @@ module Domain
         assert_equal "study-no-4", ListingSlug.base("  Study, No. 4!  ")
       end
 
+      test "it transliterates an accented letter" do
+        assert_equal "cafe-window", ListingSlug.base("Café Window")
+      end
+
       test "it numbers a slug another listing already holds" do
         assert_equal "harbour-at-dusk-2", ListingSlug.first_free("Harbour at Dusk", ["harbour-at-dusk"])
       end

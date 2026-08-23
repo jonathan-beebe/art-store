@@ -55,3 +55,13 @@ is gone; the two call sites call `url_from` directly.
 
 `url_from` compares the host alone, where the deleted module compared the whole origin. An absolute
 URL on this host with a different scheme or port is now kept. No route depends on the difference.
+
+### C3 — slugs
+
+`ListingSlug.base` now calls `String#parameterize`, which `db/seeds/listings.rb` already used. Every
+case the test pinned holds: `"Harbour at Dusk"`, `"  Study, No. 4!  "` and `"—"` slug the same as
+before. The one difference is accented letters — `parameterize` transliterates `"Café Window"` to
+`cafe-window` where the regex dropped the `é` and gave `caf-window`. The built-in wins and a test
+pins it. No seeded title carries an accent, so no seeded slug moved.
+
+`first_free` is unchanged.

@@ -8,9 +8,7 @@ module Domain
       module_function
 
       def base(title)
-        slug = title.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-|-\z/, "")
-
-        slug.empty? ? FALLBACK : slug
+        title.to_s.parameterize.presence || FALLBACK
       end
 
       def first_free(title, taken)
