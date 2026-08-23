@@ -5,14 +5,23 @@
   <dd class="mt-1 text-lg"><%= identity.customer.email %></dd>
 </dl>
 
-<form method="post" action="/logout" class="mt-8">
-  <button
-    type="submit"
-    class="cursor-pointer rounded-full border border-neutral-300 px-6 py-2 hover:border-amber-600"
+<div class="mt-8 flex flex-wrap gap-4">
+  <form method="post" action="/logout">
+    <button
+      type="submit"
+      class="cursor-pointer rounded-full border border-neutral-300 px-6 py-2 hover:border-amber-600"
+    >
+      Sign out
+    </button>
+  </form>
+
+  <a
+    href="/support"
+    class="inline-flex items-center rounded-full border border-neutral-300 px-6 py-2 hover:border-amber-600"
   >
-    Sign out
-  </button>
-</form>
+    Contact support
+  </a>
+</div>
 
 <section class="mt-16 max-w-2xl">
   <h2 class="text-2xl font-light tracking-tight">Notifications</h2>

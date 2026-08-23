@@ -7,16 +7,16 @@ import { readMergedTableColumns, hasColumns } from './merged-table-columns.ts'
 test('a table the schema does not have is absent from the result', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
+  await sql`drop table conversations`.execute(db)
 
   const schema = await readMergedTableColumns(db)
 
   assert.equal(hasColumns(schema, 'conversations', 'customer_id'), false)
 })
 
-test('once created, the probe reports it with its columns', async (t) => {
+test('a table the schema has is reported with its columns', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
-  await sql`create table conversations (id integer primary key, customer_id integer, kind text)`.execute(db)
 
   const schema = await readMergedTableColumns(db)
 
@@ -27,22 +27,20 @@ test('once created, the probe reports it with its columns', async (t) => {
 test('hasColumns is false for a column the table lacks', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
-  await sql`create table conversations (id integer primary key, customer_id integer, kind text)`.execute(db)
 
   const schema = await readMergedTableColumns(db)
 
-  assert.equal(hasColumns(schema, 'conversations', 'seller_id'), false)
+  assert.equal(hasColumns(schema, 'conversations', 'order_id'), false)
 })
 
 test('hasColumns is true only when every named column is present', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
-  await sql`create table conversations (id integer primary key, customer_id integer, kind text)`.execute(db)
 
   const schema = await readMergedTableColumns(db)
 
   assert.equal(hasColumns(schema, 'conversations', 'customer_id', 'kind'), true)
-  assert.equal(hasColumns(schema, 'conversations', 'customer_id', 'seller_id'), false)
+  assert.equal(hasColumns(schema, 'conversations', 'customer_id', 'order_id'), false)
 })
 
 test('a table nobody asked about never appears in the result', async (t) => {

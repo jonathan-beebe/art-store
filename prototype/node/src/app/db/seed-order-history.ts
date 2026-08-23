@@ -30,6 +30,7 @@ const CASEY_SHIPPING: ShippingAddress = {
 export type SeededOrderHistory = {
   paidOrder: Order
   shippedOrder: Order
+  shippedFulfillmentId: number
   deliveredOrder: Order
   payouts: readonly Payout[]
 }
@@ -62,6 +63,7 @@ export async function seedOrderHistory(
     new Date('2026-07-07T09:00:00.000Z'),
   )
   await ship(db, shippedOrder.id, 'UPS', '1Z999AA10123456784', new Date('2026-07-08T09:00:00.000Z'))
+  const shippedFulfillmentId = await fulfillmentIdFor(db, shippedOrder.id)
 
   const deliveredOrder = await placeAndPay(
     db,
@@ -74,7 +76,7 @@ export async function seedOrderHistory(
 
   const payouts = await runWeeklyPayout({ db, clock: fixedClock(PAYOUT_RUN_AT) }, PAYOUT_RUN_AT)
 
-  return { paidOrder, shippedOrder, deliveredOrder, payouts }
+  return { paidOrder, shippedOrder, shippedFulfillmentId, deliveredOrder, payouts }
 }
 
 /** A cart of its own, the way a shopper's checkout does — never Casey's

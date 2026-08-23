@@ -3,6 +3,12 @@
   <div><dt class="inline text-neutral-500">Joined</dt> <dd class="inline"><%= formatMoment(customer.createdAt) %></dd></div>
 </dl>
 
+<form method="post" action="/admin/customers/<%= customer.id %>/messages" class="mt-4">
+  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+    Message customer
+  </button>
+</form>
+
 <section class="mt-6" data-standing="<%= block ? 'blocked' : 'unblocked' %>" aria-labelledby="standing-heading">
   <h2 id="standing-heading" class="font-semibold text-neutral-700">Standing</h2>
 

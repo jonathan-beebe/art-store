@@ -3,6 +3,7 @@ import type { Clock } from '../clock.ts'
 import { SEEDED_ADMINS } from './seed-admins.ts'
 import { seedCatalog } from './seed-catalog.ts'
 import { seedCustomers } from './seed-customers.ts'
+import { seedMessaging } from './seed-messaging.ts'
 import { seedOrderHistory } from './seed-order-history.ts'
 import { seedPageViews } from './seed-page-views.ts'
 import { seedSellers } from './seed-sellers.ts'
@@ -14,16 +15,19 @@ export type SeedDemoDataSummary = {
   customerCount: number
   orderCount: number
   pageViewRowCount: number
+  conversationCount: number
+  messageCount: number
+  faqCount: number
 }
 
 /**
- * The sellers, catalog, customers, order history, and traffic a reviewer
- * needs to demo every page. Refuses to run twice: a database that already
- * holds a seller is left untouched, so a second `npm run seed` cannot double
- * the catalog or replay the ledger. Every date in the catalog and order
- * history is fixed regardless of when this runs, so the demo reads the same
- * on any day; only the page-view history is dated relative to `clock`, so it
- * always covers the 14 days up to today.
+ * The sellers, catalog, customers, order history, conversations, and traffic
+ * a reviewer needs to demo every page. Refuses to run twice: a database that
+ * already holds a seller is left untouched, so a second `npm run seed`
+ * cannot double the catalog or replay the ledger. Every date in the catalog
+ * and order history is fixed regardless of when this runs, so the demo reads
+ * the same on any day; only the page-view history is dated relative to
+ * `clock`, so it always covers the 14 days up to today.
  */
 export async function seedDemoData({
   db,
@@ -44,6 +48,13 @@ export async function seedDemoData({
   const { listingIdsByTitle } = await seedCatalog(db, sellerIdsByEmail, admin.id)
   const customers = await seedCustomers(db, listingIdsByTitle, admin.id)
   const orderHistory = await seedOrderHistory(db, customers.casey, listingIdsByTitle)
+  const messaging = await seedMessaging(db, {
+    adminId: admin.id,
+    sellerIdsByEmail,
+    listingIdsByTitle,
+    casey: customers.casey,
+    fulfillmentId: orderHistory.shippedFulfillmentId,
+  })
   const pageViewRowCount = await seedPageViews(db, clock.now())
 
   return {
@@ -52,5 +63,8 @@ export async function seedDemoData({
     customerCount: customers.count,
     orderCount: [orderHistory.paidOrder, orderHistory.shippedOrder, orderHistory.deliveredOrder].length,
     pageViewRowCount,
+    conversationCount: messaging.conversationCount,
+    messageCount: messaging.messageCount,
+    faqCount: messaging.faqCount,
   }
 }

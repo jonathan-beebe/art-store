@@ -12,6 +12,7 @@ import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { addFlash } from './plugins/flash.ts'
 import { addIdentity } from './plugins/identity.ts'
 import { addPageViewRollup } from './plugins/page-views.ts'
+import { addUnreadMessages } from './plugins/unread-messages.ts'
 import { adminSite } from './sites/admin/index.ts'
 import { authSite } from './sites/auth/index.ts'
 import { sellerSite } from './sites/seller/index.ts'
@@ -65,6 +66,7 @@ export function buildApp({
   addFlash(app)
   addIdentity(app)
   addPageViewRollup(app)
+  addUnreadMessages(app)
 
   app.register(authSite)
   app.register(shopSite)

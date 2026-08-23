@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import {
   canTransitionFulfillment,
   FULFILLMENT_STATUSES,
@@ -105,10 +106,32 @@ function refuseShipment(reply: FastifyReply, fulfillmentId: number, message: str
   return reply.redirect(`/seller/orders/${fulfillmentId}`)
 }
 
+async function openMessageThread(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
+  const id = parseIdParam(request.params)
+  if (id === null) return sellerNotFound(reply)
+
+  const { db, clock } = request.server
+  const owned = await ownedFulfillment(db, currentSellerId(request), id)
+  if (owned === null) return sellerNotFound(reply)
+
+  const conversation = await openConversation(
+    { db, clock },
+    {
+      kind: 'fulfillment',
+      sellerId: currentSellerId(request),
+      customerId: owned.order.customerId,
+      fulfillmentId: owned.fulfillment.id,
+    },
+  )
+
+  return reply.redirect(`/seller/messages/${conversation.id}`)
+}
+
 export const ordersRoutes: FastifyPluginCallback = (portal, _options, done) => {
   portal.get('/orders', index)
   portal.get('/orders/:id', show)
   portal.post('/orders/:id/ship', ship)
+  portal.post('/orders/:id/messages', openMessageThread)
 
   done()
 }

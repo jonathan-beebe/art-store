@@ -6,6 +6,7 @@ import { favoriteRoutes } from './routes/favorites.ts'
 import { fulfillmentRoutes } from './routes/fulfillments.ts'
 import { homeRoutes } from './routes/home.ts'
 import { listingRoutes } from './routes/listings.ts'
+import { messageRoutes } from './routes/messages.ts'
 import { notificationRoutes } from './routes/notifications.ts'
 import { orderPaymentRoutes } from './routes/order-payments.ts'
 import { orderRoutes } from './routes/orders.ts'
@@ -28,6 +29,7 @@ export const storefrontRoutes: FastifyPluginCallback = (storefront, _options, do
   storefront.register(orderPaymentRoutes)
   storefront.register(fulfillmentRoutes)
   storefront.register(notificationRoutes)
+  storefront.register(messageRoutes)
 
   done()
 }

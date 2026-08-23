@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -41,6 +42,34 @@ test('a listing page carries an empty questions section until one is answered', 
 
   assert.match(response.body, /Questions/)
   assert.match(response.body, /No questions yet\./)
+})
+
+test('a published FAQ appears on the listing page', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await publishListingFaq(testApp, {
+    listingId: listing.id,
+    draft: { question: 'Is this framed?', answer: 'No, it ships unframed.' },
+  })
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/art/harbour-at-dusk' })
+
+  assert.match(response.body, /Is this framed\?/)
+  assert.match(response.body, /No, it ships unframed\./)
+})
+
+test('the listing page carries a form to ask the seller a question', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/art/harbour-at-dusk' })
+
+  assert.match(response.body, /action="\/art\/harbour-at-dusk\/questions"/)
+  assert.match(response.body, /name="body"/)
 })
 
 test('looking at a listing records a view against it', async (t) => {

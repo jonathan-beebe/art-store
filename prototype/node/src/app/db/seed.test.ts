@@ -2,6 +2,7 @@ import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
 import { CASEY_EMAIL } from './seed-customers.ts'
+import { FAQ_LISTING_TITLE } from './seed-messaging.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from './database.ts'
 import { seedDemoData, type SeedDemoDataSummary } from './seed-demo-data.ts'
 import { seedAdmins } from './seed-admins.ts'
@@ -159,14 +160,164 @@ test('escrow holds three, releases one, and pays the delivered order out', async
   assert.equal(payouts[0]?.amountCents, deliveredFulfillment.netCents)
 })
 
-test('sellers and casey are notified as the order history unfolds', async (t) => {
+test('sellers, casey, and messaging participants are notified as the seed unfolds', async (t) => {
   const db = await withSeededDatabase(t)
 
   const notifications = await db.selectFrom('notifications').select('subject').execute()
 
-  assert.equal(notifications.length, 5)
+  assert.equal(notifications.length, 16)
   assert.equal(notifications.filter((row) => row.subject === 'Item sold').length, 3)
   assert.equal(notifications.filter((row) => row.subject === 'Order shipped').length, 2)
+  assert.equal(notifications.filter((row) => row.subject === 'New message').length, 11)
+})
+
+test('it seeds exactly one conversation of each kind', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const conversations = await db.selectFrom('conversations').select('kind').execute()
+
+  assert.equal(conversations.length, 4)
+  assert.deepEqual(
+    new Set(conversations.map((conversation) => conversation.kind)),
+    new Set(['admin_seller', 'admin_customer', 'fulfillment', 'listing_question']),
+  )
+})
+
+test('the admin_seller conversation names the admin and seller, and nothing else', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const conversation = await db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('kind', '=', 'admin_seller')
+    .executeTakeFirstOrThrow()
+
+  assert.notEqual(conversation.adminId, null)
+  assert.notEqual(conversation.sellerId, null)
+  assert.equal(conversation.customerId, null)
+  assert.equal(conversation.listingId, null)
+  assert.equal(conversation.fulfillmentId, null)
+})
+
+test('the admin_customer conversation names the admin and customer, and nothing else', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const conversation = await db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('kind', '=', 'admin_customer')
+    .executeTakeFirstOrThrow()
+
+  assert.notEqual(conversation.adminId, null)
+  assert.notEqual(conversation.customerId, null)
+  assert.equal(conversation.sellerId, null)
+  assert.equal(conversation.listingId, null)
+  assert.equal(conversation.fulfillmentId, null)
+})
+
+test('the fulfillment conversation names the seller and customer, keyed to a real fulfillment', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const conversation = await db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('kind', '=', 'fulfillment')
+    .executeTakeFirstOrThrow()
+
+  assert.notEqual(conversation.sellerId, null)
+  assert.notEqual(conversation.customerId, null)
+  assert.equal(conversation.adminId, null)
+  assert.equal(conversation.listingId, null)
+
+  const fulfillment = await db
+    .selectFrom('fulfillments')
+    .select('id')
+    .where('id', '=', conversation.fulfillmentId ?? 0)
+    .executeTakeFirstOrThrow()
+  assert.equal(fulfillment.id, conversation.fulfillmentId)
+})
+
+test('the listing_question conversation names the seller and customer, keyed to a real listing', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const conversation = await db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('kind', '=', 'listing_question')
+    .executeTakeFirstOrThrow()
+
+  assert.notEqual(conversation.sellerId, null)
+  assert.notEqual(conversation.customerId, null)
+  assert.equal(conversation.adminId, null)
+  assert.equal(conversation.fulfillmentId, null)
+
+  const listing = await db
+    .selectFrom('listings')
+    .select('title')
+    .where('id', '=', conversation.listingId ?? 0)
+    .executeTakeFirstOrThrow()
+  assert.equal(listing.title, FAQ_LISTING_TITLE)
+})
+
+test('each conversation kind carries the right message count and sender types', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const messages = await db
+    .selectFrom('messages')
+    .innerJoin('conversations', 'conversations.id', 'messages.conversationId')
+    .select(['conversations.kind', 'messages.senderType'])
+    .orderBy('messages.id')
+    .execute()
+
+  const senderTypesByKind: Record<string, string[]> = {}
+  for (const row of messages) {
+    senderTypesByKind[row.kind] = [...(senderTypesByKind[row.kind] ?? []), row.senderType]
+  }
+
+  assert.deepEqual(senderTypesByKind.admin_seller, ['admin', 'seller', 'admin'])
+  assert.deepEqual(senderTypesByKind.admin_customer, ['admin', 'customer', 'admin'])
+  assert.deepEqual(senderTypesByKind.fulfillment, ['seller', 'customer', 'seller'])
+  assert.deepEqual(senderTypesByKind.listing_question, ['customer', 'seller'])
+})
+
+test('only the closing admin message in each admin thread is left unread', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const messages = await db
+    .selectFrom('messages')
+    .innerJoin('conversations', 'conversations.id', 'messages.conversationId')
+    .select(['conversations.kind', 'messages.senderType', 'messages.readAt'])
+    .execute()
+
+  const unread = messages.filter((message) => message.readAt === null)
+
+  assert.equal(unread.length, 2)
+  assert.ok(unread.every((message) => message.senderType === 'admin'))
+  assert.deepEqual(new Set(unread.map((message) => message.kind)), new Set(['admin_seller', 'admin_customer']))
+})
+
+test('it publishes one listing FAQ sourced from the seller answer in the listing-question thread', async (t) => {
+  const db = await withSeededDatabase(t)
+
+  const faqs = await db.selectFrom('listingFaqs').selectAll().execute()
+  assert.equal(faqs.length, 1)
+
+  const faq = faqs[0]
+  assert.ok(faq !== undefined)
+
+  const listing = await db
+    .selectFrom('listings')
+    .select('title')
+    .where('id', '=', faq.listingId)
+    .executeTakeFirstOrThrow()
+  assert.equal(listing.title, FAQ_LISTING_TITLE)
+
+  const sourceMessage = await db
+    .selectFrom('messages')
+    .select('senderType')
+    .where('id', '=', faq.sourceMessageId ?? 0)
+    .executeTakeFirstOrThrow()
+  assert.equal(sourceMessage.senderType, 'seller')
 })
 
 test('page views cover the 14 days up to now across all three sites', async (t) => {
@@ -203,5 +354,8 @@ test('the summary counts what it seeded', async (t) => {
     customerCount: 5,
     orderCount: 3,
     pageViewRowCount: 98,
+    conversationCount: 4,
+    messageCount: 11,
+    faqCount: 1,
   })
 })

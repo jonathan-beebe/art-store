@@ -235,6 +235,59 @@ test('shipping an order that already shipped is refused', async (t) => {
   assert.equal(unchanged.trackingNumber, 'RM123456789GB')
 })
 
+test('POST /orders/:id/messages opens the fulfillment thread with the order customer', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+  const order = await testApp.db
+    .selectFrom('orders')
+    .selectAll()
+    .where('id', '=', fulfillment.orderId)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/messages`,
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.match(response.headers.location ?? '', /^\/seller\/messages\/\d+$/)
+
+  const conversation = await testApp.db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('sellerId', '=', seller.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(conversation.kind, 'fulfillment')
+  assert.equal(conversation.customerId, order.customerId)
+  assert.equal(conversation.fulfillmentId, fulfillment.id)
+
+  const again = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/messages`,
+    cookies: seller.cookies,
+  })
+  assert.equal(again.headers.location, response.headers.location)
+})
+
+test("opening a message thread for another seller's order is not found", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const rival = await signInAsSeller(testApp, 'rival@example.com')
+  const rivalFulfillment = await createFulfillment(testApp, rival.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${rivalFulfillment.id}/messages`,
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
 test("shipping another seller's order is not found", async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

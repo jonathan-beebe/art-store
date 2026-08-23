@@ -4,6 +4,12 @@
   <div><dt class="inline text-neutral-500">Joined</dt> <dd class="inline"><%= formatMoment(seller.createdAt) %></dd></div>
 </dl>
 
+<form method="post" action="/admin/sellers/<%= seller.id %>/messages" class="mt-4">
+  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+    Message seller
+  </button>
+</form>
+
 <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
   <%- include('sites/admin/views/partials/stat', { key: 'held', label: 'Held', value: formatCents(balance.heldCents) }) %>
   <%- include('sites/admin/views/partials/stat', { key: 'available', label: 'Available', value: formatCents(balance.availableCents) }) %>

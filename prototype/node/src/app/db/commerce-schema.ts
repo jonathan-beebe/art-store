@@ -1,7 +1,9 @@
 import type { Generated, Selectable } from 'kysely'
+import type { ActorType } from '../core/auth/actor-type.ts'
 import type { LedgerEntryType } from '../core/escrow/ledger-entry-type.ts'
 import type { ListingEventType } from '../core/listings/listing-event-type.ts'
 import type { ListingStatus } from '../core/listings/listing-status.ts'
+import type { ConversationKind } from '../core/messaging/conversation-kind.ts'
 import type { RemovalKind } from '../core/moderation/listing-removal.ts'
 import type { FulfillmentStatus } from '../core/orders/fulfillment-status.ts'
 import type { OrderStatus } from '../core/orders/order-status.ts'
@@ -172,6 +174,43 @@ export type PageViewCountsTable = {
   count: number
 }
 
+/**
+ * `kind` decides which two participant columns are filled and which subject
+ * column, if any, names what the thread is about.
+ */
+export type ConversationsTable = {
+  id: Generated<number>
+  kind: ConversationKind
+  sellerId: number | null
+  customerId: number | null
+  adminId: number | null
+  listingId: number | null
+  fulfillmentId: number | null
+  createdAt: Timestamp
+  lastMessageAt: Timestamp
+}
+
+/** `readAt` is the other participant's marker: a thread has exactly two sides. */
+export type MessagesTable = {
+  id: Generated<number>
+  conversationId: number
+  senderType: ActorType
+  senderId: number
+  body: string
+  sentAt: Timestamp
+  readAt: Timestamp | null
+}
+
+/** A row exists only while the entry is published; unpublishing deletes it. */
+export type ListingFaqsTable = {
+  id: Generated<number>
+  listingId: number
+  question: string
+  answer: string
+  sourceMessageId: number | null
+  publishedAt: Timestamp
+}
+
 /** The commerce half of the database. Identity tables arrive with their own ticket. */
 export type CommerceTables = {
   listings: ListingsTable
@@ -189,6 +228,9 @@ export type CommerceTables = {
   ledgerEntries: LedgerEntriesTable
   notifications: NotificationsTable
   pageViewCounts: PageViewCountsTable
+  conversations: ConversationsTable
+  messages: MessagesTable
+  listingFaqs: ListingFaqsTable
 }
 
 /** Rows as they come back from a select — what actions hand to routes. */
@@ -205,3 +247,6 @@ export type Fulfillment = Selectable<FulfillmentsTable>
 export type Payout = Selectable<PayoutsTable>
 export type LedgerEntry = Selectable<LedgerEntriesTable>
 export type Notification = Selectable<NotificationsTable>
+export type Conversation = Selectable<ConversationsTable>
+export type Message = Selectable<MessagesTable>
+export type ListingFaq = Selectable<ListingFaqsTable>

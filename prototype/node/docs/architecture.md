@@ -261,12 +261,16 @@ participants; `messages` rows hang off it.
 - `conversations`: `id`, `kind`, `seller_id?`, `customer_id?`, `admin_id?`,
   `listing_id?`, `fulfillment_id?`, `created_at`, `last_message_at`.
 - `messages`: `id`, `conversation_id`, `sender_type` (`seller` | `customer` |
-  `admin`), `sender_id`, `body`, `sent_at`, `read_at?`.
+  `admin`), `sender_id`, `body`, `sent_at`, `read_at?`. A conversation has
+  exactly two participants, so one marker per message is unambiguous: the reader
+  is always the participant who did not send it.
 - `listing_faqs`: `id`, `listing_id`, `question`, `answer`,
-  `source_message_id?`, `published_at`. A seller answering a
-  `listing_question` can **publish** the question + answer as an FAQ entry; the
-  storefront listing page lists published FAQs. The seller can also edit or
-  unpublish an FAQ.
+  `source_message_id?`, `published_at`. A row exists only while the entry is
+  published — unpublishing deletes it, and re-publishing is one click from the
+  thread the answer came from, so there is no draft state to model. A seller
+  answering a `listing_question` can **publish** the question + answer as an FAQ
+  entry; the storefront listing page lists published FAQs. The seller can also
+  edit or unpublish an FAQ.
 - Who may read or post in a conversation is a pure predicate
   (`app/core/messaging/conversation-access.ts`) over the conversation's
   participant columns and the actor; every route reads it.

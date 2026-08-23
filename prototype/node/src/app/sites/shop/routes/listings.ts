@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
 import { recordListingEvent } from '../../../actions/listings/record-listing-event.ts'
+import { listingFaqs } from '../../../actions/messaging/listing-faqs.ts'
 import { currentCustomerStanding } from '../../../actions/moderation/current-customer-standing.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
@@ -39,8 +40,7 @@ export const listingRoutes: FastifyPluginCallback = (shop, _options, done) => {
         }),
         canShop: canShop(standing),
         blockedNotice: blockedShopperNotice(standing),
-        // FEAT-007 publishes answered questions here.
-        faqs: [],
+        faqs: await listingFaqs({ db }, listing.id),
       }),
     )
   })

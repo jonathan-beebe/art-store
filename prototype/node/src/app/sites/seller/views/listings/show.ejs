@@ -7,6 +7,7 @@
   </p>
   <div class="ml-auto flex items-center gap-2">
     <a href="/seller/listings/<%= listing.id %>/edit" class="rounded border border-neutral-400 px-3 py-2 text-sm">Edit</a>
+    <a href="/seller/listings/<%= listing.id %>/faqs" class="rounded border border-neutral-400 px-3 py-2 text-sm">Questions &amp; answers</a>
     <%- include('../partials/status-buttons', { listing, transitions, statusLabel }) %>
   </div>
 </div>

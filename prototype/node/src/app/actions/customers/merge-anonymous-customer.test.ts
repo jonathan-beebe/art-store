@@ -156,39 +156,46 @@ test('it re-points the rows of a table the customer owns', async (t) => {
   )
 })
 
-test('it skips a table the schema does not have yet and still writes its trail', async (t) => {
+test('it skips a table the schema does not have and still writes its trail', async (t) => {
   const merging = await startMerging()
   t.after(merging.close)
 
-  const tables = await sql<{ name: string }>`
-    select name from sqlite_master where type = 'table' and name = 'conversations'
-  `.execute(merging.db)
-
-  assert.equal(tables.rows.length, 0, 'conversations arrives with the messaging ticket')
+  await sql`drop table conversations`.execute(merging.db)
 
   await merge(merging)
 
   assert.equal((await merging.db.selectFrom('customerMerges').selectAll().execute()).length, 1)
 })
 
-test('a table that arrives later is re-pointed without any change here', async (t) => {
+test('a conversation opened anonymously re-points to the verified customer', async (t) => {
   const merging = await startMerging()
   t.after(merging.close)
   const { db } = merging
 
-  await sql`create table conversations (id integer primary key, customer_id integer)`.execute(db)
-  await sql`
-    insert into conversations (customer_id) values (${merging.anonymousCustomerId})
-  `.execute(db)
+  const conversation = await db
+    .insertInto('conversations')
+    .values({
+      kind: 'admin_customer',
+      sellerId: null,
+      customerId: merging.anonymousCustomerId,
+      adminId: null,
+      listingId: null,
+      fulfillmentId: null,
+      createdAt: NOW,
+      lastMessageAt: NOW,
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow()
 
   await merge(merging)
 
-  const rows = await sql<{ customerId: number }>`select customer_id from conversations`.execute(db)
+  const repointed = await db
+    .selectFrom('conversations')
+    .select('customerId')
+    .where('id', '=', conversation.id)
+    .executeTakeFirstOrThrow()
 
-  assert.deepEqual(
-    rows.rows.map((row) => row.customerId),
-    [merging.verifiedCustomerId],
-  )
+  assert.equal(repointed.customerId, merging.verifiedCustomerId)
 })
 
 test('favorites de-duplicate rather than doubling up', async (t) => {
