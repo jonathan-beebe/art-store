@@ -11,6 +11,7 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
+use App\Models\Admin;
 use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\Fulfillment;
@@ -31,6 +32,15 @@ abstract class CommerceTestCase extends TestCase
     public function seller(string $shopName = 'Blue Kiln Studio'): Seller
     {
         return Seller::factory()->create(['shop_name' => $shopName]);
+    }
+
+    /**
+     * The admin behind `actingAs($this->admin(), 'admin')`, the way every
+     * seller-portal test signs in with `actingAs($this->seller(), 'seller')`.
+     */
+    public function admin(): Admin
+    {
+        return Admin::factory()->create();
     }
 
     public function verifiedCustomer(): Customer

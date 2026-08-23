@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers\Auth;
+
+use App\Domain\Auth\ActorType;
+use App\Models\Admin;
+use App\Models\MagicLink;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
+
+it('renders an email form', function (): void {
+    $response = $this->get('/admin/login');
+
+    $response->assertOk();
+    $response->assertSee('name="email"', escape: false);
+    $response->assertSee('action="'.route('auth.admin.send').'"', escape: false);
+});
+
+it('issues an admin link for an address with an admin row', function (): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+
+    $this->post('/admin/login', ['email' => 'ops@example.com']);
+
+    $link = MagicLink::sole();
+    expect($link->email)->toBe('ops@example.com')
+        ->and($link->actor_type)->toBe(ActorType::Admin);
+});
+
+it('issues no link and creates no admin for an address with no admin row', function (): void {
+    $this->post('/admin/login', ['email' => 'nobody@example.com']);
+
+    expect(MagicLink::count())->toBe(0)
+        ->and(Admin::count())->toBe(0);
+});
+
+it('tells the visitor to check their email either way', function (): void {
+    $known = $this->followingRedirects()->post('/admin/login', ['email' => 'unknown@example.com']);
+    $known->assertSee('Check your email');
+    $known->assertSee('unknown@example.com');
+
+    Admin::factory()->create(['email' => 'ops@example.com']);
+    $admitted = $this->followingRedirects()->post('/admin/login', ['email' => 'ops@example.com']);
+    $admitted->assertSee('Check your email');
+    $admitted->assertSee('ops@example.com');
+});
+
+it('flashes the link for the debug alert only when the address admits an admin', function (): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+
+    $this->post('/admin/login', ['email' => 'ops@example.com']);
+
+    expect(Arr::string(Session::all(), 'debug_magic_link'))->toStartWith(url('/auth/magic').'/');
+});
+
+it('sends a signed in admin to the dashboard', function (): void {
+    $response = $this->actingAs(Admin::factory()->create(), 'admin')->get('/admin/login');
+
+    $response->assertRedirect(route('admin.dashboard'));
+});

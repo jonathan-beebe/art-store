@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Override;
@@ -62,6 +63,46 @@ class Customer extends Authenticatable
     public function listingEvents(): HasMany
     {
         return $this->hasMany(ListingEvent::class);
+    }
+
+    /** @return HasMany<CustomerBlock, $this> */
+    public function blocks(): HasMany
+    {
+        return $this->hasMany(CustomerBlock::class);
+    }
+
+    /** @return HasOne<CustomerBlock, $this> */
+    public function activeBlock(): HasOne
+    {
+        return $this->blocks()->one()->whereNull('lifted_at')->latestOfMany();
+    }
+
+    /**
+     * A fresh read rather than the loaded relation, so a caller that never
+     * eager-loaded `activeBlock` still gets an answer under strict mode.
+     */
+    public function currentBlock(): ?CustomerBlock
+    {
+        return $this->activeBlock()->first();
+    }
+
+    /**
+     * A blocked customer keeps browsing, searching, and favoriting — this is
+     * the one predicate the paths that buy something and the paths that post
+     * a message both read.
+     */
+    public function canShop(): bool
+    {
+        return $this->currentBlock() === null;
+    }
+
+    /**
+     * The admin's own words for why this customer cannot buy right now, for
+     * the refusal that names them. Null when the customer is not blocked.
+     */
+    public function blockReason(): ?string
+    {
+        return $this->currentBlock()?->reason;
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\FakeCard;
@@ -21,6 +22,8 @@ final readonly class FinalizeOrder
 {
     public function __invoke(Order $order, string $cardNumber, DateTimeImmutable $now): Order
     {
+        CustomerStanding::assertCanShop($order->loadMissing('customer')->customer->blockReason());
+
         $decision = FakeCard::decide($cardNumber);
         $outcome = PaymentOutcome::fromCardDecision($decision);
         $status = $order->status->transitionTo(OrderStatus::fromCardDecision($outcome));

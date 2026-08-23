@@ -9,6 +9,7 @@ use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\CustomerBlock;
 use App\Models\Order;
 use DomainException;
 
@@ -154,6 +155,17 @@ it('refuses a listing that left the storefront while it sat in the cart', functi
         ->and($cart->items()->count())->toBe(1)
         ->and($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::Archived);
+});
+
+it('refuses a blocked customer', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
+    CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Chargeback fraud.']);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(DomainRuleViolation::class, 'Chargeback fraud.')
+        ->and(Order::count())->toBe(0);
 });
 
 it('refuses a listing whose last unit sold to someone else', function (): void {

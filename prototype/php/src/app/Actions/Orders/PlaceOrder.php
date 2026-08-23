@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Domain\Cart\CartTotals;
+use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\Fee;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\Purchaser;
@@ -20,6 +21,8 @@ final readonly class PlaceOrder
 {
     public function __invoke(Cart $cart, Purchaser $purchaser, ShippingAddress $shipping, DateTimeImmutable $now): Order
     {
+        CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
+
         $cart->load('items.listing');
         $totals = CartTotals::forCheckout($cart->lines());
 

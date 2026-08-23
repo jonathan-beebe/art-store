@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:14:14:49 — FEAT-010 — done: admin actor/site + customer blocks landed, 810 tests / 1788 assertions, make check green
+- 2026-08-23:13:59:13 — FEAT-010 — started
 
 - 2026-08-23:13:50:48 — FEAT-017 — defined: Final validation and documentation refresh
 - 2026-08-23:13:50:48 — FEAT-016 — defined: Live unread badge over eventstream sse

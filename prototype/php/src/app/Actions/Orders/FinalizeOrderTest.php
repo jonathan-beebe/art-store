@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
+use App\Models\CustomerBlock;
 use App\Models\LedgerEntry;
 use App\Notifications\ItemSold;
 use DomainException;
@@ -119,6 +121,17 @@ it('pays the order and takes the stock again on a retry with a good card', funct
     expect($listing->refresh()->quantity)->toBe(0)
         ->and($listing->status)->toBe(ListingStatus::Sold);
     expect(LedgerEntry::query()->sole()->amount_cents)->toBe(40500);
+});
+
+it('refuses a blocked customer', function (): void {
+    $customer = $this->verifiedCustomer();
+    $order = $this->orderFor($customer, $this->listing($this->seller(), ['price_cents' => 45000]));
+    CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Chargeback fraud.']);
+
+    $finalize = fn () => app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($finalize)->toThrow(DomainRuleViolation::class, 'Chargeback fraud.')
+        ->and($order->refresh()->payments()->count())->toBe(0);
 });
 
 it('refuses to charge an order that is already paid', function (): void {

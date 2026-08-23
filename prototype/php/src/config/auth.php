@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
 
@@ -43,6 +44,11 @@ return [
             'driver' => 'session',
             'provider' => 'customers',
         ],
+
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admins',
+        ],
     ],
 
     /*
@@ -63,6 +69,11 @@ return [
         'customers' => [
             'driver' => 'eloquent',
             'model' => Customer::class,
+        ],
+
+        'admins' => [
+            'driver' => 'eloquent',
+            'model' => Admin::class,
         ],
     ],
 

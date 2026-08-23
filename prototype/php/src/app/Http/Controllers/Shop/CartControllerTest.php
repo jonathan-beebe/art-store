@@ -8,6 +8,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\ListingEvent;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
@@ -24,6 +25,20 @@ it('adds a listing to the cart and records the event', function (): void {
         ->and($item->quantity)->toBe(1)
         ->and($item->cart->customer_id)->toBe($visitor->id)
         ->and(ListingEvent::sole()->type)->toBe(ListingEventType::CartAdd);
+});
+
+it('sends a blocked customer back with the reason instead of adding to the cart', function (): void {
+    $visitor = $this->visitor();
+    CustomerBlock::factory()->create(['customer_id' => $visitor->id, 'reason' => 'Chargeback fraud.']);
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->from(route('shop.listing', 'harbour-at-dawn'))
+        ->followingRedirects()
+        ->post('/cart/harbour-at-dawn');
+
+    $response->assertOk();
+    $response->assertSee('Buying is unavailable while your account is blocked: Chargeback fraud.');
+    expect(CartItem::count())->toBe(0);
 });
 
 it('shows the lines and the subtotal', function (): void {

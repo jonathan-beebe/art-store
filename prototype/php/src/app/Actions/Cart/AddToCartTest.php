@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
+use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingEventType;
+use App\Models\CustomerBlock;
 use App\Models\ListingEvent;
 use DomainException;
 
@@ -47,6 +49,18 @@ it('refuses a sold out listing', function (): void {
 
     app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
 })->throws(DomainException::class);
+
+it('refuses a blocked customer', function (): void {
+    $customer = $this->verifiedCustomer();
+    CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Chargeback fraud.']);
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller());
+
+    $add = fn () => app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+
+    expect($add)->toThrow(DomainRuleViolation::class, 'Chargeback fraud.')
+        ->and($cart->items()->count())->toBe(0);
+});
 
 it('records the add as a listing event', function (): void {
     $customer = $this->verifiedCustomer();

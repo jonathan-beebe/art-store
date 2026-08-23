@@ -31,6 +31,14 @@ final class SignOutController extends Controller
         return redirect()->route('shop.home');
     }
 
+    public function admin(Request $request): RedirectResponse
+    {
+        Auth::guard('admin')->logout();
+        $this->endSession($request);
+
+        return redirect()->route('auth.admin.login');
+    }
+
     private function endSession(Request $request): void
     {
         $request->session()->invalidate();

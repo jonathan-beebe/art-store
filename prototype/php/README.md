@@ -29,6 +29,7 @@ Then open:
 
 - Storefront — <http://localhost:8000/>
 - Seller portal — <http://localhost:8000/seller>
+- Admin — <http://localhost:8000/admin> (sign-in admits only a seeded admin address)
 
 An empty database shows an empty storefront. `make fresh` loads the demo data.
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Actions\Auth\SignInAdmin;
 use App\Actions\Auth\SignInCustomer;
 use App\Actions\Auth\SignInSeller;
 use App\Actions\Customers\ResolveCustomerFromCookie;
@@ -23,6 +24,7 @@ final class MagicLinkVerificationController extends Controller
         string $token,
         SignInSeller $signInSeller,
         SignInCustomer $signInCustomer,
+        SignInAdmin $signInAdmin,
         ResolveCustomerFromCookie $resolveFromCookie,
     ): RedirectResponse {
         $link = MagicLink::forToken($token)->first();
@@ -52,6 +54,7 @@ final class MagicLinkVerificationController extends Controller
                 $resolveFromCookie(CustomerIdentity::cookieValue($request)),
                 $now,
             ),
+            ActorType::Admin => $signInAdmin($link->email, $now),
         };
 
         $request->session()->regenerate();

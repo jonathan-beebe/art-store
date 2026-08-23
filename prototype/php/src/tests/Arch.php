@@ -76,6 +76,7 @@ arch()->preset()->laravel()
         // each route does; the preset's REST-only method vocabulary reaches
         // only as far as index/show/store/update. Every other controller is
         // held to it.
+        'App\Http\Controllers\Auth\AdminLoginController',
         'App\Http\Controllers\Auth\CustomerLoginController',
         'App\Http\Controllers\Auth\SellerLoginController',
         'App\Http\Controllers\Auth\SignOutController',

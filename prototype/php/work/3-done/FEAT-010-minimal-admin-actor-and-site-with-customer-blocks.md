@@ -1,7 +1,7 @@
 ---
 id: FEAT-010
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -42,3 +42,92 @@ Every later messaging ticket needs an admin participant and the blocked-customer
 
 ## Related work
 - FEAT-002 (magic-link identity) is the sign-in flow this extends. FEAT-011 depends on it.
+
+## Working
+
+Re-validated: the problem still applies — no `admins` table, no admin guard,
+no admin site, no `customer_blocks`, no `canShop()` on `Customer` at the start
+of this ticket.
+
+### Decisions
+
+- **A third controller, not a generalized one.** `AdminLoginController` mirrors
+  `SellerLoginController` (no `redirect_to`, since the admin site has nothing
+  like guest checkout to resume). All three login controllers stay in
+  `App\Http\Controllers\Auth` / `App\Http\Requests\Auth`, matching where
+  `SellerLoginController` and `CustomerLoginController` already live —
+  `ActorType` stays the one place that knows the three sites' route names and
+  path prefixes.
+- **Admits-only-existing-admin without a failing validation rule.**
+  `Rule::exists('admins', 'email')` would fail validation for an unknown
+  address, which is a different response (422/back with `$errors`) than the
+  "check your email" flash a known address gets — that difference is exactly
+  what "must not reveal whether the address exists" rules out. Instead
+  `SendAdminMagicLinkRequest::admits(): bool` runs the existence check
+  (untouched by `rules()`), and `AdminLoginController::send()` only calls
+  `SendMagicLink` when it is true; the redirect and flash are identical either
+  way. Verified with a same-page assertion for both the known and unknown
+  address in `AdminLoginControllerTest`.
+- **`SignInAdmin` mirrors `SignInSeller`'s `firstOrNew`** rather than refusing
+  when no admin row exists. Since `admits()` already gates who ever receives a
+  link, this only matters if an admin row is deleted between the link being
+  sent and being followed — an edge case the ticket's acceptance criteria
+  don't cover, and refusing it cleanly would mean branching
+  `MagicLinkVerificationController`'s uniform three-way `match` on a nullable
+  return from one arm only. Symmetry with the other two actors won.
+- **`RecipientType` and `ActorType` stay two enums.** `Admin` uses
+  `Notifiable`, but nothing in this ticket sends an admin a notification, so
+  the morph map (`AppServiceProvider::boot()`) is untouched. FEAT-011/FEAT-014
+  is where an admin becomes a notification recipient and that ticket adds the
+  `admin` morph alias then.
+- **The blocked-purchase message carries the reason**, per
+  `docs/messaging.md` ("the shopper lands back on the page they submitted from
+  with the reason"): `App\Domain\Customers\CustomerStanding::assertCanShop(?string
+  $blockReason)` is a pure function (scalar in, `DomainRuleViolation` out) that
+  `AddToCart`, `PlaceOrder`, and `FinalizeOrder` each call against
+  `$customer->blockReason()` before doing anything else. `Customer::canShop()`
+  stays the boolean predicate `ConversationPolicy` will read in FEAT-011.
+- **`Cart` and `CustomerBlock` gained `@property-read Customer $customer`**
+  docblocks (matching the one already on `Order`) so PHPStan understands the
+  FK is non-nullable, instead of threading `?->` through the three actions for
+  a case the schema does not allow.
+- **`BlockCustomer` does not take `DateTimeImmutable $now`.** It stamps no
+  domain timestamp of its own (Eloquent's own `created_at` is enough), and not
+  every action in the tree takes the clock (`RemoveFromCart`,
+  `MergeAnonymousCustomer`, `CreateListing` do not either) — only the ones
+  that stamp something with it. `LiftCustomerBlock` does take it, for
+  `lifted_at`.
+- Admin controllers (`SellerController`, `CustomerController`,
+  `CustomerBlockController`, `LiftCustomerBlockController`) needed no new
+  `tests/Arch.php` ignoring entries: the two list/show controllers stay inside
+  the REST vocabulary, and the two write controllers are single-`__invoke`
+  classes, the same shape as `ListingStatusController`/`ShipmentController`.
+
+### Verification
+
+`make check` (lint → PHPStan level max → full Pest suite): **810 tests
+passed, 1788 assertions**, 0 PHPStan errors, Pint clean on 356 files (up from
+the 733 tests/1643 assertions baseline this ticket started from).
+`tests/SidecarsTest` confirms every new class has a sidecar.
+`php artisan route:list` confirms all ten `/admin*` and `/admin/login`
+routes register under `auth.admin`.
+
+Manually re-ran `tests/Arch.php` directly (`vendor/bin/pest tests/Arch.php`):
+10 passed, 81 assertions, including the extended `laravel` preset ignoring
+list with `AdminLoginController` and the domain-purity/strict-types rules
+against every new class — all green.
+
+### Found, not fixed
+
+- `tests/Arch.php` is not discovered by `composer test` / `make check`.
+  `phpunit.xml`'s `tests` directory testsuite only matches `*Test.php`, and
+  the file is named `Arch.php`, so `vendor/bin/pest` (no path argument) never
+  runs it — confirmed with `vendor/bin/pest --filter "the domain core"`
+  ("No tests found") versus `vendor/bin/pest tests/Arch.php` (10 passed). This
+  predates this ticket (verified `phpunit.xml` untouched in this diff) and is
+  a repo-wide test-harness gap, not specific to the admin site this ticket
+  adds — every arch rule still passes when run directly, including the ones
+  this ticket's changes are held to, but the gate as configured is not
+  actually enforcing them on every `make check` run. Fixing the discovery
+  config is out of this ticket's scope since it could surface unrelated
+  pre-existing violations across the whole tree.
