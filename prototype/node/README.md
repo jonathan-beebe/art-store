@@ -113,6 +113,44 @@ make seed       # add the platform admins; running it twice adds nobody
 
 Tests run against `:memory:`.
 
+## Seeded accounts
+
+`make seed` adds the two platform admins, then a demo catalog, customers, and
+order history — all through the same actions the sites call, with a frozen
+clock so the dates read the same on any day. The demo half refuses to run
+twice: it does nothing once a seller row exists, so a second `make seed` (or
+the one `make fresh` runs for you) only confirms the admins are still there.
+Sign in as any address below from that site's `/login` page — the debug alert
+prints the magic link.
+
+**Admins** — seeded only, never created by signing in.
+
+| Email | Name |
+| --- | --- |
+| `jonathan-beebe@outlook.com` | Jonathan Beebe |
+| `annaschmunk@pm.me` | Anna Schmunk |
+
+**Sellers** — all four verified, each with a shop and part of a ~30-listing
+catalog across six media (painting, print, ceramic, textile, sculpture,
+photography): 24 `for_sale` (one, "Night Freight", carries an admin's
+temporary removal and is off the storefront despite its status), 3 `draft`,
+2 `sold`.
+
+| Email | Name | Shop |
+| --- | --- | --- |
+| `maya@example.com` | Maya Reyes | Terra & Glaze Ceramics |
+| `noah@example.com` | Noah Chen | North Light Editions |
+| `priya@example.com` | Priya Anand | Priya Anand Textile Studio |
+| `leo@example.com` | Leo Martins | Leo Martins Photography |
+
+**Customers**
+
+| Email | State |
+| --- | --- |
+| `casey@example.com` | Verified. 3 favorites, 6 viewed listings, an in-progress cart, and orders in `paid`, `shipped`, and `delivered` states. |
+| `jordan@example.com` | Verified, blocked by an admin (`customer_blocks`). |
+| _(3 anonymous)_ | No address given; each has view history on a few listings. |
+
 ## Weekly payouts
 
 Escrow released by a confirmed delivery is settled a week at a time.
