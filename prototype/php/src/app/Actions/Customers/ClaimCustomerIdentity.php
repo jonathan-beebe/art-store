@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customers;
 
 use App\Domain\Auth\EmailAddress;
 use App\Domain\Customers\CustomerIdentityAction;
 use App\Domain\Customers\CustomerIdentityPlan;
 use App\Models\Customer;
+use LogicException;
 
 final readonly class ClaimCustomerIdentity
 {
@@ -23,14 +26,21 @@ final readonly class ClaimCustomerIdentity
 
         $plan = CustomerIdentityPlan::decide($anonymousId, $owner?->id);
 
+        // CustomerIdentityPlan::decide() sets SignInExisting and MergeAnonymousInto
+        // only when it was given a non-null verified id, and ClaimAnonymous and
+        // MergeAnonymousInto only when given a non-null anonymous id, so $owner and
+        // $current are the rows those ids came from.
         return match ($plan->action) {
             CustomerIdentityAction::CreateVerified => Customer::create([
                 'email' => $address,
                 'email_verified_at' => now(),
             ]),
-            CustomerIdentityAction::SignInExisting => $this->verify($owner),
-            CustomerIdentityAction::ClaimAnonymous => $this->claim($current, $address),
-            CustomerIdentityAction::MergeAnonymousInto => ($this->merge)($current, $this->verify($owner)),
+            CustomerIdentityAction::SignInExisting => $this->verify($owner ?? throw new LogicException('SignInExisting requires an existing owner.')),
+            CustomerIdentityAction::ClaimAnonymous => $this->claim($current ?? throw new LogicException('ClaimAnonymous requires the current customer.'), $address),
+            CustomerIdentityAction::MergeAnonymousInto => ($this->merge)(
+                $current ?? throw new LogicException('MergeAnonymousInto requires the current customer.'),
+                $this->verify($owner ?? throw new LogicException('MergeAnonymousInto requires an existing owner.')),
+            ),
         };
     }
 

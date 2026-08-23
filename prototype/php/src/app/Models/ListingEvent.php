@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
@@ -21,11 +23,13 @@ class ListingEvent extends Model
         ];
     }
 
+    /** @return BelongsTo<Listing, $this> */
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
     }
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Domain\Orders\FulfillmentStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('fulfillments', function (Blueprint $table) {
+        Schema::create('fulfillments', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete();
             $table->foreignId('seller_id')->constrained()->cascadeOnDelete();

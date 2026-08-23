@@ -15,11 +15,14 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.10",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1",
         "phpunit/phpunit": "^12.5.12"
     },
     "autoload": {
@@ -51,10 +54,24 @@
             "@php artisan dev"
         ],
         "test": [
-            "@php vendor/bin/phpunit"
+            "@php vendor/bin/pest"
         ],
         "test:coverage": [
-            "@php vendor/bin/phpunit --coverage-text --coverage-html coverage"
+            "@php vendor/bin/pest --coverage --coverage-html coverage"
+        ],
+        "analyse": [
+            "@php vendor/bin/phpstan analyse"
+        ],
+        "lint": [
+            "@php vendor/bin/pint --test"
+        ],
+        "lint:fix": [
+            "@php vendor/bin/pint"
+        ],
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

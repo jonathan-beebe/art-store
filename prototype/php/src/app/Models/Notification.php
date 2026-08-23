@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Notifications\RecipientType;
@@ -20,11 +22,13 @@ class Notification extends Model
         return ['read_at' => 'datetime'];
     }
 
+    /** @return BelongsTo<Seller, $this> */
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
     }
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
@@ -38,12 +42,14 @@ class Notification extends Model
         };
     }
 
+    /** @param Builder<$this> $query */
     #[Scope]
     protected function unread(Builder $query): void
     {
         $query->whereNull('read_at');
     }
 
+    /** @param Builder<$this> $query */
     #[Scope]
     protected function for(Builder $query, RecipientType $recipient, int $recipientId): void
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use PHPUnit\Framework\TestCase;
@@ -29,6 +31,6 @@ class PlaceholderImageTest extends TestCase
         $uri = PlaceholderImage::dataUri('Blue Heron');
 
         $this->assertStringStartsWith('data:image/svg+xml;base64,', $uri);
-        $this->assertSame(PlaceholderImage::svg('Blue Heron'), base64_decode(substr($uri, strlen('data:image/svg+xml;base64,'))));
+        $this->assertSame(PlaceholderImage::svg('Blue Heron'), base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')), true));
     }
 }

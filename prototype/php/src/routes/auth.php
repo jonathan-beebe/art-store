@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Auth\CustomerLoginController;
 use App\Http\Controllers\Auth\MagicLinkVerificationController;
 use App\Http\Controllers\Auth\SellerLoginController;

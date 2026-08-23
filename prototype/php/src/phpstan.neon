@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: max
+    parseModelCastsMethod: true
+    checkConfigTypes: true
+    configDirectories:
+        - config
+    paths:
+        - app
+        - database
+        - routes
+    excludePaths:
+        - app/**/*Test.php
+        - database/**/*Test.php
+        - routes/**/*Test.php

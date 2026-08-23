@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Escrow\LedgerEntryType;
@@ -12,6 +14,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read Seller $seller
+ */
 #[Fillable(['seller_id', 'fulfillment_id', 'payout_id', 'type', 'amount_cents', 'occurred_at'])]
 class LedgerEntry extends Model
 {
@@ -27,16 +32,19 @@ class LedgerEntry extends Model
         ];
     }
 
+    /** @return BelongsTo<Seller, $this> */
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
     }
 
+    /** @return BelongsTo<Fulfillment, $this> */
     public function fulfillment(): BelongsTo
     {
         return $this->belongsTo(Fulfillment::class);
     }
 
+    /** @return BelongsTo<Payout, $this> */
     public function payout(): BelongsTo
     {
         return $this->belongsTo(Payout::class);
@@ -47,6 +55,7 @@ class LedgerEntry extends Model
         return LedgerMovement::of($this->type, Money::fromCents($this->amount_cents));
     }
 
+    /** @param Builder<$this> $query */
     #[Scope]
     protected function occurredBy(Builder $query, DateTimeInterface $moment): void
     {

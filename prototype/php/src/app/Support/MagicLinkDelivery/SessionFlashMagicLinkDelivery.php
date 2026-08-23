@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support\MagicLinkDelivery;
 
 use Illuminate\Contracts\Session\Session;

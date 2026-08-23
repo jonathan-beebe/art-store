@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Favorites;
 
 use App\Domain\Listings\ListingEventType;

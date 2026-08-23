@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('notifications', function (Blueprint $table) {
+        Schema::create('notifications', function (Blueprint $table): void {
             $table->id();
             // Exactly one of the two recipients is set. Separate columns rather
             // than a recipient type and id keep the foreign keys real and let

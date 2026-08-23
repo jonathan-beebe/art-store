@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
@@ -16,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @property-read Seller $seller
+ */
 #[Fillable([
     'seller_id', 'title', 'slug', 'description', 'price_cents',
     'quantity', 'status', 'image_path', 'medium', 'dimensions',
@@ -37,16 +42,19 @@ class Listing extends Model
         ];
     }
 
+    /** @return BelongsTo<Seller, $this> */
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
     }
 
+    /** @return HasMany<ListingEvent, $this> */
     public function events(): HasMany
     {
         return $this->hasMany(ListingEvent::class);
     }
 
+    /** @return HasMany<Favorite, $this> */
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
@@ -64,12 +72,14 @@ class Listing extends Model
             : Storage::disk('public')->url($this->image_path);
     }
 
+    /** @param Builder<$this> $query */
     #[Scope]
     protected function forSale(Builder $query): void
     {
         $query->where('status', ListingStatus::ForSale);
     }
 
+    /** @param Builder<$this> $query */
     #[Scope]
     protected function withEventCounts(Builder $query): void
     {

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingDraft;
@@ -29,9 +31,12 @@ final class CreateListing
      */
     private function slugsStartingWith(string $base): array
     {
-        return Listing::query()
+        /** @var list<string> $slugs */
+        $slugs = array_values(Listing::query()
             ->where('slug', 'like', $base.'%')
             ->pluck('slug')
-            ->all();
+            ->all());
+
+        return $slugs;
     }
 }

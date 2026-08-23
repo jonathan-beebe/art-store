@@ -1,0 +1,13 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "declare_strict_types": true,
+        "strict_comparison": true,
+        "strict_param": true,
+        "fully_qualified_strict_types": true,
+        "global_namespace_import": true,
+        "no_superfluous_phpdoc_tags": true,
+        "void_return": true,
+        "nullable_type_declaration_for_default_null_value": true
+    }
+}

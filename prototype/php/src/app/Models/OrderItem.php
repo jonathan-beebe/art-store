@@ -1,11 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read Order $order
+ * @property-read Listing $listing
+ * @property-read Seller $seller
+ */
 #[Fillable(['order_id', 'listing_id', 'seller_id', 'title', 'unit_price_cents', 'quantity'])]
 class OrderItem extends Model
 {
@@ -20,16 +27,19 @@ class OrderItem extends Model
         ];
     }
 
+    /** @return BelongsTo<Order, $this> */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
+    /** @return BelongsTo<Listing, $this> */
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
     }
 
+    /** @return BelongsTo<Seller, $this> */
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);

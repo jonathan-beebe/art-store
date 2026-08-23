@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Orders;
 
 use App\Actions\Notifications\Notify;
@@ -48,6 +50,7 @@ final class FinalizeOrder
             match ($status) {
                 OrderStatus::Paid => $this->completePayment($order, $now),
                 OrderStatus::PaymentFailed => $this->releaseStock($order),
+                default => null,
             };
 
             return $order->refresh();

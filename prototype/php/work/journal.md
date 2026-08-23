@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-23:09:00:00 — MAINT-001 — done: Pint clean (259 files, strict_types tree-wide), PHPStan level max at 47 errors (target ≤45; gap is RFCTR-002/RFCTR-003/BUG-002 territory, itemized in Working), tests/Pest.php binds sidecar base classes, 471 tests green, make check/analyse/lint added
+- 2026-08-23:07:30:00 — MAINT-001 — started
+
 - 2026-08-23:07:15:58 — MAINT-002 — defined: Final validation — analyzer at zero on app and tests, docs current
 - 2026-08-23:07:15:58 — IMPRV-001 — defined: Behavioral test gaps, factories for every model, and seeders through actions
 - 2026-08-23:07:15:58 — RFCTR-008 — defined: Blade components and resourceful seller routes

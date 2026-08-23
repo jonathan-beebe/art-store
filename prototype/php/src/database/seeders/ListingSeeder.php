@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Domain\Listings\ListingStatus;
@@ -36,7 +38,7 @@ class ListingSeeder extends Seeder
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return list<array{seller: string, title: string, medium: string, dimensions: string, price_cents: int, description: string, status: ListingStatus, quantity: int}>
      */
     private function listings(): array
     {
@@ -118,7 +120,7 @@ class ListingSeeder extends Seeder
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{seller: string, title: string, medium: string, dimensions: string, price_cents: int, description: string, status: ListingStatus, quantity: int}
      */
     private function entry(
         string $seller,

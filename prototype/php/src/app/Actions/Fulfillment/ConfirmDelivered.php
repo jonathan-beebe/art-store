@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;

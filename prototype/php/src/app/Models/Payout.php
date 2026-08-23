@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Money\Money;
@@ -8,6 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property-read Seller $seller
+ */
 #[Fillable(['seller_id', 'period_start', 'period_end', 'amount_cents', 'paid_at'])]
 class Payout extends Model
 {
@@ -24,11 +29,13 @@ class Payout extends Model
         ];
     }
 
+    /** @return BelongsTo<Seller, $this> */
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
     }
 
+    /** @return HasMany<LedgerEntry, $this> */
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(LedgerEntry::class);

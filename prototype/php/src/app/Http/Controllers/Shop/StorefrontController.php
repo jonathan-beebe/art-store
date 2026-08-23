@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\ListingSearch;
@@ -54,13 +56,16 @@ final class StorefrontController extends ShopController
      */
     private function mediaForSale(): array
     {
-        return Listing::query()
+        /** @var list<string> $media */
+        $media = array_values(Listing::query()
             ->forSale()
             ->whereNotNull('medium')
             ->distinct()
             ->orderBy('medium')
             ->pluck('medium')
-            ->all();
+            ->all());
+
+        return $media;
     }
 
     private function submitted(Request $request, string $key): ?string

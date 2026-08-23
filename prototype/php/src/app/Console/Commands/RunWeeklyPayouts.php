@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Actions\Escrow\RunWeeklyPayout;
@@ -10,8 +12,10 @@ use Illuminate\Console\Command;
 
 final class RunWeeklyPayouts extends Command
 {
+    /** @var string */
     protected $signature = 'payouts:run {--as-of= : Settle as if it were this date, defaults to today}';
 
+    /** @var string */
     protected $description = 'Pay every seller the escrow released in the Monday-to-Sunday week that just ended';
 
     public function handle(RunWeeklyPayout $runWeeklyPayout): int

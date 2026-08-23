@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Orders;
 
 use App\Domain\Orders\OrderStatus;
@@ -12,7 +14,7 @@ final class RollUpOrderStatus
     {
         $order->update([
             'status' => OrderStatus::fromFulfillments(
-                $order->fulfillments()->get()->map(fn (Fulfillment $fulfillment) => $fulfillment->status)->all(),
+                array_values($order->fulfillments()->get()->map(fn (Fulfillment $fulfillment) => $fulfillment->status)->all()),
             ),
         ]);
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Cart\CurrentCart;
@@ -32,6 +34,7 @@ abstract class ShopController extends Controller
     }
 
     /**
+     * @param  view-string  $view
      * @param  array<string, mixed>  $data
      */
     protected function page(string $view, array $data = []): View

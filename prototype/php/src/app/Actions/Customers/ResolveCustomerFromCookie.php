@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customers;
 
 use App\Models\Customer;
@@ -20,7 +22,8 @@ final readonly class ResolveCustomerFromCookie
         }
 
         $mergedInto = CustomerMerge::where('anonymous_customer_id', $id)->value('customer_id');
+        $mergedIntoId = filter_var($mergedInto, FILTER_VALIDATE_INT);
 
-        return Customer::find($mergedInto ?? $id);
+        return Customer::find($mergedIntoId === false ? $id : $mergedIntoId);
     }
 }

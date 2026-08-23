@@ -176,10 +176,17 @@ same port shape as magic links will carry email later.
 
 ## Testing
 
-- PHPUnit (ships with Laravel). Tests are **sidecars**: `Foo.php` →
+- Pest (ships with PHPUnit underneath). Tests are **sidecars**: `Foo.php` →
   `FooTest.php` in the same directory. `phpunit.xml` scans `app/`, `routes/`,
   and `database/` for `*Test.php` (the last one added for the seeders under
   `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
+- `tests/Pest.php` binds each sidecar directory to the base class its test
+  files already `extends`: `Tests\CommerceTestCase` for `app/Actions`,
+  `app/Console/Commands`, `app/Http/Controllers/Seller`, and
+  `app/Models/ListingTest.php`; `Tests\StorefrontTestCase` for
+  `app/Http/Controllers/Shop` and `tests/SmokeTest.php`;
+  `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
+  `app/Http/Middleware`, and `database/seeders`.
 - One exception to the sidecar rule: `tests/SmokeTest.php`, the end-to-end
   walk, has no production file to sit beside. It is its own `Smoke` testsuite
   (`make smoke`) and runs inside `make test` as well.
@@ -193,6 +200,12 @@ same port shape as magic links will carry email later.
   actual numbers are FEAT-008's to report, in `docs/review.md`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
+- The gate: `make check` (`composer check`) runs Pint (`declare_strict_types`
+  enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
+  `level: max` over `app`, `database`, `routes` (model casts and config types
+  understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
+  full Pest suite. `make analyse` and `make lint` run the first two alone,
+  against the file tree only (`--no-deps`, no web server).
 
 ## Repository layout
 

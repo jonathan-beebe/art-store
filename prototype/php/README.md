@@ -48,9 +48,16 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make test` | `docker compose run --rm app composer test` |
 | `make smoke` | `docker compose run --rm app composer test -- --testsuite Smoke` |
 | `make coverage` | `docker compose run --rm app composer test:coverage` |
+| `make analyse` | `docker compose run --rm --no-deps --entrypoint composer app analyse` |
+| `make lint` | `docker compose run --rm --no-deps --entrypoint composer app lint` |
+| `make check` | `docker compose run --rm --no-deps --entrypoint composer app check` |
 | `make migrate` | `docker compose run --rm app php artisan migrate` |
 | `make fresh` | `docker compose run --rm app php artisan migrate:fresh --seed` |
 | `make logs` | `docker compose logs -f` |
+
+`make check` runs lint, then static analysis, then the test suite, stopping at
+the first failure. `analyse` and `lint` skip the container entrypoint (no web
+server needed for a static run).
 
 Run any other tool the same way:
 
@@ -65,13 +72,20 @@ docker compose exec app php artisan tinker      # against the running server
 ```sh
 make test                                                    # whole suite
 make smoke                                                   # the end-to-end walk alone
+make check                                                   # lint + analyse + test
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-471 tests. Tests are sidecars: `Money.php` and `MoneyTest.php` sit in the same
-directory. `phpunit.xml` scans `app/`, `routes/`, and `database/` for
-`*Test.php`; there is no `tests/Feature` or `tests/Unit`. Domain tests extend
-`PHPUnit\Framework\TestCase`; HTTP tests extend `Tests\TestCase`.
+471 tests, run by Pest. Tests are sidecars: `Money.php` and `MoneyTest.php` sit
+in the same directory. `phpunit.xml` scans `app/`, `routes/`, and `database/`
+for `*Test.php`; there is no `tests/Feature` or `tests/Unit`. Domain tests
+extend `PHPUnit\Framework\TestCase`; HTTP tests extend `Tests\TestCase`.
+`tests/Pest.php` binds `Tests\CommerceTestCase`, `Tests\StorefrontTestCase`,
+and `Tests\TestCase` + `RefreshDatabase` to the sidecar directories they serve.
+
+Static analysis (`make analyse`) runs PHPStan/Larastan at `level: max` over
+`app`, `database`, and `routes`; formatting (`make lint`) runs Pint with
+`declare(strict_types=1)` enforced on every file.
 
 `src/tests/SmokeTest.php` is the exception to the sidecar rule: one HTTP walk of
 the whole product — seller sign-in, listing, sale, guest checkout, magic-link

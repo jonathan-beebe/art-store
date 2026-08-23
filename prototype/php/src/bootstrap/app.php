@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Middleware\ResolveCustomerIdentity;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;

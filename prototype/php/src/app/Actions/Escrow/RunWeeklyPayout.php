@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Escrow;
 
 use App\Domain\Escrow\LedgerBalance;
@@ -21,11 +23,10 @@ final class RunWeeklyPayout
     {
         $period = PayoutPeriod::endingBefore($asOf);
 
-        return DB::transaction(fn (): array => $this->balancesBySeller($period)
+        return DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
             ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
             ->map(fn (LedgerBalance $balance, int $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
-            ->values()
-            ->all());
+            ->all()));
     }
 
     /**
@@ -38,7 +39,7 @@ final class RunWeeklyPayout
             ->get()
             ->groupBy('seller_id')
             ->map(fn (Collection $entries): LedgerBalance => LedgerBalance::from(
-                $entries->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all(),
+                array_values($entries->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all()),
             ));
     }
 
