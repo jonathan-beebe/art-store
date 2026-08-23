@@ -122,3 +122,47 @@ A reviewer's first move is `make fresh` and a click through the three sites. Emp
   constraints) — pre-existing, out of scope, and not what this ticket's
   idempotence outcome asked for (that outcome is read here as scoped to the
   two seeders this ticket adds).
+
+## Review
+
+Probed the seeded demo against the live stack and every Outcome bullet the
+seeders own. `make fresh` twice, then `db:seed --class=AdminSeeder` and
+`--class=MessagingSeeder` over the already-seeded database: 1 admin, 4
+conversations, 11 messages (4 read / 7 unread), 1 FAQ, 16 notifications —
+identical before and after the second run. `Conversation::openFor` is a
+`firstOrCreate`, so a re-run does not restamp `last_message_at` either. The
+FAQ's `source_message_id` resolves to Priya's answer message (body matches
+the published answer). `NotifyOfMessage` notifies
+`Conversation::otherParticipant`, so no seeded message notifies its own
+sender; 5 + 11 = 16 holds. Live unread counts match the seeded read walk:
+Priya 2, Casey 2, the admin 2, Noah 1.
+
+Three changes:
+
+- `tests/SmokeTest.php` — `askSellerAQuestion` asserted a bare
+  `assertRedirect()` and never opened the thread, so the step wrote a row
+  without checking the page its own comment claims the visitor lands on. It
+  now pins the redirect to `shop.messages.show` and reads the question off
+  that page.
+- `tests/SmokeTest.php` — the FAQ visibility step ran on the client that had
+  just asked the question, which does not show the answer reaching anyone
+  else. It is now `seeFaqAsAnotherVisitor`: a second anonymous visitor
+  arrives, reads the question and answer on the listing page, and the walk's
+  own visitor is pinned again for checkout. `verifyEmailFromDebugAlert`
+  moved off `Customer::sole()` onto the order's own customer, since a second
+  visitor row makes `sole()` ambiguous.
+- `MessagingSeederTest` — the read/unread spread and the per-actor unread
+  counts were `toBeGreaterThan(0)`; the seeder is deterministic, so they are
+  exact now (7 unread / 4 read; Priya 2, Noah 1, Casey 2, admin 2), and the
+  FAQ test asserts `source_message_id` points at Priya's answer.
+
+`DatabaseSeederTest` pins no idempotence test at all — the Discovery note's
+"what `DatabaseSeederTest` pins today" was already false when the ticket was
+written. The Outcome's second-run clause is pinned in `AdminSeederTest` and
+`MessagingSeederTest` instead, and `MessagingSeederTest`'s second run is over
+a fully seeded database. Left as the worker scoped it: a full `db:seed` over
+a seeded database still fails on `SellerSeeder`'s unique email, which is
+pre-existing and outside this ticket.
+
+`make check`: 1099 tests, 2467 assertions, PHPStan level max clean, Pint
+clean. `make coverage`: 100.0%. README's assertion count updated to 2467.

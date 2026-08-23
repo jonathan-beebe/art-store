@@ -77,7 +77,7 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1099 tests (2460 assertions), run by Pest — `it()`/`test()` functions, no
+1099 tests (2467 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;

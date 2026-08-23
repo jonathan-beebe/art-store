@@ -127,11 +127,15 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
      * question route opens the thread and lands the visitor on it.
      */
     $askSellerAQuestion = function (Listing $listing): Conversation {
-        $this->post("/art/{$listing->slug}/questions", ['body' => 'Does this arrive ready to hang?'])
-            ->assertRedirect();
+        $asked = $this->post("/art/{$listing->slug}/questions", ['body' => 'Does this arrive ready to hang?']);
 
         $conversation = Conversation::sole();
+        $asked->assertRedirect(route('shop.messages.show', $conversation));
         expect(Message::sole()->body)->toBe('Does this arrive ready to hang?');
+
+        $this->get(route('shop.messages.show', $conversation))
+            ->assertOk()
+            ->assertSee('Does this arrive ready to hang?');
 
         return $conversation;
     };
@@ -162,14 +166,20 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     /**
-     * The published answer reads on the listing page itself, with no gate
-     * of its own — the storefront visibility the feature exists for.
+     * The published answer reads on the listing page for a second visitor,
+     * one who asked nothing and holds no thread — the storefront visibility
+     * the feature exists for. The walk's own visitor is pinned again after,
+     * since the identity cookie is what carries them through checkout.
      */
-    $seeFaqOnListingPage = function (Listing $listing): void {
+    $seeFaqAsAnotherVisitor = function (Listing $listing, Customer $asker): void {
+        $this->arriveAs($this->anonymousCustomer());
+
         $this->get("/art/{$listing->slug}")
             ->assertOk()
             ->assertSee('Does this arrive ready to hang?')
             ->assertSee('Yes, it ships ready to hang with the wire already attached.');
+
+        $this->arriveAs($asker);
     };
 
     $favoriteListing = function (Listing $listing): void {
@@ -219,7 +229,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
             ->assertRedirect(route('shop.order.pay', $order, absolute: false));
 
         $this->assertAuthenticated('customer');
-        expect(Customer::sole()->email_verified_at)->not->toBeNull();
+        expect(Customer::findOrFail($order->customer_id)->email_verified_at)->not->toBeNull();
     };
 
     $payWithApprovedCard = function (Order $order) use ($net): void {
@@ -294,7 +304,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
 
     $conversation = $askSellerAQuestion($listing);
     $sellerRepliesAndPublishesFaq($conversation, $listing);
-    $seeFaqOnListingPage($listing);
+    $seeFaqAsAnotherVisitor($listing, $visitor);
 
     $favoriteListing($listing);
     $addListingToCart($listing);

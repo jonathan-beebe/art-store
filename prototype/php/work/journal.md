@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:17:06:00 — FEAT-015 — reviewed: seeder idempotence probed live (make fresh twice, then both seeders again over the seeded database — counts identical), FAQ source_message_id pinned to Priya's answer, exact per-actor unread counts, smoke walk now asserts the thread page the asker lands on and shows the published answer to a second visitor; 1099 tests / 2467 assertions, 100.0% coverage
 - 2026-08-23:17:05:00 — FEAT-015 — done: AdminSeeder + MessagingSeeder (one conversation per kind, 11 messages with a read/unread spread, one published FAQ), SmokeTest ask→reply→publish→visible walk, README seeded-accounts update; 1099 tests / 2460 assertions
 - 2026-08-23:16:51:43 — FEAT-015 — started
 - 2026-08-23:16:38:45 — FEAT-014 — reviewed: two full support round trips through the admin site (seller and storefront), admin replies to a blocked customer, 404 on a bogus seller/customer id for the two message-X POSTs, admin inbox pinned to six queries across both support kinds; two-admins-two-threads confirmed faithful to the design's participant-pair subject; 1090 tests / 2425 assertions, 100.0% coverage
