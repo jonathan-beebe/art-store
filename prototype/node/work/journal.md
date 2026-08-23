@@ -10,10 +10,11 @@
 - MAINT: 1
 - A11Y: 1
 - RFCTR: 1
-- BUG: 1
+- BUG: 2
 
 ## Log
 
+- 2026-08-22:21:08:15 — BUG-001 — defined: admin lift routes answer 500 when the request has no body
 - 2026-08-22:21:05:34 — FEAT-007 — done: messaging center — one `conversations` table across four kinds with `messages` and `listing_faqs`, pure access/find-or-open/unread-fold/validation in app/core/messaging, six actions plus the shared inbox and thread reads, inboxes and threads on all three sites, ask-a-question on the listing page with FAQ publish/edit/unpublish, support and fulfillment threads, in-app notification per message, unread badges in every layout, seeded demo threads and one published FAQ
 - 2026-08-22:20:37:31 — FEAT-007 — started
 - 2026-08-22:20:30:42 — FEAT-006 — done: admin site — dashboard, sellers/customers, filterable listings/orders/fulfillments/payouts/ledger tables, accounting that reconciles with the ledger, site stats, the four moderation writes behind one route factory, the weekly payout run, everything behind requireAdmin, and a root onResponse page-view rollup
