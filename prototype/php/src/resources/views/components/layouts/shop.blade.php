@@ -1,13 +1,15 @@
+@props(['title' => 'Art Store'])
+
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'Art Store')</title>
+    <title>{{ $title }}</title>
     @vite(['resources/css/app.css'])
 </head>
 <body class="h-full bg-white text-neutral-900 antialiased">
-    @include('partials.debug-alert')
+    <x-debug-alert />
 
     <header class="border-b border-neutral-100">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-4 px-8 py-6">
@@ -51,7 +53,7 @@
             </div>
         @endif
 
-        @yield('content')
+        {{ $slot }}
     </main>
 </body>
 </html>

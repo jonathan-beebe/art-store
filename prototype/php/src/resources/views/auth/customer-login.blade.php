@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Sign in — Art Store')
-
-@section('content')
+<x-layouts.shop title="Sign in — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Sign in</h1>
 
     @if (session('sent_to'))
@@ -38,4 +34,4 @@
     </form>
 
     <p class="mt-6 max-w-md text-neutral-600">No password, no account to create. Anything already in your cart comes with you.</p>
-@endsection
+</x-layouts.shop>

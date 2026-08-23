@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Notifications — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Notifications — Art Store seller">
     <h1 class="text-xl font-semibold">Notifications</h1>
 
     @if ($notifications->isEmpty())
@@ -35,4 +31,4 @@
             @endforeach
         </ul>
     @endif
-@endsection
+</x-layouts.seller>

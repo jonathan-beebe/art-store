@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Art Store')
-
-@section('content')
+<x-layouts.shop title="Art Store">
     <div class="flex flex-wrap items-end justify-between gap-8">
         <h1 class="max-w-2xl text-4xl font-semibold leading-tight tracking-tight">
             @if ($search->hasTerm())
@@ -39,10 +35,10 @@
     @else
         <ul class="mt-14 grid grid-cols-1 gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ($listings as $listing)
-                <li>@include('shop.partials.listing-card', ['listing' => $listing])</li>
+                <li><x-listing-card :listing="$listing" /></li>
             @endforeach
         </ul>
 
         <div class="mt-16">{{ $listings->links() }}</div>
     @endif
-@endsection
+</x-layouts.shop>

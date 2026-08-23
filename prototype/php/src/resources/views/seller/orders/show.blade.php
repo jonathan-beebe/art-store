@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Order #'.$fulfillment->order_id.' — Art Store seller')
-
-@section('content')
+<x-layouts.seller :title="'Order #'.$fulfillment->order_id.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
         <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
@@ -105,4 +101,4 @@
             </dl>
         @endcan
     </section>
-@endsection
+</x-layouts.seller>

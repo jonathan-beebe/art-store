@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Sign in — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Sign in — Art Store seller">
     <h1 class="text-xl font-semibold">Sign in</h1>
 
     @if (session('sent_to'))
@@ -34,4 +30,4 @@
     </form>
 
     <p class="mt-4 text-gray-600">No password. Selling for the first time? The link creates your shop.</p>
-@endsection
+</x-layouts.seller>

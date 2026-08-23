@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', $listing->title.' — Art Store seller')
-
-@section('content')
+<x-layouts.seller :title="$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
         <p class="text-gray-600">{{ $listing->status->label() }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
@@ -89,4 +85,4 @@
             </div>
         @endif
     </section>
-@endsection
+</x-layouts.seller>

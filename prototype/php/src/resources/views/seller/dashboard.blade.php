@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Dashboard — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Dashboard — Art Store seller">
     <h1 class="text-xl font-semibold">Dashboard</h1>
 
     <section aria-labelledby="listings-heading" class="mt-6">
@@ -60,4 +56,4 @@
             <p class="mt-2"><a href="{{ route('seller.notifications.index') }}" class="text-gray-700 underline">All notifications</a></p>
         @endif
     </section>
-@endsection
+</x-layouts.seller>

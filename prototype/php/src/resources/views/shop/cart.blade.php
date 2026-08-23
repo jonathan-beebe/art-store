@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Cart — Art Store')
-
-@section('content')
+<x-layouts.shop title="Cart — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Cart</h1>
 
     @if ($cart->items->isEmpty())
@@ -49,4 +45,4 @@
             </a>
         </div>
     @endif
-@endsection
+</x-layouts.shop>

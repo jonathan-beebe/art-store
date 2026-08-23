@@ -1,3 +1,5 @@
+@props(['listing'])
+
 <article>
     <a href="{{ route('shop.listing', $listing) }}" class="block">
         <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"

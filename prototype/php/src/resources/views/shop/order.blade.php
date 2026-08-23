@@ -1,9 +1,4 @@
-@extends('layouts.shop')
-
-
-@section('title', 'Order #'.$order->id.' — Art Store')
-
-@section('content')
+<x-layouts.shop :title="'Order #'.$order->id.' — Art Store'">
     <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
@@ -31,7 +26,7 @@
 
             <form method="POST" action="{{ route('shop.order.pay.submit', $order) }}" class="mt-4">
                 @csrf
-                @include('shop.partials.card-fields')
+                <x-card-fields />
 
                 <button type="submit" class="mt-8 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
                     Pay {{ $order->total() }}
@@ -88,4 +83,4 @@
             </address>
         </aside>
     </div>
-@endsection
+</x-layouts.shop>

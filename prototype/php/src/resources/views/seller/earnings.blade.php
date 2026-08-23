@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Earnings — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Earnings — Art Store seller">
     <h1 class="text-xl font-semibold">Earnings</h1>
 
     <section aria-labelledby="balances-heading" class="mt-6">
@@ -101,4 +97,4 @@
             <span class="ml-2 text-gray-600">Debug control: settles every seller's released escrow for the last completed week.</span>
         </form>
     </section>
-@endsection
+</x-layouts.seller>

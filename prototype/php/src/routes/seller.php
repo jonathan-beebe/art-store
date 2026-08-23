@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Seller\DashboardController;
 use App\Http\Controllers\Seller\EarningsController;
-use App\Http\Controllers\Seller\ListingActivityController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingStatusController;
 use App\Http\Controllers\Seller\NotificationController;
@@ -16,12 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');
 
-    Route::get('listings', [ListingController::class, 'index'])->name('listings.index');
-    Route::get('listings/create', [ListingController::class, 'create'])->name('listings.create');
-    Route::post('listings', [ListingController::class, 'store'])->name('listings.store');
-    Route::get('listings/{listing}', ListingActivityController::class)->name('listings.show');
-    Route::get('listings/{listing}/edit', [ListingController::class, 'edit'])->name('listings.edit');
-    Route::post('listings/{listing}', [ListingController::class, 'update'])->name('listings.update');
+    Route::resource('listings', ListingController::class)->except('destroy');
     Route::post('listings/{listing}/status', ListingStatusController::class)->name('listings.status');
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');

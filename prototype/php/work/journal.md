@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:10:45:20 — IMPRV-001 — started
+- 2026-08-23:10:45:20 — RFCTR-008 — done: Anonymous Blade components for the listing card, card fields, debug alert, form field, and both layouts; seller listings as Route::resource with PUT update; activity view folded into ListingController::show
 - 2026-08-23:10:28:14 — RFCTR-008 — started
 - 2026-08-23:10:28:14 — RFCTR-007 — done: OrderPaid and FulfillmentShipped events with after-commit listeners; ItemSold, OrderShipped, MagicLinkIssued as Laravel notifications on the database channel plus a SessionFlashChannel; notifications table in the framework shape with a morph map; MagicLinkDelivery port and Notify action removed
 - 2026-08-23:09:58:43 — RFCTR-007 — started

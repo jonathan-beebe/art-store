@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Your account — Art Store')
-
-@section('content')
+<x-layouts.shop title="Your account — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Your account</h1>
 
     <dl class="mt-10 max-w-md">
@@ -42,4 +38,4 @@
             @endforeach
         </ul>
     @endif
-@endsection
+</x-layouts.shop>

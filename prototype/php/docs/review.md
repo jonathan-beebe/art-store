@@ -14,13 +14,13 @@ a stated gap; **missing** — not built.
 | Create an account | done | `auth.seller.login`, `auth.seller.send`, `auth.magic.verify` | `Auth\SellerLoginControllerTest`, `Requests\Auth\SendMagicLinkRequestTest`, `Auth\MagicLinkVerificationControllerTest` |
 | Add items straight after sign-in | done | `seller.listings.create`, `seller.listings.store` | `Seller\ListingControllerTest`, `Requests\Seller\ListingRequestTest` |
 | Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest`, `Requests\Seller\ListingRequestTest`, `Requests\Seller\ChangeListingStatusRequestTest`, `Models\ListingTest`, `Policies\ListingPolicyTest` |
-| Activity per listing: views, favorites, cart adds | done | `seller.listings.show` | `Seller\ListingActivityControllerTest`, `Domain\Reports\ActivityTimelineTest` |
+| Activity per listing: views, favorites, cart adds | done | `seller.listings.show` | `Seller\ListingControllerTest`, `Domain\Reports\ActivityTimelineTest` |
 | Reports on sales | done | `seller.earnings` (Sales table) | `Seller\EarningsControllerTest` |
 | Tools for fulfillment | done | `seller.orders.index`, `.show`, `.ship` | `Seller\OrderControllerTest`, `Seller\ShipmentControllerTest`, `Requests\Seller\MarkShippedRequestTest`, `Policies\FulfillmentPolicyTest` |
 | Accumulated earnings and payouts | done | `seller.earnings`, `seller.earnings.payout` | `Seller\EarningsControllerTest`, `Seller\PayoutControllerTest`, `Actions\Escrow\RunWeeklyPayoutTest` |
 | Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `shop.home` | `Tests\SmokeTest` |
 | Magic links, no passwords | done | `auth.magic.verify` | `Auth\MagicLinkVerificationControllerTest` |
-| Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `layouts/seller` | none (visual) |
+| Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `<x-layouts.seller>` | none (visual) |
 
 The portal uses `table`, `dl`, `fieldset`/`legend`, `address`, and `caption`
 with no component library and no font download; `Dockerfile` and
@@ -40,7 +40,7 @@ with no component library and no font download; `Dockerfile` and
 | Failed payments | done | same route, retry form on `shop.order` | `Shop\OrderPaymentControllerTest`, `Actions\Orders\FinalizeOrderTest` |
 | Guest checkout, verification before finalizing | done | `shop.checkout.place` → `auth.magic.verify` → `shop.order.pay` | `Shop\CheckoutControllerTest`, `Requests\Shop\CheckoutRequestTest`, `Tests\SmokeTest` |
 | Whole purchase and fulfillment flow mocked | done | the chain above plus `seller.orders.ship`, `shop.order.delivered` | `Tests\SmokeTest`, `Actions\Orders\OrderLifecycleTest` |
-| Theme: bright, open, wares over brand | done | `layouts/shop` | none (visual) |
+| Theme: bright, open, wares over brand | done | `<x-layouts.shop>` | none (visual) |
 
 ## Fulfillment, escrow, payout
 
@@ -86,7 +86,7 @@ with no component library and no font download; `Dockerfile` and
 | Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
 | Customer site for browsing | done | `/` |
 | Mocked cart and payment with a fake card, success and failure | done | `Domain\Payments\FakeCard` — 4242… approves, 4000…0002 and 4000…9995 decline, anything else is an invalid number |
-| Magic links for both sides, printed to the screen in a debug alert | done | `Notifications\MagicLinkIssued` on `Notifications\Channels\SessionFlashChannel` → `partials/debug-alert` |
+| Magic links for both sides, printed to the screen in a debug alert | done | `Notifications\MagicLinkIssued` on `Notifications\Channels\SessionFlashChannel` → `<x-debug-alert>` |
 | A hook where email goes later | done | `toMail()` on every notification; `config/magic_links.php` → `delivery=mail` and `config/notifications.php` → `channels` turn it on |
 | Guest checkout requiring verification before the order finalizes | done | `Shop\CheckoutController::place` |
 | Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-008 |

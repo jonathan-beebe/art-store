@@ -64,7 +64,7 @@ it('answers another sellers listing before it validates the form', function () u
     $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
 
     $response = $this->actingAs($this->seller(), 'seller')
-        ->post("/seller/listings/{$listing->id}", $form(['title' => '']));
+        ->put("/seller/listings/{$listing->id}", $form(['title' => '']));
 
     $response->assertNotFound();
     $response->assertSessionHasNoErrors();

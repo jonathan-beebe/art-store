@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'New listing — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="New listing — Art Store seller">
     <h1 class="text-xl font-semibold">New listing</h1>
 
     <form method="POST" action="{{ route('seller.listings.store') }}" enctype="multipart/form-data"
@@ -18,4 +14,4 @@
             <a href="{{ route('seller.listings.index') }}" class="text-gray-700 underline">Cancel</a>
         </div>
     </form>
-@endsection
+</x-layouts.seller>

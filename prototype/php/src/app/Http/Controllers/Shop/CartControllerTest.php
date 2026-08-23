@@ -51,6 +51,16 @@ it('removes a line', function (): void {
     expect(CartItem::count())->toBe(0);
 });
 
+it('renders the remove button as a DELETE form', function (): void {
+    $this->visitor();
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $this->post('/cart/harbour-at-dawn');
+
+    $response = $this->get('/cart');
+
+    $response->assertSee('<input type="hidden" name="_method" value="DELETE">', escape: false);
+});
+
 it('refuses a listing that is not for sale', function (): void {
     $this->visitor();
     $this->listing($this->seller(), [

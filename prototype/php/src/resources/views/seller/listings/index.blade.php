@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Listings — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Listings — Art Store seller">
     <div class="flex items-center gap-4">
         <h1 class="text-xl font-semibold">Listings</h1>
         <a href="{{ route('seller.listings.create') }}" class="ml-auto rounded bg-gray-900 px-4 py-2 font-medium text-white">New listing</a>
@@ -60,4 +56,4 @@
             </table>
         </div>
     @endif
-@endsection
+</x-layouts.seller>
