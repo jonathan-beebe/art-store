@@ -14,6 +14,12 @@
 
 ## Log
 
+- 2026-08-22:21:59:58 — FEAT-010 — done: final validation — clean first run from an empty tree in 27s, a curl walk of 116 checks with no 500, a six-test smoke walk from the seller's sign-in to the weekly payout, the removal rule and `dollarsInputValue` moved into `app/core`, one `statusLabel` and one `parseIdParam` for all three sites, nine dead exports deleted, `runWeeklyPayout` no longer collides on an already-settled period, plus `docs/review.md` and a rewritten `README.md`
+- 2026-08-22:21:35:03 — FEAT-009 — done: docs — architecture.md corrected against the code (versions, app/plugins, site queries, commerce-schema, cli, delivery ports, customerStanding under core/moderation, the order state machine, the smoke test), plus identity/orders/escrow/messaging/admin/data-model/ontology docs and a README index, and `make docs-check` rendering all 19 Mermaid blocks through minlag/mermaid-cli
+- 2026-08-22:21:19:35 — BUG-001 — done: no admin write route answers 500 for a bodiless post — `formBody(request)` reads an absent body as an empty form at every throwing `zod.parse` site across all four sites, and `moderationRoute` safeParses and answers 400 when the form does not hold together
+- 2026-08-22:21:14:19 — FEAT-010 — started
+- 2026-08-22:21:11:55 — BUG-001 — started
+- 2026-08-22:21:09:04 — FEAT-009 — started
 - 2026-08-22:21:08:15 — BUG-001 — defined: admin lift routes answer 500 when the request has no body
 - 2026-08-22:21:05:34 — FEAT-007 — done: messaging center — one `conversations` table across four kinds with `messages` and `listing_faqs`, pure access/find-or-open/unread-fold/validation in app/core/messaging, six actions plus the shared inbox and thread reads, inboxes and threads on all three sites, ask-a-question on the listing page with FAQ publish/edit/unpublish, support and fulfillment threads, in-app notification per message, unread badges in every layout, seeded demo threads and one published FAQ
 - 2026-08-22:20:37:31 — FEAT-007 — started
