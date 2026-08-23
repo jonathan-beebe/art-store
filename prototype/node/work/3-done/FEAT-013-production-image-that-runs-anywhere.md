@@ -1,7 +1,7 @@
 ---
 id: FEAT-013
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -63,3 +63,100 @@ This ticket depends on FEAT-011 (its `HEALTHCHECK` targets `/health`) and FEAT-0
 - 06-tests-views.md — "Tailwind is rebuilt on every container start, and there is no production image"
 - 07-showcase.md — showcase opportunity #3 (multi-stage, non-root, production-deps Dockerfile)
 - Depends on FEAT-011 and FEAT-012
+
+## Working
+
+Re-validated against current code: FEAT-011 (`/health`) and FEAT-012
+(`node:sqlite`, no compiler toolchain) had already landed, so the ticket's
+own precondition — build this after both — is satisfied. `docker-compose.yml`
+already carried a `healthcheck:` (added by another ticket in flight); left
+it untouched per instructions and only added `build.target: dev`.
+
+**Changed:**
+- `Dockerfile` — rewritten as three named stages on one `base`:
+  `FROM node:24.19.0-bookworm-slim` (pinned; `docker pull node:24-bookworm-slim`
+  resolves to `v24.19.0` today, ≥ the 24.15 floor where the `node:sqlite`
+  `ExperimentalWarning` stops printing). `dev` is byte-for-byte the old
+  single-stage image (entrypoint, `HOME=/tmp`, `--watch` CMD) so `make up`'s
+  behavior is unchanged — verified by inspecting the built image's
+  Entrypoint/Cmd/Env and diffing `docker compose config`. `build` runs
+  `npm ci` (full deps, for the Tailwind CLI) and `npm run assets` once, at
+  build time. `runtime` runs `npm ci --omit=dev`, copies `app/` and the
+  built `public/app.css` `--chown=node:node`, sets `NODE_ENV=production`,
+  `DATABASE_FILE`/`UPLOADS_DIR` defaults pointing at `storage/` and
+  `public/uploads/` (created and chowned to `node`), declares both as
+  `VOLUME`s, runs as `USER node`, carries a `HEALTHCHECK` against `/health`
+  (same `node -e fetch` form as the compose healthcheck, since the image has
+  no `curl`), and `CMD ["node", "app/server.ts"]` — no `--watch`, no
+  entrypoint, no seeding.
+- `docker-compose.yml` — `build: .` → `build: { context: ., target: dev }`.
+  Nothing else touched.
+- `.dockerignore` (new) — mirrors and extends `.gitignore` (`src/node_modules`,
+  `src/coverage`, `src/public/app.css`, `src/public/uploads`, the SQLite
+  files) plus `docs/`, `work/`, `__local__/`, `.git/`.
+- `Makefile` — added `image` (`docker build --target runtime -t art-store-node .`)
+  and `run-image` (`docker run --rm -p 4100:4000 art-store-node`) targets
+  plus their names in `.PHONY`; fixed the `seed` target's comment (was
+  "adds the platform operators" only — `seed.ts` seeds admins *and* the full
+  demo catalog, and both halves are idempotent). Did not touch `fresh`
+  (owned by a concurrent worker).
+- `docker/entrypoint.sh` — fixed the comment above `node app/db/seed.ts`
+  to state it seeds admins and demo data, both idempotent (was "reference
+  data, not demo data").
+- `src/package.json` — added `"engines": { "node": ">=24.15" }` only (the
+  16-char string-only comment field and everything else untouched).
+- `README.md` — new "Deployment" section between Health and Seeded accounts:
+  the three targets, `make image`/`make run-image` (and their raw `docker`
+  equivalents), the explicit `node app/db/migrate.ts` step (the runtime
+  image never seeds), the two volumes and their env-var defaults, a pointer
+  to the Configuration table for the full env var list. Updated the Layout
+  tree's `Dockerfile`/`docker-compose.yml`/`docker/entrypoint.sh`/`Makefile`
+  one-liners for the new stages/target/dev-only-entrypoint/new targets, and
+  added `.dockerignore` to the tree.
+
+**Verified (Docker 29, all containers/images removed after except the
+final `art-store-node` image):**
+- `docker build --target runtime -t art-store-node .` from `prototype/node` —
+  succeeds.
+- `docker run --rm art-store-node node --version` → `v24.19.0` (≥ 24.15).
+- `docker run --rm art-store-node id -u` → `1000` (not root).
+- `docker run --rm art-store-node ls node_modules | grep -c eslint` → `0`.
+- `docker run --rm -v <vol>:/var/www/src/storage -e COOKIE_SECRET=...
+  art-store-node node app/db/migrate.ts` — all 10 migrations apply cleanly
+  against a fresh volume.
+- `docker run --rm -p 4100:4000 -v <storage-vol> -v <uploads-vol>
+  -e COOKIE_SECRET=... art-store-node` then `curl http://127.0.0.1:4100/health`
+  → `200 {"status":"ok","checks":{"database":"ok","migrations":"current"},...}`;
+  the container's own `HEALTHCHECK` also reports `"Status":"healthy"` after
+  the second probe. `COOKIE_SECRET` was supplied defensively; `config.ts` on
+  this branch still defaults it (BUG-006, which will require it, is a
+  concurrent in-flight change, not yet landed as of this run).
+- `docker build --target dev -t art-store-node-dev .` — succeeds;
+  `docker inspect` shows `Entrypoint=[entrypoint] Cmd=[node --watch
+  app/server.ts]`, matching the pre-change image.
+- Image size: **289MB** (`docker images art-store-node` → `289MB`; base
+  `node:24.19.0-bookworm-slim` alone is 248MB, so the 87 production packages
+  plus app code and the built stylesheet add ~41MB).
+
+**Left alone / could not verify:**
+- `npm run check` (typecheck, lint, coverage) is currently red on `main`
+  of this worktree for reasons outside this ticket's territory: BUG-006 is
+  mid-flight and has added `environment`/`publicUrl`/`trustProxy`/
+  `secureCookies`/`showsDebugMagicLinks` to `AppConfig` in `app/config.ts`
+  without yet updating `app/test/build-test-app.ts` to match (a `tsc`
+  error) or trimming `loadConfig`'s complexity back under the eslint limit
+  (a lint error), and one route test (`home.test.ts`) currently expects a
+  `role="alert"` debug banner that isn't rendering yet. None of the three
+  touch any file in this ticket's territory or in the diff above; confirmed
+  via `git diff --stat` that `config.ts` and `build-test-app.ts` are
+  modified-but-uncommitted (another worker's in-progress edit), not files
+  this ticket changed. `npm test` (no coverage gate) on the current tree:
+  1376 run, 1375 pass, 1 fail (the `home.test.ts` case above) — the same
+  single pre-existing failure, unrelated to this ticket's diff. Did not
+  attempt to fix any of it; it is BUG-006's territory. The orchestrator
+  should re-run `npm run check` once BUG-006 lands.
+- Did not add a compiler toolchain or a placeholder healthcheck (the ticket
+  flagged both as unnecessary once FEAT-011/FEAT-012 land, and they had).
+- Did not touch the Configuration table in README (another worker's
+  in-flight addition per the brief) — the new Deployment section points at
+  it by reference instead of restating it.

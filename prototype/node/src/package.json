@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": { "node": ">=24.15" },
   "//": "node:sqlite is a release candidate, so Node 24.12 prints an ExperimentalWarning on import; --disable-warning silences it. Node 24.15 and later print nothing and the flag becomes a no-op. The test runner gives each test file its own process, which inherits NODE_OPTIONS but not the parent's flags.",
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning app/server.ts",

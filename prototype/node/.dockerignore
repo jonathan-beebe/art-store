@@ -1,0 +1,16 @@
+# Mirrors and extends .gitignore: keep the build context small and keep
+# host-only state (installed deps, generated assets, the database, uploads)
+# out of every image, dev included — the build stage installs and builds its
+# own copies.
+src/node_modules/
+src/coverage/
+src/public/app.css
+src/public/uploads/
+src/storage/*.sqlite3
+src/storage/*.sqlite3-shm
+src/storage/*.sqlite3-wal
+
+docs/
+work/
+__local__/
+.git/

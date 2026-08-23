@@ -1,6 +1,8 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: dev
     # The Makefile exports the host uid and gid so files the container writes
     # into the bind mount belong to the host user.
     user: "${UID:-1000}:${GID:-1000}"

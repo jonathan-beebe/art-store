@@ -78,6 +78,62 @@ orchestrator taking the container out of rotation) logs, flips `/health` to
 `draining`, waits for in-flight requests to finish, closes the database, and
 force-exits after 10 seconds if `close()` hangs.
 
+## Deployment
+
+`Dockerfile` has three targets. `dev` is today's bind-mount workflow — `make
+build` and `make up` build this target, unchanged. `build` installs every
+dependency once and compiles the Tailwind stylesheet at image build time
+rather than at container start. `runtime` is the production image:
+`npm ci --omit=dev`, `app/` and the built `public/app.css` copied in (no
+bind mount), `NODE_ENV=production`, `USER node`, and a `HEALTHCHECK` against
+`/health`.
+
+Build it:
+
+```sh
+make image
+```
+
+Equivalent to `docker build --target runtime -t art-store-node .` from
+`prototype/node`. On `node:24.19.0-bookworm-slim` with 87 production
+packages (dev-only packages — eslint, typescript, typescript-eslint, the
+Tailwind CLI — never enter the image), the result is 289MB.
+
+The image has no entrypoint and does not seed. Migrate explicitly before the
+first run:
+
+```sh
+docker run --rm \
+  -v art-store-storage:/var/www/src/storage \
+  -e COOKIE_SECRET=<32+ random bytes> \
+  art-store-node node app/db/migrate.ts
+```
+
+Then run it:
+
+```sh
+make run-image
+```
+
+Equivalent to
+`docker run --rm -p 4100:4000 art-store-node` (port 4100, so it never
+collides with `make up`'s 4000). Mount both declared volumes to persist
+state across restarts — `storage` (the SQLite file, `DATABASE_FILE` defaults
+to `storage/production.sqlite3` inside the image) and `public/uploads`
+(`UPLOADS_DIR`, listing images) — or every restart starts from an empty
+database and an empty upload directory:
+
+```sh
+docker run --rm -p 4100:4000 \
+  -v art-store-storage:/var/www/src/storage \
+  -v art-store-uploads:/var/www/src/public/uploads \
+  -e COOKIE_SECRET=<32+ random bytes> \
+  art-store-node
+```
+
+See Configuration above for every variable `app/config.ts` reads;
+`COOKIE_SECRET` is the one worth setting explicitly outside development.
+
 ## Seeded accounts
 
 `make seed` (and the entrypoint on every start) adds the two platform admins,
@@ -396,12 +452,14 @@ properties, no namespaces — use `as const` string unions instead.
 ```
 prototype/node/
   README.md            this file
-  Dockerfile            node:24-bookworm-slim, no compiler toolchain
-  docker-compose.yml    one service: app
+  .dockerignore
+  Dockerfile            node:24.19.0-bookworm-slim, no compiler toolchain;
+                         dev/build/runtime targets — see Deployment
+  docker-compose.yml    one service: app, built from the dev target
   docker/
-    entrypoint.sh        install, migrate, seed, build assets, then the container command
+    entrypoint.sh        dev only: install, migrate, seed, build assets, then the container command
     docs-check.sh        renders every Mermaid block under docs/ through mermaid-cli
-  Makefile               host-side wrappers over docker compose
+  Makefile               host-side wrappers over docker compose, plus image/run-image
   docs/                  architecture.md (the spec) + feature docs + review.md
     README.md, architecture.md, identity.md, orders.md, escrow.md,
     messaging.md, admin.md, data-model.md, ontology.md, review.md
