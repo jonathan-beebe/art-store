@@ -7,6 +7,7 @@ module Shop
 
       @purchasable = @listing.purchasable?
       @favorited = current_customer.favorited?(@listing)
+      @faqs = @listing.faqs.oldest_first
     end
   end
 end

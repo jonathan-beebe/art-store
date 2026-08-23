@@ -1,0 +1,17 @@
+<div>
+  <%= form.label :question, "Question", class: "block font-medium text-neutral-700" %>
+  <%= form.text_area :question, rows: 2, maxlength: ListingFaq::QUESTION_LIMIT,
+        "aria-describedby": form.object.errors[:question].first && "#{form.field_id(:question)}-error",
+        class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+  <%= render "seller/shared/field_error",
+        field: form.field_id(:question), message: form.object.errors[:question].first %>
+</div>
+
+<div class="mt-3">
+  <%= form.label :answer, "Answer", class: "block font-medium text-neutral-700" %>
+  <%= form.text_area :answer, rows: 4, maxlength: ListingFaq::ANSWER_LIMIT,
+        "aria-describedby": form.object.errors[:answer].first && "#{form.field_id(:answer)}-error",
+        class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+  <%= render "seller/shared/field_error",
+        field: form.field_id(:answer), message: form.object.errors[:answer].first %>
+</div>

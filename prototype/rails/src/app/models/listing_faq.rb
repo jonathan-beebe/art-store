@@ -7,6 +7,8 @@ class ListingFaq < ApplicationRecord
   # of a thread. The entry outlives the thread.
   belongs_to :source_message, class_name: "Message", optional: true
 
+  scope :oldest_first, -> { order(:created_at, :id) }
+
   normalizes :question, :answer, with: ->(text) { text.strip }
 
   validates :question,
@@ -15,6 +17,19 @@ class ListingFaq < ApplicationRecord
   validates :answer,
     presence: { message: "Enter the answer." },
     length: { maximum: ANSWER_LIMIT, message: "Keep the answer under #{ANSWER_LIMIT} characters." }
+
+  # The entry a thread offers to publish: what the customer last asked and
+  # what the seller last answered, with that answer as its source. Nil until a
+  # question on a listing has both sides.
+  def self.draft_from(conversation)
+    return nil unless conversation.listing_question?
+
+    question = conversation.latest_message_from(conversation.customer)
+    answer = conversation.latest_message_from(conversation.seller)
+    return nil if question.nil? || answer.nil?
+
+    new(listing: conversation.subject, question: question.body, answer: answer.body, source_message: answer)
+  end
 
   # Puts one answered question on the listing page for everyone. A row exists
   # only while the entry is published, so the storefront reads the table with

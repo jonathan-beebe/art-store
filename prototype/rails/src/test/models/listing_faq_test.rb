@@ -79,6 +79,46 @@ class ListingFaqTest < ActiveSupport::TestCase
     assert_predicate ListingFaq.new(listing: listing, question: "a", answer: "b" * 2_001), :invalid?
   end
 
+  test "entries read in the order they were published" do
+    listing = create_listing
+    first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
+    second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
+
+    assert_equal [first, second], listing.faqs.oldest_first.to_a
+  end
+
+  test "a draft from a thread pairs the last question with the last answer" do
+    conversation = answered_question
+    buyer = conversation.customer
+    conversation.post!(buyer, "What wood is the frame?", at: moment("2026-08-21 11:00:00"))
+    answer = conversation.post!(conversation.seller, "Maple.", at: moment("2026-08-21 12:00:00"))
+
+    draft = ListingFaq.draft_from(conversation)
+
+    assert_equal "What wood is the frame?", draft.question
+    assert_equal "Maple.", draft.answer
+    assert_equal answer, draft.source_message
+    assert_equal conversation.subject, draft.listing
+    assert_predicate draft, :new_record?
+  end
+
+  test "a thread the seller has not answered drafts nothing" do
+    shop = create_seller
+    buyer = create_verified_customer
+    conversation = Conversation.open(
+      kind: :listing_question, seller: shop, customer: buyer, subject: create_listing(shop)
+    )
+    conversation.post!(buyer, "Is the frame included?")
+
+    assert_nil ListingFaq.draft_from(conversation)
+  end
+
+  test "a thread that is not a question on a listing drafts nothing" do
+    conversation = Conversation.open(kind: :admin_seller, admin: create_admin, seller: create_seller)
+
+    assert_nil ListingFaq.draft_from(conversation)
+  end
+
   test "a listing carries its entries away with it" do
     listing = create_listing
     ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
@@ -86,5 +126,20 @@ class ListingFaqTest < ActiveSupport::TestCase
     listing.destroy!
 
     assert_equal 0, ListingFaq.count
+  end
+
+  private
+
+  # A question a customer asked on a listing and the seller answered.
+  def answered_question
+    shop = create_seller
+    buyer = create_verified_customer
+    conversation = Conversation.open(
+      kind: :listing_question, seller: shop, customer: buyer, subject: create_listing(shop)
+    )
+    conversation.post!(buyer, "Is the frame included?", at: moment("2026-08-21 09:00:00"))
+    conversation.post!(shop, "It is.", at: moment("2026-08-21 10:00:00"))
+
+    conversation
   end
 end

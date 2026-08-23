@@ -322,6 +322,25 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal "“Harbour at Dusk”", conversation.topic
   end
 
+  test "the latest message from a side is the last thing that side said" do
+    shop = create_seller
+    buyer = create_verified_customer
+    conversation = listing_question(shop, buyer)
+    conversation.post!(buyer, "Is the frame included?", at: moment("2026-08-21 09:00:00"))
+    conversation.post!(shop, "It is.", at: moment("2026-08-21 10:00:00"))
+    latest = conversation.post!(buyer, "What wood?", at: moment("2026-08-21 11:00:00"))
+
+    assert_equal latest, conversation.latest_message_from(buyer)
+    assert_equal "It is.", conversation.latest_message_from(shop).body
+  end
+
+  test "a side that has said nothing has no latest message" do
+    buyer = create_verified_customer
+    conversation = listing_question(create_seller, buyer)
+
+    assert_nil conversation.latest_message_from(buyer)
+  end
+
   test "a thread carries the messages it holds away with it" do
     buyer = create_verified_customer
     conversation = listing_question(create_seller, buyer)

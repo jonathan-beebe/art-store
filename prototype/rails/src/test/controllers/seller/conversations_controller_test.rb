@@ -86,6 +86,44 @@ class Seller::ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-unread-messages]", text: "1"
   end
 
+  test "an answered question offers to publish the pair" do
+    seller = signed_in_seller
+    question = listing_question(seller)
+    question.post!(question.customer, "Is the frame included?", at: moment("2026-08-21 09:00:00"))
+    answer = question.post!(seller, "It is, in maple.", at: moment("2026-08-21 10:00:00"))
+
+    get seller_conversation_path(question)
+
+    assert_select "h2", text: "Publish as FAQ"
+    assert_select "form[action=?][method=post]", seller_listing_faqs_path(question.subject)
+    assert_select "input[name=?][value=?]", "listing_faq[source_message_id]", answer.id.to_s
+    assert_select "textarea[name=?]", "listing_faq[question]", text: /Is the frame included\?/
+    assert_select "textarea[name=?]", "listing_faq[answer]", text: /It is, in maple\./
+  end
+
+  test "a question the seller has not answered offers nothing to publish" do
+    seller = signed_in_seller
+    question = listing_question(seller)
+    question.post!(question.customer, "Is the frame included?")
+
+    get seller_conversation_path(question)
+
+    assert_select "h2", text: "Publish as FAQ", count: 0
+  end
+
+  test "a thread about an order offers nothing to publish" do
+    seller = signed_in_seller
+    fulfillment = create_fulfillment(seller)
+    thread = Conversation.open(
+      kind: :fulfillment, seller: seller, customer: fulfillment.order.customer, subject: fulfillment
+    )
+    thread.post!(seller, "It ships tomorrow.")
+
+    get seller_conversation_path(thread)
+
+    assert_select "h2", text: "Publish as FAQ", count: 0
+  end
+
   test "a thread the seller is not in is not found" do
     signed_in_seller
 

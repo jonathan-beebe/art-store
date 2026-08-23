@@ -40,3 +40,32 @@
     </div>
   </div>
 </article>
+
+<% if @faqs.any? %>
+  <section aria-labelledby="faqs-heading" class="mt-20 max-w-2xl">
+    <h2 id="faqs-heading" class="text-2xl font-light tracking-tight">Questions and answers</h2>
+
+    <dl class="mt-8 space-y-8">
+      <% @faqs.each do |faq| %>
+        <div data-faq="<%= faq.id %>">
+          <dt class="text-lg font-medium"><%= faq.question %></dt>
+          <dd class="mt-2 whitespace-pre-line text-lg leading-relaxed text-neutral-700"><%= faq.answer %></dd>
+        </div>
+      <% end %>
+    </dl>
+  </section>
+<% end %>
+
+<section aria-labelledby="ask-heading" class="mt-20 max-w-2xl">
+  <h2 id="ask-heading" class="text-2xl font-light tracking-tight">Ask the seller a question</h2>
+
+  <%= form_with url: shop_listing_questions_path(slug: @listing.slug), scope: :message,
+        html: { class: "mt-6" } do |form| %>
+    <%= form.label :body, "Your question", class: "sr-only" %>
+    <%= form.text_area :body, rows: 4, maxlength: Message::BODY_LIMIT,
+          placeholder: "Is the frame included?",
+          class: "w-full rounded-2xl border border-neutral-300 px-5 py-4 text-lg" %>
+
+    <%= form.submit "Send question", class: "mt-4 rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
+  <% end %>
+</section>

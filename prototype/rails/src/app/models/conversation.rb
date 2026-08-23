@@ -97,6 +97,11 @@ class Conversation < ApplicationRecord
     end
   end
 
+  # The last thing one side of the thread said.
+  def latest_message_from(actor)
+    messages.where(sender: actor).order(created_at: :desc, id: :desc).first
+  end
+
   def unread_count_for(actor)
     messages.unread_for(actor).count
   end

@@ -24,6 +24,7 @@ Rails.application.routes.draw do
 
     resources :listings, only: %i[index show new create edit update] do
       resource :status, only: :create, controller: "listing_statuses"
+      resources :faqs, only: %i[index create update destroy]
     end
 
     resources :orders, only: %i[index show] do
@@ -63,6 +64,7 @@ Rails.application.routes.draw do
 
   namespace :shop, path: "" do
     get "art/:slug", to: "listings#show", as: :listing
+    post "art/:slug/questions", to: "listing_questions#create", as: :listing_questions
 
     get "favorites", to: "favorites#index", as: :favorites
     post "art/:slug/favorite", to: "favorites#toggle", as: :toggle_favorite
