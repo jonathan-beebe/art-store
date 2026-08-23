@@ -18,7 +18,8 @@
     "migrate": "node --disable-warning=ExperimentalWarning app/db/migrate.ts",
     "fresh": "node --disable-warning=ExperimentalWarning app/db/migrate.ts --fresh",
     "seed": "node --disable-warning=ExperimentalWarning app/db/seed.ts",
-    "payouts": "node --disable-warning=ExperimentalWarning app/cli/run-payouts.ts"
+    "payouts": "node --disable-warning=ExperimentalWarning app/cli/run-payouts.ts",
+    "outbox": "node --disable-warning=ExperimentalWarning app/cli/drain-outbox.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

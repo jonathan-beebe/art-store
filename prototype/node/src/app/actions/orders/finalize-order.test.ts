@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { finalizeOrder } from './finalize-order.ts'
-import type { DeliverableNotification } from '../../core/notifications/notification-delivery.ts'
+import type { DeliveryContext } from '../../delivery/delivery-context.ts'
+import type { DeliverableNotification } from '../../delivery/notification-delivery.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import {
   APPROVED_CARD,
@@ -195,7 +196,11 @@ test('a notificationDelivery passed on the context receives the delivered notifi
   const order = await placedOrder(context, buyer, [art.id])
 
   const delivered: DeliverableNotification[] = []
-  const notificationDelivery = { deliver: async (n: DeliverableNotification) => { delivered.push(n) } }
+  const notificationDelivery = {
+    deliver: async (_context: DeliveryContext, n: DeliverableNotification) => {
+      delivered.push(n)
+    },
+  }
 
   await finalizeOrder({ ...context, notificationDelivery }, { orderId: order.id, cardNumber: APPROVED_CARD })
 

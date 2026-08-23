@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
@@ -18,8 +18,9 @@ import { flashSchema } from '../plugins/flash.ts'
 /** Frozen so payout periods and link expiries read the same whatever day it is. */
 export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
 
-/** `uploadsDir` here is never read: `buildTestApp` always builds a fresh
- * per-test temp directory unless a caller supplies its own `config`. */
+/** `uploadsDir` and `outboxDir` here are never read: `buildTestApp` always
+ * builds fresh per-test temp directories unless a caller supplies its own
+ * `config`. */
 export const TEST_CONFIG: AppConfig = {
   environment: 'test',
   host: '127.0.0.1',
@@ -29,6 +30,7 @@ export const TEST_CONFIG: AppConfig = {
   logLevel: 'silent',
   magicLinkDelivery: 'flash',
   uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
+  outboxDir: path.join(tmpdir(), 'art-store-test-outbox-unused'),
   publicUrl: null,
   trustProxy: false,
   secureCookies: false,
@@ -52,13 +54,15 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
 
   const clock = overrides.clock ?? fixedClock(TEST_INSTANT)
 
-  // A config override brings its own uploadsDir; otherwise each test app
-  // gets an isolated temp directory removed with everything else it built.
-  let uploadsDir: string | null = null
+  // A config override brings its own directories; otherwise each test app gets
+  // isolated temp ones, removed with everything else it built.
+  let temporaryRoot: string | null = null
   let config = overrides.config
   if (config === undefined) {
-    uploadsDir = await mkdtemp(path.join(tmpdir(), 'art-store-uploads-'))
-    config = { ...TEST_CONFIG, uploadsDir }
+    temporaryRoot = await mkdtemp(path.join(tmpdir(), 'art-store-test-'))
+    const uploadsDir = path.join(temporaryRoot, 'uploads')
+    await mkdir(uploadsDir)
+    config = { ...TEST_CONFIG, uploadsDir, outboxDir: path.join(temporaryRoot, 'outbox') }
   }
 
   const app = buildApp({
@@ -76,7 +80,7 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
     close: async () => {
       await app.close()
       await db.destroy()
-      if (uploadsDir !== null) await rm(uploadsDir, { recursive: true, force: true })
+      if (temporaryRoot !== null) await rm(temporaryRoot, { recursive: true, force: true })
     },
   }
 }

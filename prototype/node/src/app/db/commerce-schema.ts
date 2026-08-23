@@ -169,6 +169,22 @@ export type NotificationsTable = {
   readAt: Timestamp | null
 }
 
+/**
+ * A message waiting to leave the application. Written inside the transaction
+ * that caused it; `deliveredAt` is null exactly while the message is pending,
+ * and the drain stamps it once the message has been written out.
+ */
+export type OutboxMessagesTable = {
+  id: Generated<number>
+  /** The email address the message is addressed to. */
+  recipient: string
+  subject: string
+  body: string
+  url: string | null
+  createdAt: Timestamp
+  deliveredAt: Timestamp | null
+}
+
 export type PageViewCountsTable = {
   id: Generated<number>
   site: PageViewSite
@@ -232,6 +248,7 @@ export type CommerceTables = {
   payouts: PayoutsTable
   ledgerEntries: LedgerEntriesTable
   notifications: NotificationsTable
+  outboxMessages: OutboxMessagesTable
   pageViewCounts: PageViewCountsTable
   conversations: ConversationsTable
   messages: MessagesTable
@@ -252,6 +269,7 @@ export type Fulfillment = Selectable<FulfillmentsTable>
 export type Payout = Selectable<PayoutsTable>
 export type LedgerEntry = Selectable<LedgerEntriesTable>
 export type Notification = Selectable<NotificationsTable>
+export type OutboxMessage = Selectable<OutboxMessagesTable>
 export type Conversation = Selectable<ConversationsTable>
 export type Message = Selectable<MessagesTable>
 export type ListingFaq = Selectable<ListingFaqsTable>

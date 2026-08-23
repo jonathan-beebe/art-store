@@ -110,7 +110,7 @@ a stated gap; **missing** — not built.
 | Customer site for browsing | done | `/` — `app/sites/shop/routes/home.ts` |
 | Mocked cart and payment, fake card, success and failure | done | `app/core/payments/fake-card.ts` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is `invalid_card_number` |
 | Magic links for artists and customers, printed to a debug alert | done | `flashMagicLinkDelivery` → `app/views/partials/debug-alert.ejs` |
-| A hook where email can be added later | partial | `mailMagicLinkDelivery` throws `NotImplementedError`; `NotificationDelivery` (`app/core/notifications/notification-delivery.ts`) is a port type with no implementation at all, wired to nothing (`ActionContext.notificationDelivery` stays `undefined` in the running app) |
+| A hook where email can be added later | done | Both ports have a working implementation over a transactional outbox — `outboxMagicLinkDelivery` and `outboxNotificationDelivery` (`app/delivery/`), draining to `.eml` files (`npm run outbox`, `POST /admin/outbox/drain`) and readable on `/admin/outbox`. A real transport is a third implementation and no call site changes |
 | Guest checkout requiring verification before finalizing | done | `POST /checkout` → `GET/POST /orders/:id/pay` — `app/sites/shop/routes/checkout.test.ts` |
 | Work orchestrated and delivered by Opus/Sonnet agents | done | `work/journal.md`, `work/3-done/FEAT-001` … `FEAT-010` plus `BUG-001` |
 | Delivered in `./prototype/node/` with a README and a docs folder | done | `prototype/node/README.md`, `prototype/node/docs/` |
@@ -164,16 +164,15 @@ a stated gap; **missing** — not built.
 
 ## Known gaps
 
-1. **Mail delivery is a raising hook.** `mailMagicLinkDelivery.deliver()`
-   (`app/delivery/mail-magic-link-delivery.ts`) throws `NotImplementedError`,
-   and `NotificationDelivery` (`app/core/notifications/notification-delivery.ts`)
-   is a port type with no implementation anywhere in the tree — no
-   `mailNotificationDelivery`, nothing selectable by config.
-   `ActionContext.notificationDelivery` is optional and stays `undefined` in
-   the running app, so the prototype's notifications are the `notifications`
-   rows themselves, read from each site's inbox. Setting
-   `MAGIC_LINK_DELIVERY=mail` breaks sign-in outright; there is no equivalent
-   env var for the notification port because nothing implements it to select.
+1. **Delivery stops at a file on disk: there is no SMTP.** Sign-in links and
+   notifications are queued in `outbox_messages` inside the transaction that
+   caused them (`outboxMagicLinkDelivery`, `outboxNotificationDelivery` in
+   `app/delivery/`), and draining writes each one as an RFC-5322 `.eml` under
+   `OUTBOX_DIR` (`npm run outbox`, `make outbox`, `POST /admin/outbox/drain`)
+   rather than handing it to a mail server. `/admin/outbox` is the mailbox a
+   reviewer reads. A real transport is a third implementation of the same two
+   ports; no call site changes. A notification to a customer who has given no
+   address is queued nowhere — that recipient has only the in-app inbox.
 
 2. **Seeded listings carry generated SVG placeholders, not photographs.**
    `listingImageSource` (`app/core/listings/placeholder-image.ts`) renders a
@@ -219,9 +218,9 @@ a stated gap; **missing** — not built.
 
 ## Suggested next steps
 
-1. Implement a real `MailMagicLinkDelivery` and a matching
-   `NotificationDelivery` against an actual mail transport, selected the same
-   way `MAGIC_LINK_DELIVERY` already is. Closes gap 1.
+1. Add an SMTP implementation of `MagicLinkDelivery` and `NotificationDelivery`
+   beside the outbox ones, selected the same way `MAGIC_LINK_DELIVERY` already
+   is, and drain to it instead of to files. Closes gap 1.
 2. Attach real images in `app/db/seed-catalog.ts` so the demo storefront shows
    artwork instead of generated shapes. Closes gap 2.
 3. If a real carrier integration is in scope for a later prototype, replace

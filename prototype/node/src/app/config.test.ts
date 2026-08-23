@@ -11,7 +11,7 @@ const DEFAULT_UPLOADS_DIR = path.join(import.meta.dirname, '..', 'public', 'uplo
 const PRODUCTION_ENVIRONMENT = {
   NODE_ENV: 'production',
   COOKIE_SECRET: 'a-secret-long-enough-to-sign',
-  MAGIC_LINK_DELIVERY: 'mail',
+  MAGIC_LINK_DELIVERY: 'outbox',
 }
 
 test('an empty environment yields the development defaults', () => {
@@ -26,6 +26,7 @@ test('an empty environment yields the development defaults', () => {
     logLevel: 'info',
     magicLinkDelivery: 'flash',
     uploadsDir: DEFAULT_UPLOADS_DIR,
+    outboxDir: 'storage/outbox',
     publicUrl: null,
     trustProxy: false,
     secureCookies: false,
@@ -41,8 +42,9 @@ test('the environment overrides every default', () => {
     DATABASE_FILE: 'storage/test.sqlite3',
     COOKIE_SECRET: 'a-secret-long-enough-to-sign',
     LOG_LEVEL: 'silent',
-    MAGIC_LINK_DELIVERY: 'mail',
+    MAGIC_LINK_DELIVERY: 'outbox',
     UPLOADS_DIR: '/var/data/uploads',
+    OUTBOX_DIR: '/var/data/outbox',
     PUBLIC_URL: 'https://art-store.example.com',
     TRUST_PROXY: 'true',
   })
@@ -53,8 +55,9 @@ test('the environment overrides every default', () => {
   assert.equal(config.databaseFile, 'storage/test.sqlite3')
   assert.equal(config.cookieSecret, 'a-secret-long-enough-to-sign')
   assert.equal(config.logLevel, 'silent')
-  assert.equal(config.magicLinkDelivery, 'mail')
+  assert.equal(config.magicLinkDelivery, 'outbox')
   assert.equal(config.uploadsDir, '/var/data/uploads')
+  assert.equal(config.outboxDir, '/var/data/outbox')
   assert.equal(config.publicUrl, 'https://art-store.example.com')
   assert.equal(config.trustProxy, true)
 })
@@ -88,7 +91,7 @@ test('an environment name outside the three the app knows is refused', () => {
 
 test('production refuses to boot without a cookie secret', () => {
   assert.throws(
-    () => loadConfig({ NODE_ENV: 'production', MAGIC_LINK_DELIVERY: 'mail' }),
+    () => loadConfig({ NODE_ENV: 'production', MAGIC_LINK_DELIVERY: 'outbox' }),
     /COOKIE_SECRET is required when NODE_ENV=production/,
   )
 })
@@ -109,7 +112,7 @@ test('production boots with a secret and a delivery that leaves the application'
 })
 
 test('the debug alert is off for any delivery that carries the link out of the page', () => {
-  assert.equal(loadConfig({ MAGIC_LINK_DELIVERY: 'mail' }).showsDebugMagicLinks, false)
+  assert.equal(loadConfig({ MAGIC_LINK_DELIVERY: 'outbox' }).showsDebugMagicLinks, false)
   assert.equal(loadConfig({ MAGIC_LINK_DELIVERY: 'flash' }).showsDebugMagicLinks, true)
 })
 

@@ -1,8 +1,10 @@
 import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
 import type { RecipientType } from '../../core/notifications/recipient-type.ts'
 import type { Notification } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { outboxNotificationDelivery } from '../../delivery/outbox-notification-delivery.ts'
 
 export type NotifyInput = {
   recipientType: RecipientType
@@ -26,31 +28,34 @@ function recipientColumns(
 }
 
 /**
- * Files a message in one actor's inbox. Delivery beyond the inbox is a port, so
- * mail is a different implementation rather than a different call site, and it
- * runs after the row is written rather than as part of writing it.
+ * Files a message in one actor's inbox and hands it to the delivery that
+ * carries it further. Both writes run in the caller's transaction, so a
+ * business change that rolls back sends nothing — which is why the delivery
+ * queues a row rather than reaching outside the process here.
  */
-export async function notify(
-  { db, clock, notificationDelivery }: ActionContext,
-  input: NotifyInput,
-): Promise<Notification> {
-  const notification = await db
-    .insertInto('notifications')
-    .values({
-      ...recipientColumns(input.recipientType, input.recipientId),
-      subject: input.message.subject,
-      body: input.message.body,
-      url: input.message.url,
-      createdAt: toTimestamp(clock.now()),
+export async function notify(context: ActionContext, input: NotifyInput): Promise<Notification> {
+  const delivery = context.notificationDelivery ?? outboxNotificationDelivery
+
+  return runInTransaction(context, async (transacted) => {
+    const { db, clock } = transacted
+    const notification = await db
+      .insertInto('notifications')
+      .values({
+        ...recipientColumns(input.recipientType, input.recipientId),
+        subject: input.message.subject,
+        body: input.message.body,
+        url: input.message.url,
+        createdAt: toTimestamp(clock.now()),
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow()
+
+    await delivery.deliver(transacted, {
+      recipientType: input.recipientType,
+      recipientId: input.recipientId,
+      ...input.message,
     })
-    .returningAll()
-    .executeTakeFirstOrThrow()
 
-  await notificationDelivery?.deliver({
-    recipientType: input.recipientType,
-    recipientId: input.recipientId,
-    ...input.message,
+    return notification
   })
-
-  return notification
 }

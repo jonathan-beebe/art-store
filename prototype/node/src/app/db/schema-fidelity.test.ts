@@ -26,6 +26,7 @@ import type {
   Notification,
   Order,
   OrderItem,
+  OutboxMessage,
   PageViewCountsTable,
   Payment,
   Payout,
@@ -227,6 +228,16 @@ const notificationsSample: Notification = {
   readAt: null,
 }
 
+const outboxMessagesSample: OutboxMessage = {
+  id: 1,
+  recipient: 'seller@example.com',
+  subject: 'Subject',
+  body: 'Body',
+  url: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  deliveredAt: null,
+}
+
 const pageViewCountsSample: Selectable<PageViewCountsTable> = {
   id: 1,
   site: 'shop',
@@ -289,6 +300,7 @@ const TABLE_SAMPLES: ReadonlyArray<readonly [string, Record<string, unknown>]> =
   ['payouts', payoutsSample],
   ['ledger_entries', ledgerEntriesSample],
   ['notifications', notificationsSample],
+  ['outbox_messages', outboxMessagesSample],
   ['page_view_counts', pageViewCountsSample],
   ['conversations', conversationsSample],
   ['messages', messagesSample],

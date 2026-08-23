@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { notify } from './notify.ts'
 import { itemSoldMessage } from '../../core/notifications/notification-message.ts'
-import type { DeliverableNotification } from '../../core/notifications/notification-delivery.ts'
+import type { DeliveryContext } from '../../delivery/delivery-context.ts'
+import type { DeliverableNotification } from '../../delivery/notification-delivery.ts'
 import { createAdmin, createCustomer, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
 test('it files a seller message under sellerId with the other two recipient columns null', async (t) => {
@@ -98,7 +99,11 @@ test('the notificationDelivery port receives the notification when one is on the
 
   const shop = await createSeller(context)
   const delivered: DeliverableNotification[] = []
-  const notificationDelivery = { deliver: async (n: DeliverableNotification) => { delivered.push(n) } }
+  const notificationDelivery = {
+    deliver: async (_context: DeliveryContext, n: DeliverableNotification) => {
+      delivered.push(n)
+    },
+  }
 
   await notify(
     { ...context, notificationDelivery },
@@ -110,16 +115,14 @@ test('the notificationDelivery port receives the notification when one is on the
   assert.equal(delivered[0]?.recipientId, shop)
 })
 
-test('a delivery that fails leaves the notification on file', async (t) => {
+test('a delivery that fails takes the notification down with it', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
 
   const shop = await createSeller(context)
   const notificationDelivery = {
-    deliver: async () => {
-      throw new Error('mail is down')
-    },
+    deliver: () => Promise.reject(new Error('mail is down')),
   }
 
   await assert.rejects(() =>
@@ -131,17 +134,45 @@ test('a delivery that fails leaves the notification on file', async (t) => {
 
   const filed = await context.db.selectFrom('notifications').selectAll().execute()
 
-  assert.equal(filed.length, 1)
+  assert.equal(filed.length, 0)
 })
 
-test('notify works with none', async (t) => {
+test('with no delivery on the context the message is queued for the outbox', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
 
   const shop = await createSeller(context)
 
-  await assert.doesNotReject(() =>
-    notify(context, { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) }),
+  await notify(context, {
+    recipientType: 'seller',
+    recipientId: shop,
+    message: itemSoldMessage(7, 40_500, '/seller/orders/7'),
+  })
+
+  const queued = await context.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
+  assert.equal(queued.subject, 'Item sold')
+  assert.equal(queued.url, '/seller/orders/7')
+  assert.equal(queued.deliveredAt, null)
+})
+
+test('a business transaction that rolls back leaves neither the inbox row nor the outbox row', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+
+  await assert.rejects(() =>
+    world.db.transaction().execute(async (transaction) => {
+      await notify(
+        { ...context, db: transaction },
+        { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) },
+      )
+      throw new Error('the sale fell through after the seller was told')
+    }),
   )
+
+  assert.deepEqual(await context.db.selectFrom('notifications').selectAll().execute(), [])
+  assert.deepEqual(await context.db.selectFrom('outboxMessages').selectAll().execute(), [])
 })

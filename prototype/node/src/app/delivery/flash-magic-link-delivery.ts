@@ -6,7 +6,7 @@ import type { MagicLinkDelivery, MagicLinkMessage } from './magic-link-delivery.
  * prototype delivers a sign-in link with no mailbox anywhere.
  */
 export const flashMagicLinkDelivery: MagicLinkDelivery = {
-  deliver(message: MagicLinkMessage): Flash {
-    return { debugMagicLink: message.url }
+  deliver(_context, message: MagicLinkMessage): Promise<Flash> {
+    return Promise.resolve({ debugMagicLink: message.url })
   },
 }

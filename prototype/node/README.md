@@ -57,8 +57,9 @@ sets `HOST` and `PORT` for the container.
 | `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
 | `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
 | `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
-| `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `mail` throws `NotImplementedError`. |
+| `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
+| `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
@@ -220,6 +221,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
 | `make seed` | `docker compose run --rm app npm run seed` |
 | `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
+| `make outbox` | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))` |
 | `make logs` | `docker compose logs -f` |
 
 The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
@@ -352,7 +354,7 @@ Layouts link it as `/app.css`, served by `@fastify/static` from
 `src/public/`. There is no JavaScript bundle and no `<script>` tag in any
 view (zero across all 57 `app/**/*.ejs` templates).
 
-## Magic links and the email hooks
+## Magic links and the outbox
 
 Passwordless for all three actor types — sellers, customers, and admins. A
 link lasts 15 minutes and works once, enforced by the update that consumes
@@ -365,17 +367,60 @@ address either claims that row or folds it into the account that already
 holds the address (carts sum quantities clamped to stock, favorites
 de-duplicate).
 
-Two hooks are where real email would go, and neither is implemented today:
+`MAGIC_LINK_DELIVERY` chooses how the link reaches its reader:
 
-- `mailMagicLinkDelivery` (`app/delivery/mail-magic-link-delivery.ts`,
-  selected by `MAGIC_LINK_DELIVERY=mail`) throws `NotImplementedError` —
-  setting that env var breaks sign-in outright.
-- `NotificationDelivery` (`app/core/notifications/notification-delivery.ts`)
-  is a port type with no implementation anywhere in the tree.
-  `ActionContext.notificationDelivery` is optional and stays `undefined` in
-  the running app, so the prototype's notifications are the `notifications`
-  rows themselves, read from `/seller/notifications` and the storefront's
-  `/account`. `notify` calls the port only when one is supplied.
+| Value | What happens |
+| --- | --- |
+| `flash` | The link comes back in the flash and the debug alert prints it on the page that asked. Development only — a production boot refuses it. |
+| `outbox` | The link is queued in `outbox_messages` and nothing is printed. Read it on `/admin/outbox`, or drain it to a file. |
+
+## Outbox
+
+Two things need to leave the application: sign-in links and notifications.
+Both go through a transactional outbox rather than a mail call at the point
+of the business change.
+
+- The row is written **in the same transaction** as the change that caused
+  it (`notify` writes the inbox row and the outbox row together;
+  `sendMagicLink` writes the link and the outbox row together). A sale that
+  rolls back sends nothing.
+- Nothing leaves the process inside that transaction. `better-sqlite3` and
+  `node:sqlite` are one synchronous connection, so an SMTP round trip held
+  inside a transaction would block every other request in the process.
+- **Draining** is a separate step outside any transaction: it renders each
+  pending row as an RFC-5322 message, writes it to
+  `<OUTBOX_DIR>/<id>.eml`, and stamps `delivered_at`.
+
+There is no SMTP. A real transport becomes a third `NotificationDelivery` /
+`MagicLinkDelivery` implementation and no call site changes.
+
+Drain it three ways, all the same code path (`drainOutbox`,
+`app/actions/outbox/drain-outbox.ts`):
+
+```sh
+make outbox                      # or: npm run outbox
+make outbox DIR=/tmp/mail        # or: npm run outbox -- --dir=/tmp/mail
+```
+
+…or the **Drain the outbox** button on `/admin/outbox`.
+
+| Page | Route |
+| --- | --- |
+| Queued messages, newest first, with a Pending/Sent column | `GET /admin/outbox` |
+| One message, rendered as it would be sent, with its link clickable | `GET /admin/outbox/:id` |
+| Drain | `POST /admin/outbox/drain` |
+
+`/admin/outbox/:id` doubles as the mailbox for the demo: with
+`MAGIC_LINK_DELIVERY=outbox` the debug alert is off, and the sign-in link is
+the clickable link on that page.
+
+Message rendering is a pure core function —
+`renderMailMessage` (`app/core/notifications/mail-message.ts`) — taking the
+`Message-ID` and the date as inputs, so it is unit tested against literal
+strings. Headers are `From`, `To`, `Subject`, `Date`, `Message-ID`,
+`MIME-Version`, and a `text/plain; charset="utf-8"` content type; every line
+ends CRLF, and a CR or LF inside a header value is folded to a space so
+nothing can open a header of its own.
 
 ## Paying
 
@@ -411,6 +456,7 @@ magic link. The console (everything below `/admin`) sits behind
 | Payouts | `GET /admin/payouts?seller=`, `POST /admin/payouts` |
 | Ledger | `GET /admin/ledger?seller=&type=` |
 | Stats | `GET /admin/stats` |
+| Outbox | `GET /admin/outbox`, `GET /admin/outbox/:id`, `POST /admin/outbox/drain` |
 | Messages | `GET /admin/messages` |
 
 Two moderation tools, both catching a `TransitionError` refusal into a flash:

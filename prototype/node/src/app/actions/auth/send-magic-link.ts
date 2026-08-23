@@ -7,6 +7,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
 import type { MagicLinkDelivery } from '../../delivery/magic-link-delivery.ts'
 import type { Flash } from '../../plugins/flash.ts'
 import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 
 const TOKEN_BYTES = 32
 
@@ -25,7 +26,8 @@ export type SendMagicLinkInput = {
 /**
  * Issues one link and hands it to the delivery, returning whatever the delivery
  * wants the next page to show. The token itself is never stored, so this is the
- * only moment it exists.
+ * only moment it exists. The link and whatever the delivery queues for it are
+ * written in one transaction, so neither exists without the other.
  */
 export async function sendMagicLink(
   { db, clock, delivery, magicLinkUrl }: SendMagicLinkDependencies,
@@ -35,18 +37,20 @@ export async function sendMagicLink(
   const address = normalizeEmail(email)
   const issuedAt = clock.now()
 
-  await db
-    .insertInto('magicLinks')
-    .values({
-      tokenDigest: digestMagicLinkToken(token),
-      email: address,
-      actorType,
-      redirectTo,
-      expiresAt: toTimestamp(magicLinkExpiresAt(issuedAt)),
-      consumedAt: null,
-      createdAt: toTimestamp(issuedAt),
-    })
-    .execute()
+  return runInTransaction({ db, clock }, async (transacted) => {
+    await transacted.db
+      .insertInto('magicLinks')
+      .values({
+        tokenDigest: digestMagicLinkToken(token),
+        email: address,
+        actorType,
+        redirectTo,
+        expiresAt: toTimestamp(magicLinkExpiresAt(issuedAt)),
+        consumedAt: null,
+        createdAt: toTimestamp(issuedAt),
+      })
+      .execute()
 
-  return delivery.deliver({ email: address, url: magicLinkUrl(token), actorType })
+    return delivery.deliver(transacted, { email: address, url: magicLinkUrl(token), actorType })
+  })
 }

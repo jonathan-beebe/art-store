@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage docs-check migrate fresh seed payouts logs image run-image
+.PHONY: up down build assets shell test smoke coverage docs-check migrate fresh seed payouts outbox logs image run-image
 
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
@@ -58,6 +58,12 @@ seed:
 # settles the week before that date instead; re-running a period pays nothing.
 payouts:
 	docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))
+
+# Writes every queued message out as an .eml file under src/storage/outbox and
+# stamps it sent. `make outbox DIR=/somewhere` writes them elsewhere. The
+# admin site's Drain button does the same work.
+outbox:
+	docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))
 
 logs:
 	docker compose logs -f

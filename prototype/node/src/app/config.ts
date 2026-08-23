@@ -18,6 +18,8 @@ export type AppConfig = {
   logLevel: LogLevel
   magicLinkDelivery: MagicLinkDeliveryName
   uploadsDir: string
+  /** Where the drain writes `.eml` files. */
+  outboxDir: string
   /** The origin links are built from, or null to build them from the request. */
   publicUrl: string | null
   trustProxy: boolean
@@ -47,6 +49,7 @@ const environmentSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   MAGIC_LINK_DELIVERY: z.enum(MAGIC_LINK_DELIVERIES).default('flash'),
   UPLOADS_DIR: z.string().min(1).default(DEFAULT_UPLOADS_DIR),
+  OUTBOX_DIR: z.string().min(1).default('storage/outbox'),
   // Reduced to an origin: every route is served from the root, so a path or
   // query on the way in is noise every link built from it would carry.
   PUBLIC_URL: z
@@ -99,6 +102,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     logLevel: parsed.LOG_LEVEL,
     magicLinkDelivery: parsed.MAGIC_LINK_DELIVERY,
     uploadsDir: parsed.UPLOADS_DIR,
+    outboxDir: parsed.OUTBOX_DIR,
     publicUrl,
     trustProxy: parsed.TRUST_PROXY,
     secureCookies: isProduction || publicUrl?.startsWith('https:') === true,

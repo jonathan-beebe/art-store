@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
+import { outboxMagicLinkDelivery } from '../../delivery/outbox-magic-link-delivery.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -288,3 +289,40 @@ function cookiesOf(response: { cookies: readonly { name: string; value: string }
 > {
   return Object.fromEntries(response.cookies.map((cookie) => [cookie.name, cookie.value]))
 }
+
+test('with the outbox delivery the link is queued and no page prints it', async (t) => {
+  const testApp = await buildTestApp({ magicLinkDelivery: outboxMagicLinkDelivery })
+  t.after(testApp.close)
+
+  const asked = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: 'artist@example.com' },
+  })
+
+  assert.equal(asked.statusCode, 302)
+  assert.throws(() => takeDebugMagicLink(testApp, asked), /carries no magic link/)
+
+  const queued = await testApp.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
+  assert.equal(queued.recipient, 'artist@example.com')
+  assert.equal(queued.subject, 'Your Art Store sign-in link')
+  assert.match(queued.url ?? '', /\/auth\/magic\/[0-9a-f]{64}$/)
+})
+
+test('the queued link signs the seller in when it is followed', async (t) => {
+  const testApp = await buildTestApp({ magicLinkDelivery: outboxMagicLinkDelivery })
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: 'artist@example.com' },
+  })
+
+  const queued = await testApp.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
+  const followed = await testApp.app.inject({ method: 'GET', url: queued.url ?? '' })
+
+  assert.equal(followed.statusCode, 302)
+  assert.equal(followed.headers.location, '/seller')
+  assert.equal(cookiesOf(followed).seller_id === undefined, false)
+})
