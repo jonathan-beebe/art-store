@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Domain\Notifications\RecipientType;
+use App\Domain\Auth\ActorType;
 use App\Events\FulfillmentShipped;
+use App\Events\MessagePosted;
 use App\Events\OrderPaid;
 use App\Listeners\NotifyCustomerOfShipment;
+use App\Listeners\NotifyOfMessage;
 use App\Listeners\NotifySellerOfSale;
+use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
 use App\Policies\NotificationPolicy;
@@ -35,12 +38,14 @@ class AppServiceProvider extends ServiceProvider
         // still has to render.
         Model::shouldBeStrict(! $this->app->isProduction());
 
-        // A notification names its recipient by one of these two words rather
-        // than a class string, so `notifications.notifiable_type` reads the
-        // way the domain talks and survives a class moving.
+        // A notification or a message names its recipient or sender by one
+        // of these three words rather than a class string, so
+        // `notifications.notifiable_type` and `messages.sender_type` read the
+        // way the domain talks and survive a class moving.
         Relation::enforceMorphMap([
-            RecipientType::Seller->value => Seller::class,
-            RecipientType::Customer->value => Customer::class,
+            ActorType::Seller->value => Seller::class,
+            ActorType::Customer->value => Customer::class,
+            ActorType::Admin->value => Admin::class,
         ]);
 
         // The inbox rows are the framework's model, so the policy that guards
@@ -52,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         // that rolls back.
         Event::listen(OrderPaid::class, NotifySellerOfSale::class);
         Event::listen(FulfillmentShipped::class, NotifyCustomerOfShipment::class);
+        Event::listen(MessagePosted::class, NotifyOfMessage::class);
 
         // The header counts belong to the layout that renders them, so every
         // storefront page gets them without its controller passing them along.

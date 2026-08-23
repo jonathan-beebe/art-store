@@ -62,6 +62,23 @@ it('is named by the morph alias its notifications are addressed to', function ()
     expect((new Customer)->getMorphClass())->toBe('customer');
 });
 
+it('reads the conversations it is a participant in', function (): void {
+    $customer = $this->anonymousCustomer();
+    Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
+    Conversation::factory()->listingQuestion()->create();
+
+    expect($customer->conversations()->count())->toBe(1);
+});
+
+it('reads the messages it sent', function (): void {
+    $customer = $this->anonymousCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
+    Message::factory()->from($customer)->create(['conversation_id' => $conversation->id]);
+    Message::factory()->create(['conversation_id' => $conversation->id]);
+
+    expect($customer->sentMessages()->count())->toBe(1);
+});
+
 it('reads the listing events it left', function (): void {
     $customer = $this->anonymousCustomer();
     ListingEvent::factory()->create([

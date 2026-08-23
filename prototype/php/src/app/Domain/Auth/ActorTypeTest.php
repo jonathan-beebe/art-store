@@ -28,6 +28,30 @@ it('signs in on its own site per actor', function (ActorType $actor, string $rou
     'admin' => [ActorType::Admin, 'auth.admin.login'],
 ]);
 
+it('names the conversations column holding its participant id', function (ActorType $actor, string $column): void {
+    expect($actor->participantColumn())->toBe($column);
+})->with([
+    'seller' => [ActorType::Seller, 'seller_id'],
+    'customer' => [ActorType::Customer, 'customer_id'],
+    'admin' => [ActorType::Admin, 'admin_id'],
+]);
+
+it('reads a posted message on its own site', function (ActorType $actor, string $routeName): void {
+    expect($actor->conversationRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'seller.messages.show'],
+    'customer' => [ActorType::Customer, 'shop.messages.show'],
+    'admin' => [ActorType::Admin, 'admin.messages.show'],
+]);
+
+it('reads its inbox on its own site', function (ActorType $actor, string $routeName): void {
+    expect($actor->inboxRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'seller.messages.index'],
+    'customer' => [ActorType::Customer, 'shop.messages.index'],
+    'admin' => [ActorType::Admin, 'admin.messages.index'],
+]);
+
 it('answers which paths each actor belongs on', function (ActorType $actor, string $path, bool $allowed): void {
     expect($actor->allowsPath($path))->toBe($allowed);
 })->with([

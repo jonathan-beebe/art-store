@@ -11,3 +11,24 @@ it('resolves a display name', function (array $attributes, string $expected): vo
     'name wins' => [['email' => 'ops@example.com', 'name' => 'Nia Ops'], 'Nia Ops'],
     'email alone' => [['email' => 'ops@example.com'], 'ops@example.com'],
 ]);
+
+it('is named by the morph alias its notifications and messages are addressed to', function (): void {
+    expect((new Admin)->getMorphClass())->toBe('admin');
+});
+
+it('reads the conversations it is a participant in', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()->adminSeller()->create(['admin_id' => $admin->id]);
+    Conversation::factory()->adminSeller()->create();
+
+    expect($admin->conversations()->count())->toBe(1);
+});
+
+it('reads the messages it sent', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->adminSeller()->create(['admin_id' => $admin->id]);
+    Message::factory()->from($admin)->create(['conversation_id' => $conversation->id]);
+    Message::factory()->create(['conversation_id' => $conversation->id]);
+
+    expect($admin->sentMessages()->count())->toBe(1);
+});

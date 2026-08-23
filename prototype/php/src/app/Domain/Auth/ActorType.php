@@ -55,6 +55,40 @@ enum ActorType: string
         };
     }
 
+    /**
+     * The `conversations` column holding this actor's participant id.
+     */
+    public function participantColumn(): string
+    {
+        return match ($this) {
+            self::Seller => 'seller_id',
+            self::Customer => 'customer_id',
+            self::Admin => 'admin_id',
+        };
+    }
+
+    /**
+     * Where a notification about a new message sends this actor: the thread
+     * on their own site.
+     */
+    public function conversationRouteName(): string
+    {
+        return match ($this) {
+            self::Seller => 'seller.messages.show',
+            self::Customer => 'shop.messages.show',
+            self::Admin => 'admin.messages.show',
+        };
+    }
+
+    public function inboxRouteName(): string
+    {
+        return match ($this) {
+            self::Seller => 'seller.messages.index',
+            self::Customer => 'shop.messages.index',
+            self::Admin => 'admin.messages.index',
+        };
+    }
+
     private static function hasPrefix(string $path, string $prefix): bool
     {
         return $path === $prefix || str_starts_with($path, $prefix.'/');

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Customers;
 
 use App\Domain\Money\Money;
+use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\CustomerMerge;
+use App\Models\Message;
 use App\Models\Seller;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
@@ -109,4 +112,47 @@ it('leaves a seller notification where it is when a customer merges', function (
     app(MergeAnonymousCustomer::class)($anonymous, Customer::factory()->create());
 
     expect($seller->notifications()->count())->toBe(1);
+});
+
+it('moves the anonymous customer\'s conversations to the verified customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $anonymous->id]);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($conversation->fresh()?->customer_id)->toBe($verified->id);
+});
+
+it('moves an active block on the anonymous customer to the verified customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $block = CustomerBlock::factory()->create(['customer_id' => $anonymous->id]);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($block->fresh()?->customer_id)->toBe($verified->id);
+});
+
+it('re-points a message the anonymous customer sent to the verified customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $anonymous->id]);
+    $message = Message::factory()->from($anonymous)->create(['conversation_id' => $conversation->id]);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($message->fresh()?->sender_id)->toBe($verified->id)
+        ->and($message->fresh()?->sender_type)->toBe('customer');
+});
+
+it('does not read the verified customer\'s own merged message as unread to them', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $anonymous->id]);
+    Message::factory()->from($anonymous)->create(['conversation_id' => $conversation->id]);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($conversation->messages()->unreadBy($verified)->count())->toBe(0);
 });

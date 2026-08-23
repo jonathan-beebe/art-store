@@ -1,7 +1,7 @@
 ---
 id: FEAT-011
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -64,3 +64,46 @@ Named indexes:
 
 ## Related work
 - FEAT-010 (the admin participant and `customer_blocks`). FEAT-012, FEAT-013, and FEAT-014 all build on this.
+
+## Working
+
+Landed as designed, with these decisions:
+
+- **`RecipientType` retired, folded into `ActorType`.** The two enums held
+  identical values (`seller`/`customer`) once `admin` joined; rather than add
+  a third case to `RecipientType` and keep two enums that say the same thing,
+  `AppServiceProvider`'s morph map now reads `ActorType::Seller->value`, etc.,
+  and `Admin::class` joins it. `RecipientType.php` and its sidecar are
+  deleted. `ActorType` gained `participantColumn()`, `conversationRouteName()`,
+  and `inboxRouteName()`.
+- **Notification URL: asserted the route name, did not add routes.** FEAT-012
+  through FEAT-014 have not landed `seller.messages.show` /
+  `shop.messages.show` / `admin.messages.show` yet, and this ticket adds no
+  routes, controllers, or views. `NotifyOfMessage` guards with
+  `Route::has($routeName)` before calling `route()`; the notification's `url`
+  is `null` today and starts resolving automatically once a later ticket
+  registers the real route under that name — no code change needed here. The
+  sidecar proves both branches: one test asserts the null url against the
+  app's current (route-less) state, another registers a throwaway route
+  in-test (`app('router')->getRoutes()->refreshNameLookups()` is required
+  after a runtime `Route::get()->name()` call, since Laravel only rebuilds the
+  name lookup table when it compiles the collection for dispatch) to prove the
+  url resolves once the name exists.
+- **`ConversationSubject`'s optional subject column and id are one nullable
+  array**, not two separately-nullable properties. Two independent
+  `?string`/`?int` fields let PHPStan see `columns()` as possibly returning a
+  null value even though the two are always set together by construction;
+  `?array{column: string, id: int}` closes that gap without a cast.
+- **`$now` on `UpdateListingFaq` and `UnpublishListingFaq` is unused.** Kept
+  per the ticket's "every action takes `DateTimeImmutable $now` last" — a
+  reword and an unpublish have no timestamp to stamp today, but the six
+  Messaging actions keep one uniform signature.
+- **`ConversationKind::topic()`** takes `(?int $orderId, ?string $listingTitle)`;
+  the two support kinds ignore both and answer `'Support'`.
+
+Verification: `make check` — 931 tests passed, 2041 assertions (baseline
+826/1887), 0 PHPStan errors, Pint clean. `make coverage` — 100.0%.
+`tests/SidecarsTest.php`'s exception list is unchanged (still empty).
+
+Found, not fixed: nothing outside scope — no routes/controllers/views were
+touched, per the ticket.

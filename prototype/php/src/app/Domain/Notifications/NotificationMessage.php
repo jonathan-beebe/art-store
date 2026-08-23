@@ -29,6 +29,19 @@ final readonly class NotificationMessage
     }
 
     /**
+     * $url is null until the recipient's own route for the thread exists —
+     * an inbox row without a link rather than one pointing nowhere.
+     */
+    public static function messageReceived(string $topic, ?string $url): self
+    {
+        return new self(
+            'New message',
+            "You have a new message about {$topic}.",
+            $url,
+        );
+    }
+
+    /**
      * The shape an inbox row stores and a page reads back.
      *
      * @return array{subject: string, body: string, url: string|null}

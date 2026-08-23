@@ -8,6 +8,8 @@ use Database\Factories\AdminFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Override;
@@ -35,5 +37,17 @@ class Admin extends Authenticatable
     public function displayName(): string
     {
         return $this->name ?? $this->email;
+    }
+
+    /** @return HasMany<Conversation, $this> */
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
+    }
+
+    /** @return MorphMany<Message, $this> */
+    public function sentMessages(): MorphMany
+    {
+        return $this->morphMany(Message::class, 'sender');
     }
 }
