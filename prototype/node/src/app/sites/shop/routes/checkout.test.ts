@@ -11,8 +11,10 @@ import {
   signInAsSeller,
   takeDebugMagicLink,
   type SignedInActor,
+  TEST_CONFIG,
   type TestApp,
 } from '../../../test/build-test-app.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
 import { cents } from '../../../core/money.ts'
 
@@ -352,4 +354,63 @@ test('a paid checkout leaves the order and its payment together', async (t) => {
   await checkOut(testApp, customer, 'buyer@example.com')
 
   assert.deepEqual(await countRows(testApp, customer.id), { orders: 1, payments: 1 })
+})
+
+test('checking out logs order.placed and the charge it settled in the same request', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await readyCart(testApp, customer)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/checkout',
+    cookies: customer.cookies,
+    payload: { email: 'buyer@example.com', ...shippingPayload(), card_number: APPROVED_CARD },
+  })
+
+  const order = await testApp.db
+    .selectFrom('orders')
+    .selectAll()
+    .where('customerId', '=', customer.id)
+    .executeTakeFirstOrThrow()
+
+  const placed = stream.lines().find((entry) => entry.event === 'order.placed')
+  assert.equal(placed?.orderId, order.id)
+  assert.equal(placed?.customerId, customer.id)
+  assert.equal(placed?.amountCents, 24_000)
+
+  const paid = stream.lines().find((entry) => entry.event === 'order.paid')
+  assert.equal(paid?.orderId, order.id)
+})
+
+test('a guest checkout logs order.placed with no charge behind it yet', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await readyCart(testApp, customer)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/checkout',
+    cookies: customer.cookies,
+    payload: { email: 'guest@example.com', ...shippingPayload(), card_number: APPROVED_CARD },
+  })
+
+  assert.notEqual(
+    stream.lines().find((entry) => entry.event === 'order.placed'),
+    undefined,
+  )
+  assert.equal(
+    stream.lines().find((entry) => entry.event === 'order.paid'),
+    undefined,
+  )
 })

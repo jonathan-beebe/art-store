@@ -1,33 +1,29 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { ORDER_STATUSES } from '../../../core/orders/order-status.ts'
+import { idValue, optionalFilter } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
 import { orderRows } from '../queries/order-rows.ts'
 
 const ordersQuery = z.object({
-  status: z.enum(ORDER_STATUSES).optional(),
-  customer: z.coerce.number().int().positive().optional(),
+  status: optionalFilter(z.enum(ORDER_STATUSES)),
+  customer: optionalFilter(idValue),
 })
 
-async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const query = ordersQuery.parse(request.query)
-  const orders = await orderRows(
-    { db: request.server.db },
-    { status: query.status, customerId: query.customer },
-  )
+export const orderRoutes: ZodRoutes = (admin, _options, done) => {
+  admin.get('/orders', { schema: { querystring: ordersQuery } }, async (request, reply) => {
+    const { status, customer } = request.query
+    const orders = await orderRows({ db: admin.db }, { status, customerId: customer })
 
-  return reply.render(
-    'orders',
-    adminPage('Orders', {
-      orders,
-      statuses: ORDER_STATUSES,
-      filters: { status: query.status ?? '', customer: query.customer ?? '' },
-    }),
-  )
-}
-
-export const orderRoutes: FastifyPluginCallback = (admin, _options, done) => {
-  admin.get('/orders', index)
+    return reply.render(
+      'orders',
+      adminPage('Orders', {
+        orders,
+        statuses: ORDER_STATUSES,
+        filters: { status: status ?? '', customer: customer ?? '' },
+      }),
+    )
+  })
 
   done()
 }

@@ -1,18 +1,19 @@
-import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
+import { LEDGER_ENTRY_TYPES } from '../../../core/escrow/ledger-entry-type.ts'
+import { idValue, optionalFilter } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
 import { ledgerRows } from '../queries/ledger-rows.ts'
 import { sellerOptions } from '../queries/seller-accounts.ts'
-import { LEDGER_ENTRY_TYPES } from '../../../core/escrow/ledger-entry-type.ts'
 
-const filterQuery = z.object({
-  seller: z.coerce.number().int().positive().optional(),
-  type: z.enum(LEDGER_ENTRY_TYPES).optional().catch(undefined),
+const ledgerQuery = z.object({
+  seller: optionalFilter(idValue),
+  type: optionalFilter(z.enum(LEDGER_ENTRY_TYPES)),
 })
 
-export const ledgerRoutes: FastifyPluginCallback = (admin, _options, done) => {
-  admin.get('/ledger', async (request, reply) => {
-    const { seller, type } = filterQuery.parse(request.query)
+export const ledgerRoutes: ZodRoutes = (admin, _options, done) => {
+  admin.get('/ledger', { schema: { querystring: ledgerQuery } }, async (request, reply) => {
+    const { seller, type } = request.query
     const context = { db: admin.db }
     const { rows, totals } = await ledgerRows(context, { sellerId: seller, entryType: type })
 

@@ -89,3 +89,17 @@ test('GET /admin/fulfillments filters by seller', async (t) => {
 
   assert.match(response.body, new RegExp(`data-fulfillment="${wanted.id}"`))
 })
+
+test('the "all" options submit empty filters, which the table reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/fulfillments?status=&seller=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+})

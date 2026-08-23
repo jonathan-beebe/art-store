@@ -425,3 +425,36 @@ test('posting a fulfillment message opens the thread, and 404s for another custo
   })
   assert.equal(crossedFulfillment.statusCode, 404)
 })
+
+test('a bodiless reply POST flashes what is missing instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  const { conversationId } = await askAQuestion(testApp, {
+    slug: 'harbour-at-dusk',
+    body: 'Is this framed?',
+    cookies: customer.cookies,
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/messages/${conversationId}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, `/messages/${conversationId}`)
+  const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
+  const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
+  assert.equal(flash.alert, 'Write a message before sending.')
+
+  const messages = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversationId)
+    .execute()
+  assert.equal(messages.length, 1)
+})

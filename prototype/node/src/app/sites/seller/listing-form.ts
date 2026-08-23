@@ -24,7 +24,7 @@ const filePart = z
  * field expects reads as absent, which `parseListingDraft` then refuses by
  * the same rule it refuses a blank one.
  */
-const listingFormBody = z
+export const listingFormBody = z
   .object({
     title: textPart,
     description: textPart,
@@ -39,10 +39,6 @@ const listingFormBody = z
 export type ListingFormBody = z.output<typeof listingFormBody>
 
 export type UploadedImagePart = NonNullable<ListingFormBody['image']>
-
-export function parseListingFormBody(body: unknown): ListingFormBody {
-  return listingFormBody.parse(body)
-}
 
 /** The uploaded image part, or null when the field was left empty — a browser
  * still submits an empty file part for an untouched `<input type="file">`. */

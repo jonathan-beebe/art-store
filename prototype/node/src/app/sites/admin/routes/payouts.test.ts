@@ -261,3 +261,18 @@ function flashNotice(testApp: TestApp, response: LightMyRequestResponse): string
 
   return (flash as { notice?: string }).notice ?? ''
 }
+
+test('the "all sellers" option submits an empty filter, which the page reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/payouts?seller=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /All sellers/)
+})

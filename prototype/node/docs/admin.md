@@ -46,12 +46,12 @@ that hides `payment_failed` is lying about the state machine.
 
 All four moderation writes go through one `moderationRoute` factory
 (`app/sites/admin/routes/moderation.ts`). They differ only in their zod form,
-the action they call, and what they say afterwards; the shared shape is parse
-the id (404 if it is not one), `safeParse` the form off `formBody(request)`
-(400 if it does not hold together), resolve a local `redirect_to` through
-`resolveLocalRedirect`, call the action, and turn a `TransitionError` into a
-flashed alert. The route never asks whether the move is allowed — that answer
-is the action's.
+the action they call, and what they say afterwards; the shared shape is read
+the id off the route's `params` schema (404 if it is not one) and the form off
+its `body` schema (400 if it does not hold together), resolve a local
+`redirect_to` through `resolveLocalRedirect`, call the action, and turn a
+`TransitionError` into a flashed alert. The route never asks whether the move
+is allowed — that answer is the action's.
 
 ## What a removal or a block actually does
 

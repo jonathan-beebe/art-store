@@ -37,6 +37,17 @@ export function failureStatusCode(error: unknown): number {
   return isClientFailure ? declared : SERVER_FAILURE
 }
 
+/**
+ * Whether the failure is a url segment the route's `params` schema refused.
+ * Such a url names nothing this app serves, so it answers 404 — the same way an
+ * id that names someone else's row answers.
+ */
+export function isRefusedRouteParams(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('validationContext' in error)) return false
+
+  return error.validationContext === 'params'
+}
+
 export function errorPageView(statusCode: number): ErrorPageView {
   return statusCode < SERVER_FAILURE ? CLIENT_FAILURE_PAGE : SERVER_FAILURE_PAGE
 }
@@ -72,10 +83,13 @@ export function addNotFoundPage(site: FastifyInstance, renderPage: SitePageRende
  * The one handler every unhandled error reaches. A server fault is logged with
  * the request id the child logger carries and answered with a page that says
  * nothing about it; a bad request is answered as a bad request rather than
- * reported as a crash.
+ * reported as a crash; a url segment a route's `params` schema refused reaches
+ * that site's own not-found page.
  */
 export const errorPages = rootPlugin({ name: 'errorPages' }, (app) => {
   app.setErrorHandler(async (error, request, reply) => {
+    if (isRefusedRouteParams(error)) return reply.callNotFound()
+
     const statusCode = failureStatusCode(error)
 
     if (statusCode >= SERVER_FAILURE) request.log.error({ err: error }, 'the request failed')

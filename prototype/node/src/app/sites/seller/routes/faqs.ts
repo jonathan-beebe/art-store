@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { findListingFaq, listingFaqs } from '../../../actions/messaging/listing-faqs.ts'
 import { publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
@@ -6,29 +6,21 @@ import { unpublishListingFaq } from '../../../actions/messaging/unpublish-listin
 import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
+import { idParams, idValue, submittedForm } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
-import { formBody } from '../../../http/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../http/id-param.ts'
 import { ownedListing } from '../queries/listings.ts'
 
-const faqForm = z.object({
+const faqParams = z.object({ id: idValue, faqId: idValue })
+
+const faqForm = submittedForm({
   question: z.string().optional(),
   answer: z.string().optional(),
-  source_message_id: z.coerce.number().int().positive().optional(),
+  source_message_id: idValue.optional(),
   redirect_to: z.string().optional(),
 })
-
-type FaqParams = { listingId: number; faqId: number }
-
-function parseFaqParams(params: unknown): FaqParams | null {
-  const parsed = z
-    .object({ id: z.coerce.number().int().positive(), faqId: z.coerce.number().int().positive() })
-    .safeParse(params)
-
-  return parsed.success ? { listingId: parsed.data.id, faqId: parsed.data.faqId } : null
-}
 
 /** The first thing wrong with the submission, on the page it came from. */
 function refuseFaq(reply: FastifyReply, destination: string, errors: FaqDraftErrors): FastifyReply {
@@ -37,94 +29,104 @@ function refuseFaq(reply: FastifyReply, destination: string, errors: FaqDraftErr
   return reply.redirect(destination)
 }
 
-function faqsDestination(request: FastifyRequest, listingId: number, redirectTo: string | undefined): string {
+function faqsDestination(
+  request: FastifyRequest,
+  listingId: number,
+  redirectTo: string | undefined,
+): string {
   return resolveLocalRedirect(redirectTo, {
     fallback: `/seller/listings/${listingId}/faqs`,
     origin: requestOrigin(request),
   })
 }
 
-async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const id = parseIdParam(request.params)
-  if (id === null) return sellerNotFound(reply)
+export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
+  portal.get('/listings/:id/faqs', { schema: { params: idParams } }, async (request, reply) => {
+    const listingId = request.params.id
+    const { db } = request.server
+    const listing = await ownedListing(db, currentSellerId(request), listingId)
+    if (listing === null) return sellerNotFound(reply)
 
-  const { db } = request.server
-  const listing = await ownedListing(db, currentSellerId(request), id)
-  if (listing === null) return sellerNotFound(reply)
+    const faqs = await listingFaqs({ db }, listingId)
 
-  const faqs = await listingFaqs({ db }, id)
+    return reply.render('faqs/index', {
+      title: `Questions & answers — ${listing.title}`,
+      listing,
+      faqs,
+    })
+  })
 
-  return reply.render('faqs/index', { title: `Questions & answers — ${listing.title}`, listing, faqs })
-}
+  portal.post(
+    '/listings/:id/faqs',
+    { schema: { params: idParams, body: faqForm } },
+    async (request, reply) => {
+      const listingId = request.params.id
+      const { db, clock } = request.server
+      const listing = await ownedListing(db, currentSellerId(request), listingId)
+      if (listing === null) return sellerNotFound(reply)
 
-async function publish(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const id = parseIdParam(request.params)
-  if (id === null) return sellerNotFound(reply)
+      const submitted = request.body
+      const destination = faqsDestination(request, listingId, submitted.redirect_to)
 
-  const { db, clock } = request.server
-  const listing = await ownedListing(db, currentSellerId(request), id)
-  if (listing === null) return sellerNotFound(reply)
+      const draft = parseFaqDraft(submitted)
+      if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-  const submitted = faqForm.parse(formBody(request))
-  const destination = faqsDestination(request, id, submitted.redirect_to)
+      await publishListingFaq(
+        { db, clock },
+        { listingId, draft: draft.value, sourceMessageId: submitted.source_message_id },
+      )
 
-  const draft = parseFaqDraft(submitted)
-  if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
+      reply.setFlash({ notice: 'Published to the listing.' })
 
-  await publishListingFaq(
-    { db, clock },
-    { listingId: id, draft: draft.value, sourceMessageId: submitted.source_message_id },
+      return reply.redirect(destination)
+    },
   )
 
-  reply.setFlash({ notice: 'Published to the listing.' })
-  return reply.redirect(destination)
-}
+  portal.post(
+    '/listings/:id/faqs/:faqId',
+    { schema: { params: faqParams, body: faqForm } },
+    async (request, reply) => {
+      const { id: listingId, faqId } = request.params
+      const { db, clock } = request.server
+      const listing = await ownedListing(db, currentSellerId(request), listingId)
+      if (listing === null) return sellerNotFound(reply)
 
-async function update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const params = parseFaqParams(request.params)
-  if (params === null) return sellerNotFound(reply)
+      const faq = await findListingFaq({ db }, { listingId, faqId })
+      if (faq === null) return sellerNotFound(reply)
 
-  const { db, clock } = request.server
-  const listing = await ownedListing(db, currentSellerId(request), params.listingId)
-  if (listing === null) return sellerNotFound(reply)
+      const submitted = request.body
+      const destination = faqsDestination(request, listingId, submitted.redirect_to)
 
-  const faq = await findListingFaq({ db }, params)
-  if (faq === null) return sellerNotFound(reply)
+      const draft = parseFaqDraft(submitted)
+      if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-  const submitted = faqForm.parse(formBody(request))
-  const destination = faqsDestination(request, params.listingId, submitted.redirect_to)
+      await updateListingFaq({ db, clock }, { faqId: faq.id, draft: draft.value })
 
-  const draft = parseFaqDraft(submitted)
-  if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
+      reply.setFlash({ notice: 'FAQ updated.' })
 
-  await updateListingFaq({ db, clock }, { faqId: faq.id, draft: draft.value })
+      return reply.redirect(destination)
+    },
+  )
 
-  reply.setFlash({ notice: 'FAQ updated.' })
-  return reply.redirect(destination)
-}
+  portal.post(
+    '/listings/:id/faqs/:faqId/unpublish',
+    { schema: { params: faqParams } },
+    async (request, reply) => {
+      const { id: listingId, faqId } = request.params
+      const { db, clock } = request.server
+      const listing = await ownedListing(db, currentSellerId(request), listingId)
+      if (listing === null) return sellerNotFound(reply)
 
-async function unpublish(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const params = parseFaqParams(request.params)
-  if (params === null) return sellerNotFound(reply)
+      const faq = await findListingFaq({ db }, { listingId, faqId })
+      if (faq === null) return sellerNotFound(reply)
 
-  const { db, clock } = request.server
-  const listing = await ownedListing(db, currentSellerId(request), params.listingId)
-  if (listing === null) return sellerNotFound(reply)
+      await unpublishListingFaq({ db, clock }, faq.id)
 
-  const faq = await findListingFaq({ db }, params)
-  if (faq === null) return sellerNotFound(reply)
+      reply.setFlash({ notice: 'Unpublished.' })
 
-  await unpublishListingFaq({ db, clock }, faq.id)
-
-  reply.setFlash({ notice: 'Unpublished.' })
-  return reply.redirect(`/seller/listings/${params.listingId}/faqs`)
-}
-
-export const faqsRoutes: FastifyPluginCallback = (portal, _options, done) => {
-  portal.get('/listings/:id/faqs', index)
-  portal.post('/listings/:id/faqs', publish)
-  portal.post('/listings/:id/faqs/:faqId', update)
-  portal.post('/listings/:id/faqs/:faqId/unpublish', unpublish)
+      return reply.redirect(`/seller/listings/${listingId}/faqs`)
+    },
+  )
 
   done()
 }

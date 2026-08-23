@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildTestApp, signInAsSeller } from '../../../test/build-test-app.ts'
+import { buildTestApp, signInAsSeller, TEST_CONFIG } from '../../../test/build-test-app.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 import { createDeliveredFulfillment, createForSaleListing, createFulfillment } from '../test-fixtures.ts'
 
 test('a signed-out visitor reaches no order page', async (t) => {
@@ -331,4 +332,27 @@ test("shipping another seller's order is not found", async (t) => {
     .where('id', '=', rivalFulfillment.id)
     .executeTakeFirstOrThrow()
   assert.equal(unchanged.status, 'awaiting_shipment')
+})
+
+test('marking a fulfillment shipped logs a fulfillment.shipped event naming the order', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/ship`,
+    cookies: seller.cookies,
+    payload: { carrier: 'Royal Mail', tracking_number: 'RM123456789GB' },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'fulfillment.shipped')
+  assert.equal(line?.fulfillmentId, fulfillment.id)
+  assert.equal(line?.sellerId, seller.id)
+  assert.equal(line?.orderId, fulfillment.orderId)
 })

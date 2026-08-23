@@ -1,23 +1,27 @@
-import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
-import { adminPage } from '../page.ts'
-import { payoutRows } from '../queries/payout-rows.ts'
-import { sellerOptions } from '../queries/seller-accounts.ts'
 import { runWeeklyPayout } from '../../../actions/escrow/run-weekly-payout.ts'
 import { parseAsOfDay } from '../../../core/escrow/payout-day.ts'
 import { payoutTotal } from '../../../core/escrow/payout-plan.ts'
-import { payoutPeriodEndingBefore, payoutPeriodLabel, type PayoutPeriod } from '../../../core/escrow/payout-period.ts'
+import {
+  payoutPeriodEndingBefore,
+  payoutPeriodLabel,
+  type PayoutPeriod,
+} from '../../../core/escrow/payout-period.ts'
 import { formatCents } from '../../../core/money.ts'
 import type { Payout } from '../../../db/commerce-schema.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
-import { formBody } from '../../../http/form-body.ts'
+import { idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { adminPage } from '../page.ts'
+import { payoutRows } from '../queries/payout-rows.ts'
+import { sellerOptions } from '../queries/seller-accounts.ts'
 
-const filterQuery = z.object({ seller: z.coerce.number().int().positive().optional() })
-const runForm = z.object({ as_of: z.string().optional() })
+const payoutsQuery = z.object({ seller: optionalFilter(idValue) })
+const runForm = submittedForm({ as_of: z.string().optional() })
 
-export const payoutRoutes: FastifyPluginCallback = (admin, _options, done) => {
-  admin.get('/payouts', async (request, reply) => {
-    const { seller } = filterQuery.parse(request.query)
+export const payoutRoutes: ZodRoutes = (admin, _options, done) => {
+  admin.get('/payouts', { schema: { querystring: payoutsQuery } }, async (request, reply) => {
+    const { seller } = request.query
     const context = { db: admin.db }
 
     return reply.render(
@@ -31,8 +35,8 @@ export const payoutRoutes: FastifyPluginCallback = (admin, _options, done) => {
     )
   })
 
-  admin.post('/payouts', async (request, reply) => {
-    const asOf = parseAsOfDay(runForm.parse(formBody(request)).as_of, admin.clock.now())
+  admin.post('/payouts', { schema: { body: runForm } }, async (request, reply) => {
+    const asOf = parseAsOfDay(request.body.as_of, admin.clock.now())
     const payouts = await runWeeklyPayout({ db: admin.db, clock: admin.clock }, asOf)
 
     request.log.info(

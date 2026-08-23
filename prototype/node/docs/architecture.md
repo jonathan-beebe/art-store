@@ -77,7 +77,7 @@ flowchart TD
 | --- | --- | --- |
 | Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Unit tested with `node:test` and no database. |
 | Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` port and its two implementations. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
-| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Routes parse with zod, call actions, render views. `app/plugins/` holds the cross-cutting Fastify wiring — flash, identity, page-view rollup, unread counts, the per-site render decorator, and `formBody`, which reads an absent request body as an empty form. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
+| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler, its type provider, and the schema pieces routes are built from; `app/plugins/` holds the cross-cutting Fastify wiring — error pages, flash, identity, page-view rollup, unread counts, and the per-site render decorator. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
 | Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen), `app/config.ts` (env → typed config), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
 
 Two single-concept files sit at the root of `app/` rather than in a layer:
@@ -480,8 +480,9 @@ prototype/node/
                        commerce-schema.ts (row types),
                        migrations/, migrator.ts, migrate.ts, timestamp.ts, seed*.ts
       delivery/        MagicLinkDelivery port + flash and mail implementations
-      plugins/         flash, form-body, identity, page-views, site-render,
-                       unread-messages
+      http/            zod-type-provider.ts (validator compiler), request-schema.ts
+      plugins/         error-pages, events, flash, health, identity, page-views,
+                       root-plugin, security-headers, site-render, unread-messages
       sites/           shop/, seller/, admin/, auth/ — each a plugin with
                        routes/, views/, queries/, and its own helpers
       views/partials/  shared partials: debug-alert.ejs, flash.ejs

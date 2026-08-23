@@ -1,19 +1,23 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { sendMagicLink } from '../../actions/auth/send-magic-link.ts'
 import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { isEmailAddress, normalizeEmail } from '../../core/auth/email-address.ts'
 import { keepLocalRedirect } from '../../core/auth/local-redirect.ts'
 import type { AppDatabase } from '../../db/database.ts'
-import { formBody } from '../../http/form-body.ts'
+import { submittedForm } from '../../http/request-schema.ts'
+import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
 const NO_ADDRESS = 'Enter an email address to sign in.'
 
-const query = z.object({ redirect_to: z.string().optional() })
+const signInQuery = z.object({ redirect_to: z.string().optional() })
 
-const form = z.object({ email: z.string().optional(), redirect_to: z.string().optional() })
+const signInForm = submittedForm({
+  email: z.string().optional(),
+  redirect_to: z.string().optional(),
+})
 
 export type SignInRoutesOptions = {
   actorType: ActorType
@@ -38,7 +42,7 @@ export function signInRoutes({
   admits,
   refusal,
   accountView,
-}: SignInRoutesOptions): FastifyPluginCallback {
+}: SignInRoutesOptions): ZodRoutes {
   const site = ACTOR_SITES[actorType]
 
   const refuseLink = async (
@@ -51,24 +55,21 @@ export function signInRoutes({
     return await reply.redirect(loginPath(site.loginPath, redirectTo))
   }
 
-  const signInPages: FastifyPluginCallback = (routes, _options, done) => {
+  const signInPages: ZodRoutes = (routes, _options, done) => {
     if (actorType === 'customer') routes.addHook('preHandler', rememberCustomerIdentity)
 
-    routes.get('/login', async (request, reply) => {
+    routes.get('/login', { schema: { querystring: signInQuery } }, async (request, reply) => {
       if (signedInActorId(request, actorType) !== null) return await reply.redirect(site.homePath)
 
       return reply.render('login', {
         title: 'Sign in',
         loginPath: site.loginPath,
-        redirectTo: keepLocalRedirect(
-          query.parse(request.query).redirect_to,
-          requestOrigin(request),
-        ),
+        redirectTo: keepLocalRedirect(request.query.redirect_to, requestOrigin(request)),
       })
     })
 
-    routes.post('/login', async (request, reply) => {
-      const submitted = form.parse(formBody(request))
+    routes.post('/login', { schema: { body: signInForm } }, async (request, reply) => {
+      const submitted = request.body
       const redirectTo = keepLocalRedirect(submitted.redirect_to, requestOrigin(request))
 
       if (!isEmailAddress(submitted.email)) return await refuseLink(reply, NO_ADDRESS, redirectTo)

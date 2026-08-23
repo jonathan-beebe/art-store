@@ -1,16 +1,14 @@
-import type { FastifyPluginCallback } from 'fastify'
-import { z } from 'zod'
 import { toggleFavorite } from '../../../actions/favorites/toggle-favorite.ts'
 import { keepLocalRedirect } from '../../../core/auth/local-redirect.ts'
+import { slugParams } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 import { findFavoriteListings } from '../queries/find-favorite-listings.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
 
-const parameters = z.object({ slug: z.string() })
-
-export const favoriteRoutes: FastifyPluginCallback = (shop, _options, done) => {
+export const favoriteRoutes: ZodRoutes = (shop, _options, done) => {
   shop.get('/favorites', async (request, reply) => {
     const { db } = shop
     const customer = storefrontCustomer(request)
@@ -21,16 +19,18 @@ export const favoriteRoutes: FastifyPluginCallback = (shop, _options, done) => {
     )
   })
 
-  shop.post('/art/:slug/favorite', async (request, reply) => {
+  shop.post('/art/:slug/favorite', { schema: { params: slugParams } }, async (request, reply) => {
     const { db, clock } = shop
-    const { slug } = parameters.parse(request.params)
+    const { slug } = request.params
     const found = await findListingOnStorefront(db, slug)
     if (found === null) return renderNotFound(reply)
 
     const customer = storefrontCustomer(request)
     await toggleFavorite({ db, clock }, { customerId: customer.id, listingId: found.listing.id })
 
-    const destination = keepLocalRedirect(request.headers.referer, requestOrigin(request)) ?? `/art/${slug}`
+    const destination =
+      keepLocalRedirect(request.headers.referer, requestOrigin(request)) ?? `/art/${slug}`
+
     return reply.redirect(destination)
   })
 

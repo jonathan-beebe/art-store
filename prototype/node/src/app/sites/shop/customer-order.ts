@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { cartLineTotal } from '../../core/cart/cart-line.ts'
 import type { Cents } from '../../core/money.ts'
 import type { OrderItem } from '../../db/commerce-schema.ts'
-import { parseIdParam } from '../../http/id-param.ts'
 import {
   findCustomerOrder,
   type CustomerOrder,
@@ -13,15 +12,17 @@ import { storefrontCustomer } from './storefront-customer.ts'
 /** An order item priced for display: what the line comes to at its quantity. */
 export type OrderItemView = OrderItem & { lineTotalCents: Cents }
 
-export type OrderFulfillmentView = Omit<OrderFulfillment, 'items'> & { items: readonly OrderItemView[] }
+export type OrderFulfillmentView = Omit<OrderFulfillment, 'items'> & {
+  items: readonly OrderItemView[]
+}
 
-export type CustomerOrderView = Omit<CustomerOrder, 'fulfillments'> & { fulfillments: readonly OrderFulfillmentView[] }
+export type CustomerOrderView = Omit<CustomerOrder, 'fulfillments'> & {
+  fulfillments: readonly OrderFulfillmentView[]
+}
 
 /** Where a page under `/orders/:id` sends a visitor it will not serve. */
-export function customerOrderPath(request: FastifyRequest): string {
-  const id = parseIdParam(request.params)
-
-  return id === null ? '/orders' : `/orders/${id}`
+export function customerOrderPath({ id }: { id: number }): string {
+  return `/orders/${id}`
 }
 
 function withLineTotal(item: OrderItem): OrderItemView {
@@ -37,11 +38,12 @@ function withLineTotal(item: OrderItem): OrderItemView {
 export async function loadCustomerOrder(
   app: FastifyInstance,
   request: FastifyRequest,
+  orderId: number,
 ): Promise<CustomerOrderView | null> {
-  const orderId = parseIdParam(request.params)
-  if (orderId === null) return null
-
-  const found = await findCustomerOrder(app.db, { orderId, customerId: storefrontCustomer(request).id })
+  const found = await findCustomerOrder(app.db, {
+    orderId,
+    customerId: storefrontCustomer(request).id,
+  })
   if (found === null) return null
 
   return {

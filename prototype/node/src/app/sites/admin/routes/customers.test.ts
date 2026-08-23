@@ -244,3 +244,17 @@ test('a customer id that names nobody is 404', async (t) => {
 
   assert.equal(response.statusCode, 404)
 })
+
+test('an empty standing filter reads as every customer, not as a refused value', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/customers?standing=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+})

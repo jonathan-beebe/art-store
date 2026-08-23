@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback, FastifyReply } from 'fastify'
+import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { resolveCustomerFromCookie } from '../../actions/customers/resolve-customer-from-cookie.ts'
 import {
@@ -7,6 +7,7 @@ import {
 } from '../../actions/auth/sign-in-with-magic-link.ts'
 import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { resolveLocalRedirect } from '../../core/auth/local-redirect.ts'
+import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { identityId } from '../../plugins/identity.ts'
 import { requestOrigin } from './request-origin.ts'
 
@@ -18,23 +19,20 @@ const REFUSALS = {
 
 const UNKNOWN_LINK = 'That sign-in link is not valid. Ask for a new one.'
 
-const parameters = z.object({ token: z.string().min(1) })
+const linkParams = z.object({ token: z.string().min(1) })
 
 /**
  * One route for all three sides of the marketplace: the link itself names the
  * side it signs in, so nothing about it belongs to a particular site.
  */
-export const authSite: FastifyPluginCallback = (auth, _options, done) => {
-  auth.get('/auth/magic/:token', async (request, reply) => {
-    const token = parameters.safeParse(request.params)
-    if (!token.success) return refuse(reply, 'customer', UNKNOWN_LINK)
-
+export const authSite: ZodRoutes = (auth, _options, done) => {
+  auth.get('/auth/magic/:token', { schema: { params: linkParams } }, async (request, reply) => {
     const { db, clock } = auth
     const remembered = await resolveCustomerFromCookie({ db }, identityId(request, 'customer'))
 
     const signIn = await signInWithMagicLink(
       { db, clock },
-      { token: token.data.token, currentCustomerId: remembered?.id ?? null },
+      { token: request.params.token, currentCustomerId: remembered?.id ?? null },
     )
 
     if (signIn.outcome === 'unknown') {

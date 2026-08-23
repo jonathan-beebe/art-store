@@ -1,4 +1,3 @@
-import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
 import { addToCart } from '../../../actions/carts/add-to-cart.ts'
 import { cartContents } from '../../../actions/carts/cart-contents.ts'
@@ -8,7 +7,8 @@ import { currentCustomerStanding } from '../../../actions/moderation/current-cus
 import { runInTransaction } from '../../../actions/transaction.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
-import { formBody } from '../../../http/form-body.ts'
+import { slugParams, submittedForm, type SlugParams } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { findListingBySlug } from '../queries/find-listing-by-slug.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
@@ -17,14 +17,12 @@ import { storefrontCustomer } from '../storefront-customer.ts'
 
 const SOLD_OUT_ALERT = 'That listing is no longer for sale.'
 
-const parameters = z.object({ slug: z.string() })
-
 // The quantity field only appears on the page for a listing with more than one
 // in stock, so a submission without one means one. A submission with something
 // that is not a quantity is a bad request rather than a silent default.
-const addForm = z.object({ quantity: z.coerce.number().int().min(1).optional() })
+const addForm = submittedForm({ quantity: z.coerce.number().int().min(1).optional() })
 
-export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
+export const cartRoutes: ZodRoutes = (shop, _options, done) => {
   shop.get('/cart', async (request, reply) => {
     const { db, clock } = shop
     const customer = storefrontCustomer(request)
@@ -46,13 +44,15 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
   shop.post(
     '/cart/:slug',
-    { preHandler: refuseBlockedCustomer((request) => `/art/${parameters.parse(request.params).slug}`) },
+    {
+      schema: { params: slugParams, body: addForm },
+      preHandler: refuseBlockedCustomer(({ slug }: SlugParams) => `/art/${slug}`),
+    },
     async (request, reply) => {
       const { db, clock } = shop
-      const { slug } = parameters.parse(request.params)
+      const { slug } = request.params
       const customer = storefrontCustomer(request)
-      const { quantity } = addForm.parse(formBody(request))
-      const wanted = quantity ?? 1
+      const wanted = request.body.quantity ?? 1
 
       // The gate and the line it writes read one snapshot of the listing, so a
       // piece removed or taken off sale mid-request never lands in a cart.
@@ -62,7 +62,11 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
         if (!found.isPurchasable) return 'unavailable' as const
 
         const cart = await currentCart(transacted, customer.id)
-        await addToCart(transacted, { cartId: cart.id, listingId: found.listing.id, quantity: wanted })
+        await addToCart(transacted, {
+          cartId: cart.id,
+          listingId: found.listing.id,
+          quantity: wanted,
+        })
 
         return 'added' as const
       })
@@ -71,6 +75,7 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
       if (outcome === 'unavailable') {
         reply.setFlash({ alert: SOLD_OUT_ALERT })
+
         return reply.redirect(`/art/${slug}`)
       }
 
@@ -80,9 +85,9 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
   // Taking a line out works whatever became of the listing: a piece that left
   // the storefront is exactly the one a customer wants out of their cart.
-  shop.post('/cart/:slug/remove', async (request, reply) => {
+  shop.post('/cart/:slug/remove', { schema: { params: slugParams } }, async (request, reply) => {
     const { db, clock } = shop
-    const { slug } = parameters.parse(request.params)
+    const { slug } = request.params
     const found = await findListingBySlug(db, slug)
     if (found === null) return renderNotFound(reply)
 

@@ -10,6 +10,7 @@ import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
+import { zodValidator } from './http/zod-type-provider.ts'
 import { loggingOptions } from './logging.ts'
 import { errorPages } from './plugins/error-pages.ts'
 import { eventBus } from './plugins/events.ts'
@@ -68,6 +69,11 @@ export function buildApp({
     ...loggingOptions(config, { stream: loggerStream }),
     trustProxy: config.trustProxy,
   })
+
+  // Every route declares its params, query, and body as zod schemas; this is
+  // what runs them, and what puts the parsed value on the request in place of
+  // the raw one.
+  app.setValidatorCompiler(zodValidator)
 
   app.decorate('db', db)
   app.decorate('clock', clock)

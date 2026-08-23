@@ -157,3 +157,17 @@ test('the removal and lift forms are wired to the exact contract paths and field
   assert.match(response.body, /name="reason"/)
   assert.match(response.body, /name="redirect_to"/)
 })
+
+test('the "all" options submit empty filters, which the table reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/listings?status=&seller=&removed=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+})

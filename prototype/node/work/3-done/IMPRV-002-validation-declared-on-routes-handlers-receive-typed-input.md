@@ -1,7 +1,7 @@
 ---
 id: IMPRV-002
 type: improvement
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -66,3 +66,109 @@ Ordering: land after IMPRV-001 (routes need `setErrorHandler`/`setNotFoundHandle
 - 05-shell-ops.md: "No route declares a schema"
 - 07-showcase.md: showcase opportunity #11 ("zod as the Fastify validator compiler, schemas on `params`")
 - IMPRV-001 (must land first), RFCTR-001, RFCTR-002, RFCTR-003 (must land first)
+
+## Working
+
+**Re-validated against the code first.** Three parts of the Problem had already
+been fixed by the tickets that landed ahead of this one and are recorded here
+rather than done again: `carts.ts` already used `.optional()` with an explicit
+`?? 1` instead of `.catch(1)`; `ledger.ts` already narrowed `type` inside the
+schema with `z.enum(...)` and held neither of the two casts the ticket quotes;
+`resolve-customer-from-cookie.ts` no longer parses a cookie id at all, so the
+only remaining duplicate of `parseActorId` was `sellerIdFromIdentityCookie` in
+`seller/routes/listings.ts`, now replaced by `identityId(request, 'seller')`.
+`parseIdParam`/`formBody` had also moved from `app/plugins/` to `app/http/`.
+
+**The compiler and the type provider.** `app/http/zod-type-provider.ts` (new)
+holds `ZodTypeProvider` — one `validator` member reading `z.output<schema>` —
+plus `ZodRoutes`, the `FastifyPluginCallback` alias every route plugin is now
+declared as, and `zodValidator`, the `FastifySchemaCompiler<z.ZodType>` that
+`buildApp` hands to `app.setValidatorCompiler`. No package. `register` infers
+the type provider per plugin, so the site plugins that hold no routes of their
+own stay on the plain `FastifyPluginCallback` and only the ones that declare
+routes carry `ZodRoutes` — no `withTypeProvider()` call was needed anywhere.
+
+**The schema pieces.** `app/http/request-schema.ts` (new): `idValue`,
+`idParams`, `slugParams`, `optionalFilter(schema)`, `submittedForm(fields)`.
+`optionalFilter` is the empty-string fix — a `<select>`'s "all" option and an
+emptied number input both submit `name=`, which `z.coerce.number()…optional()`
+refused, so `/admin/payouts?seller=` was a 500 before this and is a 200 now
+(the same held for `status=`, `type=`, `customer=`, `removed=` and the
+storefront's `medium=`). It is a `z.preprocess` that maps `''` to undefined
+ahead of `.optional()`. `submittedForm` is what replaces `formBody`: Fastify
+hands a request that carried no body to the validator as `null` (not
+`undefined`, so a bare `.default({})` would not fire), so the helper
+preprocesses `null`/`undefined` into `{}` before the object schema.
+
+**Params failures answer 404.** `app/plugins/error-pages.ts` gained
+`isRefusedRouteParams(error)`, which reads the `validationContext` Fastify sets
+on a wrapped validation failure; the root error handler answers a `'params'`
+failure with `reply.callNotFound()`, so a bad `:id` renders the site's own
+not-found page in the site's own layout. `'body'` and `'querystring'` fall
+through to the existing 400 error page. Verified by hand across all three
+sites, plus two new tests in `error-pages.test.ts` (a refused segment reaches
+the not-found page; a refused query string reaches the 400 page).
+
+**Behaviour that moved, deliberately.** Validation runs before `preHandler`, so
+a signed-out visitor asking for a guarded url with an unparseable id now gets
+404 instead of a redirect to the login page. Nothing asserted the old
+behaviour, and a url that names nothing is not found whoever asks. Filter
+values the schema does not recognise (`?status=nonsense`) are now 400 rather
+than silently ignored on `/admin/customers`, matching what the three sibling
+admin pages already did.
+
+**Where a `.catch()` survives, and why.** `seller/routes/listings.ts`'s status
+form keeps `z.enum(LISTING_STATUSES).optional().catch(undefined)`: an existing
+test posts `status=on_loan` and asserts a 302 with the "Choose a status to
+change to." flash, so a status the lifecycle does not name has to read as a
+button that named nothing rather than as a 400. `shop/routes/messages.ts`'s
+question form keeps `z.string().catch('')` for the same reason — an empty
+question is refused by `postMessage`, which is what the test asserts.
+`seller/listing-form.ts`'s multipart schema keeps its `.catch({})`/
+`.catch(undefined)` per part, unchanged.
+
+**The one parse call left in a routes file.** `renderOversizedImageForm`
+(`seller/routes/listings.ts`) is the seller site's error handler for
+`FST_REQ_FILE_TOO_LARGE`, which throws while the multipart body is still
+parsing — before the route's own schemas run and before any `preHandler`. It
+therefore reads the raw `request.params` through `idParams.safeParse` and the
+seller through `identityId`, both explained in the comment above it. Every
+route *handler* is free of parse calls.
+
+**Business events left by IMPRV-003**, added while in these files:
+`order.placed` and the `order.paid`/`order.declined` that follows it at
+checkout (`shop/routes/checkout.ts` — `checkOutCart` now returns the charge it
+settled alongside the placement, so the route can log both), and
+`fulfillment.shipped` (`seller/routes/orders.ts`). `logChargeOutcome` moved out
+of `order-payments.ts` into a new `shop/order-events.ts` alongside
+`logOrderPlaced`, so checkout and the pay page log the same line the same way.
+`listing.published`, the fourth event IMPRV-003 left behind, is not in this
+ticket's scope and is still unplaced.
+
+**Files changed.** New: `app/http/zod-type-provider.ts`,
+`app/http/request-schema.ts` (+ sidecar tests), `app/sites/shop/order-events.ts`.
+Deleted: `app/http/id-param.ts`, `app/http/form-body.ts` and both sidecars.
+Changed: `app/app.ts`, `app/plugins/error-pages.ts`, all 13 admin route
+modules that take input, all 6 seller route modules, all 10 shop route
+modules, `app/sites/auth/index.ts`, `app/sites/auth/sign-in-routes.ts`,
+`app/sites/seller/listing-form.ts` (the schema is exported, the
+`parseListingFormBody` wrapper is gone), `app/sites/shop/customer-order.ts`
+(`loadCustomerOrder` takes the parsed order id, `customerOrderPath` takes the
+parsed params), `app/sites/shop/refuse-blocked-customer.ts` (the guard is typed
+by its route's params so its destination reads them without a parse), plus
+`docs/architecture.md` (Coordination row and the source tree) and `docs/admin.md`
+(the `moderationRoute` paragraph named `formBody`).
+
+**Left alone.** The three admin pages that take no input at all
+(`home.ts`, `stats.ts`, `accounting.ts`), `/health`, `/events`, `/logout` and
+`/account` declare no schema, because they read nothing off the request. The
+outbox show route keeps its plain-text 404 for a message id that names nothing
+— that is its existing answer and no part of this ticket asks it to change.
+
+**Tests.** 1519 → 1534 pass, 0 fail (the count drops 9 for the two deleted
+sidecars and rises 24 for the new ones). New: `app/http/request-schema.test.ts`
+(9), `app/http/zod-type-provider.test.ts` (2), two in `error-pages.test.ts`,
+one empty-filter route test on each of the six admin filter pages, two checkout
+event tests, one `fulfillment.shipped` test, one bodiless-reply test on the
+storefront message thread. `npm run check` exit 0 at 99.57 lines / 97.22
+branches / 99.47 funcs; `npm run routes` prints the same table it did before.

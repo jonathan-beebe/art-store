@@ -121,3 +121,24 @@ test('the ledger filter select offers every LEDGER_ENTRY_TYPES value', async (t)
   assert.match(response.body, /<option value="released"/)
   assert.match(response.body, /<option value="paid_out"/)
 })
+
+test('the "all" options submit empty filters, which the page reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context, 'Blue Kiln Studio')
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  await paidOrder(context, customerId, [listing.id])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/ledger?seller=&type=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /data-cell="seller"[^<]*>Blue Kiln Studio/)
+})

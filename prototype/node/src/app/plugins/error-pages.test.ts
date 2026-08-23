@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { z } from 'zod'
-import { buildTestApp } from '../test/build-test-app.ts'
-import { errorPageView, failureStatusCode } from './error-pages.ts'
+import { buildTestApp, signInAsAdmin } from '../test/build-test-app.ts'
+import { errorPageView, failureStatusCode, isRefusedRouteParams } from './error-pages.ts'
 
 /** A `ZodError` as a handler's `.parse` throws one. */
 function zodError(): unknown {
@@ -33,6 +33,46 @@ test('a client failure names the request, a server failure names nothing', () =>
   assert.match(client.title, /request/i)
   assert.deepEqual(server, client)
   assert.notEqual(fault.title, client.title)
+})
+
+test('only a failure the params schema raised is read as a url that names nothing', () => {
+  assert.equal(isRefusedRouteParams({ validationContext: 'params' }), true)
+  assert.equal(isRefusedRouteParams({ validationContext: 'body' }), false)
+  assert.equal(isRefusedRouteParams({ validationContext: 'querystring' }), false)
+  assert.equal(isRefusedRouteParams(new Error('boom')), false)
+  assert.equal(isRefusedRouteParams(null), false)
+  assert.equal(isRefusedRouteParams('params'), false)
+})
+
+test("a url segment the params schema refuses answers the site's not-found page", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/sellers/not-a-number',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+  assert.match(response.body, /Not found/)
+  assert.doesNotMatch(response.body, /That request did not work/)
+})
+
+test('a refused query string is a bad request, not a page that does not exist', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/orders?status=nonsense',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+  assert.match(response.body, /That request did not work/)
 })
 
 test('a duplicated form field answers 400 with the storefront page, not the schema', async (t) => {
