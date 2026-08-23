@@ -1,6 +1,6 @@
 import { rm } from 'node:fs/promises'
-import SQLite from 'better-sqlite3'
-import { CamelCasePlugin, Kysely, SqliteDialect } from 'kysely'
+import { CamelCasePlugin, Kysely } from 'kysely'
+import { NodeSqliteDialect } from './node-sqlite-dialect.ts'
 import type { Database } from './schema.ts'
 
 export type AppDatabase = Kysely<Database>
@@ -8,13 +8,8 @@ export type AppDatabase = Kysely<Database>
 export const IN_MEMORY_DATABASE = ':memory:'
 
 export function openDatabase(file: string): AppDatabase {
-  const sqlite = new SQLite(file)
-
-  // Foreign keys are per-connection in SQLite and off by default.
-  sqlite.pragma('foreign_keys = ON')
-
   return new Kysely<Database>({
-    dialect: new SqliteDialect({ database: sqlite }),
+    dialect: new NodeSqliteDialect(file),
     plugins: [new CamelCasePlugin()],
   })
 }

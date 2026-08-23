@@ -24,7 +24,7 @@ sequences and state machines: [`identity.md`](identity.md),
 | HTTP | Fastify | 5.12.1 |
 | Views | EJS via `@fastify/view` | ejs 6.0.1, @fastify/view 12.0.0 |
 | Forms, cookies, static, uploads | `@fastify/formbody`, `@fastify/cookie` (signed cookies), `@fastify/static`, `@fastify/multipart` | 9.0.0, 11.1.2, 10.1.3, 10.1.1 |
-| Database | better-sqlite3 + Kysely (`SqliteDialect`, `CamelCasePlugin`) + Kysely `Migrator` with `FileMigrationProvider`, both imported from `kysely/migration` | better-sqlite3 13.0.3, kysely 0.29.5 |
+| Database | `node:sqlite` behind `app/db/node-sqlite-dialect.ts`, an owned Kysely dialect (`CamelCasePlugin`) + Kysely `Migrator` with `FileMigrationProvider`, both imported from `kysely/migration` | built in, kysely 0.29.5 |
 | Validation at the edge | zod (`parse, don't validate`) | 4.4.3 |
 | CSS | Tailwind CLI, stock theme | @tailwindcss/cli 4.3.3 |
 | Tests | `node:test` + `node:assert/strict`, sidecar files, `--experimental-test-coverage` with line/branch thresholds | built in |
@@ -76,7 +76,7 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Unit tested with `node:test` and no database. |
-| Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` port and its two implementations. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
+| Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` port and its two implementations. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
 | Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Routes parse with zod, call actions, render views. `app/plugins/` holds the cross-cutting Fastify wiring — flash, identity, page-view rollup, unread counts, the per-site render decorator, and `formBody`, which reads an absent request body as an empty form. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
 | Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen), `app/config.ts` (env → typed config), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
 
@@ -458,7 +458,7 @@ off it.
 prototype/node/
   README.md            how to run, serve, test
   docker-compose.yml   one service: app, port 4000
-  Dockerfile           node:24-bookworm-slim + build tools for better-sqlite3
+  Dockerfile           node:24-bookworm-slim, no compiler toolchain
   docker/              entrypoint.sh, docs-check.sh
   Makefile             host-side wrappers over docker compose
   docs/                architecture + feature docs (this folder)
@@ -476,7 +476,8 @@ prototype/node/
       actions/         verbs over ActionContext: analytics, auth, carts, customers,
                        escrow, favorites, fulfillments, listings, messaging,
                        moderation, notifications, orders, plus transaction.ts
-      db/              database.ts, schema.ts + commerce-schema.ts (row types),
+      db/              database.ts, node-sqlite-dialect.ts, schema.ts +
+                       commerce-schema.ts (row types),
                        migrations/, migrator.ts, migrate.ts, timestamp.ts, seed*.ts
       delivery/        MagicLinkDelivery port + flash and mail implementations
       plugins/         flash, form-body, identity, page-views, site-render,

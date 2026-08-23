@@ -19,6 +19,15 @@ test('an opened database refuses a row pointing at a missing parent', async () =
   await db.destroy()
 })
 
+test('an opened database waits five seconds for another writer', async () => {
+  const db = openDatabase(IN_MEMORY_DATABASE)
+
+  const busyTimeout = await sql<{ timeout: number }>`pragma busy_timeout`.execute(db)
+
+  assert.equal(busyTimeout.rows[0]?.timeout, 5000)
+  await db.destroy()
+})
+
 test('an opened database reads snake_case columns as camelCase', async () => {
   const db = openDatabase(IN_MEMORY_DATABASE)
   await sql`create table listings (price_cents integer)`.execute(db)

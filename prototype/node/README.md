@@ -12,8 +12,8 @@ route and test that prove it, and lists what is missing.
 
 ## Prerequisites
 
-Docker Desktop. Nothing else: Node 24, npm, TypeScript, SQLite, and the
-Tailwind CLI live in the `app` container. Nothing is installed on the host,
+Docker Desktop. Nothing else: Node 24 (SQLite included), npm, TypeScript,
+and the Tailwind CLI live in the `app` container. Nothing is installed on the host,
 and every command runs in the container.
 
 ## First run
@@ -180,11 +180,24 @@ period reads the same whatever day it runs.
 
 ## Database
 
-SQLite at `src/storage/development.sqlite3`, created on first run.
-Write-ahead logging is on and foreign keys are enforced per connection.
-Kysely reads it through `SqliteDialect` with `CamelCasePlugin`, so
-snake_case columns read as camelCase in TypeScript (`price_cents` →
-`priceCents`).
+SQLite at `src/storage/development.sqlite3`, created on first run. The
+engine is `node:sqlite`, the SQLite built into the Node 24 runtime, so the
+project has no compiled dependency and the image carries no compiler. The
+first migration turns on write-ahead logging.
+
+Kysely reaches it through `app/db/node-sqlite-dialect.ts`, a dialect this
+project owns: one connection, `PRAGMA foreign_keys = ON` and
+`PRAGMA busy_timeout = 5000` set explicitly on open, and transactions that
+begin `IMMEDIATE` so a read-then-write transaction cannot lose its snapshot
+to another process under WAL. `CamelCasePlugin` maps snake_case columns to
+camelCase in TypeScript (`price_cents` → `priceCents`).
+
+`node:sqlite` is a release candidate, not stable, and Node before 24.15
+prints an `ExperimentalWarning` on import — the npm scripts and the image
+pass `--disable-warning=ExperimentalWarning` to silence it. The API may
+still change between Node minors. Reverting is one file: restore
+`better-sqlite3` and Kysely's own `SqliteDialect` in `app/db/database.ts`
+and delete the dialect; nothing else imports `node:sqlite`.
 
 ```sh
 make migrate    # apply pending migrations
@@ -347,7 +360,7 @@ properties, no namespaces — use `as const` string unions instead.
 ```
 prototype/node/
   README.md            this file
-  Dockerfile            node:24-bookworm-slim + build tools for better-sqlite3
+  Dockerfile            node:24-bookworm-slim, no compiler toolchain
   docker-compose.yml    one service: app
   docker/
     entrypoint.sh        install, migrate, seed, build assets, then the container command
@@ -376,7 +389,8 @@ prototype/node/
                            favorites/, fulfillments/, listings/, messaging/,
                            moderation/, notifications/, orders/,
                            action-context.ts, transaction.ts
-      db/                  database.ts, migrator.ts, migrate.ts, schema.ts,
+      db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
+                           migrate.ts, schema.ts,
                            commerce-schema.ts, timestamp.ts, migrations/,
                            seed.ts + seed-admins/catalog/sellers/customers/
                            order-history/messaging/page-views/demo-data.ts

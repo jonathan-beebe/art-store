@@ -1,7 +1,7 @@
 ---
 id: FEAT-012
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -49,3 +49,44 @@ FEAT-013 (production image) depends on this ticket landing first — dropping `b
 - 01-deps-platform.md — "Native build toolchain installed on a premise that is no longer true" (finding 2)
 - 01-deps-platform.md — "`@types/better-sqlite3` is four majors behind" (finding 12)
 - FEAT-013 (production image) depends on this ticket
+
+## Working
+
+### Verified against the code
+- `Dockerfile:3-11` installed `g++ make python3` on the better-sqlite3 premise; `better-sqlite3@13.0.3` in `src/node_modules` declares `"gypfile": false` and ships `prebuilds/`, so nothing compiled. Confirmed.
+- `@types/better-sqlite3` was pinned at `^9.6.0` against the library's 13.0.3. Confirmed.
+- `openDatabase` set `foreign_keys` only; the 5000 ms busy timeout came from better-sqlite3's own `timeout` default. Confirmed.
+- Kysely 0.29.5's `SqliteDriver` issues a plain deferred `begin`. Confirmed by reading `node_modules/kysely/dist/dialect/sqlite/sqlite-driver.js`.
+- WAL is not set by the connection — migration `20260822000001-enable-write-ahead-logging` sets `PRAGMA journal_mode = WAL`, and it persists in the file header. The new dialect leaves it alone; verified `pragma journal_mode` still reads `wal` after a fresh migrate.
+
+### What changed
+- `src/app/db/node-sqlite-dialect.ts` (new): `NodeSqliteDialect` implementing Kysely's `Dialect` over `node:sqlite`'s `DatabaseSync`, with Kysely's own `SqliteAdapter`, `SqliteIntrospector`, and `SqliteQueryCompiler`. One connection created in `init`, closed in `destroy`. `PRAGMA foreign_keys = ON` and `PRAGMA busy_timeout = 5000` set on open. `beginTransaction` issues `begin immediate`. `executeQuery` splits reads from writes on `statement.columns().length > 0`, returning `numAffectedRows` and `insertId` as bigints. `streamQuery` uses `iterate`.
+- `src/app/db/node-sqlite-dialect.test.ts` (new): 10 tests — select, stream, insert result, insert with returning, transaction commit, transaction rollback, `begin immediate` asserted through Kysely's query log, a second `DatabaseSync` refused the write lock before the transaction reads anything, `foreign_keys`/`busy_timeout` readback, unbindable parameter.
+- `src/app/db/database.ts`: `openDatabase` builds `new NodeSqliteDialect(file)`; the pragma and the better-sqlite3 import are gone.
+- `src/app/db/database.test.ts`: added one test that an opened database reports a 5000 ms busy timeout. Existing tests unchanged and passing.
+- `src/package.json` / `package-lock.json`: `npm uninstall better-sqlite3 @types/better-sqlite3`. Every script that runs app code passes `--disable-warning=ExperimentalWarning`; `test` and `coverage` set it through `NODE_OPTIONS` because the test runner gives each test file its own process, which inherits `NODE_OPTIONS` but not the parent's flags. A top-level `"//"` key carries the comment, since JSON has none.
+- `Dockerfile`: the apt layer keeps `ca-certificates` and drops `g++ make python3`; the comment now says why there is nothing to compile.
+- `README.md`, `docs/architecture.md`: stack row, layout lines, and the Database section. The README calls `node:sqlite` a release candidate, names the warning, and says reverting is one file.
+
+### Decisions taken
+- **No mutex in the driver.** The brief asked for the mutex Kysely's `SqliteDriver` uses; that driver has none in 0.29.5. `RuntimeDriver` owns the `ConnectionMutex` and installs it whenever `adapter.supportsMultipleConnections === false`, which `SqliteAdapter` reports. Reusing `SqliteAdapter` gets the serialization; writing a second lock would duplicate it.
+- **Rows are copied into ordinary objects.** `node:sqlite` returns rows with a null prototype where better-sqlite3 returned plain ones. `CamelCasePlugin` rebuilds every row, so the app never saw the difference — but a dialect whose rows behave unlike every other dialect's is a trap for anything reading a row without the plugin, so `asRow` spreads them in the driver.
+- **`Dockerfile` `ENV NODE_OPTIONS`.** Territory was the apt layer only, but `docker/entrypoint.sh` and `docker-compose.yml` invoke `node app/…` directly and both are outside it. One `ENV` line covers the entrypoint, the compose command, and every `docker compose run` without restructuring the image, which FEAT-013 still owns.
+- **`app/cli/run-payouts.ts` untouched.** `BEGIN IMMEDIATE` now comes from the driver, so every transaction in the process gets it and the CLI needs no special case.
+- **Binary parameters narrow on `instanceof Uint8Array`.** The schema has no blob column; `Buffer` is a `Uint8Array`, and `NodeJS.ArrayBufferView` is a union of concrete views that the structural `ArrayBuffer.isView` guard does not satisfy.
+
+### Verification
+- `npm run check`: green — typecheck clean, lint clean with no rules disabled, 1206 tests pass.
+- `npm run coverage`: green; `node-sqlite-dialect.ts` at 100% lines, 96.97% branches.
+- No `ExperimentalWarning` text in any script's output.
+- End to end against a temp database file: `npm run migrate`, `npm run seed`, `npm run payouts` all succeed with no warning.
+
+### Test counts
+- Before: 1176 tests.
+- After: 1206 tests. This ticket adds 11 (10 dialect, 1 database); the rest arrived from other workers in this shared tree.
+
+### Left alone
+- Migrations, schema types, and every route: untouched.
+- `docker/entrypoint.sh`, `docker-compose.yml`, and the Dockerfile's `CMD`: outside territory; the `ENV NODE_OPTIONS` line covers them.
+- The image tag stays `node:24-bookworm-slim`. The discovery note asks for a pinned 24.19-or-later digest; that is FEAT-013's restructure, and `NODE_OPTIONS` keeps the output clean until then.
+- Nothing. `npm run check` and `npm run coverage` are both green over the whole tree, including the other workers' concurrent changes.

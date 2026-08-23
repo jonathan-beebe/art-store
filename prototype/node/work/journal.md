@@ -13,6 +13,7 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:07:50:47 — FEAT-012 — done: SQLite now comes from node:sqlite behind an owned Kysely dialect; better-sqlite3 and the compiler layer are gone
 - 2026-08-23:07:48:30 — RFCTR-001 — done: escrow balance folding, one-payout-per-period, and as-of day parse consolidated into core
 - 2026-08-23:07:37:45 — FEAT-012 — started
 - 2026-08-23:07:36:40 — RFCTR-001 — started
