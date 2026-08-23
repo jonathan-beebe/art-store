@@ -123,6 +123,17 @@ it('unpublishes an entry by deleting the row', function (): void {
     expect(ListingFaq::find($faq->id))->toBeNull();
 });
 
+it('answers not found unpublishing a faq that is not on the listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $faq = ListingFaq::factory()->create(['listing_id' => $this->listing($seller)->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/faqs/{$faq->id}");
+
+    $response->assertNotFound();
+    expect(ListingFaq::find($faq->id))->not->toBeNull();
+});
+
 it('refuses to unpublish another sellers entry', function (): void {
     $listing = $this->listing($this->seller('Other Studio'));
     $faq = ListingFaq::factory()->create(['listing_id' => $listing->id]);

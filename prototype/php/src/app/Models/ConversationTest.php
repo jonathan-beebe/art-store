@@ -192,6 +192,22 @@ it('scopes threads to the given participant', function (): void {
     expect(Conversation::query()->withParticipant($seller)->pluck('id')->all())->toBe([$mine->id]);
 });
 
+it('counts the messages a reader has not read on each thread', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+    ]);
+    Message::factory()->from($customer)->unread()->count(2)->create(['conversation_id' => $conversation->id]);
+    Message::factory()->from($customer)->read()->create(['conversation_id' => $conversation->id]);
+    Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
+
+    $counted = Conversation::query()->withUnreadCountFor($seller)->findOrFail($conversation->id);
+
+    expect($counted->unread_count)->toBe(2);
+});
+
 it('moves a thread to another customer, key and column together', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

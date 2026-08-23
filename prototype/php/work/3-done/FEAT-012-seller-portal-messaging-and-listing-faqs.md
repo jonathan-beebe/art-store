@@ -142,3 +142,49 @@ names `docs/messaging.md`'s route table specifies.
   row's edit repopulates every row's `old()` value — acceptable for a page
   with one active edit at a time, not filed since it is this ticket's own new
   code rather than a pre-existing defect.
+
+## Review
+
+Probed the route table against `docs/messaging.md`, 404 discipline on both
+`{conversation}` verbs and the nested `{faq}`, mark-read timing, the
+find-or-open pair, the FAQ lifecycle, the notification URL, and the inbox's
+strict-model and query-count behaviour. Nothing in the shipped behaviour was
+wrong: another seller's id and a bogus id answer 404 on GET and POST, the form
+requests authorize before they validate, `->scoped()` does turn on
+relationship-scoped binding for `{faq}`, mark-read runs on the GET alone and
+touches only the counterpart's messages, and the notification URL is null for a
+customer recipient today and becomes `shop.messages.show` the moment FEAT-013
+registers that name.
+
+Changed:
+
+- **`Conversation::withUnreadCountFor(reader)`** — the per-thread badge moved
+  from an inline `withCount` in `Seller\MessageController` (with a private
+  `unreadByViewer` helper carrying the generics) to a model scope beside
+  `withParticipant`, the shape `Listing::withEventCounts` already uses and the
+  one `docs/architecture.md` names for counts a page shows. The storefront and
+  admin inboxes now have a scope to call rather than a `withCount` to restate.
+- **`@property-read int $unread_count`** on `Conversation` — the inbox row read
+  an attribute the model never declared, unlike `Listing`'s three count
+  properties.
+- `str(...)->limit(120)` in the inbox view, replacing the only fully-qualified
+  class reference in the Blade tree.
+- `docs/messaging.md` names `app/Support/ActorDisplay.php` in its code list and
+  the unread-counts diagram names the new scope.
+
+Tests added (5): an inbox holding a `fulfillment` and an `admin_seller` thread
+(the eager loads a listing-question-only inbox never exercised); a fixed
+six-query inbox render across five threads, pinning the composer at one query
+and the eager loads flat; a refused reply leaving the thread unread; a
+`{faq}` on the seller's *other* listing answering 404 on `DELETE` (`PUT`
+already had this); and `seller.orders.messages` writing the exact
+`ConversationSubject::fulfillment(...)` key the storefront's own route will ask
+for. Plus a sidecar case for the new scope.
+
+`make check`: Pint clean on 411 files, 0 PHPStan errors, **1004 tests, 2208
+assertions**. `make coverage`: 100.0%.
+
+### Review — found, not fixed
+
+Nothing. The shared `question`/`answer` field names across the FAQ index page's
+per-row edit forms stand as the ticket recorded them.

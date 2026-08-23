@@ -17,7 +17,7 @@
                             </p>
                             <p class="mt-1 text-gray-600">{{ $conversation->kind->topic($conversation->fulfillment?->order_id, $conversation->listing?->title) }}</p>
                             @if ($conversation->latestMessage)
-                                <p class="mt-1 text-gray-500">{{ \Illuminate\Support\Str::limit($conversation->latestMessage->body, 120) }}</p>
+                                <p class="mt-1 text-gray-500">{{ str($conversation->latestMessage->body)->limit(120) }}</p>
                             @endif
                         </div>
                         <p class="ml-auto text-gray-500">{{ $conversation->last_message_at?->format('M j, Y g:ia') }}</p>

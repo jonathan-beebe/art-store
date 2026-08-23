@@ -385,7 +385,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (999 tests, 2196 assertions). `make analyse` and `make lint` run
+  then the full Pest suite (1004 tests, 2208 assertions). `make analyse` and `make lint` run
   the first two alone, against the file tree only (`--no-deps`, no web
   server).
 - Sidecar tests are analysed at the same level as the code they cover: there

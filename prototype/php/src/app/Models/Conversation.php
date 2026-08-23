@@ -28,6 +28,7 @@ use Override;
  * @property-read Listing|null $listing
  * @property-read Fulfillment|null $fulfillment
  * @property-read Message|null $latestMessage
+ * @property-read int $unread_count  only after the `withUnreadCountFor` scope
  */
 #[Fillable(['kind', 'subject_key', 'seller_id', 'customer_id', 'admin_id', 'listing_id', 'fulfillment_id', 'last_message_at'])]
 class Conversation extends Model
@@ -262,5 +263,20 @@ class Conversation extends Model
         $actorType = ActorType::from($actor->getMorphClass());
 
         $query->where($actorType->participantColumn(), $actor->id);
+    }
+
+    /**
+     * The per-thread unread badge an inbox row carries, counted in SQL for
+     * the whole page rather than per row.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function withUnreadCountFor(Builder $query, Seller|Customer|Admin $reader): void
+    {
+        $query->withCount(['messages as unread_count' => function (Builder $messages) use ($reader): void {
+            /** @var Builder<Message> $messages */
+            $messages->unreadBy($reader);
+        }]);
     }
 }

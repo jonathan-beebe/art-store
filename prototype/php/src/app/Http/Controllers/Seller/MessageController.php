@@ -9,9 +9,6 @@ use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
 use App\Http\Requests\Seller\PostMessageRequest;
 use App\Models\Conversation;
-use App\Models\Message;
-use App\Models\Seller;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -25,7 +22,7 @@ final class MessageController extends SellerController
         $conversations = Conversation::query()
             ->withParticipant($seller)
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
-            ->withCount(['messages as unread_count' => fn (Builder $query): Builder => $this->unreadByViewer($query, $seller)])
+            ->withUnreadCountFor($seller)
             ->orderByDesc('last_message_at')
             ->get();
 
@@ -56,14 +53,5 @@ final class MessageController extends SellerController
         $postMessage($conversation, $this->seller(), $request->body(), $this->now());
 
         return redirect()->route('seller.messages.show', $conversation);
-    }
-
-    /**
-     * @param  Builder<Message>  $query
-     * @return Builder<Message>
-     */
-    private function unreadByViewer(Builder $query, Seller $seller): Builder
-    {
-        return $query->unreadBy($seller);
     }
 }

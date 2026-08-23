@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:15:47:02 — FEAT-012 — reviewed: per-thread unread count moved to a Conversation::withUnreadCountFor scope with the unread_count property declared, str()->limit in the inbox view, five probe tests (mixed-kind inbox, fixed six-query render, refused reply leaves the thread unread, DELETE of an off-listing faq, the fulfillment subject key FEAT-013 will ask for); 1004 tests / 2208 assertions, 100.0% coverage
 - 2026-08-23:15:35:50 — FEAT-012 — done: seller messaging pages (inbox, thread, reply), support/order-message open-or-find, listing FAQ publish/reword/unpublish, SellerLayoutComposer nav badge; 999 tests / 2196 assertions, 100.0% coverage
 - 2026-08-23:15:12:04 — FEAT-012 — started
 - 2026-08-23:15:08:00 — FEAT-011 — reviewed: fixed a merge leaving conversations.subject_key naming the anonymous customer (duplicate threads after verification); Conversation::moveCustomer re-keys and folds, ConversationSubject::for rebuilds a key from a row; docs carry the messaging tables and drop RecipientType; 941 tests / 2056 assertions, 100.0% coverage

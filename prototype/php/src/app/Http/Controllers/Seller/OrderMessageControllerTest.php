@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
 
@@ -20,7 +21,11 @@ it('opens the thread for the order and the customer and lands on it', function (
     $conversation = Conversation::sole();
     expect($conversation->fulfillment_id)->toBe($fulfillment->id)
         ->and($conversation->seller_id)->toBe($seller->id)
-        ->and($conversation->customer_id)->toBe($customer->id);
+        ->and($conversation->customer_id)->toBe($customer->id)
+        // The key the customer's own route for this order asks for, so both
+        // sides of the thread find the one row.
+        ->and($conversation->subject_key)
+        ->toBe(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id)->subjectKey());
     $response->assertRedirect(route('seller.messages.show', $conversation));
 });
 

@@ -12,7 +12,8 @@ Code: `app/Domain/Messaging/`, `app/Actions/Messaging/`,
 `app/Http/Controllers/Shop/MessageController.php`,
 `app/Http/Controllers/Admin/MessageController.php`,
 `app/Events/MessagePosted.php`, `app/Listeners/NotifyOfMessage.php`,
-`app/Notifications/MessageReceived.php`, `app/View/Composers/`. Tables:
+`app/Notifications/MessageReceived.php`, `app/Support/ActorDisplay.php`,
+`app/View/Composers/`. Tables:
 `database/migrations/*_create_messaging_tables.php`.
 
 Four tables would repeat the same message store four times, so there is one:
@@ -210,7 +211,7 @@ Question: where does the number on every layout's Messages link come from?
 
 ```mermaid
 flowchart LR
-    scope["Message scope unreadBy(reader)\nread_at is null\nand not sent by the reader"] --> thread["per-thread badge\nwithCount(['messages as unread_count'])"]
+    scope["Message scope unreadBy(reader)\nread_at is null\nand not sent by the reader"] --> thread["per-thread badge\nConversation scope withUnreadCountFor(reader)"]
     scope --> total["nav total\nwhereHas('conversation', withParticipant)"]
     scope --> mark["MarkConversationRead\nupdate(['read_at' => now])"]
     scope --> stream["the SSE generator\nre-reads the total"]
