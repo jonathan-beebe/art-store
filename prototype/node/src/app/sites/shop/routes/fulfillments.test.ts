@@ -30,6 +30,24 @@ async function shippedOrder(testApp: TestApp, customerId: number) {
   return { order, fulfillment, seller }
 }
 
+/** The fulfillment's status and ledger rows, so a refused request can be
+ * checked for leaving both exactly as they were. */
+async function fulfillmentState(testApp: TestApp, fulfillmentId: number) {
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('id', '=', fulfillmentId)
+    .executeTakeFirstOrThrow()
+  const ledgerEntries = await testApp.db
+    .selectFrom('ledgerEntries')
+    .selectAll()
+    .where('fulfillmentId', '=', fulfillmentId)
+    .orderBy('id')
+    .execute()
+
+  return { fulfillment, ledgerEntries }
+}
+
 test('confirming delivery closes the fulfillment and releases the escrow', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -78,6 +96,7 @@ test('a fulfillment the seller has not shipped cannot be confirmed', async (t) =
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
   const { order, fulfillment } = await shippedOrder(testApp, customer.id)
+  const before = await fulfillmentState(testApp, fulfillment.id)
 
   const response = await testApp.app.inject({
     method: 'POST',
@@ -86,6 +105,7 @@ test('a fulfillment the seller has not shipped cannot be confirmed', async (t) =
   })
 
   assert.equal(response.statusCode, 404)
+  assert.deepEqual(await fulfillmentState(testApp, fulfillment.id), before)
 })
 
 test('confirming a delivery twice is refused the second time', async (t) => {
@@ -104,6 +124,8 @@ test('confirming a delivery twice is refused the second time', async (t) => {
     url: `/orders/${order.id}/fulfillments/${fulfillment.id}/delivered`,
     cookies: customer.cookies,
   })
+  const afterFirst = await fulfillmentState(testApp, fulfillment.id)
+
   const again = await testApp.app.inject({
     method: 'POST',
     url: `/orders/${order.id}/fulfillments/${fulfillment.id}/delivered`,
@@ -111,6 +133,13 @@ test('confirming a delivery twice is refused the second time', async (t) => {
   })
 
   assert.equal(again.statusCode, 404)
+  const afterSecond = await fulfillmentState(testApp, fulfillment.id)
+  assert.deepEqual(afterSecond, afterFirst)
+  assert.equal(afterSecond.fulfillment.status, 'delivered')
+  assert.equal(
+    afterSecond.ledgerEntries.filter((entry) => entry.entryType === 'released').length,
+    1,
+  )
 })
 
 test("another customer cannot confirm someone else's delivery", async (t) => {
@@ -124,6 +153,7 @@ test("another customer cannot confirm someone else's delivery", async (t) => {
     carrier: 'Royal Mail',
     trackingNumber: 'RM123456789GB',
   })
+  const before = await fulfillmentState(testApp, fulfillment.id)
 
   const response = await testApp.app.inject({
     method: 'POST',
@@ -132,6 +162,9 @@ test("another customer cannot confirm someone else's delivery", async (t) => {
   })
 
   assert.equal(response.statusCode, 404)
+  const after = await fulfillmentState(testApp, fulfillment.id)
+  assert.deepEqual(after, before)
+  assert.equal(after.fulfillment.status, 'shipped')
 })
 
 test('a fulfillment that belongs to another order is not found', async (t) => {
@@ -145,6 +178,7 @@ test('a fulfillment that belongs to another order is not found', async (t) => {
     carrier: 'Royal Mail',
     trackingNumber: 'RM123456789GB',
   })
+  const before = await fulfillmentState(testApp, second.fulfillment.id)
 
   const response = await testApp.app.inject({
     method: 'POST',
@@ -153,4 +187,7 @@ test('a fulfillment that belongs to another order is not found', async (t) => {
   })
 
   assert.equal(response.statusCode, 404)
+  const after = await fulfillmentState(testApp, second.fulfillment.id)
+  assert.deepEqual(after, before)
+  assert.equal(after.fulfillment.status, 'shipped')
 })

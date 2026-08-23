@@ -1,14 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { sql } from 'kysely'
 import { IN_MEMORY_DATABASE, openDatabase, removeDatabaseFile } from './database.ts'
 
-test('an opened database refuses a row pointing at a missing parent', async () => {
+test('an opened database refuses a row pointing at a missing parent', async (t) => {
   const db = openDatabase(IN_MEMORY_DATABASE)
+  t.after(() => db.destroy())
   await sql`create table sellers (id integer primary key)`.execute(db)
   await sql`create table listings (id integer primary key, seller_id integer references sellers(id))`.execute(db)
 
@@ -16,31 +17,31 @@ test('an opened database refuses a row pointing at a missing parent', async () =
     () => sql`insert into listings (seller_id) values (404)`.execute(db),
     /FOREIGN KEY/,
   )
-  await db.destroy()
 })
 
-test('an opened database waits five seconds for another writer', async () => {
+test('an opened database waits five seconds for another writer', async (t) => {
   const db = openDatabase(IN_MEMORY_DATABASE)
+  t.after(() => db.destroy())
 
   const busyTimeout = await sql<{ timeout: number }>`pragma busy_timeout`.execute(db)
 
   assert.equal(busyTimeout.rows[0]?.timeout, 5000)
-  await db.destroy()
 })
 
-test('an opened database reads snake_case columns as camelCase', async () => {
+test('an opened database reads snake_case columns as camelCase', async (t) => {
   const db = openDatabase(IN_MEMORY_DATABASE)
+  t.after(() => db.destroy())
   await sql`create table listings (price_cents integer)`.execute(db)
   await sql`insert into listings (price_cents) values (1250)`.execute(db)
 
   const rows = await sql<{ priceCents: number }>`select price_cents from listings`.execute(db)
 
   assert.equal(rows.rows[0]?.priceCents, 1250)
-  await db.destroy()
 })
 
-test('a database file and its write-ahead log are removed together', async () => {
+test('a database file and its write-ahead log are removed together', async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'art-store-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
   const file = path.join(directory, 'development.sqlite3')
   await Promise.all(
     [file, `${file}-shm`, `${file}-wal`].map((each) => writeFile(each, '')),
@@ -53,8 +54,9 @@ test('a database file and its write-ahead log are removed together', async () =>
   assert.equal(existsSync(`${file}-wal`), false)
 })
 
-test('removing a database that does not exist succeeds', async () => {
+test('removing a database that does not exist succeeds', async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'art-store-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
 
   await removeDatabaseFile(path.join(directory, 'absent.sqlite3'))
 })

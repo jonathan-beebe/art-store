@@ -6,6 +6,14 @@ test('addCents sums two amounts', () => {
   assert.equal(addCents(1000, 500), 1500)
 })
 
+test('addCents sums two negative amounts', () => {
+  assert.equal(addCents(-1000, -500), -1500)
+})
+
+test('addCents sums a positive and a negative amount', () => {
+  assert.equal(addCents(1000, -400), 600)
+})
+
 test('addCents rejects a non-integer amount', () => {
   assert.throws(() => addCents(12.5, 100), /12\.5/)
 })
@@ -148,4 +156,12 @@ test('dollarsInputValue writes zero as 0.00', () => {
 
 test('dollarsInputValue leaves out the thousands separators formatCents adds', () => {
   assert.equal(dollarsInputValue(1_234_567), '12345.67')
+})
+
+// Pinned, not fixed: dollarsInputValue's one call site prefills a price
+// field, and a listing price is never negative. formatCents keeps the sign,
+// so parseDollars(formatCents(x)) is not a round trip for a negative x, but
+// nothing in the app asks dollarsInputValue to make one.
+test('dollarsInputValue drops the sign of a negative amount', () => {
+  assert.equal(dollarsInputValue(-105), '1.05')
 })

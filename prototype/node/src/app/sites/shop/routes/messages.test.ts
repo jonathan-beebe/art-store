@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { flashSchema } from '../../../plugins/flash.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -296,7 +297,7 @@ test('a customer with an active block is refused when posting a reply, and no me
   const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
   assert.ok(flashCookie !== undefined)
   const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
-  const flash = JSON.parse(unsigned.value ?? '{}') as { alert?: string }
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
   assert.equal(flash.alert, 'This account is blocked and cannot send messages.')
 
   const messages = await testApp.db

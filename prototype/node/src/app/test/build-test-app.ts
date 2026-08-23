@@ -13,6 +13,7 @@ import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/databa
 import { migrateToLatest } from '../db/migrator.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
 import { flashMagicLinkDelivery } from '../delivery/flash-magic-link-delivery.ts'
+import { flashSchema } from '../plugins/flash.ts'
 
 /** Frozen so payout periods and link expiries read the same whatever day it is. */
 export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
@@ -20,6 +21,7 @@ export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
 /** `uploadsDir` here is never read: `buildTestApp` always builds a fresh
  * per-test temp directory unless a caller supplies its own `config`. */
 export const TEST_CONFIG: AppConfig = {
+  environment: 'test',
   host: '127.0.0.1',
   port: 0,
   databaseFile: IN_MEMORY_DATABASE,
@@ -27,6 +29,10 @@ export const TEST_CONFIG: AppConfig = {
   logLevel: 'silent',
   magicLinkDelivery: 'flash',
   uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
+  publicUrl: null,
+  trustProxy: false,
+  secureCookies: false,
+  showsDebugMagicLinks: true,
 }
 
 export type TestApp = {
@@ -133,8 +139,8 @@ export function takeDebugMagicLink({ app }: TestApp, response: LightMyRequestRes
   if (cookie === undefined) throw new Error('the response flashed nothing')
 
   const unsigned = app.unsignCookie(String(cookie.value))
-  const flash: unknown = JSON.parse(unsigned.value ?? '{}')
-  const link = (flash as { debugMagicLink?: string }).debugMagicLink
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
+  const link = flash.debugMagicLink
 
   if (link === undefined) throw new Error('the flash carries no magic link')
 

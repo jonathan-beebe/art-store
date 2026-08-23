@@ -266,6 +266,40 @@ test("someone else's order cannot be paid", async (t) => {
   assert.equal(await orderStatus(testApp, order.id), 'awaiting_payment')
 })
 
+test("someone else's pay page is not found", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const stranger = await signInAsCustomer(testApp, 'stranger@example.com')
+  const { cartId } = await cartOneArtwork(testApp, buyer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: buyer.id })
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/orders/${order.id}/pay`,
+    cookies: stranger.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('a bodiless payment is treated as an empty form and declines', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(await orderStatus(testApp, order.id), 'payment_failed')
+})
+
 test('a blocked customer cannot pay and is told why', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

@@ -20,7 +20,7 @@ declare module 'fastify' {
 
 const FLASH_COOKIE = 'flash'
 
-const flashSchema = z.object({
+export const flashSchema = z.object({
   notice: z.string().optional(),
   alert: z.string().optional(),
   debugMagicLink: z.string().optional(),
@@ -38,6 +38,7 @@ export function addFlash(app: FastifyInstance): void {
       httpOnly: true,
       sameSite: 'lax',
       signed: true,
+      secure: this.server.config.secureCookies,
     })
   })
 

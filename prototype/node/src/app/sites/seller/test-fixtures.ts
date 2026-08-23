@@ -11,9 +11,9 @@ import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
-import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
 import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
 import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
+import { APPROVED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
 
 const DEFAULT_DRAFT: ListingDraft = {
   title: 'Harbour at Dusk',
@@ -22,16 +22,6 @@ const DEFAULT_DRAFT: ListingDraft = {
   dimensions: '40 x 60 cm',
   priceCents: 45_000,
   quantity: 2,
-}
-
-const DEFAULT_SHIPPING: ShippingAddress = {
-  name: 'Ada Lovelace',
-  line1: '12 Analytical Way',
-  line2: null,
-  city: 'London',
-  region: 'London',
-  postalCode: 'SW1A 1AA',
-  country: 'United Kingdom',
 }
 
 export async function createTestListing(
@@ -78,10 +68,10 @@ export async function createFulfillment(
     {
       cartId: cart.id,
       purchaser: { id: buyer.id, email, isEmailVerified: true },
-      shipping: DEFAULT_SHIPPING,
+      shipping: SHIPPING_ADDRESS,
     },
   )
-  await finalizeOrder({ db, clock }, { orderId: order.id, cardNumber: '4242 4242 4242 4242' })
+  await finalizeOrder({ db, clock }, { orderId: order.id, cardNumber: APPROVED_CARD })
 
   return db.selectFrom('fulfillments').selectAll().where('orderId', '=', order.id).executeTakeFirstOrThrow()
 }

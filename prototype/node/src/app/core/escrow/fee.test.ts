@@ -23,3 +23,11 @@ test('half a cent rounds away from zero', () => {
 test('nothing owes nothing', () => {
   assert.equal(platformFee(0), 0)
 })
+
+test('a negative subtotal takes a negative fee', () => {
+  assert.equal(platformFee(-45_000), -4500)
+})
+
+test('sellerNet keeps the rest of a negative subtotal', () => {
+  assert.equal(sellerNet(-45_000), -40_500)
+})

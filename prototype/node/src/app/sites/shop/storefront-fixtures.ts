@@ -8,9 +8,13 @@ import type { ActionContext } from '../../actions/action-context.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
-import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
 import type { Listing, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { APPROVED_CARD, DECLINED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
+
+export { APPROVED_CARD, DECLINED_CARD }
+/** This site's name for the shared shipping fixture. */
+export const TEST_SHIPPING = SHIPPING_ADDRESS
 
 export type ArtworkInput = {
   sellerId: number
@@ -76,19 +80,6 @@ export async function removeListing(
     })
     .execute()
 }
-
-export const TEST_SHIPPING: ShippingAddress = {
-  name: 'Ada Lovelace',
-  line1: '12 Analytical Way',
-  line2: null,
-  city: 'London',
-  region: 'Greater London',
-  postalCode: 'EC1A 1BB',
-  country: 'GB',
-}
-
-export const APPROVED_CARD = '4242424242424242'
-export const DECLINED_CARD = '4000000000000002'
 
 /**
  * A cart holding one seller's piece, ready for an order. Tests about the order
