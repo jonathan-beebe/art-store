@@ -29,8 +29,14 @@ each route would let the next page forget it.
 | `GET /admin/ledger?seller=&type=` | `ledgerRows` plus the folded totals for the filtered set |
 | `GET /admin/stats` | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies` |
 | `GET|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
+| `GET /admin/outbox`, `/admin/outbox/:id`, `POST /admin/outbox/drain` | `outboxRows`, `outboxRow`, `drainOutbox` |
+| `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
 | `POST /admin/listings/:id/removals`, `.../removals/lift` | `removeListing`, `liftListingRemoval` |
 | `POST /admin/customers/:id/blocks`, `.../blocks/lift` | `blockCustomer`, `liftCustomerBlock` |
+
+Every filter is optional and an empty value means "all": the console submits
+`seller=` for "All sellers", which `optionalFilter`
+(`app/http/request-schema.ts`) reads as absent before the handler sees it.
 
 Reads live in `app/sites/admin/queries/`, one module per table a page shows,
 each taking `Pick<ActionContext, 'db'>` and returning cents and ISO strings;
@@ -114,7 +120,7 @@ Question: how does a request become a row on `/admin/stats`?
 sequenceDiagram
     actor Visitor
     participant Fastify
-    participant Hook as addPageViewRollup (root onResponse)
+    participant Hook as pageViewRollup (root onResponse)
     participant Countable as isCountablePageView
     participant Site as pageViewSite
     participant Record as recordPageView
@@ -154,6 +160,17 @@ calendar week and is a different question — see [`escrow.md`](escrow.md).
 (`listingEventTallies`): per-listing `view`, `favorite`, `unfavorite`, and
 `cart_add`, with a `view` collapsed to at most one per (listing, customer, hour)
 by `isRecordedOncePerHour` and `viewWindowStart`.
+
+## The outbox as the platform's mailbox
+
+Sign-in links and notifications queue in `outbox_messages` (see
+[`architecture.md`](architecture.md)). `/admin/outbox` lists them newest first
+with a Pending/Sent column; `/admin/outbox/:id` shows one as it would be sent,
+with its link clickable — which is how a reviewer signs in once
+`MAGIC_LINK_DELIVERY=outbox` turns the debug alert off. **Drain the outbox**
+on that page posts to `/admin/outbox/drain` and calls the same `drainOutbox`
+`npm run outbox` and `make outbox` call, writing each pending message to
+`<OUTBOX_DIR>/<id>.eml` and stamping `delivered_at`.
 
 ## Running a payout from the admin site
 

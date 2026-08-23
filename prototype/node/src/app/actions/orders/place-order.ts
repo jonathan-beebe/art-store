@@ -136,6 +136,8 @@ async function snapshotItems(
     .execute()
 }
 
+/** One fulfillment per seller on the order, each born `awaiting_shipment` —
+ * the status the column defaults to. */
 async function splitBySeller(
   { db }: ActionContext,
   orderId: number,
@@ -147,7 +149,6 @@ async function splitBySeller(
       totals.subtotalsBySeller.map((seller) => ({
         orderId,
         sellerId: seller.sellerId,
-        status: 'awaiting_shipment' as const,
         carrier: null,
         trackingNumber: null,
         subtotalCents: seller.subtotalCents,

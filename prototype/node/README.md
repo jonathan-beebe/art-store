@@ -3,7 +3,9 @@
 A three-sided art marketplace prototype: a seller portal at `/seller`, a
 customer storefront at `/`, an admin site at `/admin`, and a messaging centre
 that spans all three. One Node deployable, one SQLite file, server-rendered
-HTML, no client-side JavaScript.
+HTML. Every flow works with JavaScript off; the only script on any page is 21
+dependency-free lines that move the unread-message badge over a server-sent
+event stream.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it
 is the spec for layers, naming, routes, and testing conventions.
@@ -30,8 +32,12 @@ the Tailwind stylesheet with `npm run assets`, then starts the server with
 `node --watch app/server.ts`.
 
 Measured from an empty tree — no `src/node_modules`, no SQLite file, no
-`src/public/app.css`: `make build` took 14 seconds and `make up` another 13,
-of which `npm ci` was 9. Add the one-time pull of `node:24-bookworm-slim` on a
+`src/public/app.css`: `make build` and `make up` together took **29 seconds**
+to the healthcheck reporting `healthy`, inside which `npm ci`
+installed 230 packages, eleven migrations applied from nothing, the seed wrote
+2 admins, 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
+4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
+`public/app.css`. Add the one-time pull of `node:24.19.0-bookworm-slim` on a
 machine that has never seen it. Later runs take seconds, because
 `src/node_modules` lives in the bind mount and survives `make down`.
 
@@ -172,7 +178,9 @@ actions the sites call, with a frozen clock so the dates read the same on any
 day. The demo half refuses to run twice: it does nothing once a seller row
 exists, so a second `make seed` (or the one `make fresh` runs for you) only
 confirms the admins are still there. Sign in as any address below from that
-site's `/login` page — the debug alert prints the magic link.
+site's `/login` page: with the default `MAGIC_LINK_DELIVERY=flash` the debug
+alert prints the link on the page that asked; with `outbox` it waits on
+`/admin/outbox`.
 
 **Admins** — seeded only, never created by signing in.
 
@@ -217,12 +225,15 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
 | `make coverage` | `docker compose run --rm app npm run coverage` |
 | `make docs-check` | `./docker/docs-check.sh` |
+| `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
 | `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
 | `make seed` | `docker compose run --rm app npm run seed` |
 | `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
 | `make outbox` | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))` |
 | `make logs` | `docker compose logs -f` |
+| `make image` | `docker build --target runtime -t art-store-node .` |
+| `make run-image` | `docker run --rm -p 4100:4000 art-store-node` |
 
 The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
 reads to run the container as that user, so files the container writes into
@@ -232,13 +243,18 @@ export needs `--user "$(id -u):$(id -g)"`.
 `make docs-check` renders every Mermaid block under `docs/` through
 `minlag/mermaid-cli` in Docker and fails on any diagram that does not parse.
 
+`make routes` prints every route the app answers and the plugin tree they hang
+in, from Fastify's own introspection (`printRoutes` then `printPlugins`) rather
+than from a table someone keeps up to date.
+
 ## Tests
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
 `node:assert/strict` — no test framework is installed. `make test` runs
-`npm run check`: `tsc --noEmit`, then eslint (`complexity` max 8, `max-depth`
-max 3), then the coverage-gated suite (see Coverage below). `npm test` on its
-own runs the suite without the coverage gate, for a fast local loop.
+`npm run check`: `tsc --noEmit`, then eslint (`recommendedTypeChecked`,
+`complexity` max 8, `max-depth` max 3), then the coverage-gated suite (see
+Coverage below). `npm test` on its own runs the suite without the coverage
+gate, for a fast local loop.
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -266,7 +282,7 @@ make coverage
 Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 'app/**/*.test.ts'`,
 printing Node's own coverage table and failing under 95% lines / 90% branches.
 
-The suite stands at 1,161 tests and 99.42% lines / 95.23% branches / 98.85%
+The suite stands at 1,536 tests and 99.57% lines / 97.22% branches / 99.47%
 functions. What is left uncovered is migration `down()` bodies and a handful of
 defensive branches.
 
@@ -280,9 +296,12 @@ stable one.
 
 [`.github/workflows/node.yml`](../../.github/workflows/node.yml) runs on
 every push to `main` and every pull request touching `prototype/node/**`: it
-installs on Node 24, builds the Tailwind stylesheet the smoke test serves,
-then runs `npm run check` — typecheck, lint, and the coverage-gated suite —
-and uploads `coverage/lcov.info` as a build artifact.
+installs on Node 24, builds the Tailwind stylesheet the smoke test serves, then
+runs `npm run typecheck`, `npm run lint`, and `npm run test:ci` as three steps,
+and uploads `coverage/lcov.info` as a build artifact. Those are the same three
+things `npm run check` runs locally — spelled out so a failure names itself in
+the job list, and with `test:ci` in place of `coverage` because it writes the
+lcov report the upload needs. The suite runs once.
 
 ## Smoke
 
@@ -291,15 +310,19 @@ make smoke
 ```
 
 `app/test/smoke.test.ts` walks the whole product over HTTP, and `make test`
-includes it: a seller signs in by magic link and lists a piece; a fresh
-anonymous visitor views, favorites, and carts it, checks out as a guest,
+includes it: all three sites serve their own layout off one stylesheet and
+`/health` answers its JSON; a seller signs in by magic link and lists a piece; a
+fresh anonymous visitor views, favorites, and carts it, checks out as a guest,
 verifies the address from the debug alert, is declined once, then pays with
 4242; the seller reads the "Item sold" notification and ships; the customer
 confirms delivery; an admin runs the weekly payout and the seller's earnings
 page shows the net; a customer asks a question and the seller publishes the
 answer as an FAQ; an admin removes a listing and it leaves the storefront; an
-admin blocks a customer and checkout refuses. Time is frozen so the payout
-period reads the same whatever day it runs.
+admin blocks a customer and checkout refuses; an admin messages a seller who
+reads it; a sign-in link asked for under outbox delivery is listed on
+`/admin/outbox` and drains to an `.eml` file; and one frame comes off a live
+`/seller/events` stream over a real socket. Time is frozen so the payout period
+reads the same whatever day it runs.
 
 ## Database
 
@@ -318,15 +341,23 @@ camelCase in TypeScript (`price_cents` → `priceCents`).
 `node:sqlite` is a release candidate, not stable, and Node before 24.15
 prints an `ExperimentalWarning` on import — the npm scripts and the image
 pass `--disable-warning=ExperimentalWarning` to silence it. The API may
-still change between Node minors. Reverting is one file: restore
-`better-sqlite3` and Kysely's own `SqliteDialect` in `app/db/database.ts`
-and delete the dialect; nothing else imports `node:sqlite`.
+still change between Node minors. Backing out is one file: point
+`app/db/database.ts` at a compiled driver and Kysely's own `SqliteDialect`
+and delete `node-sqlite-dialect.ts`; nothing else imports `node:sqlite`. That
+would put a compiler toolchain back in the image, which is what taking it out
+bought.
 
 ```sh
 make migrate    # apply pending migrations
 make fresh      # delete the file, rebuild it, seed the admins and demo data, restart the server
 make seed       # add the platform admins and demo data; running it twice adds nobody new
 ```
+
+Every column holding a string union carries a `CHECK` constraint built from the
+same `as const` array TypeScript reads, so a status the union does not admit
+cannot reach the file. Those constraints live in the original `create`
+migrations rather than in later ones, so **a database created before they
+landed is not upgraded by `make migrate` — run `make fresh`.**
 
 Tests run against `:memory:`.
 
@@ -351,8 +382,12 @@ make assets
 ```
 
 Layouts link it as `/app.css`, served by `@fastify/static` from
-`src/public/`. There is no JavaScript bundle and no `<script>` tag in any
-view (zero across all 57 `app/**/*.ejs` templates).
+`src/public/`. There is no JavaScript bundle. Three of the 66
+`app/**/*.ejs` templates carry a `<script>` tag — the three site layouts, each
+loading the same `<script defer src="/app.js">` — and no other template has one.
+Those 21 dependency-free lines subscribe to `<prefix>/events` and rewrite the
+unread-message badge the page already rendered; with JavaScript off the badge is
+the number the page was served with and every other flow is unchanged.
 
 ## Magic links and the outbox
 
@@ -384,9 +419,9 @@ of the business change.
   it (`notify` writes the inbox row and the outbox row together;
   `sendMagicLink` writes the link and the outbox row together). A sale that
   rolls back sends nothing.
-- Nothing leaves the process inside that transaction. `better-sqlite3` and
-  `node:sqlite` are one synchronous connection, so an SMTP round trip held
-  inside a transaction would block every other request in the process.
+- Nothing leaves the process inside that transaction. `node:sqlite` is one
+  synchronous connection, so an SMTP round trip held inside a transaction would
+  block every other request in the process.
 - **Draining** is a separate step outside any transaction: it renders each
   pending row as an RFC-5322 message, writes it to
   `<OUTBOX_DIR>/<id>.eml`, and stamps `delivered_at`.
@@ -543,45 +578,57 @@ prototype/node/
   src/                   the Node project
     package.json, package-lock.json, tsconfig.json, eslint.config.js
     app/
-      server.ts          entry: loads config, opens the database, listens
+      server.ts          entry: loads config, opens the database, listens,
+                           drains on SIGINT/SIGTERM
       app.ts              buildApp(deps): composition root
       config.ts           env -> typed config
+      logging.ts          logger options, request id, redacting serializers
       clock.ts             systemClock and fixedClock
-      not-implemented-error.ts
       core/                functional core, sidecar tests, no I/O:
                            analytics/, auth/, cart/, customers/, escrow/,
-                           listings/, messaging/, moderation/, notifications/,
-                           orders/, payments/, reports/, shop/, money.ts,
-                           transition-error.ts
+                           health/, listings/, messaging/, moderation/,
+                           notifications/, orders/, payments/, reports/, shop/,
+                           money.ts, status-label.ts, transition-error.ts
       actions/             verbs over ActionContext, one folder per concept:
                            analytics/, auth/, carts/, customers/, escrow/,
                            favorites/, fulfillments/, listings/, messaging/,
-                           moderation/, notifications/, orders/,
+                           moderation/, notifications/, orders/, outbox/,
                            action-context.ts, transaction.ts
       db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
-                           migrate.ts, schema.ts,
-                           commerce-schema.ts, timestamp.ts, migrations/,
+                           migrate.ts, schema.ts, commerce-schema.ts, count.ts,
+                           timestamp.ts, migrations/,
                            seed.ts + seed-admins/catalog/sellers/customers/
                            order-history/messaging/page-views/demo-data.ts
-      delivery/            MagicLinkDelivery port + flash and mail implementations
-      plugins/             flash.ts, form-body.ts, identity.ts, page-views.ts,
+      delivery/            MagicLinkDelivery + NotificationDelivery ports,
+                           delivery-context.ts, the flash and outbox
+                           implementations, outbox-message.ts
+      http/                zod-type-provider.ts (the validator compiler),
+                           request-schema.ts (idParams, slugParams,
+                           optionalFilter, submittedForm)
+      plugins/             error-pages.ts, events.ts, flash.ts, health.ts,
+                           identity.ts, page-views.ts, root-plugin.ts,
                            security-headers.ts, site-render.ts,
                            unread-messages.ts
       sites/               shop/, seller/, admin/, auth/ — each a plugin with
                            routes/, views/, and (except auth) queries/
-      views/partials/      debug-alert.ejs, flash.ejs
-      cli/                 run-payouts.ts, parse-as-of.ts
+      views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
+                           unread-badge.ejs
+      cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
+                           parse-as-of.ts
       test/                build-test-app.ts, commerce-world.ts, smoke.test.ts
       assets/app.css       Tailwind source
-    public/                app.css (built, not committed), uploads/
-    storage/               development.sqlite3 (not committed)
+    public/                app.css (built, not committed), app.js, uploads/
+    storage/               development.sqlite3 and outbox/ (neither committed)
 ```
 
 ## Known gaps
 
-Email is unimplemented on both delivery ports. Seeded listings show
-procedurally generated SVG placeholders rather than photographs. Shipment
-tracking is two free-text fields (carrier, tracking number) with no carrier
-integration — the customer confirms their own delivery. See
+Delivery stops at a file on disk: both ports queue to the outbox and the drain
+writes `.eml` files, but there is no SMTP. Seeded listings show procedurally
+generated SVG placeholders rather than photographs. Shipment tracking is two
+free-text fields (carrier, tracking number) with no carrier integration — the
+customer confirms their own delivery. Support threads are all routed to the
+first admin by id; there is no assignment model. Messages carry no attachments
+and no archive. The storefront's 404 page renders signed-out whoever asks. See
 [`docs/review.md`](docs/review.md) for the full numbered list of gaps and
 suggested next steps.

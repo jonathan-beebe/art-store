@@ -1,10 +1,15 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import type { OutgoingHttpHeaders } from 'node:http'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
+import { drainOutbox } from '../actions/outbox/drain-outbox.ts'
 import { fixedClock } from '../clock.ts'
 import { cents, formatCents, subtractCents } from '../core/money.ts'
 import type { Listing } from '../db/commerce-schema.ts'
+import { outboxMagicLinkDelivery } from '../delivery/outbox-magic-link-delivery.ts'
 import { APPROVED_CARD, cartWithArtwork, DECLINED_CARD, listArtwork, TEST_SHIPPING } from '../sites/shop/storefront-fixtures.ts'
 import {
   browseAsAnonymousCustomer,
@@ -13,6 +18,7 @@ import {
   signInAsCustomer,
   signInAsSeller,
   takeDebugMagicLink,
+  TEST_CONFIG,
 } from './build-test-app.ts'
 
 /** Where a redirect sent the visitor. */
@@ -701,4 +707,92 @@ test('an admin messages a seller and the seller reads it', async (t) => {
   const afterReading = await app.inject({ url: '/seller', cookies: seller.cookies })
 
   assert.doesNotMatch(afterReading.body, /data-unread-messages/)
+})
+
+test('a sign-in link asked for under outbox delivery leaves the request and drains to a file', async (t) => {
+  const outboxDir = path.join(await mkdtemp(path.join(tmpdir(), 'art-store-smoke-')), 'outbox')
+  t.after(() => rm(path.dirname(outboxDir), { recursive: true, force: true }))
+
+  // The deployment a reviewer runs with MAGIC_LINK_DELIVERY=outbox: no link is
+  // printed into the page that asked for it.
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, outboxDir, showsDebugMagicLinks: false },
+    magicLinkDelivery: outboxMagicLinkDelivery,
+  })
+  t.after(testApp.close)
+
+  const asked = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: SELLER_EMAIL },
+  })
+  assert.equal(asked.statusCode, 302)
+
+  const landing = await testApp.app.inject({
+    method: 'GET',
+    url: destinationOf(asked),
+    cookies: cookiesFrom(asked),
+  })
+  assert.doesNotMatch(landing.body, /\/auth\/magic\//)
+
+  const queued = await testApp.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
+
+  assert.equal(queued.recipient, SELLER_EMAIL)
+  assert.equal(queued.deliveredAt, null)
+  assert.match(String(queued.url), /\/auth\/magic\/[0-9a-f]{64}$/)
+
+  // The mailbox an admin reads on /admin/outbox is the same table.
+  const operator = await signInAsAdmin(testApp)
+  const mailbox = await testApp.app.inject({ url: '/admin/outbox', cookies: operator.cookies })
+
+  assert.equal(mailbox.statusCode, 200)
+  assert.match(mailbox.body, new RegExp(SELLER_EMAIL))
+
+  const drained = await drainOutbox(
+    { db: testApp.db, clock: testApp.clock },
+    { outboxDir },
+  )
+  assert.deepEqual(
+    drained.map(({ id, recipient }) => ({ id, recipient })),
+    [{ id: queued.id, recipient: SELLER_EMAIL }],
+  )
+
+  const written = await readFile(path.join(outboxDir, `${queued.id}.eml`), 'utf8')
+
+  assert.match(written, new RegExp(`^To: ${SELLER_EMAIL}$`, 'm'))
+  assert.match(written, new RegExp(escapedForPattern(String(queued.url))))
+
+  const stamped = await testApp.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
+  assert.notEqual(stamped.deliveredAt, null)
+})
+
+test('the unread badge subscribes to a live event stream', async (t) => {
+  // `app.inject` buffers the whole body and this response never ends, so the
+  // walk needs a real socket.
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const baseUrl = await testApp.app.listen({ host: '127.0.0.1', port: 0 })
+  const seller = await signInAsSeller(testApp)
+
+  const subscribed = new AbortController()
+  t.after(() => subscribed.abort())
+  const stream = await fetch(`${baseUrl}/seller/events`, {
+    headers: { cookie: `seller_id=${seller.cookies.seller_id ?? ''}` },
+    signal: subscribed.signal,
+  })
+
+  assert.equal(stream.status, 200)
+  assert.match(stream.headers.get('content-type') ?? '', /^text\/event-stream/)
+  assert.ok(stream.body !== null)
+
+  const reader: ReadableStreamDefaultReader<Uint8Array> = stream.body.getReader()
+  const decoder = new TextDecoder()
+  let received = ''
+  while (!received.includes('event: unread\ndata: 0\n\n')) {
+    const chunk = await reader.read()
+    if (chunk.done) break
+    received += decoder.decode(chunk.value, { stream: true })
+  }
+
+  assert.equal(received, 'retry: 3000\n\nevent: unread\ndata: 0\n\n')
 })

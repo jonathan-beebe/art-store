@@ -40,17 +40,24 @@ sequenceDiagram
 
     Seller->>SignIn: POST /seller/login (email)
     SignIn->>Send: sendMagicLink({db, clock, delivery, magicLinkUrl}, {email, actorType})
+    activate Send
     Send->>MagicLinks: insert(tokenDigest, email, actorType, expiresAt, redirectTo)
-    Send-->>SignIn: Flash from delivery.deliver(...)
-    SignIn-->>Seller: redirect /seller/login, layout prints the URL
+    Send->>Send: delivery.deliver(transacted, {email, url, actorType})
+    deactivate Send
+    Note over Send,MagicLinks: one transaction — under outbox delivery the<br/>outbox_messages row is written in it too
+    Send-->>SignIn: Flash (the URL under flash delivery, empty under outbox)
+    SignIn-->>Seller: redirect /seller/login
 
     Seller->>Auth: GET /auth/magic/:token
     Auth->>Verify: signInWithMagicLink({db, clock}, {token, currentCustomerId})
+    activate Verify
     Verify->>MagicLinks: read by digestMagicLinkToken(token)
     Verify->>Verify: magicLinkStatus(link, now)
     Verify->>MagicLinks: set consumedAt where consumedAt is null
     Verify->>Claim: claimSellerIdentity({db, clock}, link.email)
     Claim-->>Verify: seller row (created on a first address)
+    deactivate Verify
+    Note over Verify,Claim: one transaction — consuming the link and<br/>claiming the identity commit together
     Verify-->>Auth: {outcome:'signedIn', actorType, actorId, redirectTo}
     Auth->>Auth: reply.signIn('seller', id) — signed seller_id cookie
     Auth-->>Seller: redirect redirectTo or ACTOR_SITES.seller.homePath
@@ -64,10 +71,18 @@ read before it, so two requests arriving together cannot both spend a link.
 `magicLinkStatus` answers `usable` | `expired` | `consumed`; a refusal names the
 `actorType`, which is how `/auth/magic/:token` sends the visitor back to the
 right sign-in page. An unknown token has no actor type and falls back to the
-storefront's. `flashMagicLinkDelivery` returns a `Flash` carrying
-`debugMagicLink`, which every layout prints through
-`app/views/partials/debug-alert.ejs`; `mailMagicLinkDelivery` throws
-`NotImplementedError`.
+storefront's.
+
+Delivery is a port with two implementations, chosen by `MAGIC_LINK_DELIVERY`
+(`flash` | `outbox`) through `selectMagicLinkDelivery`. `flashMagicLinkDelivery`
+returns a `Flash` carrying `debugMagicLink`, which every layout prints through
+`app/views/partials/debug-alert.ejs`. `outboxMagicLinkDelivery` returns an empty
+flash and enqueues a row in `outbox_messages` **inside `sendMagicLink`'s own
+transaction**, so a link and the row that carries it are written together or not
+at all; the reader finds it on `/admin/outbox`, or as an `.eml` file after
+`npm run outbox`. A production boot refuses `flash`, because it prints the link
+into the page that asked for it. There is no SMTP; a real transport is a third
+implementation of the same port.
 
 ## Guest verification, folding the anonymous row in
 

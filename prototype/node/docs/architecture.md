@@ -15,27 +15,41 @@ sequences and state machines: [`identity.md`](identity.md),
 [`messaging.md`](messaging.md), [`admin.md`](admin.md),
 [`data-model.md`](data-model.md), [`ontology.md`](ontology.md).
 
-## Stack (installed versions, 2026-08-22)
+## Stack (installed versions, 2026-08-23)
 
 | Concern | Choice | Version |
 | --- | --- | --- |
-| Runtime | Node, native type stripping (`node app/server.ts`, no build step, no `tsx`) | `node:24-bookworm-slim` |
+| Runtime | Node, native type stripping (`node app/server.ts`, no build step, no `tsx`) | `node:24.19.0-bookworm-slim` |
 | Language | TypeScript, `erasableSyntaxOnly` (no `enum`, no parameter properties, no namespaces), `verbatimModuleSyntax`, `tsc --noEmit` for type checking only | 5.9.3 |
 | HTTP | Fastify | 5.12.1 |
 | Views | EJS via `@fastify/view`; raw `<%- %>` output is reserved for `include(...)` and a layout's `<%- body %>` — every other value renders through the escaping `<%= %>` | ejs 6.0.1, @fastify/view 12.0.0 |
 | Forms, cookies, static, uploads | `@fastify/formbody`, `@fastify/cookie` (signed cookies), `@fastify/static`, `@fastify/multipart` | 9.0.0, 11.1.2, 10.1.3, 10.1.1 |
 | Database | `node:sqlite` behind `app/db/node-sqlite-dialect.ts`, an owned Kysely dialect (`CamelCasePlugin`) + Kysely `Migrator` with `FileMigrationProvider`, both imported from `kysely/migration` | built in, kysely 0.29.5 |
-| Validation at the edge | zod (`parse, don't validate`) | 4.4.3 |
+| Validation at the edge | zod schemas declared on the route, run by one validator compiler (`app/http/zod-type-provider.ts`) | 4.4.3 |
+| Logging | Fastify's own logger, configured in `app/logging.ts`; the CLIs build one with `createCliLogger` | pino 10.3.1 |
 | CSS | Tailwind CLI, stock theme | @tailwindcss/cli 4.3.3 |
 | Tests | `node:test` + `node:assert/strict`, sidecar files, `--experimental-test-coverage` with line/branch thresholds | built in |
-| Complexity | eslint + typescript-eslint with `complexity` and `max-depth` rules as a gate | eslint 9.39.5, typescript-eslint 8.67.0 |
+| Complexity | eslint + typescript-eslint on `recommendedTypeChecked`, with `complexity` and `max-depth` rules as a gate | eslint 9.39.5, typescript-eslint 8.67.0 |
+
+Ten runtime dependencies and seven dev dependencies resolve 260 packages.
+There is no compiled dependency: SQLite comes from the Node runtime, so the
+image carries no compiler toolchain.
 
 Kysely 0.29 moved `Migrator` and `FileMigrationProvider` out of its root
 export; importing them from `kysely` fails at runtime.
 
 Everything runs in the `app` container (`docker compose`). Nothing is installed
 on the host; `node_modules/` lives inside the bind mount so it survives
-restarts. The container serves port 4000.
+restarts. The container serves port 4000. `Dockerfile` carries three targets:
+`dev` (the bind-mount workflow `make up` builds), `build` (installs everything
+and compiles the stylesheet once), and `runtime` (production dependencies only,
+`USER node`, no bind mount) — `make image` and `make run-image`.
+
+Every Make target wraps `docker compose`: `up`, `down`, `build`, `assets`,
+`shell`, `test` (`npm run check`), `smoke`, `coverage`, `routes`, `migrate`,
+`fresh`, `seed`, `payouts`, `outbox`, `logs`, plus `docs-check` (Mermaid through
+`minlag/mermaid-cli`), `image`, and `run-image`. The README's Commands table
+gives the compose command each one stands for.
 
 ## Deployables
 
@@ -44,21 +58,23 @@ Question: what runs, and what talks to what?
 ```mermaid
 flowchart LR
     subgraph docker["docker compose: app container"]
-        node["Node 24 + Fastify 5<br/>/ storefront<br/>/seller portal<br/>/admin site<br/>/auth/magic/:token"]
-        sqlite[("SQLite (WAL)<br/>src/storage/development.sqlite3")]
+        node["Node 24 + Fastify 5<br/>/ storefront<br/>/seller portal<br/>/admin site<br/>/auth/magic/:token<br/>/health, &lt;prefix&gt;/events"]
+        sqlite[("SQLite (WAL)<br/>src/storage/development.sqlite3<br/>incl. outbox_messages")]
         node -- "Kysely" --> sqlite
     end
-    seller["Seller (browser)"] -- "HTML forms" --> node
-    customer["Customer (browser)"] -- "HTML forms" --> node
-    admin["Admin (browser)"] -- "HTML forms" --> node
+    seller["Seller (browser)"] -- "HTML forms, SSE" --> node
+    customer["Customer (browser)"] -- "HTML forms, SSE" --> node
+    admin["Admin (browser)"] -- "HTML forms, SSE" --> node
     payouts["npm run payouts<br/>(app/cli/run-payouts.ts)"] -- "Kysely" --> sqlite
-    node -. "MagicLinkDelivery,<br/>NotificationDelivery" .-> mail["Email delivery (port, unimplemented)"]
+    outbox["npm run outbox<br/>(app/cli/drain-outbox.ts)"] -- "Kysely" --> sqlite
+    outbox -- "renderMailMessage" --> eml["&lt;OUTBOX_DIR&gt;/&lt;id&gt;.eml"]
 ```
 
-The payout CLI is a second entry point onto the same database, not a second
-service: it opens its own connection, runs one action, and exits. Email is a
-port with no live implementation — `mailMagicLinkDelivery` throws
-`NotImplementedError`.
+Each CLI is a second entry point onto the same database, not a second service:
+it opens its own connection, runs one action, and exits. Both `MagicLinkDelivery`
+and `NotificationDelivery` are ports with a live implementation over the outbox
+(`app/delivery/outbox-*.ts`); a real SMTP transport would be a third
+implementation of each, and no call site changes.
 
 ## Layers inside the deployable
 
@@ -66,8 +82,8 @@ Functional core / imperative shell. Dependencies point inward only.
 
 ```mermaid
 flowchart TD
-    entry["Entry: app/server.ts, app/app.ts, app/config.ts, app/cli/"] --> coord
-    coord["Coordination: app/sites/**/routes, app/actions/**, app/plugins/"] --> core
+    entry["Entry: app/server.ts, app/app.ts, app/config.ts, app/logging.ts, app/cli/"] --> coord
+    coord["Coordination: app/sites/**/routes, app/actions/**, app/plugins/, app/http/"] --> core
     coord --> adapters
     adapters["Adapters: app/db (Kysely), app/delivery, EJS views, app/sites/*/queries"] --> core
     core["Core: app/core/** — pure TypeScript, no I/O, no clock, no random"]
@@ -75,15 +91,74 @@ flowchart TD
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Unit tested with `node:test` and no database. |
-| Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` port and its two implementations. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
-| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler, its type provider, and the schema pieces routes are built from; `app/plugins/` holds the cross-cutting Fastify wiring — error pages, flash, identity, page-view rollup, unread counts, and the per-site render decorator. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
-| Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen), `app/config.ts` (env → typed config), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
+| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `listings`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `reports`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
+| Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `count.ts`, `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` and `NotificationDelivery` ports, the `DeliveryContext` both `deliver` calls take, and their implementations — `flash-magic-link-delivery.ts`, `outbox-magic-link-delivery.ts`, `outbox-notification-delivery.ts`, plus `outbox-message.ts`, which enqueues and renders a row. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
+| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
+| Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen, signal handling), `app/config.ts` (env → typed config), `app/logging.ts` (logger options and serializers), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
 
-Two single-concept files sit at the root of `app/` rather than in a layer:
-`app/clock.ts` (the `Clock` type, `systemClock`, `fixedClock` — core takes a
-`Date`, so `Clock` has no reason to live in `app/core/`) and
-`app/not-implemented-error.ts`.
+`app/clock.ts` sits at the root of `app/` rather than in a layer: the `Clock`
+type, `systemClock`, and `fixedClock`. Core takes a `Date`, so `Clock` has no
+reason to live in `app/core/`.
+
+### The path a request takes
+
+Every cross-cutting feature is a Fastify plugin, and `buildApp` registers all
+of them before the first site, because a site inherits the root's hooks as they
+stand when its own context is built. `npm run routes` prints this tree from
+Fastify's own introspection.
+
+The order below is Fastify's lifecycle. Validation runs **before**
+`preHandler`, which is why a signed-out visitor asking for a guarded URL with
+an unparseable id gets 404 rather than a redirect to sign in.
+
+```mermaid
+flowchart TD
+    request(["Request"]) --> route{"a route matches?"}
+    route -- no --> notfound["setNotFoundHandler, one per site<br/>404 in that site's layout"]
+    route -- yes --> parse["Body parsing<br/>@fastify/formbody, or @fastify/multipart in the portal"]
+    parse --> schema{"Route schema<br/>zod params / querystring / body"}
+    schema -- "refused params" --> notfound
+    schema -- "refused body or query" --> errors["errorPages setErrorHandler<br/>400 in that site's layout"]
+    schema -- ok --> pre["preHandler, in registration order"]
+
+    subgraph preHandlers["preHandler"]
+        direction TB
+        identity["identityCookies: currentSeller, currentAdmin"] --> unread["countUnreadMessages(actorType)"]
+        unread --> guard["the site's guard<br/>requireSeller | requireAdmin | resolveCustomerIdentity"]
+        guard --> routeGuard["route-level guards, e.g. refuseBlockedCustomer"]
+    end
+
+    pre --> preHandlers
+    preHandlers --> handler["Handler: load → call core → apply → respond"]
+    handler --> core["app/core — the decision, pure"]
+    core --> handler
+    handler --> action["app/actions — one transaction:<br/>read, decide, write"]
+    action --> db[("SQLite")]
+    action --> handler
+    handler --> render["reply.render(page) from addSiteRender<br/>this site's layout, flash, identity, unread count"]
+    render --> send["onSend: securityHeaders"]
+    handler -- "redirect" --> send
+    errors --> send
+    notfound --> send
+    send --> response(["Response"])
+    response --> after["onResponse: pageViewRollup upserts<br/>the count; eventBus fires 'changed'<br/>after any request that wrote"]
+```
+
+`healthCheck` sits outside all of it: `GET /health` is registered at the root,
+so no site guard and no site layout reaches it, and it answers JSON.
+
+| Plugin | File | What it adds |
+| --- | --- | --- |
+| `errorPages` | `plugins/error-pages.ts` | One root `setErrorHandler`: a thrown `ZodError` is 400, an error carrying a 4xx `statusCode` is that status, anything else is logged and rendered as a generic 500 — each in the layout of the site the request landed on. |
+| `securityHeaders` | `plugins/security-headers.ts` | One `onSend` hook, so a page, the JSON health check, an uploaded file, and a 404 all carry the same headers. |
+| `flashCookie` | `plugins/flash.ts` | `reply.setFlash` / `reply.takeFlash` over a signed one-request cookie. |
+| `identityCookies` | `plugins/identity.ts` | The three signed actor cookies, `signedInActorId`, `resolveCustomerIdentity`, and the `requireSeller` / `requireAdmin` guards. |
+| `pageViewRollup` | `plugins/page-views.ts` | One root `onResponse` hook that upserts `page_view_counts`. |
+| `unreadMessages` | `plugins/unread-messages.ts` | `countUnreadMessages(actorType)` as a `preHandler`, decorating `request.unreadMessageCount`. |
+| `eventBus` | `plugins/events.ts` | `app.events` (a typed `node:events` emitter), the `onResponse` hook that fires `changed` after any request that wrote, the `preClose` hook that fires `closing`, and `unreadEventsRoute(actorType)` serving `<prefix>/events` as `text/event-stream`. |
+| `healthCheck` | `plugins/health.ts` | `GET /health`. |
+| `addSiteRender` | `plugins/site-render.ts` | Called inside a site rather than at the root: gives that site a `reply.render(page)` carrying its layout, the flash, the identity, and the unread count, and returns the `SitePageRenderer` a 404 handed over by `callNotFound` renders through. |
+| `rootPlugin` | `plugins/root-plugin.ts` | Marks a plugin as belonging to the root context (`Symbol.for('skip-override')` and `plugin-meta` set by hand — no `fastify-plugin` dependency). |
 
 Naming follows the `naming` skill: actions are verb phrases, core enums name
 states (`OrderStatus`), events are past tense. Files are kebab-case and named
@@ -103,8 +178,9 @@ exposes them to TypeScript as camelCase (`price_cents` → `priceCents`).
 Each site is one Fastify plugin registered in `buildApp`. It calls
 `addSiteRender(site, { pages, layout })` for its own
 `app/sites/<site>/views/layout.ejs`, adds `countUnreadMessages(<actorType>)`,
-registers `signInRoutes({ actorType, ... })`, and registers its own routes
-behind whatever guard it needs:
+registers `signInRoutes({ actorType, ... })` and `unreadEventsRoute(<actorType>)`
+(its `<prefix>/events` stream), adds its own `setNotFoundHandler`, and registers
+its own routes behind whatever guard it needs:
 
 - `sellerSite` registers `@fastify/multipart` (`attachFieldsToBody: true`) and
   puts every page except sign-in inside a child plugin carrying `requireSeller`.
@@ -118,9 +194,19 @@ behind whatever guard it needs:
 The three identity cookies are independent, so one browser can be a seller, a
 customer, and an admin at the same time — the demo needs that. All three are
 signed, `httpOnly`, `sameSite=lax`, and last a year. Every layout renders the
-shared `app/views/partials/debug-alert.ejs`, which prints a flashed magic link.
-Flash is a signed, one-request cookie set on the reply (`reply.setFlash`,
-`reply.takeFlash`).
+shared `app/views/partials/debug-alert.ejs`, which prints a flashed magic link
+when `MAGIC_LINK_DELIVERY=flash` outside production. Flash is a signed,
+one-request cookie set on the reply (`reply.setFlash`, `reply.takeFlash`).
+
+Every unmatched URL renders the layout of the site it landed on rather than
+Fastify's JSON: each site adds a `setNotFoundHandler`, and the prefixed portals
+also register `site.all('/*')`, because `@fastify/static`'s root `/*` otherwise
+claims every unmatched GET. `/nope` is a storefront 404 page; `/seller/nope` and
+`/admin/nope` are their sites' own. A storefront miss reaches that page through
+`@fastify/static`'s hand-off, whose 404 context snapshotted the root's hooks
+before the site attached its own, so the header on that one page reads
+signed-out whoever is asking. Reading the cookie there would mean an identity
+hook at the root, and a query on every asset request.
 
 `/auth/magic/:token` is shared by all three sites: it consumes the link, claims
 the identity for the link's `actorType`, sets that site's cookie, and redirects
@@ -142,10 +228,10 @@ See [`identity.md`](identity.md) for the sequences.
   whichever site wants them, so all three share one implementation and keep
   their own layout and templates.
 - Delivery is a port: `MagicLinkDelivery` (`app/delivery/`) with
-  `flashMagicLinkDelivery` (prototype: flash the URL so the layout prints it in
-  the debug alert) and `mailMagicLinkDelivery` (the hook for real email; throws
-  `NotImplementedError`). `selectMagicLinkDelivery` reads
-  `MAGIC_LINK_DELIVERY` (`flash` | `mail`).
+  `flashMagicLinkDelivery` (flash the URL so the layout prints it in the debug
+  alert) and `outboxMagicLinkDelivery` (queue a row in `outbox_messages` inside
+  the caller's transaction and flash nothing). `selectMagicLinkDelivery` reads
+  `MAGIC_LINK_DELIVERY` (`flash` | `outbox`); production refuses `flash`.
 - Sellers: the first link for an address creates the seller row
   (`claimSellerIdentity`). No separate sign-up.
 - Admins: `admins` rows are **seeded only** (Jonathan Beebe
@@ -207,10 +293,24 @@ erDiagram
     messages ||--o{ listing_faqs : published_from
 ```
 
-Twenty-three tables in nine migrations. `notifications`, `magic_links`,
-`customer_merges`, and `page_view_counts` are left off this overview: the first
-three hang off the identity tables and the fourth stands alone. Columns, the
-identity half, and the caveats are in [`data-model.md`](data-model.md).
+Twenty-four tables, created across ten of the eleven migrations (the first
+turns on write-ahead logging and creates nothing). `notifications`,
+`magic_links`, `customer_merges`, `page_view_counts`, and `outbox_messages` are
+left off this overview: the first three hang off the identity tables and the
+last two stand alone. Columns, the identity half, and the caveats are in
+[`data-model.md`](data-model.md).
+
+Every column holding a string union carries a `CHECK` constraint built from
+that union's `as const` array (`status in ('draft', 'for_sale', …)`), so a value
+TypeScript would refuse cannot reach the file either; money and quantity columns
+carry range checks, and `notifications` carries one asserting exactly one of
+its three recipient columns is set. `app/db/schema-fidelity.test.ts` reads the
+applied schema back and asserts the row types match it.
+
+Those constraints were added to the original `create` migrations rather than
+appended as new ones, so a database created before them is not upgraded by
+`make migrate` — **an existing development database needs `make fresh`**, which
+deletes the file, re-applies every migration, and re-seeds.
 
 ### Listing status
 
@@ -223,11 +323,14 @@ Quantity defaults to 1; a purchase decrements at placement and `sold` is
 reached at 0 (`stockAfterSale`).
 
 Seller input (title, description, medium, dimensions, price, quantity, image)
-is parsed by a zod schema at the route and checked by the pure
-`listingDraftErrors`, so the rule stays out of the database layer. The image is
-a path column (`listings.image_path`) written by an upload to
-`public/uploads/<uuid>.<ext>`; `listingImageSource` falls back to an SVG
-generated from the title.
+arrives through the route's zod schema and is turned into a value or a set of
+errors by the pure `parseListingDraft` (`app/core/listings/listing-draft.ts`),
+which returns `{ ok: true; value } | { ok: false; errors }` — so a route holds
+one `if` and the rule stays out of the database layer. The image is a path
+column (`listings.image_path`) written by an upload to
+`public/uploads/<uuid>.<ext>`, with the extension taken from the file's own
+magic bytes rather than the browser's filename (`app/core/listings/image-format.ts`);
+`listingImageSource` falls back to an SVG generated from the title.
 
 ### Moderation (admin)
 
@@ -282,6 +385,16 @@ Source of truth: `ORDER_STATUS_TRANSITIONS` in
 and restores the stock `placeOrder` took. A multi-seller order's status rolls up
 from its fulfillments (`orderStatusFromFulfillments`).
 
+Whether a cart may become an order at all is a core decision, not a route `if`:
+`planOrderPlacement` (`app/core/orders/order-placement.ts`) reads each line
+against the listing as it is now and answers
+`{ ok: true; lines } | { ok: false; unavailable }`, naming every line that
+stands in the way with an `UnavailableReason` (`removed`, `off_sale`,
+`sold_out`, `short_stock`). `placeOrder` runs it inside its own transaction and
+returns the refusal rather than throwing, so the checkout page re-renders with
+every blocked line named at once, and a listing sold between the page and the
+submit cannot be sold twice.
+
 ### Fulfillment status (per order × seller)
 
 `awaiting_shipment → shipped → delivered`
@@ -311,6 +424,12 @@ See [`escrow.md`](escrow.md).
   (`T23:59:59.999Z` of the last day), so a re-run of the same period pays
   nothing. Period math is pure. The admin site exposes the run
   (`POST /admin/payouts`); the seller portal does not.
+- Who gets paid is decided in core, not in the action: `planWeeklyPayout`
+  (`app/core/escrow/payout-plan.ts`) takes the balances, the sellers already
+  settled for this period, and the period, and returns a `PayoutIntent[]`. The
+  action reads the rows, calls it, and writes what it returns; a seller with a
+  payable balance who already has a payout for this period is skipped there
+  rather than by a `where` clause.
 
 ### Fake payment
 
@@ -333,11 +452,52 @@ four digits are stored, one `payments` row per attempt.
 `url`, `read_at`. `notify` is the one write point —
 `itemSoldMessage` to the seller when the order pays, `orderShippedMessage` to
 the customer when a fulfillment ships, `newMessageMessage` to the other side of
-a conversation. `NotificationDelivery`
-(`app/core/notifications/notification-delivery.ts`) is the port for carrying one
-out of the application; `ActionContext.notificationDelivery` is optional and
-unset in the running app, so the prototype's notifications are the rows
-themselves.
+a conversation. `NotificationDelivery` (`app/delivery/notification-delivery.ts`)
+is the port for carrying one out of the application; it takes a
+`DeliveryContext` of `{ db, clock }` rather than nothing, which is why it lives
+in `app/delivery/` and not in `app/core/`.
+
+`notify` runs its inbox row and its delivery inside one `runInTransaction`, and
+defaults to `outboxNotificationDelivery`, which queues a row in
+`outbox_messages`. A business change that rolls back therefore sends nothing.
+`ActionContext.notificationDelivery` stays the seam a test or another
+deployment substitutes through; there is no environment variable for it.
+
+## Outbox
+
+Two things leave the application: sign-in links and notifications. Both take
+the same path.
+
+```mermaid
+sequenceDiagram
+    participant Route
+    participant Action as Action (one transaction)
+    participant DB as SQLite
+    participant Drain as npm run outbox
+    participant Disk as OUTBOX_DIR
+
+    Route->>Action: notify / sendMagicLink
+    activate Action
+    Action->>DB: the business rows
+    Action->>DB: insert outbox_messages (same transaction)
+    deactivate Action
+    Note over Action,DB: a rollback leaves neither
+
+    Drain->>DB: select where delivered_at is null
+    Drain->>Disk: renderMailMessage → <id>.eml
+    Drain->>DB: set delivered_at
+    Note over Drain,DB: outside any transaction — a<br/>synchronous connection must not<br/>be held across a file write
+```
+
+`renderMailMessage` (`app/core/notifications/mail-message.ts`) is pure: it takes
+the `Message-ID` and the date as inputs, writes RFC-5322 headers with CRLF line
+endings, and folds a CR or LF inside a header value to a space so nothing can
+open a header of its own. Draining is `drainOutbox`
+(`app/actions/outbox/drain-outbox.ts`), reachable as `npm run outbox`,
+`make outbox`, and `POST /admin/outbox/drain`. `/admin/outbox` lists the queue
+and `/admin/outbox/:id` shows one message with its link clickable — the demo's
+mailbox once `MAGIC_LINK_DELIVERY=outbox` turns the debug alert off. There is no
+SMTP.
 
 ## Messaging
 
@@ -384,10 +544,20 @@ off it.
   reply. `conversationPath(actorType, id)` is core, because the same thread has
   three URLs. Anonymous customers can ask a listing question; the conversation
   re-points on merge.
-- `addUnreadMessages` decorates `request.unreadMessageCount` and
+- The `unreadMessages` plugin decorates `request.unreadMessageCount` and
   `countUnreadMessages(actorType)` is one `preHandler` per site, so
   `addSiteRender` hands every layout its badge beside the flash and the
   identity.
+- The badge then moves without a reload. `unreadEventsRoute(actorType)` serves
+  `GET <prefix>/events` as `text/event-stream` inside each site's own identity
+  guard; the stream sends `retry: 3000`, the count now, and the count again each
+  time it moves. What makes it move is a payload-free `changed` on `app.events`,
+  fired by a root `onResponse` hook after any request that wrote (non-GET/HEAD,
+  status under 400) — settled after commit, so no stream can read a count that a
+  rollback is about to undo. 21 dependency-free lines of `public/app.js`, loaded
+  by one `<script defer>` per layout, write the number into the badge the layout
+  already rendered. With JavaScript off the badge is simply the number the page
+  was rendered with.
 
 ## Site analytics
 
@@ -396,7 +566,7 @@ off it.
   numbers. A `view` is recorded at most once per (listing, customer, hour) —
   `isRecordedOncePerHour` and `viewWindowStart` decide that, and
   `recordListingEvent` returns `null` when it collapses a repeat.
-- Page views are rolled up, not logged per hit. `addPageViewRollup`
+- Page views are rolled up, not logged per hit. The `pageViewRollup` plugin
   (`app/plugins/page-views.ts`) adds one root `onResponse` hook, so it reaches
   every site; `isCountablePageView` keeps successful HTML GETs;
   `pageViewSite(pathPattern)` derives the site from the URL prefix (`/seller`
@@ -408,6 +578,31 @@ off it.
   row. A request that matched no route has no pattern and is counted against
   nothing. The admin site reads this table on `/admin/stats`.
 
+## Readiness, shutdown, and logs
+
+- `GET /health` is registered at the root, outside every site's guard, and
+  answers JSON — which keeps it out of the page-view rollup for free, since that
+  hook counts HTML only. It runs two checks, `select 1` and
+  `pendingMigrations(db)`, and the pure `evaluateHealth` /`healthStatusCode`
+  (`app/core/health/health-status.ts`) turn those plus `app.draining` into
+  `ok` (200), `unavailable` (503), or `draining` (503). `docker-compose.yml`
+  polls it with `node -e` and `fetch`, because the image has no `curl`.
+- SIGINT or SIGTERM flips `app.draining` **before** closing, so the endpoint
+  reports `draining` while in-flight requests finish; a force-exit timer fires
+  after 10 seconds if `close()` hangs, `unref()`'d so it never keeps the process
+  alive itself (`armGracefulShutdown`, `app/server.ts`).
+- Logging is Fastify's own logger, configured in `app/logging.ts`: `genReqId`
+  takes an inbound `x-request-id` or generates one, and a `req` serializer
+  redacts the `seller_id` / `customer_id` / `admin_id` / `flash` cookie values so
+  a signed cookie never lands in a log line. Business events carry an `event`
+  field and are logged from the route shell after the action result is applied,
+  never the magic-link token or URL: `order.placed`, `order.paid`,
+  `order.declined`, `fulfillment.shipped`, `payout.run`,
+  `magic_link.requested` / `consumed` / `refused`, and the four `moderation.*`.
+  The four CLIs build their own logger with `createCliLogger` and log the same
+  way (`payout.run`, `payout.paid`, `outbox.drained`, `outbox.drain_run`,
+  `migrate.*`, `seed.*`); `no-console` is an eslint error with no override.
+
 ## Testing
 
 - `node:test` with `node:assert/strict`. Tests are **sidecars**: `foo.ts` →
@@ -415,11 +610,19 @@ off it.
 
 | Command | What it runs |
 | --- | --- |
-| `npm test` | `node --test 'app/**/*.test.ts'` |
-| `npm run coverage` | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=90 --test-coverage-branches=80` |
+| `npm test` | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate |
+| `npm run coverage` | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90` |
+| `npm run test:ci` | the same gated suite plus a `spec` reporter to stdout and an `lcov` reporter to `coverage/lcov.info` |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | `eslint app` — `complexity` ≤ 8, `max-depth` ≤ 3 |
-| `npm run check` | typecheck, then lint, then the suite. `make test` runs this. |
+| `npm run lint` | `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console` |
+| `npm run check` | typecheck, then lint, then `npm run coverage`. `make test` runs this. |
+| `npm run routes` | boots the real app over `:memory:` and prints `printRoutes()` then `printPlugins()` (`app/cli/print-routes.ts`) |
+
+CI runs `typecheck`, `lint`, and `test:ci` as three steps
+([`.github/workflows/node.yml`](../../../.github/workflows/node.yml)), so a
+failure names itself in the job list and the suite runs once with the lcov
+report the upload needs. `npm run check` is the local gate: the same typecheck
+and lint, ending in `coverage`, which is `test:ci` without the reporters.
 
 - Core tests (`app/core/**`) import only the file under test. No database, no
   doubles.
@@ -441,11 +644,15 @@ off it.
   rather than inserting rows, so a fixture cannot drift from what the
   application writes.
 - `app/test/smoke.test.ts` holds the cross-site walks over HTTP: all three
-  sites serving their own layout off one stylesheet; a listing travelling from
-  the seller signing in to their weekly payout; a listing question answered and
-  published as an FAQ that then shows on the storefront; an admin removing a
-  listing and it leaving the storefront; an admin blocking a customer and
-  checkout refusing; an admin messaging a seller who reads it.
+  sites serving their own layout off one stylesheet and `/health` answering its
+  JSON; a listing travelling from the seller signing in to their weekly payout;
+  a listing question answered and published as an FAQ that then shows on the
+  storefront; an admin removing a listing and it leaving the storefront; an
+  admin blocking a customer and checkout refusing; an admin messaging a seller
+  who reads it; a sign-in link asked for under outbox delivery, listed on
+  `/admin/outbox`, drained to an `.eml` file; and one frame off a live
+  `/seller/events` stream, which needs a real socket because `app.inject`
+  buffers and a stream never ends.
 - TDD: failing sidecar test, make it pass, refactor. A feature ticket is done
   when its flow has an integration test that walks it end to end.
 - `make docs-check` renders every Mermaid block under `docs/` through
@@ -458,39 +665,45 @@ off it.
 prototype/node/
   README.md            how to run, serve, test
   docker-compose.yml   one service: app, port 4000
-  Dockerfile           node:24-bookworm-slim, no compiler toolchain
+  Dockerfile           node:24.19.0-bookworm-slim; dev, build, runtime targets
   docker/              entrypoint.sh, docs-check.sh
-  Makefile             host-side wrappers over docker compose
+  Makefile             host-side wrappers over docker compose, plus image/run-image
   docs/                architecture + feature docs (this folder)
   work/                tickets and journal (orchestration only)
   src/                 the Node project: package.json, tsconfig.json, eslint.config.js, node_modules/
     app/               all TypeScript source
-      server.ts        entry: builds the app from config and listens
+      server.ts        entry: builds the app from config, listens, drains on a signal
       app.ts           buildApp(deps): composition root
       config.ts        env → typed config, parsed by zod
+      logging.ts       logger options, request id, redacting serializers
       clock.ts         Clock, systemClock, fixedClock
-      not-implemented-error.ts
       core/            functional core: analytics, auth, cart, customers, escrow,
-                       listings, messaging, moderation, notifications, orders,
-                       payments, reports, shop, plus money.ts and transition-error.ts
+                       health, listings, messaging, moderation, notifications,
+                       orders, payments, reports, shop, plus money.ts,
+                       status-label.ts and transition-error.ts
       actions/         verbs over ActionContext: analytics, auth, carts, customers,
                        escrow, favorites, fulfillments, listings, messaging,
-                       moderation, notifications, orders, plus transaction.ts
+                       moderation, notifications, orders, outbox, plus
+                       action-context.ts and transaction.ts
       db/              database.ts, node-sqlite-dialect.ts, schema.ts +
-                       commerce-schema.ts (row types),
+                       commerce-schema.ts (row types), count.ts,
                        migrations/, migrator.ts, migrate.ts, timestamp.ts, seed*.ts
-      delivery/        MagicLinkDelivery port + flash and mail implementations
+      delivery/        MagicLinkDelivery + NotificationDelivery ports,
+                       delivery-context.ts, the flash and outbox implementations,
+                       outbox-message.ts
       http/            zod-type-provider.ts (validator compiler), request-schema.ts
       plugins/         error-pages, events, flash, health, identity, page-views,
                        root-plugin, security-headers, site-render, unread-messages
       sites/           shop/, seller/, admin/, auth/ — each a plugin with
                        routes/, views/, queries/, and its own helpers
-      views/partials/  shared partials: debug-alert.ejs, flash.ejs
-      cli/             run-payouts.ts, parse-as-of.ts
+      views/partials/  shared partials: debug-alert.ejs, flash.ejs, head.ejs,
+                       unread-badge.ejs
+      cli/             run-payouts.ts, drain-outbox.ts, print-routes.ts,
+                       parse-as-of.ts
       test/            build-test-app.ts, commerce-world.ts, smoke.test.ts
       assets/app.css   Tailwind source
-    public/            app.css (built, not committed), uploads/
-    storage/           development.sqlite3 (not committed)
+    public/            app.css (built, not committed), app.js, uploads/
+    storage/           development.sqlite3 and outbox/ (neither committed)
 ```
 
 ## Mapping the project skills onto this stack

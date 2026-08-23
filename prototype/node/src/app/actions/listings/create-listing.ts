@@ -13,8 +13,8 @@ export type CreateListingInput = {
 }
 
 /**
- * Opens a listing as a draft. The seller decides when it goes on sale, so
- * nothing here touches status beyond the one it is born with.
+ * Opens a listing as a draft — the status the column defaults to. The seller
+ * decides when it goes on sale, so nothing here touches status.
  */
 export async function createListing(
   context: ActionContext,
@@ -37,7 +37,6 @@ export async function createListing(
           input.draft.title,
           taken.map((row) => row.slug),
         ),
-        status: 'draft',
         imagePath: input.imagePath ?? null,
         createdAt: now,
         updatedAt: now,

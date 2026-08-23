@@ -61,21 +61,27 @@ sequenceDiagram
     participant CLI as npm run payouts -- --as-of=DATE
     participant Run as runWeeklyPayout
     participant Period as payoutPeriodEndingBefore
+    participant Plan as planWeeklyPayout
     participant Ledger as ledger_entries
     participant Payouts as payouts
 
     CLI->>CLI: parseAsOf(argv, systemClock.now())
     CLI->>Run: runWeeklyPayout({db, clock}, asOf)
+    activate Run
     Run->>Period: payoutPeriodEndingBefore(asOf)
     Period-->>Run: {firstDay, lastDay} — the Monday-to-Sunday week just ended
     Run->>Ledger: ledgerMovements(occurredAt <= payoutPeriodEndsAt(period))
-    Run->>Run: ledgerBalance per seller, keep isPayable
-    loop each payable seller
-        Run->>Payouts: insert(sellerId, periodStart, periodEnd, amount = available, paidAt = asOf)
-        Run->>Ledger: insert(paid_out, −available, occurredAt = payoutPeriodEndsAt(period))
+    Run->>Payouts: sellers already settled for periodStart
+    Run->>Plan: planWeeklyPayout({balances, settledSellerIds, period})
+    Plan-->>Run: PayoutIntent[]
+    loop each intent
+        Run->>Payouts: insert(sellerId, periodStart, periodEnd, amount, paidAt = asOf)
+        Run->>Ledger: insert(paid_out, −amount, occurredAt = payoutPeriodEndsAt(period))
     end
+    deactivate Run
+    Note over Run,Payouts: one transaction
     Run-->>CLI: Payout[]
-    CLI->>CLI: print payoutPeriodLabel(period) and each seller's total
+    CLI->>CLI: log payout.paid per seller, then payout.run
 ```
 
 Caveats: the `paid_out` entry is dated at `payoutPeriodEndsAt(period)` —
@@ -86,9 +92,16 @@ zero and `isPayable` is false. Timestamps here carry milliseconds, so the period
 has to close after the last of them; second precision would leave a gap.
 `payouts` also has a unique index on `(seller_id, period_start)`.
 
+Who gets paid is decided in core. `planWeeklyPayout`
+(`app/core/escrow/payout-plan.ts`) takes the balances, the sellers already
+settled for this period, and the period itself, and returns a `PayoutIntent[]`;
+the action reads rows, calls it, and writes what it returns. So there are two
+independent reasons a second run pays nothing — the dated `paid_out` entry, and
+a `payouts` row already standing for that `period_start`.
+
 `runWeeklyPayout` takes `asOf` as an argument rather than reading a clock, so
 the period is a pure function of what the caller passed. Without `--as-of` the
-CLI passes `systemClock.now()`.
+CLI passes `systemClock.now()`. The whole run is one transaction.
 
 Two entry points call the same action: the CLI, and `POST /admin/payouts` on
 the admin site. The seller portal shows a seller their balance and payout

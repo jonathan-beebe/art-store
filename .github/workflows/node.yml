@@ -31,11 +31,13 @@ jobs:
       # The smoke test serves /public/app.css; nothing builds it on install.
       - run: npm run assets
 
-      - run: npm run check
+      # The three steps `npm run check` runs locally, spelled out so a failure
+      # names itself in the job list. `test:ci` is the coverage-gated suite
+      # `check` ends with, plus an lcov reporter for the upload below.
+      - run: npm run typecheck
 
-      # `check` gates on coverage but doesn't write a report file; `test:ci`
-      # reruns the same gated suite with spec output plus an lcov reporter so
-      # there is a coverage/lcov.info to upload below.
+      - run: npm run lint
+
       - run: npm run test:ci
 
       - uses: actions/upload-artifact@v4
