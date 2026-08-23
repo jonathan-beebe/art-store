@@ -43,6 +43,14 @@ it('refuses a message longer than the message limit', function (): void {
     expect(Conversation::count())->toBe(0);
 });
 
+it('answers not found for a customer id that matches nothing', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->post('/admin/customers/999999/messages', ['body' => 'We looked into your order.']);
+
+    $response->assertNotFound();
+    expect(Conversation::count())->toBe(0);
+});
+
 it('sends a guest to the admin login page', function (): void {
     $customer = $this->verifiedCustomer();
 

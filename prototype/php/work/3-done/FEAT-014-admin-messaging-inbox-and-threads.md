@@ -137,3 +137,52 @@ route names register under `auth.admin` with the exact names and methods
   derived test only for themselves.
 - `admin.events` (the admin's live-badge stream) is out of scope per this
   ticket's own route table, which lists only the five messaging routes.
+
+## Review
+
+Reviewed against `docs/messaging.md`'s admin route table and
+`docs/architecture.md`. All five routes register under `auth.admin` with the
+names and methods the table specifies; the shared `messaging/*` components
+match the paragraph the ticket added to the design doc. The seller views were
+rewritten over those components with no assertion loosened — every
+seller-messaging test in `Seller/MessageControllerTest.php` and the FAQ tests
+pass unedited, and the FAQ form moved into the component's slot rather than
+into the component.
+
+**Two admins, two support threads is faithful.** The design's Conversation
+kinds table gives `admin_seller` and `admin_customer` no subject column: the
+participant pair *is* the subject, and `ConversationSubject::adminSeller(
+$adminId, $sellerId)` folds both ids into `subject_key`. A seller's
+`/seller/support` thread opens against `Admin::platformAdmin()` (the first
+admin by id, as the design says) while `admin.sellers.messages` opens against
+the signed-in admin, so a second admin messaging that seller opens a second
+row. That does not violate one-thread-per-subject — it is a different subject.
+Pinned by `it('opens a thread per admin, since the pairing is what a support
+thread is about')`. Left as built.
+
+**`NotifyOfMessage`'s null-url guard is honest to remove.** `ActorType` is a
+closed three-case enum and all three `conversationRouteName()` values
+(`seller.messages.show`, `shop.messages.show`, `admin.messages.show`) are
+registered; `NotifyOfMessageTest` asserts `Route::has(...)` for each of the
+three before asserting the URL, so no path can reach `route()` with an
+unregistered name.
+
+**Probes added (7 tests, 28 assertions):**
+
+- Two full support round trips through the admin site — seller
+  `/seller/support` → seller posts → admin inbox shows the counterpart, the
+  body, the per-thread badge and the nav badge → admin replies → the seller's
+  nav badge rises and the reply renders on the seller's thread; and the same
+  walk for a storefront visitor through `/support` and `/messages`.
+- An admin posting to a blocked customer's support thread: the reply form
+  renders and the write lands. `ConversationPolicy::post` asks about standing
+  only for a `Customer` actor, so the block never reaches the admin's side.
+- 404 on `admin.sellers.messages` and `admin.customers.messages` for a
+  seller/customer id that matches nothing, with no conversation opened.
+- The admin inbox on a fixed six queries across ten threads of both support
+  kinds, which pins the eager loads the way the seller inbox's own six-query
+  test does.
+
+Nothing was found that needed fixing. `make check`: Pint clean, 0 PHPStan
+errors, **1090 tests passed, 2425 assertions**. `make coverage`: 100.0%.
+`README.md` and `docs/architecture.md`'s test counts updated to match.

@@ -10,8 +10,10 @@ use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\Fulfillment;
 use App\Models\Message;
+use App\Support\CustomerIdentity;
 
 it('lists the admins threads newest first with who, what, and unread count', function (): void {
     $admin = $this->admin();
@@ -179,6 +181,92 @@ it('names an order thread and a support thread by their fulfillment counterpart'
 
     $response->assertOk();
     $response->assertDontSee("Order #{$fulfillment->order_id}");
+});
+
+it('carries a sellers support request to the admin and the answer back', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller('Blue Kiln Studio');
+
+    $this->actingAs($seller, 'seller')->get('/seller/support')->assertRedirect();
+    $conversation = Conversation::sole();
+    $this->actingAs($seller, 'seller')
+        ->post("/seller/messages/{$conversation->id}", ['body' => 'My payout is late.']);
+
+    $inbox = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $inbox->assertSee('Blue Kiln Studio');
+    $inbox->assertSee('My payout is late.');
+    $inbox->assertSee('1 unread');
+    $inbox->assertSee('Messages (1)', escape: false);
+
+    $this->actingAs($admin, 'admin')
+        ->post("/admin/messages/{$conversation->id}", ['body' => 'Paid this morning.'])
+        ->assertRedirect(route('admin.messages.show', $conversation));
+
+    $this->actingAs($seller, 'seller')->get('/seller/messages')->assertSee('Messages (1)', escape: false);
+    $this->actingAs($seller, 'seller')
+        ->get("/seller/messages/{$conversation->id}")
+        ->assertSee('Paid this morning.');
+});
+
+it('carries a customers support request to the admin and the answer back', function (): void {
+    $admin = $this->admin();
+    $customer = Customer::factory()->create(['name' => 'Priya Shopper']);
+    $this->withCookie(CustomerIdentity::COOKIE, (string) $customer->id);
+
+    $this->get('/support')->assertRedirect();
+    $conversation = Conversation::sole();
+    $this->post("/messages/{$conversation->id}", ['body' => 'My order never arrived.']);
+
+    $inbox = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $inbox->assertSee('Priya Shopper');
+    $inbox->assertSee('My order never arrived.');
+    $inbox->assertSee('1 unread');
+
+    $this->actingAs($admin, 'admin')
+        ->post("/admin/messages/{$conversation->id}", ['body' => 'It ships tomorrow.']);
+
+    $this->get('/messages')->assertSee('Messages (1)', escape: false);
+    $this->get("/messages/{$conversation->id}")->assertSee('It ships tomorrow.');
+});
+
+it('lets the admin answer a blocked customer', function (): void {
+    $admin = $this->admin();
+    $customer = $this->verifiedCustomer();
+    CustomerBlock::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()
+        ->forSubject(ConversationSubject::adminCustomer($admin->id, $customer->id))
+        ->create();
+
+    $show = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
+    $show->assertSee('name="body"', escape: false);
+
+    $this->actingAs($admin, 'admin')
+        ->post("/admin/messages/{$conversation->id}", ['body' => 'The block stands until we hear back.'])
+        ->assertRedirect(route('admin.messages.show', $conversation));
+    expect(Message::where('conversation_id', $conversation->id)->count())->toBe(1);
+});
+
+it('renders the inbox on a fixed number of queries however many threads the admin holds', function (): void {
+    $admin = $this->admin();
+    foreach (range(1, 5) as $ignored) {
+        $seller = $this->seller();
+        $sellerThread = Conversation::factory()
+            ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
+            ->create();
+        Message::factory()->from($seller)->unread()->create(['conversation_id' => $sellerThread->id]);
+
+        $customer = $this->verifiedCustomer();
+        $customerThread = Conversation::factory()
+            ->forSubject(ConversationSubject::adminCustomer($admin->id, $customer->id))
+            ->create();
+        Message::factory()->from($customer)->unread()->create(['conversation_id' => $customerThread->id]);
+    }
+
+    $response = $this->actingAs($admin, 'admin')
+        ->expectsDatabaseQueryCount(6)
+        ->get('/admin/messages');
+
+    $response->assertOk();
 });
 
 it('sends a guest to the admin login page', function (): void {

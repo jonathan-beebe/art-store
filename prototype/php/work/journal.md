@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:16:38:45 — FEAT-014 — reviewed: two full support round trips through the admin site (seller and storefront), admin replies to a blocked customer, 404 on a bogus seller/customer id for the two message-X POSTs, admin inbox pinned to six queries across both support kinds; two-admins-two-threads confirmed faithful to the design's participant-pair subject; 1090 tests / 2425 assertions, 100.0% coverage
 - 2026-08-23:16:31:07 — FEAT-014 — done: admin inbox/thread/reply, message-seller and message-customer from detail pages, AdminLayoutComposer nav badge, shared seller+admin messaging Blade components, NotifyOfMessage null-url guard retired; 1083 tests / 2397 assertions, 100.0% coverage
 - 2026-08-23:16:23:17 — FEAT-014 — started
 - 2026-08-23:16:16:04 — FEAT-013 — reviewed: nav total extracted to a Message::unreadInInboxOf scope (both composers) and pinned against another actor's threads, six probe tests (seller notified by an anonymous ask, blocked ask tells nobody and opens one empty thread, that thread renders on both inboxes, identity cookie minted on the POST, favoriting while blocked, a shop→seller→shop walk); 1049 tests / 2322 assertions, 100.0% coverage
