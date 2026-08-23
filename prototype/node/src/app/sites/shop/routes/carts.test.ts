@@ -52,6 +52,25 @@ test('adding the same piece twice sums the quantity', async (t) => {
   assert.match(response.body, /Quantity 2/)
 })
 
+test('a bodiless POST still adds the listing to the cart', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const add = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+  })
+  assert.equal(add.statusCode, 302)
+  assert.equal(add.headers.location, '/cart')
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+  assert.match(response.body, /Harbour at dusk/)
+})
+
 test('removing a piece empties the cart', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

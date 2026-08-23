@@ -185,6 +185,28 @@ test('shipping the only fulfillment ships the order and tells the customer', asy
   assert.equal(notification.subject, 'Order shipped')
 })
 
+test('a bodiless ship POST is refused instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/ship`,
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, `/seller/orders/${fulfillment.id}`)
+  const unchanged = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('id', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'awaiting_shipment')
+})
+
 test('a shipment with no carrier is refused', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

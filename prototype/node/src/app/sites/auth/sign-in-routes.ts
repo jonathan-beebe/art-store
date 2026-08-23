@@ -5,6 +5,7 @@ import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { isEmailAddress, normalizeEmail } from '../../core/auth/email-address.ts'
 import { keepLocalRedirect } from '../../core/auth/local-redirect.ts'
 import type { AppDatabase } from '../../db/database.ts'
+import { formBody } from '../../plugins/form-body.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
@@ -67,7 +68,7 @@ export function signInRoutes({
     })
 
     routes.post('/login', async (request, reply) => {
-      const submitted = form.parse(request.body)
+      const submitted = form.parse(formBody(request))
       const redirectTo = keepLocalRedirect(submitted.redirect_to, requestOrigin(request))
 
       if (!isEmailAddress(submitted.email)) return await refuseLink(reply, NO_ADDRESS, redirectTo)

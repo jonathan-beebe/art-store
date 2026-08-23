@@ -205,6 +205,17 @@ for (const site of SITES) {
   })
 }
 
+test('a bodiless POST to /login is refused instead of failing', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({ method: 'POST', url: '/login' })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, '/login')
+  assert.equal((await testApp.db.selectFrom('magicLinks').selectAll().execute()).length, 0)
+})
+
 test('an address with no admin row cannot obtain an admin link', async (t) => {
   const testApp = await buildSignedUpApp()
   t.after(testApp.close)

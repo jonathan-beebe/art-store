@@ -228,6 +228,23 @@ test('posting a reply appends and redirects; an empty body flashes and appends n
   assert.equal(afterReply.length, 2)
 })
 
+test('a bodiless question POST redirects instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, '/art/harbour-at-dusk')
+})
+
 test('an anonymous customer can ask a question on a listing and read the thread', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

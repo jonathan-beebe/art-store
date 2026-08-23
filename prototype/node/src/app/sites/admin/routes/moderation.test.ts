@@ -293,6 +293,105 @@ test('POST /admin/listings/:id/removals/lift refuses a listing that is not remov
   assert.match(flash.alert ?? '', /not removed/)
 })
 
+test('a bodiless POST to lift a temporary removal still lifts it', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = await createSeller({ db: testApp.db, clock: testApp.clock })
+  const listing = await createListing({ db: testApp.db, clock: testApp.clock }, sellerId)
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/listings/${listing.id}/removals`,
+    cookies: admin.cookies,
+    payload: { kind: 'temporary', reason: 'Reported.' },
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/listings/${listing.id}/removals/lift`,
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(await activeListingRemoval({ db: testApp.db }, listing.id), null)
+})
+
+test('a bodiless POST to lift a block still lifts it', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks`,
+    cookies: admin.cookies,
+    payload: { reason: 'Chargeback fraud.' },
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks/lift`,
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  const standing = await currentCustomerStanding({ db: testApp.db }, customerId)
+  assert.equal(standing.isBlocked, false)
+  assert.equal(canShop(standing), true)
+})
+
+test('a bodiless POST to remove a listing answers 400', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = await createSeller({ db: testApp.db, clock: testApp.clock })
+  const listing = await createListing({ db: testApp.db, clock: testApp.clock }, sellerId)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/listings/${listing.id}/removals`,
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+  assert.equal(await activeListingRemoval({ db: testApp.db }, listing.id), null)
+})
+
+test('a bodiless POST to block a customer answers 400', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks`,
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+  const standing = await currentCustomerStanding({ db: testApp.db }, customerId)
+  assert.equal(standing.isBlocked, false)
+})
+
+test('a POST to block a customer naming only redirect_to answers 400', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/customers/${customerId}/blocks`,
+    cookies: admin.cookies,
+    payload: { redirect_to: '/admin/customers' },
+  })
+
+  assert.equal(response.statusCode, 400)
+  const standing = await currentCustomerStanding({ db: testApp.db }, customerId)
+  assert.equal(standing.isBlocked, false)
+})
+
 test('a blocked customer is turned away from checkout on the storefront', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

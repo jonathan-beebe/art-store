@@ -8,6 +8,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 
 const idParams = z.object({ id: z.coerce.number().int().positive() })
@@ -46,7 +47,10 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
     const subjectId = parseId(request.params)
     if (subjectId === null) return notFound(reply)
 
-    const submitted = command.form.parse(request.body)
+    const parsed = command.form.safeParse(formBody(request))
+    if (!parsed.success) return badRequest(reply)
+
+    const submitted = parsed.data
     const destination = resolveLocalRedirect(submitted.redirect_to, {
       fallback: command.subjectPath(subjectId),
       origin: requestOrigin(request),
@@ -80,6 +84,10 @@ function parseId(params: unknown): number | null {
 
 function notFound(reply: FastifyReply): FastifyReply {
   return reply.code(404).type('text/plain').send('Not found')
+}
+
+function badRequest(reply: FastifyReply): FastifyReply {
+  return reply.code(400).type('text/plain').send('Bad request')
 }
 
 function actionContext(request: FastifyRequest): ActionContext {

@@ -8,6 +8,7 @@ import { openConversation } from '../../../actions/messaging/open-conversation.t
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import type { AppDatabase } from '../../../db/database.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
@@ -101,7 +102,7 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
       await postMessage(context, {
         conversationId: conversation.id,
         sender: { type: 'customer', id: customer.id },
-        body: questionBody.parse(request.body).body,
+        body: questionBody.parse(formBody(request)).body,
       })
     } catch (error) {
       if (!(error instanceof TransitionError)) throw error

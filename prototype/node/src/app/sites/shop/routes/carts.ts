@@ -7,6 +7,7 @@ import { removeFromCart } from '../../../actions/carts/remove-from-cart.ts'
 import { currentCustomerStanding } from '../../../actions/moderation/current-customer-standing.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { findListingBySlug } from '../queries/find-listing-by-slug.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
@@ -57,7 +58,7 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
       const customer = storefrontCustomer(request)
       const cart = await currentCart({ db, clock }, customer.id)
-      const { quantity } = addForm.parse(request.body)
+      const { quantity } = addForm.parse(formBody(request))
       await addToCart({ db, clock }, { cartId: cart.id, listingId: found.listing.id, quantity })
 
       return reply.redirect('/cart')

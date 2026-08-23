@@ -185,6 +185,22 @@ test('an address that is not an email address is rejected', async (t) => {
   assert.equal(orders.length, 0)
 })
 
+test('a bodiless POST with a non-empty cart renders the form again instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await readyCart(testApp, customer)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/checkout',
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /role="alert"/)
+})
+
 test('an empty cart is sent back to the cart instead of checkout', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

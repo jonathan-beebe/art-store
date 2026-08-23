@@ -8,6 +8,7 @@ import { payoutPeriodEndingBefore, payoutPeriodLabel, type PayoutPeriod } from '
 import { addCents, formatCents } from '../../../core/money.ts'
 import type { Payout } from '../../../db/commerce-schema.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 
 const filterQuery = z.object({ seller: z.string().optional() })
 const runForm = z.object({ as_of: z.string().optional() })
@@ -31,7 +32,7 @@ export const payoutRoutes: FastifyPluginCallback = (admin, _options, done) => {
   })
 
   admin.post('/payouts', async (request, reply) => {
-    const asOf = parseAsOf(runForm.parse(request.body).as_of, admin.clock.now())
+    const asOf = parseAsOf(runForm.parse(formBody(request)).as_of, admin.clock.now())
     const payouts = await runWeeklyPayout({ db: admin.db, clock: admin.clock }, asOf)
 
     reply.setFlash({ notice: payoutFlashMessage(payouts, payoutPeriodEndingBefore(asOf)) })

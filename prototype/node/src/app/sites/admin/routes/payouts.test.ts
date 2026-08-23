@@ -204,6 +204,21 @@ test('an absent as_of falls back to the clock’s today', async (t) => {
   assert.equal(flashNotice(testApp, response), 'No seller had a released balance to pay for 2026-08-17 to 2026-08-23.')
 })
 
+test('a bodiless run POST falls back to the clock’s today instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+
+  const admin = await signInAsAdmin(testApp)
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/payouts',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(flashNotice(testApp, response), 'No seller had a released balance to pay for 2026-08-17 to 2026-08-23.')
+})
+
 function flashNotice(testApp: TestApp, response: LightMyRequestResponse): string {
   const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
   if (cookie === undefined) throw new Error('no flash cookie set')

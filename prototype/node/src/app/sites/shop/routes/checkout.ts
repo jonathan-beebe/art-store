@@ -14,6 +14,7 @@ import {
 import { purchaserForCheckout } from '../../../core/shop/checkout-purchaser.ts'
 import { isPayable } from '../../../core/orders/order-payment.ts'
 import type { ShippingAddress } from '../../../core/orders/shipping-address.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { signedInActorId } from '../../../plugins/identity.ts'
 import { magicLinkUrl } from '../../auth/request-origin.ts'
 import { SHIPPING_FIELDS, shippingFromForm } from '../checkout-fields.ts'
@@ -84,7 +85,7 @@ export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
     const contents = await cartContents({ db }, cart.id)
     if (contents.lines.length === 0) return await reply.redirect('/cart')
 
-    const submitted = checkoutBody.parse(request.body)
+    const submitted = checkoutBody.parse(formBody(request))
     const isVerified = signedInActorId(request, 'customer') !== null
     const form = parseCheckoutForm({ email: submitted.email, shipping: shippingFromForm(submitted) })
 

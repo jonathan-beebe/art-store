@@ -7,6 +7,7 @@ import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { faqDraftErrors, parseFaqDraft, type FaqDraftFields } from '../../../core/messaging/faq-draft.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
 import { parseIdParam } from '../params.ts'
@@ -61,7 +62,7 @@ async function publish(request: FastifyRequest, reply: FastifyReply): Promise<Fa
   const listing = await ownedListing(db, currentSellerId(request), id)
   if (listing === null) return sellerNotFound(reply)
 
-  const submitted = faqForm.parse(request.body)
+  const submitted = faqForm.parse(formBody(request))
   const destination = faqsDestination(request, id, submitted.redirect_to)
 
   const error = firstFaqError(submitted)
@@ -90,7 +91,7 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
   const faq = await findListingFaq({ db }, params)
   if (faq === null) return sellerNotFound(reply)
 
-  const submitted = faqForm.parse(request.body)
+  const submitted = faqForm.parse(formBody(request))
   const destination = faqsDestination(request, params.listingId, submitted.redirect_to)
 
   const error = firstFaqError(submitted)

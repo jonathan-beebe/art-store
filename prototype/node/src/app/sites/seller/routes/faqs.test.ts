@@ -122,6 +122,30 @@ test('publishing with a blank answer flashes and publishes nothing', async (t) =
   assert.match(follow.body, /Enter the answer\./)
 })
 
+test('a bodiless publish redirects and flashes what is missing, instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
+  assert.equal(faqs.length, 0)
+
+  const follow = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: { ...seller.cookies, ...flashCookieOf(response) },
+  })
+  assert.match(follow.body, /Enter the question\./)
+})
+
 test('editing a published FAQ updates its wording', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

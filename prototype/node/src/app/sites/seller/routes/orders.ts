@@ -11,6 +11,7 @@ import { isShipmentComplete, parseShipmentDetails } from '../../../core/orders/s
 import { formatCents } from '../../../core/money.ts'
 import { statusLabel } from '../../../core/reports/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { formBody } from '../../../plugins/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
@@ -83,7 +84,7 @@ async function ship(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const owned = await ownedFulfillment(db, currentSellerId(request), id)
   if (owned === null) return sellerNotFound(reply)
 
-  const submitted = shipmentForm.parse(request.body)
+  const submitted = shipmentForm.parse(formBody(request))
   const details = parseShipmentDetails({ carrier: submitted.carrier, trackingNumber: submitted.tracking_number })
   if (!isShipmentComplete(details)) return refuseShipment(reply, id, 'A shipment needs a carrier and a tracking number.')
 
