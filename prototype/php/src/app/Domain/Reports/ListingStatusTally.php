@@ -8,7 +8,7 @@ use App\Domain\Listings\ListingStatus;
 
 final class ListingStatusTally
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     /**
      * @param  array<string, int>  $countsByStatus  status value => count

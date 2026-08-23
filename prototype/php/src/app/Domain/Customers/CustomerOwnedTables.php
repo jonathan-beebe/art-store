@@ -6,7 +6,7 @@ namespace App\Domain\Customers;
 
 final class CustomerOwnedTables
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     /**
      * Tables holding a customer foreign key whose rows move with the customer

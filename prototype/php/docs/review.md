@@ -70,12 +70,12 @@ with no component library and no font download; `Dockerfile` and
 | --- | --- | --- |
 | Everything dockerized, nothing on the host | done | `Dockerfile`, `docker-compose.yml`, `Makefile` |
 | All source in `src` | done | `prototype/php/src/` |
-| Tests are sidecars next to the code | partial | 4 files under `app/` have no sidecar (see Known gaps); every other non-trivial file has one |
+| Tests are sidecars next to the code | done | every non-abstract, non-interface, non-enum, non-trait file under `app/` has a sidecar; `tests/SidecarsTest.php`'s exception list is empty |
 | `/test*` and `/tdd*` skills | partial | process, not visible in the artifacts; the shape they call for (sidecars, pure core tests, HTTP tests for the shell) holds |
 | `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 8 tickets |
 | `/write-*` skills | partial | process; comments in the tree are decision records, no restatements, no adverbs |
 | TDD flow | partial | process; each ticket's `## Working` notes record the flow |
-| Measure coverage, keep it high | done | `make coverage` — 98.20% overall, 100% `app/Domain` |
+| Measure coverage, keep it high | done | `make coverage` — 100% overall, 100% `app/Domain` (IMPRV-001) |
 | Functional core / imperative shell | done | `app/Domain/**` is pure (no I/O, no clock, no random); actions and controllers sequence it. No controller holds a domain `if` — every branch reads a domain predicate (`OrderPayment::isPayableBy`, `ListingAvailability::isPurchasable`, `MagicLinkStatus`) or a shell fact (auth, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md` (Mermaid: deployables, layers, ER, order state machine); FEAT-007 adds the sequence and flow diagrams |
 
@@ -94,38 +94,36 @@ with no component library and no font download; `Dockerfile` and
 
 ## Known gaps
 
-1. **Four files under `app/` have no sidecar test**: `Actions/Auth/SignInSeller`,
-   `Actions/Auth/SignInCustomer`, `Actions/Customers/ClaimCustomerIdentity`,
-   `Actions/Customers/ResolveCustomerFromCookie`. All four are at 100% line
-   coverage through `Auth\MagicLinkVerificationControllerTest` and
-   `Actions\Customers\MergeAnonymousCustomerTest`.
-2. **Eloquent models are at 86.07% line coverage.** The 17 uncovered lines are
-   inverse `belongsTo` relations no caller reads yet (`Cart::customer`,
-   `LedgerEntry::seller`, `ListingEvent::listing`, `Payment::order`,
-   `Payout::seller`, and the like). Either a caller or a
-   deletion closes this.
-3. **Mail is written but unproven.** Every notification implements
+1. **Mail is written but unproven.** Every notification implements
    `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS` turn
    the channel on, but no mailer is configured beyond `MAIL_MAILER=log`, so
    nothing has been sent to a real inbox.
-4. **The payout button pays every seller**, not the signed-in one. It is
-   labelled a debug control on `seller.earnings` and the flash says so.
-5. **Shipment tracking is a text field.** No carrier integration; the customer
+2. **The payout button pays every seller**, not the signed-in one. It is
+   labelled a debug control on `seller.earnings` and the flash says so; that
+   behavior is now pinned by `Seller\PayoutControllerTest` ("pays out every
+   seller with released escrow, not only the signed-in seller"), so a future
+   change to it fails a test on purpose rather than by surprise.
+3. **Shipment tracking is a text field.** No carrier integration; the customer
    confirms delivery from the order page.
-6. **No order cancellation route.** `OrderStatus::Cancelled` exists in the
+4. **No order cancellation route.** `OrderStatus::Cancelled` exists in the
    domain with no way to reach it over HTTP.
-7. **`FEAT-005`'s source landed inside `FEAT-004`'s commits.** A history
+5. **`FEAT-005`'s source landed inside `FEAT-004`'s commits.** A history
    artifact of parallel agents; the tree is correct.
+
+Closed by IMPRV-001: every file under `app/` now has a sidecar
+(`tests/SidecarsTest.php`'s exception list is empty), Eloquent models are at
+100% line coverage (the `belongsTo` inverse relations this file used to name
+as uncovered — `Cart::customer`, `LedgerEntry::seller`/`fulfillment`/`payout`,
+`ListingEvent::listing`/`customer`, `Payment::order`, `Listing::favorites` —
+each has a sidecar reading it), and overall line coverage is 100%.
 
 ## Suggested next steps
 
-1. Give the four untested action classes their sidecars, and delete or use the
-   unread model relations. Closes gaps 1 and 2.
-2. Point `MAIL_MAILER` at a real transport and turn on the `mail` channel,
-   which closes gap 3 and removes the debug alert from the demo path.
-3. Scope the payout button to the signed-in seller, or move it behind an
+1. Point `MAIL_MAILER` at a real transport and turn on the `mail` channel,
+   which closes gap 1 and removes the debug alert from the demo path.
+2. Scope the payout button to the signed-in seller, or move it behind an
    artisan-only path and keep `payouts:run` as the single entry point.
-4. Add order cancellation for `pending_verification` orders, with the stock
+3. Add order cancellation for `pending_verification` orders, with the stock
    returned to the listing.
-5. Replace the placeholder SVG images with real uploads in the seeder so the
+4. Replace the placeholder SVG images with real uploads in the seeder so the
    storefront demo shows artwork.

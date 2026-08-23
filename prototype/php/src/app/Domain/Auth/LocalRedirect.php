@@ -6,7 +6,7 @@ namespace App\Domain\Auth;
 
 final class LocalRedirect
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function resolve(?string $requested, string $fallback, string $origin): string
     {

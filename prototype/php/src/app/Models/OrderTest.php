@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Domain\Payments\PaymentStatus;
-
 it('reads its totals as money', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
 
@@ -15,18 +13,14 @@ it('reads its totals as money', function (): void {
 
 it('reads the latest of its payment attempts', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
-    Payment::create([
+    Payment::factory()->declined()->create([
         'order_id' => $order->id,
-        'status' => PaymentStatus::Declined,
         'amount_cents' => $order->total_cents,
-        'card_last_four' => '0002',
         'processed_at' => $this->moment('2026-08-20 10:00:00'),
     ]);
-    $retry = Payment::create([
+    $retry = Payment::factory()->approved()->create([
         'order_id' => $order->id,
-        'status' => PaymentStatus::Approved,
         'amount_cents' => $order->total_cents,
-        'card_last_four' => '4242',
         'processed_at' => $this->moment('2026-08-20 10:05:00'),
     ]);
 

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Money\Money;
+use Database\Factories\PayoutFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,6 +19,9 @@ use Override;
 #[Fillable(['seller_id', 'period_start', 'period_end', 'amount_cents', 'paid_at'])]
 class Payout extends Model
 {
+    /** @use HasFactory<PayoutFactory> */
+    use HasFactory;
+
     /**
      * @return array<string, string>
      */

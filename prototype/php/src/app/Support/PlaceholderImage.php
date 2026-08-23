@@ -15,7 +15,7 @@ final class PlaceholderImage
 
     private const HEIGHT = 800;
 
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function svg(string $title): string
     {

@@ -308,6 +308,13 @@ flowchart LR
   `Tests\TestCase` alone for `routes/`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
   `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
+- Every model under `app/Models` has a factory under `database/factories`,
+  with a state per meaningful status (`OrderFactory::paid()`,
+  `FulfillmentFactory::shipped()`, `PaymentFactory::declined()`,
+  `MagicLinkFactory::consumed()`, `ListingFactory::archived()`, and the like).
+  A test reaches for `Model::factory()->create([...])` for a plain row and for
+  the action walk (below) only when the row's *lifecycle* — not just its
+  final shape — is what the test is about.
 - A repeated fixture is a protected method on `Tests\CommerceTestCase`
   (`cartWithOneListing()`, `paidOrderWithTwoSellers()`,
   `shippedFulfillmentFor()`, `deliveredFulfillmentFor()`); a fixture used by
@@ -352,7 +359,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (665 tests, 1496 assertions). `make analyse` and `make lint`
+  full Pest suite (721 tests, 1600 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

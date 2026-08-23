@@ -48,6 +48,23 @@ it('flashes the count and the amount', function (): void {
         && str_contains($status, '$90.00'));
 });
 
+it('pays out every seller with released escrow, not only the signed-in seller', function (): void {
+    $signedIn = $this->seller('Blue Kiln Studio');
+    $other = $this->seller('Rye Press');
+    $this->deliveredFulfillmentFor(
+        $other,
+        orderedAt: $this->moment('2026-08-17 10:00:00'),
+        trackingNumber: 'RM1',
+        shippedAt: $this->moment('2026-08-18 10:00:00'),
+        deliveredAt: $this->moment('2026-08-19 10:00:00'),
+    );
+
+    $this->actingAs($signedIn, 'seller')->post('/seller/earnings/payouts');
+
+    expect(Payout::where('seller_id', $other->id)->exists())->toBeTrue()
+        ->and(Payout::where('seller_id', $signedIn->id)->exists())->toBeFalse();
+});
+
 it('pays nobody when nothing was released', function (): void {
     $seller = $this->seller();
 

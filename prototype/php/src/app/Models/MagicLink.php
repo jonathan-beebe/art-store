@@ -7,11 +7,13 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
+use Database\Factories\MagicLinkFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Override;
 
@@ -19,6 +21,9 @@ use Override;
 #[Hidden(['token_hash'])]
 class MagicLink extends Model
 {
+    /** @use HasFactory<MagicLinkFactory> */
+    use HasFactory;
+
     /**
      * @return array<string, string>
      */

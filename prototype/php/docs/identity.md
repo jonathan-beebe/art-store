@@ -86,7 +86,16 @@ Caveats: `MergeAnonymousCustomer` walks
 skips any table/column that does not exist yet (guards schema drift across
 tickets landing in parallel). The anonymous row is never deleted — the
 `customer_merges` row lets a stale cookie on a second device resolve forward
-to the verified customer.
+to the verified customer, following as many recorded merges as it takes to
+land on a row nothing else points at. Merging the same anonymous customer
+into the same verified one twice writes one `customer_merges` row —
+`customer_merges.anonymous_customer_id` is unique, and the action reads that
+row back with `firstOrCreate` instead of failing on it.
+
+A `redirect_to` naming a `/seller` path is never followed on a customer link,
+even when it is otherwise local: `MagicLinkVerificationController` falls back
+to `shop.account`. A customer link carries no seller session, so following it
+there would only land on the seller login wall.
 
 ## Which identity a storefront request resolves to
 

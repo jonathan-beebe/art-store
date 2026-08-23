@@ -44,6 +44,17 @@ it('searches titles descriptions and media', function (): void {
     $response->assertDontSee('Winter Elm');
 });
 
+it('treats a search of only wildcards as no search', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $this->listing($seller, ['title' => 'Winter Elm']);
+
+    $response = $this->get('/?'.http_build_query(['q' => '%%%']));
+
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('Winter Elm');
+});
+
 it('narrows to one medium', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'Harbour at Dawn', 'medium' => 'oil']);
@@ -52,6 +63,15 @@ it('narrows to one medium', function (): void {
     $response = $this->get('/?medium=ceramic');
 
     $response->assertSee('Kiln Study');
+    $response->assertDontSee('Harbour at Dawn');
+});
+
+it('shows an empty storefront when the medium filter matches nothing', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Harbour at Dawn', 'medium' => 'oil']);
+
+    $response = $this->get('/?medium=bronze');
+
     $response->assertDontSee('Harbour at Dawn');
 });
 

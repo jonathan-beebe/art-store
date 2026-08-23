@@ -26,6 +26,16 @@ it('records the merge so a stale cookie still resolves', function (): void {
     ]);
 });
 
+it('merging the same anonymous customer twice writes one merge row', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect(CustomerMerge::count())->toBe(1);
+});
+
 it('returns the customer the history moved to', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();

@@ -6,7 +6,7 @@ namespace App\Domain\Auth;
 
 final class EmailNormalizer
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     /**
      * Addresses arrive from forms and from magic-link rows; both sides compare

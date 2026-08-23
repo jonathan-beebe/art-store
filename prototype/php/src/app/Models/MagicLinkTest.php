@@ -8,7 +8,7 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
 
-$link = fn (string $token): MagicLink => MagicLink::create([
+$link = fn (string $token): MagicLink => MagicLink::factory()->create([
     'token_hash' => MagicLinkToken::hash($token),
     'email' => 'artist@example.com',
     'actor_type' => ActorType::Seller,

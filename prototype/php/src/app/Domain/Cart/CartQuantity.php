@@ -11,7 +11,7 @@ use InvalidArgumentException;
 
 final class CartQuantity
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function withinStock(int $requested, int $available, ListingStatus $status): int
     {

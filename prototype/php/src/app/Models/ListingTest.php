@@ -125,3 +125,11 @@ it('reads the order items it was bought through', function (): void {
 
     expect($listing->orderItems()->pluck('order_id')->all())->toBe([$order->id]);
 });
+
+it('reads the favorites it was added to', function (): void {
+    $listing = $this->listing($this->seller());
+    $customer = $this->anonymousCustomer();
+    Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
+
+    expect($listing->favorites()->pluck('customer_id')->all())->toBe([$customer->id]);
+});

@@ -13,7 +13,7 @@ final class FakeCard
         '4000000000009995' => DeclineReason::InsufficientFunds,
     ];
 
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function decide(string $number): CardDecision
     {

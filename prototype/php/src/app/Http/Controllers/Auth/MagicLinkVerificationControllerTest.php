@@ -142,3 +142,9 @@ it('ignores a destination on another host', function (): void {
 
     $response->assertRedirect(route('shop.account'));
 });
+
+it('keeps a customer link out of the seller portal', function () use ($customerLinkFor): void {
+    $response = $this->get($customerLinkFor('shopper@example.com', '/seller/dashboard'));
+
+    $response->assertRedirect(route('shop.account'));
+});

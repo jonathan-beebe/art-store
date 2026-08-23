@@ -12,21 +12,7 @@ use Symfony\Component\Finder\Finder;
  * exists is stale and must be removed, so the list can only shrink.
  */
 it('gives every class under app a sidecar test', function (): void {
-    $exceptions = [
-        'app/Actions/Auth/SignInSeller.php' => 'covered by Auth\MagicLinkVerificationControllerTest',
-        'app/Actions/Auth/SignInCustomer.php' => 'covered by Auth\MagicLinkVerificationControllerTest',
-        'app/Actions/Customers/ClaimCustomerIdentity.php' => 'covered by Auth\MagicLinkVerificationControllerTest',
-        'app/Actions/Customers/ResolveCustomerFromCookie.php' => 'covered by Actions\Customers\MergeAnonymousCustomerTest',
-        'app/Domain/Listings/ListingDraft.php' => null,
-        'app/Domain/Reports/ListingStatusCount.php' => null,
-        'app/Models/Cart.php' => null,
-        'app/Models/CartItem.php' => null,
-        'app/Models/CustomerMerge.php' => null,
-        'app/Models/Favorite.php' => null,
-        'app/Models/Payout.php' => null,
-        'app/Providers/AppServiceProvider.php' => null,
-        'app/Support/CustomerIdentity.php' => null,
-    ];
+    $exceptions = [];
 
     $base = dirname(__DIR__);
 

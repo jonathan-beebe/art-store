@@ -15,6 +15,7 @@ use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingEvent;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Seller;
@@ -38,6 +39,28 @@ it('seeds listings across statuses and media', function (): void {
         ->toBe(['ceramic', 'painting', 'photography', 'print', 'sculpture', 'textile']);
 });
 
+it('seeds each listing through CreateListing, so every slug is a plain collision-free slug', function (): void {
+    $listing = Listing::where('title', 'Low Tide at Dusk')->firstOrFail();
+
+    expect($listing->slug)->toBe('low-tide-at-dusk')
+        ->and(Listing::query()->pluck('slug')->unique())->toHaveCount(Listing::count());
+});
+
+it('seeds the two sold-out listings by title, reached by selling out real stock', function (): void {
+    expect(Listing::where('title', 'Copper Patina Bowl')->firstOrFail())
+        ->status->toBe(ListingStatus::Sold)
+        ->quantity->toBe(0);
+    expect(Listing::where('title', 'Wet Plate Collodion Portrait')->firstOrFail())
+        ->status->toBe(ListingStatus::Sold)
+        ->quantity->toBe(0);
+});
+
+it('seeds the three draft listings by title', function (): void {
+    foreach (['Untitled Charcoal Study', 'Waxed Linen Sampler', 'Kiln Test Tiles, Series 3'] as $title) {
+        expect(Listing::where('title', $title)->firstOrFail()->status)->toBe(ListingStatus::Draft);
+    }
+});
+
 it('seeds one verified customer with favorites', function (): void {
     $customer = Customer::where('email', 'casey@example.com')->first();
 
@@ -58,6 +81,12 @@ it('seeds order history for two sellers', function (): void {
     expect(Fulfillment::query()->distinct()->pluck('seller_id'))->toHaveCount(2);
 
     expect(Payment::count())->toBe(3);
+
+    expect(OrderItem::query()->pluck('title')->sort()->values()->all())->toBe([
+        'Ash-Glazed Tea Bowl',
+        'Kitchen Table, Late Morning',
+        'Standing Figure in Reclaimed Oak',
+    ]);
 });
 
 it('releases and pays out the delivered order', function (): void {

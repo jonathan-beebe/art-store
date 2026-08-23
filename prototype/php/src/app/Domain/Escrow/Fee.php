@@ -10,7 +10,7 @@ final class Fee
 {
     public const PLATFORM_PERCENT = 10;
 
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function platform(Money $subtotal): Money
     {

@@ -6,7 +6,7 @@ namespace App\Domain\Listings;
 
 final class ListingAvailability
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function isPurchasable(ListingStatus $status, int $quantity): bool
     {

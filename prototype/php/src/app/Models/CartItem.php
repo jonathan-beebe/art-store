@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Cart\CartLine;
+use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
@@ -17,6 +19,9 @@ use Override;
 #[Fillable(['cart_id', 'listing_id', 'quantity'])]
 class CartItem extends Model
 {
+    /** @use HasFactory<CartItemFactory> */
+    use HasFactory;
+
     /**
      * @return array<string, string>
      */

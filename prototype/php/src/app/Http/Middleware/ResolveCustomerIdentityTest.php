@@ -44,10 +44,7 @@ it('starts over when the cookie holds junk', function (): void {
 it('resolves a stale cookie through a recorded merge', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
-    CustomerMerge::create([
-        'anonymous_customer_id' => $anonymous->id,
-        'customer_id' => $verified->id,
-    ]);
+    CustomerMerge::factory()->create(['anonymous_customer_id' => $anonymous->id, 'customer_id' => $verified->id]);
 
     $response = $this->withCookie(CustomerIdentity::COOKIE, (string) $anonymous->id)->get('/');
 

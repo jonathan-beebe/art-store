@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:11:22:14 — MAINT-002 — started
+- 2026-08-23:11:22:14 — IMPRV-001 — done: Behavior tests for the payout button, customer-link redirect guard, merge idempotency and chains, PayoutPeriod year boundary, upload size, search edges; factories for all 15 models; ListingSeeder and CustomerSeeder through actions; sidecar exception list emptied; 100% line coverage
 - 2026-08-23:10:45:20 — IMPRV-001 — started
 - 2026-08-23:10:45:20 — RFCTR-008 — done: Anonymous Blade components for the listing card, card fields, debug alert, form field, and both layouts; seller listings as Route::resource with PUT update; activity view folded into ListingController::show
 - 2026-08-23:10:28:14 — RFCTR-008 — started

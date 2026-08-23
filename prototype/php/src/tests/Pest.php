@@ -27,6 +27,8 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Models',
     '../app/Notifications',
     '../app/Policies',
+    '../app/Providers',
+    '../app/Support',
 );
 
 pest()->extend(Tests\StorefrontTestCase::class)->in(

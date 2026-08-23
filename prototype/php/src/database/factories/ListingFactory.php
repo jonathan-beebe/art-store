@@ -49,4 +49,9 @@ class ListingFactory extends Factory
             'quantity' => 0,
         ]);
     }
+
+    public function archived(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => ListingStatus::Archived]);
+    }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Domain\Listings\ListingEventType;
 use App\Domain\Money\Money;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
@@ -44,7 +43,7 @@ it('reads its favorites and the listings behind them', function (): void {
     $customer = $this->anonymousCustomer();
     $listing = $this->listing($this->seller());
     $this->listing($this->seller());
-    Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
+    Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
 
     expect($customer->favorites()->count())->toBe(1)
         ->and($customer->favoriteListings()->pluck('listings.id')->all())->toBe([$listing->id]);
@@ -65,10 +64,9 @@ it('is named by the morph alias its notifications are addressed to', function ()
 
 it('reads the listing events it left', function (): void {
     $customer = $this->anonymousCustomer();
-    ListingEvent::create([
+    ListingEvent::factory()->create([
         'listing_id' => $this->listing($this->seller())->id,
         'customer_id' => $customer->id,
-        'type' => ListingEventType::View,
         'occurred_at' => $this->moment('2026-08-20 09:00:00'),
     ]);
 
@@ -94,7 +92,7 @@ it('picks the cart holding the items after a merge', function (): void {
     $customer = $this->verifiedCustomer();
     $this->cartFor($customer);
     $filled = $this->cartFor($customer);
-    CartItem::create([
+    CartItem::factory()->create([
         'cart_id' => $filled->id,
         'listing_id' => $this->listing($this->seller())->id,
         'quantity' => 1,

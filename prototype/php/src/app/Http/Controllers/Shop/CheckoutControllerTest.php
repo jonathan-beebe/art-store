@@ -33,6 +33,13 @@ it('sends an empty cart back to the cart page', function (): void {
     $this->get('/checkout')->assertRedirect(route('shop.cart'));
 });
 
+it('refuses to place an order from an empty cart', function () use ($checkoutFields): void {
+    $response = $this->post('/checkout', $checkoutFields());
+
+    $response->assertRedirect(route('shop.cart'));
+    expect(Order::count())->toBe(0);
+});
+
 it('prefills and locks the address of a signed in customer', function () use ($fillCart): void {
     $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
     $fillCart();

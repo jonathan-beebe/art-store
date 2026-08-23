@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Actions\Favorites\ToggleFavorite;
 use App\Actions\Listings\RecordListingEvent;
 use App\Domain\Listings\ListingEventType;
 use App\Models\Customer;
-use App\Models\Favorite;
 use App\Models\Listing;
 use DateTimeImmutable;
 use Illuminate\Database\Seeder;
@@ -61,14 +61,11 @@ class CustomerSeeder extends Seeder
 
     private function recordFavorites(Customer $customer): void
     {
-        $recordListingEvent = app(RecordListingEvent::class);
+        $toggleFavorite = app(ToggleFavorite::class);
         $favoritedAt = new DateTimeImmutable('2026-07-01 09:10:00');
 
         foreach (self::FAVORITE_TITLES as $title) {
-            $listing = $this->listing($title);
-
-            Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
-            $recordListingEvent($listing, $customer->id, ListingEventType::Favorite, $favoritedAt);
+            $toggleFavorite($customer, $this->listing($title), $favoritedAt);
             $favoritedAt = $favoritedAt->modify('+1 minute');
         }
     }

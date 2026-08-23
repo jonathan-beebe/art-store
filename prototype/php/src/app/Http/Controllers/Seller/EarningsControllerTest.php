@@ -70,14 +70,14 @@ it('moves a delivered sale to available', function () use ($paidFulfillment): vo
 
 it('lists the payouts of this seller only', function (): void {
     $seller = $this->seller();
-    Payout::create([
+    Payout::factory()->create([
         'seller_id' => $seller->id,
         'period_start' => '2026-08-10',
         'period_end' => '2026-08-16',
         'amount_cents' => 9000,
         'paid_at' => '2026-08-17 00:00:00',
     ]);
-    Payout::create([
+    Payout::factory()->create([
         'seller_id' => $this->seller('Other Studio')->id,
         'period_start' => '2026-08-10',
         'period_end' => '2026-08-16',

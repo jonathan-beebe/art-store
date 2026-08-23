@@ -11,7 +11,7 @@ final class ListingSlug
     /**
      * The slug a title asks for, before any collision with another listing.
      */
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function base(string $title): string
     {

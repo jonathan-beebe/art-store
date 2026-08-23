@@ -22,7 +22,7 @@ final class CustomerIdentity
     // A browsing history is worth more than a session, so the cookie outlives one.
     private const COOKIE_LIFETIME_MINUTES = 60 * 24 * 365;
 
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function cookieValue(Request $request): ?string
     {

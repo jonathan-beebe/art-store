@@ -56,11 +56,24 @@ final class MagicLinkVerificationController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->to(LocalRedirect::resolve(
-            $link->redirect_to,
-            route($link->actor_type->homeRouteName()),
-            url('/'),
-        ));
+        return redirect()->to($this->destinationFor($link));
+    }
+
+    /**
+     * A customer's `redirect_to` still has to stay off the seller portal even
+     * once it has passed {@see LocalRedirect} — a customer link carries no
+     * seller session, so following it there would only land on a login wall.
+     */
+    private function destinationFor(MagicLink $link): string
+    {
+        $home = route($link->actor_type->homeRouteName());
+        $destination = LocalRedirect::resolve($link->redirect_to, $home, url('/'));
+
+        if ($link->actor_type === ActorType::Customer && str_starts_with((string) parse_url($destination, PHP_URL_PATH), '/seller')) {
+            return $home;
+        }
+
+        return $destination;
     }
 
     private function refuse(ActorType $actorType, string $message): RedirectResponse

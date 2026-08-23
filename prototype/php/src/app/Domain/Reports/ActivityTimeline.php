@@ -10,7 +10,7 @@ use InvalidArgumentException;
 
 final class ActivityTimeline
 {
-    private function __construct() {}
+    private function __construct() {} // @codeCoverageIgnore
 
     /**
      * A gapless run of days ending on the day of $endsOn, oldest first.

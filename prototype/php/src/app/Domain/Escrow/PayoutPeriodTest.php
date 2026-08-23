@@ -15,6 +15,7 @@ it('resolves the week ending before a given moment', function (string $moment, s
     'mid-week pays out the week that just ended' => ['2026-08-22 09:30:00', '2026-08-10 00:00:00', '2026-08-16 23:59:59'],
     'the first moment of a monday pays out the week before it' => ['2026-08-17 00:00:00', '2026-08-10 00:00:00', '2026-08-16 23:59:59'],
     'the last moment of a sunday still pays out the week before it' => ['2026-08-16 23:59:59', '2026-08-03 00:00:00', '2026-08-09 23:59:59'],
+    'a week spanning the new year' => ['2027-01-06 09:30:00', '2026-12-28 00:00:00', '2027-01-03 23:59:59'],
 ]);
 
 it('covers seven days', function (): void {

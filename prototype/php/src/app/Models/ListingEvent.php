@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
+use Database\Factories\ListingEventFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
@@ -20,6 +22,9 @@ use Override;
 #[Fillable(['listing_id', 'customer_id', 'type', 'occurred_at'])]
 class ListingEvent extends Model
 {
+    /** @use HasFactory<ListingEventFactory> */
+    use HasFactory;
+
     /**
      * @return array<string, string>
      */

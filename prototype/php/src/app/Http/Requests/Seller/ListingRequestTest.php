@@ -53,6 +53,25 @@ it('rejects an invalid image upload', function (string $filename, int $kilobytes
     'a file that only claims to be an image' => ['harbour.jpg', 12, 'image/jpeg'],
 ]);
 
+it('rejects an image over the upload limit', function () use ($form): void {
+    Storage::fake('public');
+
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
+        'image' => UploadedFile::fake()->image('harbour.jpg')->size(5121),
+    ]));
+
+    $response->assertSessionHasErrors('image');
+    expect(Listing::count())->toBe(0);
+});
+
+it('accepts a listing with zero quantity', function () use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form(['quantity' => 0]));
+
+    $response->assertSessionDoesntHaveErrors('quantity');
+    expect(Listing::sole()->quantity)->toBe(0);
+});
+
 it('says a price is an amount in dollars', function () use ($form): void {
     $response = $this->actingAs($this->seller(), 'seller')
         ->post('/seller/listings', $form(['price' => 'a lot']));
