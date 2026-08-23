@@ -5,7 +5,7 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 9
+- FEAT: 15
 - IMPRV: 1
 - MAINT: 2
 - A11Y: 1
@@ -14,6 +14,12 @@
 
 ## Log
 
+- 2026-08-23:13:36:30 — FEAT-014 — defined: Messaging seeds, smoke walk, docs, and final validation
+- 2026-08-23:13:36:29 — FEAT-013 — defined: Live threads and unread badge with Hotwire over Solid Cable
+- 2026-08-23:13:36:28 — FEAT-012 — defined: Listing questions and FAQ publishing
+- 2026-08-23:13:36:27 — FEAT-011 — defined: Inboxes, threads, and entry points on all three sites
+- 2026-08-23:13:36:26 — FEAT-010 — defined: Conversations, messages, and listing FAQs on the models
+- 2026-08-23:13:36:25 — FEAT-009 — defined: Admin actor and a minimal admin site
 - 2026-08-22:21:06:12 — MAINT-001 — defined: Small leftovers from the refactor sweep
 - 2026-08-22:21:06:12 — RFCTR-015 — defined: Split Listing's activity reporting into a concern; Fulfillment computes its own fee
 - 2026-08-22:21:06:12 — RFCTR-014 — defined: Notifications reach email through a mailer
