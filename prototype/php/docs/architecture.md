@@ -42,7 +42,7 @@ flowchart TD
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
 | Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`, `routes/admin.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -89,11 +89,24 @@ because one call per request produces the instant they all read.
 | --- | --- | --- | --- |
 | Seller portal | `/seller` | `seller` (session, provider `sellers`) | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
 | Storefront | `/` | `customer` (session, provider `customers`) + anonymous customer cookie | Bright, open, white space, large imagery, brand recedes. |
+| Admin site | `/admin` | `admin` (session, provider `admins`) | Stock Tailwind, system font, tables and forms; the platform's back office. |
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
-`<x-layouts.shop>` in `resources/views/components/layouts/`), and its own route
-file. Both layouts render the `<x-debug-alert>` component that shows any magic
-link flashed to the session.
+`<x-layouts.shop>`, `<x-layouts.admin>` in
+`resources/views/components/layouts/`), and its own route file. All three
+layouts render the `<x-debug-alert>` component that shows any magic link
+flashed to the session.
+
+`admins` rows are seeded, never signed up: `/admin/login` issues a link only
+for an address that already has one, and answers a submitted address the same
+way whether or not it does. `App\Domain\Auth\ActorType::allowsPath()` keeps
+each actor on their own site, so a customer's or a seller's link is never
+followed to `/admin` and an admin's is never followed to `/seller`. An admin
+blocks a customer with a reason (`customer_blocks`); `Customer::canShop()` is
+the predicate `AddToCart`, `PlaceOrder`, and `FinalizeOrder` read through
+`App\Domain\Customers\CustomerStanding`, so a blocked shopper lands back on
+the page they submitted from with the reason while browsing, searching, and
+favoriting stay open. See `docs/messaging.md` § "What a block does".
 
 ### Authorization
 
@@ -137,13 +150,14 @@ visitor.
 
 `SellerController` and `ShopController` are the two base controllers; each
 exposes the actor behind the request (`seller()`, `visitor()`) as a non-null
-model. Both extend `App\Http\Controllers\Controller`, which holds the clock
+model. The admin pages scope nothing by the admin who is reading, so they
+extend the base controller directly. All of them extend `App\Http\Controllers\Controller`, which holds the clock
 (see **The clock**).
 
 ## Identity
 
 - Passwordless. A `magic_links` row holds a hashed token, an `email`, an
-  `actor_type` (`seller` | `customer`), `expires_at`, `consumed_at`, and an
+  `actor_type` (`seller` | `customer` | `admin`), `expires_at`, `consumed_at`, and an
   optional `redirect_to`.
 - Delivery is a notification: `App\Notifications\MagicLinkIssued`, sent to the
   address rather than to a row (`Notification::route(...)`, an
@@ -180,6 +194,7 @@ erDiagram
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
+    customers ||--o{ customer_blocks : blocked_by
     listings ||--o{ listing_events : records
     listings ||--o{ cart_items : held_in
     orders ||--o{ order_items : contains
@@ -297,10 +312,12 @@ flowchart LR
   outside `tests/*TestCase.php`. Tests are **sidecars**: `Foo.php` →
   `FooTest.php` in the same directory. `phpunit.xml` scans `app/`, `routes/`,
   and `database/` for `*Test.php` (the last one added for the seeders under
-  `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
+  `database/seeders/`) and lists `tests/Arch.php` by name, since the layer
+  rules carry no `Test.php` suffix. `tests/TestCase.php` stays as the Laravel base.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
   files need: `Tests\CommerceTestCase` for `app/Actions`,
-  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Seller`,
+  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Admin`,
+  `app/Http/Controllers/Seller`, `app/Http/Requests/Admin`,
   `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
   `app/Notifications`, and `app/Policies`; `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
@@ -332,12 +349,13 @@ flowchart LR
   use the `DB` facade; no debug functions anywhere; `env()` only in
   `config/`, never under `App`; every file declares strict types — plus
   Pest's `laravel` and `security` presets. The preset's `ignoring` list names
-  one class at a time rather than a namespace: the nine controllers whose
+  one class at a time rather than a namespace: the ten controllers whose
   route methods are action verbs (`CartController::add`,
   `CheckoutController::place`, `FavoriteController::toggle`,
   `OrderPaymentController::pay`, `AccountController::readNotification`,
-  `NotificationController::markRead`, `SignOutController::seller`/`customer`,
-  and the two `LoginController::send` pairs), `App\Domain` for enums that live
+  `NotificationController::markRead`,
+  `SignOutController::seller`/`customer`/`admin`, and the three
+  `LoginController::send` pairs), `App\Domain` for enums that live
   beside the concept they model, `App\Console\Commands\RunWeeklyPayouts` for
   its artisan command name, `App\Notifications\Channels` for a delivery
   channel, which is not itself a notification, and
@@ -365,7 +383,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (733 tests, 1643 assertions). `make analyse` and `make lint` run
+  then the full Pest suite (826 tests, 1887 assertions). `make analyse` and `make lint` run
   the first two alone, against the file tree only (`--no-deps`, no web
   server).
 - Sidecar tests are analysed at the same level as the code they cover: there

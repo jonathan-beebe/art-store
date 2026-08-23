@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\Order;
 
 $unpaidOrderFor = function (Customer $customer): Order {
@@ -60,6 +61,21 @@ it('sends a paid order back to the order page', function () use ($unpaidOrderFor
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
 
     $this->get(route('shop.order.pay', $order))->assertRedirect(route('shop.order', $order));
+});
+
+it('sends a blocked customer back with the reason instead of charging the card', function () use ($unpaidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    CustomerBlock::factory()->create(['customer_id' => $shopper->id, 'reason' => 'Chargeback fraud.']);
+
+    $response = $this->from(route('shop.order.pay', $order))
+        ->followingRedirects()
+        ->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertOk();
+    $response->assertSee('Buying is unavailable while your account is blocked: Chargeback fraud.');
+    expect($order->refresh()->status)->toBe(OrderStatus::AwaitingPayment)
+        ->and($order->payments()->count())->toBe(0);
 });
 
 it('reports a declined card and pays on retry', function () use ($unpaidOrderFor): void {

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Shop;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\Order;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
@@ -124,6 +125,19 @@ it('leaves the order unpaid with a reason when the card is declined', function (
 
     expect(Order::sole()->status)->toBe(OrderStatus::PaymentFailed);
     $response->assertSee('Your card was declined.');
+});
+
+it('sends a blocked customer to the cart with the reason instead of placing an order', function () use ($fillCart, $checkoutFields): void {
+    $shopper = Customer::factory()->create(['email' => 'shopper@example.com']);
+    $this->actingAs($shopper, 'customer');
+    $fillCart();
+    CustomerBlock::factory()->create(['customer_id' => $shopper->id, 'reason' => 'Chargeback fraud.']);
+
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertRedirect(route('shop.cart'));
+    $response->assertSessionHasErrors();
+    expect(Order::count())->toBe(0);
 });
 
 it('sends the shopper back to the cart when a line was archived while it sat there', function () use ($checkoutFields): void {

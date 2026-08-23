@@ -131,3 +131,66 @@ against every new class — all green.
   actually enforcing them on every `make check` run. Fixing the discovery
   config is out of this ticket's scope since it could surface unrelated
   pre-existing violations across the whole tree.
+
+## Review
+
+Reviewed 2026-08-23 against the Outcome list, `docs/architecture.md`, and
+`docs/messaging.md` § "What a block does". Walked the live site as well as the
+suite: signed in through `/admin/login` with a hand-created admin row, then
+`/admin`, `/admin/sellers`, all four seller detail pages, `/admin/customers`
+and the customer detail page all answered 200 against `make fresh` data under
+`Model::shouldBeStrict()`, and blocking, double-blocking, lifting, and
+double-lifting each landed back on the customer page with the right message.
+
+Changed:
+
+- **`tests/Arch.php` now runs in the gate.** `phpunit.xml`'s testsuites match
+  `*Test.php` only, so the ten arch rules never ran under `make check`. The
+  `App` suite gains `<file>tests/Arch.php</file>`; all ten pass, nothing this
+  ticket added violates them.
+- **`SignInAdmin` refuses an address with no admin row.** `firstOrNew(...)
+  ->save()` would have created an admin for any verified link that reached it
+  — the one path where the platform's own account list could grow by itself.
+  It now reads `firstOrFail()`, so a link that outlives the row it was issued
+  for answers 404. Covered by a sidecar test (no row created, guard still
+  guest) and an HTTP test that deletes the admin between issue and follow.
+- **The two responses `/admin/login` gives are identical byte for byte** —
+  asserted under `mail` delivery, which is what a deployment runs.
+- **`App\Http\Controllers\Admin\AdminController` deleted.** Its `admin()` was
+  never called (no admin page scopes anything by who is reading), which left
+  the file at 0% and the suite at 99.9% against the documented 100%. The four
+  admin controllers extend `App\Http\Controllers\Controller` directly;
+  coverage is back to 100.0%. FEAT-011 can add the base back when a caller
+  exists.
+- **HTTP coverage for the other two points of sale.** The blocked-customer
+  refusal had an HTTP test for add-to-cart only; checkout (lands on the cart,
+  no order) and `/orders/{order}/pay` (lands on the pay page with the reason,
+  no payment row) now have one each. Plus a signed-in customer reaching
+  `/admin`, which the Outcome names and only the seller case covered.
+- **Docs carry the third site.** `docs/architecture.md` gained the admin row
+  in the Sites table, the block flow, `routes/admin.php`, the `admin`
+  `actor_type`, the Pest bindings, the `tests/Arch.php` discovery note, and
+  fresh gate numbers; `docs/data-model.md` gained `admins` and
+  `customer_blocks`; `README.md` the new counts.
+
+`make check`: Pint clean on 356 files, 0 PHPStan errors at level max, **826
+tests passed, 1887 assertions** (from 810/1788). `make coverage`: 100.0%.
+
+### Review — found, not fixed
+
+- `BlockCustomer` and `LiftCustomerBlock` raise `DomainRuleViolation`
+  themselves; they are the only two classes outside `app/Domain` that do, and
+  `docs/architecture.md` puts a domain `if` in the core. Folding both into
+  `CustomerStanding` costs `LiftCustomerBlock` the narrowed `$block` it needs
+  right after the check, which PHPStan at level max would then need helping
+  through — larger than a review edit. A follow-up could move both onto the
+  model instead (`Customer::block()`, `Customer::liftBlock()`), which is the
+  shape `Listing::sell()` already uses.
+- Under the prototype's default `session` delivery, `/admin/login` flashes the
+  link to the debug alert for an admitted address, so the rendered page does
+  differ for an address that has an admin row. That alert is the only way to
+  sign in without a mailbox, so it stays; the byte-for-byte guarantee is
+  asserted under `mail`.
+- `make fresh` seeds no admin, so a live `/admin` walk needs a row created by
+  hand until FEAT-015 adds the seeder. `README.md` already points at
+  `/admin`.

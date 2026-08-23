@@ -46,6 +46,20 @@ it('tells the visitor to check their email either way', function (): void {
     $admitted->assertSee('ops@example.com');
 });
 
+it('answers the same page byte for byte whether or not the address has an admin', function (): void {
+    // The prototype's own delivery flashes the link to the session for the
+    // debug alert, which only an admitted address gets; mail is the delivery
+    // a deployment runs, and the one this page is probed under.
+    config(['magic_links.delivery' => 'mail']);
+
+    $unknown = $this->followingRedirects()->post('/admin/login', ['email' => 'ops@example.com']);
+    Admin::factory()->create(['email' => 'ops@example.com']);
+    $admitted = $this->followingRedirects()->post('/admin/login', ['email' => 'ops@example.com']);
+
+    expect($admitted->getStatusCode())->toBe($unknown->getStatusCode())
+        ->and($admitted->getContent())->toBe($unknown->getContent());
+});
+
 it('flashes the link for the debug alert only when the address admits an admin', function (): void {
     Admin::factory()->create(['email' => 'ops@example.com']);
 

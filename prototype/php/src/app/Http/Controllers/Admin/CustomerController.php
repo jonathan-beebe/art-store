@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\View\View;
 
-final class CustomerController extends AdminController
+final class CustomerController extends Controller
 {
     public function index(): View
     {

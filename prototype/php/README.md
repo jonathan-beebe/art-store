@@ -77,11 +77,11 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-733 tests (1643 assertions), run by Pest — `it()`/`test()` functions, no
+826 tests (1887 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
-`routes/`, and `database/` for `*Test.php`; there is no `tests/Feature` or
-`tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
+`routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
+there is no `tests/Feature` or `tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
 `Tests\StorefrontTestCase`, and `Tests\TestCase` + `RefreshDatabase` to the
 sidecar directories they serve. Tabulated input/output shapes are Pest
 datasets, declared inline with `->with([...])` or file-local with `dataset()`

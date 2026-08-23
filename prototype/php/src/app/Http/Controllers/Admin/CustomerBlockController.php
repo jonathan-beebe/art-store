@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Customers\BlockCustomer;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\BlockCustomerRequest;
 use App\Models\Customer;
 use Illuminate\Http\RedirectResponse;
 
-final class CustomerBlockController extends AdminController
+final class CustomerBlockController extends Controller
 {
     public function __invoke(BlockCustomerRequest $request, Customer $customer, BlockCustomer $blockCustomer): RedirectResponse
     {

@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:14:29:48 — FEAT-010 — reviewed: arch rules now run in the gate, SignInAdmin refuses an unknown address, unused admin base controller dropped, docs carry the third site; 826 tests / 1887 assertions, 100.0% coverage
 - 2026-08-23:14:14:49 — FEAT-010 — done: admin actor/site + customer blocks landed, 810 tests / 1788 assertions, make check green
 - 2026-08-23:13:59:13 — FEAT-010 — started
 

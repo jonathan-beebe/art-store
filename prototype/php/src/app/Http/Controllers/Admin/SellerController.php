@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Reports\ListingStatusTally;
+use App\Http\Controllers\Controller;
 use App\Models\Seller;
 use Illuminate\View\View;
 
-final class SellerController extends AdminController
+final class SellerController extends Controller
 {
     public function index(): View
     {

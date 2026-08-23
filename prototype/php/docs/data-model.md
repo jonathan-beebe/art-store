@@ -22,6 +22,18 @@ erDiagram
         string name
         timestamp email_verified_at
     }
+    admins {
+        id id PK
+        string email UK
+        string name "nullable"
+        timestamp email_verified_at "nullable"
+    }
+    customer_blocks {
+        id id PK
+        id customer_id FK "indexed with lifted_at"
+        string reason "shown to the shopper on refusal"
+        timestamp lifted_at "nullable, null while the block is active"
+    }
     customer_merges {
         id id PK
         id anonymous_customer_id FK "UK, -> customers"
@@ -132,7 +144,7 @@ erDiagram
         id id PK
         string token_hash UK
         string email
-        string actor_type "seller|customer"
+        string actor_type "seller|customer|admin"
         string redirect_to "nullable"
         timestamp expires_at
         timestamp consumed_at "nullable"
@@ -147,6 +159,7 @@ erDiagram
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
+    customers ||--o{ customer_blocks : blocked_by
     customers ||--o{ customer_merges : "merged from (anonymous)"
     customers ||--o{ customer_merges : "merged into (verified)"
     listings ||--o{ listing_events : has
@@ -176,6 +189,14 @@ Caveats:
   `App\Domain\Notifications\RecipientType`, so the column reads as words
   rather than class names. An anonymous-customer merge re-points the rows
   whose `notifiable_type` is `customer` through the morph relation.
+- `admins` is seeded, never written by a sign-up: `/admin/login` issues a
+  magic link only for an address that already has a row, and
+  `App\Actions\Auth\SignInAdmin` answers 404 rather than creating one. It
+  holds no foreign key, so it is drawn without a relationship line above.
+- `customer_blocks` keeps every block a customer has ever had; the active one
+  is the row with `lifted_at` null. "At most one active block" is
+  `BlockCustomer`'s rule rather than a partial unique index, which SQLite does
+  not carry.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one (`orderByDesc('id')->first()`).

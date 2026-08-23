@@ -169,6 +169,18 @@ it('signs an existing admin in and lands them on the admin dashboard', function 
     $this->assertAuthenticated('admin');
 });
 
+it('answers 404 and creates no admin when the row a link was issued for is gone', function () use ($adminLinkFor): void {
+    $admin = Admin::factory()->create(['email' => 'ops@example.com']);
+    $link = $adminLinkFor('ops@example.com');
+    $admin->delete();
+
+    $response = $this->get($link);
+
+    $response->assertNotFound();
+    expect(Admin::count())->toBe(0);
+    $this->assertGuest('admin');
+});
+
 it('keeps a customer link out of the admin site', function () use ($flashedLink): void {
     $this->post('/login', ['email' => 'shopper@example.com']);
     MagicLink::sole()->forceFill(['redirect_to' => '/admin'])->save();
