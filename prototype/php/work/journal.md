@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:08:32:31 — BUG-002 — done: Failed image writes, malformed --as-of, null card input, a two-case PaymentOutcome, a typed DailyActivity date, and tests pinning the encrypted identity cookie
+- 2026-08-23:08:32:31 — BUG-001 — done: DomainRuleViolation mapped once to a flashed error; checkout returns the shopper to the cart naming the unavailable item instead of a 500
 - 2026-08-23:08:15:37 — BUG-002 — started
 - 2026-08-23:08:15:37 — BUG-001 — started
 - 2026-08-23:08:11:39 — RFCTR-001 — done: converted 5 by-reference-closure test files to bindings, added cartWithOneListing/paidOrderWithTwoSellers to CommerceTestCase, rewrote SidecarsTest docblock and added stale-exception assertion, updated docs/architecture.md and README.md Testing sections; 485 tests / 1123 assertions, pint clean
