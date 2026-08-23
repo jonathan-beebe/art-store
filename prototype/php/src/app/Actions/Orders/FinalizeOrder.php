@@ -11,6 +11,7 @@ use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\FakeCard;
+use App\Domain\Payments\PaymentOutcome;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
@@ -26,9 +27,10 @@ final class FinalizeOrder
     public function __invoke(Order $order, string $cardNumber, DateTimeImmutable $now): Order
     {
         $decision = FakeCard::decide($cardNumber);
-        $status = $order->status->transitionTo(OrderStatus::fromCardDecision($decision));
+        $outcome = PaymentOutcome::fromCardDecision($decision);
+        $status = $order->status->transitionTo(OrderStatus::fromCardDecision($outcome));
 
-        return DB::transaction(function () use ($order, $decision, $status, $now): Order {
+        return DB::transaction(function () use ($order, $decision, $outcome, $status, $now): Order {
             // A declined charge put the stock back on the storefront, so a retry
             // has to claim it again before the order can be paid.
             match ($order->status) {
@@ -47,10 +49,9 @@ final class FinalizeOrder
 
             $order->update(['status' => $status]);
 
-            match ($status) {
-                OrderStatus::Paid => $this->completePayment($order, $now),
-                OrderStatus::PaymentFailed => $this->releaseStock($order),
-                default => null,
+            match ($outcome) {
+                PaymentOutcome::Approved => $this->completePayment($order, $now),
+                PaymentOutcome::Declined => $this->releaseStock($order),
             };
 
             return $order->refresh();
@@ -89,7 +90,7 @@ final class FinalizeOrder
     {
         foreach ($order->items as $item) {
             $listing = $item->listing;
-            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity);
+            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity, $listing->title);
             $listing->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
         }
     }

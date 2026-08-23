@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Listings;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
 
 enum ListingStatus: string
 {
@@ -37,6 +37,6 @@ enum ListingStatus: string
     {
         return $this->canTransitionTo($next)
             ? $next
-            : throw new DomainException("A listing cannot move from {$this->value} to {$next->value}.");
+            : throw new DomainRuleViolation("A listing cannot move from {$this->value} to {$next->value}.");
     }
 }

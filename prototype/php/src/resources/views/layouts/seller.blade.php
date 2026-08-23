@@ -43,6 +43,14 @@
             <p role="status" class="mb-4 rounded border border-green-300 bg-green-50 p-3 text-green-900">{{ session('status') }}</p>
         @endif
 
+        @if ($errors->any())
+            <div role="alert" class="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-900">
+                @foreach ($errors->all() as $message)
+                    <p>{{ $message }}</p>
+                @endforeach
+            </div>
+        @endif
+
         @yield('content')
     </main>
 </body>

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Orders;
 
-use App\Domain\Payments\CardDecision;
-use DomainException;
+use App\Domain\DomainRuleViolation;
+use App\Domain\Payments\PaymentOutcome;
 use InvalidArgumentException;
 
 enum OrderStatus: string
@@ -43,7 +43,7 @@ enum OrderStatus: string
     {
         return $this->canTransitionTo($next)
             ? $next
-            : throw new DomainException("An order cannot move from {$this->value} to {$next->value}.");
+            : throw new DomainRuleViolation("An order cannot move from {$this->value} to {$next->value}.");
     }
 
     public static function forPlacement(Purchaser $purchaser): self
@@ -51,9 +51,12 @@ enum OrderStatus: string
         return $purchaser->isEmailVerified() ? self::AwaitingPayment : self::PendingVerification;
     }
 
-    public static function fromCardDecision(CardDecision $decision): self
+    public static function fromCardDecision(PaymentOutcome $outcome): self
     {
-        return $decision->isApproved ? self::Paid : self::PaymentFailed;
+        return match ($outcome) {
+            PaymentOutcome::Approved => self::Paid,
+            PaymentOutcome::Declined => self::PaymentFailed,
+        };
     }
 
     /**

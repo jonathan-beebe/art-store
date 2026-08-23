@@ -32,7 +32,7 @@ final class ListingController extends Controller
 
         return redirect()
             ->route('seller.listings.index')
-            ->with('status', "\"{$listing->title}\" is saved as a draft.");
+            ->with('status', "\"{$listing->title}\" is saved as a draft.".$this->imageUploadFailureNote($request, $listing));
     }
 
     public function edit(string $listing): View
@@ -52,5 +52,18 @@ final class ListingController extends Controller
     private function ownedListing(string $id): Listing
     {
         return auth('seller')->user()->listings()->findOrFail($id);
+    }
+
+    /**
+     * A new listing's file upload can fail the disk write after passing
+     * validation; the listing is still saved, so this tells the seller the
+     * image did not come along. Unset only signals a failed write here
+     * because a create has no prior image to fall back to.
+     */
+    private function imageUploadFailureNote(ListingRequest $request, Listing $listing): string
+    {
+        return $request->hasFile('image') && $listing->image_path === null
+            ? ' The image failed to upload; try again from the listing.'
+            : '';
     }
 }

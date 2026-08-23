@@ -55,6 +55,27 @@ it('resolves a stale cookie through a recorded merge', function (): void {
     expect(Customer::count())->toBe(2);
 });
 
+it('treats an unencrypted customer_id cookie as a new anonymous visitor', function (): void {
+    // EncryptCookies is the only reason a raw integer in this cookie is safe;
+    // an unencrypted value fails decryption and reaches the middleware as if
+    // no cookie were sent at all, even when it names a real customer.
+    $existing = Customer::factory()->create();
+
+    $response = $this->withUnencryptedCookie(CustomerIdentity::COOKIE, (string) $existing->id)->get('/');
+
+    $visitor = Customer::where('id', '!=', $existing->id)->sole();
+    expect($visitor->isAnonymous())->toBeTrue();
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $visitor->id);
+});
+
+it('does not resolve a forged cookie to the customer id it names', function (): void {
+    $victim = Customer::factory()->create();
+
+    $this->withUnencryptedCookie(CustomerIdentity::COOKIE, (string) $victim->id)->get('/');
+
+    expect(Customer::count())->toBe(2);
+});
+
 it('lets a signed in customer outrank the cookie', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
     $signedIn = Customer::factory()->create();

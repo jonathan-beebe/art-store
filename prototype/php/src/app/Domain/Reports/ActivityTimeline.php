@@ -38,7 +38,7 @@ final class ActivityTimeline
         $counts = $countsByDate[$on->format('Y-m-d')] ?? [];
 
         return new DailyActivity(
-            $on->format('Y-m-d'),
+            $on,
             $counts[ListingEventType::View->value] ?? 0,
             $counts[ListingEventType::Favorite->value] ?? 0,
             $counts[ListingEventType::CartAdd->value] ?? 0,

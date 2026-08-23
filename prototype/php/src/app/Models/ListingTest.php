@@ -15,6 +15,14 @@ it('surfaces only listings for sale on the storefront', function (): void {
     expect(Listing::query()->forSale()->pluck('id')->all())->toBe([$forSale->id]);
 });
 
+it('reads whether it can still be bought', function (): void {
+    $seller = $this->seller();
+
+    expect($this->listing($seller)->isPurchasable())->toBeTrue()
+        ->and($this->listing($seller, ['status' => ListingStatus::Archived])->isPurchasable())->toBeFalse()
+        ->and($this->listing($seller, ['status' => ListingStatus::ForSale, 'quantity' => 0])->isPurchasable())->toBeFalse();
+});
+
 it('reads its price as money', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
 

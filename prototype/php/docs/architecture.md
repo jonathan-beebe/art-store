@@ -48,6 +48,20 @@ Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
 tense (`OrderPlaced`).
 
+### Refusals
+
+A rule the core refuses is an `App\Domain\DomainRuleViolation` — an illegal
+status transition (`ListingStatus`, `OrderStatus`, `FulfillmentStatus`), a sale
+the stock cannot cover (`ListingStock`), a cart line the listing no longer
+supports (`CartQuantity`), an order with no items (`CartTotals`). Its message
+is written for the person who tripped it. `bootstrap/app.php` maps it once, for
+every route, to `back()->withInput()->withErrors(...)`, and both layouts render
+`$errors`; controllers therefore carry no pre-flight copy of a guard the action
+already holds. `CheckoutController::place` is the one route that overrides the
+destination: it sends the shopper to the cart, where the line the message names
+is marked unavailable. Ownership stays separate — a row that is not the
+visitor's is still a 404.
+
 ## Sites
 
 | Site | URL prefix | Guard | Theme |

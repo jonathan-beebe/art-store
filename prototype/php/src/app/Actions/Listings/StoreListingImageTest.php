@@ -25,3 +25,12 @@ it('gives two uploads of the same name separate paths', function (): void {
 
     expect($second)->not->toBe($first);
 });
+
+it('returns null instead of false when the disk write fails', function (): void {
+    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
+    Storage::shouldReceive('putFile')->andReturn(false);
+
+    $path = (new StoreListingImage)(UploadedFile::fake()->image('harbour.jpg'));
+
+    expect($path)->toBeNull();
+});

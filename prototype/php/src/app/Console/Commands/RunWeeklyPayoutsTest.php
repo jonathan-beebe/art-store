@@ -33,3 +33,17 @@ it('reports a week with nothing to pay', function (): void {
         ->expectsOutputToContain('No seller has a released balance')
         ->assertSuccessful();
 });
+
+it('fails clearly on a garbage --as-of value', function (): void {
+    $this->artisan('payouts:run', ['--as-of' => 'yesterdayish'])
+        ->expectsOutputToContain('is not a date payouts can settle as of')
+        ->assertFailed();
+});
+
+it('settles as of the application clock when --as-of is omitted', function (): void {
+    $this->travelTo($this->moment('2026-08-24 09:00:00'));
+
+    $this->artisan('payouts:run')
+        ->expectsOutputToContain('2026-08-17 to 2026-08-23')
+        ->assertSuccessful();
+});

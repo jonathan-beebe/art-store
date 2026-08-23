@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Models\Payout;
+use DateMalformedStringException;
 use DateTimeImmutable;
 use Illuminate\Console\Command;
 
@@ -20,7 +21,17 @@ final class RunWeeklyPayouts extends Command
 
     public function handle(RunWeeklyPayout $runWeeklyPayout): int
     {
-        $asOf = new DateTimeImmutable($this->option('as-of') ?? 'now');
+        $rawAsOf = $this->option('as-of');
+        $asOfInput = is_string($rawAsOf) && $rawAsOf !== '' ? $rawAsOf : null;
+
+        try {
+            $asOf = $asOfInput === null ? now()->toDateTimeImmutable() : new DateTimeImmutable($asOfInput);
+        } catch (DateMalformedStringException) {
+            $this->error("\"{$asOfInput}\" is not a date payouts can settle as of.");
+
+            return self::FAILURE;
+        }
+
         $period = PayoutPeriod::endingBefore($asOf);
 
         $this->info("Payout period {$period->label()}");

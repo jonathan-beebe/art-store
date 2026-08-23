@@ -4,23 +4,27 @@ declare(strict_types=1);
 
 namespace App\Domain\Listings;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
 use InvalidArgumentException;
 
 final readonly class ListingStock
 {
     private function __construct(public int $quantity, public ListingStatus $status) {}
 
-    public static function afterSale(int $quantity, ListingStatus $status, int $sold): self
+    /**
+     * The title is the noun the refusal names, because the shopper reads the
+     * message on the page they were sent back to.
+     */
+    public static function afterSale(int $quantity, ListingStatus $status, int $sold, string $title): self
     {
         self::rejectAnEmptyChange($sold);
 
-        if ($status !== ListingStatus::ForSale) {
-            throw new DomainException("A listing that is {$status->value} cannot be sold.");
+        if (! ListingAvailability::isPurchasable($status, $quantity)) {
+            throw new DomainRuleViolation("“{$title}” is no longer for sale.");
         }
 
         if ($sold > $quantity) {
-            throw new DomainException("A listing with {$quantity} left cannot sell {$sold}.");
+            throw new DomainRuleViolation("“{$title}” has only {$quantity} left.");
         }
 
         $remaining = $quantity - $sold;

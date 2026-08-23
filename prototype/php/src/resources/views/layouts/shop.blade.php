@@ -39,9 +39,15 @@
     </header>
 
     <main class="mx-auto max-w-6xl px-8 pb-24 pt-12">
-        @if (session('error'))
+        @if (session('error') || $errors->any())
             <div role="alert" class="mb-10 rounded-xl border border-red-200 bg-red-50 px-6 py-4 text-red-900">
-                {{ session('error') }}
+                @if (session('error'))
+                    <p>{{ session('error') }}</p>
+                @endif
+
+                @foreach ($errors->all() as $message)
+                    <p>{{ $message }}</p>
+                @endforeach
             </div>
         @endif
 

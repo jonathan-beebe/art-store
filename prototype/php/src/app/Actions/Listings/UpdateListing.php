@@ -20,12 +20,13 @@ final class UpdateListing
     public function __invoke(Listing $listing, ListingDraft $draft, ?UploadedFile $image = null): Listing
     {
         $replaced = $listing->image_path;
+        $storedImage = $image === null ? null : ($this->storeListingImage)($image);
 
-        $listing->update($draft->attributes() + ($image === null
+        $listing->update($draft->attributes() + ($storedImage === null
             ? []
-            : ['image_path' => ($this->storeListingImage)($image)]));
+            : ['image_path' => $storedImage]));
 
-        if ($image !== null && $replaced !== null) {
+        if ($storedImage !== null && $replaced !== null) {
             Storage::disk('public')->delete($replaced);
         }
 

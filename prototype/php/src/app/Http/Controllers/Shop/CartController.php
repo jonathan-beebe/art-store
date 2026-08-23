@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Cart\AddToCart;
 use App\Actions\Cart\RemoveFromCart;
 use App\Domain\Cart\CartTotals;
-use App\Domain\Listings\ListingAvailability;
 use App\Models\Listing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -27,10 +26,6 @@ final class CartController extends ShopController
 
     public function add(Request $request, Listing $listing, AddToCart $addToCart): RedirectResponse
     {
-        if (! ListingAvailability::isPurchasable($listing->status, $listing->quantity)) {
-            return back()->with('error', 'That listing is no longer for sale.');
-        }
-
         $submitted = $request->validate(['quantity' => ['nullable', 'integer', 'min:1']]);
 
         $addToCart(

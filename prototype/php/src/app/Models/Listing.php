@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
@@ -63,6 +64,11 @@ class Listing extends Model
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);
+    }
+
+    public function isPurchasable(): bool
+    {
+        return ListingAvailability::isPurchasable($this->status, $this->quantity);
     }
 
     public function imageUrl(): string

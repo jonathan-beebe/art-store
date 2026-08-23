@@ -22,6 +22,12 @@
                         <a href="{{ route('shop.listing', $item->listing) }}" class="text-lg font-medium">{{ $item->listing->title }}</a>
                         <p class="mt-1 text-sm text-neutral-500">{{ $item->listing->seller->displayName() }}</p>
                         <p class="mt-1 text-sm text-neutral-500">Quantity {{ $item->quantity }}</p>
+
+                        @unless ($item->listing->isPurchasable())
+                            <p class="mt-2 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-900">
+                                No longer available
+                            </p>
+                        @endunless
                     </div>
 
                     <p class="text-lg">{{ $item->listing->price()->multiply($item->quantity)->format() }}</p>

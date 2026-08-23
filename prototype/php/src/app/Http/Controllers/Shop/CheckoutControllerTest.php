@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
 use App\Models\Order;
@@ -124,4 +125,32 @@ it('leaves the order unpaid with a reason when the card is declined', function (
 
     expect(Order::sole()->status)->toBe(OrderStatus::PaymentFailed);
     $response->assertSee('Your card was declined.');
+});
+
+it('sends the shopper back to the cart when a line was archived while it sat there', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertRedirect(route('shop.cart'));
+    $response->assertSessionHasErrors();
+    expect(Order::count())->toBe(0)
+        ->and($listing->fresh()->quantity)->toBe(1);
+});
+
+it('names the item that sold to someone else and marks it on the cart page', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'winter-elm', 'title' => 'Winter Elm', 'price_cents' => 24500, 'quantity' => 1]);
+    $this->post('/cart/winter-elm');
+    $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $response = $this->followingRedirects()->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertOk();
+    $response->assertSee('“Winter Elm” is no longer for sale.');
+    $response->assertSee('No longer available');
+    expect(Order::count())->toBe(1);
 });

@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Orders;
 
-use App\Domain\Payments\CardDecision;
-use App\Domain\Payments\DeclineReason;
+use App\Domain\Payments\PaymentOutcome;
 use DateTimeImmutable;
 use DomainException;
 use InvalidArgumentException;
@@ -53,13 +52,12 @@ it('places an unverified purchaser order that waits for verification', function 
     expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::PendingVerification);
 });
 
-it('pays the order on an approved card', function (): void {
-    expect(OrderStatus::fromCardDecision(CardDecision::approved('4242')))->toBe(OrderStatus::Paid);
+it('pays the order on an approved payment outcome', function (): void {
+    expect(OrderStatus::fromCardDecision(PaymentOutcome::Approved))->toBe(OrderStatus::Paid);
 });
 
-it('fails the payment on a declined card', function (): void {
-    expect(OrderStatus::fromCardDecision(CardDecision::declined('0002', DeclineReason::GenericDecline)))
-        ->toBe(OrderStatus::PaymentFailed);
+it('fails the payment on a declined payment outcome', function (): void {
+    expect(OrderStatus::fromCardDecision(PaymentOutcome::Declined))->toBe(OrderStatus::PaymentFailed);
 });
 
 it('rolls up fulfillment statuses into an order status', function (array $fulfillments, OrderStatus $expected): void {

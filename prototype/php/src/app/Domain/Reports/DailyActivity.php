@@ -9,7 +9,7 @@ use DateTimeImmutable;
 final readonly class DailyActivity
 {
     public function __construct(
-        public string $date,
+        public DateTimeImmutable $date,
         public int $views,
         public int $favorites,
         public int $cartAdds,
@@ -22,6 +22,6 @@ final readonly class DailyActivity
 
     public function label(): string
     {
-        return DateTimeImmutable::createFromFormat('!Y-m-d', $this->date)->format('M j');
+        return $this->date->format('M j');
     }
 }

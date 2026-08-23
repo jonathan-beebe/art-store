@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Listings;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
 use InvalidArgumentException;
 
 it('resolves the quantity and status after a sale', function (
@@ -14,7 +14,7 @@ it('resolves the quantity and status after a sale', function (
     int $expectedQuantity,
     ListingStatus $expectedStatus,
 ): void {
-    $stock = ListingStock::afterSale($currentQuantity, $currentStatus, $sold);
+    $stock = ListingStock::afterSale($currentQuantity, $currentStatus, $sold, 'Harbour at Dawn');
 
     expect($stock->quantity)->toBe($expectedQuantity)
         ->and($stock->status)->toBe($expectedStatus);
@@ -24,15 +24,21 @@ it('resolves the quantity and status after a sale', function (
 ]);
 
 it('rejects a sale for more than the listing holds', function (): void {
-    expect(fn () => ListingStock::afterSale(1, ListingStatus::ForSale, 2))->toThrow(DomainException::class);
+    expect(fn () => ListingStock::afterSale(1, ListingStatus::ForSale, 2, 'Harbour at Dawn'))
+        ->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” has only 1 left.');
 });
 
-it('rejects a sale for a listing that is not for sale', function (): void {
-    expect(fn () => ListingStock::afterSale(1, ListingStatus::Draft, 1))->toThrow(DomainException::class);
-});
+it('rejects a sale for a listing that is not for sale', function (ListingStatus $status, int $quantity): void {
+    expect(fn () => ListingStock::afterSale($quantity, $status, 1, 'Harbour at Dawn'))
+        ->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” is no longer for sale.');
+})->with([
+    'a draft that was never public' => [ListingStatus::Draft, 1],
+    'a listing the seller archived' => [ListingStatus::Archived, 1],
+    'a listing already sold out' => [ListingStatus::Sold, 0],
+]);
 
 it('rejects a sale quantity below one', function (): void {
-    expect(fn () => ListingStock::afterSale(5, ListingStatus::ForSale, 0))->toThrow(InvalidArgumentException::class);
+    expect(fn () => ListingStock::afterSale(5, ListingStatus::ForSale, 0, 'Harbour at Dawn'))->toThrow(InvalidArgumentException::class);
 });
 
 it('resolves the quantity and status after a restock', function (

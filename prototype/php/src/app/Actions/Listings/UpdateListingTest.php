@@ -64,6 +64,17 @@ it('replaces the image and deletes the file it replaced', function () use ($draf
     Storage::disk('public')->assertExists($listing->fresh()->image_path);
 });
 
+it('keeps the previous image and does not delete it when the write fails', function () use ($draft): void {
+    $listing = $this->listing($this->seller(), ['image_path' => 'listings/old.jpg']);
+    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
+    Storage::shouldReceive('putFile')->andReturn(false);
+    Storage::shouldReceive('delete')->never();
+
+    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
+
+    expect($listing->fresh()->image_path)->toBe('listings/old.jpg');
+});
+
 it('leaves other listings alone', function () use ($draft): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Mine']);

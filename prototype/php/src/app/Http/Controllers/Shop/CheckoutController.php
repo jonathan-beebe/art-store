@@ -9,6 +9,7 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\Cart\CartTotals;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Orders\OrderPayment;
 use App\Domain\Orders\ShippingAddress;
 use App\Domain\Shop\CheckoutPurchaser;
@@ -63,7 +64,14 @@ final class CheckoutController extends ShopController
         );
 
         $now = $this->now();
-        $order = $placeOrder($cart, $purchaser, $this->shippingAddress($submitted), $now);
+
+        try {
+            $order = $placeOrder($cart, $purchaser, $this->shippingAddress($submitted), $now);
+        } catch (DomainRuleViolation $violation) {
+            // The cart is where the shopper can act on the refusal: it still
+            // holds every line, and the one the message names is marked there.
+            return redirect()->route('shop.cart')->withErrors($violation->getMessage());
+        }
 
         if (OrderPayment::isPayableBy($order->status, $purchaser->isEmailVerified())) {
             $finalizeOrder($order, $submitted['card_number'], $now);

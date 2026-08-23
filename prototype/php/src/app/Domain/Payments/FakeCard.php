@@ -15,7 +15,7 @@ final class FakeCard
 
     public static function decide(string $number): CardDecision
     {
-        $digits = preg_replace('/\D/', '', $number);
+        $digits = preg_replace('/\D/', '', $number) ?? '';
         $lastFour = substr($digits, -4);
 
         if ($digits === self::APPROVED_NUMBER) {

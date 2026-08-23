@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\DomainRuleViolation;
 use App\Http\Middleware\ResolveCustomerIdentity;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
@@ -30,4 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Every rule the core refuses reaches the person who tripped it as a
+        // message on the page they submitted from, the way a failed validation
+        // rule does.
+        $exceptions->render(fn (DomainRuleViolation $violation) => back()
+            ->withInput()
+            ->withErrors($violation->getMessage()));
     })->create();

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Actions\Cart\AddToCart;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\Order;
 use DomainException;
 
 it('turns the cart into an order the customer can pay for', function (): void {
@@ -132,3 +134,31 @@ it('refuses an empty cart', function (): void {
 
     app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 })->throws(DomainException::class);
+
+it('refuses a listing that left the storefront while it sat in the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 45000]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” is no longer for sale.')
+        ->and(Order::count())->toBe(0)
+        ->and($cart->items()->count())->toBe(1)
+        ->and($listing->fresh())->quantity->toBe(1)->status->toBe(ListingStatus::Archived);
+});
+
+it('refuses a listing whose last unit sold to someone else', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(DomainRuleViolation::class, '“Winter Elm” is no longer for sale.')
+        ->and(Order::count())->toBe(1);
+});

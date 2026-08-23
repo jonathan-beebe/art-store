@@ -55,14 +55,17 @@ it('refuses a listing that is not for sale', function (): void {
     $this->visitor();
     $this->listing($this->seller(), [
         'slug' => 'sold-vase',
+        'title' => 'Sold Vase',
         'status' => ListingStatus::Sold,
         'quantity' => 0,
     ]);
 
-    $response = $this->post('/cart/sold-vase');
+    $response = $this->from(route('shop.listing', 'sold-vase'))
+        ->followingRedirects()
+        ->post('/cart/sold-vase');
 
-    $response->assertRedirect();
-    $response->assertSessionHas('error', 'That listing is no longer for sale.');
+    $response->assertOk();
+    $response->assertSee('That listing is no longer for sale.');
     expect(CartItem::count())->toBe(0);
 });
 
@@ -86,4 +89,28 @@ it('survives the merge when the cart was filled before signing in', function ():
 
     $response->assertSee('Harbour at Dawn');
     expect(CartItem::count())->toBe(1);
+});
+
+it('marks a line whose listing is no longer purchasable', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $response = $this->get('/cart');
+
+    $response->assertOk();
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('No longer available');
+});
+
+it('leaves a purchasable line unmarked', function (): void {
+    $this->visitor();
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+    $this->post('/cart/harbour-at-dawn');
+
+    $response = $this->get('/cart');
+
+    $response->assertOk();
+    $response->assertDontSee('No longer available');
 });

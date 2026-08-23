@@ -81,12 +81,16 @@ it('rejects a shipment without a tracking number', function () use ($paidFulfill
 it('refuses to ship a fulfillment that already shipped', function () use ($paidFulfillment, $form): void {
     $seller = $this->seller();
     $fulfillment = $paidFulfillment($seller);
+    $order = route('seller.orders.show', $fulfillment->id);
     $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/shipment", $form());
 
     $response = $this->actingAs($seller, 'seller')
+        ->from($order)
+        ->followingRedirects()
         ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['tracking_number' => 'RM999']));
 
-    $response->assertStatus(422);
+    $response->assertOk();
+    $response->assertSee('A fulfillment cannot move from shipped to shipped.');
     expect($fulfillment->fresh()->tracking_number)->toBe('RM123');
 });
 

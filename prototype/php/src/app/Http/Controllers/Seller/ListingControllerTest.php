@@ -102,6 +102,20 @@ it('stores an uploaded image on the public disk', function () use ($form): void 
     Storage::disk('public')->assertExists($listing->image_path);
 });
 
+it('creates the listing without an image and tells the seller when the upload fails', function () use ($form): void {
+    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
+    Storage::shouldReceive('putFile')->andReturn(false);
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form([
+        'image' => UploadedFile::fake()->image('harbour.jpg'),
+    ]));
+
+    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'image failed to upload'));
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    expect($listing->image_path)->toBeNull();
+});
+
 it('rejects invalid listing input', function (array $overrides, string $field) use ($form): void {
     $response = $this->actingAs($this->seller(), 'seller')
         ->post('/seller/listings', $form($overrides));
@@ -159,6 +173,19 @@ it('rejects an update without a title', function () use ($form): void {
 
     $response->assertSessionHasErrors('title');
     expect($listing->fresh()->title)->toBe('Old title');
+});
+
+it('keeps the previous image when a replacement upload fails', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['image_path' => 'listings/old.jpg']);
+    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
+    Storage::shouldReceive('putFile')->andReturn(false);
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}", $form([
+        'image' => UploadedFile::fake()->image('harbour.jpg'),
+    ]));
+
+    expect($listing->fresh()->image_path)->toBe('listings/old.jpg');
 });
 
 it('hides another sellers listing from the edit form', function (): void {

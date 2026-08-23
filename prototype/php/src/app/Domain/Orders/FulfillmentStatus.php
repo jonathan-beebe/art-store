@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Orders;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
 
 enum FulfillmentStatus: string
 {
@@ -33,7 +33,7 @@ enum FulfillmentStatus: string
     {
         return $this->canTransitionTo($next)
             ? $next
-            : throw new DomainException("A fulfillment cannot move from {$this->value} to {$next->value}.");
+            : throw new DomainRuleViolation("A fulfillment cannot move from {$this->value} to {$next->value}.");
     }
 
     public function hasLeftTheStudio(): bool

@@ -82,7 +82,7 @@ final class PlaceOrder
     {
         foreach ($cart->items as $item) {
             $listing = $item->listing;
-            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity);
+            $stock = ListingStock::afterSale($listing->quantity, $listing->status, $item->quantity, $listing->title);
             $listing->update(['quantity' => $stock->quantity, 'status' => $stock->status]);
         }
     }

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:08:15:37 — BUG-002 — started
+- 2026-08-23:08:15:37 — BUG-001 — started
 - 2026-08-23:08:11:39 — RFCTR-001 — done: converted 5 by-reference-closure test files to bindings, added cartWithOneListing/paidOrderWithTwoSellers to CommerceTestCase, rewrote SidecarsTest docblock and added stale-exception assertion, updated docs/architecture.md and README.md Testing sections; 485 tests / 1123 assertions, pint clean
 - 2026-08-23:07:41:24 — RFCTR-001 — started
 - 2026-08-23:09:00:00 — MAINT-001 — done: Pint clean (259 files, strict_types tree-wide), PHPStan level max at 47 errors (target ≤45; gap is RFCTR-002/RFCTR-003/BUG-002 territory, itemized in Working), tests/Pest.php binds sidecar base classes, 471 tests green, make check/analyse/lint added

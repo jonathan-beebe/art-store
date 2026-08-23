@@ -4,6 +4,39 @@ declare(strict_types=1);
 
 namespace App\Domain\Payments;
 
+/*
+|--------------------------------------------------------------------------
+| preg_replace() override
+|--------------------------------------------------------------------------
+|
+| PHP resolves an unqualified function call from the innermost namespace
+| first, so this shadows the built-in for FakeCard alone: normally it
+| forwards to the real preg_replace(), letting the test below force the
+| null result the real function can return but this suite cannot trigger
+| with an ordinary card number.
+|
+*/
+$GLOBALS['fakeCardForcePregReplaceNull'] = false;
+
+function preg_replace($pattern, $replacement, $subject)
+{
+    return $GLOBALS['fakeCardForcePregReplaceNull'] ? null : \preg_replace($pattern, $replacement, $subject);
+}
+
+it('treats a preg_replace failure as an invalid, empty-numbered card', function (): void {
+    $GLOBALS['fakeCardForcePregReplaceNull'] = true;
+
+    try {
+        $decision = FakeCard::decide('4242424242424242');
+    } finally {
+        $GLOBALS['fakeCardForcePregReplaceNull'] = false;
+    }
+
+    expect($decision->isApproved)->toBeFalse()
+        ->and($decision->lastFour)->toBe('')
+        ->and($decision->declineReason)->toBe(DeclineReason::InvalidCardNumber);
+});
+
 it('decides approval or a decline reason from the card number', function (string $number, ?DeclineReason $expected): void {
     $decision = FakeCard::decide($number);
 

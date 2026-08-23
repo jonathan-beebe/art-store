@@ -12,7 +12,7 @@ it('returns one row per day, oldest first', function (): void {
     $days = ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 17:30:00'), 3);
 
     expect($days)->toHaveCount(3)
-        ->and(array_map(fn (DailyActivity $day): string => $day->date, $days))
+        ->and(array_map(fn (DailyActivity $day): string => $day->date->format('Y-m-d'), $days))
         ->toBe(['2026-08-20', '2026-08-21', '2026-08-22']);
 });
 

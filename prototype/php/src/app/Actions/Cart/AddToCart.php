@@ -19,7 +19,7 @@ final class AddToCart
     public function __invoke(Cart $cart, Listing $listing, int $quantity, DateTimeImmutable $now): CartItem
     {
         $item = $cart->items()->firstOrNew(['listing_id' => $listing->id]);
-        $item->quantity = CartQuantity::withinStock(($item->quantity ?? 0) + $quantity, $listing->quantity);
+        $item->quantity = CartQuantity::withinStock(($item->quantity ?? 0) + $quantity, $listing->quantity, $listing->status);
         $item->save();
 
         ($this->recordListingEvent)($listing, $cart->customer_id, ListingEventType::CartAdd, $now);

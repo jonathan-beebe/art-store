@@ -24,6 +24,20 @@ it('lets the customer confirm delivery', function (): void {
         ->and($fulfillment->order->fresh()->status)->toBe(OrderStatus::Delivered);
 });
 
+it('refuses to confirm a delivery that was already confirmed', function (): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller(), $shopper, priceCents: 24500);
+    $order = route('shop.order', $fulfillment->order_id);
+
+    $response = $this->from($order)
+        ->followingRedirects()
+        ->post(route('shop.order.delivered', [$fulfillment->order_id, $fulfillment->id]));
+
+    $response->assertOk();
+    $response->assertSee('A fulfillment cannot move from delivered to delivered.');
+    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::Delivered);
+});
+
 it('refuses to let another customer confirm delivery', function (): void {
     $fulfillment = $this->shippedFulfillmentFor(
         $this->seller(),
