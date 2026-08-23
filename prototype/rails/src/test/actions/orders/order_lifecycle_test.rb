@@ -14,7 +14,7 @@ module Orders
 
       assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.status
       assert_equal 57_000, order.total_cents
-      assert_equal Domain::Listings::ListingStatus::SOLD, painting.reload.status
+      assert_equal "sold", painting.reload.status
 
       FinalizeOrder.new.call(order: order, card_number: APPROVED_CARD, now: moment("2026-08-20 10:00:00"))
 
@@ -56,14 +56,14 @@ module Orders
       FinalizeOrder.new.call(order: order, card_number: UNFUNDED_CARD, now: moment("2026-08-20 10:00:00"))
 
       assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
-      assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.reload.status
+      assert_equal "for_sale", art.reload.status
       assert_equal 1, art.quantity
       assert_equal 0, LedgerEntry.count
 
       FinalizeOrder.new.call(order: order, card_number: APPROVED_CARD, now: moment("2026-08-20 10:05:00"))
 
       assert_equal Domain::Orders::OrderStatus::PAID, order.status
-      assert_equal Domain::Listings::ListingStatus::SOLD, art.reload.status
+      assert_equal "sold", art.reload.status
       assert_equal 0, art.quantity
       assert_equal %w[declined approved], order.payments.order(:id).pluck(:status)
       assert_equal [40_500], held_per_seller(shop)

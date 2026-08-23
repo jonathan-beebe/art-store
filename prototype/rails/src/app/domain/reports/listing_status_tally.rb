@@ -1,4 +1,3 @@
-require_relative "../listings/listing_status"
 require_relative "listing_status_count"
 
 module Domain
@@ -9,7 +8,7 @@ module Domain
       module_function
 
       def from(counts_by_status)
-        Listings::ListingStatus::ALL.map do |status|
+        ::Listing.statuses.keys.map do |status|
           ListingStatusCount.new(status: status, count: counts_by_status.fetch(status, 0))
         end
       end

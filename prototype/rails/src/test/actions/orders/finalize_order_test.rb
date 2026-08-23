@@ -68,7 +68,7 @@ module Orders
 
       art.reload
       assert_equal 1, art.quantity
-      assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.status
+      assert_equal "for_sale", art.status
     end
 
     test "a declined card holds nothing and tells nobody" do
@@ -88,7 +88,7 @@ module Orders
       art.reload
       assert_equal Domain::Orders::OrderStatus::PAID, order.status
       assert_equal 0, art.quantity
-      assert_equal Domain::Listings::ListingStatus::SOLD, art.status
+      assert_equal "sold", art.status
       assert_equal 2, order.payments.count
       assert_equal 40_500, LedgerEntry.sole.amount_cents
     end
@@ -103,7 +103,7 @@ module Orders
       art.reload
       assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
       assert_equal 1, art.quantity
-      assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.status
+      assert_equal "for_sale", art.status
       assert_equal Domain::Payments::DeclineReason::INSUFFICIENT_FUNDS, order.payments.last.decline_reason
     end
 

@@ -65,7 +65,7 @@ module Orders
 
       art.reload
       assert_equal 1, art.quantity
-      assert_equal Domain::Listings::ListingStatus::FOR_SALE, art.status
+      assert_equal "for_sale", art.status
     end
 
     test "the last of a listing marks it sold" do
@@ -75,7 +75,7 @@ module Orders
 
       art.reload
       assert_equal 0, art.quantity
-      assert_equal Domain::Listings::ListingStatus::SOLD, art.status
+      assert_equal "sold", art.status
     end
 
     test "it empties the cart" do

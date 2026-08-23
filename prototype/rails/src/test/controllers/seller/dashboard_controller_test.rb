@@ -20,9 +20,9 @@ class Seller::DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "it tallies the seller's listings by status" do
     seller = signed_in_seller
-    create_listing(seller, status: Domain::Listings::ListingStatus::DRAFT)
-    create_listing(seller, status: Domain::Listings::ListingStatus::FOR_SALE)
-    create_listing(seller, status: Domain::Listings::ListingStatus::FOR_SALE)
+    create_listing(seller, status: "draft")
+    create_listing(seller, status: "for_sale")
+    create_listing(seller, status: "for_sale")
 
     get seller_root_path
 
@@ -33,7 +33,7 @@ class Seller::DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "another seller's listings are counted on their own dashboard" do
     signed_in_seller
-    create_listing(other_seller, status: Domain::Listings::ListingStatus::FOR_SALE)
+    create_listing(other_seller, status: "for_sale")
 
     get seller_root_path
 

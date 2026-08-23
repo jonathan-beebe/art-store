@@ -93,8 +93,6 @@ module IntegrationHelpers
   end
 
   def create_listing_event(listing, event_type, occurred_at)
-    Listings::RecordListingEvent.new.call(
-      listing: listing, customer_id: nil, event_type: event_type, now: occurred_at
-    )
+    listing.record_event!(event_type, at: occurred_at)
   end
 end

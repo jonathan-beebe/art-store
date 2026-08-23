@@ -28,7 +28,7 @@ module TestRecords
       dimensions: "40 x 60 cm",
       price_cents: 45_000,
       quantity: 1,
-      status: Domain::Listings::ListingStatus::FOR_SALE
+      status: :for_sale
     }.merge(attributes))
   end
 

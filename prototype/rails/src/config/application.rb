@@ -42,6 +42,11 @@ module ArtStore
       Rails.autoloaders.main.push_dir(app.root.join("app/domain"), namespace: Domain)
     end
 
+    # Form fields render their own error text through
+    # seller/shared/_field_error, so an invalid field keeps the markup the
+    # valid one has rather than gaining Rails' wrapper div.
+    config.action_view.field_error_proc = proc { |html_tag, _instance| html_tag }
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files

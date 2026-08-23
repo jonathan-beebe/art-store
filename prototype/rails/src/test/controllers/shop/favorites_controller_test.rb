@@ -9,7 +9,7 @@ module Shop
 
       assert_response :redirect
       assert visiting_customer.favorites.exists?(listing: listing)
-      assert_equal Domain::Listings::ListingEventType::FAVORITE, listing.listing_events.sole.event_type
+      assert_equal "favorite", listing.events.sole.event_type
     end
 
     test "favoriting twice drops the favorite and records the event" do
@@ -19,7 +19,7 @@ module Shop
       post shop_toggle_favorite_path(slug: listing.slug)
 
       refute visiting_customer.favorites.exists?(listing: listing)
-      assert_equal %w[favorite unfavorite], listing.listing_events.order(:occurred_at).pluck(:event_type)
+      assert_equal %w[favorite unfavorite], listing.events.order(:occurred_at).pluck(:event_type)
     end
 
     test "it returns the visitor to the page they favorited from" do
@@ -31,7 +31,7 @@ module Shop
     end
 
     test "a listing that was never public cannot be favorited" do
-      listing = create_listing(status: Domain::Listings::ListingStatus::DRAFT)
+      listing = create_listing(status: "draft")
 
       post shop_toggle_favorite_path(slug: listing.slug)
 

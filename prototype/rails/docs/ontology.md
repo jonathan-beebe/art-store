@@ -148,9 +148,9 @@ its own page. See "sold" in Vocabulary notes.
 - favorited by Customers via Favorite
 - held in Cart items, sold as Order items
 
-**In code.** `Listing`, `Domain::Listings::ListingStatus` (enum),
-`ListingAvailability`, `ListingStock`, `ListingSlug`, `ListingDraft` (table
-`listings`).
+**In code.** `Listing` (table `listings`), which carries the `status` enum,
+`TRANSITIONS`, `on_storefront`, `purchasable?` and the field validations, and
+`Domain::Listings::ListingStock`.
 
 ### Listing event
 
@@ -166,9 +166,9 @@ favorites, cart adds) and the dashboard's daily activity timeline.
 - belongs to one Listing
 - optionally attributed to one Customer (`customer_id` nullable)
 
-**In code.** `ListingEvent`, `Domain::Listings::ListingEventType` (enum:
-`view` | `favorite` | `unfavorite` | `cart_add`) (table `listing_events`),
-written by `Listings::RecordListingEvent`.
+**In code.** `ListingEvent` (table `listing_events`), whose `event_type` enum
+is `view` | `favorite` | `unfavorite` | `cart_add`, written by
+`Listing#record_event!`.
 
 ### Favorite
 
@@ -480,7 +480,7 @@ stored as its own row (its outcome becomes a Payment).
 
 **Who/what.** The lifecycle state of a Listing (see Catalog above).
 
-**In code.** `Domain::Listings::ListingStatus`.
+**In code.** `Listing::TRANSITIONS` and the `Listing` `status` enum.
 
 ### Order status
 

@@ -103,8 +103,8 @@ class CustomerTest < ActiveSupport::TestCase
     favorite = Favorite.create!(customer: anonymous, listing: listing)
     cart = Cart.create!(customer: anonymous)
     order = order_for(anonymous, listing)
-    event = listing.listing_events.create!(
-      customer: anonymous, event_type: Domain::Listings::ListingEventType::VIEW, occurred_at: Time.current
+    event = listing.events.create!(
+      customer: anonymous, event_type: "view", occurred_at: Time.current
     )
     notification = Notification.create!(customer: anonymous, subject: "Order placed", body: "Order #1 is open.")
 

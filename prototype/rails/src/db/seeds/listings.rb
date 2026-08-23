@@ -8,9 +8,9 @@ module Seeds
   module Listings
     module_function
 
-    FOR_SALE = Domain::Listings::ListingStatus::FOR_SALE
-    DRAFT = Domain::Listings::ListingStatus::DRAFT
-    SOLD = Domain::Listings::ListingStatus::SOLD
+    FOR_SALE = "for_sale".freeze
+    DRAFT = "draft".freeze
+    SOLD = "sold".freeze
 
     RECORDS = [
       { seller_email: "maya@example.com", title: "Low Tide at Dusk", medium: "painting",

@@ -14,7 +14,7 @@ class ToggleFavoriteTest < ActiveSupport::TestCase
 
     assert_equal FavoriteChange::ADDED, change
     assert @shopper.favorites.exists?(listing: @listing)
-    assert_equal ["favorite"], @listing.listing_events.pluck(:event_type)
+    assert_equal ["favorite"], @listing.events.pluck(:event_type)
   end
 
   test "toggling twice drops the favorite and records the event" do
@@ -24,13 +24,13 @@ class ToggleFavoriteTest < ActiveSupport::TestCase
 
     assert_equal FavoriteChange::REMOVED, change
     refute @shopper.favorites.exists?(listing: @listing)
-    assert_equal %w[favorite unfavorite], @listing.listing_events.order(:occurred_at).pluck(:event_type)
+    assert_equal %w[favorite unfavorite], @listing.events.order(:occurred_at).pluck(:event_type)
   end
 
   test "it records the event against the visitor who saved it" do
     @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 
-    assert_equal @shopper.id, @listing.listing_events.sole.customer_id
+    assert_equal @shopper.id, @listing.events.sole.customer_id
   end
 
   test "one visitor saving leaves another visitor alone" do

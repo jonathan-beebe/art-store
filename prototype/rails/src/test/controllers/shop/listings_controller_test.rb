@@ -28,13 +28,13 @@ module Shop
 
       get shop_listing_path(slug: listing.slug)
 
-      event = listing.listing_events.sole
-      assert_equal Domain::Listings::ListingEventType::VIEW, event.event_type
+      event = listing.events.sole
+      assert_equal "view", event.event_type
       assert_equal visiting_customer.id, event.customer_id
     end
 
     test "a sold listing says so and offers no cart button" do
-      listing = create_listing(status: Domain::Listings::ListingStatus::SOLD, quantity: 0)
+      listing = create_listing(status: "sold", quantity: 0)
 
       get shop_listing_path(slug: listing.slug)
 
@@ -54,7 +54,7 @@ module Shop
     end
 
     test "a draft listing is not on the storefront" do
-      listing = create_listing(status: Domain::Listings::ListingStatus::DRAFT)
+      listing = create_listing(status: "draft")
 
       get shop_listing_path(slug: listing.slug)
 

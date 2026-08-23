@@ -7,7 +7,7 @@ class CreateListings < ActiveRecord::Migration[8.1]
       t.text :description
       t.integer :price_cents, null: false
       t.integer :quantity, null: false, default: 1
-      t.string :status, null: false, default: Domain::Listings::ListingStatus::DRAFT
+      t.string :status, null: false, default: "draft"
       t.string :medium
       t.string :dimensions
 

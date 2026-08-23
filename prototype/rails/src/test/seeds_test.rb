@@ -9,11 +9,11 @@ class SeedsTest < ActiveSupport::TestCase
   end
 
   test "it seeds listings across statuses and media" do
-    for_sale = Listing.where(status: Domain::Listings::ListingStatus::FOR_SALE)
+    for_sale = Listing.where(status: "for_sale")
 
     assert_equal 24, for_sale.count
-    assert_equal 3, Listing.where(status: Domain::Listings::ListingStatus::DRAFT).count
-    assert_equal 2, Listing.where(status: Domain::Listings::ListingStatus::SOLD).count
+    assert_equal 3, Listing.where(status: "draft").count
+    assert_equal 2, Listing.where(status: "sold").count
     assert_equal %w[ceramic painting photography print sculpture textile], for_sale.distinct.order(:medium).pluck(:medium)
   end
 

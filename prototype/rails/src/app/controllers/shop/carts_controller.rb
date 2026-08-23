@@ -8,11 +8,9 @@ module Shop
     end
 
     def add
-      listing = on_storefront.find_by!(slug: params[:slug])
+      listing = Listing.on_storefront.find_by!(slug: params[:slug])
 
-      unless Domain::Listings::ListingAvailability.purchasable?(listing.status, listing.quantity)
-        return redirect_to shop_listing_path(slug: listing.slug), alert: SOLD_OUT
-      end
+      return redirect_to shop_listing_path(slug: listing.slug), alert: SOLD_OUT unless listing.purchasable?
 
       Carts::AddToCart.new.call(cart: current_cart, listing: listing, quantity: requested_quantity, now: now)
 
@@ -20,16 +18,12 @@ module Shop
     end
 
     def remove
-      Carts::RemoveFromCart.new.call(cart: current_cart, listing: on_storefront.find_by!(slug: params[:slug]))
+      Carts::RemoveFromCart.new.call(cart: current_cart, listing: Listing.on_storefront.find_by!(slug: params[:slug]))
 
       redirect_to shop_cart_path
     end
 
     private
-
-    def on_storefront
-      Listing.where(status: Domain::Listings::ListingAvailability::ON_STOREFRONT)
-    end
 
     # The form offers a number field only for listings with more than one in
     # stock, so a request with nothing in it asks for one.

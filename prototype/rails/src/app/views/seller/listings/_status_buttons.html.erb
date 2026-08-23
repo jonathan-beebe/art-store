@@ -1,4 +1,4 @@
-<% Domain::Listings::ListingStatus::TRANSITIONS.fetch(listing.status, []).each do |next_status| %>
+<% listing.next_statuses.each do |next_status| %>
   <%= button_to seller_listing_status_path(listing),
         params: { status: next_status },
         class: "rounded border border-neutral-400 px-2 py-1",

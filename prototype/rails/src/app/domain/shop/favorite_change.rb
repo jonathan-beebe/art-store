@@ -1,5 +1,3 @@
-require_relative "../listings/listing_event_type"
-
 module Domain
   module Shop
     # One button favorites and unfavorites, so what it does next follows from
@@ -11,8 +9,8 @@ module Domain
       ALL = [ADDED, REMOVED].freeze
 
       LISTING_EVENTS = {
-        ADDED => Listings::ListingEventType::FAVORITE,
-        REMOVED => Listings::ListingEventType::UNFAVORITE
+        ADDED => "favorite",
+        REMOVED => "unfavorite"
       }.freeze
 
       module_function

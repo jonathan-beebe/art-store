@@ -9,7 +9,7 @@ module Shop
 
       assert_redirected_to shop_cart_path
       assert_equal 1, Carts::CurrentCart.new.call(customer: visiting_customer).items.sole.quantity
-      assert_equal Domain::Listings::ListingEventType::CART_ADD, listing.listing_events.sole.event_type
+      assert_equal "cart_add", listing.events.sole.event_type
     end
 
     test "it adds the quantity the visitor asked for" do
@@ -52,7 +52,7 @@ module Shop
     end
 
     test "it refuses a listing that is not for sale" do
-      listing = create_listing(status: Domain::Listings::ListingStatus::SOLD, quantity: 0)
+      listing = create_listing(status: "sold", quantity: 0)
 
       post shop_add_to_cart_path(slug: listing.slug)
 
@@ -62,7 +62,7 @@ module Shop
     end
 
     test "a listing that was never public cannot reach a cart" do
-      listing = create_listing(status: Domain::Listings::ListingStatus::DRAFT)
+      listing = create_listing(status: "draft")
 
       post shop_add_to_cart_path(slug: listing.slug)
 

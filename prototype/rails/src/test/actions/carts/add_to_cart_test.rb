@@ -35,7 +35,7 @@ module Carts
     end
 
     test "it refuses a sold out listing" do
-      art = create_listing(quantity: 0, status: Domain::Listings::ListingStatus::SOLD)
+      art = create_listing(quantity: 0, status: "sold")
 
       assert_raises(ArgumentError) do
         AddToCart.new.call(
@@ -50,8 +50,8 @@ module Carts
 
       AddToCart.new.call(cart: cart_for(buyer), listing: art, quantity: 1, now: moment("2026-08-20 08:00:00"))
 
-      event = art.listing_events.sole
-      assert_equal Domain::Listings::ListingEventType::CART_ADD, event.event_type
+      event = art.events.sole
+      assert_equal "cart_add", event.event_type
       assert_equal buyer.id, event.customer_id
     end
   end

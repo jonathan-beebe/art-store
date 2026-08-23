@@ -1,4 +1,3 @@
-require_relative "listing_status"
 require_relative "stock_change"
 
 module Domain
@@ -16,11 +15,11 @@ module Domain
 
       def self.after_sale(quantity:, status:, sold:)
         reject_an_empty_change(sold)
-        raise ArgumentError, "a listing that is #{status} cannot be sold" unless status == ListingStatus::FOR_SALE
+        raise ArgumentError, "a listing that is #{status} cannot be sold" unless status == "for_sale"
         raise ArgumentError, "a listing with #{quantity} left cannot sell #{sold}" if sold > quantity
 
         remaining = quantity - sold
-        new(quantity: remaining, status: remaining.zero? ? ListingStatus.transition(status, ListingStatus::SOLD) : status)
+        new(quantity: remaining, status: remaining.zero? ? ::Listing.transition(status, "sold") : status)
       end
 
       def self.after_restock(quantity:, status:, restored:)
@@ -28,7 +27,7 @@ module Domain
 
         new(
           quantity: quantity + restored,
-          status: status == ListingStatus::SOLD ? ListingStatus.transition(status, ListingStatus::FOR_SALE) : status
+          status: status == "sold" ? ::Listing.transition(status, "for_sale") : status
         )
       end
 

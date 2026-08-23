@@ -27,8 +27,8 @@ module Shop
     end
 
     test "it leaves out listings that are not for sale" do
-      create_listing(title: "Still Draft", status: Domain::Listings::ListingStatus::DRAFT)
-      create_listing(title: "Already Sold", status: Domain::Listings::ListingStatus::SOLD, quantity: 0)
+      create_listing(title: "Still Draft", status: "draft")
+      create_listing(title: "Already Sold", status: "sold", quantity: 0)
       create_listing(title: "Harbour at Dusk")
 
       get root_path
@@ -73,7 +73,7 @@ module Shop
 
     test "it offers the media of listings that are for sale" do
       create_listing(medium: "Ceramic")
-      create_listing(medium: "Watercolour", status: Domain::Listings::ListingStatus::DRAFT)
+      create_listing(medium: "Watercolour", status: "draft")
 
       get root_path
 

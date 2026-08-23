@@ -2,7 +2,6 @@ require "test_helper"
 
 class FavoriteChangeTest < ActiveSupport::TestCase
   FavoriteChange = Domain::Shop::FavoriteChange
-  EventType = Domain::Listings::ListingEventType
 
   test "a listing nobody saved gets favorited" do
     assert_equal FavoriteChange::ADDED, FavoriteChange.from_current_state(false)
@@ -13,8 +12,8 @@ class FavoriteChangeTest < ActiveSupport::TestCase
   end
 
   test "each change records its own event" do
-    assert_equal EventType::FAVORITE, FavoriteChange.listing_event(FavoriteChange::ADDED)
-    assert_equal EventType::UNFAVORITE, FavoriteChange.listing_event(FavoriteChange::REMOVED)
+    assert_equal "favorite", FavoriteChange.listing_event(FavoriteChange::ADDED)
+    assert_equal "unfavorite", FavoriteChange.listing_event(FavoriteChange::REMOVED)
   end
 
   test "an unknown change records nothing" do

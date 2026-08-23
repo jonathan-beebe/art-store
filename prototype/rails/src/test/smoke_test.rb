@@ -89,7 +89,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.assert_select "[data-flash=notice]", text: /saved as a draft/
 
     Listing.sole.tap do |listing|
-      assert_equal Domain::Listings::ListingStatus::DRAFT, listing.status
+      assert_equal "draft", listing.status
       assert_equal 48_000, listing.price_cents
       assert_predicate listing.image, :attached?
     end
@@ -97,13 +97,13 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
   def put_up_for_sale(listing)
     @seller_browser.post seller_listing_status_path(listing_id: listing.id),
-      params: { status: Domain::Listings::ListingStatus::FOR_SALE }
+      params: { status: "for_sale" }
 
     @seller_browser.assert_redirected_to seller_listings_path
     @seller_browser.follow_redirect!
     @seller_browser.assert_select "[data-listing=#{listing.id}] [data-cell=status]", text: "For sale"
 
-    assert_equal Domain::Listings::ListingStatus::FOR_SALE, listing.reload.status
+    assert_equal "for_sale", listing.reload.status
   end
 
   def arrive_at_the_storefront(listing)
@@ -122,7 +122,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.assert_select "h1", text: LISTING_TITLE
     @customer_browser.assert_select "p", text: PRICE_LABEL
 
-    assert_equal 1, listing.listing_events.where(event_type: Domain::Listings::ListingEventType::VIEW).count
+    assert_equal 1, listing.events.where(event_type: "view").count
   end
 
   def favorite_listing(listing)

@@ -2,7 +2,7 @@ class Seller::ListingStatusesController < Seller::BaseController
   def create
     @listing = current_seller.listings.find(params[:listing_id])
 
-    Listings::ChangeListingStatus.new.call(listing: @listing, status: params[:status])
+    @listing.transition_to!(params[:status])
 
     redirect_to seller_listings_path,
       notice: %("#{@listing.title}" is now #{@listing.status.humanize.downcase}.)

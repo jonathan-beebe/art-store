@@ -81,7 +81,7 @@ module Shop
       assert_equal Domain::Orders::OrderStatus::PAID, order.reload.status
       assert_equal order.customer_id, visiting_customer.id
       assert_equal "guest@example.com", visiting_customer.email
-      assert_equal Domain::Listings::ListingStatus::SOLD, listing.reload.status
+      assert_equal "sold", listing.reload.status
     end
 
     test "a signed-in customer pays as they place the order" do
@@ -117,7 +117,7 @@ module Shop
 
       order = order_of_visiting_customer
       assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
-      assert_equal Domain::Listings::ListingStatus::FOR_SALE, listing.reload.status
+      assert_equal "for_sale", listing.reload.status
 
       follow_redirect!
       assert_select "[data-decline]", text: /Your card was declined/

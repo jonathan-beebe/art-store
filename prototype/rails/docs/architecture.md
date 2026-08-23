@@ -130,18 +130,21 @@ erDiagram
 ### Listing status
 
 `draft → for_sale → sold`, `sold → for_sale` (stock restored after a declined
-card), `archived` from `draft`/`for_sale`. Search and browse
-(`Shop::StorefrontController`, `Listing.for_sale`) show only `for_sale`
-listings; a listing's own page (`/art/:slug`) stays reachable through `sold`
-too (`Domain::Listings::ListingAvailability::ON_STOREFRONT`), so a link a
-buyer already followed keeps working. `draft` and `archived` are unreachable
-either way. Quantity defaults to 1; a purchase decrements and `sold` is
-reached at 0.
+card), `archived` from `draft`/`for_sale`. The table is `Listing::TRANSITIONS`;
+`listing.transition_to!(status)` raises `Domain::TransitionError` on a move it
+does not allow. Search and browse (`Shop::StorefrontController`,
+`Listing.for_sale`) show only `for_sale` listings; a listing's own page
+(`/art/:slug`) stays reachable through `sold` too (`Listing.on_storefront`), so
+a link a buyer already followed keeps working. `draft` and `archived` are
+unreachable either way. Quantity defaults to 1; a purchase decrements and
+`sold` is reached at 0.
 
 A seller's submitted title/description/medium/dimensions/price/quantity/image
-are checked by `Domain::Listings::ListingDraft.errors_for` — one pure
-function, not a model validation, so the rule stays out of `Listing` (which
-seeds and the storefront also load, unvalidated).
+are `validates` declarations on `Listing`. The form edits dollars and the
+column stores cents, so `Listing#price` reads and writes `"249.00"` around
+`price_cents`; a rejected form renders the text the seller typed back.
+`Seller::ListingsController` is the stock new/create/edit/update shape and the
+form is `form_with model: [:seller, listing]`.
 
 ### Order status
 

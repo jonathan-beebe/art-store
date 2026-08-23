@@ -20,9 +20,9 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "the index lists the seller's own listings with their activity" do
     seller = signed_in_seller
     listing = create_listing(seller, title: "Harbour at Dusk", price_cents: 45_000, quantity: 2)
-    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, moment("2026-08-20 09:00:00"))
-    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, moment("2026-08-21 09:00:00"))
-    create_listing_event(listing, Domain::Listings::ListingEventType::CART_ADD, moment("2026-08-21 10:00:00"))
+    create_listing_event(listing, "view", moment("2026-08-20 09:00:00"))
+    create_listing_event(listing, "view", moment("2026-08-21 09:00:00"))
+    create_listing_event(listing, "cart_add", moment("2026-08-21 10:00:00"))
 
     get seller_listings_path
 
@@ -49,7 +49,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
 
   test "the index offers only the transitions the lifecycle allows" do
     seller = signed_in_seller
-    listing = create_listing(seller, status: Domain::Listings::ListingStatus::DRAFT)
+    listing = create_listing(seller, status: "draft")
 
     get seller_listings_path
 
@@ -61,9 +61,9 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "the activity page totals the events of the seller's own listing" do
     seller = signed_in_seller
     listing = create_listing(seller)
-    2.times { create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 1.day.ago) }
-    create_listing_event(listing, Domain::Listings::ListingEventType::FAVORITE, 1.day.ago)
-    create_listing_event(listing, Domain::Listings::ListingEventType::UNFAVORITE, 1.day.ago)
+    2.times { create_listing_event(listing, "view", 1.day.ago) }
+    create_listing_event(listing, "favorite", 1.day.ago)
+    create_listing_event(listing, "unfavorite", 1.day.ago)
 
     get seller_listing_path(listing)
 
@@ -76,8 +76,8 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "the activity page breaks the last fortnight down by day" do
     seller = signed_in_seller
     listing = create_listing(seller)
-    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 1.day.ago)
-    create_listing_event(listing, Domain::Listings::ListingEventType::VIEW, 40.days.ago)
+    create_listing_event(listing, "view", 1.day.ago)
+    create_listing_event(listing, "view", 40.days.ago)
 
     get seller_listing_path(listing)
 
@@ -147,7 +147,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     listing = seller.listings.sole
     assert_equal "Harbour at Dusk", listing.title
     assert_equal 24_900, listing.price_cents
-    assert_equal Domain::Listings::ListingStatus::DRAFT, listing.status
+    assert_equal "draft", listing.status
     assert_equal "harbour-at-dusk", listing.slug
     follow_redirect!
     assert_select "[data-flash=notice]", text: /is saved as a draft/
@@ -156,7 +156,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "creating a listing attaches an uploaded image" do
     seller = signed_in_seller
 
-    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_image("image/png")) }
+    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_image) }
 
     assert_predicate seller.listings.sole.image, :attached?
   end
@@ -184,7 +184,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "an upload that is not an image is refused" do
     seller = signed_in_seller
 
-    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_image("application/pdf")) }
+    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_pdf) }
 
     assert_response :unprocessable_content
     assert_select "[data-field-error=listing_image]", text: "Upload an image file."
@@ -257,9 +257,17 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     }.merge(overrides)
   end
 
-  def uploaded_image(content_type)
-    Rack::Test::UploadedFile.new(
-      StringIO.new("\x89PNG\r\n\x1a\n"), content_type, true, original_filename: "harbour.png"
-    )
+  def uploaded_image
+    upload("image/png", "\x89PNG\r\n\x1a\n", "harbour.png")
+  end
+
+  # Active Storage reads the type out of the bytes, so a refused upload carries
+  # a real header rather than a claim in the request.
+  def uploaded_pdf
+    upload("application/pdf", "%PDF-1.4\n", "harbour.pdf")
+  end
+
+  def upload(content_type, bytes, filename)
+    Rack::Test::UploadedFile.new(StringIO.new(bytes), content_type, true, original_filename: filename)
   end
 end
