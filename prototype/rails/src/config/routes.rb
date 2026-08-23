@@ -12,6 +12,10 @@ Rails.application.routes.draw do
     post "login", to: "customer_sessions#create", as: :customer_send_magic_link
     post "logout", to: "customer_sessions#destroy", as: :customer_logout
 
+    get "admin/login", to: "admin_sessions#new", as: :admin_login
+    post "admin/login", to: "admin_sessions#create", as: :admin_send_magic_link
+    post "admin/logout", to: "admin_sessions#destroy", as: :admin_logout
+
     get "auth/magic/:token", to: "magic_links#show", as: :verify_magic_link
   end
 
@@ -32,6 +36,13 @@ Rails.application.routes.draw do
     resources :notifications, only: :index do
       resource :read, only: :create, controller: "notification_reads"
     end
+  end
+
+  namespace :admin do
+    root "dashboard#show"
+
+    resources :sellers, only: :show
+    resources :customers, only: :show
   end
 
   namespace :shop, path: "" do

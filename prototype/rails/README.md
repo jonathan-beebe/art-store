@@ -26,28 +26,32 @@ Then open:
 
 - Storefront — <http://localhost:3000/>
 - Seller portal — <http://localhost:3000/seller>
+- Admin site — <http://localhost:3000/admin>
 
 `make down` stops the stack. `make logs` follows the server output.
 
 ## Seeded accounts
 
 `bin/rails db:seed` (part of `make fresh`, and run once automatically by the
-entrypoint against a fresh database) creates four verified sellers, 29
-listings, one verified customer, and order history built through the FEAT-003
-actions: a paid order awaiting shipment, a shipped order, and a delivered
-order whose escrow is released and paid out.
+entrypoint against a fresh database) creates one admin, four verified sellers,
+29 listings, one verified customer, and order history built through the
+FEAT-003 actions: a paid order awaiting shipment, a shipped order, and a
+delivered order whose escrow is released and paid out.
 
 | Email | Role | Shop |
 | --- | --- | --- |
+| `ops@example.com` | Admin | — (the platform operator) |
 | `maya@example.com` | Seller | Terra & Glaze Ceramics |
 | `noah@example.com` | Seller | North Light Editions |
 | `priya@example.com` | Seller | Priya Anand Textile Studio |
 | `leo@example.com` | Seller | Leo Martins Photography |
 | `casey@example.com` | Customer | — (3 favorites, view history, 3 orders) |
 
-Every account is passwordless. Sign in at `/seller/login` or `/login` with one
-of the emails above; the layout's debug alert prints the magic link in place
-of sending an email, and clicking it signs you in.
+Every account is passwordless. Sign in at `/seller/login`, `/login`, or
+`/admin/login` with one of the emails above; the layout's debug alert prints
+the magic link in place of sending an email, and clicking it signs you in.
+Sellers and customers sign up by following their first link; admins are seeded,
+so an address with no `admins` row is refused at `/admin/login`.
 
 ## Commands
 
@@ -124,7 +128,7 @@ make coverage
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 527 runs and 100% line coverage.
+suite stands at 567 runs and 100% line coverage.
 
 ## Database
 
@@ -167,11 +171,11 @@ prototype/rails/
   work/                tickets and journal
   src/                 the Rails application
     app/models/        the records, the value objects, and their behaviour
-    app/controllers/   one namespace per site: shop/, seller/, auth/
+    app/controllers/   one namespace per site: shop/, seller/, admin/, auth/
     app/helpers/       status_label and the storefront header counts
     app/mailers/       MagicLinkMailer, which sends the sign-in link
-    app/views/layouts/ shop, seller, and the _debug_alert partial both render
-    config/routes.rb   / and /seller
+    app/views/layouts/ shop, seller, admin, and the partials all three render
+    config/routes.rb   /, /seller, and /admin
     test/              mirrors app/: models/, controllers/, mailers/, views/
     test/test_helper.rb SimpleCov and the Rails test base
     test/support/      the record builders and the HTTP sign-in helpers

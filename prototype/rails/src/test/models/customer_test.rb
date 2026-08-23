@@ -96,6 +96,24 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal existing, Customer.claim("BUYER@Example.com")
   end
 
+  test "a named customer is displayed under their name" do
+    assert_equal "Casey Whitfield", create_verified_customer(name: "Casey Whitfield").display_name
+  end
+
+  test "an unnamed customer is displayed under the local part of the address" do
+    assert_equal "casey", create_verified_customer(name: nil, email: "casey@example.test").display_name
+  end
+
+  test "a customer named with whitespace counts as unnamed" do
+    assert_equal "casey", create_verified_customer(name: "   ", email: "casey@example.test").display_name
+  end
+
+  test "a visitor who has given no address is displayed by their id" do
+    anonymous = create_anonymous_customer
+
+    assert_equal "Visitor ##{anonymous.id}", anonymous.display_name
+  end
+
   test "absorb moves the history of the anonymous customer" do
     anonymous = create_anonymous_customer
     verified = create_verified_customer

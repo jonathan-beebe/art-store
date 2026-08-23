@@ -19,6 +19,15 @@ module IntegrationHelpers
     follow_magic_link
   end
 
+  # Admin rows are seeded rather than created by signing in, so the walk starts
+  # from a row and hands it back.
+  def sign_in_as_admin(admin = create_admin)
+    post admin_send_magic_link_path, params: { email: admin.email }
+    follow_magic_link
+
+    admin
+  end
+
   def sign_in_as(seller)
     sign_in_as_seller(email: seller.email)
   end

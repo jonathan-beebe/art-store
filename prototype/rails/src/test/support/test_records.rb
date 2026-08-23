@@ -10,6 +10,10 @@ module TestRecords
     Seller.create!(email: email, shop_name: shop_name, **attributes)
   end
 
+  def create_admin(email: unique_email("admin"), name: "Ops", **attributes)
+    Admin.create!(email: email, name: name, **attributes)
+  end
+
   def create_verified_customer(email: unique_email("customer"), email_verified_at: Time.current, **attributes)
     Customer.create!(email: email, email_verified_at: email_verified_at, **attributes)
   end

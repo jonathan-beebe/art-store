@@ -1,0 +1,22 @@
+<% content_for :title, "#{@customer.display_name} — Art Store admin" %>
+
+<p><%= link_to "Customers", admin_root_path(anchor: "customers"), class: "text-slate-400 underline" %></p>
+
+<h1 class="mt-2 text-lg font-semibold"><%= @customer.display_name %></h1>
+
+<dl class="mt-4 grid gap-3 rounded border border-slate-700 bg-slate-800 p-4 sm:grid-cols-3">
+  <div>
+    <dt class="text-slate-400">Email</dt>
+    <dd data-field="email" class="mt-1"><%= @customer.email %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Name</dt>
+    <dd data-field="name" class="mt-1"><%= @customer.name %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Orders</dt>
+    <dd data-field="orders" class="mt-1 tabular-nums"><%= @order_count %></dd>
+  </div>
+</dl>

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:13:49:05 — FEAT-009 — done: admins table and Admin model with EmailAddress, MagicLink.actor_type gains admin and Auth::MagicLinksController refuses a link for an address no admin row holds; /admin/login and /admin/logout, AdminAuthentication, Admin::BaseController, a slate layouts/admin, a dashboard listing sellers and verified customers, and the two account pages; Seeds::Admins seeds ops@example.com and Customer#display_name mirrors Seller's; 567 runs at 100% line coverage (this commit)
+- 2026-08-23:13:40:01 — FEAT-009 — started
 - 2026-08-23:13:36:30 — FEAT-014 — defined: Messaging seeds, smoke walk, docs, and final validation
 - 2026-08-23:13:36:29 — FEAT-013 — defined: Live threads and unread badge with Hotwire over Solid Cable
 - 2026-08-23:13:36:28 — FEAT-012 — defined: Listing questions and FAQ publishing

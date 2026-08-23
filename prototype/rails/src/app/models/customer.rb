@@ -41,6 +41,12 @@ class Customer < ApplicationRecord
     email.nil?
   end
 
+  # A customer gives an address before they give a name, and a visitor gives
+  # neither, so the display falls back through what is there.
+  def display_name
+    name.to_s.strip.presence || email.to_s.split("@").first.presence || "Visitor ##{id}"
+  end
+
   # A merge hands the verified customer whatever cart the anonymous visitor was
   # filling, so one customer can own two. The one holding the most items is the
   # one they were shopping with.
