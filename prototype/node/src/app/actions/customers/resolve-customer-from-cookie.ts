@@ -1,19 +1,18 @@
 import type { Selectable } from 'kysely'
-import type { AppDatabase } from '../../db/database.ts'
 import type { CustomerTable } from '../../db/schema.ts'
+import type { ActionContext } from '../action-context.ts'
 
 /**
- * The customer an identity cookie points at, or null when the cookie is absent,
- * unreadable, or names a row that is gone.
+ * The customer a parsed identity cookie points at, or null when the cookie
+ * named nobody or names a row that is gone.
  *
  * A merge target is always a verified customer and a verified customer is never
  * merged away, so following one merge is enough to land on the current row.
  */
 export async function resolveCustomerFromCookie(
-  { db }: { db: AppDatabase },
-  cookieValue: string | null | undefined,
+  { db }: Pick<ActionContext, 'db'>,
+  cookieId: number | null,
 ): Promise<Selectable<CustomerTable> | null> {
-  const cookieId = customerIdFromCookie(cookieValue)
   if (cookieId === null) return null
 
   const merge = await db
@@ -29,14 +28,4 @@ export async function resolveCustomerFromCookie(
     .executeTakeFirst()
 
   return customer ?? null
-}
-
-const CUSTOMER_ID = /^[0-9]+$/
-
-function customerIdFromCookie(cookieValue: string | null | undefined): number | null {
-  if (typeof cookieValue !== 'string' || !CUSTOMER_ID.test(cookieValue)) return null
-
-  const id = Number(cookieValue)
-
-  return id >= 1 ? id : null
 }

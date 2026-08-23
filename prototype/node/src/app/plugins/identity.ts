@@ -99,13 +99,18 @@ export function identityCookieValue(request: FastifyRequest, actorType: ActorTyp
   return unsigned.valid && unsigned.value !== null ? unsigned.value : null
 }
 
-function identityId(request: FastifyRequest, actorType: ActorType): number | null {
-  const value = identityCookieValue(request, actorType)
-  if (value === null || !ACTOR_ID.test(value)) return null
+/** The id a cookie value names, or null when it names nothing an actor can be. */
+export function parseActorId(value: string | null | undefined): number | null {
+  if (typeof value !== 'string' || !ACTOR_ID.test(value)) return null
 
   const id = Number(value)
 
   return id >= 1 ? id : null
+}
+
+/** The id this request's cookie for one side of the marketplace names. */
+export function identityId(request: FastifyRequest, actorType: ActorType): number | null {
+  return parseActorId(identityCookieValue(request, actorType))
 }
 
 async function findSeller(request: FastifyRequest): Promise<Selectable<SellerTable> | null> {
@@ -141,7 +146,7 @@ async function findAdmin(request: FastifyRequest): Promise<Selectable<AdminTable
  */
 export const resolveCustomerIdentity: preHandlerHookHandler = async (request, reply) => {
   const { db, clock } = request.server
-  const customer = await resolveCurrentCustomer({ db, clock }, identityCookieValue(request, 'customer'))
+  const customer = await resolveCurrentCustomer({ db, clock }, identityId(request, 'customer'))
 
   request.currentCustomer = customer
   reply.signIn('customer', customer.id)
@@ -151,7 +156,7 @@ export const resolveCustomerIdentity: preHandlerHookHandler = async (request, re
 export const rememberCustomerIdentity: preHandlerHookHandler = async (request) => {
   request.currentCustomer = await resolveCustomerFromCookie(
     { db: request.server.db },
-    identityCookieValue(request, 'customer'),
+    identityId(request, 'customer'),
   )
 }
 

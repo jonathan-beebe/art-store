@@ -20,7 +20,7 @@ test('a request whose cookie names a customer gets that customer and creates nob
   t.after(close)
   const existing = await createAnonymousCustomer({ db, clock })
 
-  const customer = await resolveCurrentCustomer({ db, clock }, String(existing.id))
+  const customer = await resolveCurrentCustomer({ db, clock }, existing.id)
 
   assert.equal(customer.id, existing.id)
   const rows = await db.selectFrom('customers').selectAll().execute()
@@ -31,7 +31,7 @@ test('a cookie naming a row that is gone gets a fresh anonymous customer', async
   const { db, clock, close } = await buildTestApp()
   t.after(close)
 
-  const customer = await resolveCurrentCustomer({ db, clock }, '999999')
+  const customer = await resolveCurrentCustomer({ db, clock }, 999999)
 
   assert.notEqual(customer.id, 999999)
   const rows = await db.selectFrom('customers').selectAll().execute()

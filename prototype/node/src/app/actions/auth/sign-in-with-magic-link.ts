@@ -1,5 +1,4 @@
 import type { Selectable } from 'kysely'
-import type { Clock } from '../../clock.ts'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { magicLinkStatus } from '../../core/auth/magic-link-status.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
@@ -7,6 +6,8 @@ import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { MagicLinkTable } from '../../db/schema.ts'
 import { fromNullableTimestamp, fromTimestamp, toTimestamp } from '../../db/timestamp.ts'
+import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 import { claimSellerIdentity } from './claim-seller-identity.ts'
 import { findAdminByEmail } from './find-admin-by-email.ts'
 
@@ -23,43 +24,53 @@ export type SignInWithMagicLinkInput = {
   currentCustomerId: number | null
 }
 
-export type SignInWithMagicLinkDependencies = {
-  db: AppDatabase
-  clock: Clock
-}
-
 /**
- * Spends one link and returns who it signed in. Every refusal names the side of
- * the marketplace that asked, so the caller knows which sign-in page to send
- * the visitor back to.
+ * Spends one link and returns who it signed in. Spending the link and claiming
+ * the actor share one transaction, so a claim that fails hands the link back
+ * unspent. Every refusal names the side of the marketplace that asked, so the
+ * caller knows which sign-in page to send the visitor back to.
  */
 export async function signInWithMagicLink(
-  { db, clock }: SignInWithMagicLinkDependencies,
+  context: ActionContext,
   { token, currentCustomerId }: SignInWithMagicLinkInput,
 ): Promise<MagicLinkSignIn> {
-  const link = await db
-    .selectFrom('magicLinks')
-    .selectAll()
-    .where('tokenDigest', '=', digestMagicLinkToken(token))
-    .executeTakeFirst()
+  return runInTransaction(context, async (transacted) => {
+    const { db, clock } = transacted
+    const link = await db
+      .selectFrom('magicLinks')
+      .selectAll()
+      .where('tokenDigest', '=', digestMagicLinkToken(token))
+      .executeTakeFirst()
 
-  if (link === undefined) return { outcome: 'unknown' }
+    if (link === undefined) return { outcome: 'unknown' }
 
-  const now = clock.now()
-  const status = magicLinkStatus(
-    {
-      expiresAt: fromTimestamp(link.expiresAt),
-      consumedAt: fromNullableTimestamp(link.consumedAt),
-    },
-    now,
-  )
+    const now = clock.now()
+    const status = magicLinkStatus(
+      {
+        expiresAt: fromTimestamp(link.expiresAt),
+        consumedAt: fromNullableTimestamp(link.consumedAt),
+      },
+      now,
+    )
 
-  if (status !== 'usable') return { outcome: 'refused', actorType: link.actorType, refusal: status }
-  if (!(await consume(db, link.id, now))) {
-    return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
-  }
+    if (status !== 'usable') {
+      return { outcome: 'refused', actorType: link.actorType, refusal: status }
+    }
 
-  const actorId = await claimActor({ db, clock }, link, currentCustomerId)
+    if (!(await consume(db, link.id, now))) {
+      return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
+    }
+
+    return await signInAs(transacted, link, currentCustomerId)
+  })
+}
+
+async function signInAs(
+  context: ActionContext,
+  link: Selectable<MagicLinkTable>,
+  currentCustomerId: number | null,
+): Promise<MagicLinkSignIn> {
+  const actorId = await claimActor(context, link, currentCustomerId)
 
   if (actorId === null) {
     return { outcome: 'refused', actorType: link.actorType, refusal: 'unrecognized' }
@@ -91,17 +102,16 @@ async function consume(db: AppDatabase, linkId: number, now: Date): Promise<bool
 
 /** Returns null when the link names an actor the application will not create. */
 async function claimActor(
-  { db, clock }: SignInWithMagicLinkDependencies,
+  context: ActionContext,
   link: Selectable<MagicLinkTable>,
   currentCustomerId: number | null,
 ): Promise<number | null> {
   switch (link.actorType) {
     case 'seller':
-      return (await claimSellerIdentity({ db, clock }, link.email)).id
+      return (await claimSellerIdentity(context, link.email)).id
     case 'customer':
-      return (await claimCustomerIdentity({ db, clock }, { email: link.email, currentCustomerId }))
-        .id
+      return (await claimCustomerIdentity(context, { email: link.email, currentCustomerId })).id
     case 'admin':
-      return (await findAdminByEmail({ db }, link.email))?.id ?? null
+      return (await findAdminByEmail(context, link.email))?.id ?? null
   }
 }

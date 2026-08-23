@@ -1,7 +1,7 @@
 ---
 id: BUG-004
 type: bug
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -121,3 +121,83 @@ takes `ActionContext`.
 - 04-data-layer.md — "The auth/customers action family does not take `ActionContext`"
 - 03-core-shell.md — "Cookie-id parsing duplicated"
 - BUG-005 (land after this ticket)
+
+## Working
+
+Verified against the code: every claim in the ticket held. `mergeAnonymousCustomer`
+was the only `db.transaction()` call in `app/actions`; `signInWithMagicLink` ran
+four statements with no `BEGIN`; `claimSellerIdentity:39` returned
+`{ ...existing, emailVerifiedAt: verifiedAt }`; the nine actions carried bespoke
+parameter objects; `/^[0-9]+$/` plus `id >= 1` sat in both `plugins/identity.ts`
+and `resolve-customer-from-cookie.ts`.
+
+Tests first — three of them failed before the change and pass after:
+
+- `sign-in-with-magic-link.test.ts` — "a claim that throws leaves the link
+  spendable": a clock that reads once and then throws makes the seller claim fail
+  after the link has been consumed; the second sign-in with a working clock
+  succeeds, so the consumption rolled back.
+- `sign-in-with-magic-link.test.ts` — "signing in inside the caller's transaction
+  joins it": a customer link that merges an anonymous row into an existing
+  verified one, run inside an outer `runInTransaction`. This was
+  `SqliteError: cannot start a transaction within a transaction` before.
+- `merge-anonymous-customer.test.ts` — "merging inside the caller's transaction
+  joins it".
+
+Guard tests added alongside:
+
+- `claim-seller-identity.test.ts` — claiming one address twice inside one
+  transaction returns the same row and leaves one seller (the one-connection
+  stand-in for the duplicate-insert race), and settling an unverified address
+  returns the row the database holds rather than one rebuilt in memory.
+- `transaction.test.ts` (new) — opens a transaction when the caller has none,
+  joins the caller's when there is one, rolls back on a throw.
+- `identity.test.ts` — `parseActorId` refuses non-ids, empty, `0`, negatives, and
+  fractions, and reads a positive whole number.
+
+Changed:
+
+- `app/actions/auth/claim-seller-identity.ts` — takes `ActionContext`, wraps in
+  `runInTransaction`, and both branches now return a `returningAll()` row.
+- `app/actions/auth/sign-in-with-magic-link.ts` — takes `ActionContext`; the read,
+  the compare-and-swap consume, and the claim run in one `runInTransaction`.
+- `app/actions/auth/send-magic-link.ts` — `SendMagicLinkDependencies` is now
+  `ActionContext & { delivery, magicLinkUrl }`.
+- `app/actions/auth/find-admin-by-email.ts` — `Pick<ActionContext, 'db'>`.
+- `app/actions/customers/claim-customer-identity.ts` — takes `ActionContext`,
+  plan and apply inside one `runInTransaction`, `claimAddress` returns
+  `returningAll()`. `settleVerification` keeps its read-back: its update is
+  guarded on `emailVerifiedAt is null`, so `returningAll()` returns nothing when
+  an earlier verification already stands.
+- `app/actions/customers/merge-anonymous-customer.ts` — takes `ActionContext` and
+  wraps in `runInTransaction`. The raw-SQL body is untouched; RFCTR-004 owns it.
+- `app/actions/customers/create-anonymous-customer.ts` — `ActionContext`.
+- `app/actions/customers/resolve-current-customer.ts` — `ActionContext`, takes an
+  already-parsed `number | null`, and wraps its read-then-create in
+  `runInTransaction`.
+- `app/actions/customers/resolve-customer-from-cookie.ts` — `Pick<ActionContext, 'db'>`,
+  takes `number | null`, and its cookie regex is gone.
+- `app/plugins/identity.ts` — exports `parseActorId` and `identityId`; the
+  duplicated regex now lives in one place.
+- `app/plugins/unread-messages.ts` and `app/sites/auth/index.ts` — call
+  `identityId(request, 'customer')` where they passed a raw cookie string.
+
+Assumptions taken:
+
+- `findAdminByEmail` and `resolveCustomerFromCookie` take
+  `Pick<ActionContext, 'db'>` rather than the full `ActionContext`, following the
+  ticket's own discovery note for pure readers and the pattern already in
+  `app/sites/admin/queries`. Requiring a clock would have broken
+  `app/test/build-test-app.ts` and `app/sites/admin/index.ts`, both outside this
+  ticket's territory.
+- `app/plugins/unread-messages.ts` is outside the listed territory but holds a
+  `resolveCustomerFromCookie` call site; the edit there is the call expression
+  only.
+
+Left alone: `mergeAnonymousCustomer`'s raw SQL (RFCTR-004), the seed call sites in
+`app/db/seed-sellers.ts` and `app/db/seed-customers.ts` and the fixtures in
+`app/test/build-test-app.ts`, which pass `{ db, clock }` — structurally an
+`ActionContext`, so they compile unchanged.
+
+Test counts: 1206 before, 1214 after (ten added, two folded into the `parseActorId`
+tests). `npm run check` green.

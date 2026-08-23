@@ -1,11 +1,12 @@
 import type { Selectable } from 'kysely'
-import type { Clock } from '../../clock.ts'
 import { normalizeEmail } from '../../core/auth/email-address.ts'
 import { isAnonymousCustomer } from '../../core/customers/customer-verification.ts'
 import { planCustomerIdentity } from '../../core/customers/identity-plan.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { CustomerTable } from '../../db/schema.ts'
 import { toTimestamp, type Timestamp } from '../../db/timestamp.ts'
+import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 
 export type ClaimCustomerIdentityInput = {
@@ -14,41 +15,46 @@ export type ClaimCustomerIdentityInput = {
   currentCustomerId: number | null
 }
 
-/** Returns the customer that now owns the address. */
+/**
+ * Returns the customer that now owns the address. The two reads the plan rests
+ * on and the writes it decides share one transaction, so two links for one
+ * address cannot both find nothing and both insert.
+ */
 export async function claimCustomerIdentity(
-  { db, clock }: { db: AppDatabase; clock: Clock },
+  context: ActionContext,
   { email, currentCustomerId }: ClaimCustomerIdentityInput,
 ): Promise<Selectable<CustomerTable>> {
   const address = normalizeEmail(email)
-  const verifiedAt = toTimestamp(clock.now())
-  const owner = await findCustomerByEmail(db, address)
 
-  const plan = planCustomerIdentity({
-    anonymousCustomerId: await findAnonymousId(db, currentCustomerId),
-    ownerOfEmailId: owner?.id ?? null,
-  })
+  return runInTransaction(context, async (transacted) => {
+    const { db, clock } = transacted
+    const verifiedAt = toTimestamp(clock.now())
+    const owner = await findCustomerByEmail(db, address)
 
-  switch (plan.action) {
-    case 'createVerified':
-      return await createVerifiedCustomer(db, address, verifiedAt)
-    case 'claimAnonymous':
-      return await claimAddress(db, plan.anonymousCustomerId, address, verifiedAt)
-    case 'signInExisting':
-      return await settleVerification(db, plan.verifiedCustomerId, verifiedAt)
-    case 'mergeAnonymousInto': {
-      const verified = await settleVerification(db, plan.verifiedCustomerId, verifiedAt)
+    const plan = planCustomerIdentity({
+      anonymousCustomerId: await findAnonymousId(db, currentCustomerId),
+      ownerOfEmailId: owner?.id ?? null,
+    })
 
-      await mergeAnonymousCustomer(
-        { db, clock },
-        {
+    switch (plan.action) {
+      case 'createVerified':
+        return await createVerifiedCustomer(db, address, verifiedAt)
+      case 'claimAnonymous':
+        return await claimAddress(db, plan.anonymousCustomerId, address, verifiedAt)
+      case 'signInExisting':
+        return await settleVerification(db, plan.verifiedCustomerId, verifiedAt)
+      case 'mergeAnonymousInto': {
+        const verified = await settleVerification(db, plan.verifiedCustomerId, verifiedAt)
+
+        await mergeAnonymousCustomer(transacted, {
           anonymousCustomerId: plan.anonymousCustomerId,
           verifiedCustomerId: verified.id,
-        },
-      )
+        })
 
-      return verified
+        return verified
+      }
     }
-  }
+  })
 }
 
 async function findCustomerByEmail(
@@ -95,13 +101,12 @@ async function claimAddress(
   address: string,
   verifiedAt: Timestamp,
 ): Promise<Selectable<CustomerTable>> {
-  await db
+  return await db
     .updateTable('customers')
     .set({ email: address, emailVerifiedAt: verifiedAt })
     .where('id', '=', customerId)
-    .execute()
-
-  return await readCustomer(db, customerId)
+    .returningAll()
+    .executeTakeFirstOrThrow()
 }
 
 /**

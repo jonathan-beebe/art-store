@@ -1,10 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { Clock } from '../../clock.ts'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
 import { createAnonymousCustomer } from '../customers/create-anonymous-customer.ts'
+import { runInTransaction } from '../transaction.ts'
 import { signInWithMagicLink } from './sign-in-with-magic-link.ts'
 
 const NOW = TEST_INSTANT.toISOString()
@@ -179,4 +181,54 @@ test('an admin link for an address nobody seeded creates no admin', async (t) =>
 
   assert.deepEqual(signIn, { outcome: 'refused', actorType: 'admin', refusal: 'unrecognized' })
   assert.equal((await testApp.db.selectFrom('admins').selectAll().execute()).length, 0)
+})
+
+/** Reads once, then refuses, so a claim fails after the link has been spent. */
+function clockThatStopsAfterOneReading(instant: Date): Clock {
+  let readings = 0
+
+  return {
+    now: () => {
+      readings += 1
+      if (readings > 1) throw new Error('the clock stopped')
+
+      return new Date(instant)
+    },
+  }
+}
+
+test('a claim that throws leaves the link spendable', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const token = await issueLink(testApp, { email: 'newcomer@example.com' })
+
+  await assert.rejects(
+    signInWithMagicLink(
+      { db: testApp.db, clock: clockThatStopsAfterOneReading(TEST_INSTANT) },
+      { token, currentCustomerId: null },
+    ),
+  )
+
+  const signIn = await signInWithMagicLink(testApp, { token, currentCustomerId: null })
+
+  assert.equal(signIn.outcome, 'signedIn')
+  assert.equal((await testApp.db.selectFrom('sellers').selectAll().execute()).length, 1)
+})
+
+test("signing in inside the caller's transaction joins it", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const anonymous = await createAnonymousCustomer(testApp)
+  await testApp.db
+    .insertInto('customers')
+    .values({ email: 'buyer@example.com', name: null, emailVerifiedAt: NOW, createdAt: NOW })
+    .execute()
+  const token = await issueLink(testApp, { actorType: 'customer', email: 'buyer@example.com' })
+
+  const signIn = await runInTransaction(testApp, async (context) =>
+    signInWithMagicLink(context, { token, currentCustomerId: anonymous.id }),
+  )
+
+  assert.equal(signIn.outcome, 'signedIn')
+  assert.equal((await testApp.db.selectFrom('customerMerges').selectAll().execute()).length, 1)
 })

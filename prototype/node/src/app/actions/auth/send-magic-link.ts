@@ -1,19 +1,16 @@
 import { randomBytes } from 'node:crypto'
-import type { Clock } from '../../clock.ts'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { normalizeEmail } from '../../core/auth/email-address.ts'
 import { magicLinkExpiresAt } from '../../core/auth/magic-link-status.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
-import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import type { MagicLinkDelivery } from '../../delivery/magic-link-delivery.ts'
 import type { Flash } from '../../plugins/flash.ts'
+import type { ActionContext } from '../action-context.ts'
 
 const TOKEN_BYTES = 32
 
-export type SendMagicLinkDependencies = {
-  db: AppDatabase
-  clock: Clock
+export type SendMagicLinkDependencies = ActionContext & {
   delivery: MagicLinkDelivery
   /** Turns a token into the URL to click; the host it needs belongs to the request. */
   magicLinkUrl(token: string): string

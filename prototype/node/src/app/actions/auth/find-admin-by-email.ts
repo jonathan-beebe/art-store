@@ -1,14 +1,14 @@
 import type { Selectable } from 'kysely'
 import { normalizeEmail } from '../../core/auth/email-address.ts'
-import type { AppDatabase } from '../../db/database.ts'
 import type { AdminTable } from '../../db/schema.ts'
+import type { ActionContext } from '../action-context.ts'
 
 /**
  * Admin rows are seeded, never created by signing in, so an address with no row
  * gets no link and no session. Returns null for every other address.
  */
 export async function findAdminByEmail(
-  { db }: { db: AppDatabase },
+  { db }: Pick<ActionContext, 'db'>,
   email: string,
 ): Promise<Selectable<AdminTable> | null> {
   const admin = await db

@@ -1,5 +1,4 @@
 import { sql } from 'kysely'
-import type { Clock } from '../../clock.ts'
 import {
   planCustomerMerge,
   type CartLine,
@@ -8,6 +7,8 @@ import {
 import { REPOINTED_CUSTOMER_TABLES } from '../../core/customers/repointed-customer-tables.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 import {
   hasColumns,
   readMergedTableColumns,
@@ -34,10 +35,10 @@ const EMPTY_CART: Cart = { cartId: null, lines: [] }
  * of starting the visitor over.
  */
 export async function mergeAnonymousCustomer(
-  { db, clock }: { db: AppDatabase; clock: Clock },
+  context: ActionContext,
   sides: MergeSides,
 ): Promise<void> {
-  await db.transaction().execute(async (trx) => {
+  await runInTransaction(context, async ({ db: trx, clock }) => {
     const schema = await readMergedTableColumns(trx)
     const favorites = await readFavorites(trx, schema, sides)
     const carts = await readCarts(trx, schema, sides)

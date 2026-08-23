@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyRequest, preHandlerHookHandler } from 'fas
 import { unreadMessageCount } from '../actions/messaging/conversation-inbox.ts'
 import { resolveCustomerFromCookie } from '../actions/customers/resolve-customer-from-cookie.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
-import { identityCookieValue } from './identity.ts'
+import { identityId } from './identity.ts'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -29,7 +29,7 @@ const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => Promise
 
     const customer = await resolveCustomerFromCookie(
       { db: request.server.db },
-      identityCookieValue(request, 'customer'),
+      identityId(request, 'customer'),
     )
 
     return customer?.id ?? null

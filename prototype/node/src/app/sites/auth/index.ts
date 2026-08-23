@@ -7,7 +7,7 @@ import {
 } from '../../actions/auth/sign-in-with-magic-link.ts'
 import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { resolveLocalRedirect } from '../../core/auth/local-redirect.ts'
-import { identityCookieValue } from '../../plugins/identity.ts'
+import { identityId } from '../../plugins/identity.ts'
 import { requestOrigin } from './request-origin.ts'
 
 const REFUSALS: Readonly<Record<MagicLinkRefusal, string>> = {
@@ -30,10 +30,7 @@ export const authSite: FastifyPluginCallback = (auth, _options, done) => {
     if (!token.success) return refuse(reply, 'customer', UNKNOWN_LINK)
 
     const { db, clock } = auth
-    const remembered = await resolveCustomerFromCookie(
-      { db },
-      identityCookieValue(request, 'customer'),
-    )
+    const remembered = await resolveCustomerFromCookie({ db }, identityId(request, 'customer'))
 
     const signIn = await signInWithMagicLink(
       { db, clock },

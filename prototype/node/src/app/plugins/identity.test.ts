@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { seedAdmins } from '../db/seed-admins.ts'
+import { parseActorId } from './identity.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -94,4 +95,15 @@ test('a seller reaching the storefront is handed a customer identity of their ow
   await testApp.app.inject({ method: 'GET', url: '/', cookies: seller.cookies })
 
   assert.equal((await testApp.db.selectFrom('customers').selectAll().execute()).length, 1)
+})
+
+test('a cookie value that is not a positive whole number names no actor', () => {
+  for (const value of ['../../etc/passwd', '12abc', '', '0', '-1', '1.5', null, undefined]) {
+    assert.equal(parseActorId(value), null, String(value))
+  }
+})
+
+test('a cookie value holding an id names that actor', () => {
+  assert.equal(parseActorId('1'), 1)
+  assert.equal(parseActorId('42'), 42)
 })

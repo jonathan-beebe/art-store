@@ -5,6 +5,7 @@ import type { AppDatabase } from '../../db/database.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
+import { runInTransaction } from '../transaction.ts'
 
 const NOW = TEST_INSTANT.toISOString()
 
@@ -282,4 +283,20 @@ test('an anonymous cart moves whole when the account has none', async (t) => {
 
   assert.equal(await countCarts(db, merging.verifiedCustomerId), 1)
   assert.deepEqual(await readCart(db, merging.verifiedCustomerId), [{ listingId, quantity: 2 }])
+})
+
+test("merging inside the caller's transaction joins it", async (t) => {
+  const merging = await startMerging()
+  t.after(merging.close)
+
+  await runInTransaction(merging, async (context) =>
+    mergeAnonymousCustomer(context, {
+      anonymousCustomerId: merging.anonymousCustomerId,
+      verifiedCustomerId: merging.verifiedCustomerId,
+    }),
+  )
+
+  const merges = await merging.db.selectFrom('customerMerges').selectAll().execute()
+
+  assert.equal(merges.length, 1)
 })
