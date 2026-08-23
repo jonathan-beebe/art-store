@@ -5,15 +5,38 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 11
-- IMPRV: 1
+- FEAT: 18
+- IMPRV: 9
 - MAINT: 1
 - A11Y: 1
-- RFCTR: 1
-- BUG: 2
+- RFCTR: 5
+- BUG: 7
 
 ## Log
-
+- 2026-08-23:22:15:24 — FEAT-017 — defined: final validation and documentation refresh
+- 2026-08-23:22:15:23 — IMPRV-008 — defined: plugins are Fastify plugins, type-aware lint, printed route table
+- 2026-08-23:22:15:22 — IMPRV-007 — defined: templates interpolate finished view models
+- 2026-08-23:22:15:21 — IMPRV-006 — defined: test gaps and fixture hygiene
+- 2026-08-23:22:15:20 — IMPRV-005 — defined: platform idioms — Intl formatting, one date formatter, web-standard base64, testable entrypoints
+- 2026-08-23:22:15:19 — FEAT-016 — defined: live unread badge over Server-Sent Events
+- 2026-08-23:22:15:18 — FEAT-015 — defined: transactional outbox — notifications and magic links delivered after commit
+- 2026-08-23:22:15:17 — RFCTR-004 — defined: data-layer idioms — sequential awaits, typed merge, parsed notifications
+- 2026-08-23:22:15:16 — RFCTR-003 — defined: forms parse into complete values or explicit errors
+- 2026-08-23:22:15:15 — RFCTR-002 — defined: messaging, naming, and listing decisions move into core
+- 2026-08-23:22:15:14 — RFCTR-001 — defined: escrow and payout decisions move into core
+- 2026-08-23:22:15:13 — IMPRV-004 — defined: status unions enforced by the database and row types checked against migrations
+- 2026-08-23:22:15:12 — IMPRV-003 — defined: structured logging through the built-in logger
+- 2026-08-23:22:15:11 — IMPRV-002 — defined: validation declared on routes, handlers receive typed input
+- 2026-08-23:22:15:10 — IMPRV-001 — defined: errors and unmatched routes render the site's HTML, never JSON
+- 2026-08-23:22:15:09 — FEAT-014 — defined: CI runs check and coverage on Node 24
+- 2026-08-23:22:15:08 — FEAT-013 — defined: a production image that runs anywhere
+- 2026-08-23:22:15:07 — FEAT-012 — defined: SQLite through node:sqlite behind a Kysely dialect owned by the app
+- 2026-08-23:22:15:06 — FEAT-011 — defined: real readiness endpoint and draining shutdown
+- 2026-08-23:22:15:05 — BUG-006 — defined: production-unsafe defaults — debug magic-link alert, cookie secret, insecure cookies, Host-derived links
+- 2026-08-23:22:15:04 — BUG-005 — defined: four routes read, branch, then write across separate transactions
+- 2026-08-23:22:15:03 — BUG-004 — defined: magic-link sign-in and identity claims run outside any transaction
+- 2026-08-23:22:15:02 — BUG-003 — defined: checkout can 500 or sell a removed listing when the cart is stale
+- 2026-08-23:22:15:01 — BUG-002 — defined: uploaded listing images trust the browser's filename and content type
 - 2026-08-22:21:59:58 — FEAT-010 — done: final validation — clean first run from an empty tree in 27s, a curl walk of 116 checks with no 500, a six-test smoke walk from the seller's sign-in to the weekly payout, the removal rule and `dollarsInputValue` moved into `app/core`, one `statusLabel` and one `parseIdParam` for all three sites, nine dead exports deleted, `runWeeklyPayout` no longer collides on an already-settled period, plus `docs/review.md` and a rewritten `README.md`
 - 2026-08-22:21:35:03 — FEAT-009 — done: docs — architecture.md corrected against the code (versions, app/plugins, site queries, commerce-schema, cli, delivery ports, customerStanding under core/moderation, the order state machine, the smoke test), plus identity/orders/escrow/messaging/admin/data-model/ontology docs and a README index, and `make docs-check` rendering all 19 Mermaid blocks through minlag/mermaid-cli
 - 2026-08-22:21:19:35 — BUG-001 — done: no admin write route answers 500 for a bodiless post — `formBody(request)` reads an absent body as an empty form at every throwing `zod.parse` site across all four sites, and `moderationRoute` safeParses and answers 400 when the form does not hold together
