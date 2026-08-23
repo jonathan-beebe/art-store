@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_000105) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -76,6 +76,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000105) do
     t.integer "subject_id"
     t.string "subject_type"
     t.datetime "updated_at", null: false
+    t.index "kind, COALESCE(seller_id, 0), COALESCE(customer_id, 0), COALESCE(admin_id, 0), COALESCE(subject_type, ''), COALESCE(subject_id, 0)", name: "index_conversations_on_shape", unique: true
     t.index ["admin_id", "last_message_at"], name: "index_conversations_on_admin_id_and_last_message_at"
     t.index ["customer_id", "last_message_at"], name: "index_conversations_on_customer_id_and_last_message_at"
     t.index ["kind", "subject_type", "subject_id"], name: "index_conversations_on_kind_and_subject_type_and_subject_id"

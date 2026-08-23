@@ -66,7 +66,7 @@ sequenceDiagram
     Shopper->>Ask: POST /art/:slug/questions
     Ask->>Ask: Listing.on_storefront.find_by!(slug:) or 404
     Ask->>Conv: Conversation.open(kind: :listing_question,<br/>subject: listing, seller:, customer:)
-    Conv-->>Ask: find_or_create_by! over kind + sides + subject
+    Conv-->>Ask: the row over kind + sides + subject,<br/>opened when there is none
     Ask->>Conv: #post!(current_customer, body)
     Conv->>Conv: create message, bump last_message_at,<br/>Notification.new_message(url: seller's path)
     Ask-->>Shopper: redirect /messages/:id
@@ -85,14 +85,22 @@ sequenceDiagram
 Caveats: an **anonymous** customer can ask. `Shop::ListingQuestionsController`
 sits behind `Shop::BaseController`, whose `CustomerIdentity` mints a `customers`
 row for every visitor, so the row behind the cookie is the participant. When
-that visitor verifies an address, `conversations` and `sent_messages` are in
-`Customer::MERGED_ASSOCIATIONS`, and `Customer#absorb` carries the thread over.
+that visitor verifies an address, `sent_messages` is in
+`Customer::MERGED_ASSOCIATIONS` and `Customer#absorb` hands each thread to
+`Conversation#move_to`. A thread the verified customer already holds on the
+same subject takes the anonymous thread's messages and the later
+`last_message_at`, and the emptied row is destroyed, so one thread per shape
+comes out of the merge. Each message keeps its own `read_at` through the move,
+which is what keeps the unread counts on both sides right.
 
 The open and the first post share one transaction (`ask` in that controller),
 so a refused body leaves no empty thread in either inbox. `Conversation.open`
-is `find_or_create_by!` over the kind, the kind's participant columns and the
-subject, which is what makes "message this seller" reach the same thread every
-time.
+reads the kind, the kind's participant columns and the subject, takes the
+lowest id it finds, and opens a row when there is none — which is what makes
+"message this seller" reach the same thread every time. The database carries
+the same rule: `index_conversations_on_shape` is unique over those six
+columns, each read through `COALESCE`, since SQLite counts two nulls as
+different values and every kind leaves some of the six null.
 
 A `listing_faqs` row exists **only while it is published**. `published_at` is
 `null: false`, unpublishing is `destroy!`, and the storefront reads

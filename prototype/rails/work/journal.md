@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:15:33:24 — BUG-001 — done: conversations leave Customer::MERGED_ASSOCIATIONS for Conversation#move_to, which folds a thread into the one the receiving customer already holds on the same kind, participants and subject — messages move across, last_message_at takes the later of the two, the emptied row is destroyed, and per-message read_at keeps both sides' unread counts right; index_conversations_on_shape is unique over the six columns read through COALESCE, since SQLite counts two nulls as different values and every kind leaves some of them null; Conversation.open reads where(shape).order(:id).first before it creates; docs/messaging.md and docs/data-model.md state the fold and the index; 744 runs at 100% line coverage (this commit)
+- 2026-08-23:15:28:36 — BUG-001 — started
 - 2026-08-23:15:22:10 — IMPRV-001 — defined: Inbox query cost, thread-page assignment, and doc corrections from the review
 - 2026-08-23:15:21:54 — BUG-002 — defined: A refused FAQ publish moves the seller off the thread and drops the source message
 - 2026-08-23:15:21:40 — BUG-001 — defined: Customer merge can duplicate a thread and find-or-open then splits the pair

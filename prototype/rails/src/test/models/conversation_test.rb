@@ -60,6 +60,29 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal 1, Conversation.count
   end
 
+  test "a second thread of the same kind, participants and subject is refused" do
+    shop = create_seller
+    listing = create_listing(shop)
+    buyer = create_verified_customer
+    listing_question(shop, buyer, listing: listing)
+
+    assert_raises(ActiveRecord::RecordNotUnique) do
+      Conversation.create!(
+        kind: :listing_question, seller: shop, customer: buyer, subject: listing, last_message_at: Time.current
+      )
+    end
+  end
+
+  test "a second support thread with the same admin and seller is refused" do
+    admin = create_admin
+    shop = create_seller
+    Conversation.open(kind: :admin_seller, admin: admin, seller: shop)
+
+    assert_raises(ActiveRecord::RecordNotUnique) do
+      Conversation.create!(kind: :admin_seller, admin: admin, seller: shop, last_message_at: Time.current)
+    end
+  end
+
   test "a question about another listing opens its own thread" do
     shop = create_seller
     buyer = create_verified_customer
@@ -380,6 +403,69 @@ class ConversationTest < ActiveSupport::TestCase
     assert_nil conversation.latest_message_from(buyer)
   end
 
+  test "a thread handed to a customer holding none of that shape changes hands" do
+    shop = create_seller
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    conversation = listing_question(shop, anonymous)
+    conversation.post!(anonymous, "Is the frame included?")
+
+    conversation.move_to(verified)
+
+    assert_equal verified, conversation.reload.customer
+    assert_equal 1, Conversation.count
+  end
+
+  test "a thread handed to a customer already holding that shape folds into theirs" do
+    shop = create_seller
+    listing = create_listing(shop)
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    standing = listing_question(shop, verified, listing: listing, at: moment("2026-08-20 09:00:00"))
+    standing.post!(verified, "Is the frame included?", at: moment("2026-08-20 09:00:00"))
+    duplicate = listing_question(shop, anonymous, listing: listing, at: moment("2026-08-21 09:00:00"))
+    asked = duplicate.post!(anonymous, "And does it ship rolled?", at: moment("2026-08-21 09:00:00"))
+
+    duplicate.move_to(verified)
+
+    assert_equal standing, Conversation.involving(verified).sole
+    assert_equal standing, asked.reload.conversation
+    assert_equal ["Is the frame included?", "And does it ship rolled?"], standing.messages.oldest_first.pluck(:body)
+    assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
+  end
+
+  test "a fold leaves the thread the customer already held at the later of the two times" do
+    shop = create_seller
+    listing = create_listing(shop)
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    standing = listing_question(shop, verified, listing: listing, at: moment("2026-08-22 09:00:00"))
+    duplicate = listing_question(shop, anonymous, listing: listing, at: moment("2026-08-21 09:00:00"))
+
+    duplicate.move_to(verified)
+
+    assert_equal moment("2026-08-22 09:00:00"), standing.reload.last_message_at
+    assert_not Conversation.exists?(duplicate.id)
+  end
+
+  test "a fold keeps what each side has read" do
+    shop = create_seller
+    listing = create_listing(shop)
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    standing = listing_question(shop, verified, listing: listing)
+    answered = standing.post!(shop, "Still available.")
+    standing.read_by!(verified)
+    duplicate = listing_question(shop, anonymous, listing: listing)
+    asked = duplicate.post!(anonymous, "And does it ship rolled?")
+
+    duplicate.move_to(verified)
+
+    assert_not_nil answered.reload.read_at
+    assert_nil asked.reload.read_at
+    assert_equal 1, standing.unread_count_for(shop)
+  end
+
   test "a thread carries the messages it holds away with it" do
     buyer = create_verified_customer
     conversation = listing_question(create_seller, buyer)
@@ -392,11 +478,10 @@ class ConversationTest < ActiveSupport::TestCase
 
   private
 
-  def listing_question(seller, customer, title: "Harbour at Dusk", at: Time.current)
-    Conversation.open(
-      kind: :listing_question, seller: seller, customer: customer,
-      subject: create_listing(seller, title: title), at: at
-    )
+  def listing_question(
+    seller, customer, title: "Harbour at Dusk", listing: create_listing(seller, title: title), at: Time.current
+  )
+    Conversation.open(kind: :listing_question, seller: seller, customer: customer, subject: listing, at: at)
   end
 
   def fulfillment_for(seller, customer)

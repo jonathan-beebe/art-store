@@ -141,6 +141,31 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal verified, message.reload.sender
   end
 
+  test "absorb folds a duplicate thread into the one the verified customer already holds" do
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    listing = create_listing
+    seller = listing.seller
+    standing = question_about(listing, verified, at: moment("2026-08-20 09:00:00"))
+    standing.post!(verified, "Is the frame included?", at: moment("2026-08-20 09:00:00"))
+    standing.post!(seller, "It is.", at: moment("2026-08-20 10:00:00"))
+    standing.read_by!(verified)
+    duplicate = question_about(listing, anonymous, at: moment("2026-08-21 09:00:00"))
+    duplicate.post!(anonymous, "And does it ship rolled?", at: moment("2026-08-21 09:00:00"))
+
+    verified.absorb(anonymous)
+
+    assert_equal standing, Conversation.involving(verified.reload).sole
+    assert_equal standing, Conversation.involving(seller).sole
+    assert_equal(
+      ["Is the frame included?", "It is.", "And does it ship rolled?"],
+      standing.messages.oldest_first.pluck(:body)
+    )
+    assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
+    assert_equal 2, standing.unread_count_for(seller)
+    assert_equal 0, standing.unread_count_for(verified)
+  end
+
   test "absorb leaves the rows of a bystander where they are" do
     anonymous = create_anonymous_customer
     verified = create_verified_customer
@@ -275,5 +300,13 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal 1, buyer.unread_message_count
     assert_equal 0, create_verified_customer.unread_message_count
+  end
+
+  private
+
+  def question_about(listing, customer, at: Time.current)
+    Conversation.open(
+      kind: :listing_question, seller: listing.seller, customer: customer, subject: listing, at: at
+    )
   end
 end

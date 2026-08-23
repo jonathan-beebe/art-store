@@ -15,6 +15,11 @@ class Conversation < ApplicationRecord
 
   SUPPORT_DESK = "Art Store support".freeze
 
+  # What makes a thread the one thread: its kind, the participants it names,
+  # and what it is about. The unique index over these columns reads the same
+  # list.
+  SHAPE = %w[kind seller_id customer_id admin_id subject_type subject_id].freeze
+
   # One table serves every pairing, so the kind is the one source for which
   # participants a thread names and which subject, if any, it hangs off.
   KINDS = {
@@ -49,10 +54,9 @@ class Conversation < ApplicationRecord
   # the place the last one came from.
   def self.open(kind:, subject: nil, at: Time.current, **participants)
     named = KINDS.fetch(kind.to_s).sides.index_with { |side| participants.fetch(side) }
+    shape = { kind: kind, subject: subject, **named }
 
-    find_or_create_by!(kind: kind, subject: subject, **named) do |conversation|
-      conversation.last_message_at = at
-    end
+    where(shape).order(:id).first || create!(**shape, last_message_at: at)
   end
 
   # Which side of a conversation this actor sits on, whatever kind it is.
@@ -101,6 +105,21 @@ class Conversation < ApplicationRecord
     ActionView::RecordIdentifier.dom_id(self, :messages)
   end
 
+  # Hands the thread to another customer, which is what a merge of two customer
+  # identities asks for. A customer already holding a thread of the same shape
+  # takes this one's messages onto theirs and this row goes, so one thread per
+  # kind, participants and subject survives the merge.
+  def move_to(customer)
+    standing = self.class.where(shape.merge("customer_id" => customer.id)).order(:id).first
+    return update!(customer: customer) if standing.nil?
+
+    transaction do
+      messages.update_all(conversation_id: standing.id)
+      standing.update!(last_message_at: [standing.last_message_at, last_message_at].max)
+      destroy!
+    end
+  end
+
   # Appends one message, moves the thread to the top of both inboxes, and tells
   # the other side.
   def post!(sender, body, at: Time.current)
@@ -136,6 +155,10 @@ class Conversation < ApplicationRecord
   end
 
   private
+
+  def shape
+    attributes.slice(*SHAPE)
+  end
 
   def sides_match_the_kind
     shape = KINDS[kind]

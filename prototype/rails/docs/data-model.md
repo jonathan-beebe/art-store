@@ -229,8 +229,10 @@ Caveats:
   third null; which two is `kind`, and `Conversation::KINDS` is the one place
   that says so. `subject_type`/`subject_id` are polymorphic and null for the
   two support kinds. The indexes are one per participant column paired with
-  `last_message_at` (the inbox's order) plus
-  `(kind, subject_type, subject_id)` (find-or-open).
+  `last_message_at` (the inbox's order), `(kind, subject_type, subject_id)`
+  (find-or-open), and `index_conversations_on_shape` — unique over the kind,
+  the three participant columns and the two subject columns, each read through
+  `COALESCE` so the nulls a kind leaves compare as one value under SQLite.
 - `messages.read_at` is one column for both sides. Every kind has exactly two
   participants, so the reader of a message is always the participant who did
   not send it, and `Message.unread_for(reader)` is the single definition of
