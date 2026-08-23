@@ -45,3 +45,19 @@ test('isEmailAddress rejects a blank string', () => {
 test('isEmailAddress rejects null', () => {
   assert.equal(isEmailAddress(null), false)
 })
+
+test('isEmailAddress accepts a unicode local part', () => {
+  assert.equal(isEmailAddress('café@example.com'), true)
+})
+
+test('isEmailAddress accepts the shortest possible address', () => {
+  assert.equal(isEmailAddress('a@b.c'), true)
+})
+
+test('isEmailAddress rejects a leading @ with no local part', () => {
+  assert.equal(isEmailAddress('@example.com'), false)
+})
+
+test('isEmailAddress rejects a domain with a trailing dot and nothing after', () => {
+  assert.equal(isEmailAddress('artist@example.'), false)
+})

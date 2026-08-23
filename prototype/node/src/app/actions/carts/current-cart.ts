@@ -13,7 +13,7 @@ export async function currentCart(context: ActionContext, customerId: number): P
     const existing = await db
       .selectFrom('carts')
       .leftJoin('cartItems', 'cartItems.cartId', 'carts.id')
-      .select(({ fn }) => ['carts.id', 'carts.customerId', 'carts.createdAt', fn.count<number>('cartItems.id').as('itemCount')])
+      .select(({ fn }) => ['carts.id', 'carts.customerId', 'carts.createdAt', fn.count<string | number | bigint>('cartItems.id').as('itemCount')])
       .where('carts.customerId', '=', customerId)
       .groupBy('carts.id')
       .orderBy('itemCount', 'desc')

@@ -1,7 +1,8 @@
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyReply } from 'fastify'
 import { recordPageView } from '../actions/analytics/record-page-view.ts'
 import { isCountablePageView } from '../core/analytics/page-view.ts'
 import { pageViewSite } from '../core/analytics/page-view-site.ts'
+import { rootPlugin } from './root-plugin.ts'
 
 /**
  * Counts page views rather than logging them: one row per site, route pattern,
@@ -10,7 +11,7 @@ import { pageViewSite } from '../core/analytics/page-view-site.ts'
  * Registered once at the root because a hook added there runs for every site,
  * and the site a hit belongs to is read back off the route's own pattern.
  */
-export function addPageViewRollup(app: FastifyInstance): void {
+export const pageViewRollup = rootPlugin({ name: 'pageViewRollup' }, (app) => {
   app.addHook('onResponse', async (request, reply) => {
     // A request that matched no route has no pattern to count against.
     const pathPattern = request.routeOptions.url
@@ -28,7 +29,7 @@ export function addPageViewRollup(app: FastifyInstance): void {
       { site: pageViewSite(pathPattern), pathPattern },
     )
   })
-}
+})
 
 function responseContentType(reply: FastifyReply): string | null {
   const header = reply.getHeader('content-type')

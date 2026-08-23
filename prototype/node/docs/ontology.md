@@ -218,7 +218,9 @@ re-publishing is one click from the thread the answer came from.
 lifted from (`source_message_id`).
 
 **In code.** `ListingFaq` (`listing_faqs`), `publishListingFaq`,
-`updateListingFaq`, `unpublishListingFaq`, `faqDraftErrors`.
+`updateListingFaq`, `unpublishListingFaq`, and the pure `parseFaqDraft`
+(`app/core/messaging/faq-draft.ts`), which returns
+`{ ok: true; value } | { ok: false; errors }`.
 
 ### Listing removal
 
@@ -340,16 +342,26 @@ Carries the Platform fee. Subject of `fulfillment` Conversations.
 
 ### Money
 
-**Who/what.** Integer cents. `type Cents = number`, not a value object.
+**Who/what.** Integer cents, branded:
+`type Cents = number & { readonly __brand: 'Cents' }`. Not a value object — a
+`number` the compiler will not accept a bare `number` for.
 
 **Why it exists.** Floating-point dollars are wrong; a wrapper class buys
-nothing in a codebase where every signature is already typed.
+nothing in a codebase where every signature is already typed. The brand costs
+nothing at runtime and makes an unconverted dollar figure a type error rather
+than a discrepancy that only shows up in a total.
 
 **Relates to.** Every price, subtotal, fee, net, ledger amount, and payout.
+Money columns are typed `ColumnType<Cents, number, number>`: reads are branded,
+writes still take the plain integer.
 
-**In code.** `app/core/money.ts` — `addCents`, `multiplyCents`,
-`percentOfCents` (rounds half away from zero), `formatCents`, `parseDollars`
-(two decimal places or none).
+**In code.** `app/core/money.ts`. Three constructors and no others: `cents`,
+`parseDollars`, `centsFromColumn`. Arithmetic goes through `addCents`,
+`subtractCents`, `negateCents` (`-a` on a branded number is a plain `number`),
+`multiplyCents`, and `percentOfCents` (rounds half away from zero).
+`formatCents` and `dollarsInputValue` render; `isDollarAmount` and
+`parseDollars` share one `DOLLAR_AMOUNT_PATTERN`, so `$249` and `1,234.00` are
+accepted on both sides and `12.345` refused on both.
 
 ### Platform fee
 
@@ -520,8 +532,29 @@ by `markNotificationRead`.
 by a check constraint.
 
 **In code.** `Notification` (`notifications`), `itemSoldMessage`,
-`orderShippedMessage`, `newMessageMessage`, `NotificationDelivery` (a port with
-no live implementation).
+`orderShippedMessage`, `newMessageMessage`, `NotificationDelivery`
+(`app/delivery/`), whose live implementation queues an Outbox message.
+
+### Outbox message
+
+**Who/what.** One message waiting to leave the application: `recipient`,
+`subject`, `body`, an optional `url`, `created_at`, and `delivered_at` (null
+while pending). Both sign-in links and notifications queue here.
+
+**Why it exists.** The row is written in the same transaction as the change
+that caused it, so a sale that rolls back sends nothing, and nothing reaches
+outside the process while a synchronous SQLite connection is held open.
+
+**Lifecycle.** Enqueued by `outboxMagicLinkDelivery` or
+`outboxNotificationDelivery` inside the caller's transaction; drained by
+`drainOutbox` outside any transaction, which renders the row as RFC-5322 and
+writes `<OUTBOX_DIR>/<id>.eml` before stamping `delivered_at`.
+
+**Relates to.** Nothing. It carries no foreign key — the recipient is an
+address, because whoever reads it is outside the system.
+
+**In code.** `OutboxMessage` (`outbox_messages`), `enqueueOutboxMessage`,
+`renderMailMessage`, `drainOutbox`, `/admin/outbox`.
 
 ## Analytics
 
@@ -538,8 +571,8 @@ inserts, every later one increments, in one statement and no read.
 
 **Relates to.** Nothing. It carries no foreign key.
 
-**In code.** `PageViewCountsTable` (`page_view_counts`), `addPageViewRollup`,
-`isCountablePageView`, `pageViewSite`, `pageViewDay`, `recordPageView`.
+**In code.** `PageViewCountsTable` (`page_view_counts`), the `pageViewRollup`
+plugin, `isCountablePageView`, `pageViewSite`, `pageViewDay`, `recordPageView`.
 
 ## Decisions
 

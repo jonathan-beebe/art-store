@@ -1,6 +1,7 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { ledgerMovements, type SellerLedgerMovement } from '../../../actions/escrow/ledger-movements.ts'
-import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
+import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { ZERO_CENTS } from '../../../core/money.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
@@ -15,7 +16,11 @@ export type SellerRow = LedgerBalance & {
   removedListingCount: number
 }
 
-const EMPTY_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutCents: 0 }
+const EMPTY_BALANCE: LedgerBalance = {
+  heldCents: ZERO_CENTS,
+  availableCents: ZERO_CENTS,
+  paidOutCents: ZERO_CENTS,
+}
 
 /**
  * Every seller with the counts and the balance the table shows. The balance
@@ -23,13 +28,16 @@ const EMPTY_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutC
  */
 export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<readonly SellerRow[]> {
   const { db } = context
-  const [sellers, listingCounts, fulfillmentCounts, removedCounts, balances] = await Promise.all([
-    db.selectFrom('sellers').select(['id', 'email', 'shopName', 'createdAt']).orderBy('id').execute(),
-    countBySeller(db, 'listings'),
-    countBySeller(db, 'fulfillments'),
-    removedListingCountsBySeller(db),
-    balancesBySeller(context),
-  ])
+  const sellers = await db
+    .selectFrom('sellers')
+    .select(['id', 'email', 'shopName', 'createdAt'])
+    .orderBy('id')
+    .execute()
+  const listingCounts = await countBySeller(db, 'listings')
+  const fulfillmentCounts = await countBySeller(db, 'fulfillments')
+  const removedCounts = await removedListingCountsBySeller(db)
+  const movements = await ledgerMovements(context)
+  const balances = ledgerBalancesBySeller(movements)
 
   return sellers.map((seller) => ({
     ...seller,
@@ -64,17 +72,4 @@ async function removedListingCountsBySeller(db: AppDatabase): Promise<Map<number
     .execute()
 
   return new Map(rows.map((row) => [row.sellerId, Number(row.count)]))
-}
-
-async function balancesBySeller(context: Pick<ActionContext, 'db'>): Promise<Map<number, LedgerBalance>> {
-  const movements = await ledgerMovements(context)
-  const bySeller = new Map<number, SellerLedgerMovement[]>()
-
-  for (const movement of movements) {
-    const forSeller = bySeller.get(movement.sellerId) ?? []
-    forSeller.push(movement)
-    bySeller.set(movement.sellerId, forSeller)
-  }
-
-  return new Map([...bySeller.entries()].map(([sellerId, forSeller]) => [sellerId, ledgerBalance(forSeller)]))
 }

@@ -12,11 +12,13 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   const sellerId = currentSellerId(request)
   const fulfillments = await fulfillmentsForSeller(db, sellerId)
 
-  const [itemTitles, balance, payouts] = await Promise.all([
-    itemTitlesByOrder(db, fulfillments.map((fulfillment) => fulfillment.orderId), sellerId),
-    sellerBalance({ db }, sellerId),
-    payoutsForSeller(db, sellerId),
-  ])
+  const itemTitles = await itemTitlesByOrder(
+    db,
+    fulfillments.map((fulfillment) => fulfillment.orderId),
+    sellerId,
+  )
+  const balance = await sellerBalance({ db }, sellerId)
+  const payouts = await payoutsForSeller(db, sellerId)
 
   return reply.render('earnings/show', {
     title: 'Earnings',

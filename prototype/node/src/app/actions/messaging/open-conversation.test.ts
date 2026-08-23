@@ -11,6 +11,7 @@ import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
+import { cents } from '../../core/money.ts'
 
 const NOW = new Date('2026-08-22T10:00:00.000Z')
 
@@ -19,7 +20,7 @@ const DEFAULT_DRAFT: ListingDraft = {
   description: 'Oil on canvas.',
   medium: 'Oil',
   dimensions: '40 x 60 cm',
-  priceCents: 45_000,
+  priceCents: cents(45_000),
   quantity: 2,
 }
 
@@ -233,15 +234,4 @@ test('a different seller opens a second row', async (t) => {
   })
 
   assert.notEqual(a.id, b.id)
-})
-
-test('a kind missing a required participant throws TypeError', async (t) => {
-  const world = await openWorld()
-  t.after(world.close)
-  const shop = await seller(world.context)
-
-  await assert.rejects(
-    () => openConversation(world.context, { kind: 'listing_question', sellerId: shop.id }),
-    TypeError,
-  )
 })

@@ -1,5 +1,6 @@
-import type { FastifyInstance, FastifyReply } from 'fastify'
+import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
+import { rootPlugin } from './root-plugin.ts'
 
 /**
  * What one request leaves for the page that follows it: a message to show, and
@@ -20,7 +21,7 @@ declare module 'fastify' {
 
 const FLASH_COOKIE = 'flash'
 
-const flashSchema = z.object({
+export const flashSchema = z.object({
   notice: z.string().optional(),
   alert: z.string().optional(),
   debugMagicLink: z.string().optional(),
@@ -31,29 +32,33 @@ const flashSchema = z.object({
  * redirect, and the page the browser lands on clears it as it shows it. A
  * tampered or stale cookie yields an empty flash rather than an error.
  */
-export function addFlash(app: FastifyInstance): void {
-  app.decorateReply('setFlash', function (this: FastifyReply, flash: Flash): void {
-    this.setCookie(FLASH_COOKIE, JSON.stringify(flash), {
-      path: '/',
-      httpOnly: true,
-      sameSite: 'lax',
-      signed: true,
+export const flashCookie = rootPlugin(
+  { name: 'flashCookie', dependencies: ['@fastify/cookie'] },
+  (app) => {
+    app.decorateReply('setFlash', function (this: FastifyReply, flash: Flash): void {
+      this.setCookie(FLASH_COOKIE, JSON.stringify(flash), {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        signed: true,
+        secure: this.server.config.secureCookies,
+      })
     })
-  })
 
-  app.decorateReply('takeFlash', function (this: FastifyReply): Flash {
-    const cookie = this.request.cookies[FLASH_COOKIE]
-    if (cookie === undefined) return {}
+    app.decorateReply('takeFlash', function (this: FastifyReply): Flash {
+      const cookie = this.request.cookies[FLASH_COOKIE]
+      if (cookie === undefined) return {}
 
-    this.clearCookie(FLASH_COOKIE, { path: '/' })
+      this.clearCookie(FLASH_COOKIE, { path: '/' })
 
-    const unsigned = this.request.unsignCookie(cookie)
-    if (!unsigned.valid || unsigned.value === null) return {}
+      const unsigned = this.request.unsignCookie(cookie)
+      if (!unsigned.valid) return {}
 
-    const parsed = flashSchema.safeParse(readJson(unsigned.value))
-    return parsed.success ? parsed.data : {}
-  })
-}
+      const parsed = flashSchema.safeParse(readJson(unsigned.value))
+      return parsed.success ? parsed.data : {}
+    })
+  },
+)
 
 function readJson(value: string): unknown {
   try {

@@ -95,3 +95,23 @@ test('filtering by seller returns only that seller’s entries', async (t) => {
   assert.equal(rows.length, 1)
   assert.equal(rows[0]?.sellerId, first)
 })
+
+test('a blank shop name falls back to the address before the @, not the whole address', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await createSeller(world.context, '   ')
+  const customerId = await createCustomer(world.context)
+  const listing = await createListing(world.context, sellerId, { priceCents: 45_000 })
+  await paidOrder(world.context, customerId, [listing.id])
+
+  const seller = await world.db
+    .selectFrom('sellers')
+    .selectAll()
+    .where('id', '=', sellerId)
+    .executeTakeFirstOrThrow()
+
+  const { rows } = await ledgerRows(world.context)
+  assert.equal(rows[0]?.sellerName, seller.email.split('@')[0])
+  assert.notEqual(rows[0]?.sellerName, seller.email)
+})

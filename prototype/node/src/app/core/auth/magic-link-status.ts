@@ -1,6 +1,7 @@
 export const MAGIC_LINK_LIFETIME_MINUTES = 15
 
-export type MagicLinkStatus = 'usable' | 'expired' | 'consumed'
+export const MAGIC_LINK_STATUSES = ['usable', 'expired', 'consumed'] as const
+export type MagicLinkStatus = (typeof MAGIC_LINK_STATUSES)[number]
 
 export function magicLinkStatus(
   link: { expiresAt: Date; consumedAt: Date | null },

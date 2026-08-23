@@ -1,4 +1,4 @@
-import { addCents, type Cents } from '../money.ts'
+import { negateCents, type Cents } from '../money.ts'
 import type { LedgerEntryType } from './ledger-entry-type.ts'
 
 /**
@@ -16,5 +16,5 @@ export function releaseMovement(netCents: Cents): LedgerMovement {
 }
 
 export function payoutMovement(availableCents: Cents): LedgerMovement {
-  return { entryType: 'paid_out', amountCents: addCents(0, -availableCents) }
+  return { entryType: 'paid_out', amountCents: negateCents(availableCents) }
 }

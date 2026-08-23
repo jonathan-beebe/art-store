@@ -1,7 +1,8 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { ledgerMovements, type SellerLedgerMovement } from '../../../actions/escrow/ledger-movements.ts'
-import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
-import { addCents, type Cents } from '../../../core/money.ts'
+import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
+import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { addCents, centsFromColumn, ZERO_CENTS, type Cents } from '../../../core/money.ts'
+import { shopName } from '../../../core/shop/shop-name.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
 export type SellerOption = { id: number; name: string }
@@ -19,8 +20,16 @@ export type SellerAccount = LedgerBalance & {
 
 type LifetimeSales = { subtotalCents: Cents; feeCents: Cents; netCents: Cents }
 
-const ZERO_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutCents: 0 }
-const ZERO_LIFETIME: LifetimeSales = { subtotalCents: 0, feeCents: 0, netCents: 0 }
+const ZERO_BALANCE: LedgerBalance = {
+  heldCents: ZERO_CENTS,
+  availableCents: ZERO_CENTS,
+  paidOutCents: ZERO_CENTS,
+}
+const ZERO_LIFETIME: LifetimeSales = {
+  subtotalCents: ZERO_CENTS,
+  feeCents: ZERO_CENTS,
+  netCents: ZERO_CENTS,
+}
 
 /**
  * Every seller, whether or not they have moved any money, with their escrow
@@ -31,7 +40,7 @@ export async function sellerAccounts(
   context: Pick<ActionContext, 'db'>,
 ): Promise<readonly SellerAccount[]> {
   const sellers = await sellerOptions(context)
-  const balances = balancesBySeller(await ledgerMovements(context))
+  const balances = ledgerBalancesBySeller(await ledgerMovements(context))
   const payoutTotals = await payoutTotalsBySeller(context)
   const lifetimeSales = await lifetimeSalesBySeller(context)
 
@@ -45,17 +54,17 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
     .orderBy('id')
     .execute()
 
-  return sellers.map((seller) => ({ id: seller.id, name: seller.shopName ?? seller.email }))
+  return sellers.map((seller) => ({ id: seller.id, name: shopName(seller) }))
 }
 
 function toAccount(
   seller: SellerOption,
-  balances: Map<number, LedgerBalance>,
+  balances: ReadonlyMap<number, LedgerBalance>,
   payoutTotals: Map<number, Cents>,
   lifetimeSales: Map<number, LifetimeSales>,
 ): SellerAccount {
   const balance = balances.get(seller.id) ?? ZERO_BALANCE
-  const payoutTotalCents = payoutTotals.get(seller.id) ?? 0
+  const payoutTotalCents = payoutTotals.get(seller.id) ?? ZERO_CENTS
   const lifetime = lifetimeSales.get(seller.id) ?? ZERO_LIFETIME
 
   return {
@@ -70,23 +79,14 @@ function toAccount(
   }
 }
 
-function balancesBySeller(movements: readonly SellerLedgerMovement[]): Map<number, LedgerBalance> {
-  const bySeller = new Map<number, SellerLedgerMovement[]>()
-  for (const movement of movements) {
-    bySeller.set(movement.sellerId, [...(bySeller.get(movement.sellerId) ?? []), movement])
-  }
-
-  return new Map([...bySeller].map(([sellerId, own]) => [sellerId, ledgerBalance(own)]))
-}
-
 async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<number, Cents>> {
   const rows = await db
     .selectFrom('payouts')
-    .select(['sellerId', (eb) => eb.fn.sum<number>('amountCents').as('total')])
+    .select(['sellerId', (eb) => eb.fn.sum<string | number | bigint>('amountCents').as('total')])
     .groupBy('sellerId')
     .execute()
 
-  return new Map(rows.map((row) => [row.sellerId, Number(row.total)]))
+  return new Map(rows.map((row) => [row.sellerId, centsFromColumn(row.total)]))
 }
 
 /**

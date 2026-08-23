@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { activityTimeline } from './activity-timeline.ts'
+import { activityTimeline, activityWindow } from './activity-timeline.ts'
 
 test('it returns one row per day, oldest first', () => {
   const days = activityTimeline({}, { endsOn: new Date('2026-08-22T17:30:00.000Z'), days: 3 })
@@ -50,4 +50,29 @@ test('it refuses a window shorter than a day', () => {
     () => activityTimeline({}, { endsOn: new Date('2026-08-22T00:00:00.000Z'), days: 0 }),
     RangeError,
   )
+})
+
+test('a one-day window starts at midnight the same day', () => {
+  const window = activityWindow(new Date('2026-08-22T17:30:00.000Z'), 1)
+
+  assert.equal(window.since.toISOString(), '2026-08-22T00:00:00.000Z')
+  assert.equal(window.days, 1)
+})
+
+test('a two-day window starts at midnight the earlier day', () => {
+  const window = activityWindow(new Date('2026-08-22T17:30:00.000Z'), 2)
+
+  assert.equal(window.since.toISOString(), '2026-08-21T00:00:00.000Z')
+})
+
+test("the window's since matches the timeline's first row", () => {
+  const endsOn = new Date('2026-08-22T17:30:00.000Z')
+  const window = activityWindow(endsOn, 14)
+  const timeline = activityTimeline({}, { endsOn, days: 14 })
+
+  assert.equal(window.since.toISOString().slice(0, 10), timeline[0]?.day)
+})
+
+test('activityWindow refuses a window shorter than a day', () => {
+  assert.throws(() => activityWindow(new Date('2026-08-22T00:00:00.000Z'), 0), RangeError)
 })

@@ -27,7 +27,8 @@ function flashFrom(
   if (cookie === undefined) return {}
 
   const unsigned = testApp.app.unsignCookie(cookie.value)
-  return JSON.parse(unsigned.value ?? '{}')
+
+  return JSON.parse(unsigned.value ?? '{}') as Record<string, string>
 }
 
 test('the inbox lists this admin threads newest first with the unread count, and hides another admin thread', async (t) => {

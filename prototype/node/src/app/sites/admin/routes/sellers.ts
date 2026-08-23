@@ -1,30 +1,21 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { shopName } from '../../../core/shop/shop-name.ts'
+import { idParams } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
 import { sellerDetail } from '../queries/seller-detail.ts'
 import { sellerRows } from '../queries/seller-rows.ts'
 
-async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const rows = await sellerRows({ db: request.server.db })
+export const sellerRoutes: ZodRoutes = (admin, _options, done) => {
+  admin.get('/sellers', async (_request, reply) =>
+    reply.render('sellers', adminPage('Sellers', { rows: await sellerRows({ db: admin.db }) })),
+  )
 
-  return reply.render('sellers', adminPage('Sellers', { rows }))
-}
+  admin.get('/sellers/:id', { schema: { params: idParams } }, async (request, reply) => {
+    const detail = await sellerDetail({ db: admin.db }, request.params.id)
+    if (detail === null) return reply.callNotFound()
 
-async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> {
-  const id = parseIdParam(request.params)
-  if (id === null) return reply.callNotFound()
-
-  const detail = await sellerDetail({ db: request.server.db }, id)
-  if (detail === null) return reply.callNotFound()
-
-  const title = detail.seller.shopName ?? detail.seller.email
-
-  return reply.render('seller', adminPage(title, detail))
-}
-
-export const sellerRoutes: FastifyPluginCallback = (admin, _options, done) => {
-  admin.get('/sellers', index)
-  admin.get('/sellers/:id', show)
+    return reply.render('seller', adminPage(shopName(detail.seller), detail))
+  })
 
   done()
 }

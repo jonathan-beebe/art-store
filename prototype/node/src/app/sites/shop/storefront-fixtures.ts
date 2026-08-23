@@ -3,14 +3,19 @@ import { currentCart } from '../../actions/carts/current-cart.ts'
 import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
-import { placeOrder } from '../../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ActionContext } from '../../actions/action-context.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
+import { cents, type Cents } from '../../core/money.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
-import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
 import type { Listing, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { APPROVED_CARD, DECLINED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
+
+export { APPROVED_CARD, DECLINED_CARD }
+/** This site's name for the shared shipping fixture. */
+export const TEST_SHIPPING = SHIPPING_ADDRESS
 
 export type ArtworkInput = {
   sellerId: number
@@ -18,7 +23,7 @@ export type ArtworkInput = {
   description?: string | null
   medium?: string | null
   dimensions?: string | null
-  priceCents?: number
+  priceCents?: Cents
   quantity?: number
   status?: ListingStatus
 }
@@ -42,7 +47,7 @@ function artworkDraft(input: ArtworkInput): ListingDraft {
     description: input.description ?? 'Oil study of the harbour.',
     medium: input.medium ?? 'Oil on canvas',
     dimensions: input.dimensions ?? '40 x 60 cm',
-    priceCents: input.priceCents ?? 24_000,
+    priceCents: input.priceCents ?? cents(24_000),
     quantity: input.quantity ?? 1,
   }
 }
@@ -77,19 +82,6 @@ export async function removeListing(
     .execute()
 }
 
-export const TEST_SHIPPING: ShippingAddress = {
-  name: 'Ada Lovelace',
-  line1: '12 Analytical Way',
-  line2: null,
-  city: 'London',
-  region: 'Greater London',
-  postalCode: 'EC1A 1BB',
-  country: 'GB',
-}
-
-export const APPROVED_CARD = '4242424242424242'
-export const DECLINED_CARD = '4000000000000002'
-
 /**
  * A cart holding one seller's piece, ready for an order. Tests about the order
  * pages arrive here without walking the storefront to get there.
@@ -112,7 +104,7 @@ export async function placeCustomerOrder(
   context: ActionContext,
   input: { cartId: number; customerId: number; email?: string; isEmailVerified?: boolean },
 ): Promise<Order> {
-  return placeOrder(context, {
+  return placeOrderOrThrow(context, {
     cartId: input.cartId,
     purchaser: {
       id: input.customerId,

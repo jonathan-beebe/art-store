@@ -1,3 +1,4 @@
+import { STOREFRONT_STATUSES } from '../../../core/listings/listing-availability.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { toStorefrontListing, type StorefrontListing } from './find-storefront-listings.ts'
 
@@ -27,7 +28,8 @@ export async function findFavoriteListings(
       'sellers.email as sellerEmail',
     ])
     .where('favorites.customerId', '=', customerId)
-    .where('listings.status', 'in', ['for_sale', 'sold'])
+    .where('listings.status', 'in', STOREFRONT_STATUSES)
+    // The removal half of `isOnStorefront`, in the only dialect a where clause speaks.
     .where((eb) =>
       eb.not(
         eb.exists(

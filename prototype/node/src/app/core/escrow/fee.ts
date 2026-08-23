@@ -1,4 +1,4 @@
-import { addCents, percentOfCents, type Cents } from '../money.ts'
+import { percentOfCents, subtractCents, type Cents } from '../money.ts'
 
 export const PLATFORM_FEE_PERCENT = 10
 
@@ -7,5 +7,5 @@ export function platformFee(subtotalCents: Cents): Cents {
 }
 
 export function sellerNet(subtotalCents: Cents): Cents {
-  return addCents(subtotalCents, -platformFee(subtotalCents))
+  return subtractCents(subtotalCents, platformFee(subtotalCents))
 }

@@ -15,6 +15,7 @@ export async function currentCustomerStanding(
     .selectFrom('customerBlocks')
     .select(['reason', 'liftedAt'])
     .where('customerId', '=', customerId)
+    .where('liftedAt', 'is', null)
     .orderBy('id')
     .execute()
 

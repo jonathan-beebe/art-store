@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { claimSellerIdentity } from '../actions/auth/claim-seller-identity.ts'
 import { findAdminByEmail } from '../actions/auth/find-admin-by-email.ts'
@@ -10,24 +13,35 @@ import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/databa
 import { migrateToLatest } from '../db/migrator.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
 import { flashMagicLinkDelivery } from '../delivery/flash-magic-link-delivery.ts'
+import { flashSchema } from '../plugins/flash.ts'
 
 /** Frozen so payout periods and link expiries read the same whatever day it is. */
 export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
 
+/** `uploadsDir` and `outboxDir` here are never read: `buildTestApp` always
+ * builds fresh per-test temp directories unless a caller supplies its own
+ * `config`. */
 export const TEST_CONFIG: AppConfig = {
+  environment: 'test',
   host: '127.0.0.1',
   port: 0,
   databaseFile: IN_MEMORY_DATABASE,
   cookieSecret: 'test-cookie-secret-long-enough',
   logLevel: 'silent',
   magicLinkDelivery: 'flash',
+  uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
+  outboxDir: path.join(tmpdir(), 'art-store-test-outbox-unused'),
+  publicUrl: null,
+  trustProxy: false,
+  secureCookies: false,
+  showsDebugMagicLinks: true,
 }
 
 export type TestApp = {
   app: FastifyInstance
   db: AppDatabase
   clock: Clock
-  close(): Promise<void>
+  close: () => Promise<void>
 }
 
 /**
@@ -39,11 +53,24 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
   await migrateToLatest(db)
 
   const clock = overrides.clock ?? fixedClock(TEST_INSTANT)
+
+  // A config override brings its own directories; otherwise each test app gets
+  // isolated temp ones, removed with everything else it built.
+  let temporaryRoot: string | null = null
+  let config = overrides.config
+  if (config === undefined) {
+    temporaryRoot = await mkdtemp(path.join(tmpdir(), 'art-store-test-'))
+    const uploadsDir = path.join(temporaryRoot, 'uploads')
+    await mkdir(uploadsDir)
+    config = { ...TEST_CONFIG, uploadsDir, outboxDir: path.join(temporaryRoot, 'outbox') }
+  }
+
   const app = buildApp({
     db,
     clock,
-    config: overrides.config ?? TEST_CONFIG,
+    config,
     magicLinkDelivery: overrides.magicLinkDelivery ?? flashMagicLinkDelivery,
+    loggerStream: overrides.loggerStream,
   })
   await app.ready()
 
@@ -54,6 +81,7 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
     close: async () => {
       await app.close()
       await db.destroy()
+      if (temporaryRoot !== null) await rm(temporaryRoot, { recursive: true, force: true })
     },
   }
 }
@@ -116,8 +144,8 @@ export function takeDebugMagicLink({ app }: TestApp, response: LightMyRequestRes
   if (cookie === undefined) throw new Error('the response flashed nothing')
 
   const unsigned = app.unsignCookie(String(cookie.value))
-  const flash: unknown = JSON.parse(unsigned.value ?? '{}')
-  const link = (flash as { debugMagicLink?: string }).debugMagicLink
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
+  const link = flash.debugMagicLink
 
   if (link === undefined) throw new Error('the flash carries no magic link')
 

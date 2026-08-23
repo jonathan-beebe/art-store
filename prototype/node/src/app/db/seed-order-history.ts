@@ -4,7 +4,7 @@ import { confirmDelivered } from '../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../actions/fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../actions/escrow/run-weekly-payout.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
-import { placeOrder } from '../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import { fixedClock } from '../clock.ts'
 import type { Purchaser } from '../core/orders/purchaser.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
@@ -95,7 +95,7 @@ async function placeAndPay(
 
   const placingContext: ActionContext = { db, clock: fixedClock(placedAt) }
   await addToCart(placingContext, { cartId: cart.id, listingId, quantity: 1 })
-  const order = await placeOrder(placingContext, { cartId: cart.id, purchaser, shipping: CASEY_SHIPPING })
+  const order = await placeOrderOrThrow(placingContext, { cartId: cart.id, purchaser, shipping: CASEY_SHIPPING })
 
   const finalizingContext: ActionContext = { db, clock: fixedClock(new Date(placedAt.getTime() + FIVE_MINUTES_MS)) }
   return finalizeOrder(finalizingContext, { orderId: order.id, cardNumber: APPROVED_CARD })

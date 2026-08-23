@@ -31,3 +31,23 @@ test('it falls back to a word when the title slugs to nothing', () => {
 test('its base ignores what is already taken', () => {
   assert.equal(slugBase('Harbour at Dusk'), 'harbour-at-dusk')
 })
+
+// Pinned, not fixed: the accent is dropped along with the space around it
+// rather than transliterated (é is outside [a-z0-9] just like punctuation).
+test('an accented letter is dropped, not transliterated', () => {
+  assert.equal(slugBase('Café au Lait'), 'caf-au-lait')
+})
+
+test('a title of all digits slugs to itself', () => {
+  assert.equal(slugBase('12345'), '12345')
+})
+
+test('a collision on the fallback word still counts up', () => {
+  assert.equal(firstFreeSlug('—', ['listing', 'listing-2']), 'listing-3')
+})
+
+test('a slug is not truncated, however long the title', () => {
+  const title = 'a'.repeat(300)
+
+  assert.equal(slugBase(title), title)
+})

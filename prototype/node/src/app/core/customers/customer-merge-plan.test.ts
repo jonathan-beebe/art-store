@@ -80,7 +80,7 @@ test('cart ordering is verified listings first, then anonymous-only listings', (
   )
 })
 
-test('favorites de-duplicate across the two sides', () => {
+test('an anonymous favorite the verified customer does not already have moves', () => {
   const plan = planCustomerMerge({
     verifiedCartLines: [],
     anonymousCartLines: [],
@@ -88,18 +88,43 @@ test('favorites de-duplicate across the two sides', () => {
     anonymousFavoriteListingIds: [2, 3],
     stockByListing: new Map(),
   })
-  assert.deepEqual(plan.favoriteListingIds, [1, 2, 3])
+  assert.deepEqual(plan.favoritesToMove, [3])
+  assert.deepEqual(plan.favoritesToDrop, [2])
 })
 
-test('favorites de-duplicate within one side', () => {
+test('anonymous favorites de-duplicate before moving', () => {
   const plan = planCustomerMerge({
     verifiedCartLines: [],
     anonymousCartLines: [],
-    verifiedFavoriteListingIds: [1, 1, 2],
+    verifiedFavoriteListingIds: [],
+    anonymousFavoriteListingIds: [1, 1, 2],
+    stockByListing: new Map(),
+  })
+  assert.deepEqual(plan.favoritesToMove, [1, 2])
+})
+
+test('a verified customer with no favorites moves every anonymous favorite', () => {
+  const plan = planCustomerMerge({
+    verifiedCartLines: [],
+    anonymousCartLines: [],
+    verifiedFavoriteListingIds: [],
+    anonymousFavoriteListingIds: [1, 2],
+    stockByListing: new Map(),
+  })
+  assert.deepEqual(plan.favoritesToMove, [1, 2])
+  assert.deepEqual(plan.favoritesToDrop, [])
+})
+
+test('an anonymous customer with no favorites moves and drops nothing', () => {
+  const plan = planCustomerMerge({
+    verifiedCartLines: [],
+    anonymousCartLines: [],
+    verifiedFavoriteListingIds: [1, 2],
     anonymousFavoriteListingIds: [],
     stockByListing: new Map(),
   })
-  assert.deepEqual(plan.favoriteListingIds, [1, 2])
+  assert.deepEqual(plan.favoritesToMove, [])
+  assert.deepEqual(plan.favoritesToDrop, [])
 })
 
 test('empty inputs give empty outputs', () => {
@@ -111,5 +136,6 @@ test('empty inputs give empty outputs', () => {
     stockByListing: new Map(),
   })
   assert.deepEqual(plan.cartLines, [])
-  assert.deepEqual(plan.favoriteListingIds, [])
+  assert.deepEqual(plan.favoritesToMove, [])
+  assert.deepEqual(plan.favoritesToDrop, [])
 })

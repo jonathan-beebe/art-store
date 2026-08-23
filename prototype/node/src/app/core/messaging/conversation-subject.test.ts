@@ -3,31 +3,59 @@ import assert from 'node:assert/strict'
 import {
   conversationSubject,
   isSameConversationSubject,
-  missingConversationParts,
   type ConversationSubject,
 } from './conversation-subject.ts'
 
-test('an opening with nothing but a kind fills every other column with null', () => {
-  const subject = conversationSubject({ kind: 'admin_seller' })
+test('an admin_seller opening fills the missing columns with null', () => {
+  const subject = conversationSubject({ kind: 'admin_seller', adminId: 1, sellerId: 2 })
 
   assert.deepEqual(subject, {
     kind: 'admin_seller',
-    sellerId: null,
+    sellerId: 2,
     customerId: null,
-    adminId: null,
+    adminId: 1,
     listingId: null,
     fulfillmentId: null,
   })
 })
 
-test('an opening keeps the columns the caller provided', () => {
-  const subject = conversationSubject({ kind: 'listing_question', sellerId: 1, customerId: 2, listingId: 3 })
+test('an admin_customer opening fills the missing columns with null', () => {
+  const subject = conversationSubject({ kind: 'admin_customer', adminId: 1, customerId: 3 })
 
-  assert.equal(subject.sellerId, 1)
-  assert.equal(subject.customerId, 2)
-  assert.equal(subject.listingId, 3)
-  assert.equal(subject.adminId, null)
-  assert.equal(subject.fulfillmentId, null)
+  assert.deepEqual(subject, {
+    kind: 'admin_customer',
+    sellerId: null,
+    customerId: 3,
+    adminId: 1,
+    listingId: null,
+    fulfillmentId: null,
+  })
+})
+
+test('a fulfillment opening keeps both participants and the fulfillment column', () => {
+  const subject = conversationSubject({ kind: 'fulfillment', sellerId: 1, customerId: 2, fulfillmentId: 9 })
+
+  assert.deepEqual(subject, {
+    kind: 'fulfillment',
+    sellerId: 1,
+    customerId: 2,
+    adminId: null,
+    listingId: null,
+    fulfillmentId: 9,
+  })
+})
+
+test('a listing_question opening keeps both participants and the listing column', () => {
+  const subject = conversationSubject({ kind: 'listing_question', sellerId: 1, customerId: 2, listingId: 7 })
+
+  assert.deepEqual(subject, {
+    kind: 'listing_question',
+    sellerId: 1,
+    customerId: 2,
+    adminId: null,
+    listingId: 7,
+    fulfillmentId: null,
+  })
 })
 
 function subject(overrides: Partial<ConversationSubject> = {}): ConversationSubject {
@@ -41,34 +69,6 @@ function subject(overrides: Partial<ConversationSubject> = {}): ConversationSubj
     ...overrides,
   }
 }
-
-test('a complete listing_question subject is missing nothing', () => {
-  const parts = missingConversationParts(subject({ sellerId: 1, customerId: 2, listingId: 3 }))
-  assert.deepEqual(parts, [])
-})
-
-test('missing parts for listing_question list participants then the subject column', () => {
-  const parts = missingConversationParts(subject())
-  assert.deepEqual(parts, ['sellerId', 'customerId', 'listingId'])
-})
-
-test('missing parts for fulfillment name the fulfillment column', () => {
-  const parts = missingConversationParts(subject({ kind: 'fulfillment' }))
-  assert.deepEqual(parts, ['sellerId', 'customerId', 'fulfillmentId'])
-})
-
-test('one filled participant still leaves the other and the subject missing', () => {
-  const parts = missingConversationParts(subject({ sellerId: 1 }))
-  assert.deepEqual(parts, ['customerId', 'listingId'])
-})
-
-test('the two admin kinds need no subject column', () => {
-  const complete = missingConversationParts(subject({ kind: 'admin_seller', adminId: 1, sellerId: 2 }))
-  assert.deepEqual(complete, [])
-
-  const incomplete = missingConversationParts(subject({ kind: 'admin_seller' }))
-  assert.deepEqual(incomplete, ['adminId', 'sellerId'])
-})
 
 test('same kind and same columns is the same subject', () => {
   const a = subject({ sellerId: 1, customerId: 2, listingId: 3 })

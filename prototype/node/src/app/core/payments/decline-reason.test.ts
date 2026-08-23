@@ -21,7 +21,3 @@ test('generic decline says so', () => {
 test('an invalid card number says so', () => {
   assert.equal(declineMessage('invalid_card_number'), 'That card number is not valid.')
 })
-
-test('it refuses a reason it does not know', () => {
-  assert.throws(() => declineMessage('stolen_card' as never))
-})

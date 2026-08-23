@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
 import { listArtwork, removeListing } from '../storefront-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 test('the storefront home page renders in the storefront layout', async (t) => {
   const { app, close } = await buildTestApp()
@@ -34,7 +35,7 @@ test('the grid shows art for sale with its picture, shop, and price', async (t) 
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp, 'ada@example.test')
-  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: 24_000 })
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: cents(24_000) })
 
   const response = await testApp.app.inject({ method: 'GET', url: '/' })
 
@@ -144,4 +145,20 @@ test('a page past the end lands on the last page that exists', async (t) => {
 
   assert.match(response.body, /Page 1 of 1/)
   assert.match(response.body, /Harbour at dusk/)
+})
+
+test('a pagination link repeats the search that led to it', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  for (let number = 1; number <= 13; number += 1) {
+    await listArtwork(testApp, { sellerId: seller.id, title: `Harbour study ${number}`, medium: 'Oil on canvas' })
+  }
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/?q=harbour&medium=${encodeURIComponent('Oil on canvas')}`,
+  })
+
+  assert.match(response.body, /href="\/\?q=harbour&amp;medium=Oil%20on%20canvas&amp;page=2"/)
 })

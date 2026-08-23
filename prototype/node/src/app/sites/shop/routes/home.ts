@@ -1,7 +1,7 @@
-import type { FastifyPluginCallback } from 'fastify'
 import { z } from 'zod'
 import { listingPage } from '../../../core/shop/listing-page.ts'
-import { parseListingSearch } from '../../../core/shop/listing-search.ts'
+import { filterQuery, parseListingSearch } from '../../../core/shop/listing-search.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import {
   countStorefrontListings,
   findStorefrontListings,
@@ -12,15 +12,15 @@ import { shopPage } from '../shop-page.ts'
 // Three across on a wide screen, four rows deep.
 const LISTINGS_PER_PAGE = 12
 
-const query = z.object({
+const searchQuery = z.object({
   q: z.string().optional(),
   medium: z.string().optional(),
   page: z.string().optional(),
 })
 
-export const homeRoutes: FastifyPluginCallback = (shop, _options, done) => {
-  shop.get('/', async (request, reply) => {
-    const asked = query.safeParse(request.query).data ?? {}
+export const homeRoutes: ZodRoutes = (shop, _options, done) => {
+  shop.get('/', { schema: { querystring: searchQuery } }, async (request, reply) => {
+    const asked = request.query
     const search = parseListingSearch({ term: asked.q, medium: asked.medium })
     const page = listingPage({
       requested: asked.page,
@@ -34,6 +34,7 @@ export const homeRoutes: FastifyPluginCallback = (shop, _options, done) => {
         title: search.term === null ? 'Original art' : `Art matching “${search.term}”`,
         searchTerm: search.term ?? '',
         search,
+        filterQuery: filterQuery(search),
         page,
         listings: await findStorefrontListings(shop.db, { search, page }),
         media: await findStorefrontMedia(shop.db),

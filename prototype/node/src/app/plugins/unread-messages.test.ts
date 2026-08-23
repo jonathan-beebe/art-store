@@ -15,7 +15,7 @@ import {
 async function messageFromAdmin(
   testApp: TestApp,
   adminId: number,
-  opening: { kind: 'admin_seller' | 'admin_customer'; sellerId?: number; customerId?: number },
+  opening: { kind: 'admin_seller'; sellerId: number } | { kind: 'admin_customer'; customerId: number },
 ): Promise<void> {
   const context = { db: testApp.db, clock: testApp.clock }
   const conversation = await openConversation(context, { ...opening, adminId })

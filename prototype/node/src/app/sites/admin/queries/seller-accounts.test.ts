@@ -143,7 +143,7 @@ test('a payout total that does not match the ledger does not reconcile', async (
   assert.equal(account?.reconciles, false)
 })
 
-test('sellerOptions names a seller by shop name and falls back to email', async (t) => {
+test('sellerOptions names a seller by shop name and falls back to the address before the @', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
 
@@ -165,5 +165,28 @@ test('sellerOptions names a seller by shop name and falls back to email', async 
   const byId = new Map(options.map((option) => [option.id, option.name]))
 
   assert.equal(byId.get(namedId), 'Blue Kiln Studio')
-  assert.equal(byId.get(unnamedId), 'unnamed@example.test')
+  assert.equal(byId.get(unnamedId), 'unnamed')
+})
+
+test('sellerOptions falls back to the address before the @, not a blank shop name itself', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await world.db
+    .insertInto('sellers')
+    .values({
+      email: 'blank-name@example.test',
+      name: null,
+      shopName: '   ',
+      emailVerifiedAt: null,
+      createdAt: '2026-08-20T09:00:00.000Z',
+    })
+    .returning('id')
+    .executeTakeFirstOrThrow()
+    .then((row) => row.id)
+
+  const options = await sellerOptions(world.context)
+  const byId = new Map(options.map((option) => [option.id, option.name]))
+
+  assert.equal(byId.get(sellerId), 'blank-name')
 })

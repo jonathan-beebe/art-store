@@ -3,7 +3,9 @@
 A three-sided art marketplace prototype: a seller portal at `/seller`, a
 customer storefront at `/`, an admin site at `/admin`, and a messaging centre
 that spans all three. One Node deployable, one SQLite file, server-rendered
-HTML, no client-side JavaScript.
+HTML. Every flow works with JavaScript off; the only script on any page is 21
+dependency-free lines that move the unread-message badge over a server-sent
+event stream.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it
 is the spec for layers, naming, routes, and testing conventions.
@@ -12,8 +14,8 @@ route and test that prove it, and lists what is missing.
 
 ## Prerequisites
 
-Docker Desktop. Nothing else: Node 24, npm, TypeScript, SQLite, and the
-Tailwind CLI live in the `app` container. Nothing is installed on the host,
+Docker Desktop. Nothing else: Node 24 (SQLite included), npm, TypeScript,
+and the Tailwind CLI live in the `app` container. Nothing is installed on the host,
 and every command runs in the container.
 
 ## First run
@@ -30,8 +32,13 @@ the Tailwind stylesheet with `npm run assets`, then starts the server with
 `node --watch app/server.ts`.
 
 Measured from an empty tree — no `src/node_modules`, no SQLite file, no
-`src/public/app.css`: `make build` took 14 seconds and `make up` another 13,
-of which `npm ci` was 9. Add the one-time pull of `node:24-bookworm-slim` on a
+`src/public/app.css`: `make build` and `make up` together took **29 seconds**
+to the healthcheck reporting `healthy`, inside which `npm ci`
+installed 230 packages (of the 260 in the lockfile; the rest are
+platform-specific optional binaries npm skips), eleven migrations applied from nothing, the seed wrote
+2 admins, 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
+4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
+`public/app.css`. Add the one-time pull of `node:24.19.0-bookworm-slim` on a
 machine that has never seen it. Later runs take seconds, because
 `src/node_modules` lives in the bind mount and survives `make down`.
 
@@ -48,14 +55,121 @@ Then open:
 `src/app/config.ts` parses these from the environment; `docker-compose.yml`
 sets `HOST` and `PORT` for the container.
 
-| Variable | Default |
+| Variable | Default | What it decides |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | One of `development`, `test`, `production`. Production is the strict boot: the two rules below, plus `Secure` cookies. |
+| `HOST` | `0.0.0.0` | The interface the server binds. |
+| `PORT` | `4000` | The port it listens on. |
+| `DATABASE_FILE` | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`. |
+| `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
+| `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
+| `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
+| `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
+| `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
+| `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
+
+Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
+`https:` origin — there is no separate switch for it.
+
+A production boot refuses to start rather than run unsafely: without
+`COOKIE_SECRET` (a shared default makes an admin cookie forgeable), and with
+`MAGIC_LINK_DELIVERY=flash` (it prints sign-in links into the page that asked
+for one). Both throw from `loadConfig` with the reason.
+
+## Security headers
+
+`app/plugins/security-headers.ts` adds one `onSend` hook at the root, so a
+page, the JSON health check, an uploaded file, and a 404 all answer with the
+same set:
+
+| Header | Value |
 | --- | --- |
-| `HOST` | `0.0.0.0` |
-| `PORT` | `4000` |
-| `DATABASE_FILE` | `storage/development.sqlite3` |
-| `COOKIE_SECRET` | a development default (minimum 16 characters) |
-| `LOG_LEVEL` | `info` |
-| `MAGIC_LINK_DELIVERY` | `flash` (`mail` throws `NotImplementedError`) |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `DENY` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'` |
+
+`data:` is in `img-src` for the generated SVG placeholder a listing with no
+photograph renders inline. No page has a script tag or an inline style, so
+nothing else needs a relaxation.
+
+## Health
+
+`GET /health` answers 200 only when the database responds and no migration
+is pending; 503 with `status: "unavailable"` otherwise, and 503 with
+`status: "draining"` once a SIGINT or SIGTERM has told the instance to stop
+taking traffic.
+
+```json
+{
+  "status": "ok",
+  "checks": { "database": "ok", "migrations": "current" },
+  "uptimeSeconds": 42
+}
+```
+
+`docker-compose.yml`'s `healthcheck:` polls it with `node -e` and `fetch` —
+the image has no `curl`. A SIGTERM (`docker compose stop`, or an
+orchestrator taking the container out of rotation) logs, flips `/health` to
+`draining`, waits for in-flight requests to finish, closes the database, and
+force-exits after 10 seconds if `close()` hangs.
+
+## Deployment
+
+`Dockerfile` has three targets. `dev` is today's bind-mount workflow — `make
+build` and `make up` build this target, unchanged. `build` installs every
+dependency once and compiles the Tailwind stylesheet at image build time
+rather than at container start. `runtime` is the production image:
+`npm ci --omit=dev`, `app/` and the built `public/app.css` copied in (no
+bind mount), `NODE_ENV=production`, `USER node`, and a `HEALTHCHECK` against
+`/health`.
+
+Build it:
+
+```sh
+make image
+```
+
+Equivalent to `docker build --target runtime -t art-store-node .` from
+`prototype/node`. On `node:24.19.0-bookworm-slim` with 87 production
+packages (dev-only packages — eslint, typescript, typescript-eslint, the
+Tailwind CLI — never enter the image), the result is 289MB.
+
+The image has no entrypoint and does not seed. Migrate explicitly before the
+first run:
+
+```sh
+docker run --rm \
+  -v art-store-storage:/var/www/src/storage \
+  -e COOKIE_SECRET=<32+ random bytes> \
+  art-store-node node app/db/migrate.ts
+```
+
+Then run it:
+
+```sh
+make run-image
+```
+
+Equivalent to
+`docker run --rm -p 4100:4000 art-store-node` (port 4100, so it never
+collides with `make up`'s 4000). Mount both declared volumes to persist
+state across restarts — `storage` (the SQLite file, `DATABASE_FILE` defaults
+to `storage/production.sqlite3` inside the image) and `public/uploads`
+(`UPLOADS_DIR`, listing images) — or every restart starts from an empty
+database and an empty upload directory:
+
+```sh
+docker run --rm -p 4100:4000 \
+  -v art-store-storage:/var/www/src/storage \
+  -v art-store-uploads:/var/www/src/public/uploads \
+  -e COOKIE_SECRET=<32+ random bytes> \
+  art-store-node
+```
+
+See Configuration above for every variable `app/config.ts` reads;
+`COOKIE_SECRET` is the one worth setting explicitly outside development.
 
 ## Seeded accounts
 
@@ -65,7 +179,9 @@ actions the sites call, with a frozen clock so the dates read the same on any
 day. The demo half refuses to run twice: it does nothing once a seller row
 exists, so a second `make seed` (or the one `make fresh` runs for you) only
 confirms the admins are still there. Sign in as any address below from that
-site's `/login` page — the debug alert prints the magic link.
+site's `/login` page: with the default `MAGIC_LINK_DELIVERY=flash` the debug
+alert prints the link on the page that asked; with `outbox` it waits on
+`/admin/outbox`.
 
 **Admins** — seeded only, never created by signing in.
 
@@ -110,11 +226,15 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
 | `make coverage` | `docker compose run --rm app npm run coverage` |
 | `make docs-check` | `./docker/docs-check.sh` |
+| `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
-| `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
+| `make fresh` | `docker compose stop app`, then `npm run fresh`, then `npm run seed`, then `docker compose start app` |
 | `make seed` | `docker compose run --rm app npm run seed` |
 | `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
+| `make outbox` | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))` |
 | `make logs` | `docker compose logs -f` |
+| `make image` | `docker build --target runtime -t art-store-node .` |
+| `make run-image` | `docker run --rm -p 4100:4000 art-store-node` |
 
 The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
 reads to run the container as that user, so files the container writes into
@@ -124,12 +244,18 @@ export needs `--user "$(id -u):$(id -g)"`.
 `make docs-check` renders every Mermaid block under `docs/` through
 `minlag/mermaid-cli` in Docker and fails on any diagram that does not parse.
 
+`make routes` prints every route the app answers and the plugin tree they hang
+in, from Fastify's own introspection (`printRoutes` then `printPlugins`) rather
+than from a table someone keeps up to date.
+
 ## Tests
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
 `node:assert/strict` — no test framework is installed. `make test` runs
-`npm run check`: `tsc --noEmit`, then eslint (`complexity` max 8, `max-depth`
-max 3), then `node --test 'app/**/*.test.ts'`.
+`npm run check`: `tsc --noEmit`, then eslint (`recommendedTypeChecked`,
+`complexity` max 8, `max-depth` max 3), then the coverage-gated suite (see
+Coverage below). `npm test` on its own runs the suite without the coverage
+gate, for a fast local loop.
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -154,12 +280,29 @@ docker compose run --rm app node --test --test-name-pattern="percent" app/core/m
 make coverage
 ```
 
-Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=90 --test-coverage-branches=80 'app/**/*.test.ts'`,
-printing Node's own coverage table and failing under 90% lines / 80% branches.
+Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 'app/**/*.test.ts'`,
+printing Node's own coverage table and failing under 95% lines / 90% branches.
 
-The suite stands at 1,161 tests and 99.42% lines / 95.23% branches / 98.85%
+The suite stands at 1,536 tests and 99.57% lines / 97.22% branches / 99.47%
 functions. What is left uncovered is migration `down()` bodies and a handful of
 defensive branches.
+
+`node:test` itself is stable. `--experimental-test-coverage` and the
+`--test-coverage-lines`/`--test-coverage-branches` threshold flags it enables
+are still Node's own Stability 1 (Experimental) — the platform's own test
+runner gates the build, but that gate is built on an experimental flag, not a
+stable one.
+
+## CI
+
+[`.github/workflows/node.yml`](../../.github/workflows/node.yml) runs on
+every push to `main` and every pull request touching `prototype/node/**`: it
+installs on Node 24, builds the Tailwind stylesheet the smoke test serves, then
+runs `npm run typecheck`, `npm run lint`, and `npm run test:ci` as three steps,
+and uploads `coverage/lcov.info` as a build artifact. Those are the same three
+things `npm run check` runs locally — spelled out so a failure names itself in
+the job list, and with `test:ci` in place of `coverage` because it writes the
+lcov report the upload needs. The suite runs once.
 
 ## Smoke
 
@@ -168,29 +311,55 @@ make smoke
 ```
 
 `app/test/smoke.test.ts` walks the whole product over HTTP, and `make test`
-includes it: a seller signs in by magic link and lists a piece; a fresh
-anonymous visitor views, favorites, and carts it, checks out as a guest,
+includes it: all three sites serve their own layout off one stylesheet and
+`/health` answers its JSON; a seller signs in by magic link and lists a piece; a
+fresh anonymous visitor views, favorites, and carts it, checks out as a guest,
 verifies the address from the debug alert, is declined once, then pays with
 4242; the seller reads the "Item sold" notification and ships; the customer
 confirms delivery; an admin runs the weekly payout and the seller's earnings
 page shows the net; a customer asks a question and the seller publishes the
 answer as an FAQ; an admin removes a listing and it leaves the storefront; an
-admin blocks a customer and checkout refuses. Time is frozen so the payout
-period reads the same whatever day it runs.
+admin blocks a customer and checkout refuses; an admin messages a seller who
+reads it; a sign-in link asked for under outbox delivery is listed on
+`/admin/outbox` and drains to an `.eml` file; and one frame comes off a live
+`/seller/events` stream over a real socket. Time is frozen so the payout period
+reads the same whatever day it runs.
 
 ## Database
 
-SQLite at `src/storage/development.sqlite3`, created on first run.
-Write-ahead logging is on and foreign keys are enforced per connection.
-Kysely reads it through `SqliteDialect` with `CamelCasePlugin`, so
-snake_case columns read as camelCase in TypeScript (`price_cents` →
-`priceCents`).
+SQLite at `src/storage/development.sqlite3`, created on first run. The
+engine is `node:sqlite`, the SQLite built into the Node 24 runtime, so the
+project has no compiled dependency and the image carries no compiler. The
+first migration turns on write-ahead logging.
+
+Kysely reaches it through `app/db/node-sqlite-dialect.ts`, a dialect this
+project owns: one connection, `PRAGMA foreign_keys = ON` and
+`PRAGMA busy_timeout = 5000` set explicitly on open, and transactions that
+begin `IMMEDIATE` so a read-then-write transaction cannot lose its snapshot
+to another process under WAL. `CamelCasePlugin` maps snake_case columns to
+camelCase in TypeScript (`price_cents` → `priceCents`).
+
+`node:sqlite` is a release candidate, not stable, and Node before 24.15
+prints an `ExperimentalWarning` on import — the npm scripts and the image
+pass `--disable-warning=ExperimentalWarning` to silence it. The API may
+still change between Node minors. Backing out is one file: point
+`app/db/database.ts` at a compiled driver and Kysely's own `SqliteDialect`
+and delete `node-sqlite-dialect.ts`; nothing else imports `node:sqlite`. That
+would put a compiler toolchain back in the image, which is what taking it out
+bought.
 
 ```sh
 make migrate    # apply pending migrations
 make fresh      # delete the file, rebuild it, seed the admins and demo data, restart the server
 make seed       # add the platform admins and demo data; running it twice adds nobody new
 ```
+
+Every column holding a string union carries a `CHECK` constraint built from the
+same `as const` array TypeScript reads, so a status the union does not admit
+cannot reach the file (`page_view_counts.site` is the one exception — nothing
+but the rollup writes it). Those constraints live in the original `create`
+migrations rather than in later ones, so **a database created before they
+landed is not upgraded by `make migrate` — run `make fresh`.**
 
 Tests run against `:memory:`.
 
@@ -215,10 +384,14 @@ make assets
 ```
 
 Layouts link it as `/app.css`, served by `@fastify/static` from
-`src/public/`. There is no JavaScript bundle and no `<script>` tag in any
-view (zero across all 57 `app/**/*.ejs` templates).
+`src/public/`. There is no JavaScript bundle. Three of the 66
+`app/**/*.ejs` templates carry a `<script>` tag — the three site layouts, each
+loading the same `<script defer src="/app.js">` — and no other template has one.
+Those 21 dependency-free lines subscribe to `<prefix>/events` and rewrite the
+unread-message badge the page already rendered; with JavaScript off the badge is
+the number the page was served with and every other flow is unchanged.
 
-## Magic links and the email hooks
+## Magic links and the outbox
 
 Passwordless for all three actor types — sellers, customers, and admins. A
 link lasts 15 minutes and works once, enforced by the update that consumes
@@ -231,17 +404,60 @@ address either claims that row or folds it into the account that already
 holds the address (carts sum quantities clamped to stock, favorites
 de-duplicate).
 
-Two hooks are where real email would go, and neither is implemented today:
+`MAGIC_LINK_DELIVERY` chooses how the link reaches its reader:
 
-- `mailMagicLinkDelivery` (`app/delivery/mail-magic-link-delivery.ts`,
-  selected by `MAGIC_LINK_DELIVERY=mail`) throws `NotImplementedError` —
-  setting that env var breaks sign-in outright.
-- `NotificationDelivery` (`app/core/notifications/notification-delivery.ts`)
-  is a port type with no implementation anywhere in the tree.
-  `ActionContext.notificationDelivery` is optional and stays `undefined` in
-  the running app, so the prototype's notifications are the `notifications`
-  rows themselves, read from `/seller/notifications` and the storefront's
-  `/account`. `notify` calls the port only when one is supplied.
+| Value | What happens |
+| --- | --- |
+| `flash` | The link comes back in the flash and the debug alert prints it on the page that asked. Development only — a production boot refuses it. |
+| `outbox` | The link is queued in `outbox_messages` and nothing is printed. Read it on `/admin/outbox`, or drain it to a file. |
+
+## Outbox
+
+Two things need to leave the application: sign-in links and notifications.
+Both go through a transactional outbox rather than a mail call at the point
+of the business change.
+
+- The row is written **in the same transaction** as the change that caused
+  it (`notify` writes the inbox row and the outbox row together;
+  `sendMagicLink` writes the link and the outbox row together). A sale that
+  rolls back sends nothing.
+- Nothing leaves the process inside that transaction. `node:sqlite` is one
+  synchronous connection, so an SMTP round trip held inside a transaction would
+  block every other request in the process.
+- **Draining** is a separate step outside any transaction: it renders each
+  pending row as an RFC-5322 message, writes it to
+  `<OUTBOX_DIR>/<id>.eml`, and stamps `delivered_at`.
+
+There is no SMTP. A real transport becomes a third `NotificationDelivery` /
+`MagicLinkDelivery` implementation and no call site changes.
+
+Drain it three ways, all the same code path (`drainOutbox`,
+`app/actions/outbox/drain-outbox.ts`):
+
+```sh
+make outbox                      # or: npm run outbox
+make outbox DIR=/tmp/mail        # or: npm run outbox -- --dir=/tmp/mail
+```
+
+…or the **Drain the outbox** button on `/admin/outbox`.
+
+| Page | Route |
+| --- | --- |
+| Queued messages, newest first, with a Pending/Sent column | `GET /admin/outbox` |
+| One message, rendered as it would be sent, with its link clickable | `GET /admin/outbox/:id` |
+| Drain | `POST /admin/outbox/drain` |
+
+`/admin/outbox/:id` doubles as the mailbox for the demo: with
+`MAGIC_LINK_DELIVERY=outbox` the debug alert is off, and the sign-in link is
+the clickable link on that page.
+
+Message rendering is a pure core function —
+`renderMailMessage` (`app/core/notifications/mail-message.ts`) — taking the
+`Message-ID` and the date as inputs, so it is unit tested against literal
+strings. Headers are `From`, `To`, `Subject`, `Date`, `Message-ID`,
+`MIME-Version`, a `text/plain; charset="utf-8"` content type, and
+`Content-Transfer-Encoding: 8bit`; every line ends CRLF, and a CR or LF inside a header value is folded to a space so
+nothing can open a header of its own.
 
 ## Paying
 
@@ -277,6 +493,7 @@ magic link. The console (everything below `/admin`) sits behind
 | Payouts | `GET /admin/payouts?seller=`, `POST /admin/payouts` |
 | Ledger | `GET /admin/ledger?seller=&type=` |
 | Stats | `GET /admin/stats` |
+| Outbox | `GET /admin/outbox`, `GET /admin/outbox/:id`, `POST /admin/outbox/drain` |
 | Messages | `GET /admin/messages` |
 
 Two moderation tools, both catching a `TransitionError` refusal into a flash:
@@ -347,12 +564,14 @@ properties, no namespaces — use `as const` string unions instead.
 ```
 prototype/node/
   README.md            this file
-  Dockerfile            node:24-bookworm-slim + build tools for better-sqlite3
-  docker-compose.yml    one service: app
+  .dockerignore
+  Dockerfile            node:24.19.0-bookworm-slim, no compiler toolchain;
+                         dev/build/runtime targets — see Deployment
+  docker-compose.yml    one service: app, built from the dev target
   docker/
-    entrypoint.sh        install, migrate, seed, build assets, then the container command
+    entrypoint.sh        dev only: install, migrate, seed, build assets, then the container command
     docs-check.sh        renders every Mermaid block under docs/ through mermaid-cli
-  Makefile               host-side wrappers over docker compose
+  Makefile               host-side wrappers over docker compose, plus image/run-image
   docs/                  architecture.md (the spec) + feature docs + review.md
     README.md, architecture.md, identity.md, orders.md, escrow.md,
     messaging.md, admin.md, data-model.md, ontology.md, review.md
@@ -361,43 +580,59 @@ prototype/node/
   src/                   the Node project
     package.json, package-lock.json, tsconfig.json, eslint.config.js
     app/
-      server.ts          entry: loads config, opens the database, listens
+      server.ts          entry: loads config, opens the database, listens,
+                           drains on SIGINT/SIGTERM
       app.ts              buildApp(deps): composition root
       config.ts           env -> typed config
+      logging.ts          logger options, request id, redacting serializers
       clock.ts             systemClock and fixedClock
-      not-implemented-error.ts
       core/                functional core, sidecar tests, no I/O:
                            analytics/, auth/, cart/, customers/, escrow/,
-                           listings/, messaging/, moderation/, notifications/,
-                           orders/, payments/, reports/, shop/, money.ts,
-                           transition-error.ts
+                           health/, listings/, messaging/, moderation/,
+                           notifications/, orders/, payments/, reports/, shop/,
+                           money.ts, status-label.ts, transition-error.ts
       actions/             verbs over ActionContext, one folder per concept:
                            analytics/, auth/, carts/, customers/, escrow/,
                            favorites/, fulfillments/, listings/, messaging/,
-                           moderation/, notifications/, orders/,
+                           moderation/, notifications/, orders/, outbox/,
                            action-context.ts, transaction.ts
-      db/                  database.ts, migrator.ts, migrate.ts, schema.ts,
-                           commerce-schema.ts, timestamp.ts, migrations/,
+      db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
+                           migrate.ts, schema.ts, commerce-schema.ts, count.ts,
+                           timestamp.ts, migrations/,
                            seed.ts + seed-admins/catalog/sellers/customers/
                            order-history/messaging/page-views/demo-data.ts
-      delivery/            MagicLinkDelivery port + flash and mail implementations
-      plugins/             flash.ts, form-body.ts, identity.ts, page-views.ts,
-                           site-render.ts, unread-messages.ts
-      sites/               shop/, seller/, admin/, auth/ — each a plugin with
-                           routes/, views/, and (except auth) queries/
-      views/partials/      debug-alert.ejs, flash.ejs
-      cli/                 run-payouts.ts, parse-as-of.ts
-      test/                build-test-app.ts, commerce-world.ts, smoke.test.ts
+      delivery/            MagicLinkDelivery + NotificationDelivery ports,
+                           delivery-context.ts, the flash and outbox
+                           implementations, outbox-message.ts
+      http/                zod-type-provider.ts (the validator compiler),
+                           request-schema.ts (idParams, slugParams,
+                           optionalFilter, submittedForm)
+      plugins/             error-pages.ts, events.ts, flash.ts, health.ts,
+                           identity.ts, page-views.ts, root-plugin.ts,
+                           security-headers.ts, site-render.ts,
+                           unread-messages.ts
+      sites/               shop/, seller/, admin/ — each a plugin with routes/,
+                           views/, queries/; auth/ is three flat files
+                           (index.ts, sign-in-routes.ts, request-origin.ts)
+      views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
+                           unread-badge.ejs
+      cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
+                           parse-as-of.ts
+      test/                build-test-app.ts, commerce-world.ts, log-lines.ts,
+                           smoke.test.ts
       assets/app.css       Tailwind source
-    public/                app.css (built, not committed), uploads/
-    storage/               development.sqlite3 (not committed)
+    public/                app.css (built, not committed), app.js, uploads/
+    storage/               development.sqlite3 and outbox/ (neither committed)
 ```
 
 ## Known gaps
 
-Email is unimplemented on both delivery ports. Seeded listings show
-procedurally generated SVG placeholders rather than photographs. Shipment
-tracking is two free-text fields (carrier, tracking number) with no carrier
-integration — the customer confirms their own delivery. See
+Delivery stops at a file on disk: both ports queue to the outbox and the drain
+writes `.eml` files, but there is no SMTP. Seeded listings show procedurally
+generated SVG placeholders rather than photographs. Shipment tracking is two
+free-text fields (carrier, tracking number) with no carrier integration — the
+customer confirms their own delivery. Support threads are all routed to the
+first admin by id; there is no assignment model. Messages carry no attachments
+and no archive. The storefront's 404 page renders signed-out whoever asks. See
 [`docs/review.md`](docs/review.md) for the full numbered list of gaps and
 suggested next steps.

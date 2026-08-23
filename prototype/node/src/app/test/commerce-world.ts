@@ -2,7 +2,7 @@ import type { ActionContext } from '../actions/action-context.ts'
 import { addToCart } from '../actions/carts/add-to-cart.ts'
 import { currentCart } from '../actions/carts/current-cart.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
-import { placeOrder } from '../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import type { Clock } from '../clock.ts'
 import type { ListingStatus } from '../core/listings/listing-status.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
@@ -29,13 +29,13 @@ export const SHIPPING_ADDRESS: ShippingAddress = {
 }
 
 /** A clock a test moves by hand, so one test can walk days of a lifecycle. */
-export type TravellingClock = Clock & { travelTo(instant: Date): void }
+export type TravellingClock = Clock & { travelTo: (instant: Date) => void }
 
 export type CommerceWorld = {
   context: ActionContext
   db: AppDatabase
-  travelTo(instant: Date): void
-  close(): Promise<void>
+  travelTo: (instant: Date) => void
+  close: () => Promise<void>
 }
 
 /**
@@ -185,7 +185,7 @@ export async function placedOrder(
 ): Promise<Order> {
   const cartId = await cartHolding(context, customerId, listingIds)
 
-  return placeOrder(context, {
+  return placeOrderOrThrow(context, {
     cartId,
     purchaser: {
       id: customerId,

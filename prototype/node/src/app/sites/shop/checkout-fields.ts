@@ -29,3 +29,19 @@ export function shippingFromForm(
 ): Partial<Record<keyof ShippingAddress, string>> {
   return Object.fromEntries(SHIPPING_FIELDS.map((field) => [field.part, submitted[field.name]]))
 }
+
+/** What the email field is called when checkout's own worded list of missing
+ * parts names it — the one missing part with no `ShippingField` behind it. */
+const EMAIL_FIELD_LABEL = 'Email address'
+
+/** `parseCheckoutForm`'s missing parts, worded the way the page shows them
+ * back: each shipping part by its field label, `email` by its own. */
+export function missingFieldLabels(missingParts: readonly string[]): readonly string[] {
+  return missingParts.map((part) => {
+    if (part === 'email') return EMAIL_FIELD_LABEL
+
+    const field = SHIPPING_FIELDS.find((candidate) => candidate.part === part)
+
+    return field ? field.label : part
+  })
+}

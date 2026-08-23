@@ -7,6 +7,13 @@ export type SiteRenderOptions = {
   layout: string
 }
 
+/** One site's pages, rendered onto any reply the app holds. */
+export type SitePageRenderer = (
+  reply: FastifyReply,
+  page: string,
+  data?: Record<string, unknown>,
+) => FastifyReply
+
 declare module 'fastify' {
   interface FastifyReply {
     render(page: string, data?: Record<string, unknown>): FastifyReply
@@ -16,27 +23,39 @@ declare module 'fastify' {
 /**
  * Gives one site a `reply.render(page)` that finds the page among that site's
  * templates, wraps it in that site's layout, and hands every layout the flash,
- * the request's identity, and what is waiting in the messages inbox — so a
- * route reads as one line, and no route can forget the debug alert, the
- * header's sign-in state, or its unread count.
+ * the request's identity, what is waiting in the messages inbox, and whether
+ * this deployment prints sign-in links into the page — so a route reads as one
+ * line, and no route can forget the debug alert, the header's sign-in state,
+ * or its unread count.
  *
  * Called inside a site plugin, never at the root: each site needs its own
  * layout, and Fastify keeps the decorator inside the context that added it.
+ * The renderer it returns is the same page-writing for a reply that never
+ * reached this site's routes and so carries no `render` of its own.
  */
-export function addSiteRender(site: FastifyInstance, options: SiteRenderOptions): void {
+export function addSiteRender(
+  site: FastifyInstance,
+  options: SiteRenderOptions,
+): SitePageRenderer {
+  const renderPage: SitePageRenderer = (reply, page, data = {}) =>
+    reply.view(
+      `${options.pages}/${page}`,
+      {
+        ...data,
+        flash: reply.takeFlash(),
+        identity: reply.request.identity,
+        unreadMessageCount: reply.request.unreadMessageCount,
+        showsDebugMagicLinks: reply.server.config.showsDebugMagicLinks,
+      },
+      { layout: options.layout },
+    )
+
   site.decorateReply(
     'render',
     function (this: FastifyReply, page: string, data: Record<string, unknown> = {}) {
-      return this.view(
-        `${options.pages}/${page}`,
-        {
-          ...data,
-          flash: this.takeFlash(),
-          identity: this.request.identity,
-          unreadMessageCount: this.request.unreadMessageCount,
-        },
-        { layout: options.layout },
-      )
+      return renderPage(this, page, data)
     },
   )
+
+  return renderPage
 }

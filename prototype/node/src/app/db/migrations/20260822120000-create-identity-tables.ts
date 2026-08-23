@@ -1,4 +1,5 @@
-import type { Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
+import { ACTOR_TYPES } from '../../core/auth/actor-type.ts'
 
 /**
  * The five tables identity runs on. Timestamps are ISO-8601 UTC text, which
@@ -47,7 +48,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
     .addColumn('token_digest', 'text', (column) => column.notNull())
     .addColumn('email', 'text', (column) => column.notNull())
-    .addColumn('actor_type', 'text', (column) => column.notNull())
+    .addColumn('actor_type', 'text', (column) =>
+      column.notNull().check(sql`actor_type in (${sql.join(ACTOR_TYPES.map((type) => sql.lit(type)))})`),
+    )
     .addColumn('redirect_to', 'text')
     .addColumn('expires_at', 'text', (column) => column.notNull())
     .addColumn('consumed_at', 'text')

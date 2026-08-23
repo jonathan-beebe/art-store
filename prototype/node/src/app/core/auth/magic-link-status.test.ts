@@ -1,9 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { magicLinkStatus, magicLinkExpiresAt } from './magic-link-status.ts'
+import { MAGIC_LINK_STATUSES, magicLinkStatus, magicLinkExpiresAt } from './magic-link-status.ts'
 
 const issuedAt = new Date('2026-08-22T12:00:00.000Z')
 const expiresAt = new Date('2026-08-22T12:15:00.000Z')
+
+test('MAGIC_LINK_STATUSES names every status', () => {
+  assert.deepEqual(MAGIC_LINK_STATUSES, ['usable', 'expired', 'consumed'])
+})
 
 test('a fresh, unconsumed link is usable', () => {
   const now = new Date('2026-08-22T12:05:00.000Z')

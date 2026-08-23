@@ -37,10 +37,8 @@ export async function orderRows(
 
   const orders = await query.execute()
   const orderIds = orders.map((order) => order.id)
-  const [itemCounts, fulfillmentStatuses] = await Promise.all([
-    itemCountsByOrder(db, orderIds),
-    fulfillmentStatusesByOrder(db, orderIds),
-  ])
+  const itemCounts = await itemCountsByOrder(db, orderIds)
+  const fulfillmentStatuses = await fulfillmentStatusesByOrder(db, orderIds)
 
   return orders.map((order) => ({
     id: order.id,

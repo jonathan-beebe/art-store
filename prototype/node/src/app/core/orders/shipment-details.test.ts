@@ -1,36 +1,48 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseShipmentDetails, isShipmentComplete } from './shipment-details.ts'
+import { parseShipmentDetails } from './shipment-details.ts'
 
-test('a carrier and a tracking number are complete', () => {
-  const details = parseShipmentDetails({ carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' })
+test('a carrier and a tracking number parse into a shipment', () => {
+  const parsed = parseShipmentDetails({ carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' })
 
-  assert.equal(isShipmentComplete(details), true)
+  assert.equal(parsed.ok, true)
+  if (!parsed.ok) return
+  assert.equal(parsed.value.carrier, 'Royal Mail')
+  assert.equal(parsed.value.trackingNumber, 'RM123456789GB')
 })
 
 test('surrounding space is not part of either field', () => {
-  const details = parseShipmentDetails({ carrier: '  Royal Mail  ', trackingNumber: '  RM123456789GB  ' })
+  const parsed = parseShipmentDetails({ carrier: '  Royal Mail  ', trackingNumber: '  RM123456789GB  ' })
 
-  assert.equal(details.carrier, 'Royal Mail')
-  assert.equal(details.trackingNumber, 'RM123456789GB')
+  assert.equal(parsed.ok, true)
+  if (!parsed.ok) return
+  assert.equal(parsed.value.carrier, 'Royal Mail')
+  assert.equal(parsed.value.trackingNumber, 'RM123456789GB')
 })
 
-test('a shipment with no carrier is incomplete', () => {
-  const details = parseShipmentDetails({ carrier: ' ', trackingNumber: 'RM123456789GB' })
+test('a shipment with no carrier is refused', () => {
+  const parsed = parseShipmentDetails({ carrier: ' ', trackingNumber: 'RM123456789GB' })
 
-  assert.equal(isShipmentComplete(details), false)
+  assert.equal(parsed.ok, false)
+  if (parsed.ok) return
+  assert.deepEqual(parsed.errors, { carrier: 'Enter the carrier.' })
 })
 
-test('a shipment with no tracking number is incomplete', () => {
-  const details = parseShipmentDetails({ carrier: 'Royal Mail', trackingNumber: '' })
+test('a shipment with no tracking number is refused', () => {
+  const parsed = parseShipmentDetails({ carrier: 'Royal Mail', trackingNumber: '' })
 
-  assert.equal(isShipmentComplete(details), false)
+  assert.equal(parsed.ok, false)
+  if (parsed.ok) return
+  assert.deepEqual(parsed.errors, { trackingNumber: 'Enter the tracking number.' })
 })
 
-test('a missing field is incomplete rather than an error', () => {
-  const details = parseShipmentDetails({ carrier: null, trackingNumber: null })
+test('a missing field is an error rather than a blank shipment', () => {
+  const parsed = parseShipmentDetails({ carrier: null, trackingNumber: null })
 
-  assert.equal(isShipmentComplete(details), false)
-  assert.equal(details.carrier, '')
-  assert.equal(details.trackingNumber, '')
+  assert.equal(parsed.ok, false)
+  if (parsed.ok) return
+  assert.deepEqual(parsed.errors, {
+    carrier: 'Enter the carrier.',
+    trackingNumber: 'Enter the tracking number.',
+  })
 })

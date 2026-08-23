@@ -17,9 +17,9 @@ function recordingDelivery(): MagicLinkDelivery & { readonly deliveries: MagicLi
 
   return {
     deliveries,
-    deliver(message: MagicLinkMessage): Flash {
+    deliver(_context, message: MagicLinkMessage): Promise<Flash> {
       deliveries.push(message)
-      return { debugMagicLink: message.url }
+      return Promise.resolve({ debugMagicLink: message.url })
     },
   }
 }

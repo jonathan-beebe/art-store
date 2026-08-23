@@ -1,17 +1,22 @@
+import {
+  parseNotificationRow,
+  type ParsedNotification,
+} from '../../../actions/notifications/notification-recipient.ts'
 import type { AppDatabase } from '../../../db/database.ts'
-import type { Notification } from '../../../db/commerce-schema.ts'
 
 /** A customer's own notifications, most recent first. */
 export async function findCustomerNotifications(
   db: AppDatabase,
   customerId: number,
-): Promise<readonly Notification[]> {
-  return db
+): Promise<readonly ParsedNotification[]> {
+  const rows = await db
     .selectFrom('notifications')
     .selectAll()
     .where('customerId', '=', customerId)
     .orderBy('id', 'desc')
     .execute()
+
+  return rows.map(parseNotificationRow)
 }
 
 /** One notification, read as its own recipient: another customer's comes back
@@ -19,7 +24,7 @@ export async function findCustomerNotifications(
 export async function findCustomerNotification(
   db: AppDatabase,
   input: { id: number; customerId: number },
-): Promise<Notification | null> {
+): Promise<ParsedNotification | null> {
   const notification = await db
     .selectFrom('notifications')
     .selectAll()
@@ -27,5 +32,5 @@ export async function findCustomerNotification(
     .where('customerId', '=', input.customerId)
     .executeTakeFirst()
 
-  return notification ?? null
+  return notification === undefined ? null : parseNotificationRow(notification)
 }

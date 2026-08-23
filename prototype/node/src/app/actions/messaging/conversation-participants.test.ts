@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { counterpartName, participantNames, senderName } from './conversation-participants.ts'
+import { participantNames } from './conversation-participants.ts'
 import { openConversation } from './open-conversation.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
@@ -10,9 +10,11 @@ import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
+import { counterpartName, senderName } from '../../core/messaging/participant-name.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
+import { cents } from '../../core/money.ts'
 
 const NOW = new Date('2026-08-22T10:00:00.000Z')
 
@@ -21,7 +23,7 @@ const DEFAULT_DRAFT: ListingDraft = {
   description: 'Oil on canvas.',
   medium: 'Oil',
   dimensions: '40 x 60 cm',
-  priceCents: 45_000,
+  priceCents: cents(45_000),
   quantity: 2,
 }
 

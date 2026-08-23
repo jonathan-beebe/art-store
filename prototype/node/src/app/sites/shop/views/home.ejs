@@ -17,7 +17,7 @@
       >
         <option value="">All media</option>
         <% media.forEach(function (medium) { %>
-        <option value="<%= medium %>" <%= search.medium === medium ? 'selected' : '' %>>
+        <option value="<%= medium %>" <% if (search.medium === medium) { %>selected<% } %>>
           <%= medium %>
         </option>
         <% }) %>
@@ -44,12 +44,11 @@
   <% }) %>
 </ul>
 
-<% const filters = `q=${encodeURIComponent(search.term || '')}&medium=${encodeURIComponent(search.medium || '')}` %>
 <nav aria-label="Pages" class="mt-20 flex items-baseline gap-6 text-sm">
   <% if (!page.isFirst) { %>
   <a
     rel="prev"
-    href="/?<%= filters %>&amp;page=<%= page.previousNumber %>"
+    href="/?<%= filterQuery %>&amp;page=<%= page.previousNumber %>"
     class="underline hover:text-amber-700"
     >Previous</a
   >
@@ -58,7 +57,7 @@
   <% if (!page.isLast) { %>
   <a
     rel="next"
-    href="/?<%= filters %>&amp;page=<%= page.nextNumber %>"
+    href="/?<%= filterQuery %>&amp;page=<%= page.nextNumber %>"
     class="underline hover:text-amber-700"
     >Next</a
   >

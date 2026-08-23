@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage docs-check migrate fresh seed payouts logs
+.PHONY: up down build assets shell test smoke coverage docs-check routes migrate fresh seed payouts outbox logs image run-image
 
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
@@ -20,6 +20,8 @@ assets:
 shell:
 	docker compose run --rm app bash
 
+# `check` now runs the coverage-gated suite, not the fast one, so `make test`
+# also fails under 95% lines / 90% branches.
 test:
 	docker compose run --rm app npm run check
 
@@ -34,18 +36,27 @@ coverage:
 docs-check:
 	./docker/docs-check.sh
 
+# Every route the app answers and the plugin tree they hang in, printed by
+# Fastify's own introspection: the three sites and their prefixes, as the code
+# registers them rather than as a table someone keeps up to date.
+routes:
+	docker compose run --rm app npm run routes
+
 migrate:
 	docker compose run --rm app npm run migrate
 
-# A running server holds the deleted database file open, so it restarts onto the
-# rebuilt one. Restarting a stopped stack does nothing.
+# The app is stopped for the rebuild: a server left running holds the deleted
+# database file open, and every write it makes to that unlinked file is lost.
+# Stopping and starting a stack that was never up does nothing.
 fresh:
+	@docker compose stop app
 	docker compose run --rm app npm run fresh
 	docker compose run --rm app npm run seed
-	@docker compose restart app
+	@docker compose start app
 
-# Adds the platform operators. Nobody else can reach /admin, and running it
-# twice adds nobody.
+# Adds the platform admins and the full demo catalog. Nobody else can reach
+# /admin without the admins; the demo half does nothing once a seller row
+# already exists, so running this twice adds nobody new.
 seed:
 	docker compose run --rm app npm run seed
 
@@ -54,5 +65,22 @@ seed:
 payouts:
 	docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))
 
+# Writes every queued message out as an .eml file under src/storage/outbox and
+# stamps it sent. `make outbox DIR=/somewhere` writes them elsewhere. The
+# admin site's Drain button does the same work.
+outbox:
+	docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))
+
 logs:
 	docker compose logs -f
+
+# Builds the production image (the `runtime` target): no bind mount, production
+# dependencies only, USER node. Run migrations against it before serving —
+# see the README's Deployment section.
+image:
+	docker build --target runtime -t art-store-node .
+
+# Runs the image built by `make image` standalone, on a host port that does not
+# collide with `make up`'s 4000.
+run-image:
+	docker run --rm -p 4100:4000 art-store-node

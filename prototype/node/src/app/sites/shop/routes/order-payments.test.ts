@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
+import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -8,8 +9,10 @@ import {
   signInAsCustomer,
   signInAsSeller,
   takeDebugMagicLink,
+  TEST_CONFIG,
   type TestApp,
 } from '../../../test/build-test-app.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 import {
   APPROVED_CARD,
   DECLINED_CARD,
@@ -33,7 +36,7 @@ async function cartOneArtwork(testApp: TestApp, customerId: number) {
   const listing = await listArtwork(testApp, {
     sellerId: seller.id,
     title: 'Harbour at dusk',
-    priceCents: 24_000,
+    priceCents: cents(24_000),
   })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
 
@@ -266,6 +269,40 @@ test("someone else's order cannot be paid", async (t) => {
   assert.equal(await orderStatus(testApp, order.id), 'awaiting_payment')
 })
 
+test("someone else's pay page is not found", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const stranger = await signInAsCustomer(testApp, 'stranger@example.com')
+  const { cartId } = await cartOneArtwork(testApp, buyer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: buyer.id })
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/orders/${order.id}/pay`,
+    cookies: stranger.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('a bodiless payment is treated as an empty form and declines', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(await orderStatus(testApp, order.id), 'payment_failed')
+})
+
 test('a blocked customer cannot pay and is told why', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -292,6 +329,46 @@ test('a blocked customer cannot pay and is told why', async (t) => {
     cookies: { ...customer.cookies, ...flashFrom(response) },
   })
   assert.match(orderPage.body, /Your account is on hold/)
+})
+
+test('a successful charge logs an order.paid event', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+    payload: { card_number: APPROVED_CARD },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'order.paid')
+  assert.equal(line?.orderId, order.id)
+  assert.equal(line?.amountCents, 24_000)
+})
+
+test('a declined card logs an order.declined event', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { cartId } = await cartOneArtwork(testApp, customer.id)
+  const order = await placeCustomerOrder(testApp, { cartId, customerId: customer.id })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/pay`,
+    cookies: customer.cookies,
+    payload: { card_number: DECLINED_CARD },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'order.declined')
+  assert.equal(line?.orderId, order.id)
+  assert.equal(line?.amountCents, 24_000)
 })
 
 function flashFrom(response: LightMyRequestResponse): Record<string, string> {

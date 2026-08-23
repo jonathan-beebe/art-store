@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely'
-import type { Clock } from '../../clock.ts'
-import type { AppDatabase } from '../../db/database.ts'
 import type { CustomerTable } from '../../db/schema.ts'
+import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
 import { resolveCustomerFromCookie } from './resolve-customer-from-cookie.ts'
 
@@ -12,10 +12,12 @@ import { resolveCustomerFromCookie } from './resolve-customer-from-cookie.ts'
  * link never leaves a customer row behind.
  */
 export async function resolveCurrentCustomer(
-  { db, clock }: { db: AppDatabase; clock: Clock },
-  cookieValue: string | null | undefined,
+  context: ActionContext,
+  cookieId: number | null,
 ): Promise<Selectable<CustomerTable>> {
-  const remembered = await resolveCustomerFromCookie({ db }, cookieValue)
+  return runInTransaction(context, async (transacted) => {
+    const remembered = await resolveCustomerFromCookie(transacted, cookieId)
 
-  return remembered ?? (await createAnonymousCustomer({ db, clock }))
+    return remembered ?? (await createAnonymousCustomer(transacted))
+  })
 }

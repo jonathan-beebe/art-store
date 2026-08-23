@@ -2,14 +2,16 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify, { type FastifyInstance } from 'fastify'
 import fastifyCookie from '@fastify/cookie'
-import { addFlash } from './flash.ts'
+import { TEST_CONFIG } from '../test/build-test-app.ts'
+import { flashCookie } from './flash.ts'
 
 const COOKIE_SECRET = 'flash-test-cookie-secret'
 
-async function buildFlashApp(): Promise<FastifyInstance> {
+async function buildFlashApp(secureCookies = false): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
   await app.register(fastifyCookie, { secret: COOKIE_SECRET })
-  addFlash(app)
+  app.decorate('config', { ...TEST_CONFIG, secureCookies })
+  await app.register(flashCookie)
 
   app.post('/set', (request, reply) => {
     reply.setFlash(request.body as Record<string, string>)
@@ -21,7 +23,7 @@ async function buildFlashApp(): Promise<FastifyInstance> {
   return app
 }
 
-function flashCookie(response: { cookies: Array<{ name: string; value: string }> }): string {
+function flashCookieValue(response: { cookies: Array<{ name: string; value: string }> }): string {
   return response.cookies.find((cookie) => cookie.name === 'flash')?.value ?? ''
 }
 
@@ -37,7 +39,7 @@ test('a flash set on one response is read by the next request', async (t) => {
   const taken = await app.inject({
     method: 'GET',
     url: '/take',
-    cookies: { flash: flashCookie(set) },
+    cookies: { flash: flashCookieValue(set) },
   })
 
   assert.deepEqual(taken.json(), { notice: 'Listing saved' })
@@ -51,10 +53,10 @@ test('reading a flash clears the cookie so it shows once', async (t) => {
   const taken = await app.inject({
     method: 'GET',
     url: '/take',
-    cookies: { flash: flashCookie(set) },
+    cookies: { flash: flashCookieValue(set) },
   })
 
-  assert.equal(flashCookie(taken), '')
+  assert.equal(flashCookieValue(taken), '')
 })
 
 test('a request with no flash cookie reads an empty flash', async (t) => {
@@ -94,6 +96,15 @@ test('a signed cookie holding something other than a flash is ignored', async (t
   })
 
   assert.deepEqual(taken.json(), {})
+})
+
+test('the flash cookie is Secure where the config says the app is served over TLS', async (t) => {
+  const app = await buildFlashApp(true)
+  t.after(() => app.close())
+
+  const set = await app.inject({ method: 'POST', url: '/set', payload: { notice: 'Saved' } })
+
+  assert.equal(set.cookies.find((cookie) => cookie.name === 'flash')?.secure, true)
 })
 
 test('flash keys the schema does not know are dropped', async (t) => {

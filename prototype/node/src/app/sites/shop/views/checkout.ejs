@@ -1,12 +1,22 @@
 <h1 class="text-4xl font-light tracking-tight">Checkout</h1>
 
-<% if (missingParts.length > 0) { %>
+<% if (unavailable.length > 0) { %>
+<div role="alert" class="mt-8 max-w-xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900">
+  <p>Take these out of your cart before placing the order:</p>
+  <ul class="mt-2 list-disc pl-5">
+    <% unavailable.forEach(function (line) { %>
+    <li><%= line.title %> — <%= line.notice %></li>
+    <% }) %>
+  </ul>
+</div>
+<% } %>
+
+<% if (missingFieldLabels.length > 0) { %>
 <div role="alert" class="mt-8 max-w-xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900">
   <p>Fill in the following before placing the order:</p>
   <ul class="mt-2 list-disc pl-5">
-    <% missingParts.forEach(function (part) { %>
-    <% const field = fields.find(function (f) { return f.part === part }) %>
-    <li><%= field ? field.label : 'Email address' %></li>
+    <% missingFieldLabels.forEach(function (label) { %>
+    <li><%= label %></li>
     <% }) %>
   </ul>
 </div>
@@ -25,7 +35,7 @@
         value="<%= email %>"
         required
         autocomplete="email"
-        <%= isVerified ? 'readonly' : '' %>
+        <% if (isVerified) { %>readonly<% } %>
         class="mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg read-only:bg-neutral-50"
       />
     </div>
@@ -47,7 +57,7 @@
         id="<%= field.name %>"
         value="<%= shipping[field.part] || '' %>"
         autocomplete="<%= field.autocomplete %>"
-        <%= field.isRequired ? 'required' : '' %>
+        <% if (field.isRequired) { %>required<% } %>
         class="mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg"
       />
     </div>
@@ -73,7 +83,7 @@
       <% lines.forEach(function (line) { %>
       <li class="flex items-baseline justify-between gap-6 py-4">
         <span class="text-base"><%= line.title %> &times; <%= line.quantity %></span>
-        <span class="text-base"><%= formatCents(line.unitPriceCents * line.quantity) %></span>
+        <span class="text-base"><%= formatCents(line.lineTotalCents) %></span>
       </li>
       <% }) %>
     </ul>

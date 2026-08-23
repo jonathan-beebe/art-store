@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
@@ -7,15 +7,15 @@ import {
   FULFILLMENT_STATUSES,
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
-import { isShipmentComplete, parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { formatCents } from '../../../core/money.ts'
+import { parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
-import { formBody } from '../../../plugins/form-body.ts'
+import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
 import {
   fulfillmentsForSeller,
   itemTitlesByOrder,
@@ -24,7 +24,10 @@ import {
   type FulfillmentWithOrder,
 } from '../queries/fulfillments.ts'
 
-const shipmentForm = z.object({ carrier: z.string().optional(), tracking_number: z.string().optional() })
+const shipmentForm = submittedForm({
+  carrier: z.string().optional(),
+  tracking_number: z.string().optional(),
+})
 
 function groupByStatus(
   fulfillments: readonly FulfillmentWithOrder[],
@@ -35,104 +38,119 @@ function groupByStatus(
   }))
 }
 
-async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const { db } = request.server
-  const fulfillments = await fulfillmentsForSeller(db, currentSellerId(request))
-  const itemTitles = await itemTitlesByOrder(
-    db,
-    fulfillments.map((fulfillment) => fulfillment.orderId),
-    currentSellerId(request),
-  )
-
-  return reply.render('orders/index', {
-    title: 'Orders',
-    groups: groupByStatus(fulfillments),
-    itemTitles,
-    statusLabel,
-    formatCents,
-    formatDate,
-  })
-}
-
-async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const id = parseIdParam(request.params)
-  if (id === null) return sellerNotFound(reply)
-
-  const { db } = request.server
-  const owned = await ownedFulfillment(db, currentSellerId(request), id)
-  if (owned === null) return sellerNotFound(reply)
-
-  const items = await orderItemsForSeller(db, owned.order.id, currentSellerId(request))
-
-  return reply.render('orders/show', {
-    title: `Order #${owned.order.id}`,
-    fulfillment: owned.fulfillment,
-    order: owned.order,
-    items,
-    canShip: canTransitionFulfillment(owned.fulfillment.status, 'shipped'),
-    statusLabel,
-    formatCents,
-    formatDateTime,
-  })
-}
-
-async function ship(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const id = parseIdParam(request.params)
-  if (id === null) return sellerNotFound(reply)
-
-  const { db } = request.server
-  const owned = await ownedFulfillment(db, currentSellerId(request), id)
-  if (owned === null) return sellerNotFound(reply)
-
-  const submitted = shipmentForm.parse(formBody(request))
-  const details = parseShipmentDetails({ carrier: submitted.carrier, trackingNumber: submitted.tracking_number })
-  if (!isShipmentComplete(details)) return refuseShipment(reply, id, 'A shipment needs a carrier and a tracking number.')
-
-  try {
-    await markShipped(
-      { db, clock: request.server.clock },
-      { fulfillmentId: id, carrier: details.carrier, trackingNumber: details.trackingNumber },
-    )
-  } catch (error) {
-    if (error instanceof TransitionError) return refuseShipment(reply, id, error.message)
-    throw error
-  }
-
-  reply.setFlash({ notice: 'Marked shipped.' })
-  return reply.redirect(`/seller/orders/${id}`)
-}
-
 function refuseShipment(reply: FastifyReply, fulfillmentId: number, message: string): FastifyReply {
   reply.setFlash({ alert: message })
+
   return reply.redirect(`/seller/orders/${fulfillmentId}`)
 }
 
-async function openMessageThread(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const id = parseIdParam(request.params)
-  if (id === null) return sellerNotFound(reply)
+export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
+  portal.get('/orders', async (request, reply) => {
+    const { db } = request.server
+    const sellerId = currentSellerId(request)
+    const fulfillments = await fulfillmentsForSeller(db, sellerId)
+    const itemTitles = await itemTitlesByOrder(
+      db,
+      fulfillments.map((fulfillment) => fulfillment.orderId),
+      sellerId,
+    )
 
-  const { db, clock } = request.server
-  const owned = await ownedFulfillment(db, currentSellerId(request), id)
-  if (owned === null) return sellerNotFound(reply)
+    return reply.render('orders/index', {
+      title: 'Orders',
+      groups: groupByStatus(fulfillments),
+      itemTitles,
+      statusLabel,
+      formatCents,
+      formatDate,
+    })
+  })
 
-  const conversation = await openConversation(
-    { db, clock },
-    {
-      kind: 'fulfillment',
-      sellerId: currentSellerId(request),
-      customerId: owned.order.customerId,
-      fulfillmentId: owned.fulfillment.id,
+  portal.get('/orders/:id', { schema: { params: idParams } }, async (request, reply) => {
+    const { db } = request.server
+    const sellerId = currentSellerId(request)
+    const owned = await ownedFulfillment(db, sellerId, request.params.id)
+    if (owned === null) return sellerNotFound(reply)
+
+    const items = await orderItemsForSeller(db, owned.order.id, sellerId)
+
+    return reply.render('orders/show', {
+      title: `Order #${owned.order.id}`,
+      fulfillment: owned.fulfillment,
+      order: owned.order,
+      items,
+      canShip: canTransitionFulfillment(owned.fulfillment.status, 'shipped'),
+      statusLabel,
+      formatCents,
+      formatDateTime,
+    })
+  })
+
+  portal.post(
+    '/orders/:id/ship',
+    { schema: { params: idParams, body: shipmentForm } },
+    async (request, reply) => {
+      const fulfillmentId = request.params.id
+      const { db, clock } = request.server
+      const owned = await ownedFulfillment(db, currentSellerId(request), fulfillmentId)
+      if (owned === null) return sellerNotFound(reply)
+
+      const submitted = request.body
+      const details = parseShipmentDetails({
+        carrier: submitted.carrier,
+        trackingNumber: submitted.tracking_number,
+      })
+      if (!details.ok) {
+        return refuseShipment(reply, fulfillmentId, Object.values(details.errors).join(' '))
+      }
+
+      try {
+        const shipped = await markShipped(
+          { db, clock },
+          {
+            fulfillmentId,
+            carrier: details.value.carrier,
+            trackingNumber: details.value.trackingNumber,
+          },
+        )
+
+        request.log.info(
+          {
+            event: 'fulfillment.shipped',
+            fulfillmentId: shipped.id,
+            orderId: shipped.orderId,
+            sellerId: shipped.sellerId,
+          },
+          'fulfillment shipped',
+        )
+      } catch (error) {
+        if (error instanceof TransitionError) return refuseShipment(reply, fulfillmentId, error.message)
+        throw error
+      }
+
+      reply.setFlash({ notice: 'Marked shipped.' })
+
+      return reply.redirect(`/seller/orders/${fulfillmentId}`)
     },
   )
 
-  return reply.redirect(`/seller/messages/${conversation.id}`)
-}
+  portal.post('/orders/:id/messages', { schema: { params: idParams } }, async (request, reply) => {
+    const { db, clock } = request.server
+    const sellerId = currentSellerId(request)
+    const owned = await ownedFulfillment(db, sellerId, request.params.id)
+    if (owned === null) return sellerNotFound(reply)
 
-export const ordersRoutes: FastifyPluginCallback = (portal, _options, done) => {
-  portal.get('/orders', index)
-  portal.get('/orders/:id', show)
-  portal.post('/orders/:id/ship', ship)
-  portal.post('/orders/:id/messages', openMessageThread)
+    const conversation = await openConversation(
+      { db, clock },
+      {
+        kind: 'fulfillment',
+        sellerId,
+        customerId: owned.order.customerId,
+        fulfillmentId: owned.fulfillment.id,
+      },
+    )
+
+    return reply.redirect(`/seller/messages/${conversation.id}`)
+  })
 
   done()
 }

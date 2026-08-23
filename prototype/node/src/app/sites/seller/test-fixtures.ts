@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
 import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
@@ -7,30 +8,21 @@ import { createListing } from '../../actions/listings/create-listing.ts'
 import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
 import { notify } from '../../actions/notifications/notify.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
-import { placeOrder } from '../../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
+import { cents } from '../../core/money.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
-import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
 import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
 import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
+import { APPROVED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
 
 const DEFAULT_DRAFT: ListingDraft = {
   title: 'Harbour at Dusk',
   description: 'Oil on canvas.',
   medium: 'Oil',
   dimensions: '40 x 60 cm',
-  priceCents: 45_000,
+  priceCents: cents(45_000),
   quantity: 2,
-}
-
-const DEFAULT_SHIPPING: ShippingAddress = {
-  name: 'Ada Lovelace',
-  line1: '12 Analytical Way',
-  line2: null,
-  city: 'London',
-  region: 'London',
-  postalCode: 'SW1A 1AA',
-  country: 'United Kingdom',
 }
 
 export async function createTestListing(
@@ -66,21 +58,21 @@ export async function createFulfillment(
 ): Promise<Fulfillment> {
   const { db, clock } = testApp
   const forSale = listing ?? (await createForSaleListing(testApp, sellerId))
-  const email = `buyer-${forSale.id}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
+  const email = `buyer-${forSale.id}-${randomUUID()}@example.com`
   const buyer = await signInAsCustomer(testApp, email)
 
   const cart = await currentCart({ db, clock }, buyer.id)
   await addToCart({ db, clock }, { cartId: cart.id, listingId: forSale.id, quantity: 1 })
 
-  const order = await placeOrder(
+  const order = await placeOrderOrThrow(
     { db, clock },
     {
       cartId: cart.id,
       purchaser: { id: buyer.id, email, isEmailVerified: true },
-      shipping: DEFAULT_SHIPPING,
+      shipping: SHIPPING_ADDRESS,
     },
   )
-  await finalizeOrder({ db, clock }, { orderId: order.id, cardNumber: '4242 4242 4242 4242' })
+  await finalizeOrder({ db, clock }, { orderId: order.id, cardNumber: APPROVED_CARD })
 
   return db.selectFrom('fulfillments').selectAll().where('orderId', '=', order.id).executeTakeFirstOrThrow()
 }

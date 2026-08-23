@@ -10,6 +10,7 @@ import { fixedClock } from '../../clock.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
+import { cents } from '../../core/money.ts'
 
 const NOW = new Date('2026-08-22T10:00:00.000Z')
 
@@ -18,7 +19,7 @@ const DEFAULT_DRAFT: ListingDraft = {
   description: 'Oil on canvas.',
   medium: 'Oil',
   dimensions: '40 x 60 cm',
-  priceCents: 45_000,
+  priceCents: cents(45_000),
   quantity: 2,
 }
 

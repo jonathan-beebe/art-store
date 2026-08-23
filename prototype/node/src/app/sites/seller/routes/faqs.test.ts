@@ -70,6 +70,85 @@ test('a FAQ page for another seller\'s listing is not found', async (t) => {
   assert.equal(response.statusCode, 404)
 })
 
+test('a non-numeric listing id is not found on the FAQ page', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/listings/abc/faqs',
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('a non-numeric listing id is not found', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/listings/abc/faqs',
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('a non-numeric FAQ id is not found on update', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs/abc`,
+    cookies: seller.cookies,
+    payload: { question: 'Is it framed?', answer: 'Yes, in oiled oak.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('a non-numeric FAQ id is not found on unpublish', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs/abc/unpublish`,
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('publishing against another seller\'s listing is not found', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const rival = await signInAsSeller(testApp, 'rival@example.com')
+  const rivalListing = await createForSaleListing(testApp, rival.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${rivalListing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+  const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', rivalListing.id).execute()
+  assert.equal(faqs.length, 0)
+})
+
 test('publishing an FAQ from a listing-question thread adds it to the listing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -181,6 +260,46 @@ test('editing a published FAQ updates its wording', async (t) => {
   assert.equal(updated.answer, 'Yes, in oiled oak.')
 })
 
+test('updating with a blank answer flashes and leaves the FAQ unchanged', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+  })
+  const faq = await testApp.db
+    .selectFrom('listingFaqs')
+    .selectAll()
+    .where('listingId', '=', listing.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs/${faq.id}`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: '   ' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db
+    .selectFrom('listingFaqs')
+    .selectAll()
+    .where('id', '=', faq.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.answer, 'Yes, in oak.')
+
+  const follow = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: { ...seller.cookies, ...flashCookieOf(response) },
+  })
+  assert.match(follow.body, /Enter the answer\./)
+})
+
 test('unpublishing removes the FAQ', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -239,6 +358,43 @@ test('a FAQ id on a different listing is not found on update and unpublish', asy
   const unpublish = await testApp.app.inject({
     method: 'POST',
     url: `/seller/listings/${listingB.id}/faqs/${faq.id}/unpublish`,
+    cookies: seller.cookies,
+  })
+  assert.equal(unpublish.statusCode, 404)
+
+  const unchanged = await testApp.db.selectFrom('listingFaqs').selectAll().where('id', '=', faq.id).executeTakeFirstOrThrow()
+  assert.equal(unchanged.question, 'Is this framed?')
+})
+
+test('update and unpublish are not found against another seller\'s listing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const rival = await signInAsSeller(testApp, 'rival@example.com')
+  const rivalListing = await createForSaleListing(testApp, rival.id)
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${rivalListing.id}/faqs`,
+    cookies: rival.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+  })
+  const faq = await testApp.db
+    .selectFrom('listingFaqs')
+    .selectAll()
+    .where('listingId', '=', rivalListing.id)
+    .executeTakeFirstOrThrow()
+
+  const update = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${rivalListing.id}/faqs/${faq.id}`,
+    cookies: seller.cookies,
+    payload: { question: 'Different?', answer: 'Different.' },
+  })
+  assert.equal(update.statusCode, 404)
+
+  const unpublish = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${rivalListing.id}/faqs/${faq.id}/unpublish`,
     cookies: seller.cookies,
   })
   assert.equal(unpublish.statusCode, 404)

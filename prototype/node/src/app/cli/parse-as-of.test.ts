@@ -4,12 +4,12 @@ import { parseAsOf } from './parse-as-of.ts'
 
 const FALLBACK = new Date('2026-08-24T09:00:00.000Z')
 
-test('it reads the date the flag names', () => {
+test('it reads the = form of the flag', () => {
   assert.deepEqual(parseAsOf(['--as-of=2026-08-17'], FALLBACK), new Date('2026-08-17'))
 })
 
-test('it reads the flag from anywhere on the command line', () => {
-  assert.deepEqual(parseAsOf(['--quiet', '--as-of=2026-08-17'], FALLBACK), new Date('2026-08-17'))
+test('it reads the space-separated form of the flag', () => {
+  assert.deepEqual(parseAsOf(['--as-of', '2026-08-17'], FALLBACK), new Date('2026-08-17'))
 })
 
 test('a command line with no flag falls back to the moment the caller gave', () => {
@@ -18,4 +18,8 @@ test('a command line with no flag falls back to the moment the caller gave', () 
 
 test('it refuses a flag that is not a date', () => {
   assert.throws(() => parseAsOf(['--as-of=last tuesday'], FALLBACK), /last tuesday/)
+})
+
+test('it refuses a flag it does not recognize', () => {
+  assert.throws(() => parseAsOf(['--quiet'], FALLBACK))
 })

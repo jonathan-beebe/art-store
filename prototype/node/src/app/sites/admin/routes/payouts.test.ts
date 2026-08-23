@@ -7,10 +7,12 @@ import type { Clock } from '../../../clock.ts'
 import {
   buildTestApp,
   signInAsAdmin,
+  TEST_CONFIG,
   TEST_INSTANT,
   type TestApp,
 } from '../../../test/build-test-app.ts'
 import { createCustomer, createListing, createSeller, paidOrder } from '../../../test/commerce-world.ts'
+import { captureLogLines } from '../../../test/log-lines.ts'
 
 const PLACED_AT = new Date('2026-08-20T09:00:00.000Z')
 const SHIPPED_AT = new Date('2026-08-20T11:00:00.000Z')
@@ -219,6 +221,37 @@ test('a bodiless run POST falls back to the clock’s today instead of failing',
   assert.equal(flashNotice(testApp, response), 'No seller had a released balance to pay for 2026-08-17 to 2026-08-23.')
 })
 
+test('running a payout logs a payout.run event with the count and total paid', async (t) => {
+  const clock = travellingClock(PLACED_AT)
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    clock,
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock }
+
+  const first = await createSeller(context, 'Blue Kiln Studio')
+  const second = await createSeller(context, 'Rye Press')
+  await deliverASale(context, first, 45_000)
+  await deliverASale(context, second, 10_000)
+
+  clock.travelTo(TEST_INSTANT)
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/payouts',
+    cookies: admin.cookies,
+    payload: { as_of: '2026-08-24' },
+  })
+
+  const line = stream.lines().find((entry) => entry.event === 'payout.run')
+  assert.equal(line?.count, 2)
+  assert.equal(line?.totalCents, 49_500)
+})
+
 function flashNotice(testApp: TestApp, response: LightMyRequestResponse): string {
   const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
   if (cookie === undefined) throw new Error('no flash cookie set')
@@ -228,3 +261,18 @@ function flashNotice(testApp: TestApp, response: LightMyRequestResponse): string
 
   return (flash as { notice?: string }).notice ?? ''
 }
+
+test('the "all sellers" option submits an empty filter, which the page reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/payouts?seller=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /All sellers/)
+})

@@ -2,7 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
+import { MAX_IMAGE_UPLOAD_BYTES } from '../listing-image-upload.ts'
 import { createForSaleListing, createFulfillment, createTestListing } from '../test-fixtures.ts'
+import { cents } from '../../../core/money.ts'
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
 /** The signed flash cookie a redirect response set, for a follow-up request
  * that expects to read the message it carried. */
@@ -40,6 +44,34 @@ function multipartHeaders(boundary = '----listingtest'): Record<string, string> 
   return { 'content-type': `multipart/form-data; boundary=${boundary}` }
 }
 
+/** A multipart body carrying the listing's text fields plus one uploaded
+ * "image" part — filename, Content-Type, and bytes set independently, so a
+ * test can claim one thing in the headers and send different bytes. */
+function payloadWithImage(
+  fields: Record<string, string>,
+  image: { filename: string; contentType: string; bytes: Buffer },
+  boundary = '----listingtest',
+): Buffer {
+  const textParts = Object.entries(fields).flatMap(([name, value]) => [
+    `--${boundary}`,
+    `Content-Disposition: form-data; name="${name}"`,
+    '',
+    value,
+  ])
+  const preamble = Buffer.from(
+    [
+      ...textParts,
+      `--${boundary}`,
+      `Content-Disposition: form-data; name="image"; filename="${image.filename}"`,
+      `Content-Type: ${image.contentType}`,
+      '',
+      '',
+    ].join('\r\n'),
+  )
+
+  return Buffer.concat([preamble, image.bytes, Buffer.from(`\r\n--${boundary}--\r\n`)])
+}
+
 test('a signed-out visitor reaches no listing page', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
@@ -66,7 +98,7 @@ test("the index lists the seller's own listings with their activity", async (t) 
   const seller = await signInAsSeller(testApp)
   const listing = await createTestListing(testApp, seller.id, {
     title: 'Harbour at Dusk',
-    priceCents: 45_000,
+    priceCents: cents(45_000),
     quantity: 2,
   })
   await testApp.db
@@ -111,6 +143,18 @@ test('the index offers only the transitions the lifecycle allows', async (t) => 
   assert.match(response.body, /data-status-button="for_sale"/)
   assert.match(response.body, /data-status-button="archived"/)
   assert.doesNotMatch(response.body, /data-status-button="sold"/)
+})
+
+test('a status button reads the transition it offers, computed by statusButtons', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  await createTestListing(testApp, seller.id)
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/seller/listings', cookies: seller.cookies })
+
+  assert.match(response.body, />Mark for sale</)
+  assert.match(response.body, />Mark archived</)
 })
 
 test('the new listing form asks for every field', async (t) => {
@@ -183,80 +227,157 @@ test('a listing with no title is refused', async (t) => {
 
   assert.equal(response.statusCode, 422)
   assert.match(response.body, /data-field-error="listing_title"[^>]*>Enter a title\./)
+  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error" aria-invalid="true"/)
+  // A field with no error of its own carries neither attribute.
+  assert.doesNotMatch(response.body, /id="listing_medium"[^>]*aria-describedby/)
 })
 
-test('creating a listing attaches an uploaded image', async (t) => {
+test('creating a listing attaches an uploaded image whose bytes sniff as a real PNG', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
-  const boundary = '----imagetest'
-  const fields = submittedFields()
-  const textParts = Object.entries(fields).flatMap(([name, value]) => [
-    `--${boundary}`,
-    `Content-Disposition: form-data; name="${name}"`,
-    '',
-    value,
-  ])
-  const preamble = Buffer.from(
-    [
-      ...textParts,
-      `--${boundary}`,
-      'Content-Disposition: form-data; name="image"; filename="harbour.png"',
-      'Content-Type: image/png',
-      '',
-      '',
-    ].join('\r\n'),
-  )
-  const payload = Buffer.concat([preamble, Buffer.from('fake-png-bytes'), Buffer.from(`\r\n--${boundary}--\r\n`)])
+  const payload = payloadWithImage(submittedFields(), {
+    filename: 'harbour.png',
+    contentType: 'image/png',
+    bytes: Buffer.concat([PNG_SIGNATURE, Buffer.from('rest-of-file')]),
+  })
 
   const response = await testApp.app.inject({
     method: 'POST',
     url: '/seller/listings',
     cookies: seller.cookies,
-    headers: multipartHeaders(boundary),
+    headers: multipartHeaders(),
     payload,
   })
 
   assert.equal(response.statusCode, 302)
   const listing = await testApp.db.selectFrom('listings').selectAll().where('sellerId', '=', seller.id).executeTakeFirstOrThrow()
   assert.match(listing.imagePath ?? '', /^\/uploads\/.+\.png$/)
+
+  const served = await testApp.app.inject({ method: 'GET', url: listing.imagePath ?? '' })
+  assert.equal(served.statusCode, 200)
+  assert.equal(served.headers['x-content-type-options'], 'nosniff')
 })
 
 test('an upload that is not an image is refused', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
-  const boundary = '----pdftest'
-  const fields = submittedFields()
-  const textParts = Object.entries(fields).flatMap(([name, value]) => [
-    `--${boundary}`,
-    `Content-Disposition: form-data; name="${name}"`,
-    '',
-    value,
-  ])
-  const preamble = Buffer.from(
-    [
-      ...textParts,
-      `--${boundary}`,
-      'Content-Disposition: form-data; name="image"; filename="doc.pdf"',
-      'Content-Type: application/pdf',
-      '',
-      '',
-    ].join('\r\n'),
-  )
-  const payload = Buffer.concat([preamble, Buffer.from('%PDF-1.4'), Buffer.from(`\r\n--${boundary}--\r\n`)])
+  const payload = payloadWithImage(submittedFields(), {
+    filename: 'doc.pdf',
+    contentType: 'application/pdf',
+    bytes: Buffer.from('%PDF-1.4'),
+  })
 
   const response = await testApp.app.inject({
     method: 'POST',
     url: '/seller/listings',
     cookies: seller.cookies,
-    headers: multipartHeaders(boundary),
+    headers: multipartHeaders(),
     payload,
   })
 
   assert.equal(response.statusCode, 422)
   assert.match(response.body, /data-field-error="listing_image"[^>]*>Upload an image file\./)
   assert.equal((await testApp.db.selectFrom('listings').selectAll().execute()).length, 0)
+})
+
+test('a filename and Content-Type claiming to be an image are not trusted — only the bytes are', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const payload = payloadWithImage(submittedFields(), {
+    filename: 'evil.html',
+    contentType: 'image/anything',
+    bytes: Buffer.from('<script>alert(document.cookie)</script>'),
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/listings',
+    cookies: seller.cookies,
+    headers: multipartHeaders(),
+    payload,
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="listing_image"[^>]*>Upload an image file\./)
+  assert.equal((await testApp.db.selectFrom('listings').selectAll().execute()).length, 0)
+})
+
+test('an SVG upload is refused — it is not a magic-byte image format', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const payload = payloadWithImage(submittedFields(), {
+    filename: 'evil.svg',
+    contentType: 'image/svg+xml',
+    bytes: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/listings',
+    cookies: seller.cookies,
+    headers: multipartHeaders(),
+    payload,
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="listing_image"[^>]*>Upload an image file\./)
+  assert.equal((await testApp.db.selectFrom('listings').selectAll().execute()).length, 0)
+})
+
+test('an image over the size limit re-renders the form with a field error instead of a JSON 413', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const oversized = Buffer.concat([PNG_SIGNATURE, Buffer.alloc(MAX_IMAGE_UPLOAD_BYTES, 1)])
+  const payload = payloadWithImage(submittedFields(), {
+    filename: 'huge.png',
+    contentType: 'image/png',
+    bytes: oversized,
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/listings',
+    cookies: seller.cookies,
+    headers: multipartHeaders(),
+    payload,
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.headers['content-type'] ?? '', /text\/html/)
+  assert.match(response.body, /data-field-error="listing_image"[^>]*>Upload an image under 5 MB\./)
+  assert.equal((await testApp.db.selectFrom('listings').selectAll().execute()).length, 0)
+})
+
+test('an oversized image on an edit form re-renders that listing, not a blank one', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createTestListing(testApp, seller.id, { title: 'Harbour at Dusk' })
+  const oversized = Buffer.concat([PNG_SIGNATURE, Buffer.alloc(MAX_IMAGE_UPLOAD_BYTES, 1)])
+  const payload = payloadWithImage(submittedFields({ title: 'Harbour at Dusk' }), {
+    filename: 'huge.png',
+    contentType: 'image/png',
+    bytes: oversized,
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}`,
+    cookies: seller.cookies,
+    headers: multipartHeaders(),
+    payload,
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /value="Harbour at Dusk"/)
+  assert.match(response.body, /data-field-error="listing_image"[^>]*>Upload an image under 5 MB\./)
+  const unchanged = await testApp.db.selectFrom('listings').selectAll().where('id', '=', listing.id).executeTakeFirstOrThrow()
+  assert.equal(unchanged.title, 'Harbour at Dusk')
 })
 
 test('a listing id that is not a number is not found', async (t) => {
@@ -279,7 +400,7 @@ test('the edit form is filled with the listing as it stands', async (t) => {
   const seller = await signInAsSeller(testApp)
   const listing = await createTestListing(testApp, seller.id, {
     title: 'Harbour at Dusk',
-    priceCents: 45_000,
+    priceCents: cents(45_000),
     quantity: 3,
   })
 
@@ -496,6 +617,43 @@ test('a removed listing shows the removal kind and reason and cannot be put back
     method: 'GET',
     url: '/seller/listings',
     cookies: { ...seller.cookies, ...flashCookie(changeStatus) },
+  })
+  assert.match(follow.body, /removed by an admin and cannot be put back on sale/)
+})
+
+test('a removed listing cannot go back on sale even through a transition the lifecycle table allows', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+  await testApp.db.updateTable('listings').set({ status: 'sold' }).where('id', '=', listing.id).execute()
+  await testApp.db
+    .insertInto('listingRemovals')
+    .values({
+      listingId: listing.id,
+      adminId: admin.id,
+      kind: 'permanent',
+      reason: 'Reported as counterfeit.',
+      createdAt: new Date().toISOString(),
+      liftedAt: null,
+    })
+    .execute()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/status`,
+    cookies: seller.cookies,
+    payload: { status: 'for_sale' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db.selectFrom('listings').selectAll().where('id', '=', listing.id).executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'sold')
+  const follow = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/listings',
+    cookies: { ...seller.cookies, ...flashCookie(response) },
   })
   assert.match(follow.body, /removed by an admin and cannot be put back on sale/)
 })

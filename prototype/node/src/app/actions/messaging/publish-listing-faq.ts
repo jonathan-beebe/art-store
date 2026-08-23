@@ -1,5 +1,4 @@
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
 import type { FaqDraft } from '../../core/messaging/faq-draft.ts'
 import type { ListingFaq } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -17,20 +16,18 @@ export type PublishListingFaqInput = {
  * predicate of its own.
  */
 export async function publishListingFaq(
-  context: ActionContext,
+  { db, clock }: ActionContext,
   input: PublishListingFaqInput,
 ): Promise<ListingFaq> {
-  return runInTransaction(context, async ({ db, clock }) =>
-    db
-      .insertInto('listingFaqs')
-      .values({
-        listingId: input.listingId,
-        question: input.draft.question,
-        answer: input.draft.answer,
-        sourceMessageId: input.sourceMessageId ?? null,
-        publishedAt: toTimestamp(clock.now()),
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow(),
-  )
+  return db
+    .insertInto('listingFaqs')
+    .values({
+      listingId: input.listingId,
+      question: input.draft.question,
+      answer: input.draft.answer,
+      sourceMessageId: input.sourceMessageId ?? null,
+      publishedAt: toTimestamp(clock.now()),
+    })
+    .returningAll()
+    .executeTakeFirstOrThrow()
 }

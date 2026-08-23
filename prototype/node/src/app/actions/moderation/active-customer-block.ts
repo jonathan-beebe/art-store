@@ -23,6 +23,7 @@ export async function activeCustomerBlock(
     .selectFrom('customerBlocks')
     .select(['id', 'reason', 'createdAt', 'liftedAt'])
     .where('customerId', '=', customerId)
+    .where('liftedAt', 'is', null)
     .orderBy('id')
     .execute()
 

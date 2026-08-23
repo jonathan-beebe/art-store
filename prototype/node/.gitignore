@@ -3,5 +3,6 @@ src/coverage/
 src/public/app.css
 src/public/uploads/
 src/storage/*.sqlite3
+src/storage/outbox/
 src/storage/*.sqlite3-shm
 src/storage/*.sqlite3-wal

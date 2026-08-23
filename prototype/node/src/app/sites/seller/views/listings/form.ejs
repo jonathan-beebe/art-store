@@ -13,9 +13,10 @@
         type="text"
         name="title"
         id="listing_title"
-        value="<%= fields.title %>"
+        value="<%= fields.title.value %>"
         required
         maxlength="255"
+        <% if (fields.title.errorId) { %>aria-describedby="<%= fields.title.errorId %>" aria-invalid="true"<% } %>
         class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
       />
       <%- include('../partials/field-error', { field: 'listing_title', message: errors.title }) %>
@@ -28,8 +29,9 @@
         id="listing_description"
         rows="4"
         maxlength="5000"
+        <% if (fields.description.errorId) { %>aria-describedby="<%= fields.description.errorId %>" aria-invalid="true"<% } %>
         class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-      ><%= fields.description %></textarea>
+      ><%= fields.description.value %></textarea>
       <%- include('../partials/field-error', { field: 'listing_description', message: errors.description }) %>
     </div>
 
@@ -40,8 +42,9 @@
           type="text"
           name="medium"
           id="listing_medium"
-          value="<%= fields.medium %>"
+          value="<%= fields.medium.value %>"
           maxlength="255"
+          <% if (fields.medium.errorId) { %>aria-describedby="<%= fields.medium.errorId %>" aria-invalid="true"<% } %>
           class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
         />
         <%- include('../partials/field-error', { field: 'listing_medium', message: errors.medium }) %>
@@ -53,8 +56,9 @@
           type="text"
           name="dimensions"
           id="listing_dimensions"
-          value="<%= fields.dimensions %>"
+          value="<%= fields.dimensions.value %>"
           maxlength="255"
+          <% if (fields.dimensions.errorId) { %>aria-describedby="<%= fields.dimensions.errorId %>" aria-invalid="true"<% } %>
           class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
         />
         <%- include('../partials/field-error', { field: 'listing_dimensions', message: errors.dimensions }) %>
@@ -67,8 +71,9 @@
           inputmode="decimal"
           name="price"
           id="listing_price"
-          value="<%= fields.price %>"
+          value="<%= fields.price.value %>"
           required
+          <% if (fields.price.errorId) { %>aria-describedby="<%= fields.price.errorId %>" aria-invalid="true"<% } %>
           class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
         />
         <%- include('../partials/field-error', { field: 'listing_price', message: errors.price }) %>
@@ -80,11 +85,12 @@
           type="number"
           name="quantity"
           id="listing_quantity"
-          value="<%= fields.quantity %>"
+          value="<%= fields.quantity.value %>"
           step="1"
           min="0"
           max="999"
           required
+          <% if (fields.quantity.errorId) { %>aria-describedby="<%= fields.quantity.errorId %>" aria-invalid="true"<% } %>
           class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
         />
         <%- include('../partials/field-error', { field: 'listing_quantity', message: errors.quantity }) %>
@@ -98,11 +104,12 @@
         name="image"
         id="listing_image"
         accept="image/*"
-        aria-describedby="listing_image-hint"
+        aria-describedby="listing_image-hint<% if (fields.image.errorId) { %> <%= fields.image.errorId %><% } %>"
+        <% if (fields.image.errorId) { %>aria-invalid="true"<% } %>
         class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
       />
       <p id="listing_image-hint" class="mt-1 text-sm text-neutral-600">
-        An image file up to a few megabytes. Artwork drawn from the title stands in until you upload one.
+        A PNG, JPEG, GIF, or WebP file up to 5 MB. Artwork drawn from the title stands in until you upload one.
       </p>
       <%- include('../partials/field-error', { field: 'listing_image', message: errors.image }) %>
     </div>

@@ -24,12 +24,12 @@ test('an actor whose column is null is never a participant', () => {
 })
 
 test('a participant may read', () => {
-  const access = conversationAccess(participants(), { type: 'customer', id: 2 })
+  const access = conversationAccess(participants(), { type: 'customer', id: 2, isBlocked: false })
   assert.equal(access.mayRead, true)
 })
 
 test('a non-participant may not read', () => {
-  const access = conversationAccess(participants(), { type: 'customer', id: 9 })
+  const access = conversationAccess(participants(), { type: 'customer', id: 9, isBlocked: false })
   assert.equal(access.mayRead, false)
   assert.equal(access.mayPost, false)
 })

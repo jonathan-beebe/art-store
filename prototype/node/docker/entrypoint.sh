@@ -11,8 +11,9 @@ fi
 
 node app/db/migrate.ts
 
-# The platform operators are reference data, not demo data: /admin is
-# unreachable without them and seeding them twice adds nobody.
+# Seeds the platform admins and the full demo catalog (sellers, listings,
+# customers, orders). Both halves are idempotent: admins re-seed to the same
+# rows, and the demo half does nothing once a seller row already exists.
 node app/db/seed.ts
 
 # Tailwind scans the EJS templates, so the stylesheet is rebuilt on every start

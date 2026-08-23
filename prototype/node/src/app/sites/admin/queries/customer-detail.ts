@@ -52,13 +52,11 @@ export async function customerDetail(
   const customer = await db.selectFrom('customers').selectAll().where('id', '=', customerId).executeTakeFirst()
   if (customer === undefined) return null
 
-  const [orders, favorites, cartLines, merges, block] = await Promise.all([
-    ordersForCustomer(db, customerId),
-    favoritesForCustomer(db, customerId),
-    cartLinesForCustomer(db, customerId),
-    mergesForCustomer(db, customerId),
-    activeCustomerBlock(context, customerId),
-  ])
+  const orders = await ordersForCustomer(db, customerId)
+  const favorites = await favoritesForCustomer(db, customerId)
+  const cartLines = await cartLinesForCustomer(db, customerId)
+  const merges = await mergesForCustomer(db, customerId)
+  const block = await activeCustomerBlock(context, customerId)
 
   return { customer, orders, favorites, cartLines, merges, block }
 }
@@ -102,10 +100,16 @@ async function cartLinesForCustomer(
 /** Merges that named this customer on either side: the anonymous row folded
  * into it, or this row folded into a verified customer elsewhere. */
 async function mergesForCustomer(db: AppDatabase, customerId: number): Promise<readonly CustomerMergeRow[]> {
-  const [into, outOf] = await Promise.all([
-    db.selectFrom('customerMerges').selectAll().where('customerId', '=', customerId).execute(),
-    db.selectFrom('customerMerges').selectAll().where('anonymousCustomerId', '=', customerId).execute(),
-  ])
+  const into = await db
+    .selectFrom('customerMerges')
+    .selectAll()
+    .where('customerId', '=', customerId)
+    .execute()
+  const outOf = await db
+    .selectFrom('customerMerges')
+    .selectAll()
+    .where('anonymousCustomerId', '=', customerId)
+    .execute()
 
   return [
     ...into.map((row) => ({

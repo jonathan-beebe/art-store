@@ -1,7 +1,7 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
-import { addCents, type Cents } from '../../../core/money.ts'
+import { addCents, ZERO_CENTS, type Cents } from '../../../core/money.ts'
 
 /** Escrow across every seller, plus what the platform kept out of it. */
 export type PlatformMoney = LedgerBalance & { feesEarnedCents: Cents }
@@ -32,5 +32,5 @@ async function feesEarned({ db }: Pick<ActionContext, 'db'>): Promise<Cents> {
     .select('fulfillments.feeCents')
     .execute()
 
-  return settled.reduce((total, row) => addCents(total, row.feeCents), 0)
+  return settled.reduce((total, row) => addCents(total, row.feeCents), ZERO_CENTS)
 }

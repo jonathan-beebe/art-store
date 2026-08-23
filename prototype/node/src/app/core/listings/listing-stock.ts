@@ -9,6 +9,9 @@ function rejectAnEmptyChange(items: number): void {
   }
 }
 
+// `planOrderPlacement` settles the expected cases — off sale, sold out, short
+// of stock — before a sale reaches here, so these throws mark a caller that
+// sold without planning.
 export function stockAfterSale(input: { quantity: number; status: ListingStatus; sold: number }): ListingStock {
   const { quantity, status, sold } = input
   rejectAnEmptyChange(sold)
@@ -45,7 +48,11 @@ export function stockAfter(
       return stockAfterRestock({ quantity, status, restored: items })
     case 'keep':
       return { quantity, status }
-    default:
-      throw new TypeError(`unknown stock change: ${JSON.stringify(change)}`)
+    default: {
+      // Every StockChange has a case above; the compiler proves it here.
+      const unhandled: never = change
+
+      return unhandled
+    }
   }
 }

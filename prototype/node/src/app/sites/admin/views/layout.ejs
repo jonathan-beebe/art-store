@@ -1,13 +1,6 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title><%= title %> — Admin</title>
-    <link rel="stylesheet" href="/app.css" />
-  </head>
+<%- include('views/partials/head', { title, titleSuffix: 'Admin' }) %>
   <body class="min-h-screen bg-neutral-100 text-sm text-neutral-900 antialiased">
-    <%- include('views/partials/debug-alert', { flash }) %>
+    <%- include('views/partials/debug-alert', { flash, showsDebugMagicLinks }) %>
     <%- include('views/partials/flash', { flash }) %>
     <header class="border-b border-neutral-300 bg-neutral-900 text-neutral-100">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
@@ -24,9 +17,11 @@
           <a href="/admin/payouts" class="hover:text-white">Payouts</a>
           <a href="/admin/ledger" class="hover:text-white">Ledger</a>
           <a href="/admin/stats" class="hover:text-white">Site stats</a>
-          <a href="/admin/messages" class="hover:text-white">Messages<% if (unreadMessageCount > 0) { %>
-            <span data-unread-messages="<%= unreadMessageCount %>" class="ml-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-neutral-900"><%= unreadMessageCount %></span>
-          <% } %></a>
+          <a href="/admin/outbox" class="hover:text-white">Outbox</a>
+          <a href="/admin/messages" class="hover:text-white">Messages<%- include('views/partials/unread-badge', {
+            classes: 'ml-1 rounded bg-amber-500 px-1.5 py-0.5 text-xs font-medium text-neutral-900 empty:hidden',
+            unreadMessageCount,
+          }) %></a>
         </nav>
         <div class="ml-auto flex items-center gap-4 text-neutral-300">
           <a href="/admin/account" class="hover:text-white"><%= identity.admin.email %></a>
@@ -41,6 +36,8 @@
         <% } %>
       </div>
     </header>
+    <%# the page's already-escaped markup %>
     <main class="mx-auto max-w-7xl px-4 py-6"><%- body %></main>
+    <script defer src="/app.js"></script>
   </body>
 </html>

@@ -1,29 +1,34 @@
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
+import type { ActionContext } from '../../../actions/action-context.ts'
 import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import { liftCustomerBlock } from '../../../actions/moderation/lift-customer-block.ts'
 import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
 import { removeListing } from '../../../actions/moderation/remove-listing.ts'
-import type { ActionContext } from '../../../actions/action-context.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
-import { formBody } from '../../../plugins/form-body.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 
 /** Every moderation form carries where to go back to; a bare lift carries only that. */
-const liftForm = z.object({ redirect_to: z.string().optional() })
+const RETURN_FIELD = { redirect_to: z.string().optional() }
+const REASON_FIELD = { reason: z.string().trim().min(1) }
 
-const removalForm = liftForm.extend({
-  kind: z.enum(REMOVAL_KINDS),
-  reason: z.string().trim().min(1),
-})
+const liftForm = submittedForm(RETURN_FIELD)
+const removalForm = submittedForm({ ...RETURN_FIELD, ...REASON_FIELD, kind: z.enum(REMOVAL_KINDS) })
+const blockForm = submittedForm({ ...RETURN_FIELD, ...REASON_FIELD })
 
-const blockForm = liftForm.extend({ reason: z.string().trim().min(1) })
+/** What every moderation form carries, whatever else it holds. */
+type ModerationForm = { redirect_to?: string }
+
+/** What one moderation route reads: the subject its url names and its own form. */
+type ModerationRequest<Submitted> = FastifyRequest & { params: { id: number }; body: Submitted }
 
 /** What one moderation route needs beyond the shape every one of them shares. */
-type ModerationCommand<Submitted extends { redirect_to?: string }> = {
+type ModerationCommand<Submitted extends ModerationForm> = {
+  /** The form this route accepts, declared on the route and read as its body. */
   form: z.ZodType<Submitted>
   /** Where the page that offered the form lives, when the form named nowhere. */
   subjectPath(subjectId: number): string
@@ -32,6 +37,8 @@ type ModerationCommand<Submitted extends { redirect_to?: string }> = {
     context: ActionContext,
     input: { subjectId: number; adminId: number; submitted: Submitted },
   ): Promise<unknown>
+  /** The business event this write logs once `apply` has succeeded. */
+  logEvent(subjectId: number, adminId: number, submitted: Submitted): Record<string, unknown>
 }
 
 /**
@@ -39,28 +46,22 @@ type ModerationCommand<Submitted extends { redirect_to?: string }> = {
  * they say afterwards. The refusal is the action's to decide — a route that
  * asked whether a removal could be lifted would be holding the rule twice.
  */
-function moderationRoute<Submitted extends { redirect_to?: string }>(
-  command: ModerationCommand<Submitted>,
-) {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
-    const subjectId = parseIdParam(request.params)
-    if (subjectId === null) return notFound(reply)
-
-    const parsed = command.form.safeParse(formBody(request))
-    if (!parsed.success) return badRequest(reply)
-
-    const submitted = parsed.data
+function moderationRoute<Submitted extends ModerationForm>(command: ModerationCommand<Submitted>) {
+  const handler = async (
+    request: ModerationRequest<Submitted>,
+    reply: FastifyReply,
+  ): Promise<FastifyReply> => {
+    const subjectId = request.params.id
+    const submitted = request.body
     const destination = resolveLocalRedirect(submitted.redirect_to, {
       fallback: command.subjectPath(subjectId),
       origin: requestOrigin(request),
     })
 
+    const adminId = currentAdminId(request)
+
     try {
-      await command.apply(actionContext(request), {
-        subjectId,
-        adminId: currentAdminId(request),
-        submitted,
-      })
+      await command.apply(actionContext(request), { subjectId, adminId, submitted })
     } catch (error) {
       if (!(error instanceof TransitionError)) throw error
 
@@ -69,18 +70,13 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
       return reply.redirect(destination)
     }
 
+    request.log.info(command.logEvent(subjectId, adminId, submitted), command.notice)
     reply.setFlash({ notice: command.notice })
 
     return reply.redirect(destination)
   }
-}
 
-function notFound(reply: FastifyReply): FastifyReply {
-  return reply.code(404).type('text/plain').send('Not found')
-}
-
-function badRequest(reply: FastifyReply): FastifyReply {
-  return reply.code(400).type('text/plain').send('Bad request')
+  return { schema: { params: idParams, body: command.form }, handler }
 }
 
 function actionContext(request: FastifyRequest): ActionContext {
@@ -99,7 +95,7 @@ function currentAdminId(request: FastifyRequest): number {
 const listingPath = (listingId: number): string => `/admin/listings/${listingId}`
 const customerPath = (customerId: number): string => `/admin/customers/${customerId}`
 
-export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) => {
+export const moderationRoutes: ZodRoutes = (admin, _options, done) => {
   admin.post(
     '/listings/:id/removals',
     moderationRoute({
@@ -113,6 +109,13 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
           kind: submitted.kind,
           reason: submitted.reason,
         }),
+      logEvent: (listingId, adminId, submitted) => ({
+        event: 'moderation.listing_removed',
+        listingId,
+        adminId,
+        kind: submitted.kind,
+        reason: submitted.reason,
+      }),
     }),
   )
 
@@ -123,6 +126,11 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       subjectPath: listingPath,
       notice: 'Removal lifted.',
       apply: (context, { subjectId }) => liftListingRemoval(context, { listingId: subjectId }),
+      logEvent: (listingId, adminId) => ({
+        event: 'moderation.listing_removal_lifted',
+        listingId,
+        adminId,
+      }),
     }),
   )
 
@@ -134,6 +142,12 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       notice: 'Customer blocked.',
       apply: (context, { subjectId, adminId, submitted }) =>
         blockCustomer(context, { customerId: subjectId, adminId, reason: submitted.reason }),
+      logEvent: (customerId, adminId, submitted) => ({
+        event: 'moderation.customer_blocked',
+        customerId,
+        adminId,
+        reason: submitted.reason,
+      }),
     }),
   )
 
@@ -144,6 +158,11 @@ export const moderationRoutes: FastifyPluginCallback = (admin, _options, done) =
       subjectPath: customerPath,
       notice: 'Block lifted.',
       apply: (context, { subjectId }) => liftCustomerBlock(context, { customerId: subjectId }),
+      logEvent: (customerId, adminId) => ({
+        event: 'moderation.customer_block_lifted',
+        customerId,
+        adminId,
+      }),
     }),
   )
 

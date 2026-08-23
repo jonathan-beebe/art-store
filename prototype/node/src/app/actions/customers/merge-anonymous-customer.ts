@@ -1,18 +1,13 @@
-import { sql } from 'kysely'
-import type { Clock } from '../../clock.ts'
 import {
   planCustomerMerge,
   type CartLine,
   type CustomerMergePlan,
 } from '../../core/customers/customer-merge-plan.ts'
-import { REPOINTED_CUSTOMER_TABLES } from '../../core/customers/repointed-customer-tables.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
-import {
-  hasColumns,
-  readMergedTableColumns,
-  type MergedTableColumns,
-} from './merged-table-columns.ts'
+import type { ActionContext } from '../action-context.ts'
+import { runInTransaction } from '../transaction.ts'
+import { REPOINTED_CUSTOMER_TABLES } from './repointed-customer-tables.ts'
 
 export type MergeSides = {
   anonymousCustomerId: number
@@ -34,24 +29,23 @@ const EMPTY_CART: Cart = { cartId: null, lines: [] }
  * of starting the visitor over.
  */
 export async function mergeAnonymousCustomer(
-  { db, clock }: { db: AppDatabase; clock: Clock },
+  context: ActionContext,
   sides: MergeSides,
 ): Promise<void> {
-  await db.transaction().execute(async (trx) => {
-    const schema = await readMergedTableColumns(trx)
-    const favorites = await readFavorites(trx, schema, sides)
-    const carts = await readCarts(trx, schema, sides)
+  await runInTransaction(context, async ({ db: trx, clock }) => {
+    const favorites = await readFavorites(trx, sides)
+    const carts = await readCarts(trx, sides)
     const plan = planCustomerMerge({
       verifiedCartLines: carts.verified.lines,
       anonymousCartLines: carts.anonymous.lines,
       verifiedFavoriteListingIds: favorites.verified,
       anonymousFavoriteListingIds: favorites.anonymous,
-      stockByListing: await readStock(trx, schema, carts),
+      stockByListing: await readStock(trx, carts),
     })
 
-    await repointOwnedRows(trx, schema, sides)
-    await applyFavorites(trx, schema, sides, favorites, plan)
-    await applyCart(trx, schema, sides, carts, plan)
+    await repointOwnedRows(trx, sides)
+    await applyFavorites(trx, sides, plan)
+    await applyCart(trx, sides, carts, plan)
 
     await trx
       .insertInto('customerMerges')
@@ -64,96 +58,58 @@ export async function mergeAnonymousCustomer(
   })
 }
 
-async function repointOwnedRows(
-  db: AppDatabase,
-  schema: MergedTableColumns,
-  sides: MergeSides,
-): Promise<void> {
-  for (const { table, column } of REPOINTED_CUSTOMER_TABLES) {
-    if (!hasColumns(schema, table, column)) continue
-
-    await sql`
-      update ${sql.table(table)} set ${sql.ref(column)} = ${sides.verifiedCustomerId}
-      where ${sql.ref(column)} = ${sides.anonymousCustomerId}
-    `.execute(db)
+async function repointOwnedRows(db: AppDatabase, sides: MergeSides): Promise<void> {
+  for (const table of REPOINTED_CUSTOMER_TABLES) {
+    await db
+      .updateTable(table)
+      .set({ customerId: sides.verifiedCustomerId })
+      .where('customerId', '=', sides.anonymousCustomerId)
+      .execute()
   }
 }
 
-function hasFavorites(schema: MergedTableColumns): boolean {
-  return hasColumns(schema, 'favorites', 'customer_id', 'listing_id')
-}
-
-async function readFavorites(
-  db: AppDatabase,
-  schema: MergedTableColumns,
-  sides: MergeSides,
-): Promise<FavoriteSides> {
-  if (!hasFavorites(schema)) return { anonymous: [], verified: [] }
-
+async function readFavorites(db: AppDatabase, sides: MergeSides): Promise<FavoriteSides> {
   return {
     anonymous: await readFavoriteListingIds(db, sides.anonymousCustomerId),
     verified: await readFavoriteListingIds(db, sides.verifiedCustomerId),
   }
 }
 
-async function readFavoriteListingIds(db: AppDatabase, customerId: number): Promise<number[]> {
-  const rows = await sql<{ listingId: number }>`
-    select listing_id from favorites where customer_id = ${customerId} order by id
-  `.execute(db)
+async function readFavoriteListingIds(
+  db: AppDatabase,
+  customerId: number,
+): Promise<readonly number[]> {
+  const rows = await db
+    .selectFrom('favorites')
+    .select('listingId')
+    .where('customerId', '=', customerId)
+    .orderBy('id')
+    .execute()
 
-  return rows.rows.map((row) => row.listingId)
+  return rows.map((row) => row.listingId)
 }
 
 async function applyFavorites(
   db: AppDatabase,
-  schema: MergedTableColumns,
   sides: MergeSides,
-  favorites: FavoriteSides,
   plan: CustomerMergePlan,
 ): Promise<void> {
-  if (!hasFavorites(schema)) return
-
-  const alreadyFavorited = new Set(favorites.verified)
-  const moving = plan.favoriteListingIds.filter((listingId) => !alreadyFavorited.has(listingId))
-
-  await deleteFavoritesOutside(db, sides.anonymousCustomerId, moving)
-
-  await sql`
-    update favorites set customer_id = ${sides.verifiedCustomerId}
-    where customer_id = ${sides.anonymousCustomerId}
-  `.execute(db)
-}
-
-async function deleteFavoritesOutside(
-  db: AppDatabase,
-  customerId: number,
-  keptListingIds: readonly number[],
-): Promise<void> {
-  if (keptListingIds.length === 0) {
-    await sql`delete from favorites where customer_id = ${customerId}`.execute(db)
-    return
+  if (plan.favoritesToDrop.length > 0) {
+    await db
+      .deleteFrom('favorites')
+      .where('customerId', '=', sides.anonymousCustomerId)
+      .where('listingId', 'in', plan.favoritesToDrop)
+      .execute()
   }
 
-  await sql`
-    delete from favorites
-    where customer_id = ${customerId} and listing_id not in (${sql.join(keptListingIds)})
-  `.execute(db)
+  await db
+    .updateTable('favorites')
+    .set({ customerId: sides.verifiedCustomerId })
+    .where('customerId', '=', sides.anonymousCustomerId)
+    .execute()
 }
 
-function hasCarts(schema: MergedTableColumns): boolean {
-  return (
-    hasColumns(schema, 'carts', 'id', 'customer_id') &&
-    hasColumns(schema, 'cart_items', 'cart_id', 'listing_id', 'quantity')
-  )
-}
-
-async function readCarts(
-  db: AppDatabase,
-  schema: MergedTableColumns,
-  sides: MergeSides,
-): Promise<CartSides> {
-  if (!hasCarts(schema)) return { anonymous: EMPTY_CART, verified: EMPTY_CART }
-
+async function readCarts(db: AppDatabase, sides: MergeSides): Promise<CartSides> {
   return {
     anonymous: await readCart(db, sides.anonymousCustomerId),
     verified: await readCart(db, sides.verifiedCustomerId),
@@ -161,36 +117,43 @@ async function readCarts(
 }
 
 async function readCart(db: AppDatabase, customerId: number): Promise<Cart> {
-  const carts = await sql<{ id: number }>`
-    select id from carts where customer_id = ${customerId} order by id limit 1
-  `.execute(db)
+  const cart = await db
+    .selectFrom('carts')
+    .select('id')
+    .where('customerId', '=', customerId)
+    .orderBy('id')
+    .limit(1)
+    .executeTakeFirst()
 
-  const cartId = carts.rows[0]?.id ?? null
-  if (cartId === null) return EMPTY_CART
+  if (cart === undefined) return EMPTY_CART
 
-  const items = await sql<CartLine>`
-    select listing_id, quantity from cart_items where cart_id = ${cartId} order by id
-  `.execute(db)
+  const lines = await db
+    .selectFrom('cartItems')
+    .select(['listingId', 'quantity'])
+    .where('cartId', '=', cart.id)
+    .orderBy('id')
+    .execute()
 
-  return { cartId, lines: items.rows }
+  return { cartId: cart.id, lines }
 }
 
 async function readStock(
   db: AppDatabase,
-  schema: MergedTableColumns,
   carts: CartSides,
 ): Promise<ReadonlyMap<number, number>> {
   const listingIds = [...carts.verified.lines, ...carts.anonymous.lines].map(
     (line) => line.listingId,
   )
 
-  if (listingIds.length === 0 || !hasColumns(schema, 'listings', 'id', 'quantity')) return new Map()
+  if (listingIds.length === 0) return new Map()
 
-  const rows = await sql<{ id: number; quantity: number }>`
-    select id, quantity from listings where id in (${sql.join(listingIds)})
-  `.execute(db)
+  const rows = await db
+    .selectFrom('listings')
+    .select(['id', 'quantity'])
+    .where('id', 'in', listingIds)
+    .execute()
 
-  return new Map(rows.rows.map((row) => [row.id, row.quantity]))
+  return new Map(rows.map((row) => [row.id, row.quantity]))
 }
 
 /**
@@ -200,33 +163,39 @@ async function readStock(
  */
 async function applyCart(
   db: AppDatabase,
-  schema: MergedTableColumns,
   sides: MergeSides,
   carts: CartSides,
   plan: CustomerMergePlan,
 ): Promise<void> {
   const sourceCartId = carts.anonymous.cartId
-  if (!hasCarts(schema) || sourceCartId === null) return
+  if (sourceCartId === null) return
 
   const targetCartId = carts.verified.cartId ?? sourceCartId
   if (carts.verified.cartId === null) {
-    await sql`
-      update carts set customer_id = ${sides.verifiedCustomerId} where id = ${sourceCartId}
-    `.execute(db)
+    await db
+      .updateTable('carts')
+      .set({ customerId: sides.verifiedCustomerId })
+      .where('id', '=', sourceCartId)
+      .execute()
   }
 
   const target = carts.verified.cartId === null ? carts.anonymous : carts.verified
   const inTarget = new Set(target.lines.map((line) => line.listingId))
 
   for (const line of plan.cartLines) {
-    await writeCartLine(db, { targetCartId, sourceCartId, line, isInTarget: inTarget.has(line.listingId) })
+    await writeCartLine(db, {
+      targetCartId,
+      sourceCartId,
+      line,
+      isInTarget: inTarget.has(line.listingId),
+    })
   }
 
   await deleteCartItemsOutside(db, targetCartId, plan.cartLines)
 
   if (sourceCartId !== targetCartId) {
-    await sql`delete from cart_items where cart_id = ${sourceCartId}`.execute(db)
-    await sql`delete from carts where id = ${sourceCartId}`.execute(db)
+    await db.deleteFrom('cartItems').where('cartId', '=', sourceCartId).execute()
+    await db.deleteFrom('carts').where('id', '=', sourceCartId).execute()
   }
 }
 
@@ -237,17 +206,21 @@ async function writeCartLine(
   const { targetCartId, sourceCartId, line, isInTarget } = move
 
   if (isInTarget) {
-    await sql`
-      update cart_items set quantity = ${line.quantity}
-      where cart_id = ${targetCartId} and listing_id = ${line.listingId}
-    `.execute(db)
+    await db
+      .updateTable('cartItems')
+      .set({ quantity: line.quantity })
+      .where('cartId', '=', targetCartId)
+      .where('listingId', '=', line.listingId)
+      .execute()
     return
   }
 
-  await sql`
-    update cart_items set cart_id = ${targetCartId}, quantity = ${line.quantity}
-    where cart_id = ${sourceCartId} and listing_id = ${line.listingId}
-  `.execute(db)
+  await db
+    .updateTable('cartItems')
+    .set({ cartId: targetCartId, quantity: line.quantity })
+    .where('cartId', '=', sourceCartId)
+    .where('listingId', '=', line.listingId)
+    .execute()
 }
 
 async function deleteCartItemsOutside(
@@ -255,15 +228,18 @@ async function deleteCartItemsOutside(
   cartId: number,
   keptLines: readonly CartLine[],
 ): Promise<void> {
+  const query = db.deleteFrom('cartItems').where('cartId', '=', cartId)
+
   if (keptLines.length === 0) {
-    await sql`delete from cart_items where cart_id = ${cartId}`.execute(db)
+    await query.execute()
     return
   }
 
-  const keptListingIds = keptLines.map((line) => line.listingId)
-
-  await sql`
-    delete from cart_items
-    where cart_id = ${cartId} and listing_id not in (${sql.join(keptListingIds)})
-  `.execute(db)
+  await query
+    .where(
+      'listingId',
+      'not in',
+      keptLines.map((line) => line.listingId),
+    )
+    .execute()
 }

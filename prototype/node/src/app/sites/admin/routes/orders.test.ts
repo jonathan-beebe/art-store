@@ -76,3 +76,17 @@ test('the filter form remembers the submitted values', async (t) => {
   assert.match(response.body, /<option value="paid" selected>/)
   assert.match(response.body, /value="3"/)
 })
+
+test('the "all" options submit empty filters, which the table reads as no filter', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/orders?status=&customer=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+})

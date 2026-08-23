@@ -1,31 +1,46 @@
-import path from 'node:path'
-import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
 import { changeListingStatus } from '../../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../../actions/listings/create-listing.ts'
 import { updateListing } from '../../../actions/listings/update-listing.ts'
+import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
+import { sniffImageFormat, type ImageFormat } from '../../../core/listings/image-format.ts'
 import {
-  listingDraftErrors,
   parseListingDraft,
   type ListingDraftErrors,
   type ListingDraftFields,
+  type UploadedImageFormat,
 } from '../../../core/listings/listing-draft.ts'
+import {
+  LISTING_STATUSES,
+  availableListingTransitions,
+} from '../../../core/listings/listing-status.ts'
 import { listingImageSource } from '../../../core/listings/placeholder-image.ts'
-import { LISTING_STATUSES, availableListingTransitions, isBlockedByRemoval } from '../../../core/listings/listing-status.ts'
-import type { Listing } from '../../../db/commerce-schema.ts'
 import { dollarsInputValue, formatCents } from '../../../core/money.ts'
-import { activityTimeline } from '../../../core/reports/activity-timeline.ts'
+import { activityTimeline, activityWindow } from '../../../core/reports/activity-timeline.ts'
 import { activityTotals } from '../../../core/reports/activity-totals.ts'
-import { statusLabel } from '../../../core/status-label.ts'
+import { statusButtons, statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import type { Listing } from '../../../db/commerce-schema.ts'
+import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { identityId } from '../../../plugins/identity.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
-import { listingDraftFieldsFrom, uploadedImagePart, type MultipartBody } from '../listing-form.ts'
-import { saveUploadedListingImage } from '../listing-image-upload.ts'
+import { listingFormFieldsView } from '../listing-form-fields-view.ts'
+import {
+  listingDraftFieldsFrom,
+  listingFormBody,
+  uploadedImagePart,
+  type ListingFormBody,
+} from '../listing-form.ts'
+import { MAX_IMAGE_UPLOAD_MB, saveUploadedListingImage } from '../listing-image-upload.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
-import { listingEventCountsByDay, listingEventTotals, salesForListing } from '../queries/listing-activity.ts'
+import {
+  listingEventCountsByDay,
+  listingEventTotals,
+  salesForListing,
+} from '../queries/listing-activity.ts'
 import {
   listingEventCountsByListing,
   listingIdsWithActiveRemoval,
@@ -34,10 +49,17 @@ import {
 } from '../queries/listings.ts'
 
 const ACTIVITY_WINDOW_DAYS = 14
-const ACTIVITY_WINDOW_MS = ACTIVITY_WINDOW_DAYS * 24 * 60 * 60 * 1000
-const UPLOADS_DIR = path.join(import.meta.dirname, '..', '..', '..', '..', 'public', 'uploads')
+const OVERSIZED_IMAGE_MESSAGE = `Upload an image under ${MAX_IMAGE_UPLOAD_MB} MB.`
 
-const statusChangeSchema = z.object({ status: z.enum(LISTING_STATUSES) })
+// The status field carries a transition the page offered. Anything else — no
+// field at all, or a status the lifecycle does not name — is a button that
+// named nothing, which the route answers with a flash rather than a 400.
+const statusChangeForm = submittedForm({
+  status: z.enum(LISTING_STATUSES).optional().catch(undefined),
+})
+
+/** A form shown before anything has been submitted has nothing wrong with it. */
+const NO_ERRORS: ListingDraftErrors = {}
 
 function emptyDraftFields(): ListingDraftFields {
   return { title: '', description: '', medium: '', dimensions: '', price: '', quantity: '1' }
@@ -54,176 +76,258 @@ function editFieldsFrom(listing: Listing): ListingDraftFields {
   }
 }
 
-async function imagePathFromUpload(body: MultipartBody): Promise<string | undefined> {
+type UploadedImage = { buffer: Buffer; format: UploadedImageFormat }
+
+/** Reads the uploaded part's bytes and sniffs its format — the part's own
+ * filename and `Content-Type` decide nothing. Null when the field was left
+ * empty. */
+async function readUploadedImage(body: ListingFormBody): Promise<UploadedImage | null> {
   const image = uploadedImagePart(body)
-  if (image === null) return undefined
+  if (image === null) return null
 
-  return saveUploadedListingImage(UPLOADS_DIR, await image.toBuffer(), image.mimetype, image.filename)
+  const buffer = await image.toBuffer()
+
+  return { buffer, format: sniffImageFormat(buffer) ?? 'unrecognized' }
 }
 
-async function findOwnedListing(request: FastifyRequest, reply: FastifyReply): Promise<Listing | null> {
-  const id = parseIdParam(request.params)
-  if (id === null) {
-    await sellerNotFound(reply)
-    return null
-  }
+/** The upload once `parseListingDraft` has already refused an unrecognized
+ * format — narrows `format` to a real `ImageFormat` for the caller. */
+function acceptedUploadedImage(
+  uploadedImage: UploadedImage | null,
+): { buffer: Buffer; format: ImageFormat } | null {
+  if (uploadedImage === null || uploadedImage.format === 'unrecognized') return null
 
-  const listing = await ownedListing(request.server.db, currentSellerId(request), id)
-  if (listing === null) await sellerNotFound(reply)
-
-  return listing
+  return { buffer: uploadedImage.buffer, format: uploadedImage.format }
 }
 
-async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const { db } = request.server
-  const listings = await listingsForSeller(db, currentSellerId(request))
-  const ids = listings.map((listing) => listing.id)
-  const [eventCounts, removedIds] = await Promise.all([
-    listingEventCountsByListing(db, ids),
-    listingIdsWithActiveRemoval(db, ids),
-  ])
+async function savedImagePath(
+  uploadsDir: string,
+  uploadedImage: UploadedImage | null,
+): Promise<string | undefined> {
+  const accepted = acceptedUploadedImage(uploadedImage)
+  if (accepted === null) return undefined
 
-  const rows = listings.map((listing) => ({
-    listing,
-    activity: activityTotals(eventCounts.get(listing.id) ?? {}),
-    transitions: availableListingTransitions(listing.status, removedIds.has(listing.id)),
-    imageSrc: listingImageSource(listing.imagePath, listing.title),
-  }))
-
-  return reply.render('listings/index', { title: 'Listings', rows, statusLabel, formatCents })
+  return saveUploadedListingImage(uploadsDir, accepted.buffer, accepted.format)
 }
 
-async function newForm(_request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  return reply.render('listings/new', {
-    title: 'New listing',
-    fields: emptyDraftFields(),
-    errors: {} as ListingDraftErrors,
-  })
-}
+/**
+ * The listing form re-rendered with an image field error, for a multipart
+ * upload @fastify/multipart refused as too large before any route handler
+ * ran. Shows the listing's saved fields on an edit URL for its owner,
+ * otherwise the blank new-listing form.
+ *
+ * A part over the size limit throws while the body is still parsing, which is
+ * before the route's own schemas run, so the url segment is read here rather
+ * than off `request.params`. For the same reason the seller comes from the
+ * identity cookie: no `preHandler` has resolved one yet.
+ */
+export async function renderOversizedImageForm(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<FastifyReply> {
+  const errors: ListingDraftErrors = { image: OVERSIZED_IMAGE_MESSAGE }
+  const asked = idParams.safeParse(request.params)
+  const sellerId = identityId(request, 'seller')
+  const listing =
+    asked.success && sellerId !== null
+      ? await ownedListing(request.server.db, sellerId, asked.data.id)
+      : null
 
-async function create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const body = request.body as MultipartBody
-  const fields = listingDraftFieldsFrom(body)
-  const errors = listingDraftErrors(fields)
-  if (Object.keys(errors).length > 0) {
-    return reply.code(422).render('listings/new', { title: 'New listing', fields, errors })
-  }
-
-  const { db, clock } = request.server
-  const listing = await createListing(
-    { db, clock },
-    { sellerId: currentSellerId(request), draft: parseListingDraft(fields), imagePath: await imagePathFromUpload(body) },
-  )
-
-  reply.setFlash({ notice: `"${listing.title}" is saved as a draft.` })
-  return reply.redirect('/seller/listings')
-}
-
-async function editForm(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const listing = await findOwnedListing(request, reply)
-  if (listing === null) return reply
-
-  return reply.render('listings/edit', {
-    title: `Edit ${listing.title}`,
-    listing,
-    fields: editFieldsFrom(listing),
-    errors: {} as ListingDraftErrors,
-    imageSrc: listingImageSource(listing.imagePath, listing.title),
-  })
-}
-
-async function update(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const listing = await findOwnedListing(request, reply)
-  if (listing === null) return reply
-
-  const body = request.body as MultipartBody
-  const fields = listingDraftFieldsFrom(body)
-  const errors = listingDraftErrors(fields)
-  if (Object.keys(errors).length > 0) {
+  if (listing !== null) {
     return reply.code(422).render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
-      fields,
+      fields: listingFormFieldsView(editFieldsFrom(listing), errors),
       errors,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
   }
 
-  const { db, clock } = request.server
-  const updated = await updateListing(
-    { db, clock },
-    { listingId: listing.id, draft: parseListingDraft(fields), imagePath: await imagePathFromUpload(body) },
-  )
+  return reply.code(422).render('listings/new', {
+    title: 'New listing',
+    fields: listingFormFieldsView(emptyDraftFields(), errors),
+    errors,
+  })
+}
 
-  reply.setFlash({ notice: `"${updated.title}" is updated.` })
-  return reply.redirect('/seller/listings')
+/** The seller's own listing the url names, or null with the 404 page already
+ * answered — another seller's listing is not found, not refused. */
+async function findOwnedListing(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  listingId: number,
+): Promise<Listing | null> {
+  const listing = await ownedListing(request.server.db, currentSellerId(request), listingId)
+  if (listing === null) await sellerNotFound(reply)
+
+  return listing
 }
 
 function refuseStatusChange(reply: FastifyReply, message: string): FastifyReply {
   reply.setFlash({ alert: message })
+
   return reply.redirect('/seller/listings')
 }
 
-async function changeStatus(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const listing = await findOwnedListing(request, reply)
-  if (listing === null) return reply
+export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
+  portal.get('/listings', async (request, reply) => {
+    const { db } = request.server
+    const listings = await listingsForSeller(db, currentSellerId(request))
+    const ids = listings.map((listing) => listing.id)
+    const eventCounts = await listingEventCountsByListing(db, ids)
+    const removedIds = await listingIdsWithActiveRemoval(db, ids)
 
-  const parsed = statusChangeSchema.safeParse(request.body)
-  if (!parsed.success) return refuseStatusChange(reply, 'Choose a status to change to.')
+    const rows = listings.map((listing) => ({
+      listing,
+      activity: activityTotals(eventCounts.get(listing.id) ?? {}),
+      transitions: availableListingTransitions(listing.status, removedIds.has(listing.id)),
+      imageSrc: listingImageSource(listing.imagePath, listing.title),
+    }))
 
-  const { db, clock } = request.server
-  const removal = await activeListingRemoval({ db }, listing.id)
-  if (isBlockedByRemoval(parsed.data.status, removal !== null)) {
-    return refuseStatusChange(reply, 'This listing was removed by an admin and cannot be put back on sale.')
-  }
-
-  try {
-    const updated = await changeListingStatus({ db, clock }, { listingId: listing.id, status: parsed.data.status })
-    reply.setFlash({ notice: `"${updated.title}" is now ${statusLabel(updated.status).toLowerCase()}.` })
-    return reply.redirect('/seller/listings')
-  } catch (error) {
-    if (error instanceof TransitionError) return refuseStatusChange(reply, error.message)
-    throw error
-  }
-}
-
-async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const listing = await findOwnedListing(request, reply)
-  if (listing === null) return reply
-
-  const { db, clock } = request.server
-  const now = clock.now()
-  const [eventTotals, dailyCounts, sales, removal] = await Promise.all([
-    listingEventTotals(db, listing.id),
-    listingEventCountsByDay(db, listing.id, new Date(now.getTime() - ACTIVITY_WINDOW_MS)),
-    salesForListing(db, listing.id),
-    activeListingRemoval({ db }, listing.id),
-  ])
-
-  return reply.render('listings/show', {
-    title: listing.title,
-    listing,
-    imageSrc: listingImageSource(listing.imagePath, listing.title),
-    totals: activityTotals(eventTotals),
-    days: activityTimeline(dailyCounts, { endsOn: now, days: ACTIVITY_WINDOW_DAYS }),
-    sales,
-    removal,
-    transitions: availableListingTransitions(listing.status, removal !== null),
-    statusLabel,
-    formatCents,
-    formatDate,
-    formatDay,
+    return reply.render('listings/index', {
+      title: 'Listings',
+      rows,
+      statusLabel,
+      statusButtons,
+      formatCents,
+    })
   })
-}
 
-export const listingsRoutes: FastifyPluginCallback = (portal, _options, done) => {
-  portal.get('/listings', index)
-  portal.get('/listings/new', newForm)
-  portal.post('/listings', create)
-  portal.get('/listings/:id', show)
-  portal.get('/listings/:id/edit', editForm)
-  portal.post('/listings/:id', update)
-  portal.post('/listings/:id/status', changeStatus)
+  portal.get('/listings/new', async (_request, reply) =>
+    reply.render('listings/new', {
+      title: 'New listing',
+      fields: listingFormFieldsView(emptyDraftFields(), NO_ERRORS),
+      errors: NO_ERRORS,
+    }),
+  )
+
+  portal.post('/listings', { schema: { body: listingFormBody } }, async (request, reply) => {
+    const uploadedImage = await readUploadedImage(request.body)
+    const fields = listingDraftFieldsFrom(request.body, uploadedImage?.format ?? null)
+    const draft = parseListingDraft(fields)
+    if (!draft.ok) {
+      return reply.code(422).render('listings/new', {
+        title: 'New listing',
+        fields: listingFormFieldsView(fields, draft.errors),
+        errors: draft.errors,
+      })
+    }
+
+    const { db, clock, config } = request.server
+    const listing = await createListing(
+      { db, clock },
+      {
+        sellerId: currentSellerId(request),
+        draft: draft.value,
+        imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
+      },
+    )
+
+    reply.setFlash({ notice: `"${listing.title}" is saved as a draft.` })
+
+    return reply.redirect('/seller/listings')
+  })
+
+  portal.get('/listings/:id', { schema: { params: idParams } }, async (request, reply) => {
+    const listing = await findOwnedListing(request, reply, request.params.id)
+    if (listing === null) return reply
+
+    const { db, clock } = request.server
+    const now = clock.now()
+    const window = activityWindow(now, ACTIVITY_WINDOW_DAYS)
+    const eventTotals = await listingEventTotals(db, listing.id)
+    const dailyCounts = await listingEventCountsByDay(db, listing.id, window.since)
+    const sales = await salesForListing(db, listing.id)
+    const removal = await activeListingRemoval({ db }, listing.id)
+
+    return reply.render('listings/show', {
+      title: listing.title,
+      listing,
+      imageSrc: listingImageSource(listing.imagePath, listing.title),
+      totals: activityTotals(eventTotals),
+      days: activityTimeline(dailyCounts, { endsOn: now, days: window.days }),
+      sales,
+      removal,
+      transitions: availableListingTransitions(listing.status, removal !== null),
+      statusLabel,
+      statusButtons,
+      formatCents,
+      formatDate,
+      formatDay,
+    })
+  })
+
+  portal.get('/listings/:id/edit', { schema: { params: idParams } }, async (request, reply) => {
+    const listing = await findOwnedListing(request, reply, request.params.id)
+    if (listing === null) return reply
+
+    return reply.render('listings/edit', {
+      title: `Edit ${listing.title}`,
+      listing,
+      fields: listingFormFieldsView(editFieldsFrom(listing), NO_ERRORS),
+      errors: NO_ERRORS,
+      imageSrc: listingImageSource(listing.imagePath, listing.title),
+    })
+  })
+
+  portal.post(
+    '/listings/:id',
+    { schema: { params: idParams, body: listingFormBody } },
+    async (request, reply) => {
+      const listing = await findOwnedListing(request, reply, request.params.id)
+      if (listing === null) return reply
+
+      const uploadedImage = await readUploadedImage(request.body)
+      const fields = listingDraftFieldsFrom(request.body, uploadedImage?.format ?? null)
+      const draft = parseListingDraft(fields)
+      if (!draft.ok) {
+        return reply.code(422).render('listings/edit', {
+          title: `Edit ${listing.title}`,
+          listing,
+          fields: listingFormFieldsView(fields, draft.errors),
+          errors: draft.errors,
+          imageSrc: listingImageSource(listing.imagePath, listing.title),
+        })
+      }
+
+      const { db, clock, config } = request.server
+      const updated = await updateListing(
+        { db, clock },
+        {
+          listingId: listing.id,
+          draft: draft.value,
+          imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
+        },
+      )
+
+      reply.setFlash({ notice: `"${updated.title}" is updated.` })
+
+      return reply.redirect('/seller/listings')
+    },
+  )
+
+  portal.post(
+    '/listings/:id/status',
+    { schema: { params: idParams, body: statusChangeForm } },
+    async (request, reply) => {
+      const listing = await findOwnedListing(request, reply, request.params.id)
+      if (listing === null) return reply
+
+      const { status } = request.body
+      if (status === undefined) return refuseStatusChange(reply, 'Choose a status to change to.')
+
+      try {
+        const { db, clock } = request.server
+        const updated = await changeListingStatus({ db, clock }, { listingId: listing.id, status })
+        reply.setFlash({ notice: `"${updated.title}" is now ${statusLabel(updated.status).toLowerCase()}.` })
+
+        return reply.redirect('/seller/listings')
+      } catch (error) {
+        if (error instanceof TransitionError) return refuseStatusChange(reply, error.message)
+        throw error
+      }
+    },
+  )
 
   done()
 }

@@ -8,9 +8,11 @@ import { listingRoutes } from './routes/listings.ts'
 import { messageRoutes } from './routes/messages.ts'
 import { moderationRoutes } from './routes/moderation.ts'
 import { orderRoutes } from './routes/orders.ts'
+import { outboxRoutes } from './routes/outbox.ts'
 import { payoutRoutes } from './routes/payouts.ts'
 import { sellerRoutes } from './routes/sellers.ts'
 import { statsRoutes } from './routes/stats.ts'
+import { unreadEventsRoute } from '../../plugins/events.ts'
 import { requireAdmin } from '../../plugins/identity.ts'
 
 /**
@@ -32,6 +34,8 @@ export const adminConsoleRoutes: FastifyPluginCallback = (operations, _options, 
   operations.register(statsRoutes)
   operations.register(moderationRoutes)
   operations.register(messageRoutes)
+  operations.register(outboxRoutes)
+  operations.register(unreadEventsRoute('admin'))
 
   done()
 }

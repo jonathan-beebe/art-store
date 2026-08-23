@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { flashSchema } from '../../../plugins/flash.ts'
+import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -29,7 +31,7 @@ async function orderWithFulfillment(
   title = 'Harbour at dusk',
 ) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
-  const listing = await listArtwork(testApp, { sellerId: seller.id, title, priceCents: 24_000 })
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title, priceCents: cents(24_000) })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
   const order = await placeCustomerOrder(testApp, { cartId, customerId })
   await payForOrder(testApp, { orderId: order.id })
@@ -228,7 +230,7 @@ test('posting a reply appends and redirects; an empty body flashes and appends n
   assert.equal(afterReply.length, 2)
 })
 
-test('a bodiless question POST redirects instead of failing', async (t) => {
+test('a bodiless question POST redirects instead of failing, and leaves no conversation behind', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -243,6 +245,32 @@ test('a bodiless question POST redirects instead of failing', async (t) => {
 
   assert.equal(response.statusCode, 302)
   assert.equal(response.headers.location, '/art/harbour-at-dusk')
+
+  const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversations.length, 0)
+})
+
+test('a blocked customer asking a listing question is refused, and leaves no conversation behind', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await blockCustomer(testApp, { customerId: customer.id, adminId: admin.id })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    payload: { body: 'Is this framed?' },
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, '/art/harbour-at-dusk')
+
+  const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversations.length, 0)
 })
 
 test('an anonymous customer can ask a question on a listing and read the thread', async (t) => {
@@ -296,7 +324,7 @@ test('a customer with an active block is refused when posting a reply, and no me
   const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
   assert.ok(flashCookie !== undefined)
   const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
-  const flash = JSON.parse(unsigned.value ?? '{}') as { alert?: string }
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
   assert.equal(flash.alert, 'This account is blocked and cannot send messages.')
 
   const messages = await testApp.db
@@ -396,4 +424,37 @@ test('posting a fulfillment message opens the thread, and 404s for another custo
     cookies: customer.cookies,
   })
   assert.equal(crossedFulfillment.statusCode, 404)
+})
+
+test('a bodiless reply POST flashes what is missing instead of failing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  const { conversationId } = await askAQuestion(testApp, {
+    slug: 'harbour-at-dusk',
+    body: 'Is this framed?',
+    cookies: customer.cookies,
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/messages/${conversationId}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.equal(response.headers.location, `/messages/${conversationId}`)
+  const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
+  const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
+  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
+  assert.equal(flash.alert, 'Write a message before sending.')
+
+  const messages = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversationId)
+    .execute()
+  assert.equal(messages.length, 1)
 })

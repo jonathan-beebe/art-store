@@ -1,9 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { itemSoldMessage, orderShippedMessage, newMessageMessage } from './notification-message.ts'
+import { cents } from '../money.ts'
+import {
+  itemSoldMessage,
+  orderShippedMessage,
+  newMessageMessage,
+  signInLinkMessage,
+} from './notification-message.ts'
 
 test('a sale tells the seller what is held and why', () => {
-  const message = itemSoldMessage(7, 40_500)
+  const message = itemSoldMessage(7, cents(40_500))
 
   assert.equal(message.subject, 'Item sold')
   assert.equal(message.body, 'Order #7 is paid. $405.00 is held until the customer confirms delivery.')
@@ -11,7 +17,7 @@ test('a sale tells the seller what is held and why', () => {
 })
 
 test('a sale message takes a url to the page it is about', () => {
-  const message = itemSoldMessage(7, 40_500, '/seller/orders/7')
+  const message = itemSoldMessage(7, cents(40_500), '/seller/orders/7')
 
   assert.equal(message.url, '/seller/orders/7')
   assert.equal(message.subject, 'Item sold')
@@ -43,4 +49,12 @@ test('a new message notice takes a url to the conversation', () => {
   const message = newMessageMessage('Sunset over the bay', '/messages/3')
 
   assert.equal(message.url, '/messages/3')
+})
+
+test('a sign-in message carries the link and says how long it lasts', () => {
+  const message = signInLinkMessage('http://localhost:4000/auth/magic/abc')
+
+  assert.equal(message.subject, 'Your Art Store sign-in link')
+  assert.equal(message.body, 'Open the link below to sign in. It expires in 15 minutes and works once.')
+  assert.equal(message.url, 'http://localhost:4000/auth/magic/abc')
 })

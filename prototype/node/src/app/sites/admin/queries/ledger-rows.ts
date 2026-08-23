@@ -2,6 +2,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import type { LedgerEntryType } from '../../../core/escrow/ledger-entry-type.ts'
 import type { Cents } from '../../../core/money.ts'
+import { shopName } from '../../../core/shop/shop-name.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type LedgerRow = {
@@ -49,7 +50,7 @@ export async function ledgerRows(
   const mapped = rows.map((row) => ({
     id: row.id,
     sellerId: row.sellerId,
-    sellerName: row.shopName ?? row.email,
+    sellerName: shopName({ shopName: row.shopName, email: row.email }),
     entryType: row.entryType,
     amountCents: row.amountCents,
     fulfillmentId: row.fulfillmentId,

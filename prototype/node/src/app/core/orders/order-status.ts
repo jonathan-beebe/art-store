@@ -14,7 +14,7 @@ export const ORDER_STATUSES = [
 ] as const
 export type OrderStatus = (typeof ORDER_STATUSES)[number]
 
-export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+export const ORDER_STATUS_TRANSITIONS = {
   pending_verification: ['awaiting_payment', 'cancelled'],
   awaiting_payment: ['paid', 'payment_failed', 'cancelled'],
   // A retry that is declined again leaves the order where it already was.
@@ -24,13 +24,18 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[
   shipped: ['delivered'],
   delivered: [],
   cancelled: [],
-}
+} as const satisfies Record<OrderStatus, readonly OrderStatus[]>
 
-const CANCELLABLE_STATUSES: readonly OrderStatus[] = ['pending_verification', 'awaiting_payment', 'payment_failed']
+const CANCELLABLE_STATUSES = [
+  'pending_verification',
+  'awaiting_payment',
+  'payment_failed',
+] as const satisfies readonly OrderStatus[]
 
 export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean {
-  const allowed: readonly OrderStatus[] | undefined = ORDER_STATUS_TRANSITIONS[from]
-  return (allowed ?? []).includes(to)
+  const allowed: readonly OrderStatus[] = ORDER_STATUS_TRANSITIONS[from]
+
+  return allowed.includes(to)
 }
 
 export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderStatus {
@@ -73,5 +78,7 @@ export function orderStatusFromFulfillments(statuses: readonly FulfillmentStatus
 }
 
 export function isCancellable(status: OrderStatus): boolean {
-  return CANCELLABLE_STATUSES.includes(status)
+  const cancellable: readonly OrderStatus[] = CANCELLABLE_STATUSES
+
+  return cancellable.includes(status)
 }

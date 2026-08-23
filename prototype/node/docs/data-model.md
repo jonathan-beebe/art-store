@@ -1,10 +1,23 @@
 # Data model
 
-Twenty-three tables, created by the nine migrations in
-`src/app/db/migrations/`. Row types live beside them in
-`src/app/db/schema.ts` (identity) and `src/app/db/commerce-schema.ts`
-(everything else); Kysely's `CamelCasePlugin` exposes every snake_case column
-to TypeScript as camelCase, so `price_cents` reads as `priceCents`.
+Twenty-four tables, created across ten of the eleven migrations in
+`src/app/db/migrations/` (the first turns on write-ahead logging and creates
+nothing). Row types live beside them in `src/app/db/schema.ts` (identity) and
+`src/app/db/commerce-schema.ts` (everything else); Kysely's `CamelCasePlugin`
+exposes every snake_case column to TypeScript as camelCase, so `price_cents`
+reads as `priceCents`. `src/app/db/schema-fidelity.test.ts` reads the applied
+schema back and asserts the row types match it, so a column that changes shape
+in a migration fails the suite rather than a page.
+
+Every column holding a string union carries a `CHECK` constraint built from the
+same `as const` array TypeScript reads — `status in ('draft', 'for_sale',
+'sold', 'archived')` and the like — so a value the union does not admit cannot
+reach the file. One exception: `page_view_counts.site` is typed `PageViewSite`
+but has no constraint, because nothing outside `pageViewSite(pathPattern)` ever
+writes it. Those constraints live in the original `create` migrations
+rather than in later ones, so **a development database created before them is
+not upgraded by `make migrate`; it needs `make fresh`**, which deletes the file,
+re-applies every migration, and re-seeds.
 
 SQLite has two storage classes in play here: `integer` and `text`. Every
 timestamp is ISO-8601 UTC **text** (`app/db/timestamp.ts`), because that format
@@ -189,10 +202,19 @@ erDiagram
     }
     page_view_counts {
         integer id PK
-        text site "shop|seller|admin"
+        text site "shop|seller|admin, by convention — no check"
         text path_pattern "the route pattern, /art/:slug"
         text day "UK with site and path_pattern"
         integer count "default 0, incremented on conflict"
+    }
+    outbox_messages {
+        integer id PK
+        text recipient "an email address, not an FK"
+        text subject
+        text body
+        text url "nullable"
+        text created_at
+        text delivered_at "nullable — null means pending"
     }
     conversations {
         integer id PK
@@ -261,9 +283,10 @@ erDiagram
     messages ||--o{ listing_faqs : published_from
 ```
 
-`magic_links` and `page_view_counts` carry no foreign key and are drawn without
-a relationship line: the first matches by `email` plus `actor_type`, the second
-counts route patterns.
+`magic_links`, `page_view_counts`, and `outbox_messages` carry no foreign key
+and are drawn without a relationship line: the first matches by `email` plus
+`actor_type`, the second counts route patterns, and the third addresses a
+recipient who is outside the system.
 
 ## Caveats
 
@@ -298,8 +321,9 @@ counts route patterns.
   polymorphic reference beat three nullable columns, because a message has
   exactly one sender and the column is never joined for a merge.
 - **`conversations` fills two of its three participant columns and at most one
-  subject column**, decided by `kind`. `missingConversationParts` is the pure
-  check; the index on `(kind, listing_id, fulfillment_id)` serves the
+  subject column**, decided by `kind`. `participantColumnsOf(kind)` and
+  `subjectColumnOf(kind)` (`app/core/messaging/conversation-kind.ts`) are the
+  pure readers of which; the index on `(kind, listing_id, fulfillment_id)` serves the
   find-or-open lookup, and one index per participant column paired with
   `last_message_at` serves the three inboxes.
 - **A `listing_faqs` row exists only while it is published.** `published_at` is
@@ -310,6 +334,12 @@ counts route patterns.
   `activeBlock` are the pure readers.
 - **`page_view_counts` is unique on `(site, path_pattern, day)`**, which is what
   makes the rollup one upsert with no read.
+- **`outbox_messages.delivered_at` null means pending**, and the index on
+  `(delivered_at, id)` is what the drain selects against. The row is written in
+  the transaction that caused it and stamped in a separate step outside any
+  transaction, because a synchronous SQLite connection must not be held across a
+  file write. `recipient` is an address rather than a foreign key: a message
+  that has left the application is addressed to a mailbox, not a row.
 - **Only `created_at` is stored, and there is no `updated_at` anywhere except
   `listings`.** Times that mean something have names: `email_verified_at`,
   `consumed_at`, `finalized_at`, `cancelled_at`, `shipped_at`, `delivered_at`,

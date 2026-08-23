@@ -32,3 +32,8 @@ export function searchLikePattern(search: ListingSearch): string {
 
   return `%${literal}%`
 }
+
+/** The current search, as the query string a pagination link repeats it with. */
+export function filterQuery(search: ListingSearch): string {
+  return `q=${encodeURIComponent(search.term ?? '')}&medium=${encodeURIComponent(search.medium ?? '')}`
+}

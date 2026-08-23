@@ -1,6 +1,18 @@
+import { MAGIC_LINK_LIFETIME_MINUTES } from '../auth/magic-link-status.ts'
 import { formatCents, type Cents } from '../money.ts'
 
 export type NotificationMessage = { subject: string; body: string; url: string | null }
+
+/** A sign-in link as a message, for the deliveries that carry one out. */
+export function signInLinkMessage(url: string): NotificationMessage {
+  return {
+    subject: 'Your Art Store sign-in link',
+    body:
+      `Open the link below to sign in. It expires in ${MAGIC_LINK_LIFETIME_MINUTES} minutes ` +
+      'and works once.',
+    url,
+  }
+}
 
 export function itemSoldMessage(orderId: number, netCents: Cents, url?: string): NotificationMessage {
   return {

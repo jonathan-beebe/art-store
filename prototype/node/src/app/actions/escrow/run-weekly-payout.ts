@@ -1,16 +1,12 @@
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
-import { ledgerMovements, type SellerLedgerMovement } from './ledger-movements.ts'
-import { isPayable, ledgerBalance } from '../../core/escrow/ledger-balance.ts'
+import { ledgerMovements } from './ledger-movements.ts'
+import { ledgerBalancesBySeller } from '../../core/escrow/ledger-balance.ts'
 import { payoutMovement } from '../../core/escrow/ledger-movement.ts'
-import {
-  payoutPeriodEndingBefore,
-  payoutPeriodEndsAt,
-  type PayoutPeriod,
-} from '../../core/escrow/payout-period.ts'
-import type { Cents } from '../../core/money.ts'
+import { planWeeklyPayout, type PayoutIntent } from '../../core/escrow/payout-plan.ts'
+import { payoutPeriodEndingBefore, payoutPeriodEndsAt, type PayoutPeriod } from '../../core/escrow/payout-period.ts'
 import type { Payout } from '../../db/commerce-schema.ts'
-import { toTimestamp } from '../../db/timestamp.ts'
+import { toTimestamp, type Timestamp } from '../../db/timestamp.ts'
 
 /**
  * Pays every seller the escrow released in the Monday-to-Sunday week that just
@@ -23,25 +19,19 @@ export async function runWeeklyPayout(context: ActionContext, asOf: Date): Promi
     const period = payoutPeriodEndingBefore(asOf)
     const endsAt = toTimestamp(payoutPeriodEndsAt(period))
     const movements = await ledgerMovements(transacted, endsAt)
-    const settled = await sellersSettledFor(transacted, period)
+    const settledSellerIds = await sellersSettledFor(transacted, period)
+    const balances = ledgerBalancesBySeller(movements)
+    const intents = planWeeklyPayout({ balances, settledSellerIds, period })
 
     const payouts: Payout[] = []
-    for (const [sellerId, balance] of payableBalances(movements)) {
-      if (settled.has(sellerId)) continue
-
-      payouts.push(await payOut(transacted, sellerId, balance, period, asOf))
+    for (const intent of intents) {
+      payouts.push(await payOut(transacted, intent, endsAt, asOf))
     }
 
     return payouts
   })
 }
 
-/**
- * A seller has at most one payout per period. Money released into a period that
- * already has one — which a run of a period that has not closed yet leaves
- * open — waits for the next run, whose own window reaches further and picks it
- * up.
- */
 async function sellersSettledFor(
   { db }: ActionContext,
   period: PayoutPeriod,
@@ -55,51 +45,35 @@ async function sellersSettledFor(
   return new Set(rows.map((row) => row.sellerId))
 }
 
-function payableBalances(movements: readonly SellerLedgerMovement[]): Map<number, Cents> {
-  const bySeller = new Map<number, SellerLedgerMovement[]>()
-  for (const movement of movements) {
-    bySeller.set(movement.sellerId, [...(bySeller.get(movement.sellerId) ?? []), movement])
-  }
-
-  const payable = new Map<number, Cents>()
-  for (const [sellerId, own] of bySeller) {
-    const balance = ledgerBalance(own)
-    if (isPayable(balance)) payable.set(sellerId, balance.availableCents)
-  }
-
-  return payable
-}
-
 async function payOut(
   { db }: ActionContext,
-  sellerId: number,
-  availableCents: Cents,
-  period: PayoutPeriod,
+  intent: PayoutIntent,
+  endsAt: Timestamp,
   asOf: Date,
 ): Promise<Payout> {
   const payout = await db
     .insertInto('payouts')
     .values({
-      sellerId,
-      periodStart: period.firstDay,
-      periodEnd: period.lastDay,
-      amountCents: availableCents,
+      sellerId: intent.sellerId,
+      periodStart: intent.periodStart,
+      periodEnd: intent.periodEnd,
+      amountCents: intent.amountCents,
       paidAt: toTimestamp(asOf),
     })
     .returningAll()
     .executeTakeFirstOrThrow()
 
-  const movement = payoutMovement(availableCents)
+  const movement = payoutMovement(intent.amountCents)
 
   await db
     .insertInto('ledgerEntries')
     .values({
-      sellerId,
+      sellerId: intent.sellerId,
       fulfillmentId: null,
       payoutId: payout.id,
       entryType: movement.entryType,
       amountCents: movement.amountCents,
-      occurredAt: toTimestamp(payoutPeriodEndsAt(period)),
+      occurredAt: endsAt,
     })
     .execute()
 

@@ -72,7 +72,7 @@ sequenceDiagram
     Thread->>Post: postMessage(sender:{type:'seller'})
     Thread-->>Seller: the thread offers "Publish as FAQ",<br/>pre-filled with source_message_id
     Seller->>Publish: question + answer + source_message_id
-    Publish->>Publish: faqDraftErrors, then publishListingFaq
+    Publish->>Publish: parseFaqDraft, then publishListingFaq
     Publish-->>Seller: redirect, "Published to the listing."
     Note over Shopper: /art/:slug now lists the question and the answer
 ```
@@ -97,8 +97,11 @@ is still there. `source_message_id` records which answer an entry was lifted
 from. The seller can also edit (`POST /seller/listings/:id/faqs/:faqId`) or
 unpublish (`.../unpublish`) from `/seller/listings/:id/faqs`.
 
-`messageBodyError` caps a message at `MESSAGE_BODY_MAX_LENGTH` (2000);
-`faqDraftErrors` caps a question at 500 and an answer at 2000.
+`messageBodyError` caps a message at `MESSAGE_BODY_MAX_LENGTH` (2000).
+`parseFaqDraft` (`app/core/messaging/faq-draft.ts`) returns
+`{ ok: true; value } | { ok: false; errors }`, capping a question at
+`FAQ_QUESTION_MAX_LENGTH` (500) and an answer at `FAQ_ANSWER_MAX_LENGTH`
+(2000), so the route branches once rather than checking an error bag.
 
 ## Who may read, who may post
 

@@ -1,14 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { browseAsAnonymousCustomer, buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
-import { blockCustomer, listArtwork } from '../storefront-fixtures.ts'
+import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 test('adding a piece puts it on the cart with its quantity and subtotal', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp, 'ada@example.test')
   const customer = await browseAsAnonymousCustomer(testApp)
-  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: 24_000, quantity: 3 })
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: cents(24_000), quantity: 3 })
 
   const add = await testApp.app.inject({
     method: 'POST',
@@ -161,7 +162,7 @@ test('a cart with items offers a checkout link and a subtotal', async (t) => {
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
   const customer = await browseAsAnonymousCustomer(testApp)
-  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: 24_000 })
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: cents(24_000) })
   await testApp.app.inject({
     method: 'POST',
     url: '/cart/harbour-at-dusk',
@@ -203,4 +204,88 @@ test('removing an unknown listing answers 404', async (t) => {
   })
 
   assert.equal(response.statusCode, 404)
+})
+
+test('adding a listing an admin removed answers 404 and leaves the cart empty', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await removeListing(testApp, { listingId: listing.id, adminId: admin.id })
+
+  const add = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: {},
+  })
+
+  const items = await testApp.db.selectFrom('cartItems').select('id').execute()
+
+  assert.equal(add.statusCode, 404)
+  assert.equal(items.length, 0)
+})
+
+test('a refused add leaves no listing event behind', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Last copy', status: 'sold' })
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/last-copy',
+    cookies: customer.cookies,
+    payload: {},
+  })
+
+  const events = await testApp.db
+    .selectFrom('listingEvents')
+    .select('id')
+    .where('listingId', '=', listing.id)
+    .where('eventType', '=', 'cart_add')
+    .execute()
+
+  assert.equal(events.length, 0)
+})
+
+test('a listing with one in stock takes an add with no quantity field', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', quantity: 1 })
+
+  const add = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: {},
+  })
+
+  assert.equal(add.statusCode, 302)
+  const cart = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+  assert.match(cart.body, /Quantity 1/)
+})
+
+test('a quantity that is not a quantity is refused rather than silently read as one', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', quantity: 3 })
+
+  const add = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: { quantity: 'lots' },
+  })
+
+  assert.equal(add.statusCode, 400)
+  const cart = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+  assert.doesNotMatch(cart.body, /Harbour at dusk/)
 })

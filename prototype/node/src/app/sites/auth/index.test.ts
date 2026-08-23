@@ -3,7 +3,14 @@ import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
-import { buildTestApp, TEST_INSTANT, takeDebugMagicLink, type TestApp } from '../../test/build-test-app.ts'
+import {
+  buildTestApp,
+  TEST_CONFIG,
+  TEST_INSTANT,
+  takeDebugMagicLink,
+  type TestApp,
+} from '../../test/build-test-app.ts'
+import { captureLogLines } from '../../test/log-lines.ts'
 
 type Cookies = Record<string, string>
 
@@ -282,4 +289,66 @@ test('verification carries the visitor on to the destination the link holds', as
   const followed = await follow(testApp, takeDebugMagicLink(testApp, asked), cookiesOf(asked))
 
   assert.equal(followed.headers.location, '/orders/7/pay')
+})
+
+test('consuming a link logs a magic_link.consumed event naming who signed in', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+
+  const asked = await askForLink(testApp, '/seller/login', 'newcomer@example.com')
+  await follow(testApp, asked.link, asked.cookies)
+
+  const seller = await testApp.db.selectFrom('sellers').selectAll().executeTakeFirstOrThrow()
+  const line = stream.lines().find((entry) => entry.event === 'magic_link.consumed')
+  assert.equal(line?.actorType, 'seller')
+  assert.equal(line?.actorId, seller.id)
+})
+
+test('a link past its expiry logs a magic_link.refused event naming why', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+  const token = '1'.repeat(64)
+  const expired = new Date(TEST_INSTANT.getTime() - 60 * 1000).toISOString()
+
+  await testApp.db
+    .insertInto('magicLinks')
+    .values({
+      tokenDigest: digestMagicLinkToken(token),
+      email: 'artist@example.com',
+      actorType: 'seller',
+      redirectTo: null,
+      expiresAt: expired,
+      consumedAt: null,
+      createdAt: expired,
+    })
+    .execute()
+
+  await testApp.app.inject({ method: 'GET', url: `/auth/magic/${token}` })
+
+  const line = stream.lines().find((entry) => entry.event === 'magic_link.refused')
+  assert.equal(line?.actorType, 'seller')
+  assert.equal(line?.reason, 'expired')
+})
+
+test('a token no link was issued for logs a magic_link.refused event with no actor', async (t) => {
+  const stream = captureLogLines()
+  const testApp = await buildTestApp({
+    config: { ...TEST_CONFIG, logLevel: 'info' },
+    loggerStream: stream,
+  })
+  t.after(testApp.close)
+
+  await testApp.app.inject({ method: 'GET', url: `/auth/magic/${'0'.repeat(64)}` })
+
+  const line = stream.lines().find((entry) => entry.event === 'magic_link.refused')
+  assert.equal(line?.reason, 'unknown_token')
+  assert.equal(line?.actorType, undefined)
 })

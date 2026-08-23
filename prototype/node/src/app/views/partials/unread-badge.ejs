@@ -1,0 +1,5 @@
+<span
+  data-messages-badge
+  class="<%= classes %>"
+  <% if (unreadMessageCount > 0) { %>data-unread-messages="<%= unreadMessageCount %>"<% } %>
+><% if (unreadMessageCount > 0) { %><%= unreadMessageCount %><% } %></span>

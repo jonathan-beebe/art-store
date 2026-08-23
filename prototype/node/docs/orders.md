@@ -32,9 +32,10 @@ sequenceDiagram
     participant Notify as notify
 
     Customer->>Checkout: email, shipping, card?
-    Checkout->>Checkout: parseCheckoutForm, isCheckoutComplete (422 re-renders)
+    Checkout->>Checkout: parseCheckoutForm -> ok | errors (422 re-renders what was typed)
     Checkout->>Checkout: purchaserForCheckout(...)
     Checkout->>Place: placeOrder({cartId, purchaser, shipping})
+    Place->>Place: planOrderPlacement (refuses, naming every blocked line)
     Place->>Place: snapshot order_items, split fulfillments by seller,<br/>stockAfterSale per line, empty the cart
     Place-->>Checkout: order, status orderStatusForPlacement(isEmailVerified)
 
@@ -72,6 +73,16 @@ is a no-op once the order has already moved
 writes one `payments` row per attempt, so two declines followed by an approval
 leave three. A declined attempt settles nothing: `settledFulfillments` returns
 an empty list, so no ledger entry and no notification.
+
+A cart that went stale between the page and the submit is refused, not
+half-placed. `placeOrder` runs `planOrderPlacement`
+(`app/core/orders/order-placement.ts`) **inside its own transaction**, against
+the listing rows as they stand at that moment plus their active removals; a
+refusal comes back as `{ ok: false, unavailable }` naming every blocked line
+with an `UnavailableReason` (`removed`, `off_sale`, `sold_out`,
+`short_stock`), and checkout re-renders with the whole list rather than a 500.
+Reading the cart, deciding, and taking the stock are one transaction, so two
+shoppers cannot both take the last piece.
 
 A guest order cannot jump `pending_verification → paid`: the transition table
 has no such edge, so `finalizeOrder` on an unverified order throws

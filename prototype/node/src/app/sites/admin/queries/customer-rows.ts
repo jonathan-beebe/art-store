@@ -26,13 +26,15 @@ export async function customerRows(
   standing: CustomerStandingFilter = 'all',
 ): Promise<readonly CustomerRow[]> {
   const { db } = context
-  const [customers, orderCounts, favoriteCounts, cartLineCounts, blockedIds] = await Promise.all([
-    db.selectFrom('customers').select(['id', 'email', 'createdAt']).orderBy('id').execute(),
-    countByCustomer(db, 'orders'),
-    countByCustomer(db, 'favorites'),
-    cartLineCountsByCustomer(db),
-    blockedCustomerIds(db),
-  ])
+  const customers = await db
+    .selectFrom('customers')
+    .select(['id', 'email', 'createdAt'])
+    .orderBy('id')
+    .execute()
+  const orderCounts = await countByCustomer(db, 'orders')
+  const favoriteCounts = await countByCustomer(db, 'favorites')
+  const cartLineCounts = await cartLineCountsByCustomer(db)
+  const blockedIds = await blockedCustomerIds(db)
 
   const rows = customers.map((customer) => ({
     ...customer,

@@ -1,4 +1,6 @@
-import type { Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
+import { ACTOR_TYPES } from '../../core/auth/actor-type.ts'
+import { CONVERSATION_KINDS } from '../../core/messaging/conversation-kind.ts'
 
 /**
  * One table serves every pairing: `kind` says which two participant columns are
@@ -15,7 +17,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('conversations')
     .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('kind', 'text', (column) => column.notNull())
+    .addColumn('kind', 'text', (column) =>
+      column.notNull().check(sql`kind in (${sql.join(CONVERSATION_KINDS.map((kind) => sql.lit(kind)))})`),
+    )
     .addColumn('seller_id', 'integer', (column) => column.references('sellers.id'))
     .addColumn('customer_id', 'integer', (column) => column.references('customers.id'))
     .addColumn('admin_id', 'integer', (column) => column.references('admins.id'))
@@ -55,7 +59,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('conversation_id', 'integer', (column) =>
       column.notNull().references('conversations.id'),
     )
-    .addColumn('sender_type', 'text', (column) => column.notNull())
+    .addColumn('sender_type', 'text', (column) =>
+      column
+        .notNull()
+        .check(sql`sender_type in (${sql.join(ACTOR_TYPES.map((type) => sql.lit(type)))})`),
+    )
     .addColumn('sender_id', 'integer', (column) => column.notNull())
     .addColumn('body', 'text', (column) => column.notNull())
     .addColumn('sent_at', 'text', (column) => column.notNull())

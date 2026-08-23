@@ -72,3 +72,21 @@ test('filtering by seller returns only that seller’s payouts', async (t) => {
   assert.equal(rows.length, 1)
   assert.equal(rows[0]?.sellerId, first)
 })
+
+test('a blank shop name falls back to the address before the @, not the whole address', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await createSeller(world.context, '   ')
+  await deliverAndPay(world, sellerId, 45_000)
+
+  const seller = await world.db
+    .selectFrom('sellers')
+    .selectAll()
+    .where('id', '=', sellerId)
+    .executeTakeFirstOrThrow()
+
+  const [row] = await payoutRows(world.context)
+  assert.equal(row?.sellerName, seller.email.split('@')[0])
+  assert.notEqual(row?.sellerName, seller.email)
+})

@@ -10,7 +10,7 @@ test('it finds the customer the cookie names', async (t) => {
   t.after(close)
   const customer = await createAnonymousCustomer({ db, clock })
 
-  const found = await resolveCustomerFromCookie({ db }, String(customer.id))
+  const found = await resolveCustomerFromCookie({ db }, customer.id)
 
   assert.equal(found?.id, customer.id)
 })
@@ -29,42 +29,24 @@ test('a cookie left holding a merged id resolves forward to the customer the his
     })
     .execute()
 
-  const found = await resolveCustomerFromCookie({ db }, String(anonymous.id))
+  const found = await resolveCustomerFromCookie({ db }, anonymous.id)
 
   assert.equal(found?.id, verified.id)
 })
 
-test('it resolves nothing when there is no cookie', async (t) => {
+test('it resolves nothing when the cookie named nobody', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
 
   assert.equal(await resolveCustomerFromCookie({ db }, null), null)
-  assert.equal(await resolveCustomerFromCookie({ db }, undefined), null)
 })
 
 test('it resolves nothing for a customer that no longer exists', async (t) => {
   const { db, close } = await buildTestApp()
   t.after(close)
 
-  const found = await resolveCustomerFromCookie({ db }, '999999')
+  const found = await resolveCustomerFromCookie({ db }, 999999)
 
   assert.equal(found, null)
 })
 
-test('it resolves nothing for a cookie that is not an id', async (t) => {
-  const { db, close } = await buildTestApp()
-  t.after(close)
-
-  assert.equal(await resolveCustomerFromCookie({ db }, '../../etc/passwd'), null)
-  assert.equal(await resolveCustomerFromCookie({ db }, '12abc'), null)
-  assert.equal(await resolveCustomerFromCookie({ db }, ''), null)
-})
-
-test("it resolves nothing for a cookie holding '0'", async (t) => {
-  const { db, close } = await buildTestApp()
-  t.after(close)
-
-  const found = await resolveCustomerFromCookie({ db }, '0')
-
-  assert.equal(found, null)
-})

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseListingSearch, searchLikePattern } from './listing-search.ts'
+import { filterQuery, parseListingSearch, searchLikePattern } from './listing-search.ts'
 
 test('it reads a term and a medium', () => {
   const search = parseListingSearch({ term: 'harbour', medium: 'Oil on canvas' })
@@ -30,4 +30,12 @@ test('it drops wildcards the visitor typed', () => {
 
 test('it refuses a pattern without a term', () => {
   assert.throws(() => searchLikePattern(parseListingSearch({ medium: 'Oil' })), RangeError)
+})
+
+test('it repeats an empty search as an empty pair', () => {
+  assert.equal(filterQuery(parseListingSearch({})), 'q=&medium=')
+})
+
+test('it repeats a search back as a query string', () => {
+  assert.equal(filterQuery(parseListingSearch({ term: 'sea & sky', medium: 'Oil' })), 'q=sea%20%26%20sky&medium=Oil')
 })

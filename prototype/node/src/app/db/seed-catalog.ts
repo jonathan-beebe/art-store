@@ -3,6 +3,7 @@ import { changeListingStatus } from '../actions/listings/change-listing-status.t
 import { createListing } from '../actions/listings/create-listing.ts'
 import { removeListing } from '../actions/moderation/remove-listing.ts'
 import { fixedClock } from '../clock.ts'
+import { cents } from '../core/money.ts'
 import type { AppDatabase } from './database.ts'
 
 const CREATED_AT = new Date('2026-06-05T00:00:00.000Z')
@@ -325,7 +326,7 @@ export async function seedCatalog(
         description: record.description,
         medium: record.medium,
         dimensions: record.dimensions,
-        priceCents: record.priceCents,
+        priceCents: cents(record.priceCents),
         quantity: record.quantity ?? 1,
       },
     })
