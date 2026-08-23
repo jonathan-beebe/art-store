@@ -57,6 +57,27 @@ sets `HOST` and `PORT` for the container.
 | `LOG_LEVEL` | `info` |
 | `MAGIC_LINK_DELIVERY` | `flash` (`mail` throws `NotImplementedError`) |
 
+## Health
+
+`GET /health` answers 200 only when the database responds and no migration
+is pending; 503 with `status: "unavailable"` otherwise, and 503 with
+`status: "draining"` once a SIGINT or SIGTERM has told the instance to stop
+taking traffic.
+
+```json
+{
+  "status": "ok",
+  "checks": { "database": "ok", "migrations": "current" },
+  "uptimeSeconds": 42
+}
+```
+
+`docker-compose.yml`'s `healthcheck:` polls it with `node -e` and `fetch` —
+the image has no `curl`. A SIGTERM (`docker compose stop`, or an
+orchestrator taking the container out of rotation) logs, flips `/health` to
+`draining`, waits for in-flight requests to finish, closes the database, and
+force-exits after 10 seconds if `close()` hangs.
+
 ## Seeded accounts
 
 `make seed` (and the entrypoint on every start) adds the two platform admins,

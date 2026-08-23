@@ -62,6 +62,18 @@ test('every site serves its own page and they all share one stylesheet', async (
 
   assert.equal(stylesheet.statusCode, 200)
   assert.match(stylesheet.headers['content-type'] ?? '', /text\/css/)
+
+  // What docker-compose's healthcheck polls before routing traffic here.
+  const health = await app.inject({ method: 'GET', url: '/health' })
+  const healthBody = health.json() as { status: string; checks: unknown; uptimeSeconds: number }
+
+  assert.equal(health.statusCode, 200)
+  assert.deepEqual(healthBody, {
+    status: 'ok',
+    checks: { database: 'ok', migrations: 'current' },
+    uptimeSeconds: healthBody.uptimeSeconds,
+  })
+  assert.equal(typeof healthBody.uptimeSeconds, 'number')
 })
 
 // ---------------------------------------------------------------------------

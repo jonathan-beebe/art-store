@@ -13,3 +13,12 @@ services:
       HOST: 0.0.0.0
       PORT: 4000
     command: ["node", "--watch", "app/server.ts"]
+    healthcheck:
+      # No curl in the image — node:sqlite already requires Node's own fetch.
+      # start_period covers the entrypoint's npm ci / migrate / seed / assets
+      # build, which runs before the server ever starts listening.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s

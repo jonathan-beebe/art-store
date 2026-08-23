@@ -10,6 +10,7 @@ import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { addFlash } from './plugins/flash.ts'
+import { addHealth } from './plugins/health.ts'
 import { addIdentity } from './plugins/identity.ts'
 import { addPageViewRollup } from './plugins/page-views.ts'
 import { addUnreadMessages } from './plugins/unread-messages.ts'
@@ -31,6 +32,9 @@ declare module 'fastify' {
     clock: Clock
     config: AppConfig
     magicLinkDelivery: MagicLinkDelivery
+    // Flipped by server.ts before draining on SIGINT/SIGTERM, so /health
+    // answers 503 while in-flight requests finish.
+    draining: boolean
   }
 }
 
@@ -54,6 +58,7 @@ export function buildApp({
   app.decorate('clock', clock)
   app.decorate('config', config)
   app.decorate('magicLinkDelivery', magicLinkDelivery)
+  app.decorate('draining', false)
 
   app.register(fastifyCookie, { secret: config.cookieSecret })
   app.register(fastifyFormbody)
@@ -75,6 +80,7 @@ export function buildApp({
   // shared partials by the same path every other template uses.
   app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
 
+  addHealth(app)
   addFlash(app)
   addIdentity(app)
   addPageViewRollup(app)
