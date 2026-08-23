@@ -41,7 +41,7 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (thin: associations, scopes, enums mapped to domain enums), the magic-link delivery port implementations, ERB views. |
+| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
@@ -50,14 +50,13 @@ Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 tense.
 
 Action namespaces are the plural directory name — `Carts::`, `Fulfillments::`,
-`Orders::`, `Listings::`, `Notifications::`, `Escrow::`, `Auth::`,
-`Customers::`, `Favorites::` — not the singular the ticket originally asked
-for. Rails makes every `app/*` directory a Zeitwerk root, and `app/models/cart.rb`
+`Orders::`, `Listings::`, `Notifications::`, `Escrow::`, `Favorites::` — not
+the singular the ticket originally asked for. Rails makes every `app/*` directory a Zeitwerk root, and `app/models/cart.rb`
 / `fulfillment.rb` / `seller.rb` already define `Cart`, `Fulfillment`, `Seller`
 as classes, so `app/actions/cart/` declaring `module Cart` raises `TypeError:
 Cart is not a module`. The same collision makes every seller-portal controller
 `class Seller::XController < Seller::BaseController` (compact form) instead of
-`module Seller`; `Shop::`, `Auth::`, `Customers::`, and `Favorites::` have no
+`module Seller`; `Shop::`, `Auth::`, and `Favorites::` have no
 matching model and stay `module`.
 
 ## Sites
@@ -77,6 +76,9 @@ which prints `flash[:debug_magic_link]`.
 
 - Passwordless. `magic_links` holds a hashed token, `email`, `actor_type`
   (`seller` | `customer`), `expires_at`, `consumed_at`, optional `redirect_to`.
+  `MagicLink.issue` writes the row and returns the plaintext token beside it;
+  `MagicLink.find_by_token`, `#usable?` and `#consume!` are the verify side.
+  `Seller.claim` and `Customer.claim` turn a followed link into an account.
 - Delivery is a port: `MagicLinkDelivery` (duck-typed interface in
   `app/delivery/`) with `FlashMagicLinkDelivery` (prototype: flash the URL so
   the layout prints it in a debug alert) and `MailMagicLinkDelivery` (the hook
@@ -88,8 +90,9 @@ which prints `flash[:debug_magic_link]`.
   row or **merges** the anonymous row into the existing verified customer
   (favorites, cart, orders, listing events, notifications re-pointed; a
   `customer_merges` row records `anonymous_customer_id -> customer_id` so stale
-  cookies resolve). The merge decision is a pure function in
-  `app/domain/customers`; the re-pointing is an action.
+  cookies resolve). `Customer.claim` holds the decision, `Customer#absorb`
+  moves the rows through the associations `Customer` declares, and
+  `Customer.from_cookie` follows a merge forward.
 - Guest checkout = place the order as the anonymous customer, verify, then pay
   on `/orders/:id/pay`. The card is entered after verification and never stored.
 - Verifying does not by itself pay the order. It moves the order from

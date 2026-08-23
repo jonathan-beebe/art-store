@@ -33,13 +33,15 @@ module TestRecords
   end
 
   # Returns the plaintext token beside the row, since only the digest is stored.
-  def create_magic_link(email: "artist@example.com", actor_type: Domain::Auth::ActorType::SELLER, **attributes)
+  def create_magic_link(
+    email: "artist@example.com", actor_type: :seller, expires_at: 15.minutes.from_now, **attributes
+  )
     token = SecureRandom.hex(32)
     link = MagicLink.create!(
-      token_digest: Domain::Auth::MagicLinkToken.digest(token),
+      token_digest: MagicLink.digest(token),
       email: email,
       actor_type: actor_type,
-      expires_at: 15.minutes.from_now,
+      expires_at: expires_at,
       **attributes
     )
 

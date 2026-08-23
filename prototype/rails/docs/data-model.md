@@ -188,7 +188,7 @@ Caveats:
   payment is the latest one (`order.payments.order(:id).last`).
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
   positive, `paid_out` is negative. See `docs/escrow.md`.
-- `carts.customer_id` is not unique — `Customers::MergeAnonymousCustomer` can
+- `carts.customer_id` is not unique — `Customer#absorb` can
   re-point a second cart onto a customer that already has one
   (`Carts::CurrentCart` picks the one with the most items).
 - Two columns are named `entry_type` / `event_type` rather than `type`:

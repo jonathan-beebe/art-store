@@ -24,7 +24,7 @@ module Auth
       token = flash[:debug_magic_link].split("/").last
 
       assert_equal verify_magic_link_url(token), flash[:debug_magic_link]
-      assert_equal MagicLink.sole, MagicLink.for_token(token).first
+      assert_equal MagicLink.sole, MagicLink.find_by_token(token)
     end
 
     test "the debug alert renders the link on the page it lands on" do
@@ -37,7 +37,7 @@ module Auth
     test "the link is issued for the seller side" do
       post seller_send_magic_link_path, params: { email: "artist@example.com" }
 
-      assert_equal Domain::Auth::ActorType::SELLER, MagicLink.sole.actor_type
+      assert_equal "seller", MagicLink.sole.actor_type
     end
 
     test "submitting an address that is not an email issues no link" do

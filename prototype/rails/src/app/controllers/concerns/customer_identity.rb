@@ -32,7 +32,7 @@ module CustomerIdentity
   end
 
   def customer_from_cookie
-    Customers::ResolveCustomerFromCookie.new.call(cookies.signed[COOKIE])
+    Customer.from_cookie(cookies.signed[COOKIE])
   end
 
   def sign_in_customer(customer)

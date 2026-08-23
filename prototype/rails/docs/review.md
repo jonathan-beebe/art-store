@@ -35,7 +35,7 @@ is `@import "tailwindcss"` and nothing else.
 | Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `Carts::AddToCartTest`, `Carts::RemoveFromCartTest` |
 | Purchase | done | `shop_checkout`, `shop_place_order`, `shop_pay_order` | `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest` |
 | Anonymous customer id per visitor | done | every storefront route, via `CustomerIdentity` | `CustomerIdentityConcernTest` |
-| Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `Customers::MergeAnonymousCustomerTest`, `Domain::Customers::IdentityPlanTest` |
+| Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `CustomerTest`, `Auth::MagicLinksControllerTest` |
 | Magic links, no passwords | done | `customer_login`, `customer_send_magic_link` | `Auth::CustomerSessionsControllerTest` |
 | Fake card 4242 4242 4242 4242 | done | `shop_pay_order` | `Domain::Payments::FakeCardTest` |
 | Failed payments | done | `shop_pay_order`, retry form on `shop_order` | `Shop::OrderPaymentsControllerTest`, `Orders::FinalizeOrderTest`, `Orders::OrderLifecycleTest` |
@@ -76,7 +76,7 @@ is `@import "tailwindcss"` and nothing else.
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
 | Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
-| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a domain predicate (`OrderPayment.payable?`, `ListingAvailability.purchasable?`, `FulfillmentStatus.can_transition?`, `EmailAddress.valid?`, `CheckoutForm#complete?`, `ShipmentDetails#complete?`) or a shell fact (signed in, empty cart, missing row) |
+| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a domain predicate (`OrderPayment.payable?`, `ListingAvailability.purchasable?`, `FulfillmentStatus.can_transition?`, `CheckoutForm#complete?`, `ShipmentDetails#complete?`), a record predicate (`MagicLink#usable?`, `link.persisted?`), or a shell fact (signed in, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `data-model.md`, `ontology.md` |
 
 ## Goal
@@ -129,7 +129,7 @@ is `@import "tailwindcss"` and nothing else.
    is the only one with behavior of its own, covered by
    `Shop::AccountControllerTest`.
 4. **A merge can leave a customer holding two carts.**
-   `Customers::MergeAnonymousCustomer` re-points the anonymous cart rather than
+   `Customer#absorb` re-points the anonymous cart rather than
    folding it into the account's cart, and `Carts::CurrentCart` then shops with
    whichever holds more items. Items in the other cart are still in the
    database and no page shows them.

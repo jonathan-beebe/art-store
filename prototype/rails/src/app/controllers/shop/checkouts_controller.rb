@@ -1,5 +1,7 @@
 module Shop
   class CheckoutsController < BaseController
+    include MagicLinkSender
+
     INCOMPLETE = "Enter an email address and a full shipping address.".freeze
 
     def show
@@ -36,13 +38,9 @@ module Shop
     end
 
     def send_verification_link(order, purchaser)
-      Auth::SendMagicLink
-        .new(delivery: MagicLinkDelivery.build(flash), link_url: ->(token) { verify_magic_link_url(token) })
-        .call(
-          email: purchaser.email,
-          actor_type: Domain::Auth::ActorType::CUSTOMER,
-          redirect_to: shop_order_payment_path(order)
-        )
+      send_magic_link(
+        email: purchaser.email, actor_type: :customer, redirect_to: shop_order_payment_path(order)
+      )
 
       redirect_to shop_order_path(order)
     end

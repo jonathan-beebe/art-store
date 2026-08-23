@@ -54,6 +54,15 @@ module Auth
       assert_nil session[:seller_id]
     end
 
+    test "a link used before it expired reads as used rather than expired" do
+      token, link = create_magic_link(expires_at: 16.minutes.ago)
+      link.consume!
+
+      get verify_magic_link_path(token)
+
+      assert_equal "That sign-in link has already been used. Ask for a new one.", flash[:alert]
+    end
+
     test "a link still inside the fifteen minute window works" do
       token, = create_magic_link(expires_at: 14.minutes.from_now)
 
@@ -70,7 +79,7 @@ module Auth
     end
 
     test "an expired customer link sends the visitor to the storefront sign-in" do
-      token, = create_magic_link(actor_type: Domain::Auth::ActorType::CUSTOMER, expires_at: 1.minute.ago)
+      token, = create_magic_link(actor_type: :customer, expires_at: 1.minute.ago)
 
       get verify_magic_link_path(token)
 

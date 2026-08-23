@@ -1,4 +1,3 @@
-require_relative "../auth/email_address"
 require_relative "../orders/shipping_address"
 
 module Domain
@@ -25,7 +24,7 @@ module Domain
       private_class_method :filled
 
       def complete?
-        Auth::EmailAddress.valid?(email) && missing_parts.empty?
+        EmailAddress::SHAPE.match?(email) && missing_parts.empty?
       end
 
       def missing_parts

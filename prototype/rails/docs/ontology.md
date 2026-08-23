@@ -108,7 +108,7 @@ merge).
   `docs/identity.md`)
 
 **In code.** No separate model or enum — `Customer#anonymous?`,
-`Domain::Customers::IdentityPlan`.
+`Customer.claim`.
 
 ### Platform
 
@@ -413,9 +413,9 @@ once). Sequence diagrams: `docs/identity.md`.
   seller and a customer can share an email address)
 - carries an `actor_type` and an optional post-verification redirect
 
-**In code.** `MagicLink`, `Domain::Auth::ActorType`,
-`Domain::Auth::MagicLinkStatus`, `Domain::Auth::MagicLinkToken` (table
-`magic_links`, column `token_digest`), sent by `Auth::SendMagicLink`.
+**In code.** `MagicLink` (table `magic_links`, column `token_digest`,
+`actor_type` enum), issued by `MagicLink.issue` and spent through
+`MagicLink.find_by_token`, `#usable?` and `#consume!`.
 
 ### Customer merge
 
@@ -426,17 +426,16 @@ already-verified one.
 verify an address that another device already claimed; the merge lets a
 stale cookie on the first device keep resolving to the right account.
 
-**Lifecycle.** None — written once when `Domain::Customers::IdentityPlan.decide`
-resolves to `merge_anonymous_into`; never undone.
+**Lifecycle.** None — written once by `Customer#absorb`; never undone.
 
 **Relates to.**
 - points one anonymous Customer at the verified Customer it merged into
 - triggers re-pointing of that customer's Favorites, Cart, Orders, Listing
-  events, and Notifications (`Domain::Customers::OwnedTables::ALL`)
+  events, and Notifications (`Customer::MERGED_ASSOCIATIONS`)
 
-**In code.** `CustomerMerge`, `Domain::Customers::IdentityPlan` (table
-`customer_merges`), performed by `Customers::ClaimCustomerIdentity` and
-`Customers::MergeAnonymousCustomer`.
+**In code.** `CustomerMerge` (table `customer_merges`), written by
+`Customer#absorb` when `Customer.claim` finds both an anonymous row and an
+account holding the address.
 
 ### Notification
 

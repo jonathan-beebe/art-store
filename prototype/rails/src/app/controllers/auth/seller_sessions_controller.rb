@@ -7,16 +7,14 @@ module Auth
     end
 
     def create
-      email = params[:email]
+      link = send_magic_link(email: params[:email], actor_type: :seller)
 
-      unless Domain::Auth::EmailAddress.valid?(email)
+      unless link.persisted?
         flash.now[:alert] = "Enter an email address to sign in."
         return render :new, status: :unprocessable_content
       end
 
-      send_magic_link(email: email, actor_type: Domain::Auth::ActorType::SELLER)
-
-      redirect_to seller_login_path, notice: "Sign-in link sent to #{Domain::Auth::EmailAddress.normalize(email)}."
+      redirect_to seller_login_path, notice: "Sign-in link sent to #{link.email}."
     end
 
     def destroy

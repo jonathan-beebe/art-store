@@ -31,7 +31,7 @@ sequenceDiagram
         Finalize->>Notify: item_sold(order, fulfillment.net) per seller
         Checkout-->>Customer: redirect /orders/:id
     else guest, email unverified
-        Checkout->>Checkout: SendMagicLink(email, redirect_to: /orders/:id/pay)
+        Checkout->>Checkout: send_magic_link(email, redirect_to: /orders/:id/pay)
         Checkout-->>Customer: redirect /orders/:id, "check your email"
         Note over Customer: verifies by magic link (see identity.md), lands on /orders/:id/pay
         Customer->>Pay: POST /orders/:id/pay (card_number)

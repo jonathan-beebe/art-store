@@ -191,9 +191,16 @@ Sellers sign in at `/seller/login`, customers at `/login`; both submit an email
 address, then click the link in the debug alert. A link lasts 15 minutes and
 works once. The first link for an address creates the account.
 
+`MagicLink.issue(email:, actor_type:)` writes the row and returns the
+plaintext token beside it — only the SHA256 digest is stored — and the verify
+side is `MagicLink.find_by_token`, `#usable?` and `#consume!`. A followed link
+reaches `Seller.claim(email)` or `Customer.claim(email, current:)`.
+
 Every storefront visitor gets a `customers` row before they give an address,
 carried in the signed `customer_id` cookie. Verifying an address either claims
-that row or merges it into the account already holding the address.
+that row (`Customer#claim_address`) or merges it into the account already
+holding the address (`Customer#absorb`, which leaves a `customer_merges` row so
+a stale cookie resolves forward through `Customer.from_cookie`).
 
 ```sh
 MAGIC_LINK_DELIVERY=mail        # flash (default) | mail, which raises until email exists

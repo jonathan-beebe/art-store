@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-22:19:24:27 — RFCTR-004 — done: MagicLink issues, finds and consumes its own links behind an actor_type enum, Seller.claim and Customer.claim/absorb/from_cookie replace the five identity actions and six domain modules, email normalization and shape live in an EmailAddress concern, the merge moves rows through associations; 609 runs at 100% line coverage (this commit)
+- 2026-08-22:19:17:17 — RFCTR-004 — started
 - 2026-08-22:19:12:33 — RFCTR-003 — done: both StatusLabel modules, LocalRedirect and Money#grouped_dollars deleted in favour of String#humanize, url_from, String#parameterize and number_to_currency; status_label collapsed into ApplicationHelper; the redirect security cases moved into the sessions and magic-link integration tests; 640 runs at 100% line coverage (this commit)
 - 2026-08-22:19:05:52 — RFCTR-003 — started
 - 2026-08-22:19:03:43 — RFCTR-002 — done: four shared test cases collapsed into test_helper plus test/support (TestRecords, IntegrationHelpers), every test file requires test_helper and subclasses a stock Rails base, 205 call sites renamed to the create_* builders off the parsed AST, README and architecture.md updated, 645 runs at 100% line coverage (this commit)

@@ -1,4 +1,3 @@
-require_relative "../auth/email_address"
 require_relative "../orders/purchaser"
 
 module Domain
@@ -14,7 +13,7 @@ module Domain
           account_verified_at
 
         Orders::Purchaser.new(
-          id: id, email: Auth::EmailAddress.normalize(submitted_email), email_verified_at: nil
+          id: id, email: submitted_email.to_s.strip.downcase, email_verified_at: nil
         )
       end
     end

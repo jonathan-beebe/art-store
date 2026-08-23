@@ -58,7 +58,7 @@ module Auth
     test "submitting an address issues a customer link" do
       post customer_send_magic_link_path, params: { email: "buyer@example.com" }
 
-      assert_equal Domain::Auth::ActorType::CUSTOMER, MagicLink.sole.actor_type
+      assert_equal "customer", MagicLink.sole.actor_type
       assert_equal "buyer@example.com", MagicLink.sole.email
     end
 
