@@ -1,5 +1,7 @@
 <% content_for :title, "#{@conversation.topic} — Art Store admin" %>
 
+<%= turbo_stream_from @conversation, current_admin %>
+
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold"><%= @conversation.topic %></h1>
   <p data-cell="counterpart" class="text-slate-400">
@@ -8,16 +10,8 @@
   <%= link_to "All messages", admin_conversations_path, class: "ml-auto underline" %>
 </div>
 
-<ol class="mt-6 max-w-2xl space-y-3">
-  <% @messages.each do |message| %>
-    <li data-message="<%= message.id %>" class="rounded border border-slate-700 bg-slate-800 p-4">
-      <p class="text-slate-400">
-        <%= message.sender.display_name %> &middot;
-        <%= message.created_at.strftime("%b %-d, %Y %-l:%M%P") %>
-      </p>
-      <p class="mt-1 whitespace-pre-line"><%= message.body %></p>
-    </li>
-  <% end %>
+<ol id="<%= @conversation.messages_dom_id %>" class="mt-6 max-w-2xl space-y-3">
+  <%= render partial: "admin/conversations/message", collection: @messages %>
 </ol>
 
 <%= form_with model: @message, url: admin_conversation_messages_path(@conversation),

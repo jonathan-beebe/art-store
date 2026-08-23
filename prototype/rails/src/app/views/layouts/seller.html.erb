@@ -10,11 +10,13 @@
 
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <%= stylesheet_link_tag :app %>
+    <%= javascript_importmap_tags %>
   </head>
 
   <body data-site="seller" class="min-h-screen bg-neutral-100 text-sm text-neutral-900">
     <%= render "layouts/debug_alert" %>
     <%= render "layouts/flash" %>
+    <%= turbo_stream_from current_seller, :unread_messages if seller_signed_in? %>
 
     <header class="bg-neutral-900 text-neutral-100">
       <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
@@ -28,9 +30,7 @@
             <%= link_to "Earnings", seller_earnings_path %>
             <%= link_to seller_conversations_path, class: "flex items-center gap-1" do %>
               Messages
-              <% if unread_message_count.positive? %>
-                <span data-unread-messages class="rounded bg-neutral-100 px-1.5 text-xs font-semibold text-neutral-900"><%= unread_message_count %></span>
-              <% end %>
+              <%= render "seller/conversations/unread_badge", actor: current_seller %>
             <% end %>
             <%= link_to seller_notifications_path, class: "flex items-center gap-1" do %>
               Notifications

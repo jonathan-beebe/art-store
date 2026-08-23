@@ -24,7 +24,7 @@ class Seller::FaqsController < Seller::BaseController
     entry = @listing.faqs.find(params[:id])
 
     if entry.update(faq_params.slice(:question, :answer))
-      return redirect_to seller_listing_faqs_path(@listing), notice: "The entry is updated."
+      return redirect_to seller_listing_faqs_path(@listing), notice: "The entry is updated.", status: :see_other
     end
 
     present_entries(ListingFaq.new, edited: entry)
@@ -35,7 +35,7 @@ class Seller::FaqsController < Seller::BaseController
   def destroy
     @listing.faqs.find(params[:id]).destroy!
 
-    redirect_to seller_listing_faqs_path(@listing), notice: "Unpublished from the listing."
+    redirect_to seller_listing_faqs_path(@listing), notice: "Unpublished from the listing.", status: :see_other
   end
 
   private

@@ -295,6 +295,45 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal 1, conversation.unread_count_for(buyer)
   end
 
+  test "reading a thread sends the reader a badge with what is left" do
+    shop = create_seller
+    buyer = create_verified_customer
+    conversation = listing_question(shop, buyer)
+    conversation.post!(buyer, "Is the frame included?")
+    listing_question(shop, buyer, title: "Meadow at Low Tide").post!(buyer, "And this one?")
+
+    replaced = capture_turbo_stream_broadcasts([shop, :unread_messages]) do
+      conversation.read_by!(shop)
+    end
+
+    assert_equal "replace", replaced.sole["action"]
+    assert_equal shop.unread_badge_dom_id, replaced.sole["target"]
+    assert_match(/>1</, replaced.sole.to_html)
+  end
+
+  test "a thread with nothing unread on it sends no badge" do
+    shop = create_seller
+    conversation = listing_question(shop, create_verified_customer)
+
+    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+      conversation.read_by!(shop)
+    end
+  end
+
+  test "a reading that rolls back sends no badge" do
+    shop = create_seller
+    buyer = create_verified_customer
+    conversation = listing_question(shop, buyer)
+    conversation.post!(buyer, "Is the frame included?")
+
+    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+      conversation.transaction do
+        conversation.read_by!(shop)
+        raise ActiveRecord::Rollback
+      end
+    end
+  end
+
   test "a support thread is about the desk" do
     admin = create_admin
 

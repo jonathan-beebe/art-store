@@ -85,6 +85,16 @@ class Admin::ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-unread-messages]", text: "1"
   end
 
+  test "the thread page subscribes to the thread and to the reader's badge" do
+    admin = sign_in_as_admin
+    thread = support_thread(admin)
+
+    get admin_conversation_path(thread)
+
+    assert_select "turbo-cable-stream-source[signed-stream-name]", 2
+    assert_select "script[type=importmap]"
+  end
+
   test "a thread the operator is not in is not found" do
     sign_in_as_admin
 

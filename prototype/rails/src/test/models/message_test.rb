@@ -55,6 +55,76 @@ class MessageTest < ActiveSupport::TestCase
     assert_equal [asked, answered], conversation.messages.oldest_first.to_a
   end
 
+  test "an arriving message reaches both sides' open thread pages" do
+    shop = create_seller
+    conversation = support_thread(shop)
+
+    appended = capture_turbo_stream_broadcasts([conversation, shop]) do
+      conversation.post!(shop, "My payout is late.")
+    end
+
+    assert_equal 1, appended.count
+    assert_equal "append", appended.sole["action"]
+    assert_equal conversation.messages_dom_id, appended.sole["target"]
+    assert_includes appended.sole.to_html, "My payout is late."
+  end
+
+  test "each side is sent the markup of the site it reads on" do
+    shop = create_seller
+    conversation = support_thread(shop)
+    admin = conversation.admin
+
+    to_admin = nil
+    to_seller = capture_turbo_stream_broadcasts([conversation, shop]) do
+      to_admin = capture_turbo_stream_broadcasts([conversation, admin]) do
+        conversation.post!(shop, "My payout is late.")
+      end
+    end
+
+    assert_includes to_seller.sole.to_html, "bg-white"
+    assert_includes to_admin.sole.to_html, "bg-slate-800"
+  end
+
+  test "the side that did not write the message is sent a new badge" do
+    shop = create_seller
+    conversation = support_thread(shop)
+    admin = conversation.admin
+
+    replaced = capture_turbo_stream_broadcasts([admin, :unread_messages]) do
+      conversation.post!(shop, "My payout is late.")
+    end
+
+    assert_equal "replace", replaced.sole["action"]
+    assert_equal admin.unread_badge_dom_id, replaced.sole["target"]
+    assert_match(/>1</, replaced.sole.to_html)
+  end
+
+  test "the writer's own badge stays where it was" do
+    shop = create_seller
+    conversation = support_thread(shop)
+
+    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+      conversation.post!(shop, "My payout is late.")
+    end
+  end
+
+  test "a post whose transaction rolls back broadcasts nothing" do
+    shop = create_seller
+    conversation = support_thread(shop)
+    admin = conversation.admin
+
+    assert_turbo_stream_broadcasts([conversation, admin], count: 0) do
+      assert_turbo_stream_broadcasts([admin, :unread_messages], count: 0) do
+        conversation.transaction do
+          conversation.post!(shop, "My payout is late.")
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
+
+    assert_equal 0, Message.count
+  end
+
   private
 
   def support_thread(seller)

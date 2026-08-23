@@ -32,7 +32,7 @@ class Seller::ListingsController < Seller::BaseController
   def update
     return render :edit, status: :unprocessable_content unless @listing.update(listing_params)
 
-    redirect_to seller_listings_path, notice: %("#{@listing.title}" is updated.)
+    redirect_to seller_listings_path, notice: %("#{@listing.title}" is updated.), status: :see_other
   end
 
   private

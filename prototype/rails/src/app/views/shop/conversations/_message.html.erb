@@ -1,0 +1,7 @@
+<li data-message="<%= message.id %>">
+  <p class="text-sm text-neutral-500">
+    <%= message.sender.display_name %> &middot;
+    <%= message.created_at.strftime("%b %-d, %Y %-l:%M%P") %>
+  </p>
+  <p class="mt-1 whitespace-pre-line text-lg"><%= message.body %></p>
+</li>

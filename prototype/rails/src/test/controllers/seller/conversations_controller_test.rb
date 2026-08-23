@@ -86,6 +86,16 @@ class Seller::ConversationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-unread-messages]", text: "1"
   end
 
+  test "the thread page subscribes to the thread and to the reader's badge" do
+    seller = signed_in_seller
+    question = listing_question(seller)
+
+    get seller_conversation_path(question)
+
+    assert_select "turbo-cable-stream-source[signed-stream-name]", 2
+    assert_select "script[type=importmap]"
+  end
+
   test "an answered question offers to publish the pair" do
     seller = signed_in_seller
     question = listing_question(seller)

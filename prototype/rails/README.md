@@ -1,7 +1,8 @@
 # Art Store prototype (Rails)
 
 A two-sided art marketplace prototype: a seller portal at `/seller` and a
-customer storefront at `/`. One Rails app, one SQLite file, no JavaScript.
+customer storefront at `/`. One Rails app, one SQLite file. Turbo is the
+only JavaScript, and every page works without it.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -155,8 +156,23 @@ make assets
 
 The source is `src/app/assets/tailwind/application.css`; the build lands in
 `src/app/assets/builds/tailwind.css`, which is not committed. Layouts reference
-it with `stylesheet_link_tag :app`. There is no JavaScript bundle and no
-`<script>` tag in any view.
+it with `stylesheet_link_tag :app`.
+
+## JavaScript
+
+`javascript_importmap_tags` in the three layouts serves an import map with two
+entries: `application` (`src/app/javascript/application.js`, four lines, one
+`import`) and `@hotwired/turbo-rails`, pinned in `config/importmap.rb` to the
+`turbo.min.js` the gem ships. No bundler, no CDN, no Node.
+
+What Turbo adds: a message thread appends the other side's reply and the nav's
+Messages badge changes count without a reload, over Action Cable on Solid Cable
+(`solid_cable_messages` in the same SQLite file — no Redis). The stream names
+in `<turbo-cable-stream-source>` are signed, so a browser can only subscribe to
+the threads and the badge the server handed it.
+
+With JavaScript off, every page, form, link, and redirect behaves as it did
+before Turbo; the thread page and the badge then change on the next load.
 
 ## Layout
 

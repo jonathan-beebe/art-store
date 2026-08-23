@@ -19,4 +19,24 @@ class Message < ApplicationRecord
   validates :body,
     presence: { message: "Write a message." },
     length: { maximum: BODY_LIMIT, message: "Keep the message under #{BODY_LIMIT} characters." }
+
+  after_create_commit :broadcast_arrival
+
+  private
+
+  # A thread page open on either side gains the message, and the side that did
+  # not write it gains one on its badge. After the commit, so a post that rolls
+  # back sends nothing.
+  def broadcast_arrival
+    conversation.participants.each do |participant|
+      broadcast_append_to(
+        [conversation, participant],
+        target: conversation.messages_dom_id,
+        partial: "#{Conversation.site_of(participant)}/conversations/message",
+        locals: { message: self }
+      )
+    end
+
+    conversation.counterpart_of(sender).broadcast_unread_message_count
+  end
 end

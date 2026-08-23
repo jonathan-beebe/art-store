@@ -1,11 +1,12 @@
 class Conversation < ApplicationRecord
-  # Where an actor of one type sits in a conversation and where they read one.
-  Side = Data.define(:column, :inbox_path)
+  # Where an actor of one type sits in a conversation, which site they read one
+  # on, and where they read it.
+  Side = Data.define(:column, :site, :inbox_path)
 
   SIDES = {
-    seller: Side.new(column: :seller_id, inbox_path: "/seller/messages"),
-    customer: Side.new(column: :customer_id, inbox_path: "/messages"),
-    admin: Side.new(column: :admin_id, inbox_path: "/admin/messages")
+    seller: Side.new(column: :seller_id, site: "seller", inbox_path: "/seller/messages"),
+    customer: Side.new(column: :customer_id, site: "shop", inbox_path: "/messages"),
+    admin: Side.new(column: :admin_id, site: "admin", inbox_path: "/admin/messages")
   }.freeze
 
   # The two sides a kind of conversation has, what it is about, and how it
@@ -59,6 +60,18 @@ class Conversation < ApplicationRecord
     SIDES.fetch(actor.model_name.singular.to_sym)
   end
 
+  # Which of the three sites this actor reads their threads on. A broadcast
+  # picks the partial from here, so a seller is sent the portal's markup and a
+  # shopper the storefront's.
+  def self.site_of(actor)
+    side_of(actor).site
+  end
+
+  # The two actors the thread is between, in the order the kind names them.
+  def participants
+    KINDS.fetch(kind).sides.map { |side| public_send(side) }
+  end
+
   def participant?(actor)
     participants.include?(actor)
   end
@@ -80,6 +93,12 @@ class Conversation < ApplicationRecord
   # its recipient at theirs.
   def thread_path_for(actor)
     "#{self.class.side_of(actor).inbox_path}/#{id}"
+  end
+
+  # The element a thread page hangs its messages on, and the target an arriving
+  # message is appended to.
+  def messages_dom_id
+    ActionView::RecordIdentifier.dom_id(self, :messages)
   end
 
   # Appends one message, moves the thread to the top of both inboxes, and tells
@@ -107,16 +126,16 @@ class Conversation < ApplicationRecord
   end
 
   # Opening a thread reads what the other side sent. Returns how many messages
-  # that was.
+  # that was. The reader's badge follows the commit, so a reading that rolls
+  # back leaves the badge where it was.
   def read_by!(reader, at: Time.current)
-    messages.unread_for(reader).update_all(read_at: at)
+    read = messages.unread_for(reader).update_all(read_at: at)
+    ActiveRecord.after_all_transactions_commit { reader.broadcast_unread_message_count } if read.positive?
+
+    read
   end
 
   private
-
-  def participants
-    KINDS.fetch(kind).sides.map { |side| public_send(side) }
-  end
 
   def sides_match_the_kind
     shape = KINDS[kind]

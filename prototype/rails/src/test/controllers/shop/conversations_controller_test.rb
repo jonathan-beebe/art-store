@@ -78,6 +78,16 @@ module Shop
       assert_select "[data-unread-messages]", text: "1"
     end
 
+    test "the thread page subscribes to the thread and to the reader's badge" do
+      customer = visiting_customer_after_sign_in
+      question = listing_question(customer)
+
+      get shop_conversation_path(question)
+
+      assert_select "turbo-cable-stream-source[signed-stream-name]", 2
+      assert_select "script[type=importmap]"
+    end
+
     test "a thread the customer is not in is not found" do
       visiting_customer_after_sign_in
 

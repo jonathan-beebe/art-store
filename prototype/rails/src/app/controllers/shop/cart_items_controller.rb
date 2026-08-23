@@ -15,7 +15,7 @@ module Shop
     def destroy
       current_cart.remove(@listing)
 
-      redirect_to shop_cart_path
+      redirect_to shop_cart_path, status: :see_other
     end
 
     private

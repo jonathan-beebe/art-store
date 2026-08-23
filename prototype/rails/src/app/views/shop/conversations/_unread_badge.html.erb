@@ -1,0 +1,2 @@
+<% count = actor.unread_message_count %>
+<span id="<%= actor.unread_badge_dom_id %>" class="contents"><% if count.positive? %><span data-unread-messages class="rounded-full bg-amber-600 px-2 py-0.5 text-xs text-white"><%= count %></span><% end %></span>
