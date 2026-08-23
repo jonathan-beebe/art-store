@@ -37,13 +37,6 @@ it('flashes the link for the debug alert', function (): void {
     expect(session('debug_magic_link'))->toStartWith(url('/auth/magic/'));
 });
 
-it('rejects a submission without a usable address', function (): void {
-    $response = $this->post('/seller/login', ['email' => 'not-an-address']);
-
-    $response->assertSessionHasErrors('email');
-    expect(MagicLink::count())->toBe(0);
-});
-
 it('sends a signed in seller to the dashboard', function (): void {
     $response = $this->actingAs(Seller::factory()->create(), 'seller')->get('/seller/login');
 

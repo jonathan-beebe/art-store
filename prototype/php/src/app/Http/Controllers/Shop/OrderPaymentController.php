@@ -6,10 +6,10 @@ namespace App\Http\Controllers\Shop;
 
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\OrderPayment;
+use App\Http\Requests\Shop\PayOrderRequest;
 use App\Models\Order;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 final class OrderPaymentController extends ShopController
 {
@@ -23,17 +23,13 @@ final class OrderPaymentController extends ShopController
         ]);
     }
 
-    public function pay(Request $request, Order $order, FinalizeOrder $finalizeOrder): RedirectResponse
+    public function pay(PayOrderRequest $request, Order $order, FinalizeOrder $finalizeOrder): RedirectResponse
     {
-        $this->authorizeVisitor('pay', $order);
-
         if ($elsewhere = $this->elsewhere($order)) {
             return $elsewhere;
         }
 
-        $request->validate(['card_number' => ['required', 'string', 'max:32']]);
-
-        $finalizeOrder($order, $request->string('card_number')->toString(), $this->now());
+        $finalizeOrder($order, $request->cardNumber(), $this->now());
 
         return redirect()->route('shop.order', $order);
     }
@@ -50,7 +46,7 @@ final class OrderPaymentController extends ShopController
             return redirect()->route('shop.order', $order);
         }
 
-        if (! OrderPayment::isPayableBy($order->status, $this->visitor()->email_verified_at !== null)) {
+        if (! OrderPayment::isPayableBy($order->status, $this->visitor()->isVerified())) {
             return redirect()->route('auth.customer.login', [
                 'redirect_to' => route('shop.order.pay', $order, absolute: false),
             ]);

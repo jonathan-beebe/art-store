@@ -27,21 +27,6 @@ it('archives a listing that is for sale', function (): void {
     expect($listing->fresh()->status)->toBe(ListingStatus::Archived);
 });
 
-it('rejects a status change the lifecycle does not allow', function (ListingStatus $initial, string $attempted): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => $initial]);
-
-    $response = $this->actingAs($seller, 'seller')
-        ->post("/seller/listings/{$listing->id}/status", ['status' => $attempted]);
-
-    $response->assertSessionHasErrors('status');
-    expect($listing->fresh()->status)->toBe($initial);
-})->with([
-    'a transition the lifecycle does not allow' => [ListingStatus::Draft, 'sold'],
-    'a status that is not a listing status at all' => [ListingStatus::Draft, 'on_fire'],
-    'no transition out of archived' => [ListingStatus::Archived, 'for_sale'],
-]);
-
 it('renders only the transitions the status allows', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['status' => ListingStatus::Draft, 'title' => 'A draft']);

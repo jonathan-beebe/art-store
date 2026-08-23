@@ -78,10 +78,3 @@ it('reports a declined card and pays on retry', function () use ($unpaidOrderFor
     $retried->assertRedirect(route('shop.order', $order));
     expect($order->fresh()->status)->toBe(OrderStatus::Paid);
 });
-
-it('requires a card number', function () use ($unpaidOrderFor): void {
-    $shopper = $this->arriveAs($this->verifiedCustomer());
-    $order = $unpaidOrderFor($shopper);
-
-    $this->post(route('shop.order.pay', $order), [])->assertSessionHasErrors('card_number');
-});

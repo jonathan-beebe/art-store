@@ -113,14 +113,14 @@ abstract class CommerceTestCase extends TestCase
 
     protected function shippingAddress(): ShippingAddress
     {
-        return new ShippingAddress(
-            'Ada Lovelace',
-            '12 Analytical Way',
-            null,
-            'London',
-            'Greater London',
-            'EC1A 1BB',
-            'GB',
+        return ShippingAddress::to(
+            name: 'Ada Lovelace',
+            line1: '12 Analytical Way',
+            line2: null,
+            city: 'London',
+            region: 'Greater London',
+            postalCode: 'EC1A 1BB',
+            country: 'GB',
         );
     }
 

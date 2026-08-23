@@ -41,7 +41,7 @@ flowchart TD
 | --- | --- | --- |
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Readonly classes, enums, static functions. Receives time/ids as parameters. Unit tested without doubles. |
 | Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models (thin: relations, casts, scopes), the magic-link delivery port implementations, Blade views. |
-| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
+| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
 | Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `app/Providers` | Wiring only. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
@@ -91,6 +91,11 @@ slug) and then authorizes it. `app/Policies` holds the rules:
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
 
+A write route backed by a form request authorizes inside that request's
+`authorize()`, which returns the same policy `Response` a controller would have
+raised. A form request runs before the controller, so the ownership answer
+lands before any validation message can describe a row the actor cannot see.
+
 `view` and `update` answer ownership alone — the whole authorization question a
 request has to pass, since the action behind it holds the state rule and
 phrases its own refusal (see **Refusals**). `ship` and `confirmDelivery` add
@@ -101,7 +106,8 @@ the domain's message rather than on a 403.
 
 Who the actor is differs per site. `Authenticate::using('seller')` makes the
 seller guard the default for the request, so seller controllers call
-`$this->authorize(...)` and seller views use `@can`. The storefront visitor is
+`$this->authorize(...)`, their form requests call `Gate::inspect(...)`, and
+seller views use `@can`. The storefront visitor is
 resolved by `ResolveCustomerIdentity` middleware rather than signed in on a
 guard, so `ShopController::authorizeVisitor()` names them
 (`Gate::forUser($this->visitor())`) and the `@visitorCan` Blade directive
@@ -236,11 +242,12 @@ same port shape as magic links will carry email later.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
   files need: `Tests\CommerceTestCase` for `app/Actions`,
   `app/Console/Commands`, `app/Http/Controllers/Seller`,
-  `app/Models/ListingTest.php`, and `app/Policies`;
-  `Tests\StorefrontTestCase` for
-  `app/Http/Controllers/Shop` and `tests/SmokeTest.php`;
+  `app/Http/Requests/Seller`, `app/Models/ListingTest.php`, and
+  `app/Policies`; `Tests\StorefrontTestCase` for
+  `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`, and
+  `tests/SmokeTest.php`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
-  `app/Http/Middleware`, and `database/seeders`.
+  `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
 - A repeated fixture is a protected method on `Tests\CommerceTestCase`
   (`cartWithOneListing()`, `paidOrderWithTwoSellers()`,
   `shippedFulfillmentFor()`, `deliveredFulfillmentFor()`); a fixture used by
@@ -282,7 +289,7 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (538 tests, 1237 assertions). `make analyse` and `make lint`
+  full Pest suite (586 tests, 1359 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

@@ -25,17 +25,10 @@ final class PlaceOrder
         $totals = CartTotals::forCheckout($cart->lines());
 
         return DB::transaction(function () use ($cart, $purchaser, $shipping, $totals, $now): Order {
-            $order = Order::create([
+            $order = Order::create($shipping->attributes() + [
                 'customer_id' => $purchaser->customerId,
                 'email' => $purchaser->email,
                 'status' => OrderStatus::forPlacement($purchaser),
-                'shipping_name' => $shipping->name,
-                'shipping_line1' => $shipping->line1,
-                'shipping_line2' => $shipping->line2,
-                'shipping_city' => $shipping->city,
-                'shipping_region' => $shipping->region,
-                'shipping_postal_code' => $shipping->postalCode,
-                'shipping_country' => $shipping->country,
                 'subtotal_cents' => $totals->subtotal->cents,
                 'total_cents' => $totals->subtotal->cents,
                 'placed_at' => $now,

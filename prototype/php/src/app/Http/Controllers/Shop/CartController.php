@@ -7,10 +7,10 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Cart\AddToCart;
 use App\Actions\Cart\RemoveFromCart;
 use App\Domain\Cart\CartTotals;
+use App\Http\Requests\Shop\AddToCartRequest;
 use App\Models\Listing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 final class CartController extends ShopController
 {
@@ -24,14 +24,12 @@ final class CartController extends ShopController
         ]);
     }
 
-    public function add(Request $request, Listing $listing, AddToCart $addToCart): RedirectResponse
+    public function add(AddToCartRequest $request, Listing $listing, AddToCart $addToCart): RedirectResponse
     {
-        $submitted = $request->validate(['quantity' => ['nullable', 'integer', 'min:1']]);
-
         $addToCart(
             ($this->currentCart)($this->visitor()),
             $listing,
-            (int) ($submitted['quantity'] ?? 1),
+            $request->quantity(),
             $this->now(),
         );
 

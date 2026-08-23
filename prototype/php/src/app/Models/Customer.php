@@ -35,4 +35,12 @@ class Customer extends Authenticatable
     {
         return $this->email === null;
     }
+
+    /**
+     * A verified address is the one a card and an order history can hang on.
+     */
+    public function isVerified(): bool
+    {
+        return $this->email_verified_at !== null;
+    }
 }

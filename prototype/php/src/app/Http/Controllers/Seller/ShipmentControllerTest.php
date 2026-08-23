@@ -57,27 +57,6 @@ it('notifies the customer', function () use ($paidFulfillment, $form): void {
     expect(Notification::where('customer_id', $fulfillment->order->customer_id)->count())->toBe(1);
 });
 
-it('rejects a shipment without a carrier', function () use ($paidFulfillment, $form): void {
-    $seller = $this->seller();
-    $fulfillment = $paidFulfillment($seller);
-
-    $response = $this->actingAs($seller, 'seller')
-        ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['carrier' => '']));
-
-    $response->assertSessionHasErrors('carrier');
-    expect($fulfillment->fresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
-});
-
-it('rejects a shipment without a tracking number', function () use ($paidFulfillment, $form): void {
-    $seller = $this->seller();
-    $fulfillment = $paidFulfillment($seller);
-
-    $response = $this->actingAs($seller, 'seller')
-        ->post("/seller/orders/{$fulfillment->id}/shipment", $form(['tracking_number' => '']));
-
-    $response->assertSessionHasErrors('tracking_number');
-});
-
 it('refuses to ship a fulfillment that already shipped', function () use ($paidFulfillment, $form): void {
     $seller = $this->seller();
     $fulfillment = $paidFulfillment($seller);

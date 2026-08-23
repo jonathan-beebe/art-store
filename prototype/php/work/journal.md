@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:09:09:48 — RFCTR-004 — started
+- 2026-08-23:09:09:48 — RFCTR-003 — done: Five new form requests with to*() accessors, Rule::requiredIf and Rule::enum, ShippingAddress::to and Purchaser::forCheckout, CheckoutPurchaser removed; PHPStan 19 -> 4
 - 2026-08-23:08:50:20 — RFCTR-003 — started
 - 2026-08-23:08:50:20 — RFCTR-002 — done: Policies for Listing, Fulfillment, Order, Notification with denyAsNotFound; seller routes bind models; SellerController base; scoped delivered route; @can/@visitorCan on the ship and deliver forms; PHPStan 44 -> 19
 - 2026-08-23:08:32:39 — RFCTR-002 — started

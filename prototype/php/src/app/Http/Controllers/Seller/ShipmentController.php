@@ -13,12 +13,10 @@ final class ShipmentController extends SellerController
 {
     public function __invoke(MarkShippedRequest $request, Fulfillment $fulfillment, MarkShipped $markShipped): RedirectResponse
     {
-        $this->authorize('update', $fulfillment);
-
         $markShipped(
             $fulfillment,
-            $request->string('carrier')->toString(),
-            $request->string('tracking_number')->toString(),
+            $request->carrier(),
+            $request->trackingNumber(),
             $this->now(),
         );
 

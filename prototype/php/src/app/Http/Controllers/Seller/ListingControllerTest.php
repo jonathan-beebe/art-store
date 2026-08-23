@@ -116,33 +116,6 @@ it('creates the listing without an image and tells the seller when the upload fa
     expect($listing->image_path)->toBeNull();
 });
 
-it('rejects invalid listing input', function (array $overrides, string $field) use ($form): void {
-    $response = $this->actingAs($this->seller(), 'seller')
-        ->post('/seller/listings', $form($overrides));
-
-    $response->assertSessionHasErrors($field);
-    expect(Listing::count())->toBe(0);
-})->with([
-    'a listing without a title' => [['title' => ''], 'title'],
-    'a price that is not an amount in dollars' => [['price' => 'a lot'], 'price'],
-    'a price carrying fractions of a cent' => [['price' => '249.999'], 'price'],
-    'a negative quantity' => [['quantity' => -1], 'quantity'],
-]);
-
-it('rejects an invalid image upload', function (string $filename, int $kilobytes, string $mimeType) use ($form): void {
-    Storage::fake('public');
-
-    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
-        'image' => UploadedFile::fake()->create($filename, $kilobytes, $mimeType),
-    ]));
-
-    $response->assertSessionHasErrors('image');
-    expect(Listing::count())->toBe(0);
-})->with([
-    'a file that is not an image at all' => ['notes.txt', 4, 'text/plain'],
-    'a file that only claims to be an image' => ['harbour.jpg', 12, 'image/jpeg'],
-]);
-
 it('renders the edit form with the price in dollars', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Harbour at Dusk', 'price_cents' => 24900]);

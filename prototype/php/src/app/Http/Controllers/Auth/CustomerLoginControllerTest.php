@@ -24,24 +24,11 @@ it('issues a customer link for the submitted address', function (): void {
         ->and($link->actor_type)->toBe(ActorType::Customer);
 });
 
-it('carries a local destination onto the link', function (): void {
-    $this->post('/login', ['email' => 'shopper@example.com', 'redirect_to' => '/checkout']);
-
-    expect(MagicLink::sole()->redirect_to)->toBe('/checkout');
-});
-
 it('tells the visitor to check their email', function (): void {
     $response = $this->followingRedirects()->post('/login', ['email' => 'shopper@example.com']);
 
     $response->assertSee('Check your email');
     $response->assertSee('shopper@example.com');
-});
-
-it('rejects a submission without a usable address', function (): void {
-    $response = $this->post('/login', ['email' => '']);
-
-    $response->assertSessionHasErrors('email');
-    expect(MagicLink::count())->toBe(0);
 });
 
 it('sends a signed in customer to their account', function (): void {

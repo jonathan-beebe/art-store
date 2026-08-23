@@ -43,8 +43,6 @@ final class ListingController extends SellerController
 
     public function update(ListingRequest $request, Listing $listing, UpdateListing $updateListing): RedirectResponse
     {
-        $this->authorize('update', $listing);
-
         $updated = $updateListing($listing, $request->toDraft(), $request->file('image'));
 
         return redirect()

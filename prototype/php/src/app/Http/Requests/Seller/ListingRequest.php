@@ -6,11 +6,27 @@ namespace App\Http\Requests\Seller;
 
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Money\Money;
+use App\Models\Listing;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 final class ListingRequest extends FormRequest
 {
     private const MAX_IMAGE_KILOBYTES = 5120;
+
+    /**
+     * A create names no listing to own; an update names one, and it is the
+     * signed-in seller's or it does not exist for them.
+     */
+    public function authorize(): Response
+    {
+        $listing = $this->route('listing');
+
+        return $listing instanceof Listing
+            ? Gate::inspect('update', $listing)
+            : Response::allow();
+    }
 
     /**
      * @return array<string, list<string>>
@@ -45,11 +61,16 @@ final class ListingRequest extends FormRequest
     {
         return new ListingDraft(
             $this->string('title')->toString(),
-            $this->input('description'),
-            $this->input('medium'),
-            $this->input('dimensions'),
+            $this->optionalString('description'),
+            $this->optionalString('medium'),
+            $this->optionalString('dimensions'),
             Money::fromDollars($this->string('price')->toString()),
             $this->integer('quantity'),
         );
+    }
+
+    private function optionalString(string $key): ?string
+    {
+        return $this->filled($key) ? $this->string($key)->toString() : null;
     }
 }

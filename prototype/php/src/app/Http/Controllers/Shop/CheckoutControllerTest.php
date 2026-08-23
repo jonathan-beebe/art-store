@@ -106,16 +106,6 @@ it('lets a verified customer pay as they place the order', function () use ($fil
     $response->assertRedirect(route('shop.order', $order));
 });
 
-it('requires a verified customer to give a card', function () use ($fillCart, $checkoutFields): void {
-    $this->actingAs(Customer::factory()->create(), 'customer');
-    $fillCart();
-
-    $response = $this->post('/checkout', $checkoutFields());
-
-    $response->assertSessionHasErrors('card_number');
-    expect(Order::count())->toBe(0);
-});
-
 it('leaves the order unpaid with a reason when the card is declined', function () use ($fillCart, $checkoutFields): void {
     $this->actingAs(Customer::factory()->create(), 'customer');
     $fillCart();

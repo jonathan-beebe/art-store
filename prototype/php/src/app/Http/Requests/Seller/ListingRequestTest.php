@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests\Seller;
+
+use App\Models\Listing;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+$form = function (array $overrides = []): array {
+    return $overrides + [
+        'title' => 'Harbour at Dusk',
+        'description' => 'Oil on linen.',
+        'medium' => 'oil',
+        'dimensions' => '12 x 16 in',
+        'price' => '249.00',
+        'quantity' => 1,
+    ];
+};
+
+it('rejects invalid listing input', function (array $overrides, string $field) use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form($overrides));
+
+    $response->assertSessionHasErrors($field);
+    expect(Listing::count())->toBe(0);
+})->with([
+    'a listing without a title' => [['title' => ''], 'title'],
+    'a title longer than the column' => [['title' => str_repeat('a', 256)], 'title'],
+    'a price that is not an amount in dollars' => [['price' => 'a lot'], 'price'],
+    'a price carrying fractions of a cent' => [['price' => '249.999'], 'price'],
+    'no quantity' => [['quantity' => ''], 'quantity'],
+    'a negative quantity' => [['quantity' => -1], 'quantity'],
+    'more pieces than a studio makes' => [['quantity' => 1000], 'quantity'],
+]);
+
+it('rejects an invalid image upload', function (string $filename, int $kilobytes, string $mimeType) use ($form): void {
+    Storage::fake('public');
+
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
+        'image' => UploadedFile::fake()->create($filename, $kilobytes, $mimeType),
+    ]));
+
+    $response->assertSessionHasErrors('image');
+    expect(Listing::count())->toBe(0);
+})->with([
+    'a file that is not an image at all' => ['notes.txt', 4, 'text/plain'],
+    'a file that only claims to be an image' => ['harbour.jpg', 12, 'image/jpeg'],
+]);
+
+it('says a price is an amount in dollars', function () use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form(['price' => 'a lot']));
+
+    $response->assertSessionHasErrors(['price' => 'The price is an amount in dollars, like 249.00.']);
+});
+
+it('answers another sellers listing before it validates the form', function () use ($form): void {
+    $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
+
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post("/seller/listings/{$listing->id}", $form(['title' => '']));
+
+    $response->assertNotFound();
+    $response->assertSessionHasNoErrors();
+    expect($listing->fresh()->title)->toBe('Not Mine');
+});
+
+it('reads the typed fields into a draft', function () use ($form): void {
+    $draft = ListingRequest::create('/seller/listings', 'POST', $form())->toDraft();
+
+    expect($draft->title)->toBe('Harbour at Dusk')
+        ->and($draft->description)->toBe('Oil on linen.')
+        ->and($draft->medium)->toBe('oil')
+        ->and($draft->dimensions)->toBe('12 x 16 in')
+        ->and($draft->price)->toBeMoney(24900)
+        ->and($draft->quantity)->toBe(1);
+});
+
+it('leaves an optional field the seller skipped null', function (string $field) use ($form): void {
+    $draft = ListingRequest::create('/seller/listings', 'POST', $form([$field => '']))->toDraft();
+
+    expect($draft->{$field})->toBeNull();
+})->with(['description', 'medium', 'dimensions']);

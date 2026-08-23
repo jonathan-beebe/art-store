@@ -21,18 +21,21 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Actions',
     '../app/Console/Commands',
     '../app/Http/Controllers/Seller',
+    '../app/Http/Requests/Seller',
     '../app/Models/ListingTest.php',
     '../app/Policies',
 );
 
 pest()->extend(Tests\StorefrontTestCase::class)->in(
     '../app/Http/Controllers/Shop',
+    '../app/Http/Requests/Shop',
     'SmokeTest.php',
 );
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',
     '../app/Http/Middleware',
+    '../app/Http/Requests/Auth',
     '../database/seeders',
 );
 
