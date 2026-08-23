@@ -1,0 +1,115 @@
+<form
+  method="post"
+  action="<%= action %>"
+  enctype="multipart/form-data"
+  class="mt-4 max-w-3xl rounded border border-neutral-300 bg-white p-4"
+>
+  <fieldset>
+    <legend class="font-semibold text-neutral-700">Listing details</legend>
+
+    <div class="mt-2">
+      <label for="listing_title" class="block text-sm font-medium text-neutral-700">Title</label>
+      <input
+        type="text"
+        name="title"
+        id="listing_title"
+        value="<%= fields.title %>"
+        required
+        maxlength="255"
+        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+      />
+      <%- include('../partials/field-error', { field: 'listing_title', message: errors.title }) %>
+    </div>
+
+    <div class="mt-4">
+      <label for="listing_description" class="block text-sm font-medium text-neutral-700">Description</label>
+      <textarea
+        name="description"
+        id="listing_description"
+        rows="4"
+        maxlength="5000"
+        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+      ><%= fields.description %></textarea>
+      <%- include('../partials/field-error', { field: 'listing_description', message: errors.description }) %>
+    </div>
+
+    <div class="mt-4 grid gap-4 sm:grid-cols-2">
+      <div>
+        <label for="listing_medium" class="block text-sm font-medium text-neutral-700">Medium</label>
+        <input
+          type="text"
+          name="medium"
+          id="listing_medium"
+          value="<%= fields.medium %>"
+          maxlength="255"
+          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+        />
+        <%- include('../partials/field-error', { field: 'listing_medium', message: errors.medium }) %>
+      </div>
+
+      <div>
+        <label for="listing_dimensions" class="block text-sm font-medium text-neutral-700">Dimensions</label>
+        <input
+          type="text"
+          name="dimensions"
+          id="listing_dimensions"
+          value="<%= fields.dimensions %>"
+          maxlength="255"
+          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+        />
+        <%- include('../partials/field-error', { field: 'listing_dimensions', message: errors.dimensions }) %>
+      </div>
+
+      <div>
+        <label for="listing_price" class="block text-sm font-medium text-neutral-700">Price (dollars)</label>
+        <input
+          type="text"
+          inputmode="decimal"
+          name="price"
+          id="listing_price"
+          value="<%= fields.price %>"
+          required
+          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+        />
+        <%- include('../partials/field-error', { field: 'listing_price', message: errors.price }) %>
+      </div>
+
+      <div>
+        <label for="listing_quantity" class="block text-sm font-medium text-neutral-700">Quantity</label>
+        <input
+          type="number"
+          name="quantity"
+          id="listing_quantity"
+          value="<%= fields.quantity %>"
+          step="1"
+          min="0"
+          max="999"
+          required
+          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+        />
+        <%- include('../partials/field-error', { field: 'listing_quantity', message: errors.quantity }) %>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label for="listing_image" class="block text-sm font-medium text-neutral-700">Image</label>
+      <input
+        type="file"
+        name="image"
+        id="listing_image"
+        accept="image/*"
+        aria-describedby="listing_image-hint"
+        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+      />
+      <p id="listing_image-hint" class="mt-1 text-sm text-neutral-600">
+        An image file up to a few megabytes. Artwork drawn from the title stands in until you upload one.
+      </p>
+      <%- include('../partials/field-error', { field: 'listing_image', message: errors.image }) %>
+    </div>
+  </fieldset>
+
+  <div class="mt-6 flex items-center gap-3">
+    <button type="submit" class="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white"><%= submitLabel %></button>
+    <a href="/seller/listings" class="text-sm underline">Cancel</a>
+  </div>
+</form>

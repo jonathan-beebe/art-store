@@ -1,0 +1,121 @@
+import { addToCart } from '../../actions/carts/add-to-cart.ts'
+import { currentCart } from '../../actions/carts/current-cart.ts'
+import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
+import { markShipped } from '../../actions/fulfillments/mark-shipped.ts'
+import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
+import { createListing } from '../../actions/listings/create-listing.ts'
+import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
+import { notify } from '../../actions/notifications/notify.ts'
+import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
+import { placeOrder } from '../../actions/orders/place-order.ts'
+import type { ListingDraft } from '../../core/listings/listing-draft.ts'
+import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
+import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
+import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
+import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
+
+const DEFAULT_DRAFT: ListingDraft = {
+  title: 'Harbour at Dusk',
+  description: 'Oil on canvas.',
+  medium: 'Oil',
+  dimensions: '40 x 60 cm',
+  priceCents: 45_000,
+  quantity: 2,
+}
+
+const DEFAULT_SHIPPING: ShippingAddress = {
+  name: 'Ada Lovelace',
+  line1: '12 Analytical Way',
+  line2: null,
+  city: 'London',
+  region: 'London',
+  postalCode: 'SW1A 1AA',
+  country: 'United Kingdom',
+}
+
+export async function createTestListing(
+  testApp: TestApp,
+  sellerId: number,
+  overrides: Partial<ListingDraft> = {},
+): Promise<Listing> {
+  const { db, clock } = testApp
+
+  return createListing({ db, clock }, { sellerId, draft: { ...DEFAULT_DRAFT, ...overrides } })
+}
+
+export async function createForSaleListing(
+  testApp: TestApp,
+  sellerId: number,
+  overrides: Partial<ListingDraft> = {},
+): Promise<Listing> {
+  const listing = await createTestListing(testApp, sellerId, overrides)
+  const { db, clock } = testApp
+
+  return changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' })
+}
+
+/**
+ * A paid fulfillment: a freshly verified customer buys `listing` (or a new
+ * for-sale one) with an approved card, which holds the seller's net in escrow
+ * and tells them the item sold.
+ */
+export async function createFulfillment(
+  testApp: TestApp,
+  sellerId: number,
+  listing?: Listing,
+): Promise<Fulfillment> {
+  const { db, clock } = testApp
+  const forSale = listing ?? (await createForSaleListing(testApp, sellerId))
+  const email = `buyer-${forSale.id}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
+  const buyer = await signInAsCustomer(testApp, email)
+
+  const cart = await currentCart({ db, clock }, buyer.id)
+  await addToCart({ db, clock }, { cartId: cart.id, listingId: forSale.id, quantity: 1 })
+
+  const order = await placeOrder(
+    { db, clock },
+    {
+      cartId: cart.id,
+      purchaser: { id: buyer.id, email, isEmailVerified: true },
+      shipping: DEFAULT_SHIPPING,
+    },
+  )
+  await finalizeOrder({ db, clock }, { orderId: order.id, cardNumber: '4242 4242 4242 4242' })
+
+  return db.selectFrom('fulfillments').selectAll().where('orderId', '=', order.id).executeTakeFirstOrThrow()
+}
+
+/** A fulfillment shipped and confirmed delivered, so its escrow is released. */
+export async function createDeliveredFulfillment(
+  testApp: TestApp,
+  sellerId: number,
+  listing?: Listing,
+): Promise<Fulfillment> {
+  const { db, clock } = testApp
+  const fulfillment = await createFulfillment(testApp, sellerId, listing)
+
+  await markShipped(
+    { db, clock },
+    { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
+  )
+
+  return confirmDelivered({ db, clock }, fulfillment.id)
+}
+
+export async function createTestNotification(
+  testApp: TestApp,
+  sellerId: number,
+  overrides: Partial<NotificationMessage> & { read?: boolean } = {},
+): Promise<Notification> {
+  const { db, clock } = testApp
+  const notification = await notify(
+    { db, clock },
+    {
+      recipientType: 'seller',
+      recipientId: sellerId,
+      message: { subject: overrides.subject ?? 'Notice', body: overrides.body ?? 'Body', url: overrides.url ?? null },
+    },
+  )
+
+  return overrides.read === true ? markNotificationRead({ db, clock }, notification.id) : notification
+}

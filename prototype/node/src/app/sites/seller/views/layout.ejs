@@ -10,9 +10,17 @@
     <%- include('views/partials/debug-alert', { flash }) %>
     <%- include('views/partials/flash', { flash }) %>
     <header class="border-b border-neutral-300 bg-white">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 text-sm">
+      <nav class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 text-sm">
         <a href="/seller" class="font-semibold">Seller portal</a>
+        <% if (identity.seller) { %>
         <ul class="flex gap-4 text-neutral-600">
+          <li><a href="/seller/listings" class="hover:text-neutral-900">Listings</a></li>
+          <li><a href="/seller/orders" class="hover:text-neutral-900">Orders</a></li>
+          <li><a href="/seller/earnings" class="hover:text-neutral-900">Earnings</a></li>
+          <li><a href="/seller/notifications" class="hover:text-neutral-900">Notifications</a></li>
+        </ul>
+        <% } %>
+        <ul class="ml-auto flex gap-4 text-neutral-600">
           <li><a href="/" class="hover:text-neutral-900">Storefront</a></li>
           <% if (identity.seller) { %>
           <li><a href="/seller/account" class="hover:text-neutral-900">Account</a></li>

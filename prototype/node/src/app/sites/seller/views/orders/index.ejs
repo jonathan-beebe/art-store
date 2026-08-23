@@ -1,0 +1,41 @@
+<h1 class="text-2xl font-semibold">Orders</h1>
+
+<% groups.forEach(function (group) { %>
+  <section aria-labelledby="group-<%= group.status %>" data-group="<%= group.status %>" class="mt-6">
+    <h2 id="group-<%= group.status %>" class="font-semibold text-neutral-700">
+      <%= statusLabel(group.status) %> (<%= group.fulfillments.length %>)
+    </h2>
+
+    <% if (group.fulfillments.length === 0) { %>
+      <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing here.</p>
+    <% } else { %>
+      <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+        <table class="w-full text-left text-sm">
+          <caption class="sr-only"><%= statusLabel(group.status) %> orders</caption>
+          <thead class="border-b border-neutral-300 bg-neutral-50">
+            <tr>
+              <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Buyer</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Items</th>
+              <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
+              <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-200">
+            <% group.fulfillments.forEach(function (fulfillment) { %>
+              <tr data-fulfillment="<%= fulfillment.id %>">
+                <th scope="row" class="px-4 py-2 font-normal">
+                  <a href="/seller/orders/<%= fulfillment.id %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
+                </th>
+                <td class="px-4 py-2"><%= fulfillment.shippingName %></td>
+                <td class="px-4 py-2"><%= (itemTitles.get(fulfillment.orderId) || []).join(', ') %></td>
+                <td class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>
+                <td class="px-4 py-2"><%= formatDate(fulfillment.placedAt) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </section>
+<% }); %>

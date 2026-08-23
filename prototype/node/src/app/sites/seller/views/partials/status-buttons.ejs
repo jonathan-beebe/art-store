@@ -1,0 +1,10 @@
+<% transitions.forEach(function (next) { %>
+  <form method="post" action="/seller/listings/<%= listing.id %>/status" class="inline">
+    <input type="hidden" name="status" value="<%= next %>" />
+    <button
+      type="submit"
+      data-status-button="<%= next %>"
+      class="rounded border border-neutral-400 px-2 py-1 text-sm"
+    >Mark <%= statusLabel(next).toLowerCase() %></button>
+  </form>
+<% }); %>
