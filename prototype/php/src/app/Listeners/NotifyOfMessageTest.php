@@ -102,10 +102,8 @@ it('names support as the topic of an admin thread', function (): void {
     );
 });
 
-it('leaves the url null when the recipient route does not exist yet', function (): void {
-    // The seller portal's and the storefront's thread routes both exist;
-    // the admin site's does not until a later ticket lands it, so an admin
-    // recipient still proves the guard.
+it('links to the admin thread once that site registers its route', function (): void {
+    expect(Route::has('admin.messages.show'))->toBeTrue();
     $admin = $this->admin();
     $seller = $this->seller();
     $conversation = Conversation::factory()->adminSeller()->create([
@@ -120,7 +118,7 @@ it('leaves the url null when the recipient route does not exist yet', function (
     Notification::assertSentTo(
         $admin,
         MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($admin)['url'] === null,
+        fn (MessageReceived $notification): bool => $notification->toArray($admin)['url'] === route('admin.messages.show', $conversation),
     );
 });
 

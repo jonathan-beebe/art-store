@@ -31,4 +31,14 @@
             <p class="text-2xl font-semibold tabular-nums">{{ $fulfillmentCount }}</p>
         </div>
     </section>
+
+    <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
+        <h2 id="message-heading" class="font-semibold text-gray-700">Message seller</h2>
+
+        <x-messaging.body-form
+            :action="route('admin.sellers.messages', $seller)"
+            label="Message"
+            class="mt-2 rounded border border-gray-300 bg-white p-4"
+        />
+    </section>
 </x-layouts.admin>

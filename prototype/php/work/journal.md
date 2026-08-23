@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:16:31:07 — FEAT-014 — done: admin inbox/thread/reply, message-seller and message-customer from detail pages, AdminLayoutComposer nav badge, shared seller+admin messaging Blade components, NotifyOfMessage null-url guard retired; 1083 tests / 2397 assertions, 100.0% coverage
+- 2026-08-23:16:23:17 — FEAT-014 — started
 - 2026-08-23:16:16:04 — FEAT-013 — reviewed: nav total extracted to a Message::unreadInInboxOf scope (both composers) and pinned against another actor's threads, six probe tests (seller notified by an anonymous ask, blocked ask tells nobody and opens one empty thread, that thread renders on both inboxes, identity cookie minted on the POST, favoriting while blocked, a shop→seller→shop walk); 1049 tests / 2322 assertions, 100.0% coverage
 - 2026-08-23:16:06:36 — FEAT-013 — done: storefront ask-a-seller-question, inbox/thread/reply, support/order-message open-or-find, published FAQ list, ShopLayoutComposer nav badge, blocked-customer read-only, anonymous-ask-then-verify merge; 1043 tests / 2302 assertions, 100.0% coverage
 - 2026-08-23:15:53:42 — FEAT-013 — started

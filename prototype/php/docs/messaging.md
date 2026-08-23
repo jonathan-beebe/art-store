@@ -366,9 +366,20 @@ Admin site (`routes/admin.php`), all behind `auth.admin`:
 
 A conversation id naming a thread the actor is not in answers 404 on every read
 and write above, because `ConversationPolicy::view` denies as not found. An id
-that matches no row answers 404 through route-model binding. The exact set of
-Blade views and components each of these renders is **(decided at build
-time)**.
+that matches no row answers 404 through route-model binding.
+
+The seller portal and the admin site render the same gray, tool-focused
+Tailwind theme (`docs/architecture.md`'s Sites table), so their inbox and
+thread pages share two anonymous components —
+`resources/views/components/messaging/inbox.blade.php` and
+`.../messaging/thread.blade.php`, each taking the route names and the viewer's
+`ActorType` as props — plus `.../messaging/body-form.blade.php` for the reply
+form and the "Message seller"/"Message customer" forms on the admin site's
+seller and customer detail pages. Both `@can('post', ...)` checks live inside
+`messaging/thread.blade.php`, which real guards on both sites make possible.
+The storefront renders a different theme (bright, open, large imagery) and
+keeps its own hand-styled `shop/messages/*.blade.php` views rather than
+stretching the shared components to fit a second look.
 
 ## The merge
 

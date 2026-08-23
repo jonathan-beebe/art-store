@@ -40,6 +40,15 @@ it('shows the block reason and a lift form for a blocked customer', function ():
     $response->assertSee('Lift block');
 });
 
+it('offers a form to message the customer', function (): void {
+    $customer = Customer::factory()->create(['name' => 'Ada Painter']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$customer->id}");
+
+    $response->assertSee('Message customer');
+    $response->assertSee('action="'.route('admin.customers.messages', $customer).'"', escape: false);
+});
+
 it('sends a guest to the admin login page', function (): void {
     $response = $this->get('/admin/customers');
 

@@ -29,8 +29,8 @@ final readonly class NotificationMessage
     }
 
     /**
-     * $url is null until the recipient's own route for the thread exists —
-     * an inbox row without a link rather than one pointing nowhere.
+     * $url names the recipient's thread on their own site. Nullable for the
+     * same reason every factory here is: an inbox row can carry no link.
      */
     public static function messageReceived(string $topic, ?string $url): self
     {

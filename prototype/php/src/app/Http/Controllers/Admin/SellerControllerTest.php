@@ -29,6 +29,15 @@ it('shows one seller with listing and fulfillment counts', function (): void {
     $response->assertSee('Blue Kiln Studio');
 });
 
+it('offers a form to message the seller', function (): void {
+    $seller = $this->seller('Blue Kiln Studio');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$seller->id}");
+
+    $response->assertSee('Message seller');
+    $response->assertSee('action="'.route('admin.sellers.messages', $seller).'"', escape: false);
+});
+
 it('sends a guest to the admin login page', function (): void {
     $response = $this->get('/admin/sellers');
 

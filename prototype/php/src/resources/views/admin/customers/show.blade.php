@@ -44,6 +44,16 @@
         @endif
     </section>
 
+    <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
+        <h2 id="message-heading" class="font-semibold text-gray-700">Message customer</h2>
+
+        <x-messaging.body-form
+            :action="route('admin.customers.messages', $customer)"
+            label="Message"
+            class="mt-2 rounded border border-gray-300 bg-white p-4"
+        />
+    </section>
+
     <section aria-labelledby="orders-heading" class="mt-6">
         <h2 id="orders-heading" class="font-semibold text-gray-700">Orders</h2>
 
