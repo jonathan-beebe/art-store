@@ -1,5 +1,67 @@
-<h1 class="text-4xl font-light tracking-tight">Art Store</h1>
-<p class="mt-6 max-w-xl text-lg text-neutral-600">
-  A marketplace for original work. Browsing, favorites, cart, and checkout arrive
-  with the storefront.
-</p>
+<div class="flex flex-wrap items-end justify-between gap-8">
+  <h1 class="max-w-2xl text-4xl font-light leading-tight tracking-tight">
+    <% if (search.term) { %> Art matching &ldquo;<%= search.term %>&rdquo; <% } else { %> Original
+    work, direct from the studio <% } %>
+  </h1>
+
+  <form method="get" action="/" class="flex items-end gap-3">
+    <input type="hidden" name="q" value="<%= search.term || '' %>" />
+    <div>
+      <label for="medium" class="block text-xs uppercase tracking-wide text-neutral-500">
+        Medium
+      </label>
+      <select
+        name="medium"
+        id="medium"
+        class="mt-2 rounded-lg border border-neutral-200 px-4 py-2 text-base"
+      >
+        <option value="">All media</option>
+        <% media.forEach(function (medium) { %>
+        <option value="<%= medium %>" <%= search.medium === medium ? 'selected' : '' %>>
+          <%= medium %>
+        </option>
+        <% }) %>
+      </select>
+    </div>
+    <button
+      type="submit"
+      class="cursor-pointer rounded-lg border border-neutral-300 px-5 py-2 text-base hover:border-amber-600"
+    >
+      Filter
+    </button>
+  </form>
+</div>
+
+<% if (listings.length === 0) { %>
+<p class="mt-20 text-lg text-neutral-500">No art matches that yet.</p>
+<% } else { %>
+<ul class="mt-16 grid grid-cols-1 gap-x-10 gap-y-16 sm:grid-cols-2 lg:grid-cols-3">
+  <% listings.forEach(function (listing) { %>
+  <li>
+    <%- include('sites/shop/views/partials/listing-card', { listing: listing, formatCents:
+    formatCents, listingImageSource: listingImageSource, shopName: shopName }) %>
+  </li>
+  <% }) %>
+</ul>
+
+<% const filters = `q=${encodeURIComponent(search.term || '')}&medium=${encodeURIComponent(search.medium || '')}` %>
+<nav aria-label="Pages" class="mt-20 flex items-baseline gap-6 text-sm">
+  <% if (!page.isFirst) { %>
+  <a
+    rel="prev"
+    href="/?<%= filters %>&amp;page=<%= page.previousNumber %>"
+    class="underline hover:text-amber-700"
+    >Previous</a
+  >
+  <% } %>
+  <span class="text-neutral-500">Page <%= page.number %> of <%= page.count %></span>
+  <% if (!page.isLast) { %>
+  <a
+    rel="next"
+    href="/?<%= filters %>&amp;page=<%= page.nextNumber %>"
+    class="underline hover:text-amber-700"
+    >Next</a
+  >
+  <% } %>
+</nav>
+<% } %>

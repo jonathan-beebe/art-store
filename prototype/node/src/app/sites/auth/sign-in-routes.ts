@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback, FastifyReply } from 'fastify'
+import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { sendMagicLink } from '../../actions/auth/send-magic-link.ts'
 import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
@@ -20,6 +20,8 @@ export type SignInRoutesOptions = {
   admits?(db: AppDatabase, email: string): Promise<boolean>
   /** Shown when `admits` refuses the address. */
   refusal?: string
+  /** What this site's account page shows beyond the identity behind it. */
+  accountView?(request: FastifyRequest): Promise<Record<string, unknown>>
 }
 
 /**
@@ -34,6 +36,7 @@ export function signInRoutes({
   actorType,
   admits,
   refusal,
+  accountView,
 }: SignInRoutesOptions): FastifyPluginCallback {
   const site = ACTOR_SITES[actorType]
 
@@ -96,8 +99,8 @@ export function signInRoutes({
       return await reply.redirect(site.signedOutPath)
     })
 
-    routes.get('/account', { preHandler: ACTOR_GUARDS[actorType] }, (_request, reply) =>
-      reply.render('account', { title: 'Account' }),
+    routes.get('/account', { preHandler: ACTOR_GUARDS[actorType] }, async (request, reply) =>
+      reply.render('account', { title: 'Account', ...(await accountView?.(request)) }),
     )
 
     done()

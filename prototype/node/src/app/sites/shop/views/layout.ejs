@@ -9,27 +9,45 @@
   <body class="min-h-screen bg-white text-neutral-900 antialiased">
     <%- include('views/partials/debug-alert', { flash }) %>
     <%- include('views/partials/flash', { flash }) %>
-    <header class="border-b border-neutral-200">
-      <nav class="mx-auto flex max-w-5xl items-center justify-between px-6 py-6">
-        <a href="/" class="text-lg tracking-wide text-neutral-900">Art Store</a>
-        <ul class="flex gap-6 text-sm text-neutral-600">
-          <li><a href="/seller" class="hover:text-neutral-900">Sell</a></li>
+    <header class="border-b border-neutral-100">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-10 gap-y-5 px-6 py-8">
+        <a href="/" class="text-xs uppercase tracking-[0.35em] text-neutral-400 hover:text-amber-700">
+          Art Store
+        </a>
+
+        <form method="get" action="/" class="order-last w-full sm:order-none sm:w-auto sm:flex-1">
+          <label for="q" class="sr-only">Search art</label>
+          <input
+            type="search"
+            name="q"
+            id="q"
+            value="<%= typeof searchTerm === 'undefined' ? '' : searchTerm %>"
+            placeholder="Search art, media, descriptions"
+            class="w-full rounded-full border border-neutral-200 px-5 py-2 text-base placeholder:text-neutral-400 focus:border-amber-600 focus:outline-none"
+          />
+        </form>
+
+        <nav class="flex flex-wrap items-center gap-6 text-sm text-neutral-500">
+          <a href="/favorites" class="hover:text-amber-700">Favorites</a>
+          <a href="/cart" class="hover:text-amber-700">Cart</a>
+          <a href="/orders" class="hover:text-amber-700">Orders</a>
           <% if (identity.customer && identity.customer.email) { %>
-          <li><a href="/account" class="hover:text-neutral-900">Account</a></li>
-          <li>
-            <form method="post" action="/logout">
-              <button type="submit" class="cursor-pointer hover:text-neutral-900">Sign out</button>
-            </form>
-          </li>
+          <a href="/account" class="hover:text-amber-700">Account</a>
+          <form method="post" action="/logout">
+            <button type="submit" class="cursor-pointer hover:text-amber-700">Sign out</button>
+          </form>
           <% } else { %>
-          <li><a href="/login" class="hover:text-neutral-900">Sign in</a></li>
+          <a href="/login" class="hover:text-amber-700">Sign in</a>
           <% } %>
-        </ul>
-      </nav>
+        </nav>
+      </div>
     </header>
-    <main class="mx-auto max-w-5xl px-6 py-16"><%- body %></main>
-    <footer class="mx-auto max-w-5xl px-6 py-12 text-sm text-neutral-500">
-      Original work from independent artists.
+
+    <main class="mx-auto max-w-6xl px-6 pb-28 pt-16"><%- body %></main>
+
+    <footer class="mx-auto max-w-6xl px-6 pb-16 text-xs text-neutral-400">
+      Original work from independent artists —
+      <a href="/seller" class="underline hover:text-amber-700">sell your work</a>
     </footer>
   </body>
 </html>

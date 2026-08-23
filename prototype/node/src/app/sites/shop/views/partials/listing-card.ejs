@@ -1,0 +1,17 @@
+<article>
+  <a href="/art/<%= listing.slug %>" class="block">
+    <img
+      src="<%= listingImageSource(listing.imagePath, listing.title) %>"
+      alt="<%= listing.title %>"
+      class="aspect-square w-full rounded-2xl bg-neutral-50 object-cover"
+    />
+    <h2 class="mt-5 text-lg font-medium"><%= listing.title %></h2>
+  </a>
+  <p class="mt-1 text-sm text-neutral-500"><%= shopName(listing.seller) %></p>
+  <p class="mt-2 text-base">
+    <%= formatCents(listing.priceCents) %>
+    <% if (!listing.isPurchasable) { %>
+    <span class="ml-2 text-sm uppercase tracking-wide text-amber-700">Sold</span>
+    <% } %>
+  </p>
+</article>

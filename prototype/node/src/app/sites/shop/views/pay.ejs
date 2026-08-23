@@ -1,0 +1,22 @@
+<h1 class="text-4xl font-light tracking-tight">Pay for order #<%= order.id %></h1>
+
+<p class="mt-3 text-lg text-neutral-500">
+  <%= formatCents(order.totalCents) %> to <%= order.email %>
+</p>
+
+<%- include('sites/shop/views/partials/decline-notice', { declineMessage }) %>
+
+<form method="post" action="/orders/<%= order.id %>/pay" class="mt-8 max-w-xl">
+  <%- include('sites/shop/views/partials/card-fields') %>
+
+  <button
+    type="submit"
+    class="mt-10 cursor-pointer rounded-full bg-amber-600 px-8 py-3 text-base text-white hover:bg-amber-700"
+  >
+    Pay <%= formatCents(order.totalCents) %>
+  </button>
+</form>
+
+<p class="mt-8 text-base text-neutral-500">
+  Test cards: 4242 4242 4242 4242 pays, 4000 0000 0000 0002 is declined.
+</p>

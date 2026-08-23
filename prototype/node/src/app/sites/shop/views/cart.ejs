@@ -1,0 +1,63 @@
+<h1 class="text-4xl font-light tracking-tight">Cart</h1>
+
+<% if (!canShop) { %>
+<p
+  role="alert"
+  data-blocked
+  class="mt-8 max-w-xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900"
+>
+  <%= blockedNotice %>
+</p>
+<% } %>
+
+<% if (lines.length === 0) { %>
+<p class="mt-10 text-lg text-neutral-500">Your cart is empty.</p>
+
+<a
+  href="/"
+  class="mt-8 inline-block rounded-full bg-amber-600 px-8 py-3 text-base text-white hover:bg-amber-700"
+>
+  Browse the art
+</a>
+<% } else { %>
+<ul class="mt-12 divide-y divide-neutral-100 border-y border-neutral-100">
+  <% lines.forEach(function (line) { %>
+  <li class="flex flex-wrap items-center gap-6 py-6">
+    <img
+      src="<%= listingImageSource(line.imagePath, line.title) %>"
+      alt="<%= line.title %>"
+      class="aspect-square w-24 rounded-xl bg-neutral-50 object-cover"
+    />
+
+    <div class="flex-1">
+      <a href="/art/<%= line.slug %>" class="text-lg"><%= line.title %></a>
+      <p class="mt-1 text-sm text-neutral-500">Quantity <%= line.quantity %></p>
+    </div>
+
+    <p class="text-lg"><%= formatCents(line.unitPriceCents * line.quantity) %></p>
+
+    <form method="post" action="/cart/<%= line.slug %>/remove">
+      <button
+        type="submit"
+        class="cursor-pointer text-sm text-neutral-500 underline hover:text-amber-700"
+      >
+        Remove
+      </button>
+    </form>
+  </li>
+  <% }) %>
+</ul>
+
+<div class="mt-10 flex flex-wrap items-center justify-between gap-6">
+  <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= formatCents(totals.subtotalCents) %></span></p>
+
+  <% if (canShop) { %>
+  <a
+    href="/checkout"
+    class="rounded-full bg-amber-600 px-8 py-3 text-base text-white hover:bg-amber-700"
+  >
+    Checkout
+  </a>
+  <% } %>
+</div>
+<% } %>

@@ -1,7 +1,55 @@
 <h1 class="text-4xl font-light tracking-tight">Your account</h1>
-<p class="mt-6 text-lg text-neutral-600"><%= identity.customer.email %></p>
+
+<dl class="mt-10 max-w-md">
+  <dt class="text-xs uppercase tracking-wide text-neutral-500">Email</dt>
+  <dd class="mt-1 text-lg"><%= identity.customer.email %></dd>
+</dl>
+
 <form method="post" action="/logout" class="mt-8">
-  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-6 py-3 text-lg text-white">
+  <button
+    type="submit"
+    class="cursor-pointer rounded-full border border-neutral-300 px-6 py-2 hover:border-amber-600"
+  >
     Sign out
   </button>
 </form>
+
+<section class="mt-16 max-w-2xl">
+  <h2 class="text-2xl font-light tracking-tight">Notifications</h2>
+
+  <% if (notifications.length === 0) { %>
+  <p class="mt-6 text-lg text-neutral-500">Nothing yet. Order updates land here.</p>
+  <% } else { %>
+  <ul class="mt-6 divide-y divide-neutral-100 border-y border-neutral-100">
+    <% notifications.forEach(function (notification) { %>
+    <li
+      data-notification
+      <% if (notification.readAt === null) { %>data-unread<% } %>
+      class="flex flex-wrap items-start justify-between gap-6 py-5"
+    >
+      <div>
+        <% if (notification.url) { %>
+        <a href="<%= notification.url %>" class="text-lg hover:text-amber-700">
+          <%= notification.subject %>
+        </a>
+        <% } else { %>
+        <p class="text-lg"><%= notification.subject %></p>
+        <% } %>
+        <p class="mt-1 text-base text-neutral-500"><%= notification.body %></p>
+      </div>
+
+      <% if (notification.readAt === null) { %>
+      <form method="post" action="/account/notifications/<%= notification.id %>/read">
+        <button
+          type="submit"
+          class="cursor-pointer rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-amber-600"
+        >
+          Mark as read
+        </button>
+      </form>
+      <% } %>
+    </li>
+    <% }) %>
+  </ul>
+  <% } %>
+</section>
