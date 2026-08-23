@@ -108,7 +108,7 @@ merge).
   `docs/identity.md`)
 
 **In code.** No separate model or enum — `Customer#anonymous?`,
-`Domain::Customers::IdentityPlan`.
+`Customer.claim`.
 
 ### Platform
 
@@ -124,8 +124,8 @@ weekly payout job.
 - takes a Platform fee from each Fulfillment's subtotal
 - runs Payouts (`payouts:run`)
 
-**In code.** `Domain::Escrow::Fee` (`PLATFORM_PERCENT`); no model — the
-platform holds no row of its own.
+**In code.** `Fulfillment::PLATFORM_FEE_PERCENT`; no model — the platform
+holds no row of its own.
 
 ## Catalog
 
@@ -148,9 +148,9 @@ its own page. See "sold" in Vocabulary notes.
 - favorited by Customers via Favorite
 - held in Cart items, sold as Order items
 
-**In code.** `Listing`, `Domain::Listings::ListingStatus` (enum),
-`ListingAvailability`, `ListingStock`, `ListingSlug`, `ListingDraft` (table
-`listings`).
+**In code.** `Listing` (table `listings`), which carries the `status` enum,
+`TRANSITIONS`, `on_storefront`, `purchasable?`, `take_stock!` /
+`restore_stock!` and the field validations.
 
 ### Listing event
 
@@ -166,9 +166,9 @@ favorites, cart adds) and the dashboard's daily activity timeline.
 - belongs to one Listing
 - optionally attributed to one Customer (`customer_id` nullable)
 
-**In code.** `ListingEvent`, `Domain::Listings::ListingEventType` (enum:
-`view` | `favorite` | `unfavorite` | `cart_add`) (table `listing_events`),
-written by `Listings::RecordListingEvent`.
+**In code.** `ListingEvent` (table `listing_events`), whose `event_type` enum
+is `view` | `favorite` | `unfavorite` | `cart_add`, written by
+`Listing#record_event!`.
 
 ### Favorite
 
@@ -183,10 +183,9 @@ them to the cart.
 - belongs to one Customer and one Listing
 - toggling one also records a Listing event (`favorite`/`unfavorite`)
 
-**In code.** `Favorite`, `Domain::Shop::FavoriteChange` (enum: `added` |
-`removed`) (table `favorites`), toggled by `Favorites::ToggleFavorite`. See
-"Vocabulary notes" for why the enum lives under `Domain::Shop::`, not a
-`Domain::Favorites::` module.
+**In code.** `Favorite` (table `favorites`), toggled by
+`Customer#toggle_favorite`, which returns `:added` or `:removed` and records
+the matching listing event.
 
 ## Buying
 
@@ -199,13 +198,14 @@ before placing one order.
 
 **Lifecycle.** None as a status; exists per customer, spawns an Order on
 checkout. A merge can leave a customer with two cart rows (`carts.customer_id`
-is not unique); `Carts::CurrentCart` picks the one with the most items.
+is not unique); `Customer#current_cart` picks the one with the most items.
 
 **Relates to.**
 - belongs to one Customer
 - contains Cart items
 
-**In code.** `Cart`, `Domain::Cart::CartTotals` (table `carts`).
+**In code.** `Cart` (table `carts`), which carries `add`, `remove`,
+`item_count`, `subtotal` and `subtotals_by_seller`.
 
 ### Cart item
 
@@ -219,8 +219,8 @@ is not unique); `Carts::CurrentCart` picks the one with the most items.
 - belongs to one Cart
 - references one Listing
 
-**In code.** `CartItem`, `Domain::Cart::CartLine`, `CartQuantity` (table
-`cart_items`), managed by `Carts::AddToCart` / `Carts::RemoveFromCart`.
+**In code.** `CartItem` (table `cart_items`), written by `Cart#add` and
+`Cart#remove`; `CartItem#total` is the line's unit price times its quantity.
 
 ### Order
 
@@ -233,8 +233,7 @@ delivery; the parent of the per-seller Fulfillments.
 (verified) → `paid` or `payment_failed` → `partially_shipped` / `shipped` →
 `delivered`; `cancelled` is a reachable state with no route to it in the UI.
 A multi-seller order's status rolls up from its Fulfillments
-(`OrderStatus.from_fulfillments`, called by `Orders::RollUpOrderStatus`). Full
-diagram: `docs/orders.md`.
+(`Order#roll_up_status!`). Full diagram: `docs/orders.md`.
 
 **Relates to.**
 - placed by one Customer
@@ -243,9 +242,9 @@ diagram: `docs/orders.md`.
 - splits by seller into Fulfillments
 - triggers an "Item sold" Notification to each seller when it reaches `paid`
 
-**In code.** `Order`, `Domain::Orders::OrderStatus` (enum), `Purchaser`,
-`ShippingAddress`, `OrderPayment` (table `orders`), opened by
-`Orders::PlaceOrder`, charged by `Orders::FinalizeOrder`.
+**In code.** `Order` (table `orders`), which carries the `status` enum,
+`TRANSITIONS`, the shipping fields it validates, `place`, `pay!`,
+`mark_awaiting_payment!` and `roll_up_status!`.
 
 ### Order item
 
@@ -278,8 +277,8 @@ current payment is the latest row.
 - belongs to one Order
 - decided by a Card decision
 
-**In code.** `Payment`, `Domain::Payments::PaymentStatus` (enum) (table
-`payments`), written by `Orders::FinalizeOrder`.
+**In code.** `Payment` (table `payments`), which carries the `status` and
+`decline_reason` enums and the decline messages, written by `Order#pay!`.
 
 ### Fulfillment
 
@@ -298,10 +297,9 @@ tracked per (order, seller) pair rather than per order.
   (`released`), and when included in a Payout (`paid_out`)
 - carries the Platform fee taken from its subtotal
 
-**In code.** `Fulfillment`, `Domain::Orders::FulfillmentStatus` (enum) (table
-`fulfillments`), transitioned by `Fulfillments::MarkShipped` /
-`Fulfillments::ConfirmDelivered`. See "Vocabulary notes" for the seller
-portal's name for this entity.
+**In code.** `Fulfillment` (table `fulfillments`), transitioned by
+`Fulfillment#ship!` / `Fulfillment#deliver!`. See "Vocabulary notes" for the
+seller portal's name for this entity.
 
 ## Money
 
@@ -319,7 +317,7 @@ operation (add, multiply, percent) works in whole cents.
 - used by Listing price, Order totals, Payment amount, Fulfillment
   subtotal/fee/net, Ledger entry amount, Payout amount
 
-**In code.** `Domain::Money` (value object; no table — stored as `*_cents`
+**In code.** `Money` (value object; no table — stored as `*_cents`
 integer columns).
 
 ### Platform fee
@@ -333,11 +331,12 @@ than the sale subtotal.
 Fulfillment row (`fee_cents`, `net_cents`) rather than recomputed later.
 
 **Relates to.**
-- computed from a Fulfillment's subtotal (10%, `Fee::PLATFORM_PERCENT`)
+- computed from a Fulfillment's subtotal (10%,
+  `Fulfillment::PLATFORM_FEE_PERCENT`)
 - taken by the Platform
 
-**In code.** `Domain::Escrow::Fee` (no table — persisted as
-`fulfillments.fee_cents`/`net_cents`).
+**In code.** `Fulfillment.fee_for` / `Fulfillment.net_for` (no table —
+persisted as `fulfillments.fee_cents`/`net_cents`).
 
 ### Ledger entry
 
@@ -349,15 +348,17 @@ rather than a single mutable balance column.
 **Lifecycle.** Written once per movement: `held` (order paid), `released`
 (fulfillment delivered), `paid_out` (included in a payout run — negative
 amount). A seller's balance is the fold of all their entries
-(`Domain::Escrow::LedgerBalance.from`). Flowchart: `docs/escrow.md`.
+(`LedgerEntry.balance`, through `Seller#escrow_balance`). Flowchart:
+`docs/escrow.md`.
 
 **Relates to.**
 - belongs to one Seller
 - produced by one Fulfillment (`held`/`released`) or one Payout (`paid_out`)
 
-**In code.** `LedgerEntry`, `Domain::Escrow::LedgerEntryType` (enum),
-`LedgerMovement`, `LedgerBalance` (table `ledger_entries`). Column is
-`entry_type`, not `type` — see "Vocabulary notes."
+**In code.** `LedgerEntry` (table `ledger_entries`), written by
+`LedgerEntry.hold` / `.release` / `.pay_out` and folded by
+`LedgerEntry::Balance`. Column is `entry_type`, not `type` — see "Vocabulary
+notes."
 
 ### Payout
 
@@ -377,7 +378,7 @@ balance nets to zero on the next run).
 - settles Ledger entries (writes one `paid_out` entry per payout)
 - covers one Payout period
 
-**In code.** `Payout` (table `payouts`), created by `Escrow::RunWeeklyPayout`.
+**In code.** `Payout` (table `payouts`), created by `Payout.run_weekly`.
 
 ### Payout period
 
@@ -392,8 +393,8 @@ far."
 **Relates to.**
 - bounds which Ledger entries a Payout run settles
 
-**In code.** `Domain::Escrow::PayoutPeriod` (value object; persisted as
-`payouts.period_start`/`period_end`).
+**In code.** `PayoutPeriod` (`app/models/payout_period.rb` — a value object
+with no table; persisted as `payouts.period_start`/`period_end`).
 
 ## Identity and messaging
 
@@ -413,9 +414,9 @@ once). Sequence diagrams: `docs/identity.md`.
   seller and a customer can share an email address)
 - carries an `actor_type` and an optional post-verification redirect
 
-**In code.** `MagicLink`, `Domain::Auth::ActorType`,
-`Domain::Auth::MagicLinkStatus`, `Domain::Auth::MagicLinkToken` (table
-`magic_links`, column `token_digest`), sent by `Auth::SendMagicLink`.
+**In code.** `MagicLink` (table `magic_links`, column `token_digest`,
+`actor_type` enum), issued by `MagicLink.issue` and spent through
+`MagicLink.find_by_token`, `#usable?` and `#consume!`.
 
 ### Customer merge
 
@@ -426,17 +427,16 @@ already-verified one.
 verify an address that another device already claimed; the merge lets a
 stale cookie on the first device keep resolving to the right account.
 
-**Lifecycle.** None — written once when `Domain::Customers::IdentityPlan.decide`
-resolves to `merge_anonymous_into`; never undone.
+**Lifecycle.** None — written once by `Customer#absorb`; never undone.
 
 **Relates to.**
 - points one anonymous Customer at the verified Customer it merged into
 - triggers re-pointing of that customer's Favorites, Cart, Orders, Listing
-  events, and Notifications (`Domain::Customers::OwnedTables::ALL`)
+  events, and Notifications (`Customer::MERGED_ASSOCIATIONS`)
 
-**In code.** `CustomerMerge`, `Domain::Customers::IdentityPlan` (table
-`customer_merges`), performed by `Customers::ClaimCustomerIdentity` and
-`Customers::MergeAnonymousCustomer`.
+**In code.** `CustomerMerge` (table `customer_merges`), written by
+`Customer#absorb` when `Customer.claim` finds both an anonymous row and an
+account holding the address.
 
 ### Notification
 
@@ -453,9 +453,9 @@ acted, without email.
 - raised by an Order reaching `paid` (seller) or a Fulfillment reaching
   `shipped` (customer)
 
-**In code.** `Notification`, `Domain::Notifications::RecipientType` (enum),
-`NotificationMessage` (table `notifications`), sent by
-`Notifications::Notify`.
+**In code.** `Notification` (table `notifications`), addressed to a polymorphic
+`recipient` and written by `Notification.item_sold` and
+`Notification.order_shipped`.
 
 ## Decisions
 
@@ -474,26 +474,25 @@ stored as its own row (its outcome becomes a Payment).
 - decides a Payment's status and a Payment's decline reason
 - drives the Order's `paid`/`payment_failed` transition
 
-**In code.** `Domain::Payments::FakeCard.decide`, `CardDecision`,
-`DeclineReason`.
+**In code.** `FakeCard`, read by `Order#pay!`.
 
 ### Listing status
 
 **Who/what.** The lifecycle state of a Listing (see Catalog above).
 
-**In code.** `Domain::Listings::ListingStatus`.
+**In code.** `Listing::TRANSITIONS` and the `Listing` `status` enum.
 
 ### Order status
 
 **Who/what.** The lifecycle state of an Order (see Buying above).
 
-**In code.** `Domain::Orders::OrderStatus`.
+**In code.** `Order::TRANSITIONS` and the `Order` `status` enum.
 
 ### Fulfillment status
 
 **Who/what.** The lifecycle state of a Fulfillment (see Buying above).
 
-**In code.** `Domain::Orders::FulfillmentStatus`.
+**In code.** The `status` enum on `Fulfillment`.
 
 ## Vocabulary notes
 
@@ -511,17 +510,12 @@ stored as its own row (its outcome becomes a Payment).
   fee; this is the amount that moves through escrow (`held` → `released` →
   `paid_out`), not the sale's subtotal.
 - "Available" (as in a seller's available balance,
-  `LedgerBalance#available`) means released and not yet paid out — it does
-  not mean "in the seller's bank account."
+  `LedgerEntry::Balance#available`) means released and not yet paid out — it
+  does not mean "in the seller's bank account."
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = nil`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.
-- Action class namespaces are the plural directory name (`Carts::`,
-  `Fulfillments::`, `Orders::`, `Listings::`), not the singular concept name —
-  `app/models/cart.rb` and `fulfillment.rb` already define `Cart` and
-  `Fulfillment` as classes, so a singular `module Cart` under
-  `app/actions/cart/` collides with the model. See `docs/architecture.md`.
-- `Domain::Shop::FavoriteChange` lives under `Domain::Shop::`, not a
-  `Domain::Favorites::` module that would mirror the `Favorite` table —
-  favoriting exists only on the customer storefront, so its domain rule sits
-  with the rest of `app/domain/shop/`.
+- Seller-portal controllers are written in compact form (`class
+  Seller::XController < Seller::BaseController`) — `app/models/seller.rb`
+  already defines `Seller` as a class, so `module Seller` elsewhere under
+  `app/` collides with the model. See `docs/architecture.md`.

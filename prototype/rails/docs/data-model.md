@@ -130,8 +130,8 @@ erDiagram
     }
     notifications {
         id id PK
-        id seller_id FK "nullable"
-        id customer_id FK "nullable, exactly one recipient FK is set"
+        string recipient_type "Seller|Customer"
+        id recipient_id "polymorphic, no FK"
         string subject
         text body
         string url "nullable"
@@ -178,19 +178,18 @@ Caveats:
   `email` string plus `actor_type`, so it is drawn without a relationship line
   above. A seller and a customer can share an email address; each gets its own
   row in its own table.
-- `notifications` has two nullable recipient columns (`seller_id`,
-  `customer_id`) rather than a polymorphic pair. Exactly one is set per row.
-  This keeps both foreign keys real and lets an anonymous-customer merge
-  re-point rows by `customer_id` the same way it re-points `favorites` or
-  `orders`.
+- `notifications` addresses a polymorphic `recipient` (`recipient_type` is
+  `Seller` or `Customer`), so the table carries no foreign key to either. An
+  anonymous-customer merge re-points rows by `recipient_id` the same way it
+  re-points `favorites` or `orders`.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one (`order.payments.order(:id).last`).
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
   positive, `paid_out` is negative. See `docs/escrow.md`.
-- `carts.customer_id` is not unique — `Customers::MergeAnonymousCustomer` can
+- `carts.customer_id` is not unique — `Customer#absorb` can
   re-point a second cart onto a customer that already has one
-  (`Carts::CurrentCart` picks the one with the most items).
+  (`Customer#current_cart` picks the one with the most items).
 - Two columns are named `entry_type` / `event_type` rather than `type`:
   `type` is Active Record's reserved single-table-inheritance column, and
   renaming beat disabling inheritance on `LedgerEntry` and `ListingEvent`.

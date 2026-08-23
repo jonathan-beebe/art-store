@@ -2,7 +2,9 @@ class CartItem < ApplicationRecord
   belongs_to :cart
   belongs_to :listing
 
-  def to_line
-    Domain::Cart::CartLine.new(seller_id: listing.seller_id, unit_price: listing.price, quantity: quantity)
+  validates :quantity, numericality: { only_integer: true, greater_than_or_equal_to: 1 }
+
+  def total
+    Money.from_cents(listing.price_cents) * quantity
   end
 end

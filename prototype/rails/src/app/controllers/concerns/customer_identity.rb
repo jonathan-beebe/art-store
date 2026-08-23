@@ -6,7 +6,7 @@ module CustomerIdentity
   COOKIE_LIFETIME = 1.year
 
   included do
-    helper_method :current_customer, :customer_signed_in?
+    helper_method :current_customer, :customer_signed_in?, :current_cart
   end
 
   private
@@ -21,6 +21,12 @@ module CustomerIdentity
     signed_in_customer.present?
   end
 
+  # The cart behind the request, resolved once so the header and the page it
+  # wraps read the same one.
+  def current_cart
+    @current_cart ||= current_customer.current_cart
+  end
+
   def resolve_customer_identity
     current_customer
   end
@@ -32,7 +38,7 @@ module CustomerIdentity
   end
 
   def customer_from_cookie
-    Customers::ResolveCustomerFromCookie.new.call(cookies.signed[COOKIE])
+    Customer.from_cookie(cookies.signed[COOKIE])
   end
 
   def sign_in_customer(customer)

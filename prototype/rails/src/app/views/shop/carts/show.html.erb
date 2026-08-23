@@ -14,11 +14,11 @@
 
         <div class="flex-1">
           <%= link_to item.listing.title, shop_listing_path(slug: item.listing.slug), class: "text-lg" %>
-          <p class="mt-1 text-sm text-neutral-500"><%= shop_name_of(item.listing.seller) %></p>
+          <p class="mt-1 text-sm text-neutral-500"><%= item.listing.seller.display_name %></p>
           <p class="mt-1 text-sm text-neutral-500">Quantity <%= item.quantity %></p>
         </div>
 
-        <p class="text-lg"><%= money(item.listing.price_cents * item.quantity) %></p>
+        <p class="text-lg"><%= item.total.format %></p>
 
         <%= button_to "Remove", shop_remove_from_cart_path(slug: item.listing.slug), method: :delete,
               class: "text-sm text-neutral-500 underline hover:text-neutral-900" %>
@@ -27,7 +27,7 @@
   </ul>
 
   <div class="mt-10 flex flex-wrap items-center justify-between gap-6">
-    <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= @totals.subtotal.format %></span></p>
+    <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= @subtotal.format %></span></p>
 
     <%= link_to "Checkout", shop_checkout_path, class: "rounded-full bg-neutral-900 px-8 py-3 text-base text-white" %>
   </div>

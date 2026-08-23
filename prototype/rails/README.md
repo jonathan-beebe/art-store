@@ -60,9 +60,9 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test app lib db test` |
+| `make test` | `docker compose run --rm app bin/rails test` |
 | `make smoke` | `docker compose run --rm app bin/rails test test/smoke_test.rb` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test app lib db test` |
+| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test` |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
 | `make console` | `docker compose run --rm app bin/rails console` |
@@ -77,30 +77,28 @@ docker compose exec app bin/rails console      # against the running server
 
 ## Tests
 
-Minitest, and tests are sidecars: `money.rb` and `money_test.rb` sit in the same
-directory. `bin/rails test app lib db test` globs all four trees;
-`config/application.rb` tells Zeitwerk to ignore `**/*_test.rb` so a test file
-never has to name a constant matching its path. `test/` holds only
-`test_helper.rb` (the Rails base and the coverage setup), the four shared test
-cases, and `smoke_test.rb` — there is no `test/unit` or `test/integration`.
-`db/seeds_test.rb` calls `Rails.application.load_seed` and asserts the seeded
-counts; it is why `db` is in the test path alongside `app`, `lib` and `test`.
+Minitest, and every test lives under `test/`, mirroring `app/`:
+`app/models/money.rb` is covered by `test/models/money_test.rb`. `bin/rails
+test` with no arguments runs the whole suite. Alongside the mirrored trees,
+`test/` holds `test_helper.rb` (the Rails base and the coverage setup),
+`support/` for the shared helpers, `smoke_test.rb`, `seeds_test.rb`, and
+`tasks/` for the rake tasks. `test/seeds_test.rb` calls
+`Rails.application.load_seed` and asserts the seeded counts.
 
 ```sh
-make test                                                                   # whole suite
-docker compose run --rm app bin/rails test app/domain/money_test.rb         # one file
-docker compose run --rm app bin/rails test app/domain/money_test.rb -n /percent/   # one test
+make test                                                                    # whole suite
+docker compose run --rm app bin/rails test test/models/money_test.rb         # one file
+docker compose run --rm app bin/rails test test/models/money_test.rb -n /percent/   # one test
 ```
 
-Core tests under `app/domain` require `minitest/autorun` and the file under
-test, nothing else, so they also run with no Rails boot:
-
-```sh
-docker compose run --rm app ruby -Iapp app/domain/money_test.rb
-```
-
-Controller tests are `ActionDispatch::IntegrationTest` and require
-`test_helper`; they drive HTTP and assert on rendered HTML.
+Every test requires `test_helper` and subclasses `ActiveSupport::TestCase`,
+`ActionDispatch::IntegrationTest` or `ActionView::TestCase`. A value object
+test touches no database. Controller tests drive HTTP and assert on
+rendered HTML. `test/support/test_records.rb` holds the record builders every
+test can reach (`create_seller`, `create_listing`, `paid_order_for`, the card
+numbers); `test/support/integration_helpers.rb` holds what only the tests
+driving HTTP need (`sign_in_as_customer`, `signed_cookie`, `create_fulfillment`).
+`test_helper.rb` requires both and mixes them in.
 
 ## Smoke
 
@@ -124,9 +122,9 @@ make coverage
 ```
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
-line per group (Domain, Actions, Controllers, Models). `COVERAGE_MIN` sets the
+line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 645 runs and 100% line coverage.
+suite stands at 527 runs and 100% line coverage.
 
 ## Database
 
@@ -168,13 +166,15 @@ prototype/rails/
   docs/                architecture, feature docs, and review.md
   work/                tickets and journal
   src/                 the Rails application
-    app/domain/        pure domain core, sidecar tests beside each file
-    app/actions/       one class per verb, sequencing core and adapters
+    app/models/        the records, the value objects, and their behaviour
     app/controllers/   one namespace per site: shop/, seller/, auth/
-    app/delivery/      the magic-link delivery port and its two implementations
+    app/helpers/       status_label and the storefront header counts
+    app/mailers/       MagicLinkMailer, which sends the sign-in link
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
+    test/              mirrors app/: models/, controllers/, mailers/, views/
     test/test_helper.rb SimpleCov and the Rails test base
+    test/support/      the record builders and the HTTP sign-in helpers
     test/smoke_test.rb  the whole product in one walk
 ```
 
@@ -183,29 +183,40 @@ route and the test that prove it, and lists what is missing.
 
 ## Magic links
 
-Passwordless on both sides, with no mailbox: the delivery port flashes the URL
-and `layouts/_debug_alert` prints it at the top of both layouts whenever
-`flash[:debug_magic_link]` is set.
+Passwordless on both sides. `MagicLinkMailer.sign_in` sends the URL, and
+because the container has no mailbox anyone can read, the URL is also flashed
+into `flash[:debug_magic_link]`, which `layouts/_debug_alert` prints at the top
+of both layouts.
 
 Sellers sign in at `/seller/login`, customers at `/login`; both submit an email
 address, then click the link in the debug alert. A link lasts 15 minutes and
 works once. The first link for an address creates the account.
 
+`MagicLink.issue(email:, actor_type:)` writes the row and returns the
+plaintext token beside it — only the SHA256 digest is stored — and the verify
+side is `MagicLink.find_by_token`, `#usable?` and `#consume!`. A followed link
+reaches `Seller.claim(email)` or `Customer.claim(email, current:)`.
+
 Every storefront visitor gets a `customers` row before they give an address,
 carried in the signed `customer_id` cookie. Verifying an address either claims
-that row or merges it into the account already holding the address.
+that row (`Customer#claim_address`) or merges it into the account already
+holding the address (`Customer#absorb`, which leaves a `customer_merges` row so
+a stale cookie resolves forward through `Customer.from_cookie`).
 
 ```sh
-MAGIC_LINK_DELIVERY=mail        # flash (default) | mail, which raises until email exists
+MAGIC_LINK_DEBUG_ALERT=false    # default: on outside production
 MAGIC_LINK_EXPIRY_MINUTES=15
 ```
 
-Two hooks are where email goes when it exists:
-`src/app/delivery/mail_magic_link_delivery.rb` (`MailMagicLinkDelivery#deliver`,
-selected by `MAGIC_LINK_DELIVERY=mail`) for sign-in links, and
-`src/app/actions/notifications/notify.rb` (`Notify#deliver_by_email`) for the
-"Item sold" and "Order shipped" notifications, which reach the in-app inbox
-today.
+`Auth::MagicLinksController` verifies the token; `MagicLinkSender#send_magic_link`
+issues it, enqueues the mail with `deliver_later`, and sets the debug flash.
+Development and test both use `delivery_method :test`, so mail accumulates in
+`ActionMailer::Base.deliveries` and nothing leaves the container. The rendered
+mail is at `/rails/mailers/magic_link_mailer/sign_in` in development.
+
+`src/app/models/notification.rb` (`Notification#deliver_by_email`) is the
+remaining hook, for the "Item sold" and "Order shipped" notifications, which
+reach the in-app inbox today.
 
 ## Paying
 
@@ -226,8 +237,11 @@ the stock returned to the listing.
 The full list, with the next steps for each, is in
 [`docs/review.md`](docs/review.md). The ones to know before a demo:
 
-- Email is not implemented. Both hooks above are empty, and
-  `MAGIC_LINK_DELIVERY=mail` raises rather than sending.
+- No mail leaves the container. `MagicLinkMailer` renders and sends the sign-in
+  link, and `delivery_method :test` outside production keeps it in
+  `ActionMailer::Base.deliveries`; production needs the SMTP settings that are
+  commented out in `config/environments/production.rb`.
+  `Notification#deliver_by_email` is still empty.
 - "Run weekly payout now" on the earnings page pays every seller, not the
   signed-in one. It is a debug control; `payouts:run` is the real entry point.
 - A merge can leave a customer holding two carts, and the storefront shops with

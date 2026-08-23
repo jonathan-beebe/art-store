@@ -7,13 +7,55 @@
 - ARCH: 1
 - FEAT: 9
 - IMPRV: 1
-- MAINT: 1
+- MAINT: 2
 - A11Y: 1
-- RFCTR: 1
+- RFCTR: 16
 - BUG: 1
 
 ## Log
 
+- 2026-08-22:21:06:12 — MAINT-001 — defined: Small leftovers from the refactor sweep
+- 2026-08-22:21:06:12 — RFCTR-015 — defined: Split Listing's activity reporting into a concern; Fulfillment computes its own fee
+- 2026-08-22:21:06:12 — RFCTR-014 — defined: Notifications reach email through a mailer
+- 2026-08-22:21:04:18 — RFCTR-013 — done: Shop::CartItemsController#create/#destroy and Shop::NotificationReadsController#create replace carts#add/#remove and notifications#update behind the same paths, verbs and route helper names; favorites keep toggle because the test posts twice to flip it; Shop::BaseController#now deleted and its callers fall back on the model default; 527 runs at 100% line coverage (this commit)
+- 2026-08-22:21:01:37 — RFCTR-013 — started
+- 2026-08-22:20:58:38 — RFCTR-011 — done: app/domain and app/support dissolved into app/models; Money, TransitionError, Page and PlaceholderImage are plain top-level classes, the search and report objects folded into Listing.search, Seller#display_name, Seller#listing_status_counts, ListingEvent::Totals and ListingEvent::Day; config/application.rb has no autoloader configuration and zeitwerk:check passes on the defaults; docs and README rewritten to the stock Rails shape; 527 runs at 100% line coverage (this commit and 1f305cc)
+- 2026-08-22:20:49:42 — RFCTR-011 — started
+- 2026-08-22:20:47:00 — RFCTR-012 — done: MagicLinkMailer sends the sign-in link with deliver_later and the debug alert became a MAGIC_LINK_DEBUG_ALERT flash beside it; delivery_method is :test in development as well as test; app/delivery and test/delivery deleted, their coverage replaced by test/mailers plus enqueue assertions in the sessions and checkout tests; 531 runs at 100% line coverage (this commit)
+- 2026-08-22:20:42:30 — RFCTR-012 — started
+- 2026-08-22:20:39:08 — RFCTR-010 — done: notifications belong to a polymorphic recipient, Notification.item_sold/order_shipped write their own messages and Notification#read!/deliver_by_email carry the rest; a reversible migration converts the two nullable foreign keys; app/actions and app/domain/notifications deleted, their tests folded into test/models/notification_test.rb; 531 runs at 100% line coverage (this commit)
+- 2026-08-22:20:28:47 — RFCTR-010 — started
+- 2026-08-22:20:26:07 — RFCTR-009 — done: LedgerEntry writes and folds escrow (hold/release/pay_out, LedgerEntry::Balance), Payout.run_weekly performs the weekly settlement, PayoutPeriod is a plain model, the 10% fee is Fulfillment.fee_for/net_for; app/actions/escrow, app/domain/escrow and Domain::Reports::PayoutSummary deleted, their tests folded into test/models; 534 runs at 100% line coverage (this commit)
+- 2026-08-22:20:19:43 — RFCTR-009 — started
+- 2026-08-22:20:15:32 — RFCTR-008 — done: Fulfillment ships and delivers itself behind its own transition table, validating the carrier and tracking number, releasing the escrow and notifying the customer; app/actions/fulfillments and app/domain/orders deleted, their tests folded into test/models/fulfillment_test.rb; Order rolls up from its fulfillment records; 534 runs at 100% line coverage (this commit)
+- 2026-08-22:20:11:22 — RFCTR-008 — started
+- 2026-08-22:20:06:05 — RFCTR-007 — done: Order places itself from a cart, pays with a card number, marks itself awaiting payment and rolls up from its fulfillments behind its own transition table, and validates the email and shipping address checkout collects; Listing takes and restores stock, FakeCard and the decline messages on Payment replace Domain::Payments; app/actions/orders, six Domain::Orders modules, Domain::Payments, Domain::Listings and Domain::Shop::{CheckoutForm,CheckoutPurchaser} deleted, their tests folded into test/models; 537 runs at 100% line coverage (this commit)
+- 2026-08-22:19:55:08 — RFCTR-007 — started
+- 2026-08-22:19:47:54 — RFCTR-006 — done: Cart carries add/remove/empty?/item_count/subtotal/subtotals_by_seller, CartItem validates its quantity and totals its line, Customer carries current_cart/toggle_favorite/favorited?; the four cart and favorite actions, Domain::Cart and FavoriteChange deleted, their tests folded into test/models; current_cart moved to the CustomerIdentity concern as a helper_method; 573 runs at 100% line coverage (this commit)
+- 2026-08-22:19:43:45 — RFCTR-006 — started
+- 2026-08-22:19:39:25 — RFCTR-005 — done: Listing validates its own fields, converts dollars to cents, assigns its slug and holds the transition table, the storefront scope, purchasable? and record_event!; the seller form is form_with model: and the controller the stock new/create/edit/update shape; five domain modules and four listing actions deleted, their tests folded into test/models/listing_test.rb; 584 runs at 100% line coverage (this commit)
+- 2026-08-22:19:28:27 — RFCTR-005 — started
+- 2026-08-22:19:24:27 — RFCTR-004 — done: MagicLink issues, finds and consumes its own links behind an actor_type enum, Seller.claim and Customer.claim/absorb/from_cookie replace the five identity actions and six domain modules, email normalization and shape live in an EmailAddress concern, the merge moves rows through associations; 609 runs at 100% line coverage (this commit)
+- 2026-08-22:19:17:17 — RFCTR-004 — started
+- 2026-08-22:19:12:33 — RFCTR-003 — done: both StatusLabel modules, LocalRedirect and Money#grouped_dollars deleted in favour of String#humanize, url_from, String#parameterize and number_to_currency; status_label collapsed into ApplicationHelper; the redirect security cases moved into the sessions and magic-link integration tests; 640 runs at 100% line coverage (this commit)
+- 2026-08-22:19:05:52 — RFCTR-003 — started
+- 2026-08-22:19:03:43 — RFCTR-002 — done: four shared test cases collapsed into test_helper plus test/support (TestRecords, IntegrationHelpers), every test file requires test_helper and subclasses a stock Rails base, 205 call sites renamed to the create_* builders off the parsed AST, README and architecture.md updated, 645 runs at 100% line coverage (this commit)
+- 2026-08-22:18:54:09 — RFCTR-002 — started
+- 2026-08-22:18:48:05 — RFCTR-001 — done: 109 test files moved under test/ mirroring app/ (git mv), domain tests require test_helper and subclass ActiveSupport::TestCase, Zeitwerk ignore and SimpleCov skip for *_test.rb removed, bin/rails test with no arguments runs all 645 at 100% line coverage, Makefile/README/docs updated (d4044ad)
+- 2026-08-22:18:42:00 — RFCTR-001 — started
+- 2026-08-22:18:40:00 — RFCTR-013 — defined: Resourceful storefront controllers behind the existing URLs
+- 2026-08-22:18:40:00 — RFCTR-012 — defined: Deliver magic links through Action Mailer
+- 2026-08-22:18:40:00 — RFCTR-011 — defined: Dissolve the Domain namespace and the custom autoloader
+- 2026-08-22:18:40:00 — RFCTR-010 — defined: Notifications address a polymorphic recipient
+- 2026-08-22:18:40:00 — RFCTR-009 — defined: Escrow balance and weekly payout on LedgerEntry, Seller and Payout
+- 2026-08-22:18:40:00 — RFCTR-008 — defined: Shipping and delivery on Fulfillment
+- 2026-08-22:18:40:00 — RFCTR-007 — defined: Placing, paying and rolling up an order on Order
+- 2026-08-22:18:40:00 — RFCTR-006 — defined: Cart and favorites behaviour on Cart and Customer
+- 2026-08-22:18:40:00 — RFCTR-005 — defined: Listing validations, the listing form, and status transitions on Listing
+- 2026-08-22:18:40:00 — RFCTR-004 — defined: Identity behaviour lives on MagicLink, Seller and Customer
+- 2026-08-22:18:40:00 — RFCTR-003 — defined: Use the ActiveSupport built-in where the code reimplements one
+- 2026-08-22:18:40:00 — RFCTR-002 — defined: One test base, one declaration style
+- 2026-08-22:18:40:00 — RFCTR-001 — defined: Run the suite with bin/rails test from a conventional test/ tree
 - 2026-08-22:17:21:34 — FEAT-008 — done: clean first run from an empty tree in 40s, 645 tests green at 100% line coverage, make smoke walking the whole product in one integration test, a curl walk over every page and a live guest checkout to Paid, ShipmentDetails extracted out of the controller, dead scaffolding deleted, docs/review.md mapping the brief to routes and tests, README completed
 - 2026-08-22:22:14:59 — FEAT-007 — done: corrected architecture.md drift (storefront visibility, fee timing, missing payment_failed->cancelled edge, test runner scope, coverage thresholds, action namespaces, ledger_entries.entry_type); added identity.md, orders.md, escrow.md, data-model.md, ontology.md, README.md; 13/13 Mermaid diagrams validated
 - 2026-08-22:22:02:42 — FEAT-007 — started

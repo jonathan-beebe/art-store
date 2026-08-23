@@ -2,9 +2,19 @@
 
 Passwordless sign-in for both sites, plus the anonymous-customer cookie the
 storefront hangs favorites, carts, and guest orders on before anyone verifies
-an address. Code: `app/actions/auth/`, `app/actions/customers/`,
-`app/controllers/concerns/customer_identity.rb`,
-`app/domain/customers/identity_plan.rb`.
+an address. Code: `app/models/{magic_link,seller,customer}.rb`,
+`app/models/concerns/email_address.rb`,
+`app/controllers/concerns/{magic_link_sender,customer_identity}.rb`,
+`app/mailers/magic_link_mailer.rb`.
+
+`MagicLinkSender#send_magic_link` does two things with the URL it builds from
+the plaintext token: it enqueues `MagicLinkMailer.sign_in` with
+`deliver_later`, and where
+`Rails.configuration.x.magic_links.debug_alert` is on (everywhere but
+production) it writes the URL into `flash[:debug_magic_link]`, which
+`layouts/_debug_alert` prints. The container has no mailbox anyone can read —
+`delivery_method :test` holds the mail in `ActionMailer::Base.deliveries` — so
+the debug alert is how a demo and the integration tests follow a link.
 
 ## Seller magic-link sign-in
 
@@ -15,29 +25,33 @@ the dashboard?
 sequenceDiagram
     actor Seller
     participant Login as Auth::SellerSessionsController
-    participant Send as Auth::SendMagicLink
-    participant MagicLinks as magic_links
+    participant MagicLinks as MagicLink
+    participant Mailer as MagicLinkMailer
     participant Verify as Auth::MagicLinksController
-    participant Claim as Auth::ClaimSellerIdentity
+    participant Sellers as Seller
 
     Seller->>Login: POST /seller/login (email)
-    Login->>Send: call(email:, actor_type: SELLER)
-    Send->>MagicLinks: create!(token_digest, email, actor_type, expires_at)
-    Send-->>Seller: flash[:debug_magic_link] (layout prints the URL)
+    Login->>MagicLinks: issue(email:, actor_type: :seller)
+    MagicLinks-->>Login: [link, token] — only the digest is stored
+    Login->>Mailer: with(link:, url:).sign_in.deliver_later
+    Mailer-->>Seller: the sign-in link (held in deliveries outside production)
+    Login-->>Seller: flash[:debug_magic_link] (layout prints the URL)
 
     Seller->>Verify: GET /auth/magic/:token
-    Verify->>MagicLinks: for_token(token).first
-    Verify->>MagicLinks: consume!(now)
-    Verify->>Claim: call(email:)
-    Claim->>Claim: Seller.find_or_initialize_by(email:), email_verified_at ||= now
+    Verify->>MagicLinks: find_by_token(token)
+    Verify->>MagicLinks: consume!
+    Verify->>Sellers: claim(link.email)
+    Sellers->>Sellers: find_or_initialize_by(email:), email_verified_at ||= now
     Verify->>Verify: sign_in_seller(seller) — session[:seller_id] = seller.id
     Verify-->>Seller: redirect to seller_root_path (or link.redirect_to)
 ```
 
 Caveats: a first-time email creates the seller row — there is no separate
-sign-up step. An expired or already-consumed link (`Domain::Auth::MagicLinkStatus`)
+sign-up step. An address that is not an address comes back from
+`MagicLink.issue` unsaved and undelivered, and the form re-renders with
+`422`. A link that is not `usable?` (consumed, or past `expires_at`)
 redirects back to `seller_login_path` with an error instead of reaching
-`ClaimSellerIdentity`.
+`Seller.claim`.
 
 ## Customer guest verification with anonymous merge
 
@@ -50,46 +64,38 @@ sequenceDiagram
     participant Cookie as customer_id cookie
     participant Checkout as Shop::CheckoutsController
     participant Verify as Auth::MagicLinksController
-    participant Claim as Customers::ClaimCustomerIdentity
-    participant Plan as Domain::Customers::IdentityPlan
-    participant Merge as Customers::MergeAnonymousCustomer
+    participant Customers as Customer
 
     Note over Customer,Cookie: anonymous customer row already exists (cookie set on first request)
     Customer->>Checkout: POST /checkout, email unverified
-    Checkout->>Checkout: SendMagicLink(email, redirect_to: /orders/:id/pay)
-    Checkout-->>Customer: flash[:debug_magic_link]
+    Checkout->>Checkout: send_magic_link(email, redirect_to: /orders/:id/pay)
+    Checkout-->>Customer: MagicLinkMailer.sign_in, plus flash[:debug_magic_link]
 
     Customer->>Verify: GET /auth/magic/:token
-    Verify->>Verify: consume!(now)
-    Verify->>Claim: call(email:, current: customer_from_cookie)
-    Claim->>Plan: decide(anonymous_customer_id, verified_customer_id)
+    Verify->>Verify: consume!
+    Verify->>Customers: claim(link.email, current: customer_from_cookie)
     alt no row owns the address yet
-        Plan-->>Claim: create_verified
-        Claim->>Claim: Customer.create!(email:, email_verified_at: now)
-    else address already verified, cookie points elsewhere or nowhere
-        Plan-->>Claim: sign_in_existing
-        Claim->>Claim: owner.update!(email_verified_at: now) if unset
+        Customers->>Customers: create!(email:, email_verified_at: now)
+    else address already held, cookie points elsewhere or nowhere
+        Customers->>Customers: owner.verify! (sets email_verified_at if unset)
     else cookie's row is anonymous, address unclaimed
-        Plan-->>Claim: claim_anonymous
-        Claim->>Claim: anonymous.update!(email:, email_verified_at: now)
+        Customers->>Customers: anonymous.claim_address(email)
     else cookie's row is anonymous, a different row already owns the address
-        Plan-->>Claim: merge_anonymous_into
-        Claim->>Merge: call(anonymous:, verified: owner)
-        Merge->>Merge: re-point favorites/carts/orders/listing_events/notifications, insert customer_merges row
+        Customers->>Customers: owner.verify!.absorb(anonymous)
     end
-    Claim-->>Verify: resulting customer
+    Customers-->>Verify: resulting customer
     Verify->>Verify: sign_in_customer(customer) — session[:customer_id], cookie updated
     Verify-->>Customer: redirect to link.redirect_to (/orders/:id/pay)
 ```
 
-Caveats: `Domain::Customers::IdentityPlan.decide` folds to `sign_in_existing`
-whenever `anonymous_customer_id == verified_customer_id` too — a customer
-re-verifying an address they already hold. `MergeAnonymousCustomer` walks
-`Domain::Customers::OwnedTables::ALL` inside a transaction and skips any
-table/column that does not exist yet (a guard for schema drift across tickets
-landing in parallel). The anonymous row is never deleted — the
-`customer_merges` row lets a stale cookie on a second device resolve forward
-to the verified customer (`Customers::ResolveCustomerFromCookie` follows it).
+Caveats: a cookie already pointing at the account signs in without a merge —
+`Customer.claim` only treats `current` as an anonymous row when it holds no
+address. `Customer#absorb` moves favorites, carts, orders, listing events, and
+notifications through the associations `Customer` declares
+(`Customer::MERGED_ASSOCIATIONS`) inside a transaction. The anonymous row is
+never deleted — the `customer_merges` row lets a stale cookie on a second
+device resolve forward to the verified customer (`Customer.from_cookie`
+follows it).
 
 ## Which identity a storefront request resolves to
 
@@ -100,7 +106,7 @@ flowchart TD
     start(["storefront request"]) --> guard{"signed in?\nsession[:customer_id]\nverified? scope"}
     guard -- yes --> useGuard["use the signed-in customer"]
     guard -- no --> cookie{"customer_id cookie\nresolves to a row?"}
-    cookie -- yes --> useCookie["use that customer\n(ResolveCustomerFromCookie follows\na customer_merges row if merged)"]
+    cookie -- yes --> useCookie["use that customer\n(Customer.from_cookie follows\na customer_merges row if merged)"]
     cookie -- no --> create["Customer.create!\n(new anonymous row)"]
     useGuard --> remember["remember_customer:\nrewrite the signed cookie"]
     useCookie --> remember
@@ -111,7 +117,7 @@ Caveats: this is `CustomerIdentity#current_customer`, run by `Shop::BaseControll
 `before_action :resolve_customer_identity` on every storefront request. It
 never runs on `/auth/magic/:token`, `/login`, or `/logout`
 (`Auth::BaseController` reads the cookie directly through
-`Customers::ResolveCustomerFromCookie`), so a seller clicking a seller link
-cannot accidentally create a customer row. A signed-in customer must also be
+`Customer.from_cookie`), so a seller clicking a seller link cannot
+accidentally create a customer row. A signed-in customer must also be
 `verified` (`Customer.verified` scope, `email` not null) — the cookie alone
 never reaches `/account` (`require_customer!`).

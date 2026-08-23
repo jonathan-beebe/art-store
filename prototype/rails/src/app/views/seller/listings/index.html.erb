@@ -32,8 +32,8 @@
                 <%= link_to listing.title, seller_listing_path(listing), class: "font-medium underline" %>
               </span>
             </th>
-            <td data-cell="status" class="px-4 py-3"><%= Domain::Reports::StatusLabel.of(listing.status) %></td>
-            <td class="px-4 py-3 text-right tabular-nums"><%= listing.price.format %></td>
+            <td data-cell="status" class="px-4 py-3"><%= status_label(listing.status) %></td>
+            <td class="px-4 py-3 text-right tabular-nums"><%= money(listing.price_cents) %></td>
             <td class="px-4 py-3 text-right tabular-nums"><%= listing.quantity %></td>
             <td data-activity="views" class="px-4 py-3 text-right tabular-nums"><%= @activity[listing].views %></td>
             <td data-activity="favorites" class="px-4 py-3 text-right tabular-nums"><%= @activity[listing].favorites %></td>

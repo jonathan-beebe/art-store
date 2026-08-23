@@ -5,9 +5,4 @@
 <img src="<%= @listing.image_url %>" alt="Current image for <%= @listing.title %>" width="160" height="160"
      class="mt-4 h-40 w-40 rounded border border-neutral-300 object-cover">
 
-<%= render "seller/listings/form",
-      url: seller_listing_path(@listing),
-      method: :patch,
-      submit_label: "Save changes",
-      fields: @fields,
-      errors: @errors %>
+<%= render "seller/listings/form", listing: @listing, submit_label: "Save changes" %>

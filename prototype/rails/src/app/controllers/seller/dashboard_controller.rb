@@ -2,7 +2,7 @@ class Seller::DashboardController < Seller::BaseController
   RECENT_NOTIFICATIONS = 5
 
   def show
-    @tally = Domain::Reports::ListingStatusTally.from(current_seller.listings.group(:status).count)
+    @listing_status_counts = current_seller.listing_status_counts
     @awaiting_shipment = current_seller.fulfillments.awaiting_shipment.count
     @balance = current_seller.escrow_balance
     @unread_notifications = unread_notification_count

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_22_000212) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_22_000213) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -163,16 +163,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_000212) do
   create_table "notifications", force: :cascade do |t|
     t.text "body", null: false
     t.datetime "created_at", null: false
-    t.integer "customer_id"
     t.datetime "read_at"
-    t.integer "seller_id"
+    t.integer "recipient_id", null: false
+    t.string "recipient_type", null: false
     t.string "subject", null: false
     t.datetime "updated_at", null: false
     t.string "url"
-    t.index ["customer_id", "read_at"], name: "index_notifications_on_customer_id_and_read_at"
-    t.index ["customer_id"], name: "index_notifications_on_customer_id"
-    t.index ["seller_id", "read_at"], name: "index_notifications_on_seller_id_and_read_at"
-    t.index ["seller_id"], name: "index_notifications_on_seller_id"
+    t.index ["recipient_type", "recipient_id", "read_at"], name: "idx_on_recipient_type_recipient_id_read_at_50191a301d"
   end
 
   create_table "order_items", force: :cascade do |t|
@@ -262,8 +259,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_22_000212) do
   add_foreign_key "listing_events", "customers"
   add_foreign_key "listing_events", "listings"
   add_foreign_key "listings", "sellers"
-  add_foreign_key "notifications", "customers"
-  add_foreign_key "notifications", "sellers"
   add_foreign_key "order_items", "listings"
   add_foreign_key "order_items", "orders"
   add_foreign_key "order_items", "sellers"

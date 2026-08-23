@@ -1,21 +1,19 @@
 require "simplecov"
 
 # Started before the application is loaded so every app/ and lib/ file is
-# measured. Core sidecar tests under app/domain skip this file entirely, which
-# is what lets them run as `ruby -Iapp app/domain/money_test.rb`.
+# measured.
 SimpleCov.start do
   skip "/config/"
   skip "/db/"
   skip "/test/"
   skip "/vendor/"
-  skip(/_test\.rb\z/)
 
   cover "{app,lib}/**/*.rb"
 
-  group "Domain", "app/domain"
-  group "Actions", "app/actions"
-  group "Controllers", "app/controllers"
   group "Models", "app/models"
+  group "Controllers", "app/controllers"
+  group "Helpers", "app/helpers"
+  group "Mailers", "app/mailers"
 
   minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]
 end
@@ -36,6 +34,8 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
+Dir[Rails.root.join("test/support/**/*.rb")].each { |file| require file }
+
 module ActiveSupport
   class TestCase
     # Serial: one SQLite file and one coverage result beat merging forked
@@ -45,6 +45,14 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    # Every sign-in enqueues a mailer job, so the whole suite runs on the test
+    # queue adapter rather than delivering from a background thread.
+    include ActiveJob::TestHelper
+    include ActionMailer::TestHelper
+    include TestRecords
   end
+end
+
+class ActionDispatch::IntegrationTest
+  include IntegrationHelpers
 end

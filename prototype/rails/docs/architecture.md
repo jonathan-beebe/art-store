@@ -19,7 +19,7 @@ flowchart LR
     end
     seller["Seller (browser)"] -- "HTML forms" --> rails
     customer["Customer (browser)"] -- "HTML forms" --> rails
-    mail["Email delivery (future)"] -.-> rails
+    smtp["SMTP (production only; delivery_method :test elsewhere)"] -.-> rails
 ```
 
 One container (`app`) holds Ruby, Bundler, the Tailwind standalone binary
@@ -27,38 +27,39 @@ One container (`app`) holds Ruby, Bundler, the Tailwind standalone binary
 
 ## Layers inside the deployable
 
-Functional core / imperative shell. Dependencies point inward only.
+The stock Rails tree. `app/` holds `assets controllers helpers mailers models
+views`, `config/application.rb` has no autoloader configuration, and
+`bin/rails zeitwerk:check` passes on the defaults.
 
 ```mermaid
 flowchart TD
-    entry["Entry: config/routes.rb, config/initializers"] --> coord
-    coord["Coordination: app/controllers, app/actions, lib/tasks"] --> core
-    coord --> adapters
-    adapters["Adapters: app/models (ActiveRecord), app/delivery, app/views"] --> core
-    core["Core: app/domain/** — plain Ruby, no I/O, no clock, no random"]
+    entry["config/routes.rb, config/initializers"] --> controllers
+    controllers["app/controllers/&lt;site&gt;/ + concerns, lib/tasks"] --> models
+    controllers --> views
+    views["app/views + app/helpers"] --> models
+    controllers --> mailers
+    mailers["app/mailers"] --> models
+    models["app/models — Active Record records and plain Ruby value objects"]
 ```
 
-| Layer | Lives in | Rules |
-| --- | --- | --- |
-| Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested with no Rails boot (`require "minitest/autorun"` only, plus the file under test). |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (thin: associations, scopes, enums mapped to domain enums), the magic-link delivery port implementations, ERB views. |
-| Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
-| Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
+| Lives in | Holds |
+| --- | --- |
+| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation both accounts share. |
+| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). |
+| `app/mailers/` | `MagicLinkMailer` and its views. |
+| `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). |
+| `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
-Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
-`RunWeeklyPayout`), domain enums name states (`OrderStatus`), events are past
-tense.
+Naming follows the `naming` skill: model methods are the verb a record answers
+to (`Order#pay!`, `Fulfillment#ship!`, `Payout.run_weekly`,
+`Listing#take_stock!`), events are past tense.
 
-Action namespaces are the plural directory name — `Carts::`, `Fulfillments::`,
-`Orders::`, `Listings::`, `Notifications::`, `Escrow::`, `Auth::`,
-`Customers::`, `Favorites::` — not the singular the ticket originally asked
-for. Rails makes every `app/*` directory a Zeitwerk root, and `app/models/cart.rb`
-/ `fulfillment.rb` / `seller.rb` already define `Cart`, `Fulfillment`, `Seller`
-as classes, so `app/actions/cart/` declaring `module Cart` raises `TypeError:
-Cart is not a module`. The same collision makes every seller-portal controller
-`class Seller::XController < Seller::BaseController` (compact form) instead of
-`module Seller`; `Shop::`, `Auth::`, `Customers::`, and `Favorites::` have no
-matching model and stay `module`.
+Rails makes every `app/*` directory a Zeitwerk root, and `app/models/seller.rb`
+already defines `Seller` as a class, so a `seller/` directory elsewhere under
+`app/` declaring `module Seller` raises `TypeError: Seller is not a module`.
+That collision makes every seller-portal controller `class Seller::XController <
+Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
+`Auth::` have no matching model and stay `module`.
 
 ## Sites
 
@@ -77,31 +78,37 @@ which prints `flash[:debug_magic_link]`.
 
 - Passwordless. `magic_links` holds a hashed token, `email`, `actor_type`
   (`seller` | `customer`), `expires_at`, `consumed_at`, optional `redirect_to`.
-- Delivery is a port: `MagicLinkDelivery` (duck-typed interface in
-  `app/delivery/`) with `FlashMagicLinkDelivery` (prototype: flash the URL so
-  the layout prints it in a debug alert) and `MailMagicLinkDelivery` (the hook
-  for real email; raises `NotImplementedError`). Selected by
-  `Rails.configuration.x.magic_links.delivery` (`flash` | `mail`, env
-  `MAGIC_LINK_DELIVERY`).
+  `MagicLink.issue` writes the row and returns the plaintext token beside it;
+  `MagicLink.find_by_token`, `#usable?` and `#consume!` are the verify side.
+  `Seller.claim` and `Customer.claim` turn a followed link into an account.
+- `MagicLinkSender#send_magic_link` issues the link and enqueues
+  `MagicLinkMailer.with(link:, url:).sign_in.deliver_later`. Delivery is
+  `:test` in development and test, so the mail stays in
+  `ActionMailer::Base.deliveries`; production needs SMTP settings.
+- The same URL goes into `flash[:debug_magic_link]` so the layout prints it in
+  a debug alert, which is how a demo follows a link with no mailbox. Guarded by
+  `Rails.configuration.x.magic_links.debug_alert` (env
+  `MAGIC_LINK_DEBUG_ALERT`, on outside production).
 - Customers: every visitor gets a `customers` row with `email = nil`; its id is
   stored in a signed cookie `customer_id`. Verifying an email either claims that
   row or **merges** the anonymous row into the existing verified customer
   (favorites, cart, orders, listing events, notifications re-pointed; a
   `customer_merges` row records `anonymous_customer_id -> customer_id` so stale
-  cookies resolve). The merge decision is a pure function in
-  `app/domain/customers`; the re-pointing is an action.
+  cookies resolve). `Customer.claim` holds the decision, `Customer#absorb`
+  moves the rows through the associations `Customer` declares, and
+  `Customer.from_cookie` follows a merge forward.
 - Guest checkout = place the order as the anonymous customer, verify, then pay
   on `/orders/:id/pay`. The card is entered after verification and never stored.
 - Verifying does not by itself pay the order. It moves the order from
-  `pending_verification` to `awaiting_payment` (`Orders::MarkAwaitingPayment`,
+  `pending_verification` to `awaiting_payment` (`Order#mark_awaiting_payment!`,
   a no-op on any other status), so a guest order still has nowhere to go but
-  `/orders/:id/pay`. `Shop::OrderPaymentsController` calls the action itself on
-  both `show` and `create`, since `Auth::MagicLinksController` (FEAT-002)
-  knows nothing about orders.
+  `/orders/:id/pay`. `Shop::OrderPaymentsController` calls it on both `show`
+  and `create`, since `Auth::MagicLinksController` (FEAT-002) knows nothing
+  about orders.
 
 ## Commerce domain
 
-Money is integer cents (`Domain::Money`). Orders may span sellers; fulfillment
+Money is integer cents (`Money`). Orders may span sellers; fulfillment
 and escrow are tracked **per (order, seller)** in `fulfillments`.
 
 ```mermaid
@@ -127,18 +134,22 @@ erDiagram
 ### Listing status
 
 `draft → for_sale → sold`, `sold → for_sale` (stock restored after a declined
-card), `archived` from `draft`/`for_sale`. Search and browse
-(`Shop::StorefrontController`, `Listing.for_sale`) show only `for_sale`
-listings; a listing's own page (`/art/:slug`) stays reachable through `sold`
-too (`Domain::Listings::ListingAvailability::ON_STOREFRONT`), so a link a
-buyer already followed keeps working. `draft` and `archived` are unreachable
-either way. Quantity defaults to 1; a purchase decrements and `sold` is
-reached at 0.
+card), `archived` from `draft`/`for_sale`. The table is `Listing::TRANSITIONS`;
+`listing.transition_to!(status)` raises `TransitionError` on a move it
+does not allow. Search and browse (`Shop::StorefrontController`,
+`Listing.search`, `Listing.media_for_sale`) show only `for_sale` listings; a
+listing's own page
+(`/art/:slug`) stays reachable through `sold` too (`Listing.on_storefront`), so
+a link a buyer already followed keeps working. `draft` and `archived` are
+unreachable either way. Quantity defaults to 1; a purchase decrements and
+`sold` is reached at 0.
 
 A seller's submitted title/description/medium/dimensions/price/quantity/image
-are checked by `Domain::Listings::ListingDraft.errors_for` — one pure
-function, not a model validation, so the rule stays out of `Listing` (which
-seeds and the storefront also load, unvalidated).
+are `validates` declarations on `Listing`. The form edits dollars and the
+column stores cents, so `Listing#price` reads and writes `"249.00"` around
+`price_cents`; a rejected form renders the text the seller typed back.
+`Seller::ListingsController` is the stock new/create/edit/update shape and the
+form is `form_with model: [:seller, listing]`.
 
 ### Order status
 
@@ -162,8 +173,8 @@ stateDiagram-v2
 ```
 
 `cancelled` has no route to it from either UI in this prototype — the
-transition exists in `Domain::Orders::OrderStatus::TRANSITIONS`, verified by
-its sidecar test, but no action calls it.
+transition exists in `Order::TRANSITIONS`, verified by
+`test/models/order_test.rb`, but nothing calls it.
 
 ### Fulfillment status (per order × seller)
 
@@ -179,24 +190,28 @@ owns.
   Record's single-table inheritance, same reason `listing_events.event_type`
   isn't `type`) is `held` (+net, written when the order pays), `released`
   (+net, written when the fulfillment is delivered), or `paid_out` (−amount,
-  written when included in a payout). `Domain::Escrow::LedgerBalance.from`
-  folds a seller's entries: `held = held_total − released_total`; `available =
-  released_total + paid_out_total` (the `paid_out` entries are already
-  negative, so this nets down as money leaves); `paid_out = −paid_out_total`
-  (a positive lifetime figure).
-- Platform fee: 10% of the fulfillment subtotal (`Domain::Escrow::Fee`),
-  computed once at order placement (`Orders::PlaceOrder`) and stored on the
-  `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal − fee.
-  `Orders::FinalizeOrder` (hold) and `Fulfillments::ConfirmDelivered` (release)
-  move `fulfillment.net` through escrow rather than recomputing it.
-- Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` creates one
-  `payouts` row per seller for released-not-paid amounts as of the most
-  recently completed week. Period math is pure (`Domain::Escrow::PayoutPeriod`).
-  The seller portal exposes a debug "Run weekly payout now" button.
+  written when included in a payout). `LedgerEntry.balance` (through
+  `Seller#escrow_balance`) folds a seller's entries: `held = held_total −
+  released_total`; `available = released_total + paid_out_total` (the
+  `paid_out` entries are already negative, so this nets down as money leaves);
+  `paid_out = −paid_out_total` (a positive lifetime figure). The three writers
+  `LedgerEntry.hold` / `.release` / `.pay_out` are the only code that picks a
+  sign.
+- Platform fee: 10% of the fulfillment subtotal
+  (`Fulfillment::PLATFORM_FEE_PERCENT`, `Fulfillment.fee_for` /
+  `Fulfillment.net_for`), computed once at order placement (`Order.place`) and
+  stored on the `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal −
+  fee. `Order#pay!` (hold) and `Fulfillment#deliver!` (release) move
+  `fulfillment.net` through escrow rather than recomputing it.
+- Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` calls
+  `Payout.run_weekly(as_of:)`, which creates one `payouts` row per seller for
+  released-not-paid amounts as of the most recently completed week. Period math
+  is pure (`PayoutPeriod`, a `Data` value object with no table). The seller
+  portal exposes a debug "Run weekly payout now" button.
 
 ### Fake payment
 
-`Domain::Payments::FakeCard.decide(number)`:
+`FakeCard.new(number)`:
 
 | Number | Decision |
 | --- | --- |
@@ -209,33 +224,40 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 
 ### Notifications
 
-`notifications` rows (nullable `seller_id` / `customer_id`, subject, body, url,
-read_at) shown in each site's header. Seller receives "Item sold" on paid;
-customer receives "Order shipped" on shipped. `Notify#deliver_by_email` is the
-email hook.
+`notifications` rows (polymorphic `recipient`, subject, body, url, read_at)
+shown in each site's header. `Notification.item_sold` files "Item sold" under
+the seller when an order is paid; `Notification.order_shipped` files "Order
+shipped" under the customer when a fulfillment departs.
+`Notification#deliver_by_email` is the email hook.
 
 ## Testing
 
-- Minitest (stock Rails). Tests are **sidecars**: `foo.rb` → `foo_test.rb` in
-  the same directory. `bin/rails test app lib db test` runs them (the runner
-  globs `**/*_test.rb` under each given path; `db` was added for
-  `db/seeds_test.rb` and `test` for `test/smoke_test.rb` — the bare `app lib`
-  form globs neither); `config/application.rb` tells Zeitwerk to ignore
-  `**/*_test.rb` so test files are never autoloaded. `test/test_helper.rb`
-  stays as the Rails base.
-- Core tests (`app/domain/**`) require only `minitest/autorun` and the file
-  under test — no `test_helper`, no database, no doubles. They also run under
-  the Rails runner.
-- Coordination tests (controllers, actions, tasks) are `ActionDispatch::IntegrationTest`
-  / `ActiveSupport::TestCase` with fixtures or factories against the test
-  SQLite database; they drive HTTP and assert on rendered HTML and DB state.
+- Minitest (stock Rails). Every test lives under `test/`, mirroring the tree it
+  covers: `app/models/money.rb` → `test/models/money_test.rb`,
+  `app/models/order.rb` → `test/models/order_test.rb`,
+  `lib/tasks/payouts.rake` → `test/tasks/payouts_test.rb`. `bin/rails test`
+  with no arguments runs the whole suite. `test/test_helper.rb` is the Rails
+  base and starts SimpleCov.
+- Every test declares itself with `test "..." do` and subclasses
+  `ActiveSupport::TestCase`, `ActionDispatch::IntegrationTest` or
+  `ActionView::TestCase`. There is no intermediate base class.
+- `test/test_helper.rb` requires `test/support/**/*.rb` and mixes it in:
+  `TestRecords` (the record builders and the card numbers) into
+  `ActiveSupport::TestCase`, `IntegrationHelpers` (sign-in over HTTP, the
+  cookie readers, the seller-portal order state) into
+  `ActionDispatch::IntegrationTest`. There are no fixture files — `fixtures
+  :all` loads one shared directory for every suite, so each test builds the
+  rows it asks about.
+- Model tests exercise the record or value object under test — no doubles. A
+  value object test needs no database; a record test builds its rows through
+  `TestRecords`.
+- Controller and task tests run against the test SQLite database; they drive
+  HTTP and assert on rendered HTML and DB state.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
-  per-group summary (Domain, Actions, Controllers, Models). `COVERAGE_MIN` is
-  one global line-coverage minimum (`make coverage` sets it to 80) — SimpleCov
-  reports the Domain group's percentage but nothing enforces a higher
-  threshold on it specifically; it has stayed near 100% in practice because
-  the core is small and pure.
-- TDD: failing sidecar test, make it pass, refactor. Feature tickets are done
+  per-group summary (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` is
+  one global line-coverage minimum (`make coverage` sets it to 80); the suite
+  has stayed at 100% line coverage.
+- TDD: failing test, make it pass, refactor. Feature tickets are done
   when their flow has an integration test that walks it end to end.
 
 ## Repository layout
@@ -257,6 +279,6 @@ prototype/rails/
 | Skill says | Here it means |
 | --- | --- |
 | `npm run test:run -- <pattern>` | `docker compose run --rm app bin/rails test <path>` |
-| Vitest unit test | Minitest sidecar requiring only `minitest/autorun` |
-| React Testing Library integration test | `ActionDispatch::IntegrationTest` sidecar beside the controller |
+| Vitest unit test | Minitest `ActiveSupport::TestCase` under `test/models/` |
+| React Testing Library integration test | `ActionDispatch::IntegrationTest` under `test/controllers/` |
 | `src/` | `prototype/rails/src/` |

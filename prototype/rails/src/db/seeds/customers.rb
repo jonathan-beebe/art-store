@@ -33,29 +33,19 @@ module Seeds
     end
 
     def record_views(customer)
-      record_event = ::Listings::RecordListingEvent.new
       viewed_at = Time.utc(2026, 7, 1, 9, 0, 0)
 
       VIEWED_TITLES.each do |title|
-        record_event.call(
-          listing: listing(title), customer_id: customer.id,
-          event_type: Domain::Listings::ListingEventType::VIEW, now: viewed_at
-        )
+        listing(title).record_event!("view", customer_id: customer.id, at: viewed_at)
         viewed_at += 1.minute
       end
     end
 
     def record_favorites(customer)
-      record_event = ::Listings::RecordListingEvent.new
       favorited_at = Time.utc(2026, 7, 1, 9, 10, 0)
 
       FAVORITE_TITLES.each do |title|
-        favorite = listing(title)
-        Favorite.create!(customer_id: customer.id, listing_id: favorite.id)
-        record_event.call(
-          listing: favorite, customer_id: customer.id,
-          event_type: Domain::Listings::ListingEventType::FAVORITE, now: favorited_at
-        )
+        customer.toggle_favorite(listing(title), at: favorited_at)
         favorited_at += 1.minute
       end
     end

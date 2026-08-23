@@ -1,48 +1,44 @@
 module Shop
   class CheckoutsController < BaseController
+    include MagicLinkSender
+
     INCOMPLETE = "Enter an email address and a full shipping address.".freeze
 
     def show
-      return redirect_to shop_cart_path if current_cart.items.empty?
+      return redirect_to shop_cart_path if current_cart.empty?
 
-      @form = blank_form
+      @order = Order.new(email: verified_account&.email.to_s)
       load_summary
     end
 
     # The card is only asked for once the address behind the order is verified,
     # which is why a guest leaves here with a link instead of a receipt.
     def create
-      return redirect_to shop_cart_path if current_cart.items.empty?
+      return redirect_to shop_cart_path if current_cart.empty?
 
-      @form = submitted_form
-      return reject_incomplete unless @form.complete?
-
-      purchaser = checkout_purchaser
-      order = Orders::PlaceOrder.new.call(
-        cart: current_cart, purchaser: purchaser, shipping: @form.shipping, now: now
+      @order = Order.place(
+        cart: current_cart, customer: current_customer, email: buyer_email,
+        email_verified: verified_account.present?, shipping: shipping_params, at: Time.current
       )
 
-      return charge(order) if Domain::Orders::OrderPayment.payable?(order.status, purchaser.email_verified?)
+      return reject_incomplete unless @order.persisted?
+      return charge(@order) if @order.awaiting_payment?
 
-      send_verification_link(order, purchaser)
+      send_verification_link(@order)
     end
 
     private
 
     def charge(order)
-      Orders::FinalizeOrder.new.call(order: order, card_number: params[:card_number], now: now)
+      order.pay!(params[:card_number])
 
       redirect_to shop_order_path(order)
     end
 
-    def send_verification_link(order, purchaser)
-      Auth::SendMagicLink
-        .new(delivery: MagicLinkDelivery.build(flash), link_url: ->(token) { verify_magic_link_url(token) })
-        .call(
-          email: purchaser.email,
-          actor_type: Domain::Auth::ActorType::CUSTOMER,
-          redirect_to: shop_order_payment_path(order)
-        )
+    def send_verification_link(order)
+      send_magic_link(
+        email: order.email, actor_type: :customer, redirect_to: shop_order_payment_path(order)
+      )
 
       redirect_to shop_order_path(order)
     end
@@ -54,29 +50,20 @@ module Shop
       render :show, status: :unprocessable_content
     end
 
-    def checkout_purchaser
-      Domain::Shop::CheckoutPurchaser.for_checkout(
-        id: current_customer.id,
-        account_email: verified_account&.email,
-        account_verified_at: verified_account&.email_verified_at,
-        submitted_email: @form.email
-      )
+    # A signed-in customer buys under the address on their account, so a
+    # submitted field cannot move an order onto someone else's identity. A
+    # guest buys under the address they typed and verifies it afterwards.
+    def buyer_email
+      verified_account&.email || params[:email]
     end
 
-    def blank_form
-      Domain::Shop::CheckoutForm.from_input(email: verified_account&.email, shipping: {})
-    end
-
-    def submitted_form
-      Domain::Shop::CheckoutForm.from_input(
-        email: params[:email],
-        shipping: Domain::Orders::ShippingAddress.members.to_h { |part| [part, params[:"shipping_#{part}"]] }
-      )
+    def shipping_params
+      params.permit(*Order::SHIPPING_FIELDS).to_h.symbolize_keys
     end
 
     def load_summary
       @items = current_cart.items.includes(:listing).order(:id)
-      @totals = Domain::Cart::CartTotals.from(current_cart.lines)
+      @subtotal = current_cart.subtotal
     end
   end
 end

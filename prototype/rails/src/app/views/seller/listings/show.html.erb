@@ -3,8 +3,8 @@
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold"><%= @listing.title %></h1>
   <p class="text-neutral-600">
-    <span data-cell="status"><%= Domain::Reports::StatusLabel.of(@listing.status) %></span>
-    &middot; <%= @listing.price.format %>
+    <span data-cell="status"><%= status_label(@listing.status) %></span>
+    &middot; <%= money(@listing.price_cents) %>
     &middot; <%= @listing.quantity %> in stock
   </p>
   <%= link_to "Edit", edit_seller_listing_path(@listing), class: "ml-auto rounded border border-neutral-400 px-3 py-2" %>
@@ -71,9 +71,9 @@
             <tr data-sale="<%= sale.id %>">
               <th scope="row" class="px-4 py-2 font-normal">#<%= sale.order_id %></th>
               <td class="px-4 py-2"><%= sale.order.placed_at.strftime("%b %-d, %Y") %></td>
-              <td data-cell="order_status" class="px-4 py-2"><%= Domain::Reports::StatusLabel.of(sale.order.status) %></td>
+              <td data-cell="order_status" class="px-4 py-2"><%= status_label(sale.order.status) %></td>
               <td class="px-4 py-2 text-right tabular-nums"><%= sale.quantity %></td>
-              <td class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(sale.unit_price_cents).format %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= Money.from_cents(sale.unit_price_cents).format %></td>
             </tr>
           <% end %>
         </tbody>

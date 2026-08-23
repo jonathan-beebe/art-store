@@ -4,13 +4,9 @@ module Shop
       order = order_of_customer(params[:order_id])
       fulfillment = order.fulfillments.find(params[:id])
 
-      unless Domain::Orders::FulfillmentStatus.can_transition?(
-        fulfillment.status, Domain::Orders::FulfillmentStatus::DELIVERED
-      )
-        raise ActiveRecord::RecordNotFound
-      end
+      raise ActiveRecord::RecordNotFound unless fulfillment.can_transition_to?(:delivered)
 
-      Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment, now: now)
+      fulfillment.deliver!
 
       redirect_to shop_order_path(order)
     end

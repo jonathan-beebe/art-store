@@ -8,11 +8,9 @@ module Shop
     end
 
     def toggle
-      listing = Listing
-        .where(status: Domain::Listings::ListingAvailability::ON_STOREFRONT)
-        .find_by!(slug: params[:slug])
+      listing = Listing.on_storefront.find_by!(slug: params[:slug])
 
-      Favorites::ToggleFavorite.new.call(customer: current_customer, listing: listing, now: now)
+      current_customer.toggle_favorite(listing)
 
       redirect_back fallback_location: shop_listing_path(slug: listing.slug)
     end

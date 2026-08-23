@@ -89,7 +89,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.assert_select "[data-flash=notice]", text: /saved as a draft/
 
     Listing.sole.tap do |listing|
-      assert_equal Domain::Listings::ListingStatus::DRAFT, listing.status
+      assert_equal "draft", listing.status
       assert_equal 48_000, listing.price_cents
       assert_predicate listing.image, :attached?
     end
@@ -97,13 +97,13 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
   def put_up_for_sale(listing)
     @seller_browser.post seller_listing_status_path(listing_id: listing.id),
-      params: { status: Domain::Listings::ListingStatus::FOR_SALE }
+      params: { status: "for_sale" }
 
     @seller_browser.assert_redirected_to seller_listings_path
     @seller_browser.follow_redirect!
     @seller_browser.assert_select "[data-listing=#{listing.id}] [data-cell=status]", text: "For sale"
 
-    assert_equal Domain::Listings::ListingStatus::FOR_SALE, listing.reload.status
+    assert_equal "for_sale", listing.reload.status
   end
 
   def arrive_at_the_storefront(listing)
@@ -122,7 +122,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.assert_select "h1", text: LISTING_TITLE
     @customer_browser.assert_select "p", text: PRICE_LABEL
 
-    assert_equal 1, listing.listing_events.where(event_type: Domain::Listings::ListingEventType::VIEW).count
+    assert_equal 1, listing.events.where(event_type: "view").count
   end
 
   def favorite_listing(listing)
@@ -163,7 +163,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     Order.sole.tap do |order|
       @customer_browser.assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, order.status
+      assert_equal "pending_verification", order.status
       assert_equal 48_000, order.total_cents
       assert_empty order.payments
     end
@@ -182,7 +182,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
   def pay_with_an_approved_card(order)
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "input[name=card_number]"
-    assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.reload.status
+    assert_equal "awaiting_payment", order.reload.status
 
     @customer_browser.post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
 
@@ -190,9 +190,9 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "[data-order-status]", text: "Paid"
 
-    assert_equal Domain::Orders::OrderStatus::PAID, order.reload.status
+    assert_equal "paid", order.reload.status
     assert_equal "4242", order.payments.sole.card_last_four
-    assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::HELD)
+    assert_equal NET_CENTS, LedgerEntry.held.sole.amount_cents
   end
 
   def read_the_sale(order)
@@ -206,7 +206,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.assert_select "[data-group=awaiting_shipment] td", text: LISTING_TITLE
 
     Fulfillment.sole.tap do |fulfillment|
-      assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, fulfillment.status
+      assert_predicate fulfillment, :awaiting_shipment?
     end
   end
 
@@ -218,7 +218,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.follow_redirect!
     @seller_browser.assert_select "[data-shipment]", text: /#{TRACKING_NUMBER}/
 
-    assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.reload.status
+    assert_predicate fulfillment.reload, :shipped?
   end
 
   def confirm_delivery(order, fulfillment)
@@ -231,13 +231,13 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "[data-order-status]", text: "Delivered"
 
-    assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.reload.status
-    assert_equal Domain::Orders::OrderStatus::DELIVERED, order.reload.status
-    assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::RELEASED)
+    assert_predicate fulfillment.reload, :delivered?
+    assert_equal "delivered", order.reload.status
+    assert_equal NET_CENTS, LedgerEntry.released.sole.amount_cents
   end
 
   def run_weekly_payout
-    payouts = Escrow::RunWeeklyPayout.new.call(as_of: Time.zone.parse(NEXT_MONDAY))
+    payouts = Payout.run_weekly(as_of: Time.zone.parse(NEXT_MONDAY))
 
     assert_equal 1, payouts.length
     assert_equal NET_CENTS, Payout.sole.amount_cents
@@ -261,10 +261,6 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     assert_not_nil alert, "The debug alert rendered no magic link."
     alert["href"]
-  end
-
-  def ledger_amount_cents(entry_type)
-    LedgerEntry.where(entry_type: entry_type).sole.amount_cents
   end
 
   def uploaded_image

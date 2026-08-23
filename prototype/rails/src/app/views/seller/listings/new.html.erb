@@ -2,9 +2,4 @@
 
 <h1 class="text-lg font-semibold">New listing</h1>
 
-<%= render "seller/listings/form",
-      url: seller_listings_path,
-      method: :post,
-      submit_label: "Save as draft",
-      fields: @fields,
-      errors: @errors %>
+<%= render "seller/listings/form", listing: @listing, submit_label: "Save as draft" %>

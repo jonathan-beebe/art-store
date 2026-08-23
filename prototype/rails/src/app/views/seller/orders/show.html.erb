@@ -2,7 +2,7 @@
 
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold">Order #<%= @fulfillment.order_id %></h1>
-  <p data-cell="status" class="text-neutral-600"><%= Domain::Reports::StatusLabel.of(@fulfillment.status) %></p>
+  <p data-cell="status" class="text-neutral-600"><%= status_label(@fulfillment.status) %></p>
   <%= link_to "All orders", seller_orders_path, class: "ml-auto underline" %>
 </div>
 
@@ -40,7 +40,7 @@
             <tr data-item="<%= item.id %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= item.title %></th>
               <td class="px-4 py-2 text-right tabular-nums"><%= item.quantity %></td>
-              <td class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(item.unit_price_cents).format %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= Money.from_cents(item.unit_price_cents).format %></td>
             </tr>
           <% end %>
         </tbody>
@@ -58,7 +58,7 @@
 <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
   <h2 id="shipment-heading" class="font-semibold text-neutral-700">Shipment</h2>
 
-  <% if Domain::Orders::FulfillmentStatus.can_transition?(@fulfillment.status, Domain::Orders::FulfillmentStatus::SHIPPED) %>
+  <% if @fulfillment.can_transition_to?(:shipped) %>
     <%= form_with url: seller_order_shipment_path(@fulfillment), method: :post,
           html: { class: "mt-2 rounded border border-neutral-300 bg-white p-4" } do |form| %>
       <fieldset>

@@ -1,0 +1,144 @@
+require "test_helper"
+
+class MagicLinkTest < ActiveSupport::TestCase
+  test "issue writes a link for the address" do
+    link, = MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+
+    assert_predicate link, :persisted?
+    assert_equal "artist@example.com", MagicLink.sole.email
+  end
+
+  test "issue normalizes the address before storing it" do
+    MagicLink.issue(email: "  Artist@Example.COM ", actor_type: :seller)
+
+    assert_equal "artist@example.com", MagicLink.sole.email
+  end
+
+  test "issue records which side of the marketplace asked" do
+    MagicLink.issue(email: "buyer@example.com", actor_type: :customer)
+
+    assert_equal "customer", MagicLink.sole.actor_type
+    assert_predicate MagicLink.sole, :customer?
+  end
+
+  test "issue carries the destination the visitor was headed for" do
+    MagicLink.issue(email: "buyer@example.com", actor_type: :customer, redirect_to: "/orders/7/pay")
+
+    assert_equal "/orders/7/pay", MagicLink.sole.redirect_to
+  end
+
+  test "issue expires the link after the configured window" do
+    freeze_time do
+      MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+
+      assert_equal Rails.configuration.x.magic_links.expiry_minutes.minutes.from_now, MagicLink.sole.expires_at
+    end
+  end
+
+  test "issue expires the link from the moment it is asked for" do
+    MagicLink.issue(email: "artist@example.com", actor_type: :seller, now: 1.hour.ago)
+
+    assert_predicate MagicLink.sole, :expired?
+  end
+
+  test "issue leaves the link unconsumed" do
+    MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+
+    refute_predicate MagicLink.sole, :consumed?
+  end
+
+  test "issue stores only the digest of the token it hands out" do
+    link, token = MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+
+    refute_equal token, link.token_digest
+    assert_equal Digest::SHA256.hexdigest(token), link.token_digest
+  end
+
+  test "two links for the same address carry different tokens" do
+    MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+    MagicLink.issue(email: "artist@example.com", actor_type: :seller)
+
+    assert_equal 2, MagicLink.distinct.count(:token_digest)
+  end
+
+  test "issue writes no link for an address without an at sign" do
+    link, = MagicLink.issue(email: "artist.example.com", actor_type: :seller)
+
+    refute_predicate link, :persisted?
+    assert_equal 0, MagicLink.count
+  end
+
+  test "issue writes no link for an address without a dotted domain" do
+    link, = MagicLink.issue(email: "artist@example", actor_type: :seller)
+
+    refute_predicate link, :persisted?
+  end
+
+  test "issue writes no link for an address carrying whitespace" do
+    link, = MagicLink.issue(email: "artist name@example.com", actor_type: :seller)
+
+    refute_predicate link, :persisted?
+  end
+
+  test "issue writes no link for a blank address" do
+    link, = MagicLink.issue(email: "   ", actor_type: :seller)
+
+    refute_predicate link, :persisted?
+  end
+
+  test "issue writes no link when no address is given" do
+    link, = MagicLink.issue(email: nil, actor_type: :seller)
+
+    refute_predicate link, :persisted?
+  end
+
+  test "find_by_token finds the link holding that token's digest" do
+    token, link = create_magic_link
+
+    assert_equal link, MagicLink.find_by_token(token)
+  end
+
+  test "find_by_token finds nothing for a token no link was issued for" do
+    create_magic_link
+
+    assert_nil MagicLink.find_by_token("not-a-token")
+  end
+
+  test "a fresh unconsumed link is usable" do
+    _token, link = create_magic_link(expires_at: 15.minutes.from_now)
+
+    assert_predicate link, :usable?
+  end
+
+  test "a link expires the moment now reaches the expiry" do
+    freeze_time do
+      _token, link = create_magic_link(expires_at: Time.current)
+
+      assert_predicate link, :expired?
+      refute_predicate link, :usable?
+    end
+  end
+
+  test "a link past its expiry is expired" do
+    _token, link = create_magic_link(expires_at: 1.minute.ago)
+
+    assert_predicate link, :expired?
+  end
+
+  test "consume! marks the link used so it cannot sign anyone in again" do
+    _token, link = create_magic_link
+
+    link.consume!
+
+    assert_predicate link, :consumed?
+    refute_predicate link, :usable?
+  end
+
+  test "a consumed link stays consumed once it also passes its expiry" do
+    _token, link = create_magic_link(expires_at: 1.minute.ago)
+
+    link.consume!
+
+    assert_predicate link, :consumed?
+  end
+end
