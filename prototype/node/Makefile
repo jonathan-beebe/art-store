@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage migrate fresh seed payouts logs
+.PHONY: up down build assets shell test smoke coverage docs-check migrate fresh seed payouts logs
 
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
@@ -28,6 +28,11 @@ smoke:
 
 coverage:
 	docker compose run --rm app npm run coverage
+
+# Renders every Mermaid block under docs/ through minlag/mermaid-cli. A diagram
+# that does not parse fails the build.
+docs-check:
+	./docker/docs-check.sh
 
 migrate:
 	docker compose run --rm app npm run migrate
