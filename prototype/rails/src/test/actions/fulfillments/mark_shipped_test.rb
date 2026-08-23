@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Fulfillments
-  class MarkShippedTest < CommerceTestCase
+  class MarkShippedTest < ActiveSupport::TestCase
     test "it records the carrier and the tracking number" do
-      fulfillment = ship(paid_order_for(customer, listing(seller)).fulfillments.sole)
+      fulfillment = ship(paid_order_for(create_verified_customer, create_listing).fulfillments.sole)
 
       assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.status
       assert_equal "USPS", fulfillment.carrier
@@ -12,7 +12,7 @@ module Fulfillments
     end
 
     test "the only shipment of an order ships the order" do
-      order = paid_order_for(customer, listing(seller))
+      order = paid_order_for(create_verified_customer, create_listing)
 
       ship(order.fulfillments.sole)
 
@@ -20,7 +20,11 @@ module Fulfillments
     end
 
     test "one shipment of two partially ships the order" do
-      order = paid_order_for(customer, listing(seller("Blue Kiln Studio")), listing(seller("Rye Press")))
+      order = paid_order_for(
+        create_verified_customer,
+        create_listing(create_seller(shop_name: "Blue Kiln Studio")),
+        create_listing(create_seller(shop_name: "Rye Press"))
+      )
 
       ship(order.fulfillments.first)
 
@@ -28,8 +32,8 @@ module Fulfillments
     end
 
     test "it tells the customer how to track the order" do
-      buyer = customer
-      order = paid_order_for(buyer, listing(seller))
+      buyer = create_verified_customer
+      order = paid_order_for(buyer, create_listing)
 
       ship(order.fulfillments.sole)
 
@@ -39,7 +43,7 @@ module Fulfillments
     end
 
     test "it refuses to ship the same fulfillment twice" do
-      fulfillment = ship(paid_order_for(customer, listing(seller)).fulfillments.sole)
+      fulfillment = ship(paid_order_for(create_verified_customer, create_listing).fulfillments.sole)
 
       assert_raises(Domain::TransitionError) { ship(fulfillment) }
     end

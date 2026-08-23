@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Auth
-  class ClaimSellerIdentityTest < IdentityTestCase
+  class ClaimSellerIdentityTest < ActiveSupport::TestCase
     test "a first link for an address creates the seller" do
       seller = claim("newcomer@example.com")
 

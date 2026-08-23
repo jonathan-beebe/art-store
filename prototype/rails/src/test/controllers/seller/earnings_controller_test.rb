@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::EarningsControllerTest < SellerPortalTestCase
+class Seller::EarningsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor sees no earnings" do
     get seller_earnings_path
 

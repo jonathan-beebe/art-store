@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Listings
-  class UpdateListingTest < CommerceTestCase
+  class UpdateListingTest < ActiveSupport::TestCase
     test "it writes the edited fields" do
-      art = CreateListing.new.call(seller: seller, draft: draft)
+      art = CreateListing.new.call(seller: create_seller, draft: draft)
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn", price: "300.50"))
 
@@ -12,7 +12,7 @@ module Listings
     end
 
     test "a retitled listing keeps its slug" do
-      art = CreateListing.new.call(seller: seller, draft: draft)
+      art = CreateListing.new.call(seller: create_seller, draft: draft)
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn"))
 
@@ -20,7 +20,7 @@ module Listings
     end
 
     test "it leaves the status alone" do
-      art = CreateListing.new.call(seller: seller, draft: draft)
+      art = CreateListing.new.call(seller: create_seller, draft: draft)
       art.update!(status: Domain::Listings::ListingStatus::FOR_SALE)
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn"))
@@ -29,7 +29,7 @@ module Listings
     end
 
     test "a new upload replaces the image" do
-      art = CreateListing.new.call(seller: seller, draft: draft, image: uploaded_image("first.png"))
+      art = CreateListing.new.call(seller: create_seller, draft: draft, image: uploaded_image("first.png"))
 
       UpdateListing.new.call(listing: art, draft: draft, image: uploaded_image("second.png"))
 
@@ -37,7 +37,7 @@ module Listings
     end
 
     test "an edit with no upload keeps the image" do
-      art = CreateListing.new.call(seller: seller, draft: draft, image: uploaded_image("first.png"))
+      art = CreateListing.new.call(seller: create_seller, draft: draft, image: uploaded_image("first.png"))
 
       UpdateListing.new.call(listing: art, draft: draft(title: "Harbour at Dawn"))
 

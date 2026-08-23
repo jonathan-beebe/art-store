@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Notifications
-  class NotifyTest < CommerceTestCase
+  class NotifyTest < ActiveSupport::TestCase
     test "it files a seller message under the seller" do
-      shop = seller
+      shop = create_seller
 
       notification = Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::SELLER,
@@ -17,7 +17,7 @@ module Notifications
     end
 
     test "it files a customer message under the customer" do
-      buyer = customer
+      buyer = create_verified_customer
 
       notification = Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::CUSTOMER,
@@ -32,7 +32,7 @@ module Notifications
     test "a new notification is unread" do
       notification = Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::SELLER,
-        recipient_id: seller.id,
+        recipient_id: create_seller.id,
         message: Domain::Notifications::NotificationMessage.item_sold(7, Domain::Money.from_cents(40_500))
       )
 
@@ -46,7 +46,7 @@ module Notifications
 
       notification = Notify.new.call(
         recipient_type: Domain::Notifications::RecipientType::SELLER,
-        recipient_id: seller.id,
+        recipient_id: create_seller.id,
         message: message
       )
 

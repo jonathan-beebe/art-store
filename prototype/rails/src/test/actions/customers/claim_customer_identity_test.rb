@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Customers
-  class ClaimCustomerIdentityTest < IdentityTestCase
+  class ClaimCustomerIdentityTest < ActiveSupport::TestCase
     test "a visitor with no cookie and no account gets a new verified customer" do
       customer = claim(email: "newcomer@example.com", current: nil)
 

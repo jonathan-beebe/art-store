@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::PayoutsControllerTest < SellerPortalTestCase
+class Seller::PayoutsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor runs no payout" do
     post seller_earnings_payout_path
 

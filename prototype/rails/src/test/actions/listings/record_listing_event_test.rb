@@ -1,13 +1,13 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Listings
-  class RecordListingEventTest < CommerceTestCase
+  class RecordListingEventTest < ActiveSupport::TestCase
     test "it records what happened and when" do
-      art = listing(seller)
+      art = create_listing
 
       event = RecordListingEvent.new.call(
         listing: art,
-        customer_id: customer.id,
+        customer_id: create_verified_customer.id,
         event_type: Domain::Listings::ListingEventType::VIEW,
         now: moment("2026-08-20 08:00:00")
       )
@@ -19,7 +19,7 @@ module Listings
 
     test "an anonymous visitor leaves an event with no customer" do
       event = RecordListingEvent.new.call(
-        listing: listing(seller),
+        listing: create_listing,
         customer_id: nil,
         event_type: Domain::Listings::ListingEventType::VIEW,
         now: moment("2026-08-20 08:00:00")

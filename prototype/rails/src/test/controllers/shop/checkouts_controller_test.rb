@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class CheckoutsControllerTest < ShopIntegrationTest
+  class CheckoutsControllerTest < ActionDispatch::IntegrationTest
     test "an empty cart goes back to the cart page" do
       get shop_checkout_path
 

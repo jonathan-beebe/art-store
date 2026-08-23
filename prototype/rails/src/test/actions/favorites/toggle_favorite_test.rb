@@ -1,12 +1,12 @@
-require "commerce_test_case"
+require "test_helper"
 
-class ToggleFavoriteTest < CommerceTestCase
+class ToggleFavoriteTest < ActiveSupport::TestCase
   FavoriteChange = Domain::Shop::FavoriteChange
 
   setup do
     @toggle = Favorites::ToggleFavorite.new
-    @shopper = customer
-    @listing = listing(seller)
+    @shopper = create_verified_customer
+    @listing = create_listing
   end
 
   test "it saves a favorite and records the event" do
@@ -34,7 +34,7 @@ class ToggleFavoriteTest < CommerceTestCase
   end
 
   test "one visitor saving leaves another visitor alone" do
-    other = customer
+    other = create_verified_customer
     @toggle.call(customer: @shopper, listing: @listing, now: moment("2026-08-20 09:00:00"))
 
     assert_equal FavoriteChange::ADDED,

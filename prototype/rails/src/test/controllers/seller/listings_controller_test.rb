@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::ListingsControllerTest < SellerPortalTestCase
+class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor reaches no listing page" do
     listing = create_listing(other_seller)
 

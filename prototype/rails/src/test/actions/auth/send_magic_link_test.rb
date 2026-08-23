@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Auth
-  class SendMagicLinkTest < IdentityTestCase
+  class SendMagicLinkTest < ActiveSupport::TestCase
     class DeliveryRecorder
       attr_reader :email, :url
 

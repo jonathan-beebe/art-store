@@ -1,10 +1,10 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Carts
-  class AddToCartTest < CommerceTestCase
+  class AddToCartTest < ActiveSupport::TestCase
     test "it puts the listing in the cart" do
-      art = listing(seller, quantity: 3)
-      cart = cart_for(customer)
+      art = create_listing(quantity: 3)
+      cart = cart_for(create_verified_customer)
 
       item = AddToCart.new.call(cart: cart, listing: art, quantity: 2, now: moment("2026-08-20 08:00:00"))
 
@@ -13,8 +13,8 @@ module Carts
     end
 
     test "adding the same listing again adds to the line" do
-      art = listing(seller, quantity: 3)
-      cart = cart_for(customer)
+      art = create_listing(quantity: 3)
+      cart = cart_for(create_verified_customer)
       add_to_cart = AddToCart.new
       add_to_cart.call(cart: cart, listing: art, quantity: 1, now: moment("2026-08-20 08:00:00"))
 
@@ -25,24 +25,28 @@ module Carts
     end
 
     test "a cart never holds more than the seller has left" do
-      art = listing(seller, quantity: 2)
+      art = create_listing(quantity: 2)
 
-      item = AddToCart.new.call(cart: cart_for(customer), listing: art, quantity: 5, now: moment("2026-08-20 08:00:00"))
+      item = AddToCart.new.call(
+        cart: cart_for(create_verified_customer), listing: art, quantity: 5, now: moment("2026-08-20 08:00:00")
+      )
 
       assert_equal 2, item.quantity
     end
 
     test "it refuses a sold out listing" do
-      art = listing(seller, quantity: 0, status: Domain::Listings::ListingStatus::SOLD)
+      art = create_listing(quantity: 0, status: Domain::Listings::ListingStatus::SOLD)
 
       assert_raises(ArgumentError) do
-        AddToCart.new.call(cart: cart_for(customer), listing: art, quantity: 1, now: moment("2026-08-20 08:00:00"))
+        AddToCart.new.call(
+          cart: cart_for(create_verified_customer), listing: art, quantity: 1, now: moment("2026-08-20 08:00:00")
+        )
       end
     end
 
     test "it records the interest against the listing" do
-      art = listing(seller)
-      buyer = customer
+      art = create_listing
+      buyer = create_verified_customer
 
       AddToCart.new.call(cart: cart_for(buyer), listing: art, quantity: 1, now: moment("2026-08-20 08:00:00"))
 

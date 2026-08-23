@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class StorefrontControllerTest < ShopIntegrationTest
+  class StorefrontControllerTest < ActionDispatch::IntegrationTest
     test "the storefront renders in the shop layout" do
       get root_path
 
@@ -17,7 +17,7 @@ module Shop
     end
 
     test "it shows a for-sale listing with its artist and price" do
-      create_listing(seller: create_artist(shop_name: "Blue Kiln Studio"), title: "Harbour at Dusk")
+      create_listing(create_seller(shop_name: "Blue Kiln Studio"), title: "Harbour at Dusk")
 
       get root_path
 
@@ -82,8 +82,8 @@ module Shop
     end
 
     test "it paginates at twelve listings" do
-      artist = create_artist
-      14.times { |index| create_listing(seller: artist, title: "Study #{index}") }
+      artist = create_seller
+      14.times { |index| create_listing(artist, title: "Study #{index}") }
 
       get root_path
 

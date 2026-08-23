@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class FavoritesControllerTest < ShopIntegrationTest
+  class FavoritesControllerTest < ActionDispatch::IntegrationTest
     test "it saves a favorite and records the event" do
       listing = create_listing
 

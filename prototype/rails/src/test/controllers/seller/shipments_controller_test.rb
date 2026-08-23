@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::ShipmentsControllerTest < SellerPortalTestCase
+class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor ships nothing" do
     fulfillment = create_fulfillment(other_seller)
 

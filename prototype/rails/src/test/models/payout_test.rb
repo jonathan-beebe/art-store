@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
-class PayoutTest < CommerceTestCase
+class PayoutTest < ActiveSupport::TestCase
   test "a payout reads its amount in money" do
     payout = Payout.create!(
-      seller: seller, period_start: Date.new(2026, 8, 17), period_end: Date.new(2026, 8, 23),
+      seller: create_seller, period_start: Date.new(2026, 8, 17), period_end: Date.new(2026, 8, 23),
       amount_cents: 40_500, paid_at: moment("2026-08-24 09:00:00")
     )
 

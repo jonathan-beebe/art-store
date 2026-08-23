@@ -1,14 +1,14 @@
-require "commerce_test_case"
+require "test_helper"
 require "rake"
 
-class PayoutsTaskTest < CommerceTestCase
+class PayoutsTaskTest < ActiveSupport::TestCase
   setup do
     Rails.application.load_tasks unless Rake::Task.task_defined?("payouts:run")
     Rake::Task["payouts:run"].reenable
   end
 
   test "it pays the week that ended before the date it is given" do
-    shop = seller("Blue Kiln Studio")
+    shop = create_seller(shop_name: "Blue Kiln Studio")
     deliver_a_sale(shop)
 
     output = run_task("2026-08-24 09:00:00")
@@ -33,7 +33,7 @@ class PayoutsTaskTest < CommerceTestCase
   end
 
   def deliver_a_sale(shop)
-    order = paid_order_for(customer, listing(shop, price_cents: 45_000))
+    order = paid_order_for(create_verified_customer, create_listing(shop, price_cents: 45_000))
     fulfillment = Fulfillments::MarkShipped.new.call(
       fulfillment: order.fulfillments.sole, carrier: "USPS", tracking_number: "9400111899",
       now: moment("2026-08-20 11:00:00")

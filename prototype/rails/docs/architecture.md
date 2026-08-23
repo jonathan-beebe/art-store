@@ -222,11 +222,20 @@ email hook.
   `lib/tasks/payouts.rake` → `test/tasks/payouts_test.rb`. `bin/rails test`
   with no arguments runs the whole suite. `test/test_helper.rb` is the Rails
   base and starts SimpleCov.
-- Core tests (`test/domain/**`) subclass `ActiveSupport::TestCase` and exercise
-  the file under test — no database, no doubles.
-- Coordination tests (controllers, actions, tasks) are `ActionDispatch::IntegrationTest`
-  / `ActiveSupport::TestCase` with fixtures or factories against the test
-  SQLite database; they drive HTTP and assert on rendered HTML and DB state.
+- Every test declares itself with `test "..." do` and subclasses
+  `ActiveSupport::TestCase`, `ActionDispatch::IntegrationTest` or
+  `ActionView::TestCase`. There is no intermediate base class.
+- `test/test_helper.rb` requires `test/support/**/*.rb` and mixes it in:
+  `TestRecords` (the record builders and the card numbers) into
+  `ActiveSupport::TestCase`, `IntegrationHelpers` (sign-in over HTTP, the
+  cookie readers, the seller-portal order state) into
+  `ActionDispatch::IntegrationTest`. There are no fixture files — `fixtures
+  :all` loads one shared directory for every suite, so each test builds the
+  rows it asks about.
+- Core tests (`test/domain/**`) exercise the file under test — no database, no
+  doubles.
+- Coordination tests (controllers, actions, tasks) run against the test SQLite
+  database; they drive HTTP and assert on rendered HTML and DB state.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
   per-group summary (Domain, Actions, Controllers, Models). `COVERAGE_MIN` is
   one global line-coverage minimum (`make coverage` sets it to 80) — SimpleCov

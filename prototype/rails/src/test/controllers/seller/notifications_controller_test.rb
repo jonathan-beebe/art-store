@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::NotificationsControllerTest < SellerPortalTestCase
+class Seller::NotificationsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor reads no notifications" do
     get seller_notifications_path
 

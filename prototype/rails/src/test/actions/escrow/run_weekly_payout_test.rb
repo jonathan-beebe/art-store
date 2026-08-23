@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Escrow
-  class RunWeeklyPayoutTest < CommerceTestCase
+  class RunWeeklyPayoutTest < ActiveSupport::TestCase
     test "it pays a seller whose delivery landed inside the period" do
-      shop = seller
+      shop = create_seller
       deliver_a_sale(shop)
 
       payouts = run_payout("2026-08-24 09:00:00")
@@ -16,7 +16,7 @@ module Escrow
     end
 
     test "a payout writes a matching paid out entry at the close of the period" do
-      deliver_a_sale(seller)
+      deliver_a_sale(create_seller)
 
       payouts = run_payout("2026-08-24 09:00:00")
 
@@ -27,7 +27,7 @@ module Escrow
     end
 
     test "running the same period twice pays once" do
-      deliver_a_sale(seller)
+      deliver_a_sale(create_seller)
       run_payout("2026-08-24 09:00:00")
 
       second = run_payout("2026-08-25 09:00:00")
@@ -37,8 +37,8 @@ module Escrow
     end
 
     test "it pays each seller their own released amount" do
-      first = seller("Blue Kiln Studio")
-      second = seller("Rye Press")
+      first = create_seller(shop_name: "Blue Kiln Studio")
+      second = create_seller(shop_name: "Rye Press")
       deliver_a_sale(first)
       deliver_a_sale(second, price_cents: 10_000)
 
@@ -48,14 +48,14 @@ module Escrow
     end
 
     test "money still held in escrow is not paid out" do
-      paid_order_for(customer, listing(seller))
+      paid_order_for(create_verified_customer, create_listing)
 
       assert_empty run_payout("2026-08-24 09:00:00")
       assert_equal 0, Payout.count
     end
 
     test "a delivery after the period ends waits for the next run" do
-      deliver_a_sale(seller, delivered_at: "2026-08-24 11:00:00")
+      deliver_a_sale(create_seller, delivered_at: "2026-08-24 11:00:00")
 
       assert_empty run_payout("2026-08-24 12:00:00")
     end
@@ -67,7 +67,7 @@ module Escrow
     end
 
     def deliver_a_sale(shop, price_cents: 45_000, delivered_at: "2026-08-21 11:00:00")
-      order = paid_order_for(customer, listing(shop, price_cents: price_cents))
+      order = paid_order_for(create_verified_customer, create_listing(shop, price_cents: price_cents))
       fulfillment = Fulfillments::MarkShipped.new.call(
         fulfillment: order.fulfillments.sole, carrier: "USPS", tracking_number: "9400111899",
         now: moment("2026-08-20 11:00:00")

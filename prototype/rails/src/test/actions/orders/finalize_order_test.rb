@@ -1,16 +1,16 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Orders
-  class FinalizeOrderTest < CommerceTestCase
+  class FinalizeOrderTest < ActiveSupport::TestCase
     test "an approved card pays the order" do
-      order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
+      order = finalize(order_for(create_verified_customer, create_listing), APPROVED_CARD)
 
       assert_equal Domain::Orders::OrderStatus::PAID, order.status
       assert_equal moment("2026-08-20 10:00:00"), order.finalized_at
     end
 
     test "an approved card records the payment" do
-      order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
+      order = finalize(order_for(create_verified_customer, create_listing), APPROVED_CARD)
 
       payment = order.payments.sole
       assert_equal Domain::Payments::PaymentStatus::APPROVED, payment.status
@@ -20,8 +20,8 @@ module Orders
     end
 
     test "a paid order holds the seller net in escrow" do
-      shop = seller
-      order = finalize(order_for(customer, listing(shop)), APPROVED_CARD)
+      shop = create_seller
+      order = finalize(order_for(create_verified_customer, create_listing(shop)), APPROVED_CARD)
 
       entry = LedgerEntry.sole
       assert_equal Domain::Escrow::LedgerEntryType::HELD, entry.entry_type
@@ -31,7 +31,11 @@ module Orders
     end
 
     test "a paid order holds one amount per seller" do
-      order = order_for(customer, listing(seller("Blue Kiln Studio")), listing(seller("Rye Press"), price_cents: 10_000))
+      order = order_for(
+        create_verified_customer,
+        create_listing(create_seller(shop_name: "Blue Kiln Studio")),
+        create_listing(create_seller(shop_name: "Rye Press"), price_cents: 10_000)
+      )
 
       finalize(order, APPROVED_CARD)
 
@@ -39,9 +43,9 @@ module Orders
     end
 
     test "a paid order tells each seller their item sold" do
-      shop = seller
+      shop = create_seller
 
-      finalize(order_for(customer, listing(shop)), APPROVED_CARD)
+      finalize(order_for(create_verified_customer, create_listing(shop)), APPROVED_CARD)
 
       notification = Notification.sole
       assert_equal shop.id, notification.seller_id
@@ -50,7 +54,7 @@ module Orders
     end
 
     test "a declined card fails the payment" do
-      order = finalize(order_for(customer, listing(seller)), DECLINED_CARD)
+      order = finalize(order_for(create_verified_customer, create_listing), DECLINED_CARD)
 
       assert_equal Domain::Orders::OrderStatus::PAYMENT_FAILED, order.status
       assert_nil order.finalized_at
@@ -58,9 +62,9 @@ module Orders
     end
 
     test "a declined card puts the stock back on the storefront" do
-      art = listing(seller, quantity: 1)
+      art = create_listing(quantity: 1)
 
-      finalize(order_for(customer, art), DECLINED_CARD)
+      finalize(order_for(create_verified_customer, art), DECLINED_CARD)
 
       art.reload
       assert_equal 1, art.quantity
@@ -68,15 +72,15 @@ module Orders
     end
 
     test "a declined card holds nothing and tells nobody" do
-      finalize(order_for(customer, listing(seller)), DECLINED_CARD)
+      finalize(order_for(create_verified_customer, create_listing), DECLINED_CARD)
 
       assert_equal 0, LedgerEntry.count
       assert_equal 0, Notification.count
     end
 
     test "a retry with a good card pays the order and takes the stock again" do
-      art = listing(seller, quantity: 1)
-      order = order_for(customer, art)
+      art = create_listing(quantity: 1)
+      order = order_for(create_verified_customer, art)
       finalize(order, DECLINED_CARD)
 
       finalize(order, APPROVED_CARD, at: "2026-08-20 10:05:00")
@@ -90,8 +94,8 @@ module Orders
     end
 
     test "a retry that is declined again leaves the stock on the storefront" do
-      art = listing(seller, quantity: 1)
-      order = order_for(customer, art)
+      art = create_listing(quantity: 1)
+      order = order_for(create_verified_customer, art)
       finalize(order, DECLINED_CARD)
 
       finalize(order, UNFUNDED_CARD, at: "2026-08-20 10:05:00")
@@ -104,13 +108,13 @@ module Orders
     end
 
     test "it refuses to charge an order that is already paid" do
-      order = finalize(order_for(customer, listing(seller)), APPROVED_CARD)
+      order = finalize(order_for(create_verified_customer, create_listing), APPROVED_CARD)
 
       assert_raises(Domain::TransitionError) { finalize(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
     end
 
     test "it refuses to charge an order that has not been verified" do
-      order = order_for(anonymous_customer, listing(seller))
+      order = order_for(create_anonymous_customer, create_listing)
 
       assert_raises(Domain::TransitionError) { finalize(order, APPROVED_CARD) }
     end

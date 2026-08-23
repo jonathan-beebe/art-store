@@ -1,10 +1,10 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class ListingsControllerTest < ShopIntegrationTest
+  class ListingsControllerTest < ActionDispatch::IntegrationTest
     test "it shows the listing in full" do
       listing = create_listing(
-        seller: create_artist(shop_name: "Blue Kiln Studio"),
+        create_seller(shop_name: "Blue Kiln Studio"),
         title: "Harbour at Dusk",
         description: "An oil study of the harbour after sundown.",
         medium: "Oil on canvas",

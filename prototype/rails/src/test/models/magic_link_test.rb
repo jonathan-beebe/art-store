@@ -1,6 +1,6 @@
-require "identity_test_case"
+require "test_helper"
 
-class MagicLinkTest < IdentityTestCase
+class MagicLinkTest < ActiveSupport::TestCase
   test "for_token finds the link holding that token's digest" do
     token, link = create_magic_link
 

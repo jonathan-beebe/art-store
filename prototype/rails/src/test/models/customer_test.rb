@@ -1,6 +1,6 @@
-require "identity_test_case"
+require "test_helper"
 
-class CustomerTest < IdentityTestCase
+class CustomerTest < ActiveSupport::TestCase
   test "a customer with no address is anonymous" do
     assert_predicate create_anonymous_customer, :anonymous?
   end

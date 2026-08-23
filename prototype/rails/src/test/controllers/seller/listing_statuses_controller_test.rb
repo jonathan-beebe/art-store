@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::ListingStatusesControllerTest < SellerPortalTestCase
+class Seller::ListingStatusesControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor changes nothing" do
     listing = create_listing(other_seller, status: Domain::Listings::ListingStatus::DRAFT)
 

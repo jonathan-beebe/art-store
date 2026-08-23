@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Listings
-  class ChangeListingStatusTest < CommerceTestCase
+  class ChangeListingStatusTest < ActiveSupport::TestCase
     test "a draft goes on sale" do
-      art = listing(seller, status: Domain::Listings::ListingStatus::DRAFT)
+      art = create_listing(status: Domain::Listings::ListingStatus::DRAFT)
 
       ChangeListingStatus.new.call(listing: art, status: Domain::Listings::ListingStatus::FOR_SALE)
 
@@ -11,7 +11,7 @@ module Listings
     end
 
     test "a listing on sale is archived" do
-      art = listing(seller, status: Domain::Listings::ListingStatus::FOR_SALE)
+      art = create_listing(status: Domain::Listings::ListingStatus::FOR_SALE)
 
       ChangeListingStatus.new.call(listing: art, status: Domain::Listings::ListingStatus::ARCHIVED)
 
@@ -19,7 +19,7 @@ module Listings
     end
 
     test "a move the lifecycle refuses raises" do
-      art = listing(seller, status: Domain::Listings::ListingStatus::DRAFT)
+      art = create_listing(status: Domain::Listings::ListingStatus::DRAFT)
 
       assert_raises(Domain::TransitionError) do
         ChangeListingStatus.new.call(listing: art, status: Domain::Listings::ListingStatus::SOLD)

@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Auth
-  class CustomerSessionsControllerTest < IdentityIntegrationTest
+  class CustomerSessionsControllerTest < ActionDispatch::IntegrationTest
     test "the sign-in page asks for an email address in the shop layout" do
       get customer_login_path
 

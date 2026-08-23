@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class OrderPaymentsControllerTest < ShopIntegrationTest
+  class OrderPaymentsControllerTest < ActionDispatch::IntegrationTest
     test "it asks a signed-in customer for a card" do
       order = placed_order
 

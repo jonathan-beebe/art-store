@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class OrdersControllerTest < ShopIntegrationTest
+  class OrdersControllerTest < ActionDispatch::IntegrationTest
     test "it lists the orders of the visitor" do
       order = paid_order
 
@@ -24,11 +24,11 @@ module Shop
     end
 
     test "it groups the items by seller with their fulfillment status" do
-      kiln = create_artist(shop_name: "Blue Kiln Studio")
-      press = create_artist(shop_name: "North Press")
+      kiln = create_seller(shop_name: "Blue Kiln Studio")
+      press = create_seller(shop_name: "North Press")
       order = paid_order(
-        create_listing(seller: kiln, title: "Harbour at Dusk"),
-        create_listing(seller: press, title: "Winter Field", price_cents: 12_000)
+        create_listing(kiln, title: "Harbour at Dusk"),
+        create_listing(press, title: "Winter Field", price_cents: 12_000)
       )
 
       get shop_order_path(order)

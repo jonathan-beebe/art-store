@@ -1,7 +1,7 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Fulfillments
-  class ConfirmDeliveredTest < CommerceTestCase
+  class ConfirmDeliveredTest < ActiveSupport::TestCase
     test "it records when the order arrived" do
       fulfillment = deliver(shipped_fulfillment)
 
@@ -10,7 +10,7 @@ module Fulfillments
     end
 
     test "delivery releases the escrow the sale held" do
-      shop = seller
+      shop = create_seller
       fulfillment = deliver(shipped_fulfillment(shop))
 
       entry = fulfillment.ledger_entries.find_by(entry_type: Domain::Escrow::LedgerEntryType::RELEASED)
@@ -20,7 +20,7 @@ module Fulfillments
     end
 
     test "released money becomes available to the seller" do
-      shop = seller
+      shop = create_seller
 
       deliver(shipped_fulfillment(shop))
 
@@ -38,16 +38,16 @@ module Fulfillments
     end
 
     test "it refuses a fulfillment that has not shipped" do
-      fulfillment = paid_order_for(customer, listing(seller)).fulfillments.sole
+      fulfillment = paid_order_for(create_verified_customer, create_listing).fulfillments.sole
 
       assert_raises(Domain::TransitionError) { deliver(fulfillment) }
     end
 
     private
 
-    def shipped_fulfillment(shop = seller)
+    def shipped_fulfillment(shop = create_seller)
       MarkShipped.new.call(
-        fulfillment: paid_order_for(customer, listing(shop)).fulfillments.sole,
+        fulfillment: paid_order_for(create_verified_customer, create_listing(shop)).fulfillments.sole,
         carrier: "USPS", tracking_number: "9400111899", now: moment("2026-08-21 11:00:00")
       )
     end

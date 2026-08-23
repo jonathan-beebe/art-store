@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::DashboardControllerTest < SellerPortalTestCase
+class Seller::DashboardControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor is sent to the sign-in page" do
     get seller_root_path
 

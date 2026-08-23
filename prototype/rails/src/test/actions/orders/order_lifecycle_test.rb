@@ -1,16 +1,16 @@
-require "commerce_test_case"
+require "test_helper"
 
 # Walks the whole order lifecycle across two sellers. Every other action test
 # covers one step; these two protect the way the steps add up.
 module Orders
-  class OrderLifecycleTest < CommerceTestCase
+  class OrderLifecycleTest < ActiveSupport::TestCase
     test "an order runs from the cart to the weekly payout" do
-      painter = seller("Blue Kiln Studio")
-      printer = seller("Rye Press")
-      painting = listing(painter, price_cents: 45_000, quantity: 1)
-      print = listing(printer, price_cents: 12_000, quantity: 1)
+      painter = create_seller(shop_name: "Blue Kiln Studio")
+      printer = create_seller(shop_name: "Rye Press")
+      painting = create_listing(painter, price_cents: 45_000, quantity: 1)
+      print = create_listing(printer, price_cents: 12_000, quantity: 1)
 
-      order = order_for(customer, painting, print)
+      order = order_for(create_verified_customer, painting, print)
 
       assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.status
       assert_equal 57_000, order.total_cents
@@ -49,9 +49,9 @@ module Orders
     end
 
     test "a declined card returns the stock and a retry completes the order" do
-      shop = seller
-      art = listing(shop, price_cents: 45_000, quantity: 1)
-      order = order_for(customer, art)
+      shop = create_seller
+      art = create_listing(shop, price_cents: 45_000, quantity: 1)
+      order = order_for(create_verified_customer, art)
 
       FinalizeOrder.new.call(order: order, card_number: UNFUNDED_CARD, now: moment("2026-08-20 10:00:00"))
 

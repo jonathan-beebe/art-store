@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Auth
-  class MagicLinksControllerTest < IdentityIntegrationTest
+  class MagicLinksControllerTest < ActionDispatch::IntegrationTest
     test "a seller's first link creates the account and lands on the portal" do
       sign_in_as_seller(email: "newcomer@example.com")
 

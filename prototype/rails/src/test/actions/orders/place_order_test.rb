@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Orders
-  class PlaceOrderTest < CommerceTestCase
+  class PlaceOrderTest < ActiveSupport::TestCase
     test "it turns the cart into an order the customer can pay for" do
-      order = place(customer)
+      order = place(create_verified_customer)
 
       assert_equal Domain::Orders::OrderStatus::AWAITING_PAYMENT, order.status
       assert_equal 45_000, order.subtotal_cents
@@ -13,11 +13,11 @@ module Orders
     end
 
     test "a guest places an order that waits for verification" do
-      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, place(anonymous_customer).status
+      assert_equal Domain::Orders::OrderStatus::PENDING_VERIFICATION, place(create_anonymous_customer).status
     end
 
     test "it copies the shipping address onto the order" do
-      order = place(customer)
+      order = place(create_verified_customer)
 
       assert_equal "Ada Lovelace", order.shipping_name
       assert_equal "12 Analytical Way", order.shipping_line1
@@ -27,9 +27,9 @@ module Orders
     end
 
     test "it snapshots the title and price of every item" do
-      art = listing(seller, title: "Harbour at Dusk", price_cents: 45_000)
+      art = create_listing(title: "Harbour at Dusk", price_cents: 45_000)
 
-      item = order_for(customer, art).items.sole
+      item = order_for(create_verified_customer, art).items.sole
 
       assert_equal "Harbour at Dusk", item.title
       assert_equal 45_000, item.unit_price_cents
@@ -37,10 +37,10 @@ module Orders
     end
 
     test "it splits the order into one fulfillment per seller" do
-      painting = listing(seller("Blue Kiln Studio"), price_cents: 45_000)
-      print = listing(seller("Rye Press"), price_cents: 10_000)
+      painting = create_listing(create_seller(shop_name: "Blue Kiln Studio"), price_cents: 45_000)
+      print = create_listing(create_seller(shop_name: "Rye Press"), price_cents: 10_000)
 
-      order = order_for(customer, painting, print)
+      order = order_for(create_verified_customer, painting, print)
 
       assert_equal 55_000, order.subtotal_cents
       assert_equal(
@@ -50,14 +50,14 @@ module Orders
     end
 
     test "every fulfillment starts awaiting shipment" do
-      status = place(customer).fulfillments.sole.status
+      status = place(create_verified_customer).fulfillments.sole.status
 
       assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, status
     end
 
     test "it takes the stock the order claims" do
-      art = listing(seller, quantity: 3)
-      cart = cart_for(customer)
+      art = create_listing(quantity: 3)
+      cart = cart_for(create_verified_customer)
       Carts::AddToCart.new.call(cart: cart, listing: art, quantity: 2, now: moment("2026-08-20 08:00:00"))
 
       PlaceOrder.new.call(cart: cart, purchaser: purchaser(cart.customer), shipping: shipping_address,
@@ -69,9 +69,9 @@ module Orders
     end
 
     test "the last of a listing marks it sold" do
-      art = listing(seller, quantity: 1)
+      art = create_listing(quantity: 1)
 
-      order_for(customer, art)
+      order_for(create_verified_customer, art)
 
       art.reload
       assert_equal 0, art.quantity
@@ -79,8 +79,8 @@ module Orders
     end
 
     test "it empties the cart" do
-      buyer = customer
-      cart = cart_holding(buyer, listing(seller))
+      buyer = create_verified_customer
+      cart = cart_holding(buyer, create_listing)
 
       PlaceOrder.new.call(cart: cart, purchaser: purchaser(buyer), shipping: shipping_address,
                           now: moment("2026-08-20 09:00:00"))
@@ -89,7 +89,7 @@ module Orders
     end
 
     test "it refuses an empty cart" do
-      buyer = customer
+      buyer = create_verified_customer
 
       assert_raises(ArgumentError) do
         PlaceOrder.new.call(cart: cart_for(buyer), purchaser: purchaser(buyer), shipping: shipping_address,
@@ -100,7 +100,7 @@ module Orders
     private
 
     def place(buyer)
-      order_for(buyer, listing(seller, price_cents: 45_000))
+      order_for(buyer, create_listing(price_cents: 45_000))
     end
   end
 end

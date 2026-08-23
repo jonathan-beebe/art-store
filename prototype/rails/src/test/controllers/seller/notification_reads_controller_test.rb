@@ -1,6 +1,6 @@
-require "seller_portal_test_case"
+require "test_helper"
 
-class Seller::NotificationReadsControllerTest < SellerPortalTestCase
+class Seller::NotificationReadsControllerTest < ActionDispatch::IntegrationTest
   test "a signed-out visitor marks nothing read" do
     notification = create_notification(other_seller)
 

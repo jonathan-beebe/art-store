@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Orders
-  class MarkAwaitingPaymentTest < CommerceTestCase
+  class MarkAwaitingPaymentTest < ActiveSupport::TestCase
     test "verifying opens payment on a guest order" do
-      order = order_for(anonymous_customer, listing(seller))
+      order = order_for(create_anonymous_customer, create_listing)
 
       MarkAwaitingPayment.new.call(order: order)
 
@@ -11,7 +11,7 @@ module Orders
     end
 
     test "an order that already awaits payment stays where it is" do
-      order = order_for(customer, listing(seller))
+      order = order_for(create_verified_customer, create_listing)
 
       MarkAwaitingPayment.new.call(order: order)
 

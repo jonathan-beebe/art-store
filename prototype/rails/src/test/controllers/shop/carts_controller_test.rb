@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class CartsControllerTest < ShopIntegrationTest
+  class CartsControllerTest < ActionDispatch::IntegrationTest
     test "it adds a listing to the cart and records the event" do
       listing = create_listing
 
@@ -29,9 +29,9 @@ module Shop
     end
 
     test "it shows the lines and the subtotal" do
-      artist = create_artist(shop_name: "Blue Kiln Studio")
-      post shop_add_to_cart_path(slug: create_listing(seller: artist, title: "Harbour at Dusk").slug)
-      post shop_add_to_cart_path(slug: create_listing(seller: artist, title: "Winter Field", price_cents: 12_000).slug)
+      artist = create_seller(shop_name: "Blue Kiln Studio")
+      post shop_add_to_cart_path(slug: create_listing(artist, title: "Harbour at Dusk").slug)
+      post shop_add_to_cart_path(slug: create_listing(artist, title: "Winter Field", price_cents: 12_000).slug)
 
       get shop_cart_path
 

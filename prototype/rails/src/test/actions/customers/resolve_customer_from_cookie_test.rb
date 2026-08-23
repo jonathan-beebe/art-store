@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Customers
-  class ResolveCustomerFromCookieTest < IdentityTestCase
+  class ResolveCustomerFromCookieTest < ActiveSupport::TestCase
     test "it finds the customer the cookie points at" do
       customer = create_anonymous_customer
 

@@ -1,6 +1,6 @@
-require "identity_test_case"
+require "test_helper"
 
-class SellerTest < IdentityTestCase
+class SellerTest < ActiveSupport::TestCase
   test "the address is normalized on the way in" do
     seller = create_seller(email: "  Artist@Example.COM ")
 
@@ -8,7 +8,7 @@ class SellerTest < IdentityTestCase
   end
 
   test "two sellers cannot hold the same address" do
-    create_seller
+    create_seller(email: "artist@example.com")
 
     assert_raises(ActiveRecord::RecordNotUnique) { create_seller(email: "ARTIST@example.com") }
   end

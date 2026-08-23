@@ -1,9 +1,9 @@
-require "commerce_test_case"
+require "test_helper"
 
 module Orders
-  class RollUpOrderStatusTest < CommerceTestCase
+  class RollUpOrderStatusTest < ActiveSupport::TestCase
     test "an order whose fulfillments all await shipment stays paid" do
-      order = paid_order_for(customer, listing(seller))
+      order = paid_order_for(create_verified_customer, create_listing)
 
       RollUpOrderStatus.new.call(order: order)
 
@@ -11,7 +11,11 @@ module Orders
     end
 
     test "one shipped fulfillment of two partially ships the order" do
-      order = paid_order_for(customer, listing(seller("Blue Kiln Studio")), listing(seller("Rye Press")))
+      order = paid_order_for(
+        create_verified_customer,
+        create_listing(create_seller(shop_name: "Blue Kiln Studio")),
+        create_listing(create_seller(shop_name: "Rye Press"))
+      )
       order.fulfillments.first.update!(status: Domain::Orders::FulfillmentStatus::SHIPPED)
 
       RollUpOrderStatus.new.call(order: order)
@@ -20,7 +24,7 @@ module Orders
     end
 
     test "every fulfillment delivered delivers the order" do
-      order = paid_order_for(customer, listing(seller))
+      order = paid_order_for(create_verified_customer, create_listing)
       order.fulfillments.sole.update!(status: Domain::Orders::FulfillmentStatus::DELIVERED)
 
       RollUpOrderStatus.new.call(order: order)

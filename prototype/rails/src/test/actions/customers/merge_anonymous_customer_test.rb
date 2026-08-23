@@ -1,7 +1,7 @@
-require "identity_test_case"
+require "test_helper"
 
 module Customers
-  class MergeAnonymousCustomerTest < IdentityTestCase
+  class MergeAnonymousCustomerTest < ActiveSupport::TestCase
     # The commerce tables carry columns this ticket knows nothing about, so the
     # table-driven re-pointing is proven against a table the test owns outright.
     PROBE_TABLE = "identity_merge_probes".freeze

@@ -80,10 +80,10 @@ docker compose exec app bin/rails console      # against the running server
 Minitest, and every test lives under `test/`, mirroring `app/`:
 `app/domain/money.rb` is covered by `test/domain/money_test.rb`. `bin/rails
 test` with no arguments runs the whole suite. Alongside the mirrored trees,
-`test/` holds `test_helper.rb` (the Rails base and the coverage setup), the four
-shared test cases, `smoke_test.rb`, `seeds_test.rb`, and `tasks/` for the rake
-tasks. `test/seeds_test.rb` calls `Rails.application.load_seed` and asserts the
-seeded counts.
+`test/` holds `test_helper.rb` (the Rails base and the coverage setup),
+`support/` for the shared helpers, `smoke_test.rb`, `seeds_test.rb`, and
+`tasks/` for the rake tasks. `test/seeds_test.rb` calls
+`Rails.application.load_seed` and asserts the seeded counts.
 
 ```sh
 make test                                                                    # whole suite
@@ -91,9 +91,14 @@ docker compose run --rm app bin/rails test test/domain/money_test.rb         # o
 docker compose run --rm app bin/rails test test/domain/money_test.rb -n /percent/   # one test
 ```
 
-Every test requires `test_helper`. Core tests under `test/domain` subclass
-`ActiveSupport::TestCase` and touch no database. Controller tests are
-`ActionDispatch::IntegrationTest`; they drive HTTP and assert on rendered HTML.
+Every test requires `test_helper` and subclasses `ActiveSupport::TestCase`,
+`ActionDispatch::IntegrationTest` or `ActionView::TestCase`. Core tests under
+`test/domain` touch no database. Controller tests drive HTTP and assert on
+rendered HTML. `test/support/test_records.rb` holds the record builders every
+test can reach (`create_seller`, `create_listing`, `paid_order_for`, the card
+numbers); `test/support/integration_helpers.rb` holds what only the tests
+driving HTTP need (`sign_in_as_customer`, `signed_cookie`, `create_fulfillment`).
+`test_helper.rb` requires both and mixes them in.
 
 ## Smoke
 
@@ -169,6 +174,7 @@ prototype/rails/
     config/routes.rb   / and /seller
     test/              mirrors app/: domain/, actions/, controllers/, models/
     test/test_helper.rb SimpleCov and the Rails test base
+    test/support/      the record builders and the HTTP sign-in helpers
     test/smoke_test.rb  the whole product in one walk
 ```
 

@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class AccountControllerTest < ShopIntegrationTest
+  class AccountControllerTest < ActionDispatch::IntegrationTest
     test "it shows the verified address and a sign-out form" do
       sign_in_as_customer(email: "buyer@example.com")
 

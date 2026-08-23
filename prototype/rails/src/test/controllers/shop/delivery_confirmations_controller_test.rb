@@ -1,7 +1,7 @@
-require "shop_test_case"
+require "test_helper"
 
 module Shop
-  class DeliveryConfirmationsControllerTest < ShopIntegrationTest
+  class DeliveryConfirmationsControllerTest < ActionDispatch::IntegrationTest
     test "the customer confirms delivery and the escrow is released" do
       order = shipped_order
       fulfillment = order.fulfillments.sole

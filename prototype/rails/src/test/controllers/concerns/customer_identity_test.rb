@@ -1,8 +1,8 @@
-require "identity_test_case"
+require "test_helper"
 
 # The concern has no page of its own; the storefront is where every request runs
 # it.
-class CustomerIdentityConcernTest < IdentityIntegrationTest
+class CustomerIdentityConcernTest < ActionDispatch::IntegrationTest
   test "a first storefront visit creates the anonymous customer" do
     get root_path
 
