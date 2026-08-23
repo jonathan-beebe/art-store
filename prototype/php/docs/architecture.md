@@ -77,11 +77,19 @@ that produces it, and every controller calls it.
   `MagicLink::statusAt($now)`. The exception is the framework's
   `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
   frozen by `travelTo()`, but not handed in.
-- `RunWeeklyPayouts` (the artisan command) is the one other producer: a console
-  run has no controller, so it reads `now()` or parses `--as-of`.
+- `RunWeeklyPayouts` (the artisan command) is a second producer: a console run
+  has no controller, so it reads `now()` or parses `--as-of`.
+- `App\Support\UnreadCountStream` is the third. A held SSE stream outlives the
+  single instant a request is answered at, so the controller computes a
+  deadline from `Controller::now()` and the generator reads `now()` on each
+  tick to compare against it. That read is in the shell, which is why
+  `tests/Arch.php`'s clock rule — scoped to `App\Domain` — still holds.
 
 A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
-because one call per request produces the instant they all read.
+because one call per request produces the instant they all read. A stream is
+the exception a test drives with `Sleep::fake(syncWithCarbon: true)`, which
+advances the frozen clock by each faked sleep so the loop reaches its deadline
+without waiting.
 
 ## Sites
 

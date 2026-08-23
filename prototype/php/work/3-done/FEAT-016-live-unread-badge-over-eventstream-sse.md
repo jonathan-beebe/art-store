@@ -133,3 +133,57 @@ Nothing found outside this ticket's scope.
 errors, Pint clean. (Baseline was 1099 tests / 2467 assertions — this ticket added 8
 tests across 4 sidecars: `UnreadCountStreamTest` (4), `Seller\EventsControllerTest` (1),
 `Shop\EventsControllerTest` (1), `Admin\EventsControllerTest` (2).)
+
+## Review
+
+Walked the whole live path over curl against the running container. Signed the
+seeded `admin@example.com` in through `POST /admin/login` → the flashed magic
+link → `/admin`, whose nav rendered `Messages (2)` with
+`data-live-badge="Messages" data-events-url=".../admin/events"` and the
+`<script defer src=".../live-badge.js">`. Held `/admin/events` open, then posted
+a message into the seeded `admin_seller` thread from the seller side through
+`PostMessage`. The open stream emitted a second frame — `event: unread` /
+`data: 3` — one second after the post, on a connection whose first frame had
+been `data: 2`. The badge moves, not just its first paint.
+
+The rest of the probes: the stream closes on its own at 26s (25s deadline plus
+the tick it is inside); `/seller/events` and `/admin/events` with no cookie
+redirect to their sites' logins and `/events` answers anonymously, minting a
+`customer_id` cookie; the container runs one `php -S` master plus five workers
+and served four concurrent streams while `/admin` and `/` still answered in
+under 50ms. The four `Sleep::fake` cases each drive a distinct behaviour — the
+first frame, the silence plus the deadline (via `assertSleptTimes(13)`), the
+change mid-stream, and two actors reading two different counts.
+`public/live-badge.js` re-renders `label + ' (' + count + ')'`, which is the
+same string the three layouts render, and drops the parenthetical at zero, so a
+live update and a reload agree.
+
+Changed here: `docs/architecture.md` § "The clock" now names
+`UnreadCountStream` as the third instant producer and says why a held stream
+reads `now()` per tick (the previous text called `RunWeeklyPayouts` "the one
+other producer"), plus the `Sleep::fake(syncWithCarbon: true)` note.
+`docs/messaging.md` § "The live badge" gains the measured worker capacity, the
+absent `retry:` hint, and the two costs below.
+
+### Review — found, not fixed
+
+- A closed tab does not free its worker at once. `eventStream()` checks
+  `connection_aborted()` between yields and this generator yields only on a
+  change, so an abandoned stream keeps polling; measured, five aborted streams
+  starved the next page load for about five seconds before the workers came
+  back. Bounded by `LIFETIME_SECONDS` in the worst case. Fixing it means
+  yielding a keepalive every tick, which trades the "only on change" property
+  away — the prototype's scale does not pay for that. Recorded in
+  `docs/messaging.md`.
+- A cookieless client of the storefront's `/events` mints a `customers` row per
+  request, so a crawler mints one per reconnect and holds a worker for each.
+  This is the `customer.identity` middleware's existing shape — `GET /` with no
+  cookie mints a row too (verified: three cookieless hits, three new rows,
+  either route) — so `/events` opens no new hole, it only makes the existing
+  one hold a worker while it does. Recorded in `docs/messaging.md`.
+
+### Review verification
+
+`make check`: 1107 tests passed, 2491 assertions, Pint clean, 0 PHPStan errors.
+`pest --coverage --min=100`: 100.0% total (needs `-d memory_limit=1G`; the
+container's 128M default exhausts under the coverage driver).

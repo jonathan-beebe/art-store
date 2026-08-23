@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:17:29:01 — FEAT-016 — reviewed: live path walked over curl (admin signed in, /admin/events held open, message posted from the seller side — the stream moved from data: 2 to data: 3 within one tick), 26s close, three guards, four concurrent streams served alongside sub-50ms page loads; docs/architecture.md "The clock" names UnreadCountStream as the third instant producer and docs/messaging.md records the measured worker capacity, the absent retry: hint, the ~5s a closed tab holds its worker, and the cookieless customer-row mint; 1107 tests / 2491 assertions, 100.0% coverage
 - 2026-08-23:17:16:52 — FEAT-016 — done: UnreadCountStream generator over Sleep::fake-testable deadline loop, seller/shop/admin /events routes behind their own guards, live-badge.js (~20 lines, no dep) wired into all three layouts without touching existing badge markup, PHP_CLI_SERVER_WORKERS+--no-reload in docker-compose.yml, README/docs/review/docs/messaging JavaScript claims rewritten; 1107 tests / 2491 assertions, 100.0% coverage
 - 2026-08-23:17:07:44 — FEAT-016 — started
 - 2026-08-23:17:06:00 — FEAT-015 — reviewed: seeder idempotence probed live (make fresh twice, then both seeders again over the seeded database — counts identical), FAQ source_message_id pinned to Priya's answer, exact per-actor unread counts, smoke walk now asserts the thread page the asker lands on and shows the published answer to a second visitor; 1099 tests / 2467 assertions, 100.0% coverage

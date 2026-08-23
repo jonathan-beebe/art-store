@@ -271,8 +271,10 @@ is the generator: it reads no id from the request, only the actor its caller
 already resolved. The controller computes the deadline from `Controller::now()`
 before the stream opens; the generator's own loop then reads `now()` again on
 every tick to compare against it, since that loop runs in the imperative shell
-(`app/Support`), not `app/Domain`. The browser's `EventSource` reconnects after
-the stream ends, which also bounds how long a stale connection can hold
+(`app/Support`), not `app/Domain`. The stream ends at the deadline with a
+normal close — the response carries no `retry:` hint, so the browser's
+`EventSource` reconnects on its own default interval (about three seconds in
+Chrome and Firefox), which also bounds how long a stale connection can hold
 anything. The tick interval and the deadline are named constants on
 `UnreadCountStream`: `TICK_SECONDS = 2`, `LIFETIME_SECONDS = 25`.
 
@@ -282,9 +284,21 @@ one request per worker, so `PHP_CLI_SERVER_WORKERS` is set to `5` in
 `docker-compose.yml` (alongside `--no-reload`, which the built-in server
 requires for that variable to take effect at all) and the number of concurrent
 readers this prototype supports is that value minus the workers pages need.
-And the generator polls — one `count` per tick per open stream — because this
-deployable has no queue, no broadcaster, and no shared bus. Both facts live in
-a comment on the stream as well as here.
+Measured against the running container: four concurrent streams are served and
+page loads still answer in under 50ms; a fifth stream plus a page load both
+wait. And the generator polls — one `count` per tick per open stream — because
+this deployable has no queue, no broadcaster, and no shared bus. Both facts
+live in a comment on the stream as well as here.
+
+Two more costs the shape carries. `eventStream()` consults
+`connection_aborted()` between yields, and this generator yields only when the
+number moved, so a closed tab does not free its worker at once — measured, the
+worker comes back within about five seconds rather than instantly. And the
+storefront's `/events` sits inside `customer.identity`, so a client with no
+`customer_id` cookie mints a `customers` row, the same as `GET /` and every
+other storefront route; a crawler that ignores cookies mints one per request
+and holds a worker for the stream's lifetime each time. Both are bounded and
+both are the prototype's own scale, not a deployment's.
 
 The client is one `<script defer>` per layout over ~20 lines of dependency-free
 JavaScript (`src/public/live-badge.js`, served directly rather than through
