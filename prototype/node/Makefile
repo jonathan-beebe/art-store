@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage migrate fresh logs
+.PHONY: up down build assets shell test smoke coverage migrate fresh seed payouts logs
 
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
@@ -36,7 +36,18 @@ migrate:
 # rebuilt one. Restarting a stopped stack does nothing.
 fresh:
 	docker compose run --rm app npm run fresh
+	docker compose run --rm app npm run seed
 	@docker compose restart app
+
+# Adds the platform operators. Nobody else can reach /admin, and running it
+# twice adds nobody.
+seed:
+	docker compose run --rm app npm run seed
+
+# Settles the Monday-to-Sunday week that just ended. `make payouts AS_OF=2026-08-24`
+# settles the week before that date instead; re-running a period pays nothing.
+payouts:
+	docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))
 
 logs:
 	docker compose logs -f

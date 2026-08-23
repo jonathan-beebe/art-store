@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-22:19:44:16 — FEAT-003 — done: commerce domain core — 15 tables, pure core for listings/cart/orders/payments/escrow/notifications/moderation/analytics, actions over { db, clock } in transactions, weekly payouts CLI, lifecycle/decline/cancel tests
+- 2026-08-22:19:14:58 — FEAT-003 — started
+- 2026-08-22:19:14:11 — FEAT-002 — started
 - 2026-08-22:19:08:42 — FEAT-001 — done: dockerized Node 24 + Fastify foundation — three site plugins with layouts and the debug alert, buildApp composition root, Kysely migrator, node:test sidecars, typecheck/lint/coverage gates, Tailwind CLI
 - 2026-08-22:18:38:04 — FEAT-001 — started
 - 2026-08-22:20:40:00 — FEAT-010 — defined: final validation — clean first run, smoke test, coverage, review, README

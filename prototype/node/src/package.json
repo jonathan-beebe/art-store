@@ -13,7 +13,9 @@
     "check": "npm run typecheck && npm run lint && npm test",
     "assets": "tailwindcss --input app/assets/app.css --output public/app.css",
     "migrate": "node app/db/migrate.ts",
-    "fresh": "node app/db/migrate.ts --fresh"
+    "fresh": "node app/db/migrate.ts --fresh",
+    "seed": "node app/db/seed.ts",
+    "payouts": "node app/cli/run-payouts.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

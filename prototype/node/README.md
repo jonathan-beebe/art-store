@@ -45,6 +45,7 @@ sets `HOST` and `PORT` for the container.
 | `DATABASE_FILE` | `storage/development.sqlite3` |
 | `COOKIE_SECRET` | a development default (minimum 16 characters) |
 | `LOG_LEVEL` | `info` |
+| `MAGIC_LINK_DELIVERY` | `flash` (`mail` throws `NotImplementedError`) |
 
 ## Commands
 
@@ -61,7 +62,9 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
 | `make coverage` | `docker compose run --rm app npm run coverage` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
-| `make fresh` | `docker compose run --rm app npm run fresh`, then `docker compose restart app` |
+| `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
+| `make seed` | `docker compose run --rm app npm run seed` |
+| `make payouts` | `docker compose run --rm app npm run payouts` |
 | `make logs` | `docker compose logs -f` |
 
 The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
@@ -104,10 +107,23 @@ snake_case columns read as camelCase in TypeScript (`price_cents` →
 
 ```sh
 make migrate    # apply pending migrations
-make fresh      # delete the file, rebuild it from the migrations, restart the server
+make fresh      # delete the file, rebuild it, seed the admins, restart the server
+make seed       # add the platform admins; running it twice adds nobody
 ```
 
 Tests run against `:memory:`.
+
+## Weekly payouts
+
+Escrow released by a confirmed delivery is settled a week at a time.
+
+```sh
+make payouts                    # the Monday-to-Sunday week that just ended
+make payouts AS_OF=2026-08-24   # the week before that date
+```
+
+The `paid_out` ledger entry a run writes is dated at the close of the period it
+settles, so running the same period again pays nothing.
 
 ## Adding a migration
 
@@ -171,16 +187,20 @@ prototype/node/
     storage/               development.sqlite3 (not committed)
 ```
 
-`app/actions/`, `app/delivery/`, `app/cli/`, and `app/sites/auth/` do not
-exist yet; the tickets that need them create them.
+`app/actions/` holds the verbs over `{ db, clock }` and `app/cli/` the commands
+(`run-payouts.ts`); neither is in the tree above.
 
 ## What exists today
 
-Three sites — shop at `/`, seller at `/seller`, admin at `/admin` — each with
-a placeholder home page in its own layout. The flash cookie
-(`app/plugins/flash.ts`) and the shared `debug-alert` partial. `app/core/money.ts`.
-The migrator with one migration, enabling write-ahead logging. The
+Three sites — shop at `/`, seller at `/seller`, admin at `/admin` — each in
+its own layout. The flash cookie (`app/plugins/flash.ts`) and the shared
+`debug-alert` partial. `app/core/money.ts`. The migrator. The
 test/typecheck/lint/coverage gates behind `make test` and `make coverage`.
 
-Not yet: identity (magic links, sessions), the commerce domain (listings,
-orders, fulfillments, payouts), messaging, seeds, and email.
+Passwordless sign-in for all three: `/seller/login`, `/login`, and
+`/admin/login` issue a magic link that `/auth/magic/:token` spends, and each
+site has `/account` and sign-out. Every storefront request carries a customer,
+anonymous until an address is verified. Admins are seeded (`make seed`), never
+created by signing in.
+
+Not yet: messaging and real email.
