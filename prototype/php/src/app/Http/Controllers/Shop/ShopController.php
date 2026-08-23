@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use DateTimeImmutable;
+use App\Support\CustomerIdentity;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
@@ -20,12 +20,7 @@ abstract class ShopController extends Controller
 {
     protected function visitor(): Customer
     {
-        return customer() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');
-    }
-
-    protected function now(): DateTimeImmutable
-    {
-        return now()->toDateTimeImmutable();
+        return CustomerIdentity::current() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');
     }
 
     /**

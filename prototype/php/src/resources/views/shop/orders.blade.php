@@ -1,6 +1,5 @@
 @extends('layouts.shop')
 
-@use('App\Domain\Shop\StatusLabel')
 
 @section('title', 'Orders — Art Store')
 
@@ -23,7 +22,7 @@
                     <div class="text-right">
                         <p class="text-base text-neutral-500">{{ $order->placed_at->format('j M Y') }}</p>
                         <p class="mt-1 text-lg">{{ $order->total() }}</p>
-                        <p class="mt-1 text-base text-neutral-600">{{ StatusLabel::humanize($order->status->value) }}</p>
+                        <p class="mt-1 text-base text-neutral-600">{{ $order->status->label() }}</p>
                     </div>
                 </li>
             @endforeach

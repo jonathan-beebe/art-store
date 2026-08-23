@@ -13,12 +13,3 @@ it('is purchasable only when for sale with stock', function (ListingStatus $stat
     'draft cannot be bought' => [ListingStatus::Draft, 3, false],
     'archived cannot be bought' => [ListingStatus::Archived, 3, false],
 ]);
-
-it('is on the storefront only when for sale or sold', function (ListingStatus $status, bool $expected): void {
-    expect(ListingAvailability::isOnStorefront($status))->toBe($expected);
-})->with([
-    'for sale has a page' => [ListingStatus::ForSale, true],
-    'sold has a page' => [ListingStatus::Sold, true],
-    'draft has no page' => [ListingStatus::Draft, false],
-    'archived has no page' => [ListingStatus::Archived, false],
-]);

@@ -21,7 +21,7 @@ final class NotificationController extends SellerController
     {
         $this->authorize('markRead', $notification);
 
-        $notification->update(['read_at' => now()]);
+        $notification->markRead($this->now());
 
         return redirect()->route('seller.notifications.index')->with('status', 'Marked as read.');
     }

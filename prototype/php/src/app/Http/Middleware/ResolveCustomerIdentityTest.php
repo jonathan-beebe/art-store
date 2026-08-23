@@ -87,11 +87,11 @@ it('lets a signed in customer outrank the cookie', function (): void {
     $response->assertCookie(CustomerIdentity::COOKIE, (string) $signedIn->id);
 });
 
-it('exposes the resolved customer to the customer helper', function (): void {
+it('exposes the resolved customer through CustomerIdentity', function (): void {
     Route::middleware(['web', 'customer.identity'])
-        ->get('/customer-helper-probe', fn () => 'customer:'.customer()?->id);
+        ->get('/customer-identity-probe', fn () => 'customer:'.CustomerIdentity::current()?->id);
 
-    $response = $this->get('/customer-helper-probe');
+    $response = $this->get('/customer-identity-probe');
 
     $response->assertSee('customer:'.Customer::sole()->id);
 });

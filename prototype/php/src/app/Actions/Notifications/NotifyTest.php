@@ -30,13 +30,13 @@ it('writes a row addressed to a customer', function (): void {
     $notification = app(Notify::class)(
         RecipientType::Customer,
         $customer->id,
-        NotificationMessage::orderShipped(4, 'USPS', '9400111899')->withUrl('/orders/4'),
+        NotificationMessage::orderShipped(4, 'USPS', '9400111899'),
     );
 
     expect($notification)
         ->customer_id->toBe($customer->id)
         ->seller_id->toBeNull()
-        ->url->toBe('/orders/4');
+        ->url->toBeNull();
 });
 
 it('shows an unread notification for its recipient only', function (): void {

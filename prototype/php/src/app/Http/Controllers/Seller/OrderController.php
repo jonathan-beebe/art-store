@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Orders\FulfillmentStatus;
-use App\Domain\Reports\StatusLabel;
 use App\Models\Fulfillment;
 use App\Models\Seller;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,7 +25,7 @@ final class OrderController extends SellerController
         return view('seller.orders.index', [
             'groups' => array_map(fn (FulfillmentStatus $status): array => [
                 'status' => $status,
-                'label' => StatusLabel::of($status),
+                'label' => $status->label(),
                 'fulfillments' => $byStatus->get($status->value, collect()),
             ], FulfillmentStatus::cases()),
         ]);

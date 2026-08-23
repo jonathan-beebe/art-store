@@ -12,9 +12,9 @@ use App\Models\CartItem;
 use App\Models\Listing;
 use DateTimeImmutable;
 
-final class AddToCart
+final readonly class AddToCart
 {
-    public function __construct(private readonly RecordListingEvent $recordListingEvent) {}
+    public function __construct(private RecordListingEvent $recordListingEvent) {}
 
     public function __invoke(Cart $cart, Listing $listing, int $quantity, DateTimeImmutable $now): CartItem
     {

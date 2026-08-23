@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Shop;
 
 use App\Models\Customer;
+use App\Support\CustomerIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 use RuntimeException;
 
@@ -16,6 +17,6 @@ abstract class ShopRequest extends FormRequest
 {
     protected function visitor(): Customer
     {
-        return customer() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');
+        return CustomerIdentity::current() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');
     }
 }

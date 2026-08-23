@@ -9,7 +9,7 @@ use App\Domain\Auth\MagicLinkToken;
 use App\Models\MagicLink;
 
 $send = function (string $email, ActorType $actorType, ?string $redirectTo = null): string {
-    app(SendMagicLink::class)($email, $actorType, $redirectTo);
+    app(SendMagicLink::class)($email, $actorType, $redirectTo, now()->toDateTimeImmutable());
 
     return session('debug_magic_link');
 };

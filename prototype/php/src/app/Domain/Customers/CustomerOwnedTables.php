@@ -6,6 +6,8 @@ namespace App\Domain\Customers;
 
 final class CustomerOwnedTables
 {
+    private function __construct() {}
+
     /**
      * Tables whose rows move with the customer when an anonymous identity is
      * merged into a verified one.

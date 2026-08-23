@@ -1,12 +1,11 @@
 @extends('layouts.seller')
-@use('App\Domain\Reports\StatusLabel')
 
 @section('title', $listing->title.' — Art Store seller')
 
 @section('content')
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
-        <p class="text-gray-600">{{ StatusLabel::of($listing->status) }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
+        <p class="text-gray-600">{{ $listing->status->label() }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
         <a href="{{ route('seller.listings.edit', $listing->id) }}" class="ml-auto rounded border border-gray-400 px-3 py-2">Edit</a>
     </div>
 
@@ -80,7 +79,7 @@
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">#{{ $sale->order_id }}</th>
                                 <td class="px-4 py-2">{{ $sale->order->placed_at?->format('M j, Y') }}</td>
-                                <td class="px-4 py-2">{{ StatusLabel::of($sale->order->status) }}</td>
+                                <td class="px-4 py-2">{{ $sale->order->status->label() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $sale->quantity }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $sale->unitPrice() }}</td>
                             </tr>

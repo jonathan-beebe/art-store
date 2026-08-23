@@ -23,10 +23,3 @@ it('tells the customer who is carrying a shipment', function (): void {
         ->and($message->body)->toContain('USPS')
         ->and($message->body)->toContain('9400111899');
 });
-
-it('takes a link without losing its text', function (): void {
-    $message = NotificationMessage::itemSold(12, Money::fromCents(9000))->withUrl('/seller/orders/12');
-
-    expect($message->url)->toBe('/seller/orders/12')
-        ->and($message->subject)->toBe('Item sold');
-});

@@ -11,9 +11,9 @@ use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Http\UploadedFile;
 
-final class CreateListing
+final readonly class CreateListing
 {
-    public function __construct(private readonly StoreListingImage $storeListingImage) {}
+    public function __construct(private StoreListingImage $storeListingImage) {}
 
     public function __invoke(Seller $seller, ListingDraft $draft, ?UploadedFile $image = null): Listing
     {

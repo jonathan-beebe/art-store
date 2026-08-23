@@ -6,6 +6,8 @@ namespace App\Domain\Auth;
 
 final class MagicLinkToken
 {
+    private function __construct() {}
+
     /**
      * Only the digest is stored, so a leaked database row cannot be replayed
      * as a link.

@@ -42,7 +42,7 @@ final class OrderPaymentController extends ShopController
      */
     private function elsewhere(Order $order): ?RedirectResponse
     {
-        if (! OrderPayment::awaitsPayment($order->status)) {
+        if (! $order->status->awaitsPayment()) {
             return redirect()->route('shop.order', $order);
         }
 

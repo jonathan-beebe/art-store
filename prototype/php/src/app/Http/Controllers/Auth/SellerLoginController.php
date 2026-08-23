@@ -25,7 +25,7 @@ final class SellerLoginController extends Controller
 
     public function send(SendMagicLinkRequest $request, SendMagicLink $sendMagicLink): RedirectResponse
     {
-        $sendMagicLink($request->email(), ActorType::Seller);
+        $sendMagicLink($request->email(), ActorType::Seller, null, $this->now());
 
         return redirect()->route('auth.seller.login')->with('sent_to', $request->email());
     }

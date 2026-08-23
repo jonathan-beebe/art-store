@@ -8,10 +8,15 @@ use App\Domain\Listings\ListingStatus;
 
 final readonly class ListingStatusCount
 {
-    public function __construct(public ListingStatus $status, public int $count) {}
+    private function __construct(public ListingStatus $status, public int $count) {}
+
+    public static function of(ListingStatus $status, int $count): self
+    {
+        return new self($status, $count);
+    }
 
     public function label(): string
     {
-        return StatusLabel::of($this->status);
+        return $this->status->label();
     }
 }

@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
-use App\Domain\Auth\EmailAddress;
+use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Customers\CustomerIdentityAction;
 use App\Domain\Customers\CustomerIdentityPlan;
 use App\Models\Customer;
+use DateTimeImmutable;
 use LogicException;
 
 final readonly class ClaimCustomerIdentity
@@ -18,9 +19,9 @@ final readonly class ClaimCustomerIdentity
      * @param  Customer|null  $current  the customer the identity cookie points at
      * @return Customer the customer that now owns the address
      */
-    public function __invoke(string $email, ?Customer $current): Customer
+    public function __invoke(string $email, ?Customer $current, DateTimeImmutable $now): Customer
     {
-        $address = EmailAddress::normalize($email);
+        $address = EmailNormalizer::normalize($email);
         $owner = Customer::where('email', $address)->first();
         $anonymousId = $current !== null && $current->isAnonymous() ? $current->id : null;
 
@@ -33,13 +34,13 @@ final readonly class ClaimCustomerIdentity
         return match ($plan->action) {
             CustomerIdentityAction::CreateVerified => Customer::create([
                 'email' => $address,
-                'email_verified_at' => now(),
+                'email_verified_at' => $now,
             ]),
-            CustomerIdentityAction::SignInExisting => $this->verify($owner ?? throw new LogicException('SignInExisting requires an existing owner.')),
-            CustomerIdentityAction::ClaimAnonymous => $this->claim($current ?? throw new LogicException('ClaimAnonymous requires the current customer.'), $address),
+            CustomerIdentityAction::SignInExisting => $this->verify($owner ?? throw new LogicException('SignInExisting requires an existing owner.'), $now),
+            CustomerIdentityAction::ClaimAnonymous => $this->claim($current ?? throw new LogicException('ClaimAnonymous requires the current customer.'), $address, $now),
             CustomerIdentityAction::MergeAnonymousInto => ($this->merge)(
                 $current ?? throw new LogicException('MergeAnonymousInto requires the current customer.'),
-                $this->verify($owner ?? throw new LogicException('MergeAnonymousInto requires an existing owner.')),
+                $this->verify($owner ?? throw new LogicException('MergeAnonymousInto requires an existing owner.'), $now),
             ),
         };
     }
@@ -48,20 +49,20 @@ final readonly class ClaimCustomerIdentity
      * A guest checkout can leave an address on a customer without verifying
      * it; clicking a link for that address settles it.
      */
-    private function verify(Customer $customer): Customer
+    private function verify(Customer $customer, DateTimeImmutable $now): Customer
     {
         if ($customer->email_verified_at === null) {
-            $customer->forceFill(['email_verified_at' => now()])->save();
+            $customer->forceFill(['email_verified_at' => $now])->save();
         }
 
         return $customer;
     }
 
-    private function claim(Customer $anonymous, string $address): Customer
+    private function claim(Customer $anonymous, string $address, DateTimeImmutable $now): Customer
     {
         $anonymous->forceFill([
             'email' => $address,
-            'email_verified_at' => now(),
+            'email_verified_at' => $now,
         ])->save();
 
         return $anonymous;

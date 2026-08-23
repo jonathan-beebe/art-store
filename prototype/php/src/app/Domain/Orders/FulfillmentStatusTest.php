@@ -32,3 +32,11 @@ it('rejects shipping a delivered fulfillment', function (): void {
     expect(fn () => FulfillmentStatus::Delivered->transitionTo(FulfillmentStatus::Shipped))
         ->toThrow(DomainException::class, 'delivered to shipped');
 });
+
+it('reads its stored value back as a sentence', function (FulfillmentStatus $status, string $expected): void {
+    expect($status->label())->toBe($expected);
+})->with([
+    'awaiting shipment' => [FulfillmentStatus::AwaitingShipment, 'Awaiting shipment'],
+    'shipped' => [FulfillmentStatus::Shipped, 'Shipped'],
+    'delivered' => [FulfillmentStatus::Delivered, 'Delivered'],
+]);

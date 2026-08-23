@@ -13,6 +13,8 @@ final class FakeCard
         '4000000000009995' => DeclineReason::InsufficientFunds,
     ];
 
+    private function __construct() {}
+
     public static function decide(string $number): CardDecision
     {
         $digits = preg_replace('/\D/', '', $number) ?? '';

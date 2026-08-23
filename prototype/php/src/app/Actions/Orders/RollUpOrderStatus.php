@@ -8,7 +8,7 @@ use App\Domain\Orders\OrderStatus;
 use App\Models\Fulfillment;
 use App\Models\Order;
 
-final class RollUpOrderStatus
+final readonly class RollUpOrderStatus
 {
     public function __invoke(Order $order): Order
     {

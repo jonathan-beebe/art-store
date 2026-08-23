@@ -1,12 +1,11 @@
 @extends('layouts.seller')
-@use('App\Domain\Reports\StatusLabel')
 
 @section('title', 'Order #'.$fulfillment->order_id.' — Art Store seller')
 
 @section('content')
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
-        <p class="text-gray-600">{{ StatusLabel::of($fulfillment->status) }}</p>
+        <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
         <a href="{{ route('seller.orders.index') }}" class="ml-auto text-gray-700 underline">All orders</a>
     </div>
 

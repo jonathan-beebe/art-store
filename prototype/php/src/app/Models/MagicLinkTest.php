@@ -30,20 +30,20 @@ it('finds nothing for a token it never issued', function () use ($link): void {
 it('reports a fresh link usable', function () use ($link): void {
     $created = $link('open-sesame');
 
-    expect($created->statusAt(now()))->toBe(MagicLinkStatus::Usable);
+    expect($created->statusAt(now()->toDateTimeImmutable()))->toBe(MagicLinkStatus::Usable);
 });
 
 it('reports a link expired past its window', function () use ($link): void {
     $created = $link('open-sesame');
 
-    expect($created->statusAt(now()->addMinutes(16)))->toBe(MagicLinkStatus::Expired);
+    expect($created->statusAt(now()->addMinutes(16)->toDateTimeImmutable()))->toBe(MagicLinkStatus::Expired);
 });
 
 it('stamps and closes a link once consumed', function () use ($link): void {
     $created = $link('open-sesame');
 
-    $created->consume(now());
+    $created->consume(now()->toDateTimeImmutable());
 
     expect($created->fresh()->consumed_at)->not->toBeNull();
-    expect($created->fresh()->statusAt(now()))->toBe(MagicLinkStatus::Consumed);
+    expect($created->fresh()->statusAt(now()->toDateTimeImmutable()))->toBe(MagicLinkStatus::Consumed);
 });

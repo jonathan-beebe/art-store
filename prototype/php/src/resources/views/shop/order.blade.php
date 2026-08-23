@@ -1,6 +1,5 @@
 @extends('layouts.shop')
 
-@use('App\Domain\Shop\StatusLabel')
 
 @section('title', 'Order #'.$order->id.' — Art Store')
 
@@ -8,7 +7,7 @@
     <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
-        {{ StatusLabel::humanize($order->status->value) }} · {{ $order->total() }}
+        {{ $order->status->label() }} · {{ $order->total() }}
     </p>
 
     @if ($awaitsPayment && ! $isPayable)
@@ -47,7 +46,7 @@
                 <section class="border-t border-neutral-100 py-8 first:border-t-0 first:pt-0">
                     <div class="flex flex-wrap items-baseline justify-between gap-4">
                         <h2 class="text-lg font-medium">{{ $fulfillment->seller->displayName() }}</h2>
-                        <p class="text-base text-neutral-600">{{ StatusLabel::humanize($fulfillment->status->value) }}</p>
+                        <p class="text-base text-neutral-600">{{ $fulfillment->status->label() }}</p>
                     </div>
 
                     @if ($fulfillment->carrier)

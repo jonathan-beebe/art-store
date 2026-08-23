@@ -73,6 +73,7 @@ final class CheckoutController extends ShopController
             $request->email(),
             ActorType::Customer,
             route('shop.order.pay', $order, absolute: false),
+            $now,
         );
 
         return redirect()->route('shop.order', $order);

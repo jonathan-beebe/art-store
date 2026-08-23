@@ -9,7 +9,7 @@ use App\Models\Listing;
 use App\Models\ListingEvent;
 use DateTimeImmutable;
 
-final class RecordListingEvent
+final readonly class RecordListingEvent
 {
     public function __invoke(
         Listing $listing,

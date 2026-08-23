@@ -9,9 +9,9 @@ use App\Models\Listing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-final class UpdateListing
+final readonly class UpdateListing
 {
-    public function __construct(private readonly StoreListingImage $storeListingImage) {}
+    public function __construct(private StoreListingImage $storeListingImage) {}
 
     /**
      * The slug is left alone: a renamed listing keeps the storefront URL it was

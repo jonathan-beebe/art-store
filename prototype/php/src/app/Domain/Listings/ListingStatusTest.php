@@ -32,3 +32,21 @@ it('rejects a move outside the table', function (): void {
     expect(fn () => ListingStatus::Draft->transitionTo(ListingStatus::Sold))
         ->toThrow(DomainException::class, 'draft to sold');
 });
+
+it('is on the storefront only when for sale or sold', function (ListingStatus $status, bool $expected): void {
+    expect($status->isOnStorefront())->toBe($expected);
+})->with([
+    'for sale has a page' => [ListingStatus::ForSale, true],
+    'sold has a page' => [ListingStatus::Sold, true],
+    'draft has no page' => [ListingStatus::Draft, false],
+    'archived has no page' => [ListingStatus::Archived, false],
+]);
+
+it('reads its stored value back as a sentence', function (ListingStatus $status, string $expected): void {
+    expect($status->label())->toBe($expected);
+})->with([
+    'draft' => [ListingStatus::Draft, 'Draft'],
+    'for sale' => [ListingStatus::ForSale, 'For sale'],
+    'sold' => [ListingStatus::Sold, 'Sold'],
+    'archived' => [ListingStatus::Archived, 'Archived'],
+]);

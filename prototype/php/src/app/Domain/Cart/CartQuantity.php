@@ -11,6 +11,8 @@ use InvalidArgumentException;
 
 final class CartQuantity
 {
+    private function __construct() {}
+
     public static function withinStock(int $requested, int $available, ListingStatus $status): int
     {
         if ($requested < 1) {

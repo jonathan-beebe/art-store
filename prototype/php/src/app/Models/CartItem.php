@@ -8,6 +8,7 @@ use App\Domain\Cart\CartLine;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Override;
 
 /**
  * @property-read Cart $cart
@@ -19,6 +20,7 @@ class CartItem extends Model
     /**
      * @return array<string, string>
      */
+    #[Override]
     protected function casts(): array
     {
         return ['quantity' => 'integer'];
@@ -38,6 +40,6 @@ class CartItem extends Model
 
     public function toLine(): CartLine
     {
-        return new CartLine($this->listing->seller_id, $this->listing->price(), $this->quantity);
+        return CartLine::of($this->listing->seller_id, $this->listing->price(), $this->quantity);
     }
 }

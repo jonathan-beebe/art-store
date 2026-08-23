@@ -11,7 +11,7 @@ use App\Models\Listing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-$draft = fn (): ListingDraft => new ListingDraft(
+$draft = fn (): ListingDraft => ListingDraft::of(
     'Harbour at Dawn',
     'Oil on linen.',
     'oil',

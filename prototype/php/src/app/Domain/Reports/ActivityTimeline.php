@@ -10,6 +10,8 @@ use InvalidArgumentException;
 
 final class ActivityTimeline
 {
+    private function __construct() {}
+
     /**
      * A gapless run of days ending on the day of $endsOn, oldest first.
      *
@@ -37,7 +39,7 @@ final class ActivityTimeline
     {
         $counts = $countsByDate[$on->format('Y-m-d')] ?? [];
 
-        return new DailyActivity(
+        return DailyActivity::on(
             $on,
             $counts[ListingEventType::View->value] ?? 0,
             $counts[ListingEventType::Favorite->value] ?? 0,

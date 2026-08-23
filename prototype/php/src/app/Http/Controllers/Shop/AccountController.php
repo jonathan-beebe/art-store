@@ -24,7 +24,7 @@ final class AccountController extends ShopController
     {
         $this->authorizeVisitor('markRead', $notification);
 
-        $notification->update(['read_at' => now()]);
+        $notification->markRead($this->now());
 
         return redirect()->route('shop.account');
     }

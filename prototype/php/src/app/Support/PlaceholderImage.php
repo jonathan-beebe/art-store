@@ -15,6 +15,8 @@ final class PlaceholderImage
 
     private const HEIGHT = 800;
 
+    private function __construct() {}
+
     public static function svg(string $title): string
     {
         $seed = crc32($title);

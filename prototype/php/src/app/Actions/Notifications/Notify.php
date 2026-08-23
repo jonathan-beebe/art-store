@@ -8,7 +8,7 @@ use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
 use App\Models\Notification;
 
-final class Notify
+final readonly class Notify
 {
     public function __invoke(RecipientType $recipient, int $recipientId, NotificationMessage $message): Notification
     {
@@ -23,5 +23,5 @@ final class Notify
      * The prototype delivers to the in-app inbox only. Mail delivery hangs here,
      * behind the same port shape as MagicLinkDelivery.
      */
-    protected function deliverByEmail(Notification $notification): void {}
+    private function deliverByEmail(Notification $notification): void {}
 }

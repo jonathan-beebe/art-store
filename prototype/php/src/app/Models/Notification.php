@@ -6,11 +6,13 @@ namespace App\Models;
 
 use App\Domain\Notifications\NotificationMessage;
 use App\Domain\Notifications\RecipientType;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Override;
 
 #[Fillable(['seller_id', 'customer_id', 'subject', 'body', 'url', 'read_at'])]
 class Notification extends Model
@@ -18,6 +20,7 @@ class Notification extends Model
     /**
      * @return array<string, string>
      */
+    #[Override]
     protected function casts(): array
     {
         return ['read_at' => 'datetime'];
@@ -43,6 +46,11 @@ class Notification extends Model
             'body' => $message->body,
             'url' => $message->url,
         ]);
+    }
+
+    public function markRead(DateTimeImmutable $at): void
+    {
+        $this->update(['read_at' => $at]);
     }
 
     /** @param Builder<$this> $query */

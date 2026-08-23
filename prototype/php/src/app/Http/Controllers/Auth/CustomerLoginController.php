@@ -29,7 +29,7 @@ final class CustomerLoginController extends Controller
 
     public function send(SendMagicLinkRequest $request, SendMagicLink $sendMagicLink): RedirectResponse
     {
-        $sendMagicLink($request->email(), ActorType::Customer, $request->redirectTo());
+        $sendMagicLink($request->email(), ActorType::Customer, $request->redirectTo(), $this->now());
 
         return redirect()->route('auth.customer.login')->with('sent_to', $request->email());
     }

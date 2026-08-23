@@ -40,4 +40,9 @@ enum FulfillmentStatus: string
     {
         return $this === self::Shipped || $this === self::Delivered;
     }
+
+    public function label(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
+    }
 }

@@ -14,7 +14,7 @@ use DateTimeImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-final class RunWeeklyPayout
+final readonly class RunWeeklyPayout
 {
     /**
      * @return list<Payout>

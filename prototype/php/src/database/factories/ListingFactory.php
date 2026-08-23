@@ -9,6 +9,7 @@ use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use Override;
 
 /**
  * @extends Factory<Listing>
@@ -18,6 +19,7 @@ class ListingFactory extends Factory
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function definition(): array
     {
         $title = fake()->unique()->sentence(3);

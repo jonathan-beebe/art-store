@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Reports\StatusLabel;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
 use App\Models\Listing;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +17,6 @@ final class ListingStatusController extends SellerController
 
         return redirect()
             ->route('seller.listings.index')
-            ->with('status', "\"{$listing->title}\" is now ".lcfirst(StatusLabel::of($next)).'.');
+            ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
     }
 }

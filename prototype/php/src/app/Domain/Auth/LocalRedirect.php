@@ -6,6 +6,8 @@ namespace App\Domain\Auth;
 
 final class LocalRedirect
 {
+    private function __construct() {}
+
     public static function resolve(?string $requested, string $fallback, string $origin): string
     {
         return self::keepIfLocal($requested, $origin) ?? $fallback;

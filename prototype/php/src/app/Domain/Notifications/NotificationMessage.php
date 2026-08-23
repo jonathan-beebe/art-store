@@ -27,9 +27,4 @@ final readonly class NotificationMessage
             null,
         );
     }
-
-    public function withUrl(string $url): self
-    {
-        return new self($this->subject, $this->body, $url);
-    }
 }

@@ -8,6 +8,8 @@ use App\Domain\Listings\ListingStatus;
 
 final class ListingStatusTally
 {
+    private function __construct() {}
+
     /**
      * @param  array<string, int>  $countsByStatus  status value => count
      * @return list<ListingStatusCount>
@@ -15,7 +17,7 @@ final class ListingStatusTally
     public static function from(array $countsByStatus): array
     {
         return array_map(
-            fn (ListingStatus $status): ListingStatusCount => new ListingStatusCount(
+            fn (ListingStatus $status): ListingStatusCount => ListingStatusCount::of(
                 $status,
                 $countsByStatus[$status->value] ?? 0,
             ),

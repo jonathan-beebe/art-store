@@ -10,6 +10,7 @@ use App\Models\Listing;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Override;
 
 final class ListingRequest extends FormRequest
 {
@@ -50,6 +51,7 @@ final class ListingRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    #[Override]
     public function messages(): array
     {
         return [
@@ -59,7 +61,7 @@ final class ListingRequest extends FormRequest
 
     public function toDraft(): ListingDraft
     {
-        return new ListingDraft(
+        return ListingDraft::of(
             $this->string('title')->toString(),
             $this->optionalString('description'),
             $this->optionalString('medium'),

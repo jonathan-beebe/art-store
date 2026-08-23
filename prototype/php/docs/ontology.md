@@ -407,7 +407,9 @@ once). Sequence diagrams: `docs/identity.md`.
 - carries an `actor_type` and an optional post-verification redirect
 
 **In code.** `App\Models\MagicLink`, `App\Domain\Auth\ActorType`,
-`MagicLinkStatus`, `MagicLinkToken` (table `magic_links`).
+`MagicLinkStatus`, `MagicLinkToken`, `EmailNormalizer` (table `magic_links`).
+An address stays a `string` end to end; `EmailNormalizer::normalize()` is the
+one place that lowercases and trims it, so a form and a magic-link row match.
 
 ### Customer merge
 
@@ -473,19 +475,23 @@ stored as its own row (its outcome becomes a Payment).
 
 **Who/what.** The lifecycle state of a Listing (see Catalog above).
 
-**In code.** `App\Domain\Listings\ListingStatus`.
+**In code.** `App\Domain\Listings\ListingStatus`. `label()` is the sentence a
+page prints; `isOnStorefront()` answers whether the listing has a public page.
 
 ### Order status
 
 **Who/what.** The lifecycle state of an Order (see Buying above).
 
-**In code.** `App\Domain\Orders\OrderStatus`.
+**In code.** `App\Domain\Orders\OrderStatus`. `label()` is the sentence a page
+prints; `awaitsPayment()` and `retakesStockOnRetry()` answer what a card
+attempt may still do.
 
 ### Fulfillment status
 
 **Who/what.** The lifecycle state of a Fulfillment (see Buying above).
 
-**In code.** `App\Domain\Orders\FulfillmentStatus`.
+**In code.** `App\Domain\Orders\FulfillmentStatus`. `label()` is the sentence a
+page prints.
 
 ## Vocabulary notes
 

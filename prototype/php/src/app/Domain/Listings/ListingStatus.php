@@ -39,4 +39,18 @@ enum ListingStatus: string
             ? $next
             : throw new DomainRuleViolation("A listing cannot move from {$this->value} to {$next->value}.");
     }
+
+    /**
+     * A sold listing keeps its page so the links a buyer already followed
+     * still lead somewhere; a draft or archived one was never public.
+     */
+    public function isOnStorefront(): bool
+    {
+        return $this === self::ForSale || $this === self::Sold;
+    }
+
+    public function label(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
+    }
 }

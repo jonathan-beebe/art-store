@@ -46,6 +46,29 @@ enum OrderStatus: string
             : throw new DomainRuleViolation("An order cannot move from {$this->value} to {$next->value}.");
     }
 
+    /**
+     * An order awaits payment for as long as a card could still carry it to
+     * paid, which is what the storefront asks before it shows a card form.
+     */
+    public function awaitsPayment(): bool
+    {
+        return $this->canTransitionTo(self::Paid);
+    }
+
+    /**
+     * A declined charge put the stock back on the storefront, so a retry has to
+     * claim it again before the order can be paid.
+     */
+    public function retakesStockOnRetry(): bool
+    {
+        return $this === self::PaymentFailed;
+    }
+
+    public function label(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
+    }
+
     public static function forPlacement(Purchaser $purchaser): self
     {
         return $purchaser->isEmailVerified() ? self::AwaitingPayment : self::PendingVerification;
@@ -68,13 +91,14 @@ enum OrderStatus: string
             throw new InvalidArgumentException('An order rolls up from at least one fulfillment.');
         }
 
-        $delivered = array_filter($statuses, fn (FulfillmentStatus $status): bool => $status === FulfillmentStatus::Delivered);
-        $departed = array_filter($statuses, fn (FulfillmentStatus $status): bool => $status->hasLeftTheStudio());
+        $total = count($statuses);
+        $delivered = count(array_filter($statuses, fn (FulfillmentStatus $status): bool => $status === FulfillmentStatus::Delivered));
+        $departed = count(array_filter($statuses, fn (FulfillmentStatus $status): bool => $status->hasLeftTheStudio()));
 
         return match (true) {
-            count($delivered) === count($statuses) => self::Delivered,
-            count($departed) === count($statuses) => self::Shipped,
-            count($departed) > 0 => self::PartiallyShipped,
+            $delivered === $total => self::Delivered,
+            $departed === $total => self::Shipped,
+            $departed > 0 => self::PartiallyShipped,
             default => self::Paid,
         };
     }

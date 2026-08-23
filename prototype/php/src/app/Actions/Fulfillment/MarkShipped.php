@@ -13,11 +13,11 @@ use App\Models\Fulfillment;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class MarkShipped
+final readonly class MarkShipped
 {
     public function __construct(
-        private readonly RollUpOrderStatus $rollUpOrderStatus,
-        private readonly Notify $notify,
+        private RollUpOrderStatus $rollUpOrderStatus,
+        private Notify $notify,
     ) {}
 
     public function __invoke(

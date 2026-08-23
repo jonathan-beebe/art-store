@@ -7,7 +7,7 @@ namespace App\Actions\Cart;
 use App\Models\Cart;
 use App\Models\Listing;
 
-final class RemoveFromCart
+final readonly class RemoveFromCart
 {
     public function __invoke(Cart $cart, Listing $listing): void
     {

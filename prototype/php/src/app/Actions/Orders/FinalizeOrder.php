@@ -19,9 +19,9 @@ use App\Models\Payment;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class FinalizeOrder
+final readonly class FinalizeOrder
 {
-    public function __construct(private readonly Notify $notify) {}
+    public function __construct(private Notify $notify) {}
 
     public function __invoke(Order $order, string $cardNumber, DateTimeImmutable $now): Order
     {
@@ -29,13 +29,12 @@ final class FinalizeOrder
         $outcome = PaymentOutcome::fromCardDecision($decision);
         $status = $order->status->transitionTo(OrderStatus::fromCardDecision($outcome));
 
-        return DB::transaction(function () use ($order, $decision, $outcome, $status, $now): Order {
-            // A declined charge put the stock back on the storefront, so a retry
-            // has to claim it again before the order can be paid.
-            match ($order->status) {
-                OrderStatus::PaymentFailed => $this->sellItems($order),
-                default => null,
-            };
+        $retakesStock = $order->status->retakesStockOnRetry();
+
+        return DB::transaction(function () use ($order, $decision, $outcome, $retakesStock, $status, $now): Order {
+            if ($retakesStock) {
+                $this->sellItems($order);
+            }
 
             Payment::create([
                 'order_id' => $order->id,

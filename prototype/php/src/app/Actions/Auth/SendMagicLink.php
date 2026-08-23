@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Actions\Auth;
 
 use App\Domain\Auth\ActorType;
-use App\Domain\Auth\EmailAddress;
+use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Auth\MagicLinkToken;
 use App\Models\MagicLink;
 use App\Support\MagicLinkDelivery\MagicLinkDelivery;
+use DateInterval;
+use DateTimeImmutable;
 
 final readonly class SendMagicLink
 {
@@ -16,17 +18,18 @@ final readonly class SendMagicLink
 
     public function __construct(private MagicLinkDelivery $delivery) {}
 
-    public function __invoke(string $email, ActorType $actorType, ?string $redirectTo = null): void
+    public function __invoke(string $email, ActorType $actorType, ?string $redirectTo, DateTimeImmutable $now): void
     {
         $token = bin2hex(random_bytes(self::TOKEN_BYTES));
-        $address = EmailAddress::normalize($email);
+        $address = EmailNormalizer::normalize($email);
+        $expiryMinutes = (int) config('magic_links.expiry_minutes');
 
         MagicLink::create([
             'token_hash' => MagicLinkToken::hash($token),
             'email' => $address,
             'actor_type' => $actorType,
             'redirect_to' => $redirectTo,
-            'expires_at' => now()->addMinutes(config('magic_links.expiry_minutes')),
+            'expires_at' => $now->add(new DateInterval("PT{$expiryMinutes}M")),
         ]);
 
         $this->delivery->deliver($address, route('auth.magic.verify', $token));

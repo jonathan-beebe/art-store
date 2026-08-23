@@ -32,7 +32,7 @@ final class OrderController extends ShopController
             'fulfillments' => $order->fulfillments,
             'itemsBySeller' => $order->items->groupBy('seller_id'),
             'payment' => $order->latestPayment,
-            'awaitsPayment' => OrderPayment::awaitsPayment($order->status),
+            'awaitsPayment' => $order->status->awaitsPayment(),
             'isPayable' => OrderPayment::isPayableBy($order->status, $isVerified),
         ]);
     }

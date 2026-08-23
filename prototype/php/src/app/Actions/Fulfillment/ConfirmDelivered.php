@@ -12,9 +12,9 @@ use App\Models\LedgerEntry;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class ConfirmDelivered
+final readonly class ConfirmDelivered
 {
-    public function __construct(private readonly RollUpOrderStatus $rollUpOrderStatus) {}
+    public function __construct(private RollUpOrderStatus $rollUpOrderStatus) {}
 
     public function __invoke(Fulfillment $fulfillment, DateTimeImmutable $now): Fulfillment
     {

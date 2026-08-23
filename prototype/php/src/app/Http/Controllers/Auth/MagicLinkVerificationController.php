@@ -31,7 +31,7 @@ final class MagicLinkVerificationController extends Controller
             return $this->refuse(ActorType::Customer, 'That sign-in link is not valid. Ask for a new one.');
         }
 
-        $now = now();
+        $now = $this->now();
 
         $refusal = match ($link->statusAt($now)) {
             MagicLinkStatus::Usable => null,
@@ -46,10 +46,11 @@ final class MagicLinkVerificationController extends Controller
         $link->consume($now);
 
         match ($link->actor_type) {
-            ActorType::Seller => $signInSeller($link->email),
+            ActorType::Seller => $signInSeller($link->email, $now),
             ActorType::Customer => $signInCustomer(
                 $link->email,
                 $resolveFromCookie(CustomerIdentity::cookieValue($request)),
+                $now,
             ),
         };
 

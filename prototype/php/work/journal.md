@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:09:40:17 — RFCTR-006 — started
+- 2026-08-23:09:40:17 — RFCTR-005 — done: Status enums own label/isOnStorefront/awaitsPayment/retakesStockOnRetry, both StatusLabel classes removed, named and private constructors across app/Domain, EmailAddress renamed EmailNormalizer, final readonly actions, #[Override] on 20 sites, global customer() helper removed, one clock on Controller; PHPStan 3 -> 2
 - 2026-08-23:09:23:58 — RFCTR-005 — started
 - 2026-08-23:09:23:58 — RFCTR-004 — done: Listing owns sell/restock/changeStatusTo, Customer relations and currentCart replace CurrentCart, Money accessors on every cents column, Money equals/subtract/isPositive/__toString, Notification::to, latestPayment; PHPStan 4 -> 3
 - 2026-08-23:09:09:48 — RFCTR-004 — started

@@ -10,7 +10,7 @@ use App\Domain\Money\Money;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-$draft = fn (): ListingDraft => new ListingDraft(
+$draft = fn (): ListingDraft => ListingDraft::of(
     'Harbour at Dusk',
     'Oil on linen.',
     'oil',

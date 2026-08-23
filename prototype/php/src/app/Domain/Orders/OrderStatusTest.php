@@ -41,13 +41,13 @@ it('rejects a move outside the table', function (): void {
 });
 
 it('places a verified purchaser order ready to charge', function (): void {
-    $purchaser = new Purchaser(1, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
+    $purchaser = Purchaser::onAccount(1, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
 
     expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::AwaitingPayment);
 });
 
 it('places an unverified purchaser order that waits for verification', function (): void {
-    $purchaser = new Purchaser(1, null, null);
+    $purchaser = Purchaser::onAccount(1, null, null);
 
     expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::PendingVerification);
 });
@@ -92,3 +92,33 @@ it('rolls up fulfillment statuses into an order status', function (array $fulfil
 it('needs at least one fulfillment to roll up', function (): void {
     expect(fn () => OrderStatus::fromFulfillments([]))->toThrow(InvalidArgumentException::class);
 });
+
+it('awaits payment only before a successful charge', function (OrderStatus $status, bool $expected): void {
+    expect($status->awaitsPayment())->toBe($expected);
+})->with([
+    'pending verification awaits payment' => [OrderStatus::PendingVerification, true],
+    'awaiting payment awaits payment' => [OrderStatus::AwaitingPayment, true],
+    'payment failed still awaits payment' => [OrderStatus::PaymentFailed, true],
+    'paid no longer awaits payment' => [OrderStatus::Paid, false],
+    'shipped no longer awaits payment' => [OrderStatus::Shipped, false],
+    'delivered no longer awaits payment' => [OrderStatus::Delivered, false],
+    'cancelled no longer awaits payment' => [OrderStatus::Cancelled, false],
+]);
+
+it('retakes stock on a retry only after a declined charge', function (OrderStatus $status, bool $expected): void {
+    expect($status->retakesStockOnRetry())->toBe($expected);
+})->with([
+    'a declined charge released the stock' => [OrderStatus::PaymentFailed, true],
+    'a first attempt still holds the stock' => [OrderStatus::AwaitingPayment, false],
+    'a guest order still holds the stock' => [OrderStatus::PendingVerification, false],
+]);
+
+it('reads its stored value back as a sentence', function (OrderStatus $status, string $expected): void {
+    expect($status->label())->toBe($expected);
+})->with([
+    'pending verification' => [OrderStatus::PendingVerification, 'Pending verification'],
+    'awaiting payment' => [OrderStatus::AwaitingPayment, 'Awaiting payment'],
+    'paid' => [OrderStatus::Paid, 'Paid'],
+    'payment failed' => [OrderStatus::PaymentFailed, 'Payment failed'],
+    'partially shipped' => [OrderStatus::PartiallyShipped, 'Partially shipped'],
+]);

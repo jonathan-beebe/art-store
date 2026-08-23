@@ -7,7 +7,7 @@ namespace App\Actions\Listings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-final class StoreListingImage
+final readonly class StoreListingImage
 {
     private const DIRECTORY = 'listings';
 

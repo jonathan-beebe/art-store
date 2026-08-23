@@ -53,7 +53,7 @@ abstract class CommerceTestCase extends TestCase
 
     protected function purchaser(Customer $customer): Purchaser
     {
-        return new Purchaser(
+        return Purchaser::onAccount(
             $customer->id,
             $customer->email,
             $customer->email_verified_at?->toDateTimeImmutable(),

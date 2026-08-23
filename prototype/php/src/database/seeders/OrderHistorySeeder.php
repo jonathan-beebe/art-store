@@ -31,7 +31,7 @@ class OrderHistorySeeder extends Seeder
     public function run(): void
     {
         $customer = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();
-        $purchaser = new Purchaser(
+        $purchaser = Purchaser::onAccount(
             $customer->id,
             $customer->email,
             $customer->email_verified_at?->toDateTimeImmutable(),

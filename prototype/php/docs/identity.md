@@ -86,7 +86,8 @@ to the verified customer.
 
 ## Which identity a storefront request resolves to
 
-Question: given a request, which customer does `customer()` return?
+Question: given a request, which customer does `CustomerIdentity::current()`
+return?
 
 ```mermaid
 flowchart TD

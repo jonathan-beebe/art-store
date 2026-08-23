@@ -10,6 +10,8 @@ final class Fee
 {
     public const PLATFORM_PERCENT = 10;
 
+    private function __construct() {}
+
     public static function platform(Money $subtotal): Money
     {
         return $subtotal->percent(self::PLATFORM_PERCENT);

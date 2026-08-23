@@ -8,12 +8,17 @@ use DateTimeImmutable;
 
 final readonly class DailyActivity
 {
-    public function __construct(
+    private function __construct(
         public DateTimeImmutable $date,
         public int $views,
         public int $favorites,
         public int $cartAdds,
     ) {}
+
+    public static function on(DateTimeImmutable $date, int $views, int $favorites, int $cartAdds): self
+    {
+        return new self($date, $views, $favorites, $cartAdds);
+    }
 
     public function total(): int
     {

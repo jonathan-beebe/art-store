@@ -39,7 +39,7 @@ flowchart TD
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Readonly classes, enums, static functions. Receives time/ids as parameters. Unit tested without doubles. |
+| Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
 | Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). The magic-link delivery port implementations, Blade views. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/` | Sequence core + adapters. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
 | Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `app/Providers` | Wiring only. |
@@ -61,6 +61,25 @@ already holds. `CheckoutController::place` is the one route that overrides the
 destination: it sends the shopper to the cart, where the line the message names
 is marked unavailable. Ownership stays separate — a row that is not the
 visitor's is still a 404.
+
+### The clock
+
+`app/Domain` reads no clock (`tests/Arch.php` enforces it), so every instant
+comes from the shell. `Controller::now(): DateTimeImmutable` is the one place
+that produces it, and every controller calls it.
+
+- Actions take `DateTimeImmutable $now` as their last parameter — the commerce
+  ones (`PlaceOrder`, `FinalizeOrder`, `MarkShipped`, `ConfirmDelivered`,
+  `AddToCart`, `ToggleFavorite`, `RecordListingEvent`, `RunWeeklyPayout`) and
+  the identity ones (`SendMagicLink`, `SignInSeller`, `SignInCustomer`,
+  `ClaimCustomerIdentity`) alike. No action calls `now()`.
+- Model writes that stamp a time take it too: `Notification::markRead($at)`,
+  `MagicLink::consume($now)`, `MagicLink::statusAt($now)`.
+- `RunWeeklyPayouts` (the artisan command) is the one other producer: a console
+  run has no controller, so it reads `now()` or parses `--as-of`.
+
+A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
+because one call per request produces the instant they all read.
 
 ## Sites
 
@@ -116,7 +135,8 @@ visitor.
 
 `SellerController` and `ShopController` are the two base controllers; each
 exposes the actor behind the request (`seller()`, `visitor()`) as a non-null
-model and the clock its actions are given.
+model. Both extend `App\Http\Controllers\Controller`, which holds the clock
+(see **The clock**).
 
 ## Identity
 
@@ -290,7 +310,7 @@ same port shape as magic links will carry email later.
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes` (model casts and config types
   understood via `parseModelCastsMethod` and `checkConfigTypes`), then the
-  full Pest suite (620 tests, 1431 assertions). `make analyse` and `make lint`
+  full Pest suite (630 tests, 1440 assertions). `make analyse` and `make lint`
   run the first two alone, against the file tree only (`--no-deps`, no web
   server).
 

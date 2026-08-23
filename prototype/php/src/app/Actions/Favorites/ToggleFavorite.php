@@ -10,9 +10,9 @@ use App\Models\Customer;
 use App\Models\Listing;
 use DateTimeImmutable;
 
-final class ToggleFavorite
+final readonly class ToggleFavorite
 {
-    public function __construct(private readonly RecordListingEvent $recordListingEvent) {}
+    public function __construct(private RecordListingEvent $recordListingEvent) {}
 
     public function __invoke(Customer $customer, Listing $listing, DateTimeImmutable $now): FavoriteChange
     {

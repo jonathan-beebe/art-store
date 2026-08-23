@@ -16,7 +16,7 @@ use App\Models\OrderItem;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class PlaceOrder
+final readonly class PlaceOrder
 {
     public function __invoke(Cart $cart, Purchaser $purchaser, ShippingAddress $shipping, DateTimeImmutable $now): Order
     {
