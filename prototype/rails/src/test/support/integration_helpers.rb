@@ -81,10 +81,8 @@ module IntegrationHelpers
 
   def create_delivered_fulfillment(seller, listing: create_listing(seller))
     fulfillment = create_fulfillment(seller, listing: listing)
-    Fulfillments::MarkShipped.new.call(
-      fulfillment: fulfillment, carrier: "Royal Mail", tracking_number: "RM123", now: moment("2026-08-21 09:00:00")
-    )
-    Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment, now: moment("2026-08-22 09:00:00"))
+    fulfillment.ship!(carrier: "Royal Mail", tracking_number: "RM123", at: moment("2026-08-21 09:00:00"))
+    fulfillment.deliver!(at: moment("2026-08-22 09:00:00"))
   end
 
   def create_notification(seller, subject: "Item sold", **attributes)

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-22:20:15:32 — RFCTR-008 — done: Fulfillment ships and delivers itself behind its own transition table, validating the carrier and tracking number, releasing the escrow and notifying the customer; app/actions/fulfillments and app/domain/orders deleted, their tests folded into test/models/fulfillment_test.rb; Order rolls up from its fulfillment records; 534 runs at 100% line coverage (this commit)
+- 2026-08-22:20:11:22 — RFCTR-008 — started
 - 2026-08-22:20:06:05 — RFCTR-007 — done: Order places itself from a cart, pays with a card number, marks itself awaiting payment and rolls up from its fulfillments behind its own transition table, and validates the email and shipping address checkout collects; Listing takes and restores stock, FakeCard and the decline messages on Payment replace Domain::Payments; app/actions/orders, six Domain::Orders modules, Domain::Payments, Domain::Listings and Domain::Shop::{CheckoutForm,CheckoutPurchaser} deleted, their tests folded into test/models; 537 runs at 100% line coverage (this commit)
 - 2026-08-22:19:55:08 — RFCTR-007 — started
 - 2026-08-22:19:47:54 — RFCTR-006 — done: Cart carries add/remove/empty?/item_count/subtotal/subtotals_by_seller, CartItem validates its quantity and totals its line, Customer carries current_cart/toggle_favorite/favorited?; the four cart and favorite actions, Domain::Cart and FavoriteChange deleted, their tests folded into test/models; current_cart moved to the CustomerIdentity concern as a helper_method; 573 runs at 100% line coverage (this commit)

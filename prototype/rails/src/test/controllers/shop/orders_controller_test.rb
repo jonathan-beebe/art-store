@@ -89,10 +89,7 @@ module Shop
     end
 
     def ship(fulfillment)
-      Fulfillments::MarkShipped.new.call(
-        fulfillment: fulfillment, carrier: "Royal Mail", tracking_number: "RM123",
-        now: Time.zone.parse("2026-08-21 09:00:00")
-      )
+      fulfillment.ship!(carrier: "Royal Mail", tracking_number: "RM123", at: Time.zone.parse("2026-08-21 09:00:00"))
     end
   end
 end

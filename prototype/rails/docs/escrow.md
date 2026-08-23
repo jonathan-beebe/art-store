@@ -2,8 +2,8 @@
 
 Per-seller money tracked in `ledger_entries`, settled weekly into `payouts`.
 Code: `app/domain/escrow/`, `app/models/order.rb`,
-`app/actions/fulfillments/confirm_delivered.rb`,
-`app/actions/escrow/run_weekly_payout.rb`, `lib/tasks/payouts.rake`.
+`app/models/fulfillment.rb`, `app/actions/escrow/run_weekly_payout.rb`,
+`lib/tasks/payouts.rake`.
 
 ## Ledger entry types through hold → release → payout
 
@@ -12,8 +12,8 @@ each one do to a seller's balance?
 
 ```mermaid
 flowchart LR
-    finalize["FinalizeOrder\norder -> paid"] -->|"held: +net"| held(("held"))
-    held --> confirm["ConfirmDelivered\nfulfillment -> delivered"]
+    finalize["Order#pay!\norder -> paid"] -->|"held: +net"| held(("held"))
+    held --> confirm["Fulfillment#deliver!\nfulfillment -> delivered"]
     confirm -->|"released: +net"| released(("released"))
     released --> run["RunWeeklyPayout\n(payouts:run)"]
     run -->|"paid_out: -available"| paidout(("paid_out"))
@@ -26,8 +26,8 @@ A seller's balance (`Domain::Escrow::LedgerBalance.from`) folds every entry:
 paid_out_total` (adding a negative number nets it down), `paid_out =
 −paid_out_total`. Only a seller with `available > 0` (`payable?`) gets a
 payout row. The fee itself is computed once, in `Order.place`, and
-stored on the `fulfillments` row (`fee_cents`, `net_cents`) — `FinalizeOrder`
-and `ConfirmDelivered` move `fulfillment.net` through escrow rather than
+stored on the `fulfillments` row (`fee_cents`, `net_cents`) — `Order#pay!`
+and `Fulfillment#deliver!` move `fulfillment.net` through escrow rather than
 recomputing it.
 
 ## `payouts:run`
@@ -71,11 +71,11 @@ A $100.00 listing, one unit, one seller, no other activity that period.
 | Step | Action | `ledger_entries` written | Seller balance |
 | --- | --- | --- | --- |
 | Order placed, card approved | `Order#pay!`: `Fee.platform($100.00)` = $10.00, `Fee.net($100.00)` = $90.00 (computed at placement); `LedgerMovement.hold($90.00)` | `held +9000` | held $90.00, available $0.00 |
-| Customer confirms delivery | `Fulfillments::ConfirmDelivered`: `LedgerMovement.release($90.00)` | `released +9000` | held $0.00, available $90.00 |
+| Customer confirms delivery | `Fulfillment#deliver!`: `LedgerMovement.release($90.00)` | `released +9000` | held $0.00, available $90.00 |
 | `payouts:run` (period ends) | `Escrow::RunWeeklyPayout`: balance is payable, pays $90.00; `LedgerMovement.payout($90.00)` | `paid_out -9000` | available $0.00, paid out $90.00 lifetime |
 
 `Fee.platform` is 10% of the item subtotal (`Domain::Escrow::Fee::PLATFORM_PERCENT`),
 taken off the top; `net = subtotal − fee`. Both figures are computed once in
 `Order.place` and stored on the `fulfillments` row (`fee_cents:
-1000`, `net_cents: 9000`) — `FinalizeOrder` and `ConfirmDelivered` read
+1000`, `net_cents: 9000`) — `Order#pay!` and `Fulfillment#deliver!` read
 `fulfillment.net` rather than recomputing it.

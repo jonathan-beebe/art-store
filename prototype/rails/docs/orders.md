@@ -1,9 +1,8 @@
 # Orders
 
 Checkout, payment, and fulfillment. Code: `app/models/order.rb`,
-`app/actions/fulfillments/`, `app/controllers/shop/checkouts_controller.rb`,
-`app/controllers/shop/order_payments_controller.rb`,
-`app/domain/orders/fulfillment_status.rb`.
+`app/models/fulfillment.rb`, `app/controllers/shop/checkouts_controller.rb`,
+`app/controllers/shop/order_payments_controller.rb`.
 
 ## Checkout to a paid, seller-notified order
 
@@ -92,21 +91,22 @@ fulfillments: any fulfillment that has shipped or delivered counts as
 
 ## Fulfillment status (per order × seller)
 
-Question: what are the legal `FulfillmentStatus` transitions?
+Question: what are the legal `Fulfillment` status transitions?
 
 ```mermaid
 stateDiagram-v2
     [*] --> awaiting_shipment
-    awaiting_shipment --> shipped : seller ships (MarkShipped: carrier + tracking)
-    shipped --> delivered : customer confirms (ConfirmDelivered)
+    awaiting_shipment --> shipped : seller ships (ship!: carrier + tracking)
+    shipped --> delivered : customer confirms (deliver!)
     delivered --> [*]
 ```
 
-Source of truth: `Domain::Orders::FulfillmentStatus::TRANSITIONS`, verified by
-`test/domain/orders/fulfillment_status_test.rb`. `Fulfillments::MarkShipped` notifies the
-customer ("Order shipped") and calls `Order#roll_up_status!`;
-`Fulfillments::ConfirmDelivered` releases the fulfillment's held escrow (see
-`docs/escrow.md`) and also rolls the order status up. Delivery confirmation is
+Source of truth: `Fulfillment::TRANSITIONS`, verified by
+`test/models/fulfillment_test.rb`. `Fulfillment#ship!` notifies the customer
+("Order shipped") and calls `Order#roll_up_status!`; `Fulfillment#deliver!`
+releases the fulfillment's held escrow (see `docs/escrow.md`) and also rolls
+the order status up. Both refuse a move the table has no edge for, and `ship!`
+refuses a carrier or a tracking number the seller left blank. Delivery confirmation is
 the customer clicking a button on the order page — a stand-in for carrier
 tracking in this prototype. A seller's own order page
 (`/seller/orders/:id`) shows one fulfillment, not the whole order — see

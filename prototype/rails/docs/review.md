@@ -48,9 +48,9 @@ is `@import "tailwindcss"` and nothing else.
 | Requirement | Status | Route helper | Test |
 | --- | --- | --- | --- |
 | Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `Domain::Notifications::NotificationMessageTest` |
-| Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `Fulfillments::MarkShippedTest` |
+| Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `FulfillmentTest` |
 | Notify customers of shipment | done | `shop_account` inbox | `Shop::AccountControllerTest` |
-| Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `Fulfillments::ConfirmDeliveredTest`, `Domain::Escrow::LedgerBalanceTest` |
+| Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `Domain::Escrow::LedgerBalanceTest` |
 | Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
 | Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `Domain::Escrow::PayoutPeriodTest` |
 
@@ -76,7 +76,7 @@ is `@import "tailwindcss"` and nothing else.
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
 | Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
-| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a domain predicate (`FulfillmentStatus.can_transition?`, `ShipmentDetails#complete?`), a record predicate (`Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
+| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `data-model.md`, `ontology.md` |
 
 ## Goal

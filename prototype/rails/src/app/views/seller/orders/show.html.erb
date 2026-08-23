@@ -58,7 +58,7 @@
 <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
   <h2 id="shipment-heading" class="font-semibold text-neutral-700">Shipment</h2>
 
-  <% if Domain::Orders::FulfillmentStatus.can_transition?(@fulfillment.status, Domain::Orders::FulfillmentStatus::SHIPPED) %>
+  <% if @fulfillment.can_transition_to?(:shipped) %>
     <%= form_with url: seller_order_shipment_path(@fulfillment), method: :post,
           html: { class: "mt-2 rounded border border-neutral-300 bg-white p-4" } do |form| %>
       <fieldset>

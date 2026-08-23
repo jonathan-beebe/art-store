@@ -7,7 +7,7 @@ class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
     post seller_order_shipment_path(fulfillment), params: shipment
 
     assert_redirected_to seller_login_path
-    assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, fulfillment.reload.status
+    assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
   test "marking shipped records the carrier and the tracking number" do
@@ -18,7 +18,7 @@ class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to seller_order_path(fulfillment)
     fulfillment.reload
-    assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.status
+    assert_predicate fulfillment, :shipped?
     assert_equal "Royal Mail", fulfillment.carrier
     assert_equal "RM123456789GB", fulfillment.tracking_number
     assert_not_nil fulfillment.shipped_at
@@ -44,7 +44,7 @@ class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :unprocessable_content
     assert_select "[data-refusal]", text: /carrier and a tracking number/
-    assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, fulfillment.reload.status
+    assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
   test "shipping an order that already shipped is refused" do
@@ -66,7 +66,7 @@ class Seller::ShipmentsControllerTest < ActionDispatch::IntegrationTest
     post seller_order_shipment_path(rival), params: shipment
 
     assert_response :not_found
-    assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, rival.reload.status
+    assert_predicate rival.reload, :awaiting_shipment?
   end
 
   private

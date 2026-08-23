@@ -30,9 +30,9 @@ class SeedsTest < ActiveSupport::TestCase
     assert_equal 3, Order.count
     assert_equal 0, Order.where(status: "pending_verification").count
 
-    assert_equal 1, Fulfillment.where(status: Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT).count
-    assert_equal 1, Fulfillment.where(status: Domain::Orders::FulfillmentStatus::SHIPPED).count
-    assert_equal 1, Fulfillment.where(status: Domain::Orders::FulfillmentStatus::DELIVERED).count
+    assert_equal 1, Fulfillment.awaiting_shipment.count
+    assert_equal 1, Fulfillment.shipped.count
+    assert_equal 1, Fulfillment.delivered.count
     assert_equal 2, Fulfillment.distinct.count(:seller_id)
 
     assert_equal 3, Payment.count
@@ -44,7 +44,7 @@ class SeedsTest < ActiveSupport::TestCase
     assert_equal 1, LedgerEntry.where(entry_type: Domain::Escrow::LedgerEntryType::PAID_OUT).count
 
     payout = Payout.sole
-    delivered_fulfillment = Fulfillment.find_by!(status: Domain::Orders::FulfillmentStatus::DELIVERED)
+    delivered_fulfillment = Fulfillment.delivered.sole
 
     assert_equal delivered_fulfillment.seller_id, payout.seller_id
     assert_equal delivered_fulfillment.net_cents, payout.amount_cents

@@ -41,20 +41,21 @@ flowchart TD
 | Layer | Lives in | Rules |
 | --- | --- | --- |
 | Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Listing#take_stock!`), the magic-link delivery port implementations, ERB views. |
+| Adapters | `app/models/`, `app/delivery/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
+`Fulfillment#deliver!`, `Listing#take_stock!`), the magic-link delivery port implementations, ERB views. |
 | Coordination | `app/actions/<feature>/`, `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
 | Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
-Naming follows the `naming` skill: actions are verb phrases (`MarkShipped`,
+Naming follows the `naming` skill: actions are verb phrases (`Notify`,
 `RunWeeklyPayout`), model methods are the verb a record answers to
-(`Order#pay!`, `Listing#take_stock!`), events are past tense.
+(`Order#pay!`, `Fulfillment#ship!`, `Listing#take_stock!`), events are past
+tense.
 
-Action namespaces are the plural directory name — `Fulfillments::`,
-`Notifications::`, `Escrow::` — not the singular the ticket originally asked
-for. Rails makes every `app/*` directory a Zeitwerk root, and
-`app/models/fulfillment.rb` / `seller.rb` already define `Fulfillment` and
-`Seller` as classes, so `app/actions/fulfillment/` declaring `module
-Fulfillment` raises `TypeError: Fulfillment is not a module`. The same
+Action namespaces are the plural directory name — `Notifications::`,
+`Escrow::` — not the singular the ticket originally asked for. Rails makes
+every `app/*` directory a Zeitwerk root, and `app/models/seller.rb` already
+defines `Seller` as a class, so `app/actions/seller/` declaring `module
+Seller` raises `TypeError: Seller is not a module`. The same
 collision makes every seller-portal controller `class Seller::XController <
 Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
 `Auth::` have no matching model and stay `module`.
@@ -193,8 +194,8 @@ owns.
 - Platform fee: 10% of the fulfillment subtotal (`Domain::Escrow::Fee`),
   computed once at order placement (`Order.place`) and stored on the
   `fulfillments` row (`fee_cents`, `net_cents`). Net = subtotal − fee.
-  `Order#pay!` (hold) and `Fulfillments::ConfirmDelivered` (release)
-  move `fulfillment.net` through escrow rather than recomputing it.
+  `Order#pay!` (hold) and `Fulfillment#deliver!` (release) move
+  `fulfillment.net` through escrow rather than recomputing it.
 - Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` creates one
   `payouts` row per seller for released-not-paid amounts as of the most
   recently completed week. Period math is pure (`Domain::Escrow::PayoutPeriod`).

@@ -9,7 +9,7 @@ module Shop
       post shop_confirm_delivery_path(order_id: order.id, id: fulfillment.id)
 
       assert_redirected_to shop_order_path(order)
-      assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.reload.status
+      assert_predicate fulfillment.reload, :delivered?
       assert_equal "delivered", order.reload.status
       assert_includes fulfillment.ledger_entries.pluck(:entry_type), Domain::Escrow::LedgerEntryType::RELEASED
     end
@@ -20,7 +20,7 @@ module Shop
       post shop_confirm_delivery_path(order_id: order.id, id: order.fulfillments.sole.id)
 
       assert_response :not_found
-      assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, order.fulfillments.sole.reload.status
+      assert_predicate order.fulfillments.sole.reload, :awaiting_shipment?
     end
 
     test "another customer cannot confirm delivery" do
@@ -32,7 +32,7 @@ module Shop
       post shop_confirm_delivery_path(order_id: order.id, id: fulfillment.id)
 
       assert_response :not_found
-      assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.reload.status
+      assert_predicate fulfillment.reload, :shipped?
     end
 
     test "a fulfillment of another order cannot be confirmed through this one" do
@@ -57,9 +57,8 @@ module Shop
 
     def shipped_order
       paid_order.tap do |order|
-        Fulfillments::MarkShipped.new.call(
-          fulfillment: order.fulfillments.sole, carrier: "Royal Mail", tracking_number: "RM123",
-          now: Time.zone.parse("2026-08-21 09:00:00")
+        order.fulfillments.sole.ship!(
+          carrier: "Royal Mail", tracking_number: "RM123", at: Time.zone.parse("2026-08-21 09:00:00")
         )
       end
     end

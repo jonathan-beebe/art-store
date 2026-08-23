@@ -79,13 +79,11 @@ class OrderLifecycleTest < ActiveSupport::TestCase
   private
 
   def ship(fulfillment, carrier, tracking_number, at)
-    Fulfillments::MarkShipped.new.call(
-      fulfillment: fulfillment, carrier: carrier, tracking_number: tracking_number, now: moment(at)
-    )
+    fulfillment.ship!(carrier: carrier, tracking_number: tracking_number, at: moment(at))
   end
 
   def deliver(fulfillment, at)
-    Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment.reload, now: moment(at))
+    fulfillment.reload.deliver!(at: moment(at))
   end
 
   def held_per_seller(*sellers)

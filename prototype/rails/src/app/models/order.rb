@@ -155,7 +155,7 @@ class Order < ApplicationRecord
   def roll_up_status!
     # Reloaded because the caller reached the order through a fulfillment it
     # has already changed, and the cached collection still holds the old row.
-    update!(status: rolled_up_status(fulfillments.reload.pluck(:status)))
+    update!(status: rolled_up_status(fulfillments.reload))
 
     self
   end
@@ -209,16 +209,12 @@ class Order < ApplicationRecord
 
   # An order that spans sellers reads from its fulfillments: a delivered one
   # mixed with an unshipped one is still partially shipped.
-  def rolled_up_status(statuses)
-    raise ArgumentError, "an order rolls up from at least one fulfillment" if statuses.empty?
-    return "delivered" if statuses.all? { |status| status == "delivered" }
-    return "shipped" if statuses.all? { |status| departed?(status) }
-    return "partially_shipped" if statuses.any? { |status| departed?(status) }
+  def rolled_up_status(fulfillments)
+    raise ArgumentError, "an order rolls up from at least one fulfillment" if fulfillments.empty?
+    return "delivered" if fulfillments.all?(&:delivered?)
+    return "shipped" if fulfillments.all?(&:departed?)
+    return "partially_shipped" if fulfillments.any?(&:departed?)
 
     "paid"
-  end
-
-  def departed?(fulfillment_status)
-    Domain::Orders::FulfillmentStatus.departed?(fulfillment_status)
   end
 end

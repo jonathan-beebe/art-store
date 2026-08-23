@@ -206,7 +206,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.assert_select "[data-group=awaiting_shipment] td", text: LISTING_TITLE
 
     Fulfillment.sole.tap do |fulfillment|
-      assert_equal Domain::Orders::FulfillmentStatus::AWAITING_SHIPMENT, fulfillment.status
+      assert_predicate fulfillment, :awaiting_shipment?
     end
   end
 
@@ -218,7 +218,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @seller_browser.follow_redirect!
     @seller_browser.assert_select "[data-shipment]", text: /#{TRACKING_NUMBER}/
 
-    assert_equal Domain::Orders::FulfillmentStatus::SHIPPED, fulfillment.reload.status
+    assert_predicate fulfillment.reload, :shipped?
   end
 
   def confirm_delivery(order, fulfillment)
@@ -231,7 +231,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser.follow_redirect!
     @customer_browser.assert_select "[data-order-status]", text: "Delivered"
 
-    assert_equal Domain::Orders::FulfillmentStatus::DELIVERED, fulfillment.reload.status
+    assert_predicate fulfillment.reload, :delivered?
     assert_equal "delivered", order.reload.status
     assert_equal NET_CENTS, ledger_amount_cents(Domain::Escrow::LedgerEntryType::RELEASED)
   end

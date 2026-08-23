@@ -297,10 +297,9 @@ tracked per (order, seller) pair rather than per order.
   (`released`), and when included in a Payout (`paid_out`)
 - carries the Platform fee taken from its subtotal
 
-**In code.** `Fulfillment`, `Domain::Orders::FulfillmentStatus` (enum) (table
-`fulfillments`), transitioned by `Fulfillments::MarkShipped` /
-`Fulfillments::ConfirmDelivered`. See "Vocabulary notes" for the seller
-portal's name for this entity.
+**In code.** `Fulfillment` (table `fulfillments`), transitioned by
+`Fulfillment#ship!` / `Fulfillment#deliver!`. See "Vocabulary notes" for the
+seller portal's name for this entity.
 
 ## Money
 
@@ -490,7 +489,7 @@ stored as its own row (its outcome becomes a Payment).
 
 **Who/what.** The lifecycle state of a Fulfillment (see Buying above).
 
-**In code.** `Domain::Orders::FulfillmentStatus`.
+**In code.** The `status` enum on `Fulfillment`.
 
 ## Vocabulary notes
 
@@ -513,8 +512,7 @@ stored as its own row (its outcome becomes a Payment).
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = nil`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.
-- Action class namespaces are the plural directory name (`Fulfillments::`,
-  `Orders::`, `Notifications::`, `Escrow::`), not the singular concept name —
-  `app/models/fulfillment.rb` already defines `Fulfillment` as a class, so a
-  singular `module Fulfillment` under `app/actions/fulfillment/` collides with
-  the model. See `docs/architecture.md`.
+- Action class namespaces are the plural directory name (`Notifications::`,
+  `Escrow::`), not the singular concept name — `app/models/seller.rb` already
+  defines `Seller` as a class, so a singular `module Seller` under
+  `app/actions/seller/` collides with the model. See `docs/architecture.md`.

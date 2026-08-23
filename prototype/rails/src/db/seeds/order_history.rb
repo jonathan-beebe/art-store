@@ -42,13 +42,11 @@ module Seeds
     end
 
     def ship(order, carrier, tracking_number, shipped_at)
-      Fulfillments::MarkShipped.new.call(
-        fulfillment: order.fulfillments.sole, carrier: carrier, tracking_number: tracking_number, now: shipped_at
-      )
+      order.fulfillments.sole.ship!(carrier: carrier, tracking_number: tracking_number, at: shipped_at)
     end
 
     def deliver(order, delivered_at)
-      Fulfillments::ConfirmDelivered.new.call(fulfillment: order.fulfillments.sole, now: delivered_at)
+      order.fulfillments.sole.deliver!(at: delivered_at)
     end
   end
 end

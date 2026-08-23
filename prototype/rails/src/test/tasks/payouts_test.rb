@@ -34,10 +34,8 @@ class PayoutsTaskTest < ActiveSupport::TestCase
 
   def deliver_a_sale(shop)
     order = paid_order_for(create_verified_customer, create_listing(shop, price_cents: 45_000))
-    fulfillment = Fulfillments::MarkShipped.new.call(
-      fulfillment: order.fulfillments.sole, carrier: "USPS", tracking_number: "9400111899",
-      now: moment("2026-08-20 11:00:00")
-    )
-    Fulfillments::ConfirmDelivered.new.call(fulfillment: fulfillment, now: moment("2026-08-21 11:00:00"))
+    fulfillment = order.fulfillments.sole
+    fulfillment.ship!(carrier: "USPS", tracking_number: "9400111899", at: moment("2026-08-20 11:00:00"))
+    fulfillment.deliver!(at: moment("2026-08-21 11:00:00"))
   end
 end
