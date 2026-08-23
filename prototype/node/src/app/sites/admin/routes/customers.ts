@@ -1,7 +1,7 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { customerName } from '../../../core/messaging/participant-name.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { adminPage } from '../page.ts'
 import { customerDetail } from '../queries/customer-detail.ts'
 import { CUSTOMER_STANDING_FILTERS, customerRows } from '../queries/customer-rows.ts'

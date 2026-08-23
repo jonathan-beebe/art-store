@@ -30,7 +30,7 @@ import {
 import { MAX_IMAGE_UPLOAD_MB, saveUploadedListingImage } from '../listing-image-upload.ts'
 import { sellerNotFound } from '../not-found.ts'
 import { identityCookieValue } from '../../../plugins/identity.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { listingEventCountsByDay, listingEventTotals, salesForListing } from '../queries/listing-activity.ts'
 import {
   listingEventCountsByListing,

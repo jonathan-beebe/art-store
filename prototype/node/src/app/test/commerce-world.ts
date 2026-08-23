@@ -29,13 +29,13 @@ export const SHIPPING_ADDRESS: ShippingAddress = {
 }
 
 /** A clock a test moves by hand, so one test can walk days of a lifecycle. */
-export type TravellingClock = Clock & { travelTo(instant: Date): void }
+export type TravellingClock = Clock & { travelTo: (instant: Date) => void }
 
 export type CommerceWorld = {
   context: ActionContext
   db: AppDatabase
-  travelTo(instant: Date): void
-  close(): Promise<void>
+  travelTo: (instant: Date) => void
+  close: () => Promise<void>
 }
 
 /**

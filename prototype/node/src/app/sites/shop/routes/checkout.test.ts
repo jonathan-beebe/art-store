@@ -242,7 +242,7 @@ test('a blocked customer is refused checkout and places no order', async (t) => 
   const unsigned = flashCookie === undefined ? null : testApp.app.unsignCookie(String(flashCookie.value))
   const flash: { alert?: string } = unsigned?.value === null || unsigned?.value === undefined
     ? {}
-    : JSON.parse(unsigned.value)
+    : (JSON.parse(unsigned.value) as { alert?: string })
 
   assert.equal(response.statusCode, 302)
   assert.equal(response.headers.location, '/cart')

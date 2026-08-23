@@ -144,7 +144,9 @@ class NodeSqliteConnection implements DatabaseConnection {
  * which only the caller's type argument knows.
  */
 function asRow<R>(row: Record<string, unknown>): R {
-  return { ...row } as R
+  const copied: Record<string, unknown> = { ...row }
+
+  return copied as R
 }
 
 /**

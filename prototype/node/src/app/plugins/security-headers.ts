@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify'
+import { rootPlugin } from './root-plugin.ts'
 
 /**
  * The policy every response carries. `data:` is in `img-src` because a listing
@@ -26,8 +26,8 @@ const SECURITY_HEADERS: Readonly<Record<string, string>> = {
  * One hook at the root, so a page, a JSON health check, an uploaded file, and
  * a 404 all answer with the same headers and no route can forget them.
  */
-export function addSecurityHeaders(app: FastifyInstance): void {
+export const securityHeaders = rootPlugin({ name: 'securityHeaders' }, (app) => {
   app.addHook('onSend', async (_request, reply) => {
     reply.headers(SECURITY_HEADERS)
   })
-}
+})

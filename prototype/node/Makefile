@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage docs-check migrate fresh seed payouts outbox logs image run-image
+.PHONY: up down build assets shell test smoke coverage docs-check routes migrate fresh seed payouts outbox logs image run-image
 
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
@@ -35,6 +35,12 @@ coverage:
 # that does not parse fails the build.
 docs-check:
 	./docker/docs-check.sh
+
+# Every route the app answers and the plugin tree they hang in, printed by
+# Fastify's own introspection: the three sites and their prefixes, as the code
+# registers them rather than as a table someone keeps up to date.
+routes:
+	docker compose run --rm app npm run routes
 
 migrate:
 	docker compose run --rm app npm run migrate

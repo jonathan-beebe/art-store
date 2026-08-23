@@ -10,7 +10,7 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 
 const replyForm = z.object({ body: z.string() })
 

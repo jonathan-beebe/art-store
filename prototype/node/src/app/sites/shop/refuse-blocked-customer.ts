@@ -1,4 +1,4 @@
-import type { FastifyRequest, preHandlerHookHandler } from 'fastify'
+import type { FastifyRequest, preHandlerAsyncHookHandler } from 'fastify'
 import { currentCustomerStanding } from '../../actions/moderation/current-customer-standing.ts'
 import { canShop } from '../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../core/shop/blocked-shopper-notice.ts'
@@ -10,7 +10,7 @@ import { blockedShopperNotice } from '../../core/shop/blocked-shopper-notice.ts'
  */
 export function refuseBlockedCustomer(
   destination: (request: FastifyRequest) => string,
-): preHandlerHookHandler {
+): preHandlerAsyncHookHandler {
   return async (request, reply) => {
     const customer = request.currentCustomer
     if (customer === null) return undefined

@@ -1,3 +1,4 @@
+import type { OutgoingHttpHeaders } from 'node:http'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
@@ -15,7 +16,7 @@ import {
 } from './build-test-app.ts'
 
 /** Where a redirect sent the visitor. */
-function destinationOf(response: { headers: Record<string, unknown> }): string {
+function destinationOf(response: { headers: OutgoingHttpHeaders }): string {
   return String(response.headers.location ?? '')
 }
 
@@ -65,7 +66,7 @@ test('every site serves its own page and they all share one stylesheet', async (
 
   // What docker-compose's healthcheck polls before routing traffic here.
   const health = await app.inject({ method: 'GET', url: '/health' })
-  const healthBody = health.json() as { status: string; checks: unknown; uptimeSeconds: number }
+  const healthBody = health.json<{ status: string; checks: unknown; uptimeSeconds: number }>()
 
   assert.equal(health.statusCode, 200)
   assert.deepEqual(healthBody, {

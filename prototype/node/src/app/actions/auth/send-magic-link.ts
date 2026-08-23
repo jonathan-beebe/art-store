@@ -14,7 +14,7 @@ const TOKEN_BYTES = 32
 export type SendMagicLinkDependencies = ActionContext & {
   delivery: MagicLinkDelivery
   /** Turns a token into the URL to click; the host it needs belongs to the request. */
-  magicLinkUrl(token: string): string
+  magicLinkUrl: (token: string) => string
 }
 
 export type SendMagicLinkInput = {

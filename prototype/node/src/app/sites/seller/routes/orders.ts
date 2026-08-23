@@ -11,11 +11,11 @@ import { parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { formatCents } from '../../../core/money.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
-import { formBody } from '../../../plugins/form-body.ts'
+import { formBody } from '../../../http/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import {
   fulfillmentsForSeller,
   itemTitlesByOrder,

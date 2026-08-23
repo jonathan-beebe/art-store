@@ -7,10 +7,10 @@ import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
-import { formBody } from '../../../plugins/form-body.ts'
+import { formBody } from '../../../http/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { ownedListing } from '../queries/listings.ts'
 
 const faqForm = z.object({

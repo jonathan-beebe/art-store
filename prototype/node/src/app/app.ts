@@ -11,14 +11,14 @@ import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { loggingOptions } from './logging.ts'
-import { addErrorPage } from './plugins/error-pages.ts'
-import { addEvents } from './plugins/events.ts'
-import { addFlash } from './plugins/flash.ts'
-import { addHealth } from './plugins/health.ts'
-import { addIdentity } from './plugins/identity.ts'
-import { addPageViewRollup } from './plugins/page-views.ts'
-import { addSecurityHeaders } from './plugins/security-headers.ts'
-import { addUnreadMessages } from './plugins/unread-messages.ts'
+import { errorPages } from './plugins/error-pages.ts'
+import { eventBus } from './plugins/events.ts'
+import { flashCookie } from './plugins/flash.ts'
+import { healthCheck } from './plugins/health.ts'
+import { identityCookies } from './plugins/identity.ts'
+import { pageViewRollup } from './plugins/page-views.ts'
+import { securityHeaders } from './plugins/security-headers.ts'
+import { unreadMessages } from './plugins/unread-messages.ts'
 import { adminSite } from './sites/admin/index.ts'
 import { authSite } from './sites/auth/index.ts'
 import { sellerSite } from './sites/seller/index.ts'
@@ -76,6 +76,10 @@ export function buildApp({
   app.decorate('draining', false)
 
   app.register(fastifyCookie, { secret: config.cookieSecret })
+  // Kept in place of a `URLSearchParams` parser of its own. Every form here is
+  // flat and would survive the swap, but this parser also decides what a
+  // repeated or bracketed field name means, and deciding that by hand is a
+  // larger question than the few lines it would save.
   app.register(fastifyFormbody)
   app.register(fastifyStatic, { root: PUBLIC_ROOT, prefix: '/' })
   // A more specific prefix than the root registration above, so it wins for
@@ -95,14 +99,18 @@ export function buildApp({
   // shared partials by the same path every other template uses.
   app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
 
-  addErrorPage(app)
-  addSecurityHeaders(app)
-  addHealth(app)
-  addFlash(app)
-  addIdentity(app)
-  addPageViewRollup(app)
-  addUnreadMessages(app)
-  addEvents(app)
+  // Every plugin below decorates or hooks the root instance, and a site
+  // inherits the root's hooks as they stand when its own context is built —
+  // so all of them are registered before the first site. Order within the
+  // group is the order their hooks run in.
+  app.register(errorPages)
+  app.register(securityHeaders)
+  app.register(flashCookie)
+  app.register(identityCookies)
+  app.register(pageViewRollup)
+  app.register(unreadMessages)
+  app.register(eventBus)
+  app.register(healthCheck)
 
   app.register(authSite)
   app.register(shopSite)

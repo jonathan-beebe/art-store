@@ -163,7 +163,7 @@ async function openLiveStream(
   assert.equal(response.status, 200)
   assert.ok(response.body !== null)
 
-  const reader = response.body.getReader()
+  const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
   let received = ''
   void (async () => {
     try {

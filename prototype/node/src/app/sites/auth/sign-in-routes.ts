@@ -5,7 +5,7 @@ import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { isEmailAddress, normalizeEmail } from '../../core/auth/email-address.ts'
 import { keepLocalRedirect } from '../../core/auth/local-redirect.ts'
 import type { AppDatabase } from '../../db/database.ts'
-import { formBody } from '../../plugins/form-body.ts'
+import { formBody } from '../../http/form-body.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
@@ -18,11 +18,11 @@ const form = z.object({ email: z.string().optional(), redirect_to: z.string().op
 export type SignInRoutesOptions = {
   actorType: ActorType
   /** Decides whether an address may be sent a link at all. */
-  admits?(db: AppDatabase, email: string): Promise<boolean>
+  admits?: (db: AppDatabase, email: string) => Promise<boolean>
   /** Shown when `admits` refuses the address. */
   refusal?: string
   /** What this site's account page shows beyond the identity behind it. */
-  accountView?(request: FastifyRequest): Promise<Record<string, unknown>>
+  accountView?: (request: FastifyRequest) => Promise<Record<string, unknown>>
 }
 
 /**
@@ -51,7 +51,7 @@ export function signInRoutes({
     return await reply.redirect(loginPath(site.loginPath, redirectTo))
   }
 
-  return (routes, _options, done) => {
+  const signInPages: FastifyPluginCallback = (routes, _options, done) => {
     if (actorType === 'customer') routes.addHook('preHandler', rememberCustomerIdentity)
 
     routes.get('/login', async (request, reply) => {
@@ -109,6 +109,8 @@ export function signInRoutes({
 
     done()
   }
+
+  return signInPages
 }
 
 function loginPath(path: string, redirectTo: string | null): string {

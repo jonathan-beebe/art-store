@@ -1,8 +1,9 @@
-import type { FastifyInstance, FastifyRequest, preHandlerHookHandler } from 'fastify'
+import type { FastifyRequest, preHandlerAsyncHookHandler } from 'fastify'
 import { unreadMessageCount } from '../actions/messaging/conversation-inbox.ts'
 import { resolveCustomerFromCookie } from '../actions/customers/resolve-customer-from-cookie.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
 import { identityId } from './identity.ts'
+import { rootPlugin } from './root-plugin.ts'
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -14,9 +15,9 @@ declare module 'fastify' {
  * Every layout carries a messages link with what is waiting behind it, so the
  * count has to be on the request before any page renders.
  */
-export function addUnreadMessages(app: FastifyInstance): void {
+export const unreadMessages = rootPlugin({ name: 'unreadMessages' }, (app) => {
   app.decorateRequest('unreadMessageCount', 0)
-}
+})
 
 const ACTOR_IDS = {
   seller: async (request) => request.currentSeller?.id ?? null,
@@ -37,7 +38,7 @@ const ACTOR_IDS = {
 } satisfies Record<ActorType, (request: FastifyRequest) => Promise<number | null>>
 
 /** Counts what this site's actor has waiting, for the nav link in its layout. */
-export function countUnreadMessages(actorType: ActorType): preHandlerHookHandler {
+export function countUnreadMessages(actorType: ActorType): preHandlerAsyncHookHandler {
   return async (request) => {
     const actorId = await ACTOR_IDS[actorType](request)
     if (actorId === null) return

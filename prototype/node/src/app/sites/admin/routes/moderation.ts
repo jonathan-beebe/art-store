@@ -9,8 +9,8 @@ import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { BAD_REQUEST, renderErrorPage } from '../../../plugins/error-pages.ts'
-import { formBody } from '../../../plugins/form-body.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { formBody } from '../../../http/form-body.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 
 /** Every moderation form carries where to go back to; a bare lift carries only that. */

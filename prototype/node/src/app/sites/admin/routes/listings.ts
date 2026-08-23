@@ -2,7 +2,7 @@ import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastif
 import { z } from 'zod'
 import { LISTING_STATUSES } from '../../../core/listings/listing-status.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { adminPage } from '../page.ts'
 import { listingDetail } from '../queries/listing-detail.ts'
 import { listingRows, REMOVED_FILTERS, type ListingRemovedFilter } from '../queries/listing-rows.ts'

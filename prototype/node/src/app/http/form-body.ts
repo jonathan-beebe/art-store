@@ -5,6 +5,6 @@ import type { FastifyRequest } from 'fastify'
  * request carries no body at all, and every form schema here already answers
  * for a field that was not filled in, so an absent body reads as an empty form.
  */
-export function formBody(request: FastifyRequest): unknown {
+export function formBody(request: Pick<FastifyRequest, 'body'>): unknown {
   return request.body ?? {}
 }

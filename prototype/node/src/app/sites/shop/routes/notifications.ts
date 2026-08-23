@@ -1,7 +1,7 @@
 import type { FastifyPluginCallback } from 'fastify'
 import { markNotificationRead } from '../../../actions/notifications/mark-notification-read.ts'
 import { requireVerifiedCustomer } from '../../../plugins/identity.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { findCustomerNotification } from '../queries/find-customer-notifications.ts'
 import { renderNotFound } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'

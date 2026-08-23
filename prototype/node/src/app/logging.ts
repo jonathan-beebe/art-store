@@ -54,7 +54,7 @@ function serializeRequest(request: FastifyRequest): Record<string, unknown> {
     url: request.url,
     host: request.host,
     remoteAddress: request.ip,
-    remotePort: request.socket?.remotePort,
+    remotePort: request.socket.remotePort,
     cookies: redactedCookies(request.headers.cookie),
   }
 }
@@ -68,13 +68,13 @@ export function readOrGenerateRequestId(header: string | string[] | undefined): 
 
 type LoggingServerOptions = Pick<
   FastifyServerOptions,
-  'logger' | 'genReqId' | 'requestIdHeader' | 'requestIdLogLabel'
+  'logger' | 'genReqId' | 'requestIdHeader'
 >
 
 /**
  * The logging half of Fastify's server options: every child-logger line
  * carries the caller's `x-request-id` (falling back to a generated one) as
- * `requestId`, and the request line's cookies are redacted. `stream` lets a
+ * `reqId`, and the request line's cookies are redacted. `stream` lets a
  * test capture what was logged; the running app leaves it unset, so pino
  * writes to stdout.
  */
@@ -90,7 +90,6 @@ export function loggingOptions(
     },
     genReqId: (rawRequest) => readOrGenerateRequestId(rawRequest.headers[REQUEST_ID_HEADER]),
     requestIdHeader: REQUEST_ID_HEADER,
-    requestIdLogLabel: 'requestId',
   }
 }
 

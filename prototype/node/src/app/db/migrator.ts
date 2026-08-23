@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { inspect } from 'node:util'
 import {
   FileMigrationProvider,
   Migrator,
@@ -29,7 +30,7 @@ function buildMigrator(db: AppDatabase): Migrator {
  */
 export async function migrateToLatest(db: AppDatabase): Promise<readonly MigrationResult[]> {
   const { error, results } = await buildMigrator(db).migrateToLatest()
-  if (error) throw error
+  if (error !== undefined) throw migrationFailure(error)
 
   return results ?? []
 }
@@ -40,7 +41,7 @@ export async function migrateToLatest(db: AppDatabase): Promise<readonly Migrati
  */
 export async function migrateDown(db: AppDatabase): Promise<readonly MigrationResult[]> {
   const { error, results } = await buildMigrator(db).migrateTo(NO_MIGRATIONS)
-  if (error) throw error
+  if (error !== undefined) throw migrationFailure(error)
 
   return results ?? []
 }
@@ -50,4 +51,12 @@ export async function pendingMigrations(db: AppDatabase): Promise<readonly Migra
   const migrations = await buildMigrator(db).getMigrations()
 
   return migrations.filter((migration) => migration.executedAt === undefined)
+}
+
+/**
+ * Kysely reports a failed migration as an `unknown`, and a thrown non-Error
+ * arrives at the caller with no stack to read.
+ */
+function migrationFailure(error: unknown): Error {
+  return error instanceof Error ? error : new Error(inspect(error))
 }

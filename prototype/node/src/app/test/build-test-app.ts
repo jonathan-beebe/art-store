@@ -41,7 +41,7 @@ export type TestApp = {
   app: FastifyInstance
   db: AppDatabase
   clock: Clock
-  close(): Promise<void>
+  close: () => Promise<void>
 }
 
 /**

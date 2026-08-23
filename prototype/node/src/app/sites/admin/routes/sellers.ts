@@ -1,6 +1,6 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { shopName } from '../../../core/shop/shop-name.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { adminPage } from '../page.ts'
 import { sellerDetail } from '../queries/seller-detail.ts'
 import { sellerRows } from '../queries/seller-rows.ts'

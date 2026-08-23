@@ -4,7 +4,7 @@
  * total, and a `sum` over no rows arrives as null — a report of traffic nobody
  * made reads as zero rather than as nothing.
  */
-export function toCount(value: unknown): number {
+export function toCount(value: number | string | bigint | null | undefined): number {
   if (value === null || value === undefined) return 0
 
   const count = Number(value)

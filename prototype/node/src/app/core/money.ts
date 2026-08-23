@@ -43,7 +43,7 @@ export function subtractCents(a: Cents, b: Cents): Cents {
 /** The same amount owed the other way — what turns a payout into the negative
  * ledger entry that lets a balance fold the whole ledger by adding. */
 export function negateCents(amount: Cents): Cents {
-  return cents(amount === 0 ? 0 : -amount)
+  return subtractCents(ZERO_CENTS, amount)
 }
 
 export function multiplyCents(amount: Cents, factor: number): Cents {

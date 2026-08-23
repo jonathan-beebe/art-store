@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { parseIdParam } from '../../plugins/id-param.ts'
+import { parseIdParam } from '../../http/id-param.ts'
 import { findCustomerOrder, type CustomerOrder } from './queries/find-customer-order.ts'
 import { storefrontCustomer } from './storefront-customer.ts'
 

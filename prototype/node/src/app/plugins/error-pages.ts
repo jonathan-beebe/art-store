@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, RouteHandlerMethod } from 'fastify'
 import { ZodError } from 'zod'
+import { rootPlugin } from './root-plugin.ts'
 import type { SitePageRenderer } from './site-render.ts'
 
 /** The lowest status that blames the request, and the lowest that blames us. */
@@ -73,7 +74,7 @@ export function addNotFoundPage(site: FastifyInstance, renderPage: SitePageRende
  * nothing about it; a bad request is answered as a bad request rather than
  * reported as a crash.
  */
-export function addErrorPage(app: FastifyInstance): void {
+export const errorPages = rootPlugin({ name: 'errorPages' }, (app) => {
   app.setErrorHandler(async (error, request, reply) => {
     const statusCode = failureStatusCode(error)
 
@@ -86,7 +87,7 @@ export function addErrorPage(app: FastifyInstance): void {
       .type('text/plain; charset=utf-8')
       .send(errorPageView(statusCode).title)
   })
-}
+})
 
 function declaredStatusCode(error: unknown): number | null {
   if (typeof error !== 'object' || error === null || !('statusCode' in error)) return null

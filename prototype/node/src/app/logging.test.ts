@@ -43,7 +43,6 @@ test('loggingOptions carries the configured level and the request id wiring', ()
   const options = loggingOptions({ logLevel: 'warn' })
 
   assert.equal(options.requestIdHeader, 'x-request-id')
-  assert.equal(options.requestIdLogLabel, 'requestId')
   assert.equal(typeof options.genReqId, 'function')
   assert.equal(typeof options.logger === 'object' && options.logger !== null, true)
   const logger = options.logger as { level?: string }

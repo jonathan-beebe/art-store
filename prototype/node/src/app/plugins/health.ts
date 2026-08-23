@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify'
+import type { FastifyPluginCallback } from 'fastify'
 import { sql } from 'kysely'
 import { evaluateHealth, healthStatusCode, type HealthChecks } from '../core/health/health-status.ts'
 import type { AppDatabase } from '../db/database.ts'
@@ -10,7 +10,7 @@ import { pendingMigrations } from '../db/migrator.ts'
  * and answers JSON, which keeps it out of the page-view rollup for free
  * (that hook only counts HTML responses).
  */
-export function addHealth(app: FastifyInstance): void {
+export const healthCheck: FastifyPluginCallback = (app, _options, done) => {
   app.get('/health', async (_request, reply) => {
     const checks = await runChecks(app.db)
     const status = evaluateHealth(checks, app.draining)
@@ -19,6 +19,8 @@ export function addHealth(app: FastifyInstance): void {
 
     return { status, checks, uptimeSeconds: Math.floor(process.uptime()) }
   })
+
+  done()
 }
 
 async function runChecks(db: AppDatabase): Promise<HealthChecks> {

@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events'
-import type { FastifyInstance, FastifyPluginCallback, FastifyRequest } from 'fastify'
+import type { FastifyPluginCallback, FastifyRequest } from 'fastify'
 import { unreadMessageCount } from '../actions/messaging/conversation-inbox.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
+import { rootPlugin } from './root-plugin.ts'
 
 /**
  * `changed` fires once after any request that wrote something, `closing` when
@@ -37,7 +38,7 @@ const READ_METHODS: ReadonlySet<string> = new Set(['GET', 'HEAD', 'OPTIONS'])
  * The event bus every live stream listens on, and the two hooks that feed it:
  * one after each write, one when the app starts closing.
  */
-export function addEvents(app: FastifyInstance): void {
+export const eventBus = rootPlugin({ name: 'eventBus' }, (app) => {
   const events = new EventEmitter<AppEvents>()
   events.setMaxListeners(UNLIMITED_LISTENERS)
 
@@ -54,7 +55,7 @@ export function addEvents(app: FastifyInstance): void {
   app.addHook('preClose', async () => {
     events.emit('closing')
   })
-}
+})
 
 /** Only a request that changed something can have moved anyone's count. */
 function wroteSomething(method: string, statusCode: number): boolean {
@@ -145,7 +146,7 @@ const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => number 
  * guard, so a stream only ever carries the count of the actor asking for it.
  */
 export function unreadEventsRoute(actorType: ActorType): FastifyPluginCallback {
-  return (site, _options, done) => {
+  const unreadEvents: FastifyPluginCallback = (site, _options, done) => {
     site.get('/events', async (request, reply) => {
       const actorId = ACTOR_IDS[actorType](request)
       if (actorId === null) return reply.code(204).send()
@@ -168,4 +169,6 @@ export function unreadEventsRoute(actorType: ActorType): FastifyPluginCallback {
 
     done()
   }
+
+  return unreadEvents
 }

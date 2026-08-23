@@ -77,7 +77,7 @@ test('/health still answers json', async (t) => {
 
   assert.equal(response.statusCode, 200)
   assert.match(String(response.headers['content-type']), /application\/json/)
-  assert.equal(response.json().status, 'ok')
+  assert.equal(response.json<{ status: string }>().status, 'ok')
 })
 
 test('a failure on a route with no layout answers plain text, not a schema dump', async (t) => {

@@ -134,7 +134,7 @@ test('a request log line carries the incoming x-request-id', async (t) => {
     headers: { 'x-request-id': 'test-request-id' },
   })
 
-  assert.ok(stream.lines().some((line) => line.requestId === 'test-request-id'))
+  assert.ok(stream.lines().some((line) => line.reqId === 'test-request-id'))
 })
 
 test('a request log line gets a generated request id when none arrives', async (t) => {
@@ -147,7 +147,7 @@ test('a request log line gets a generated request id when none arrives', async (
 
   await app.inject({ method: 'GET', url: '/' })
 
-  assert.ok(stream.lines().some((line) => typeof line.requestId === 'string' && line.requestId.length > 0))
+  assert.ok(stream.lines().some((line) => typeof line.reqId === 'string' && line.reqId.length > 0))
 })
 
 test('the request log redacts identity and flash cookies but not others', async (t) => {

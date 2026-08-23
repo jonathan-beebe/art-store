@@ -3,7 +3,7 @@ import { adminPage } from '../page.ts'
 import { outboxRow, outboxRows } from '../queries/outbox-rows.ts'
 import { drainOutbox, type DrainedMessage } from '../../../actions/outbox/drain-outbox.ts'
 import { renderOutboxMessage } from '../../../delivery/outbox-message.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 
 async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   const { db, config } = request.server

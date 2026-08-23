@@ -10,7 +10,7 @@ import { payoutPeriodEndingBefore, payoutPeriodLabel, type PayoutPeriod } from '
 import { formatCents } from '../../../core/money.ts'
 import type { Payout } from '../../../db/commerce-schema.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
-import { formBody } from '../../../plugins/form-body.ts'
+import { formBody } from '../../../http/form-body.ts'
 
 const filterQuery = z.object({ seller: z.coerce.number().int().positive().optional() })
 const runForm = z.object({ as_of: z.string().optional() })

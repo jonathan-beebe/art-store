@@ -1,10 +1,11 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify'
+import type { FastifyReply, FastifyRequest, preHandlerAsyncHookHandler } from 'fastify'
 import type { Selectable } from 'kysely'
 import { resolveCurrentCustomer } from '../actions/customers/resolve-current-customer.ts'
 import { resolveCustomerFromCookie } from '../actions/customers/resolve-customer-from-cookie.ts'
 import { ACTOR_SITES, type ActorType } from '../core/auth/actor-type.ts'
 import { isVerifiedCustomer } from '../core/customers/customer-verification.ts'
 import type { AdminTable, CustomerTable, SellerTable } from '../db/schema.ts'
+import { rootPlugin } from './root-plugin.ts'
 
 /**
  * One cookie per side of the marketplace, so a single browser can be a seller,
@@ -47,42 +48,45 @@ declare module 'fastify' {
  * cookie writes. The customer is deliberately absent: resolving one can create
  * a row, so only the storefront's own hook does it.
  */
-export function addIdentity(app: FastifyInstance): void {
-  app.decorateRequest('currentSeller', null)
-  app.decorateRequest('currentCustomer', null)
-  app.decorateRequest('currentAdmin', null)
-  app.decorateRequest('identity', {
-    getter(this: FastifyRequest): Identity {
-      return {
-        seller: this.currentSeller,
-        customer: this.currentCustomer,
-        admin: this.currentAdmin,
-      }
-    },
-  })
+export const identityCookies = rootPlugin(
+  { name: 'identityCookies', dependencies: ['@fastify/cookie'] },
+  (app) => {
+    app.decorateRequest('currentSeller', null)
+    app.decorateRequest('currentCustomer', null)
+    app.decorateRequest('currentAdmin', null)
+    app.decorateRequest('identity', {
+      getter(this: FastifyRequest): Identity {
+        return {
+          seller: this.currentSeller,
+          customer: this.currentCustomer,
+          admin: this.currentAdmin,
+        }
+      },
+    })
 
-  app.decorateReply(
-    'signIn',
-    function (this: FastifyReply, actorType: ActorType, actorId: number): void {
-      this.setCookie(IDENTITY_COOKIES[actorType], String(actorId), {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        signed: true,
-        maxAge: COOKIE_LIFETIME_SECONDS,
-        secure: this.server.config.secureCookies,
-      })
-    },
-  )
+    app.decorateReply(
+      'signIn',
+      function (this: FastifyReply, actorType: ActorType, actorId: number): void {
+        this.setCookie(IDENTITY_COOKIES[actorType], String(actorId), {
+          path: '/',
+          httpOnly: true,
+          sameSite: 'lax',
+          signed: true,
+          maxAge: COOKIE_LIFETIME_SECONDS,
+          secure: this.server.config.secureCookies,
+        })
+      },
+    )
 
-  app.decorateReply('signOut', function (this: FastifyReply, actorType: ActorType): void {
-    this.clearCookie(IDENTITY_COOKIES[actorType], { path: '/' })
-  })
+    app.decorateReply('signOut', function (this: FastifyReply, actorType: ActorType): void {
+      this.clearCookie(IDENTITY_COOKIES[actorType], { path: '/' })
+    })
 
-  app.addHook('preHandler', resolvePortalIdentities)
-}
+    app.addHook('preHandler', resolvePortalIdentities)
+  },
+)
 
-const resolvePortalIdentities: preHandlerHookHandler = async (request) => {
+const resolvePortalIdentities: preHandlerAsyncHookHandler = async (request) => {
   request.currentSeller = await findSeller(request)
   request.currentAdmin = await findAdmin(request)
 }
@@ -97,7 +101,7 @@ export function identityCookieValue(request: FastifyRequest, actorType: ActorTyp
 
   const unsigned = request.unsignCookie(cookie)
 
-  return unsigned.valid && unsigned.value !== null ? unsigned.value : null
+  return unsigned.valid ? unsigned.value : null
 }
 
 /** The id a cookie value names, or null when it names nothing an actor can be. */
@@ -145,7 +149,7 @@ async function findAdmin(request: FastifyRequest): Promise<Selectable<AdminTable
  * a guest order have somewhere to hang before anyone gives an address. Writing
  * the cookie back on every request is what rolls a merged id forward.
  */
-export const resolveCustomerIdentity: preHandlerHookHandler = async (request, reply) => {
+export const resolveCustomerIdentity: preHandlerAsyncHookHandler = async (request, reply) => {
   const { db, clock } = request.server
   const customer = await resolveCurrentCustomer({ db, clock }, identityId(request, 'customer'))
 
@@ -154,7 +158,7 @@ export const resolveCustomerIdentity: preHandlerHookHandler = async (request, re
 }
 
 /** Reads the customer the cookie names, and creates nobody when it names none. */
-export const rememberCustomerIdentity: preHandlerHookHandler = async (request) => {
+export const rememberCustomerIdentity: preHandlerAsyncHookHandler = async (request) => {
   request.currentCustomer = await resolveCustomerFromCookie(
     { db: request.server.db },
     identityId(request, 'customer'),
@@ -175,7 +179,7 @@ export function signedInActorId(request: FastifyRequest, actorType: ActorType): 
   return SIGNED_IN_ACTOR[actorType](request.identity)
 }
 
-function requireActor(actorType: ActorType, alert: string): preHandlerHookHandler {
+function requireActor(actorType: ActorType, alert: string): preHandlerAsyncHookHandler {
   return async (request, reply) => {
     if (signedInActorId(request, actorType) !== null) return undefined
 
@@ -196,7 +200,7 @@ export const requireVerifiedCustomer = requireActor(
   'Verify your email address to reach your account.',
 )
 
-export const ACTOR_GUARDS: Readonly<Record<ActorType, preHandlerHookHandler>> = {
+export const ACTOR_GUARDS: Readonly<Record<ActorType, preHandlerAsyncHookHandler>> = {
   seller: requireSeller,
   customer: requireVerifiedCustomer,
   admin: requireAdmin,

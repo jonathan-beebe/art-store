@@ -3,7 +3,7 @@ import { markNotificationRead } from '../../../actions/notifications/mark-notifi
 import { currentSellerId } from '../current-seller.ts'
 import { formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../../../plugins/id-param.ts'
+import { parseIdParam } from '../../../http/id-param.ts'
 import { notificationsForSeller, ownedNotification } from '../queries/notifications.ts'
 
 async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {

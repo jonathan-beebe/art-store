@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import type { FastifyRequest } from 'fastify'
 import { formBody } from './form-body.ts'
 
-function requestWithBody(body: unknown): FastifyRequest {
-  return { body } as FastifyRequest
+function requestWithBody(body: unknown): Pick<FastifyRequest, 'body'> {
+  return { body }
 }
 
 test('an object body passes through unchanged', () => {

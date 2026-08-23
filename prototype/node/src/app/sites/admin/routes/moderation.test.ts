@@ -13,7 +13,8 @@ function flashFrom(testApp: TestApp, response: { cookies: { name: string; value:
   if (cookie === undefined) return {}
 
   const unsigned = testApp.app.unsignCookie(cookie.value)
-  return JSON.parse(unsigned.value ?? '{}')
+
+  return JSON.parse(unsigned.value ?? '{}') as Record<string, string>
 }
 
 test('POST /admin/customers/:id/blocks blocks the customer and stops them shopping', async (t) => {

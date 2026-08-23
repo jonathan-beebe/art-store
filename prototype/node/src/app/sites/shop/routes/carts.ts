@@ -8,7 +8,7 @@ import { currentCustomerStanding } from '../../../actions/moderation/current-cus
 import { runInTransaction } from '../../../actions/transaction.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
-import { formBody } from '../../../plugins/form-body.ts'
+import { formBody } from '../../../http/form-body.ts'
 import { findListingBySlug } from '../queries/find-listing-by-slug.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
