@@ -1,21 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Orders;
 
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 
-final class PurchaserTest extends TestCase
-{
-    public function test_a_purchaser_with_a_verification_timestamp_is_verified(): void
-    {
-        $purchaser = new Purchaser(7, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
+it('is verified with a verification timestamp', function (): void {
+    $purchaser = Purchaser::onAccount(7, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
 
-        $this->assertTrue($purchaser->isEmailVerified());
-    }
+    expect($purchaser->isEmailVerified())->toBeTrue();
+});
 
-    public function test_a_purchaser_without_a_verification_timestamp_is_unverified(): void
-    {
-        $this->assertFalse((new Purchaser(7, 'buyer@example.test', null))->isEmailVerified());
-    }
-}
+it('is unverified without a verification timestamp', function (): void {
+    expect((Purchaser::onAccount(7, 'buyer@example.test', null))->isEmailVerified())->toBeFalse();
+});
+
+it('buys a guest under the address they typed', function (): void {
+    $purchaser = Purchaser::forCheckout(7, null, null, '  Guest@Example.COM ');
+
+    expect($purchaser->customerId)->toBe(7)
+        ->and($purchaser->email)->toBe('guest@example.com')
+        ->and($purchaser->isEmailVerified())->toBeFalse();
+});
+
+it('buys a verified customer under the address on their account', function (): void {
+    $verifiedAt = new DateTimeImmutable('2026-08-20 10:00:00');
+
+    $purchaser = Purchaser::forCheckout(7, 'ada@example.com', $verifiedAt, 'someone-else@example.com');
+
+    expect($purchaser->email)->toBe('ada@example.com')
+        ->and($purchaser->emailVerifiedAt)->toBe($verifiedAt)
+        ->and($purchaser->isEmailVerified())->toBeTrue();
+});

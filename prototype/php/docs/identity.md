@@ -17,13 +17,15 @@ sequenceDiagram
     participant Login as SellerLoginController
     participant Send as SendMagicLink
     participant MagicLinks as magic_links
+    participant Issued as MagicLinkIssued
     participant Verify as MagicLinkVerificationController
     participant SignIn as SignInSeller
 
     Seller->>Login: POST /seller/login (email)
     Login->>Send: __invoke(email, ActorType::Seller)
     Send->>MagicLinks: create(token_hash, email, actor_type, expires_at)
-    Send-->>Seller: flash "sign-in link sent" (debug alert shows the URL)
+    Send->>Issued: notify the address on the configured channel
+    Issued-->>Seller: session flash (debug alert prints the URL) or email
 
     Seller->>Verify: GET /auth/magic/{token}
     Verify->>MagicLinks: forToken(token)->first()
@@ -34,8 +36,10 @@ sequenceDiagram
     Verify-->>Seller: redirect to seller.dashboard
 ```
 
-Caveats: a first-time email creates the seller row — there is no separate
-sign-up step. An expired or already-consumed link redirects back to
+Caveats: the link goes to an address, not to a row —
+`Notification::route(MagicLinkIssued::channel(), $address)` — because a
+first-time email creates the seller row, and there is no separate sign-up
+step. An expired or already-consumed link redirects back to
 `auth.seller.login` with an error instead of reaching `SignInSeller`.
 
 ## Customer guest verification with anonymous merge
@@ -82,11 +86,24 @@ Caveats: `MergeAnonymousCustomer` walks
 skips any table/column that does not exist yet (guards schema drift across
 tickets landing in parallel). The anonymous row is never deleted — the
 `customer_merges` row lets a stale cookie on a second device resolve forward
-to the verified customer.
+to the verified customer, following as many recorded merges as it takes to
+land on a row nothing else points at. Merging the same anonymous customer
+into the same verified one twice writes one `customer_merges` row —
+`customer_merges.anonymous_customer_id` is unique, and the action reads that
+row back with `firstOrCreate` instead of failing on it.
+
+A `redirect_to` naming a `/seller` path is never followed on a customer link,
+even when it is otherwise local: the link falls back to `shop.account`. A
+customer link carries no seller session, so following it there would only land
+on the seller login wall. Both halves of that answer are the domain's:
+`LocalRedirect::resolve($requested, $actor, $fallback, $origin)` keeps a target
+only when it stays on this site and `ActorType::allowsPath()` says the actor
+belongs on it.
 
 ## Which identity a storefront request resolves to
 
-Question: given a request, which customer does `customer()` return?
+Question: given a request, which customer does `CustomerIdentity::current()`
+return?
 
 ```mermaid
 flowchart TD

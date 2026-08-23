@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Auth\SendMagicLink;
@@ -7,30 +9,28 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\Cart\CartTotals;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Orders\OrderPayment;
-use App\Domain\Orders\ShippingAddress;
-use App\Domain\Shop\CheckoutPurchaser;
-use App\Models\Customer;
+use App\Http\Requests\Shop\CheckoutRequest;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 
 final class CheckoutController extends ShopController
 {
     public function show(): View|RedirectResponse
     {
         $visitor = $this->visitor();
-        $cart = ($this->currentCart)($visitor)->load('items.listing.seller');
+        $cart = $visitor->currentCart()->load('items.listing.seller');
 
         if ($cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
         }
 
-        return $this->page('shop.checkout', [
+        return view('shop.checkout', [
             'cart' => $cart,
             'totals' => CartTotals::from($cart->lines()),
             'visitor' => $visitor,
-            'isVerified' => $this->isVerified($visitor),
+            'isVerified' => $visitor->isVerified(),
         ]);
     }
 
@@ -40,80 +40,42 @@ final class CheckoutController extends ShopController
      * unverified order has nowhere to hold a card number until it is.
      */
     public function place(
-        Request $request,
+        CheckoutRequest $request,
         PlaceOrder $placeOrder,
         FinalizeOrder $finalizeOrder,
         SendMagicLink $sendMagicLink,
     ): RedirectResponse {
         $visitor = $this->visitor();
-        $submitted = $this->validated($request, $this->isVerified($visitor));
-        $cart = ($this->currentCart)($visitor);
+        $cart = $visitor->currentCart();
 
         if ($cart->items()->doesntExist()) {
             return redirect()->route('shop.cart');
         }
 
-        $purchaser = CheckoutPurchaser::forCustomer(
-            $visitor->id,
-            $visitor->email,
-            $visitor->email_verified_at?->toDateTimeImmutable(),
-            $submitted['email'],
-        );
-
+        $purchaser = $request->toPurchaser($visitor);
         $now = $this->now();
-        $order = $placeOrder($cart, $purchaser, $this->shippingAddress($submitted), $now);
+
+        try {
+            $order = $placeOrder($cart, $purchaser, $request->toShippingAddress(), $now);
+        } catch (DomainRuleViolation $violation) {
+            // The cart is where the shopper can act on the refusal: it still
+            // holds every line, and the one the message names is marked there.
+            return redirect()->route('shop.cart')->withErrors($violation->getMessage());
+        }
 
         if (OrderPayment::isPayableBy($order->status, $purchaser->isEmailVerified())) {
-            $finalizeOrder($order, $submitted['card_number'], $now);
+            $finalizeOrder($order, $request->cardNumber(), $now);
 
             return redirect()->route('shop.order', $order);
         }
 
         $sendMagicLink(
-            $purchaser->email,
+            $request->email(),
             ActorType::Customer,
             route('shop.order.pay', $order, absolute: false),
+            $now,
         );
 
         return redirect()->route('shop.order', $order);
-    }
-
-    private function isVerified(Customer $visitor): bool
-    {
-        return $visitor->email_verified_at !== null;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function validated(Request $request, bool $isVerified): array
-    {
-        return $request->validate([
-            'email' => ['required', 'email'],
-            'shipping_name' => ['required', 'string', 'max:255'],
-            'shipping_line1' => ['required', 'string', 'max:255'],
-            'shipping_line2' => ['nullable', 'string', 'max:255'],
-            'shipping_city' => ['required', 'string', 'max:255'],
-            'shipping_region' => ['required', 'string', 'max:255'],
-            'shipping_postal_code' => ['required', 'string', 'max:32'],
-            'shipping_country' => ['required', 'string', 'max:64'],
-            'card_number' => [$isVerified ? 'required' : 'nullable', 'string', 'max:32'],
-        ]);
-    }
-
-    /**
-     * @param  array<string, string>  $submitted
-     */
-    private function shippingAddress(array $submitted): ShippingAddress
-    {
-        return new ShippingAddress(
-            $submitted['shipping_name'],
-            $submitted['shipping_line1'],
-            $submitted['shipping_line2'] ?? null,
-            $submitted['shipping_city'],
-            $submitted['shipping_region'],
-            $submitted['shipping_postal_code'],
-            $submitted['shipping_country'],
-        );
     }
 }

@@ -1,11 +1,4 @@
-@extends('layouts.shop')
-
-@use('App\Domain\Money\Money')
-@use('App\Domain\Shop\StatusLabel')
-
-@section('title', 'Orders — Art Store')
-
-@section('content')
+<x-layouts.shop title="Orders — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Orders</h1>
 
     @if ($orders->isEmpty())
@@ -23,11 +16,11 @@
 
                     <div class="text-right">
                         <p class="text-base text-neutral-500">{{ $order->placed_at->format('j M Y') }}</p>
-                        <p class="mt-1 text-lg">{{ Money::fromCents($order->total_cents)->format() }}</p>
-                        <p class="mt-1 text-base text-neutral-600">{{ StatusLabel::humanize($order->status->value) }}</p>
+                        <p class="mt-1 text-lg">{{ $order->total() }}</p>
+                        <p class="mt-1 text-base text-neutral-600">{{ $order->status->label() }}</p>
                     </div>
                 </li>
             @endforeach
         </ul>
     @endif
-@endsection
+</x-layouts.shop>

@@ -1,16 +1,8 @@
-@extends('layouts.shop')
-
-@use('App\Domain\Money\Money')
-@use('App\Domain\Orders\FulfillmentStatus')
-@use('App\Domain\Shop\StatusLabel')
-
-@section('title', 'Order #'.$order->id.' — Art Store')
-
-@section('content')
+<x-layouts.shop :title="'Order #'.$order->id.' — Art Store'">
     <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
-        {{ StatusLabel::humanize($order->status->value) }} · {{ Money::fromCents($order->total_cents)->format() }}
+        {{ $order->status->label() }} · {{ $order->total() }}
     </p>
 
     @if ($awaitsPayment && ! $isPayable)
@@ -34,10 +26,10 @@
 
             <form method="POST" action="{{ route('shop.order.pay.submit', $order) }}" class="mt-4">
                 @csrf
-                @include('shop.partials.card-fields')
+                <x-card-fields />
 
                 <button type="submit" class="mt-8 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
-                    Pay {{ Money::fromCents($order->total_cents)->format() }}
+                    Pay {{ $order->total() }}
                 </button>
             </form>
         </section>
@@ -49,7 +41,7 @@
                 <section class="border-t border-neutral-100 py-8 first:border-t-0 first:pt-0">
                     <div class="flex flex-wrap items-baseline justify-between gap-4">
                         <h2 class="text-lg font-medium">{{ $fulfillment->seller->displayName() }}</h2>
-                        <p class="text-base text-neutral-600">{{ StatusLabel::humanize($fulfillment->status->value) }}</p>
+                        <p class="text-base text-neutral-600">{{ $fulfillment->status->label() }}</p>
                     </div>
 
                     @if ($fulfillment->carrier)
@@ -62,19 +54,19 @@
                         @foreach ($itemsBySeller[$fulfillment->seller_id] ?? [] as $item)
                             <li class="flex items-baseline justify-between gap-6 text-base">
                                 <span>{{ $item->title }} × {{ $item->quantity }}</span>
-                                <span>{{ Money::fromCents($item->unit_price_cents)->multiply($item->quantity)->format() }}</span>
+                                <span>{{ $item->lineTotal() }}</span>
                             </li>
                         @endforeach
                     </ul>
 
-                    @if ($fulfillment->status === FulfillmentStatus::Shipped)
+                    @visitorCan('confirmDelivery', $fulfillment)
                         <form method="POST" action="{{ route('shop.order.delivered', [$order, $fulfillment]) }}" class="mt-6">
                             @csrf
                             <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
                                 Confirm delivery
                             </button>
                         </form>
-                    @endif
+                    @endvisitorCan
                 </section>
             @endforeach
         </div>
@@ -91,4 +83,4 @@
             </address>
         </aside>
     </div>
-@endsection
+</x-layouts.shop>

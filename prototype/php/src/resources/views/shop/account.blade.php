@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Your account — Art Store')
-
-@section('content')
+<x-layouts.shop title="Your account — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Your account</h1>
 
     <dl class="mt-10 max-w-md">
@@ -26,8 +22,8 @@
             @foreach ($notifications as $notification)
                 <li class="flex flex-wrap items-start justify-between gap-6 py-5">
                     <div>
-                        <p class="text-lg font-medium">{{ $notification->subject }}</p>
-                        <p class="mt-1 text-base text-neutral-600">{{ $notification->body }}</p>
+                        <p class="text-lg font-medium">{{ $notification->data['subject'] }}</p>
+                        <p class="mt-1 text-base text-neutral-600">{{ $notification->data['body'] }}</p>
                     </div>
 
                     @if ($notification->read_at === null)
@@ -42,4 +38,4 @@
             @endforeach
         </ul>
     @endif
-@endsection
+</x-layouts.shop>

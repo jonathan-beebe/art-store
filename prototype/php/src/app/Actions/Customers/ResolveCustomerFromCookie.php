@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customers;
 
 use App\Models\Customer;
@@ -19,8 +21,26 @@ final readonly class ResolveCustomerFromCookie
             return null;
         }
 
-        $mergedInto = CustomerMerge::where('anonymous_customer_id', $id)->value('customer_id');
+        return Customer::find($this->follow($id));
+    }
 
-        return Customer::find($mergedInto ?? $id);
+    /**
+     * Walks recorded merges forward until a customer id nothing else points
+     * at is reached. `$seen` stops a cycle from looping forever; none forms
+     * through the ordinary merge flow, but a chain reaching further than one
+     * hop of stale data should still resolve rather than stop early.
+     *
+     * @param  list<int>  $seen
+     */
+    private function follow(int $id, array $seen = []): int
+    {
+        if (in_array($id, $seen, true)) {
+            return $id;
+        }
+
+        $mergedInto = CustomerMerge::where('anonymous_customer_id', $id)->value('customer_id');
+        $mergedIntoId = filter_var($mergedInto, FILTER_VALIDATE_INT);
+
+        return $mergedIntoId === false ? $id : $this->follow($mergedIntoId, [...$seen, $id]);
     }
 }

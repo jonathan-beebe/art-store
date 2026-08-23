@@ -1,86 +1,87 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Order;
-use Tests\StorefrontTestCase;
 
-final class OrderControllerTest extends StorefrontTestCase
-{
-    public function test_it_lists_the_orders_of_the_visitor(): void
-    {
-        $shopper = $this->arriveAs($this->verifiedCustomer());
-        $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 24500]);
-        $this->orderFor($shopper, $listing);
-        $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['title' => 'Winter Elm']));
+$paidOrderFor = function (Customer $customer): Order {
+    $listing = test()->listing(test()->seller('Blue Kiln Studio'), [
+        'title' => 'Harbour at Dawn',
+        'price_cents' => 24500,
+    ]);
+    $order = test()->orderFor($customer, $listing);
 
-        $response = $this->get('/orders');
+    return app(FinalizeOrder::class)($order, '4242424242424242', test()->moment('2026-08-20 10:00:00'));
+};
 
-        $response->assertOk();
-        $response->assertSee('Harbour at Dawn');
-        $response->assertSee('$245.00');
-        $response->assertDontSee('Winter Elm');
-    }
+$ship = function (Fulfillment $fulfillment): void {
+    app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM123456789GB', test()->moment('2026-08-21 09:00:00'));
+};
 
-    public function test_it_groups_the_items_by_seller_with_their_fulfillment_status(): void
-    {
-        $shopper = $this->arriveAs($this->verifiedCustomer());
-        $order = $this->paidOrderFor($shopper);
+it('lists the orders of the visitor', function (): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->orderFor($shopper, $listing);
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['title' => 'Winter Elm']));
 
-        $response = $this->get(route('shop.order', $order));
+    $response = $this->get('/orders');
 
-        $response->assertOk();
-        $response->assertSee('Blue Kiln Studio');
-        $response->assertSee('Harbour at Dawn');
-        $response->assertSee('Awaiting shipment');
-    }
+    $response->assertOk();
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('$245.00');
+    $response->assertDontSee('Winter Elm');
+});
 
-    public function test_it_shows_the_carrier_and_tracking_once_shipped(): void
-    {
-        $shopper = $this->arriveAs($this->verifiedCustomer());
-        $order = $this->paidOrderFor($shopper);
-        $this->ship($order->fulfillments()->sole());
+it('groups the items by seller with their fulfillment status', function () use ($paidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
 
-        $response = $this->get(route('shop.order', $order));
+    $response = $this->get(route('shop.order', $order));
 
-        $response->assertSee('Royal Mail');
-        $response->assertSee('RM123456789GB');
-        $response->assertSee('Confirm delivery');
-    }
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('Awaiting shipment');
+});
 
-    public function test_it_offers_no_delivery_confirmation_before_shipping(): void
-    {
-        $shopper = $this->arriveAs($this->verifiedCustomer());
-        $order = $this->paidOrderFor($shopper);
+it('shows the carrier and tracking once shipped', function () use ($paidOrderFor, $ship): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
+    $ship($order->fulfillments()->sole());
 
-        $this->get(route('shop.order', $order))->assertDontSee('Confirm delivery');
-    }
+    $response = $this->get(route('shop.order', $order));
 
-    public function test_another_customer_cannot_read_the_order(): void
-    {
-        $order = $this->paidOrderFor($this->verifiedCustomer());
-        $this->arriveAs($this->verifiedCustomer());
+    $response->assertSee('Royal Mail');
+    $response->assertSee('RM123456789GB');
+    $response->assertSee('Confirm delivery');
+});
 
-        $this->get(route('shop.order', $order))->assertNotFound();
-    }
+it('offers no delivery confirmation before shipping', function () use ($paidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
 
-    private function paidOrderFor(Customer $customer): Order
-    {
-        $listing = $this->listing($this->seller('Blue Kiln Studio'), [
-            'title' => 'Harbour at Dawn',
-            'price_cents' => 24500,
-        ]);
-        $order = $this->orderFor($customer, $listing);
+    $this->get(route('shop.order', $order))->assertDontSee('Confirm delivery');
+});
 
-        return app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
-    }
+it('offers no delivery confirmation once delivered', function () use ($paidOrderFor, $ship): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
+    $ship($order->fulfillments()->sole());
+    app(ConfirmDelivered::class)($order->fulfillments()->sole(), $this->moment('2026-08-22 09:00:00'));
 
-    private function ship(Fulfillment $fulfillment): void
-    {
-        app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM123456789GB', $this->moment('2026-08-21 09:00:00'));
-    }
-}
+    $this->get(route('shop.order', $order))->assertDontSee('Confirm delivery');
+});
+
+it('refuses another customer reading the order', function () use ($paidOrderFor): void {
+    $order = $paidOrderFor($this->verifiedCustomer());
+    $this->arriveAs($this->verifiedCustomer());
+
+    $this->get(route('shop.order', $order))->assertNotFound();
+});

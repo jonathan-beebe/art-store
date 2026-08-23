@@ -1,9 +1,4 @@
-@extends('layouts.seller')
-@use('App\Domain\Reports\StatusLabel')
-
-@section('title', 'Listings — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Listings — Art Store seller">
     <div class="flex items-center gap-4">
         <h1 class="text-xl font-semibold">Listings</h1>
         <a href="{{ route('seller.listings.create') }}" class="ml-auto rounded bg-gray-900 px-4 py-2 font-medium text-white">New listing</a>
@@ -36,7 +31,7 @@
                                     <a href="{{ route('seller.listings.show', $listing->id) }}" class="font-medium underline">{{ $listing->title }}</a>
                                 </span>
                             </th>
-                            <td class="px-4 py-3">{{ StatusLabel::of($listing->status) }}</td>
+                            <td class="px-4 py-3">{{ $listing->status->label() }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->price()->format() }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->quantity }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->views_count }}</td>
@@ -50,7 +45,7 @@
                                         <form method="POST" action="{{ route('seller.listings.status', $listing->id) }}">
                                             @csrf
                                             <input type="hidden" name="status" value="{{ $next->value }}">
-                                            <button type="submit" class="rounded border border-gray-400 px-2 py-1">Mark {{ lcfirst(StatusLabel::of($next)) }}</button>
+                                            <button type="submit" class="rounded border border-gray-400 px-2 py-1">Mark {{ lcfirst($next->label()) }}</button>
                                         </form>
                                     @endforeach
                                 </span>
@@ -61,4 +56,4 @@
             </table>
         </div>
     @endif
-@endsection
+</x-layouts.seller>

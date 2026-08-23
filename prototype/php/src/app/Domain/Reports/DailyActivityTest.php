@@ -1,22 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Reports;
 
-use PHPUnit\Framework\TestCase;
+use DateTimeImmutable;
 
-final class DailyActivityTest extends TestCase
-{
-    public function test_it_labels_the_day_for_a_table_row(): void
-    {
-        $day = new DailyActivity('2026-08-09', 3, 1, 0);
+it('labels the day for a table row', function (): void {
+    $day = DailyActivity::on(new DateTimeImmutable('2026-08-09'), 3, 1, 0);
 
-        $this->assertSame('Aug 9', $day->label());
-    }
+    expect($day->label())->toBe('Aug 9');
+});
 
-    public function test_it_sums_the_three_event_kinds(): void
-    {
-        $day = new DailyActivity('2026-08-09', 3, 1, 2);
+it('sums the three event kinds', function (): void {
+    $day = DailyActivity::on(new DateTimeImmutable('2026-08-09'), 3, 1, 2);
 
-        $this->assertSame(6, $day->total());
-    }
-}
+    expect($day->total())->toBe(6);
+});

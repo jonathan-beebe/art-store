@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Dashboard — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Dashboard — Art Store seller">
     <h1 class="text-xl font-semibold">Dashboard</h1>
 
     <section aria-labelledby="listings-heading" class="mt-6">
@@ -50,8 +46,8 @@
             <ul class="mt-2 divide-y divide-gray-200 rounded border border-gray-300 bg-white">
                 @foreach ($notifications as $notification)
                     <li class="p-4">
-                        <p class="font-medium">{{ $notification->subject }}</p>
-                        <p class="mt-1 text-gray-600">{{ $notification->body }}</p>
+                        <p class="font-medium">{{ $notification->data['subject'] }}</p>
+                        <p class="mt-1 text-gray-600">{{ $notification->data['body'] }}</p>
                         <p class="mt-1 text-gray-500">{{ $notification->created_at->format('M j, Y g:ia') }}</p>
                     </li>
                 @endforeach
@@ -60,4 +56,4 @@
             <p class="mt-2"><a href="{{ route('seller.notifications.index') }}" class="text-gray-700 underline">All notifications</a></p>
         @endif
     </section>
-@endsection
+</x-layouts.seller>

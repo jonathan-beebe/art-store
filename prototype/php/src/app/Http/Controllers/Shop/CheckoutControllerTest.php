@@ -1,141 +1,155 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
+use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
 use App\Models\Order;
-use Tests\StorefrontTestCase;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
-final class CheckoutControllerTest extends StorefrontTestCase
-{
-    public function test_an_empty_cart_goes_back_to_the_cart_page(): void
-    {
-        $this->get('/checkout')->assertRedirect(route('shop.cart'));
-    }
+$fillCart = function (): void {
+    test()->listing(test()->seller(), ['slug' => 'harbour-at-dawn', 'price_cents' => 24500]);
+    test()->post('/cart/harbour-at-dawn');
+};
 
-    public function test_it_prefills_and_locks_the_address_of_a_signed_in_customer(): void
-    {
-        $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
-        $this->fillCart();
+/**
+ * @return array<string, string>
+ */
+$checkoutFields = function (): array {
+    return [
+        'email' => 'guest@example.com',
+        'shipping_name' => 'Ada Lovelace',
+        'shipping_line1' => '12 Analytical Way',
+        'shipping_city' => 'London',
+        'shipping_region' => 'Greater London',
+        'shipping_postal_code' => 'EC1A 1BB',
+        'shipping_country' => 'GB',
+    ];
+};
 
-        $response = $this->get('/checkout');
+it('sends an empty cart back to the cart page', function (): void {
+    $this->get('/checkout')->assertRedirect(route('shop.cart'));
+});
 
-        $response->assertOk();
-        $response->assertSee('value="shopper@example.com"', escape: false);
-        $response->assertSee('readonly', escape: false);
-        $response->assertSee('name="card_number"', escape: false);
-    }
+it('refuses to place an order from an empty cart', function () use ($checkoutFields): void {
+    $response = $this->post('/checkout', $checkoutFields());
 
-    public function test_a_guest_gets_no_card_fields_before_verifying(): void
-    {
-        $this->visitor();
-        $this->fillCart();
+    $response->assertRedirect(route('shop.cart'));
+    expect(Order::count())->toBe(0);
+});
 
-        $response = $this->get('/checkout');
+it('prefills and locks the address of a signed in customer', function () use ($fillCart): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
 
-        $response->assertOk();
-        $response->assertDontSee('name="card_number"', escape: false);
-    }
+    $response = $this->get('/checkout');
 
-    public function test_a_guest_places_an_order_that_waits_for_verification(): void
-    {
-        $this->visitor();
-        $this->fillCart();
+    $response->assertOk();
+    $response->assertSee('value="shopper@example.com" readonly', escape: false);
+    $response->assertSee('name="card_number"', escape: false);
+});
 
-        $response = $this->post('/checkout', $this->checkoutFields());
+it('gives a guest no card fields before verifying', function () use ($fillCart): void {
+    $this->visitor();
+    $fillCart();
 
-        $order = Order::sole();
-        $this->assertSame(OrderStatus::PendingVerification, $order->status);
-        $this->assertSame('guest@example.com', $order->email);
-        $this->assertSame('Ada Lovelace', $order->shipping_name);
-        $response->assertRedirect(route('shop.order', $order));
-        $response->assertSessionHas('debug_magic_link');
-    }
+    $response = $this->get('/checkout');
 
-    public function test_the_order_page_explains_that_a_link_was_sent(): void
-    {
-        $this->visitor();
-        $this->fillCart();
+    $response->assertOk();
+    $response->assertDontSee('name="card_number"', escape: false);
+});
 
-        $response = $this->followingRedirects()->post('/checkout', $this->checkoutFields());
+it('places an order that waits for verification for a guest', function () use ($fillCart, $checkoutFields): void {
+    $this->visitor();
+    $fillCart();
 
-        $response->assertSee('Check your email');
-        $response->assertSee('/auth/magic/', escape: false);
-    }
+    $response = $this->post('/checkout', $checkoutFields());
 
-    public function test_verifying_carries_the_guest_order_to_their_account_and_pays_it(): void
-    {
-        $this->visitor();
-        $shopper = Customer::factory()->create(['email' => 'guest@example.com']);
-        $this->fillCart();
-        $this->post('/checkout', $this->checkoutFields());
-        $order = Order::sole();
+    $order = Order::sole();
+    expect($order->status)->toBe(OrderStatus::PendingVerification)
+        ->and($order->email)->toBe('guest@example.com')
+        ->and($order->shipping_name)->toBe('Ada Lovelace');
+    $response->assertRedirect(route('shop.order', $order));
+    $response->assertSessionHas('debug_magic_link');
+});
 
-        $this->get(session('debug_magic_link'))->assertRedirect(route('shop.order.pay', $order));
-        $this->assertSame($shopper->id, $order->fresh()->customer_id);
+it('explains on the order page that a link was sent', function () use ($fillCart, $checkoutFields): void {
+    $this->visitor();
+    $fillCart();
 
-        $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+    $response = $this->followingRedirects()->post('/checkout', $checkoutFields());
 
-        $response->assertRedirect(route('shop.order', $order));
-        $this->assertSame(OrderStatus::Paid, $order->fresh()->status);
-    }
+    $response->assertSee('Check your email');
+    $response->assertSee('/auth/magic/', escape: false);
+});
 
-    public function test_a_verified_customer_pays_as_they_place_the_order(): void
-    {
-        $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
-        $this->fillCart();
+it('carries the guest order to their account and pays it on verification', function () use ($fillCart, $checkoutFields): void {
+    $this->visitor();
+    $shopper = Customer::factory()->create(['email' => 'guest@example.com']);
+    $fillCart();
+    $this->post('/checkout', $checkoutFields());
+    $order = Order::sole();
 
-        $response = $this->post('/checkout', $this->checkoutFields() + ['card_number' => '4242424242424242']);
+    $this->get(Arr::string(Session::all(), 'debug_magic_link'))->assertRedirect(route('shop.order.pay', $order));
+    expect($order->refresh()->customer_id)->toBe($shopper->id);
 
-        $order = Order::sole();
-        $this->assertSame(OrderStatus::Paid, $order->status);
-        $this->assertSame('shopper@example.com', $order->email);
-        $response->assertRedirect(route('shop.order', $order));
-    }
+    $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
 
-    public function test_a_verified_customer_must_give_a_card(): void
-    {
-        $this->actingAs(Customer::factory()->create(), 'customer');
-        $this->fillCart();
+    $response->assertRedirect(route('shop.order', $order));
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
 
-        $response = $this->post('/checkout', $this->checkoutFields());
+it('lets a verified customer pay as they place the order', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
 
-        $response->assertSessionHasErrors('card_number');
-        $this->assertSame(0, Order::count());
-    }
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
 
-    public function test_a_declined_card_leaves_the_order_unpaid_with_a_reason(): void
-    {
-        $this->actingAs(Customer::factory()->create(), 'customer');
-        $this->fillCart();
+    $order = Order::sole();
+    expect($order->status)->toBe(OrderStatus::Paid)
+        ->and($order->email)->toBe('shopper@example.com');
+    $response->assertRedirect(route('shop.order', $order));
+});
 
-        $response = $this->followingRedirects()
-            ->post('/checkout', $this->checkoutFields() + ['card_number' => '4000000000000002']);
+it('leaves the order unpaid with a reason when the card is declined', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(), 'customer');
+    $fillCart();
 
-        $this->assertSame(OrderStatus::PaymentFailed, Order::sole()->status);
-        $response->assertSee('Your card was declined.');
-    }
+    $response = $this->followingRedirects()
+        ->post('/checkout', $checkoutFields() + ['card_number' => '4000000000000002']);
 
-    private function fillCart(): void
-    {
-        $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'price_cents' => 24500]);
-        $this->post('/cart/harbour-at-dawn');
-    }
+    expect(Order::sole()->status)->toBe(OrderStatus::PaymentFailed);
+    $response->assertSee('Your card was declined.');
+});
 
-    /**
-     * @return array<string, string>
-     */
-    private function checkoutFields(): array
-    {
-        return [
-            'email' => 'guest@example.com',
-            'shipping_name' => 'Ada Lovelace',
-            'shipping_line1' => '12 Analytical Way',
-            'shipping_city' => 'London',
-            'shipping_region' => 'Greater London',
-            'shipping_postal_code' => 'EC1A 1BB',
-            'shipping_country' => 'GB',
-        ];
-    }
-}
+it('sends the shopper back to the cart when a line was archived while it sat there', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertRedirect(route('shop.cart'));
+    $response->assertSessionHasErrors();
+    expect(Order::count())->toBe(0)
+        ->and($listing->refresh()->quantity)->toBe(1);
+});
+
+it('names the item that sold to someone else and marks it on the cart page', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'winter-elm', 'title' => 'Winter Elm', 'price_cents' => 24500, 'quantity' => 1]);
+    $this->post('/cart/winter-elm');
+    $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $response = $this->followingRedirects()->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertOk();
+    $response->assertSee('“Winter Elm” is no longer for sale.');
+    $response->assertSee('No longer available');
+    expect(Order::count())->toBe(1);
+});

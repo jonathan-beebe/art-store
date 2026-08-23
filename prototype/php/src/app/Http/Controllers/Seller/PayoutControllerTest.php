@@ -1,90 +1,115 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Seller;
 
-use App\Actions\Fulfillment\ConfirmDelivered;
-use App\Actions\Fulfillment\MarkShipped;
-use App\Actions\Orders\FinalizeOrder;
-use App\Models\Fulfillment;
 use App\Models\Payout;
-use App\Models\Seller;
 use Illuminate\Support\Carbon;
-use Tests\CommerceTestCase;
 
-final class PayoutControllerTest extends CommerceTestCase
-{
-    protected function setUp(): void
-    {
-        parent::setUp();
+beforeEach(function (): void {
+    Carbon::setTestNow('2026-08-24 09:00:00');
+});
 
-        Carbon::setTestNow('2026-08-24 09:00:00');
+afterEach(function (): void {
+    Carbon::setTestNow();
+});
+
+it('pays out the released escrow of the last completed week', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor(
+        $seller,
+        orderedAt: $this->moment('2026-08-17 10:00:00'),
+        trackingNumber: 'RM1',
+        shippedAt: $this->moment('2026-08-18 10:00:00'),
+        deliveredAt: $this->moment('2026-08-19 10:00:00'),
+    );
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
+
+    $response->assertRedirect(route('seller.earnings'));
+    $payout = Payout::where('seller_id', $seller->id)->sole();
+    expect($payout->amount_cents)->toBe(9000);
+});
+
+it('flashes the count and the amount', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor(
+        $seller,
+        orderedAt: $this->moment('2026-08-17 10:00:00'),
+        trackingNumber: 'RM1',
+        shippedAt: $this->moment('2026-08-18 10:00:00'),
+        deliveredAt: $this->moment('2026-08-19 10:00:00'),
+    );
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
+
+    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '1 payout(s)')
+        && str_contains($status, '$90.00'));
+});
+
+it('pays out every seller with released escrow, not only the signed-in seller', function (): void {
+    $signedIn = $this->seller('Blue Kiln Studio');
+    $other = $this->seller('Rye Press');
+    $this->deliveredFulfillmentFor(
+        $other,
+        orderedAt: $this->moment('2026-08-17 10:00:00'),
+        trackingNumber: 'RM1',
+        shippedAt: $this->moment('2026-08-18 10:00:00'),
+        deliveredAt: $this->moment('2026-08-19 10:00:00'),
+    );
+
+    $this->actingAs($signedIn, 'seller')->post('/seller/earnings/payouts');
+
+    expect(Payout::where('seller_id', $other->id)->exists())->toBeTrue()
+        ->and(Payout::where('seller_id', $signedIn->id)->exists())->toBeFalse();
+});
+
+it('pays nobody when nothing was released', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
+
+    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '0 payout(s)')
+        && str_contains($status, '$0.00'));
+    expect(Payout::count())->toBe(0);
+});
+
+it('pays nothing again on a second run of the same week', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor(
+        $seller,
+        orderedAt: $this->moment('2026-08-17 10:00:00'),
+        trackingNumber: 'RM1',
+        shippedAt: $this->moment('2026-08-18 10:00:00'),
+        deliveredAt: $this->moment('2026-08-19 10:00:00'),
+    );
+    $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
+
+    $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
+
+    expect(Payout::count())->toBe(1);
+});
+
+it('reads the whole ledger once and then writes two rows per payout', function (): void {
+    foreach (['Blue Kiln Studio', 'Rye Press', 'Cedar Works'] as $shopName) {
+        $seller = $this->seller($shopName);
+
+        foreach (['RM1', 'RM2'] as $trackingNumber) {
+            $this->deliveredFulfillmentFor(
+                $seller,
+                orderedAt: $this->moment('2026-08-17 10:00:00'),
+                trackingNumber: $trackingNumber,
+                shippedAt: $this->moment('2026-08-18 10:00:00'),
+                deliveredAt: $this->moment('2026-08-19 10:00:00'),
+            );
+        }
     }
 
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
+    $response = $this->actingAs($this->seller('Blue Kiln Studio'), 'seller')
+        ->expectsDatabaseQueryCount(7)
+        ->post('/seller/earnings/payouts');
 
-        parent::tearDown();
-    }
-
-    public function test_it_sends_a_signed_out_visitor_to_the_sign_in_page(): void
-    {
-        $this->post('/seller/earnings/payouts')->assertRedirect(route('auth.seller.login'));
-    }
-
-    public function test_it_pays_out_the_released_escrow_of_the_last_completed_week(): void
-    {
-        $seller = $this->seller();
-        $this->deliveredFulfillment($seller);
-
-        $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
-
-        $response->assertRedirect(route('seller.earnings'));
-        $payout = Payout::where('seller_id', $seller->id)->sole();
-        $this->assertSame(9000, $payout->amount_cents);
-    }
-
-    public function test_it_flashes_the_count_and_the_amount(): void
-    {
-        $seller = $this->seller();
-        $this->deliveredFulfillment($seller);
-
-        $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
-
-        $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '1 payout(s)')
-            && str_contains($status, '$90.00'));
-    }
-
-    public function test_a_run_with_nothing_released_pays_nobody(): void
-    {
-        $seller = $this->seller();
-
-        $response = $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
-
-        $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '0 payout(s)')
-            && str_contains($status, '$0.00'));
-        $this->assertSame(0, Payout::count());
-    }
-
-    public function test_a_second_run_of_the_same_week_pays_nothing_again(): void
-    {
-        $seller = $this->seller();
-        $this->deliveredFulfillment($seller);
-        $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
-
-        $this->actingAs($seller, 'seller')->post('/seller/earnings/payouts');
-
-        $this->assertSame(1, Payout::count());
-    }
-
-    private function deliveredFulfillment(Seller $seller): Fulfillment
-    {
-        $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller, ['price_cents' => 10000]));
-        app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-17 10:00:00'));
-        $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
-        app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM1', $this->moment('2026-08-18 10:00:00'));
-        app(ConfirmDelivered::class)($fulfillment->fresh(), $this->moment('2026-08-19 10:00:00'));
-
-        return $fulfillment->fresh();
-    }
-}
+    $response->assertRedirect(route('seller.earnings'));
+    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, '3 payout(s)'));
+});

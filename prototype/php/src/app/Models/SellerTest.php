@@ -1,33 +1,48 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-use PHPUnit\Framework\TestCase;
+use App\Domain\Listings\ListingStatus;
 
-final class SellerTest extends TestCase
-{
-    public function test_a_shop_name_is_what_the_seller_is_called(): void
-    {
-        $seller = new Seller([
-            'email' => 'artist@example.com',
-            'name' => 'Ada Painter',
-            'shop_name' => 'Ada Studio',
-        ]);
+it('resolves a display name', function (array $attributes, string $expected): void {
+    /** @var array<string, mixed> $attributes */
+    expect((new Seller($attributes))->displayName())->toBe($expected);
+})->with([
+    'shop name wins' => [['email' => 'artist@example.com', 'name' => 'Ada Painter', 'shop_name' => 'Ada Studio'], 'Ada Studio'],
+    'name without a shop name' => [['email' => 'artist@example.com', 'name' => 'Ada Painter'], 'Ada Painter'],
+    'email alone' => [['email' => 'artist@example.com'], 'artist@example.com'],
+]);
 
-        $this->assertSame('Ada Studio', $seller->displayName());
-    }
+it('is named by the morph alias its notifications are addressed to', function (): void {
+    expect((new Seller)->getMorphClass())->toBe('seller');
+});
 
-    public function test_a_seller_without_a_shop_name_falls_back_to_their_name(): void
-    {
-        $seller = new Seller(['email' => 'artist@example.com', 'name' => 'Ada Painter']);
+it('counts its listings by status without loading one', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $this->listing($seller, ['status' => ListingStatus::ForSale]);
+    $this->listing($seller, ['status' => ListingStatus::ForSale]);
+    $this->listing($this->seller('Other Studio'), ['status' => ListingStatus::ForSale]);
 
-        $this->assertSame('Ada Painter', $seller->displayName());
-    }
+    $this->expectsDatabaseQueryCount(1);
 
-    public function test_a_seller_who_has_given_nothing_but_an_address_is_called_by_it(): void
-    {
-        $seller = new Seller(['email' => 'artist@example.com']);
+    expect($seller->listingCountsByStatus())->toBe([
+        ListingStatus::Draft->value => 1,
+        ListingStatus::ForSale->value => 2,
+    ]);
+});
 
-        $this->assertSame('artist@example.com', $seller->displayName());
-    }
-}
+it('reads its escrow balance out of one grouped query', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
+    $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
+    $this->shippedFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
+
+    $this->expectsDatabaseQueryCount(1);
+    $balance = $seller->escrowBalance();
+
+    expect($balance->available)->toBeMoney(27000)
+        ->and($balance->held)->toBeMoney(27000);
+});

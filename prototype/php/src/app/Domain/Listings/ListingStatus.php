@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Listings;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
 
 enum ListingStatus: string
 {
@@ -35,6 +37,20 @@ enum ListingStatus: string
     {
         return $this->canTransitionTo($next)
             ? $next
-            : throw new DomainException("A listing cannot move from {$this->value} to {$next->value}.");
+            : throw new DomainRuleViolation("A listing cannot move from {$this->value} to {$next->value}.");
+    }
+
+    /**
+     * A sold listing keeps its page so the links a buyer already followed
+     * still lead somewhere; a draft or archived one was never public.
+     */
+    public function isOnStorefront(): bool
+    {
+        return $this === self::ForSale || $this === self::Sold;
+    }
+
+    public function label(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
     }
 }

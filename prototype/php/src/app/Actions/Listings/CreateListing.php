@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingDraft;
@@ -9,9 +11,9 @@ use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Http\UploadedFile;
 
-final class CreateListing
+final readonly class CreateListing
 {
-    public function __construct(private readonly StoreListingImage $storeListingImage) {}
+    public function __construct(private StoreListingImage $storeListingImage) {}
 
     public function __invoke(Seller $seller, ListingDraft $draft, ?UploadedFile $image = null): Listing
     {
@@ -29,9 +31,12 @@ final class CreateListing
      */
     private function slugsStartingWith(string $base): array
     {
-        return Listing::query()
+        /** @var list<string> $slugs */
+        $slugs = array_values(Listing::query()
             ->where('slug', 'like', $base.'%')
             ->pluck('slug')
-            ->all();
+            ->all());
+
+        return $slugs;
     }
 }

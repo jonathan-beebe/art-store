@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Cart;
 
 use App\Actions\Listings\RecordListingEvent;
@@ -10,14 +12,14 @@ use App\Models\CartItem;
 use App\Models\Listing;
 use DateTimeImmutable;
 
-final class AddToCart
+final readonly class AddToCart
 {
-    public function __construct(private readonly RecordListingEvent $recordListingEvent) {}
+    public function __construct(private RecordListingEvent $recordListingEvent) {}
 
     public function __invoke(Cart $cart, Listing $listing, int $quantity, DateTimeImmutable $now): CartItem
     {
         $item = $cart->items()->firstOrNew(['listing_id' => $listing->id]);
-        $item->quantity = CartQuantity::withinStock(($item->quantity ?? 0) + $quantity, $listing->quantity);
+        $item->quantity = CartQuantity::withinStock(($item->quantity ?? 0) + $quantity, $listing->quantity, $listing->status);
         $item->save();
 
         ($this->recordListingEvent)($listing, $cart->customer_id, ListingEventType::CartAdd, $now);

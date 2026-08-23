@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
@@ -30,6 +32,7 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::get('/orders/{order}/pay', [OrderPaymentController::class, 'show'])->name('order.pay');
     Route::post('/orders/{order}/pay', [OrderPaymentController::class, 'pay'])->name('order.pay.submit');
     Route::post('/orders/{order}/fulfillments/{fulfillment}/delivered', DeliveryConfirmationController::class)
+        ->scopeBindings()
         ->name('order.delivered');
 
     Route::middleware('auth.customer')->group(function (): void {

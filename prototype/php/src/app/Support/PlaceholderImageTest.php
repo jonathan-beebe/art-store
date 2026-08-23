@@ -1,34 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
-use PHPUnit\Framework\TestCase;
+it('renders the same svg for the same title', function (): void {
+    expect(PlaceholderImage::svg('Blue Heron'))->toBe(PlaceholderImage::svg('Blue Heron'));
+});
 
-class PlaceholderImageTest extends TestCase
-{
-    public function test_same_title_renders_the_same_svg(): void
-    {
-        $this->assertSame(PlaceholderImage::svg('Blue Heron'), PlaceholderImage::svg('Blue Heron'));
-    }
+it('renders different svgs for different titles', function (): void {
+    expect(PlaceholderImage::svg('Blue Heron'))->not->toBe(PlaceholderImage::svg('Red Fox'));
+});
 
-    public function test_different_titles_render_different_svgs(): void
-    {
-        $this->assertNotSame(PlaceholderImage::svg('Blue Heron'), PlaceholderImage::svg('Red Fox'));
-    }
+it('carries the title as an accessible label', function (): void {
+    $svg = PlaceholderImage::svg('Mug & Bowl');
 
-    public function test_svg_carries_the_title_as_an_accessible_label(): void
-    {
-        $svg = PlaceholderImage::svg('Mug & Bowl');
+    expect($svg)->toContain('aria-label="Mug &amp; Bowl"')
+        ->and($svg)->toStartWith('<svg');
+});
 
-        $this->assertStringContainsString('aria-label="Mug &amp; Bowl"', $svg);
-        $this->assertStringStartsWith('<svg', $svg);
-    }
+it('encodes the data uri as base64 svg', function (): void {
+    $uri = PlaceholderImage::dataUri('Blue Heron');
 
-    public function test_data_uri_is_base64_svg(): void
-    {
-        $uri = PlaceholderImage::dataUri('Blue Heron');
-
-        $this->assertStringStartsWith('data:image/svg+xml;base64,', $uri);
-        $this->assertSame(PlaceholderImage::svg('Blue Heron'), base64_decode(substr($uri, strlen('data:image/svg+xml;base64,'))));
-    }
-}
+    expect($uri)->toStartWith('data:image/svg+xml;base64,')
+        ->and(base64_decode(substr($uri, strlen('data:image/svg+xml;base64,')), true))
+        ->toBe(PlaceholderImage::svg('Blue Heron'));
+});

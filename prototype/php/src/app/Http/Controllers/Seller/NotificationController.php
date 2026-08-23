@@ -1,25 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Seller;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\View\View;
 
-final class NotificationController extends Controller
+final class NotificationController extends SellerController
 {
     public function index(): View
     {
         return view('seller.notifications', [
-            'notifications' => auth('seller')->user()->notifications()->latest('id')->get(),
+            'notifications' => $this->seller()->notifications()->get(),
         ]);
     }
 
-    public function markRead(string $notification): RedirectResponse
+    public function markRead(DatabaseNotification $notification): RedirectResponse
     {
-        $notification = auth('seller')->user()->notifications()->findOrFail($notification);
+        $this->authorize('markRead', $notification);
 
-        $notification->update(['read_at' => now()]);
+        $notification->markAsRead();
 
         return redirect()->route('seller.notifications.index')->with('status', 'Marked as read.');
     }

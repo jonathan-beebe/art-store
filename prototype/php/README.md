@@ -48,9 +48,16 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make test` | `docker compose run --rm app composer test` |
 | `make smoke` | `docker compose run --rm app composer test -- --testsuite Smoke` |
 | `make coverage` | `docker compose run --rm app composer test:coverage` |
+| `make analyse` | `docker compose run --rm --no-deps --entrypoint composer app analyse` |
+| `make lint` | `docker compose run --rm --no-deps --entrypoint composer app lint` |
+| `make check` | `docker compose run --rm --no-deps --entrypoint composer app check` |
 | `make migrate` | `docker compose run --rm app php artisan migrate` |
 | `make fresh` | `docker compose run --rm app php artisan migrate:fresh --seed` |
 | `make logs` | `docker compose logs -f` |
+
+`make check` runs lint, then static analysis, then the test suite, stopping at
+the first failure. `analyse` and `lint` skip the container entrypoint (no web
+server needed for a static run).
 
 Run any other tool the same way:
 
@@ -65,13 +72,35 @@ docker compose exec app php artisan tinker      # against the running server
 ```sh
 make test                                                    # whole suite
 make smoke                                                   # the end-to-end walk alone
+make check                                                   # lint + analyse + test
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-471 tests. Tests are sidecars: `Money.php` and `MoneyTest.php` sit in the same
-directory. `phpunit.xml` scans `app/`, `routes/`, and `database/` for
-`*Test.php`; there is no `tests/Feature` or `tests/Unit`. Domain tests extend
-`PHPUnit\Framework\TestCase`; HTTP tests extend `Tests\TestCase`.
+733 tests (1643 assertions), run by Pest — `it()`/`test()` functions, no
+PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
+and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
+`routes/`, and `database/` for `*Test.php`; there is no `tests/Feature` or
+`tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
+`Tests\StorefrontTestCase`, and `Tests\TestCase` + `RefreshDatabase` to the
+sidecar directories they serve. Tabulated input/output shapes are Pest
+datasets, declared inline with `->with([...])` or file-local with `dataset()`
+at the top of the sidecar — named datasets in `tests/Pest.php` are out of
+reach of sidecars under `app/`, so the suite keeps none there.
+
+`tests/Arch.php` enforces the layer rules from `docs/architecture.md`
+(`App\Domain` stays pure, `App\Actions` classes are final and invokable,
+controllers skip the `DB` facade, no debug calls, strict types everywhere)
+plus Pest's `laravel` and `security` presets. `tests/SidecarsTest.php` asserts
+every non-abstract class under `app/` has a sidecar test file, against a
+shrink-only list of exceptions that is currently empty.
+
+Static analysis (`make analyse`) runs PHPStan/Larastan at `level: max` over
+`app`, `database`, `routes`, and `tests` — the sidecar tests are analysed with
+the code they cover, and there are no `excludePaths` and no `ignoreErrors`.
+`src/phpstan/*.stub` gives PHPStan the types Pest carries in traits and in
+`expect()->extend()`: the test case a Pest closure runs on, the two custom
+expectations, and the arch DSL. Formatting (`make lint`) runs Pint with
+`declare(strict_types=1)` enforced on every file.
 
 `src/tests/SmokeTest.php` is the exception to the sidecar rule: one HTTP walk of
 the whole product — seller sign-in, listing, sale, guest checkout, magic-link
@@ -80,7 +109,7 @@ file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
 `make test` as well.
 
 `make coverage` prints a text summary and writes HTML to `src/coverage/` (pcov
-is in the image). Current: **98.20% lines overall, 100% on `app/Domain`**.
+is in the image). Current: **100.0% of lines**.
 
 ## Database
 
@@ -118,16 +147,17 @@ order with Noah.
 Passwordless on both sides. Ask for a link at `/seller/login` or `/login` with
 any email address — the first link for a seller address creates the account.
 
-There is no mailbox. `SessionFlashMagicLinkDelivery` flashes the URL to the
-session and both layouts render it in the yellow **debug alert** at the top of
-the page, so the link is on screen right after you submit the form. Links
-expire after 15 minutes and work once.
+There is no mailbox. The link is an `App\Notifications\MagicLinkIssued`
+notification delivered on `App\Notifications\Channels\SessionFlashChannel`,
+which flashes the URL to the session; both layouts render it in the yellow
+**debug alert** at the top of the page, so the link is on screen right after
+you submit the form. Links expire after 15 minutes and work once.
 
-The email hook is `config/magic_links.php` → `delivery`. Set
-`MAGIC_LINK_DELIVERY=mail` and it binds
-`App\Support\MagicLinkDelivery\MailMagicLinkDelivery`, which currently throws —
-implement `deliver()` there. In-app notifications carry the same hook:
-`App\Actions\Notifications\Notify::deliverByEmail()`.
+`config/magic_links.php` → `delivery` picks the channel. Set
+`MAGIC_LINK_DELIVERY=mail` and the same notification goes out as email
+instead. Seller and customer notifications have their own switch:
+`config/notifications.php` → `channels`, `database` by default, or
+`NOTIFICATION_CHANNELS=database,mail` to send both.
 
 ## Fake cards
 
@@ -185,25 +215,32 @@ prototype/php/
   src/                 the Laravel application
     app/Domain/        pure domain core, sidecar tests beside each class
     app/Actions/       one job each, sequencing core + models
-    app/Http/          controllers per site: Shop/, Seller/, Auth/
+    app/Models/        Eloquent: relations, casts, scopes, invariant writes
+    app/Http/          controllers, form requests and middleware per site:
+                       Shop/, Seller/, Auth/
+    app/Policies/      ownership and "is this form worth offering"
+    app/Events/        past-tense business moments
+    app/Listeners/     who hears about an event
+    app/Notifications/ what they are told, plus Channels/
     routes/            web.php requires auth.php, shop.php, seller.php
-    resources/views/   layouts/shop, layouts/seller, partials/debug-alert
-    tests/             base test cases and SmokeTest
+    resources/views/   components/layouts/{shop,seller}, components/debug-alert,
+                       components/listing-card, components/form/field, and a
+                       page per route under shop/ and seller/
+    phpstan/           stub files that type Pest's traits for the analyser
+    tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```
 
 ## Known gaps
 
 Full list with next steps in [`docs/review.md`](docs/review.md).
 
-- Email delivery is a hook, not an implementation. `MAGIC_LINK_DELIVERY=mail`
-  throws.
-- Four action classes under `app/Actions/Auth` and `app/Actions/Customers` have
-  no sidecar test. All four are at 100% line coverage through the controller
-  tests that drive them.
-- Eloquent models sit at 86.07% line coverage. The uncovered lines are inverse
-  `belongsTo` relations no caller reads yet.
+- Email delivery is a hook, not an implementation. Every notification has a
+  `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS=database,mail`
+  switch the channel, but `MAIL_MAILER` points at `log`.
 - No order cancellation route; `OrderStatus::Cancelled` exists in the domain
   with no way to reach it over HTTP.
+- A cart holding a line the listing can no longer supply still shows a live
+  Checkout button. The write refuses and names the item.
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.

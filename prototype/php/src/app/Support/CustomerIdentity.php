@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 use App\Models\Customer;
@@ -8,8 +10,8 @@ use Illuminate\Support\Facades\Cookie;
 
 /**
  * Carries the storefront visitor's identity: the encrypted cookie that
- * survives between visits, and the request attribute that the `customer()`
- * helper reads during one.
+ * survives between visits, and the request attribute that `current()` reads
+ * during one.
  */
 final class CustomerIdentity
 {
@@ -19,6 +21,8 @@ final class CustomerIdentity
 
     // A browsing history is worth more than a session, so the cookie outlives one.
     private const COOKIE_LIFETIME_MINUTES = 60 * 24 * 365;
+
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function cookieValue(Request $request): ?string
     {

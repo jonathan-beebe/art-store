@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Orders — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Orders — Art Store seller">
     <h1 class="text-xl font-semibold">Orders</h1>
 
     @foreach ($groups as $group)
@@ -44,4 +40,4 @@
             @endif
         </section>
     @endforeach
-@endsection
+</x-layouts.seller>

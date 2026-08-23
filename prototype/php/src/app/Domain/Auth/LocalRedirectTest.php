@@ -1,77 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Auth;
 
-use PHPUnit\Framework\TestCase;
+it('resolves a requested target', function (?string $requested, string $expected): void {
+    $origin = 'http://localhost:8000';
+    $fallback = '/account';
 
-final class LocalRedirectTest extends TestCase
-{
-    private const ORIGIN = 'http://localhost:8000';
+    expect(LocalRedirect::resolve($requested, ActorType::Customer, $fallback, $origin))->toBe($expected);
+})->with([
+    'a missing target falls back' => [null, '/account'],
+    'a blank target falls back' => ['   ', '/account'],
+    'a root-relative path is kept' => ['/checkout?step=2', '/checkout?step=2'],
+    'an absolute url on this origin is kept' => ['http://localhost:8000/checkout', 'http://localhost:8000/checkout'],
+    'the origin itself is kept' => ['http://localhost:8000', 'http://localhost:8000'],
+    'another host falls back' => ['http://evil.example/steal', '/account'],
+    'a host that only prefixes this origin falls back' => ['http://localhost:8000.evil.example/steal', '/account'],
+    'a protocol-relative url falls back' => ['//evil.example/steal', '/account'],
+    'a backslash-escaped path falls back' => ['/\\evil.example/steal', '/account'],
+    'a target carrying a newline falls back' => ["/checkout\nSet-Cookie: x=1", '/account'],
+    'the seller portal falls back for a customer' => ['/seller', '/account'],
+    'a path inside the seller portal falls back for a customer' => ['/seller/orders/1', '/account'],
+    'an absolute seller url falls back for a customer' => ['http://localhost:8000/seller/listings', '/account'],
+    'a path that only prefixes the seller portal is kept' => ['/sellers-guide', '/sellers-guide'],
+]);
 
-    private const FALLBACK = '/account';
+it('keeps a seller on the seller portal', function (): void {
+    expect(LocalRedirect::resolve('/seller/orders/1', ActorType::Seller, '/dashboard', 'http://localhost:8000'))
+        ->toBe('/seller/orders/1');
+});
 
-    public function test_a_missing_target_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve(null));
-    }
+it('keeps a local target on its own', function (): void {
+    expect(LocalRedirect::keepIfLocal('/checkout', 'http://localhost:8000'))->toBe('/checkout');
+});
 
-    public function test_a_blank_target_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve('   '));
-    }
-
-    public function test_a_root_relative_path_is_kept(): void
-    {
-        $this->assertSame('/checkout?step=2', $this->resolve('/checkout?step=2'));
-    }
-
-    public function test_an_absolute_url_on_this_origin_is_kept(): void
-    {
-        $this->assertSame(self::ORIGIN.'/checkout', $this->resolve(self::ORIGIN.'/checkout'));
-    }
-
-    public function test_the_origin_itself_is_kept(): void
-    {
-        $this->assertSame(self::ORIGIN, $this->resolve(self::ORIGIN));
-    }
-
-    public function test_another_host_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve('http://evil.example/steal'));
-    }
-
-    public function test_a_host_that_only_prefixes_this_origin_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve(self::ORIGIN.'.evil.example/steal'));
-    }
-
-    public function test_a_protocol_relative_url_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve('//evil.example/steal'));
-    }
-
-    public function test_a_backslash_escaped_path_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve('/\\evil.example/steal'));
-    }
-
-    public function test_a_target_carrying_a_newline_falls_back(): void
-    {
-        $this->assertSame(self::FALLBACK, $this->resolve("/checkout\nSet-Cookie: x=1"));
-    }
-
-    public function test_it_keeps_a_local_target_on_its_own(): void
-    {
-        $this->assertSame('/checkout', LocalRedirect::keepIfLocal('/checkout', self::ORIGIN));
-    }
-
-    public function test_it_drops_a_foreign_target_on_its_own(): void
-    {
-        $this->assertNull(LocalRedirect::keepIfLocal('http://evil.example/steal', self::ORIGIN));
-    }
-
-    private function resolve(?string $requested): string
-    {
-        return LocalRedirect::resolve($requested, self::FALLBACK, self::ORIGIN);
-    }
-}
+it('drops a foreign target on its own', function (): void {
+    expect(LocalRedirect::keepIfLocal('http://evil.example/steal', 'http://localhost:8000'))->toBeNull();
+});

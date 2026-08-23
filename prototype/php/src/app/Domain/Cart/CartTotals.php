@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Cart;
 
+use App\Domain\DomainRuleViolation;
 use App\Domain\Money\Money;
-use DomainException;
 
 final readonly class CartTotals
 {
@@ -22,7 +24,7 @@ final readonly class CartTotals
     public static function forCheckout(array $lines): self
     {
         if ($lines === []) {
-            throw new DomainException('An order needs at least one item.');
+            throw new DomainRuleViolation('An order needs at least one item.');
         }
 
         return self::from($lines);

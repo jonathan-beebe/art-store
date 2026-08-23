@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Domain\Listings\ListingStatus;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('listings', function (Blueprint $table) {
+        Schema::create('listings', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('seller_id')->constrained()->cascadeOnDelete();
             $table->string('title');

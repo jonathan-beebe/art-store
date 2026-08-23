@@ -1,0 +1,11 @@
+<?php
+
+namespace Pest\Support;
+
+/**
+ * A no-argument `test()` answers with this proxy, which forwards to the
+ * running test case.
+ *
+ * @mixin \Tests\StorefrontTestCase
+ */
+final class HigherOrderTapProxy {}

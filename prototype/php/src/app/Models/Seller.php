@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Escrow\LedgerBalance;
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Override;
 
 #[Fillable(['email', 'name', 'shop_name', 'email_verified_at'])]
 #[Hidden(['remember_token'])]
@@ -18,9 +22,12 @@ class Seller extends Authenticatable
     /** @use HasFactory<SellerFactory> */
     use HasFactory;
 
+    use Notifiable;
+
     /**
      * @return array<string, string>
      */
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -28,35 +35,55 @@ class Seller extends Authenticatable
         ];
     }
 
+    /** @return HasMany<Listing, $this> */
     public function listings(): HasMany
     {
         return $this->hasMany(Listing::class);
     }
 
+    /** @return HasMany<Fulfillment, $this> */
     public function fulfillments(): HasMany
     {
         return $this->hasMany(Fulfillment::class);
     }
 
+    /** @return HasMany<LedgerEntry, $this> */
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(LedgerEntry::class);
     }
 
+    /** @return HasMany<Payout, $this> */
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
     }
 
-    public function notifications(): HasMany
+    /**
+     * How many listings the seller holds in each status, counted by the
+     * database.
+     *
+     * @return array<string, int> status value => count
+     */
+    public function listingCountsByStatus(): array
     {
-        return $this->hasMany(Notification::class);
+        $counts = [];
+
+        foreach ($this->listings()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
     }
 
     public function escrowBalance(): LedgerBalance
     {
         return LedgerBalance::from(
-            $this->ledgerEntries->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all(),
+            array_values($this->ledgerEntries()
+                ->totalledByType()
+                ->get()
+                ->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())
+                ->all()),
         );
     }
 

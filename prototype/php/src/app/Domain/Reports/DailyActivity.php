@@ -1,17 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Reports;
 
 use DateTimeImmutable;
 
 final readonly class DailyActivity
 {
-    public function __construct(
-        public string $date,
+    private function __construct(
+        public DateTimeImmutable $date,
         public int $views,
         public int $favorites,
         public int $cartAdds,
     ) {}
+
+    public static function on(DateTimeImmutable $date, int $views, int $favorites, int $cartAdds): self
+    {
+        return new self($date, $views, $favorites, $cartAdds);
+    }
 
     public function total(): int
     {
@@ -20,6 +27,6 @@ final readonly class DailyActivity
 
     public function label(): string
     {
-        return DateTimeImmutable::createFromFormat('!Y-m-d', $this->date)->format('M j');
+        return $this->date->format('M j');
     }
 }

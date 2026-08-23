@@ -1,34 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Cart;
 
-use DomainException;
+use App\Domain\DomainRuleViolation;
+use App\Domain\Listings\ListingStatus;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 
-final class CartQuantityTest extends TestCase
-{
-    public function test_it_keeps_a_quantity_the_listing_can_cover(): void
-    {
-        $this->assertSame(2, CartQuantity::withinStock(2, 5));
-    }
+it('keeps a quantity within stock', function (int $requested, int $stock, int $expected): void {
+    expect(CartQuantity::withinStock($requested, $stock, ListingStatus::ForSale))->toBe($expected);
+})->with([
+    'a quantity the listing can cover' => [2, 5, 2],
+    'a quantity capped at the stock on hand' => [9, 5, 5],
+]);
 
-    public function test_it_caps_a_quantity_at_the_stock_on_hand(): void
-    {
-        $this->assertSame(5, CartQuantity::withinStock(9, 5));
-    }
+it('rejects a listing with nothing left', function (): void {
+    expect(fn () => CartQuantity::withinStock(1, 0, ListingStatus::ForSale))
+        ->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
+});
 
-    public function test_it_rejects_a_listing_with_nothing_left(): void
-    {
-        $this->expectException(DomainException::class);
+it('rejects a listing that is not for sale', function (ListingStatus $status): void {
+    expect(fn () => CartQuantity::withinStock(1, 5, $status))
+        ->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
+})->with([
+    'a draft that was never public' => [ListingStatus::Draft],
+    'a listing the seller archived' => [ListingStatus::Archived],
+]);
 
-        CartQuantity::withinStock(1, 0);
-    }
-
-    public function test_it_rejects_a_request_below_one(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        CartQuantity::withinStock(0, 5);
-    }
-}
+it('rejects a request below one', function (): void {
+    expect(fn () => CartQuantity::withinStock(0, 5, ListingStatus::ForSale))->toThrow(InvalidArgumentException::class);
+});

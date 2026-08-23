@@ -1,39 +1,22 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Seller;
 
-use App\Actions\Listings\ChangeListingStatus;
-use App\Domain\Listings\ListingStatus;
-use App\Domain\Reports\StatusLabel;
-use App\Http\Controllers\Controller;
+use App\Http\Requests\Seller\ChangeListingStatusRequest;
 use App\Models\Listing;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
-final class ListingStatusController extends Controller
+final class ListingStatusController extends SellerController
 {
-    public function __invoke(Request $request, string $listing, ChangeListingStatus $changeListingStatus): RedirectResponse
+    public function __invoke(ChangeListingStatusRequest $request, Listing $listing): RedirectResponse
     {
-        $listing = auth('seller')->user()->listings()->findOrFail($listing);
-
-        $submitted = $request->validate([
-            'status' => ['required', Rule::in($this->allowedTransitions($listing))],
-        ]);
-
-        $next = ListingStatus::from($submitted['status']);
-        $changeListingStatus($listing, $next);
+        $next = $request->status();
+        $listing->changeStatusTo($next);
 
         return redirect()
             ->route('seller.listings.index')
-            ->with('status', "\"{$listing->title}\" is now ".lcfirst(StatusLabel::of($next)).'.');
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function allowedTransitions(Listing $listing): array
-    {
-        return array_map(fn (ListingStatus $status): string => $status->value, $listing->status->transitions());
+            ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
     }
 }

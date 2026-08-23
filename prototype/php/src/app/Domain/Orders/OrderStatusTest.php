@@ -1,172 +1,125 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Orders;
 
-use App\Domain\Payments\CardDecision;
-use App\Domain\Payments\DeclineReason;
+use App\Domain\Payments\PaymentOutcome;
 use DateTimeImmutable;
 use DomainException;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 
-final class OrderStatusTest extends TestCase
-{
-    public function test_an_unverified_order_may_be_charged_or_cancelled(): void
-    {
-        $this->assertSame(
-            [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled],
-            OrderStatus::PendingVerification->transitions(),
-        );
-    }
+it('lists the statuses a status may transition to', function (OrderStatus $from, array $expected): void {
+    expect($from->transitions())->toBe($expected);
+})->with([
+    'unverified may be charged or cancelled' => [OrderStatus::PendingVerification, [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled]],
+    'awaiting payment may be charged or cancelled' => [OrderStatus::AwaitingPayment, [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled]],
+    'a failed payment may be retried or cancelled' => [OrderStatus::PaymentFailed, [OrderStatus::Paid, OrderStatus::Cancelled]],
+    'paid moves into shipping' => [OrderStatus::Paid, [OrderStatus::PartiallyShipped, OrderStatus::Shipped]],
+    'partially shipped completes shipping' => [OrderStatus::PartiallyShipped, [OrderStatus::Shipped]],
+    'shipped is delivered next' => [OrderStatus::Shipped, [OrderStatus::Delivered]],
+    'delivered is final' => [OrderStatus::Delivered, []],
+    'cancelled is final' => [OrderStatus::Cancelled, []],
+]);
 
-    public function test_an_order_awaiting_payment_may_be_charged_or_cancelled(): void
-    {
-        $this->assertSame(
-            [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled],
-            OrderStatus::AwaitingPayment->transitions(),
-        );
-    }
-
-    public function test_a_failed_payment_may_be_retried_or_cancelled(): void
-    {
-        $this->assertSame(
-            [OrderStatus::Paid, OrderStatus::Cancelled],
-            OrderStatus::PaymentFailed->transitions(),
-        );
-    }
-
-    public function test_a_paid_order_moves_into_shipping(): void
-    {
-        $this->assertSame(
-            [OrderStatus::PartiallyShipped, OrderStatus::Shipped],
-            OrderStatus::Paid->transitions(),
-        );
-    }
-
-    public function test_a_partially_shipped_order_completes_shipping(): void
-    {
-        $this->assertSame([OrderStatus::Shipped], OrderStatus::PartiallyShipped->transitions());
-    }
-
-    public function test_a_shipped_order_is_delivered_next(): void
-    {
-        $this->assertSame([OrderStatus::Delivered], OrderStatus::Shipped->transitions());
-    }
-
-    public function test_delivered_and_cancelled_are_final(): void
-    {
-        $this->assertSame([], OrderStatus::Delivered->transitions());
-        $this->assertSame([], OrderStatus::Cancelled->transitions());
-    }
-
-    public function test_can_transition_to_agrees_with_the_transition_table(): void
-    {
-        foreach (OrderStatus::cases() as $from) {
-            foreach (OrderStatus::cases() as $to) {
-                $this->assertSame(
-                    in_array($to, $from->transitions(), true),
-                    $from->canTransitionTo($to),
-                    "{$from->value} -> {$to->value}",
-                );
-            }
+it('agrees with the transition table on every pair', function (): void {
+    foreach (OrderStatus::cases() as $from) {
+        foreach (OrderStatus::cases() as $to) {
+            expect($from->canTransitionTo($to))
+                ->toBe(in_array($to, $from->transitions(), true), "{$from->value} -> {$to->value}");
         }
     }
+});
 
-    public function test_transition_to_returns_the_next_status(): void
-    {
-        $this->assertSame(OrderStatus::Paid, OrderStatus::PaymentFailed->transitionTo(OrderStatus::Paid));
-    }
+it('returns the next status on transition', function (): void {
+    expect(OrderStatus::PaymentFailed->transitionTo(OrderStatus::Paid))->toBe(OrderStatus::Paid);
+});
 
-    public function test_transition_to_rejects_a_move_outside_the_table(): void
-    {
-        $this->expectException(DomainException::class);
-        $this->expectExceptionMessage('delivered to paid');
+it('rejects a move outside the table', function (): void {
+    expect(fn () => OrderStatus::Delivered->transitionTo(OrderStatus::Paid))
+        ->toThrow(DomainException::class, 'delivered to paid');
+});
 
-        OrderStatus::Delivered->transitionTo(OrderStatus::Paid);
-    }
+it('places a verified purchaser order ready to charge', function (): void {
+    $purchaser = Purchaser::onAccount(1, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
 
-    public function test_a_verified_purchaser_places_an_order_that_is_ready_to_charge(): void
-    {
-        $purchaser = new Purchaser(1, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
+    expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::AwaitingPayment);
+});
 
-        $this->assertSame(OrderStatus::AwaitingPayment, OrderStatus::forPlacement($purchaser));
-    }
+it('places an unverified purchaser order that waits for verification', function (): void {
+    $purchaser = Purchaser::onAccount(1, null, null);
 
-    public function test_an_unverified_purchaser_places_an_order_that_waits_for_verification(): void
-    {
-        $purchaser = new Purchaser(1, null, null);
+    expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::PendingVerification);
+});
 
-        $this->assertSame(OrderStatus::PendingVerification, OrderStatus::forPlacement($purchaser));
-    }
+it('pays the order on an approved payment outcome', function (): void {
+    expect(OrderStatus::fromCardDecision(PaymentOutcome::Approved))->toBe(OrderStatus::Paid);
+});
 
-    public function test_an_approved_card_pays_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::Paid,
-            OrderStatus::fromCardDecision(CardDecision::approved('4242')),
-        );
-    }
+it('fails the payment on a declined payment outcome', function (): void {
+    expect(OrderStatus::fromCardDecision(PaymentOutcome::Declined))->toBe(OrderStatus::PaymentFailed);
+});
 
-    public function test_a_declined_card_fails_the_payment(): void
-    {
-        $this->assertSame(
-            OrderStatus::PaymentFailed,
-            OrderStatus::fromCardDecision(CardDecision::declined('0002', DeclineReason::GenericDecline)),
-        );
-    }
+it('rolls up fulfillment statuses into an order status', function (array $fulfillments, OrderStatus $expected): void {
+    /** @var list<FulfillmentStatus> $fulfillments */
+    expect(OrderStatus::fromFulfillments($fulfillments))->toBe($expected);
+})->with([
+    'all awaiting shipment leaves the order paid' => [
+        [FulfillmentStatus::AwaitingShipment, FulfillmentStatus::AwaitingShipment],
+        OrderStatus::Paid,
+    ],
+    'one shipped of several partially ships the order' => [
+        [FulfillmentStatus::Shipped, FulfillmentStatus::AwaitingShipment],
+        OrderStatus::PartiallyShipped,
+    ],
+    'one delivered of several partially ships the order' => [
+        [FulfillmentStatus::Delivered, FulfillmentStatus::AwaitingShipment],
+        OrderStatus::PartiallyShipped,
+    ],
+    'every fulfillment shipped ships the order' => [
+        [FulfillmentStatus::Shipped, FulfillmentStatus::Shipped],
+        OrderStatus::Shipped,
+    ],
+    'a mix of shipped and delivered ships the order' => [
+        [FulfillmentStatus::Delivered, FulfillmentStatus::Shipped],
+        OrderStatus::Shipped,
+    ],
+    'every fulfillment delivered delivers the order' => [
+        [FulfillmentStatus::Delivered, FulfillmentStatus::Delivered],
+        OrderStatus::Delivered,
+    ],
+]);
 
-    public function test_fulfillments_all_awaiting_shipment_leave_the_order_paid(): void
-    {
-        $this->assertSame(
-            OrderStatus::Paid,
-            OrderStatus::fromFulfillments([FulfillmentStatus::AwaitingShipment, FulfillmentStatus::AwaitingShipment]),
-        );
-    }
+it('needs at least one fulfillment to roll up', function (): void {
+    expect(fn () => OrderStatus::fromFulfillments([]))->toThrow(InvalidArgumentException::class);
+});
 
-    public function test_one_shipped_fulfillment_of_several_partially_ships_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::PartiallyShipped,
-            OrderStatus::fromFulfillments([FulfillmentStatus::Shipped, FulfillmentStatus::AwaitingShipment]),
-        );
-    }
+it('awaits payment only before a successful charge', function (OrderStatus $status, bool $expected): void {
+    expect($status->awaitsPayment())->toBe($expected);
+})->with([
+    'pending verification awaits payment' => [OrderStatus::PendingVerification, true],
+    'awaiting payment awaits payment' => [OrderStatus::AwaitingPayment, true],
+    'payment failed still awaits payment' => [OrderStatus::PaymentFailed, true],
+    'paid no longer awaits payment' => [OrderStatus::Paid, false],
+    'shipped no longer awaits payment' => [OrderStatus::Shipped, false],
+    'delivered no longer awaits payment' => [OrderStatus::Delivered, false],
+    'cancelled no longer awaits payment' => [OrderStatus::Cancelled, false],
+]);
 
-    public function test_one_delivered_fulfillment_of_several_partially_ships_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::PartiallyShipped,
-            OrderStatus::fromFulfillments([FulfillmentStatus::Delivered, FulfillmentStatus::AwaitingShipment]),
-        );
-    }
+it('retakes stock on a retry only after a declined charge', function (OrderStatus $status, bool $expected): void {
+    expect($status->retakesStockOnRetry())->toBe($expected);
+})->with([
+    'a declined charge released the stock' => [OrderStatus::PaymentFailed, true],
+    'a first attempt still holds the stock' => [OrderStatus::AwaitingPayment, false],
+    'a guest order still holds the stock' => [OrderStatus::PendingVerification, false],
+]);
 
-    public function test_every_fulfillment_shipped_ships_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::Shipped,
-            OrderStatus::fromFulfillments([FulfillmentStatus::Shipped, FulfillmentStatus::Shipped]),
-        );
-    }
-
-    public function test_a_mix_of_shipped_and_delivered_ships_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::Shipped,
-            OrderStatus::fromFulfillments([FulfillmentStatus::Delivered, FulfillmentStatus::Shipped]),
-        );
-    }
-
-    public function test_every_fulfillment_delivered_delivers_the_order(): void
-    {
-        $this->assertSame(
-            OrderStatus::Delivered,
-            OrderStatus::fromFulfillments([FulfillmentStatus::Delivered, FulfillmentStatus::Delivered]),
-        );
-    }
-
-    public function test_a_roll_up_needs_at_least_one_fulfillment(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        OrderStatus::fromFulfillments([]);
-    }
-}
+it('reads its stored value back as a sentence', function (OrderStatus $status, string $expected): void {
+    expect($status->label())->toBe($expected);
+})->with([
+    'pending verification' => [OrderStatus::PendingVerification, 'Pending verification'],
+    'awaiting payment' => [OrderStatus::AwaitingPayment, 'Awaiting payment'],
+    'paid' => [OrderStatus::Paid, 'Paid'],
+    'payment failed' => [OrderStatus::PaymentFailed, 'Payment failed'],
+    'partially shipped' => [OrderStatus::PartiallyShipped, 'Partially shipped'],
+]);

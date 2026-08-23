@@ -1,14 +1,7 @@
-@extends('layouts.seller')
-@use('App\Domain\Money\Money')
-@use('App\Domain\Orders\FulfillmentStatus')
-@use('App\Domain\Reports\StatusLabel')
-
-@section('title', 'Order #'.$fulfillment->order_id.' — Art Store seller')
-
-@section('content')
+<x-layouts.seller :title="'Order #'.$fulfillment->order_id.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
-        <p class="text-gray-600">{{ StatusLabel::of($fulfillment->status) }}</p>
+        <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
         <a href="{{ route('seller.orders.index') }}" class="ml-auto text-gray-700 underline">All orders</a>
     </div>
 
@@ -46,7 +39,7 @@
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">{{ $item->title }}</th>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $item->quantity }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ Money::fromCents($item->unit_price_cents)->format() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $item->unitPrice() }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -64,7 +57,7 @@
     <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
         <h2 id="shipment-heading" class="font-semibold text-gray-700">Shipment</h2>
 
-        @if ($fulfillment->status === FulfillmentStatus::AwaitingShipment)
+        @can('ship', $fulfillment)
             <form method="POST" action="{{ route('seller.orders.ship', $fulfillment->id) }}"
                   class="mt-2 rounded border border-gray-300 bg-white p-4">
                 @csrf
@@ -106,6 +99,6 @@
                     <dd class="mt-1">{{ $fulfillment->delivered_at->format('M j, Y g:ia') }}</dd>
                 @endif
             </dl>
-        @endif
+        @endcan
     </section>
-@endsection
+</x-layouts.seller>

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Factories;
 
 use App\Domain\Listings\ListingStatus;
@@ -7,6 +9,7 @@ use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use Override;
 
 /**
  * @extends Factory<Listing>
@@ -16,6 +19,7 @@ class ListingFactory extends Factory
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function definition(): array
     {
         $title = fake()->unique()->sentence(3);
@@ -44,5 +48,10 @@ class ListingFactory extends Factory
             'status' => ListingStatus::Sold,
             'quantity' => 0,
         ]);
+    }
+
+    public function archived(): static
+    {
+        return $this->state(fn (array $attributes) => ['status' => ListingStatus::Archived]);
     }
 }

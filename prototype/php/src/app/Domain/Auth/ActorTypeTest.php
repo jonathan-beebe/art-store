@@ -1,26 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Auth;
 
-use PHPUnit\Framework\TestCase;
+it('names its own guard per actor', function (ActorType $actor, string $guard): void {
+    expect($actor->guard())->toBe($guard);
+})->with([
+    'seller' => [ActorType::Seller, 'seller'],
+    'customer' => [ActorType::Customer, 'customer'],
+]);
 
-final class ActorTypeTest extends TestCase
-{
-    public function test_each_actor_names_its_own_guard(): void
-    {
-        $this->assertSame('seller', ActorType::Seller->guard());
-        $this->assertSame('customer', ActorType::Customer->guard());
-    }
+it('lands on its own site per actor', function (ActorType $actor, string $routeName): void {
+    expect($actor->homeRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'seller.dashboard'],
+    'customer' => [ActorType::Customer, 'shop.account'],
+]);
 
-    public function test_each_actor_lands_on_its_own_site(): void
-    {
-        $this->assertSame('seller.dashboard', ActorType::Seller->homeRouteName());
-        $this->assertSame('shop.account', ActorType::Customer->homeRouteName());
-    }
+it('signs in on its own site per actor', function (ActorType $actor, string $routeName): void {
+    expect($actor->loginRouteName())->toBe($routeName);
+})->with([
+    'seller' => [ActorType::Seller, 'auth.seller.login'],
+    'customer' => [ActorType::Customer, 'auth.customer.login'],
+]);
 
-    public function test_each_actor_signs_in_on_its_own_site(): void
-    {
-        $this->assertSame('auth.seller.login', ActorType::Seller->loginRouteName());
-        $this->assertSame('auth.customer.login', ActorType::Customer->loginRouteName());
-    }
-}
+it('answers which paths each actor belongs on', function (ActorType $actor, string $path, bool $allowed): void {
+    expect($actor->allowsPath($path))->toBe($allowed);
+})->with([
+    'a seller on the portal root' => [ActorType::Seller, '/seller', true],
+    'a seller inside the portal' => [ActorType::Seller, '/seller/orders/1', true],
+    'a seller on the storefront' => [ActorType::Seller, '/orders/1', true],
+    'a customer on the portal root' => [ActorType::Customer, '/seller', false],
+    'a customer inside the portal' => [ActorType::Customer, '/seller/orders/1', false],
+    'a customer on a path that only prefixes the portal' => [ActorType::Customer, '/sellers-guide', true],
+    'a customer on the storefront' => [ActorType::Customer, '/orders/1', true],
+]);

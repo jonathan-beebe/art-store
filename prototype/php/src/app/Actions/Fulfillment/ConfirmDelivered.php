@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;
@@ -10,9 +12,9 @@ use App\Models\LedgerEntry;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class ConfirmDelivered
+final readonly class ConfirmDelivered
 {
-    public function __construct(private readonly RollUpOrderStatus $rollUpOrderStatus) {}
+    public function __construct(private RollUpOrderStatus $rollUpOrderStatus) {}
 
     public function __invoke(Fulfillment $fulfillment, DateTimeImmutable $now): Fulfillment
     {
@@ -30,6 +32,8 @@ final class ConfirmDelivered
                 'amount_cents' => $movement->amount->cents,
                 'occurred_at' => $now,
             ]);
+
+            $fulfillment->load('order.fulfillments');
 
             ($this->rollUpOrderStatus)($fulfillment->order);
 

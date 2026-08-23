@@ -1,85 +1,91 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
-use App\Models\Notification;
 use App\Models\Order;
+use App\Notifications\OrderShipped;
 use DomainException;
-use Tests\CommerceTestCase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 
-final class MarkShippedTest extends CommerceTestCase
-{
-    public function test_it_records_the_carrier_and_the_tracking_number(): void
-    {
-        $order = $this->paidOrder($this->verifiedCustomer());
-        $fulfillment = $order->fulfillments()->sole();
+$paidOrder = function (Customer $customer): Order {
+    return app(FinalizeOrder::class)(
+        test()->orderFor($customer, test()->listing(test()->seller(), ['price_cents' => 45000])),
+        '4242 4242 4242 4242',
+        test()->moment('2026-08-20 10:00:00'),
+    );
+};
 
-        $fulfillment = app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+it('records the carrier and the tracking number', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
+    $fulfillment = $order->fulfillments()->sole();
 
-        $this->assertSame(FulfillmentStatus::Shipped, $fulfillment->status);
-        $this->assertSame('USPS', $fulfillment->carrier);
-        $this->assertSame('9400111899', $fulfillment->tracking_number);
-        $this->assertSame('2026-08-21 11:00:00', $fulfillment->shipped_at->format('Y-m-d H:i:s'));
-    }
+    $fulfillment = app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    public function test_the_only_fulfillment_shipping_ships_the_order(): void
-    {
-        $order = $this->paidOrder($this->verifiedCustomer());
+    expect($fulfillment->status)->toBe(FulfillmentStatus::Shipped)
+        ->and($fulfillment->carrier)->toBe('USPS')
+        ->and($fulfillment->tracking_number)->toBe('9400111899')
+        ->and($fulfillment->shipped_at?->format('Y-m-d H:i:s'))->toBe('2026-08-21 11:00:00');
+});
 
-        app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+it('ships the order when its only fulfillment ships', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
 
-        $this->assertSame(OrderStatus::Shipped, $order->refresh()->status);
-    }
+    app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    public function test_one_of_two_fulfillments_shipping_partially_ships_the_order(): void
-    {
-        $order = $this->paidOrder(
-            $this->verifiedCustomer(),
-            $this->listing($this->seller('Blue Kiln Studio'), ['price_cents' => 45000]),
-            $this->listing($this->seller('Rye Press'), ['price_cents' => 10000]),
-        );
+    expect($order)->toHaveStatus(OrderStatus::Shipped);
+});
 
-        app(MarkShipped::class)($order->fulfillments()->orderBy('id')->first(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+it('partially ships the order when one of two fulfillments ships', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
 
-        $this->assertSame(OrderStatus::PartiallyShipped, $order->refresh()->status);
-    }
+    app(MarkShipped::class)($order->fulfillments()->orderBy('id')->firstOrFail(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    public function test_it_tells_the_customer_the_order_shipped(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $order = $this->paidOrder($customer);
+    expect($order)->toHaveStatus(OrderStatus::PartiallyShipped);
+});
 
-        app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+it('tells the customer the order shipped', function () use ($paidOrder): void {
+    $customer = $this->verifiedCustomer();
+    $order = $paidOrder($customer);
+    Notification::fake();
 
-        $notification = Notification::query()->where('customer_id', $customer->id)->sole();
-        $this->assertSame('Order shipped', $notification->subject);
-        $this->assertStringContainsString('USPS', $notification->body);
-        $this->assertStringContainsString('9400111899', $notification->body);
-    }
+    app(MarkShipped::class)($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    public function test_it_refuses_to_ship_a_fulfillment_twice(): void
-    {
-        $order = $this->paidOrder($this->verifiedCustomer());
-        $markShipped = app(MarkShipped::class);
-        $fulfillment = $markShipped($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+    Notification::assertSentTo(
+        $customer,
+        OrderShipped::class,
+        fn (OrderShipped $notification): bool => $notification->toArray($customer)['body']
+            === "Order #{$order->id} shipped with USPS. Tracking number 9400111899.",
+    );
+});
 
-        $this->expectException(DomainException::class);
+it('tells nobody when the shipment is rolled back', function () use ($paidOrder): void {
+    $customer = $this->verifiedCustomer();
+    $order = $paidOrder($customer);
+    $fulfillment = $order->fulfillments()->sole();
+    Notification::fake();
 
-        $markShipped($fulfillment, 'FedEx', '7712349', $this->moment('2026-08-21 12:00:00'));
-    }
+    rescue(fn () => DB::transaction(function () use ($fulfillment): void {
+        app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
 
-    private function paidOrder(Customer $customer, ...$listings): Order
-    {
-        $listings = $listings ?: [$this->listing($this->seller(), ['price_cents' => 45000])];
+        throw new RuntimeException('the carrier never took it');
+    }), report: false);
 
-        return app(FinalizeOrder::class)(
-            $this->orderFor($customer, ...$listings),
-            '4242 4242 4242 4242',
-            $this->moment('2026-08-20 10:00:00'),
-        );
-    }
-}
+    Notification::assertNothingSent();
+    expect($fulfillment)->toHaveStatus(FulfillmentStatus::AwaitingShipment);
+});
+
+it('refuses to ship a fulfillment twice', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
+    $markShipped = app(MarkShipped::class);
+    $fulfillment = $markShipped($order->fulfillments()->sole(), 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+
+    $markShipped($fulfillment, 'FedEx', '7712349', $this->moment('2026-08-21 12:00:00'));
+})->throws(DomainException::class);

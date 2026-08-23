@@ -1,0 +1,21 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    level: max
+    parseModelCastsMethod: true
+    checkConfigTypes: true
+    configDirectories:
+        - config
+    stubFiles:
+        - phpstan/pest-refs.stub
+        - phpstan/pest-functions.stub
+        - phpstan/pest-test-call.stub
+        - phpstan/pest-tap-proxy.stub
+        - phpstan/pest-expectation.stub
+    paths:
+        - app
+        - database
+        - routes
+        - tests

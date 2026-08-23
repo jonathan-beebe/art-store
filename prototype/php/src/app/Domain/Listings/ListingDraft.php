@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Listings;
 
 use App\Domain\Money\Money;
@@ -10,7 +12,7 @@ use App\Domain\Money\Money;
  */
 final readonly class ListingDraft
 {
-    public function __construct(
+    private function __construct(
         public string $title,
         public ?string $description,
         public ?string $medium,
@@ -18,6 +20,21 @@ final readonly class ListingDraft
         public Money $price,
         public int $quantity,
     ) {}
+
+    /**
+     * Four of the six fields are strings that transpose without a word of
+     * complaint, so the one way in takes them by name.
+     */
+    public static function of(
+        string $title,
+        ?string $description,
+        ?string $medium,
+        ?string $dimensions,
+        Money $price,
+        int $quantity,
+    ): self {
+        return new self($title, $description, $medium, $dimensions, $price, $quantity);
+    }
 
     /**
      * @return array<string, mixed>

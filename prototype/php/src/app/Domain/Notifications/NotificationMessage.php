@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Notifications;
 
 use App\Domain\Money\Money;
@@ -26,8 +28,17 @@ final readonly class NotificationMessage
         );
     }
 
-    public function withUrl(string $url): self
+    /**
+     * The shape an inbox row stores and a page reads back.
+     *
+     * @return array{subject: string, body: string, url: string|null}
+     */
+    public function toArray(): array
     {
-        return new self($this->subject, $this->body, $url);
+        return [
+            'subject' => $this->subject,
+            'body' => $this->body,
+            'url' => $this->url,
+        ];
     }
 }

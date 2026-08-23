@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use App\Actions\Cart\AddToCart;
@@ -29,7 +31,7 @@ class OrderHistorySeeder extends Seeder
     public function run(): void
     {
         $customer = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();
-        $purchaser = new Purchaser(
+        $purchaser = Purchaser::onAccount(
             $customer->id,
             $customer->email,
             $customer->email_verified_at?->toDateTimeImmutable(),
@@ -71,14 +73,14 @@ class OrderHistorySeeder extends Seeder
 
     private function shippingAddress(): ShippingAddress
     {
-        return new ShippingAddress(
-            'Casey Whitfield',
-            '48 Harbor Street',
-            null,
-            'Portland',
-            'Oregon',
-            '97201',
-            'US',
+        return ShippingAddress::to(
+            name: 'Casey Whitfield',
+            line1: '48 Harbor Street',
+            line2: null,
+            city: 'Portland',
+            region: 'Oregon',
+            postalCode: '97201',
+            country: 'US',
         );
     }
 }

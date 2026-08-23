@@ -1,27 +1,46 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Models\Payout;
+use DateMalformedStringException;
 use DateTimeImmutable;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection;
 
 final class RunWeeklyPayouts extends Command
 {
+    /** @var string */
     protected $signature = 'payouts:run {--as-of= : Settle as if it were this date, defaults to today}';
 
+    /** @var string */
     protected $description = 'Pay every seller the escrow released in the Monday-to-Sunday week that just ended';
 
     public function handle(RunWeeklyPayout $runWeeklyPayout): int
     {
-        $asOf = new DateTimeImmutable($this->option('as-of') ?? 'now');
+        $rawAsOf = $this->option('as-of');
+        $asOfInput = is_string($rawAsOf) && $rawAsOf !== '' ? $rawAsOf : null;
+
+        try {
+            $asOf = $asOfInput === null ? now()->toDateTimeImmutable() : new DateTimeImmutable($asOfInput);
+        } catch (DateMalformedStringException) {
+            $this->error("\"{$asOfInput}\" is not a date payouts can settle as of.");
+
+            return self::FAILURE;
+        }
+
         $period = PayoutPeriod::endingBefore($asOf);
 
         $this->info("Payout period {$period->label()}");
 
         $payouts = $runWeeklyPayout($asOf);
+
+        // One query names every seller about to be listed.
+        Collection::make($payouts)->load('seller');
 
         foreach ($payouts as $payout) {
             $this->line("{$payout->seller->displayName()} {$payout->amount()->format()}");

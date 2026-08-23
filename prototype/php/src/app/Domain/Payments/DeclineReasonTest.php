@@ -1,15 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Payments;
 
-use PHPUnit\Framework\TestCase;
-
-final class DeclineReasonTest extends TestCase
-{
-    public function test_it_reads_back_as_a_sentence_for_the_checkout_page(): void
-    {
-        $this->assertSame('Your card was declined.', DeclineReason::GenericDecline->message());
-        $this->assertSame('Your card has insufficient funds.', DeclineReason::InsufficientFunds->message());
-        $this->assertSame('That card number is not valid.', DeclineReason::InvalidCardNumber->message());
-    }
-}
+it('reads back as a sentence for the checkout page', function (DeclineReason $reason, string $expected): void {
+    expect($reason->message())->toBe($expected);
+})->with([
+    'generic decline' => [DeclineReason::GenericDecline, 'Your card was declined.'],
+    'insufficient funds' => [DeclineReason::InsufficientFunds, 'Your card has insufficient funds.'],
+    'invalid card number' => [DeclineReason::InvalidCardNumber, 'That card number is not valid.'],
+]);

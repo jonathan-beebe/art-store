@@ -6,14 +6,54 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 10
-- IMPRV: 1
-- MAINT: 1
+- IMPRV: 2
+- MAINT: 3
 - A11Y: 1
-- RFCTR: 1
-- BUG: 1
+- RFCTR: 9
+- BUG: 3
 
 ## Log
 
+- 2026-08-23:11:58:51 — MAINT-002 — done: PHPStan level max at 0 over app, database, routes, and the Pest sidecars (five Pest stubs, no ignores); make check exits 0 in ~32s; 733 tests at 100% lines; both sites walked on seeded data; README, architecture, review, identity docs current
+- 2026-08-23:11:22:14 — MAINT-002 — started
+- 2026-08-23:11:22:14 — IMPRV-001 — done: Behavior tests for the payout button, customer-link redirect guard, merge idempotency and chains, PayoutPeriod year boundary, upload size, search edges; factories for all 15 models; ListingSeeder and CustomerSeeder through actions; sidecar exception list emptied; 100% line coverage
+- 2026-08-23:10:45:20 — IMPRV-001 — started
+- 2026-08-23:10:45:20 — RFCTR-008 — done: Anonymous Blade components for the listing card, card fields, debug alert, form field, and both layouts; seller listings as Route::resource with PUT update; activity view folded into ListingController::show
+- 2026-08-23:10:28:14 — RFCTR-008 — started
+- 2026-08-23:10:28:14 — RFCTR-007 — done: OrderPaid and FulfillmentShipped events with after-commit listeners; ItemSold, OrderShipped, MagicLinkIssued as Laravel notifications on the database channel plus a SessionFlashChannel; notifications table in the framework shape with a morph map; MagicLinkDelivery port and Notify action removed
+- 2026-08-23:09:58:43 — RFCTR-007 — started
+- 2026-08-23:09:58:43 — RFCTR-006 — done: Status tally, activity window, and ledger balances grouped in SQL; Model::shouldBeStrict outside production; ShopLayoutComposer carries the header counts; payouts:run scheduled weekly with a test; PHPStan 2 -> 0
+- 2026-08-23:09:40:17 — RFCTR-006 — started
+- 2026-08-23:09:40:17 — RFCTR-005 — done: Status enums own label/isOnStorefront/awaitsPayment/retakesStockOnRetry, both StatusLabel classes removed, named and private constructors across app/Domain, EmailAddress renamed EmailNormalizer, final readonly actions, #[Override] on 20 sites, global customer() helper removed, one clock on Controller; PHPStan 3 -> 2
+- 2026-08-23:09:23:58 — RFCTR-005 — started
+- 2026-08-23:09:23:58 — RFCTR-004 — done: Listing owns sell/restock/changeStatusTo, Customer relations and currentCart replace CurrentCart, Money accessors on every cents column, Money equals/subtract/isPositive/__toString, Notification::to, latestPayment; PHPStan 4 -> 3
+- 2026-08-23:09:09:48 — RFCTR-004 — started
+- 2026-08-23:09:09:48 — RFCTR-003 — done: Five new form requests with to*() accessors, Rule::requiredIf and Rule::enum, ShippingAddress::to and Purchaser::forCheckout, CheckoutPurchaser removed; PHPStan 19 -> 4
+- 2026-08-23:08:50:20 — RFCTR-003 — started
+- 2026-08-23:08:50:20 — RFCTR-002 — done: Policies for Listing, Fulfillment, Order, Notification with denyAsNotFound; seller routes bind models; SellerController base; scoped delivered route; @can/@visitorCan on the ship and deliver forms; PHPStan 44 -> 19
+- 2026-08-23:08:32:39 — RFCTR-002 — started
+- 2026-08-23:08:32:31 — BUG-002 — done: Failed image writes, malformed --as-of, null card input, a two-case PaymentOutcome, a typed DailyActivity date, and tests pinning the encrypted identity cookie
+- 2026-08-23:08:32:31 — BUG-001 — done: DomainRuleViolation mapped once to a flashed error; checkout returns the shopper to the cart naming the unavailable item instead of a 500
+- 2026-08-23:08:15:37 — BUG-002 — started
+- 2026-08-23:08:15:37 — BUG-001 — started
+- 2026-08-23:08:11:39 — RFCTR-001 — done: converted 5 by-reference-closure test files to bindings, added cartWithOneListing/paidOrderWithTwoSellers to CommerceTestCase, rewrote SidecarsTest docblock and added stale-exception assertion, updated docs/architecture.md and README.md Testing sections; 485 tests / 1123 assertions, pint clean
+- 2026-08-23:07:41:24 — RFCTR-001 — started
+- 2026-08-23:09:00:00 — MAINT-001 — done: Pint clean (259 files, strict_types tree-wide), PHPStan level max at 47 errors (target ≤45; gap is RFCTR-002/RFCTR-003/BUG-002 territory, itemized in Working), tests/Pest.php binds sidecar base classes, 471 tests green, make check/analyse/lint added
+- 2026-08-23:07:30:00 — MAINT-001 — started
+
+- 2026-08-23:07:15:58 — MAINT-002 — defined: Final validation — analyzer at zero on app and tests, docs current
+- 2026-08-23:07:15:58 — IMPRV-001 — defined: Behavioral test gaps, factories for every model, and seeders through actions
+- 2026-08-23:07:15:58 — RFCTR-008 — defined: Blade components and resourceful seller routes
+- 2026-08-23:07:15:58 — RFCTR-007 — defined: Domain events and the Laravel notification subsystem
+- 2026-08-23:07:15:58 — RFCTR-006 — defined: Database-side aggregation, strict models, and a scheduled payout
+- 2026-08-23:07:15:58 — RFCTR-005 — defined: Domain polish — enums own their questions, value objects own their construction
+- 2026-08-23:07:15:58 — RFCTR-004 — defined: Cohesive models, relations, and money accessors
+- 2026-08-23:07:15:58 — RFCTR-003 — defined: Form requests and typed input for every write route
+- 2026-08-23:07:15:58 — RFCTR-002 — defined: Policies, scoped route bindings, and a seller base controller
+- 2026-08-23:07:15:58 — BUG-002 — defined: Defects the analyzer surfaced
+- 2026-08-23:07:15:58 — BUG-001 — defined: Checkout returns 500 when a cart line left the storefront
+- 2026-08-23:07:15:58 — RFCTR-001 — defined: Pest-style sidecar suite with datasets and architecture rules
+- 2026-08-23:07:15:58 — MAINT-001 — defined: Static analysis and lint gate with strict types and typed models
 - 2026-08-22:15:09:29 — FEAT-009 — done: `docs/ontology.md` — 26 entities (roles, catalog, buying, money, identity/messaging, decisions), one concept-level Mermaid diagram (10 boxes, 3 subgraphs), and Vocabulary notes covering the seller portal's "Orders" = Fulfillments
 - 2026-08-22:15:07:59 — FEAT-008 — done: Clean first run from an empty checkout, 471 tests green at 98.20% lines (100% on app/Domain), a `make smoke` end-to-end walk from seller sign-in to weekly payout, gd added so listing uploads are content-verified, and docs/review.md mapping the brief to routes and tests
 - 2026-08-22:15:06:29 — FEAT-009 — started

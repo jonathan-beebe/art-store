@@ -1,72 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Reports;
 
 use App\Domain\Listings\ListingEventType;
 use DateTimeImmutable;
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 
-final class ActivityTimelineTest extends TestCase
-{
-    public function test_it_returns_one_row_per_day_oldest_first(): void
-    {
-        $days = ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 17:30:00'), 3);
+it('returns one row per day, oldest first', function (): void {
+    $days = ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 17:30:00'), 3);
 
-        $this->assertCount(3, $days);
-        $this->assertSame(['2026-08-20', '2026-08-21', '2026-08-22'], array_map(fn (DailyActivity $day): string => $day->date, $days));
-    }
+    expect($days)->toHaveCount(3)
+        ->and(array_map(fn (DailyActivity $day): string => $day->date->format('Y-m-d'), $days))
+        ->toBe(['2026-08-20', '2026-08-21', '2026-08-22']);
+});
 
-    public function test_it_reads_counts_by_date_and_event_type(): void
-    {
-        $counts = [
-            '2026-08-21' => [
-                ListingEventType::View->value => 4,
-                ListingEventType::Favorite->value => 1,
-                ListingEventType::CartAdd->value => 2,
-            ],
-        ];
+it('reads counts by date and event type', function (): void {
+    $counts = [
+        '2026-08-21' => [
+            ListingEventType::View->value => 4,
+            ListingEventType::Favorite->value => 1,
+            ListingEventType::CartAdd->value => 2,
+        ],
+    ];
 
-        $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
+    $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
 
-        $this->assertSame(4, $days[0]->views);
-        $this->assertSame(1, $days[0]->favorites);
-        $this->assertSame(2, $days[0]->cartAdds);
-    }
+    expect($days[0]->views)->toBe(4)
+        ->and($days[0]->favorites)->toBe(1)
+        ->and($days[0]->cartAdds)->toBe(2);
+});
 
-    public function test_it_fills_days_with_no_events_with_zeroes(): void
-    {
-        $counts = ['2026-08-22' => [ListingEventType::View->value => 7]];
+it('fills days with no events with zeroes', function (): void {
+    $counts = ['2026-08-22' => [ListingEventType::View->value => 7]];
 
-        $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
+    $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
 
-        $this->assertSame(0, $days[0]->views);
-        $this->assertSame(0, $days[0]->favorites);
-        $this->assertSame(7, $days[1]->views);
-    }
+    expect($days[0]->views)->toBe(0)
+        ->and($days[0]->favorites)->toBe(0)
+        ->and($days[1]->views)->toBe(7);
+});
 
-    public function test_it_ignores_counts_outside_the_window(): void
-    {
-        $counts = ['2026-07-01' => [ListingEventType::View->value => 99]];
+it('ignores counts outside the window', function (): void {
+    $counts = ['2026-07-01' => [ListingEventType::View->value => 99]];
 
-        $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
+    $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
 
-        $this->assertSame(0, array_sum(array_map(fn (DailyActivity $day): int => $day->total(), $days)));
-    }
+    expect(array_sum(array_map(fn (DailyActivity $day): int => $day->total(), $days)))->toBe(0);
+});
 
-    public function test_it_ignores_event_types_the_report_does_not_show(): void
-    {
-        $counts = ['2026-08-22' => [ListingEventType::Unfavorite->value => 5]];
+it('ignores event types the report does not show', function (): void {
+    $counts = ['2026-08-22' => [ListingEventType::Unfavorite->value => 5]];
 
-        $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 1);
+    $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 1);
 
-        $this->assertSame(0, $days[0]->total());
-    }
+    expect($days[0]->total())->toBe(0);
+});
 
-    public function test_it_rejects_a_window_shorter_than_a_day(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
+it('rejects a window shorter than a day', function (): void {
+    expect(fn () => ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 09:00:00'), 0))
+        ->toThrow(InvalidArgumentException::class);
+});
 
-        ActivityTimeline::lastDays([], new DateTimeImmutable('2026-08-22 09:00:00'), 0);
-    }
-}
+it('opens the window at midnight on the oldest day it covers', function (): void {
+    $first = ActivityTimeline::firstDay(new DateTimeImmutable('2026-08-22 17:30:00'), 14);
+
+    expect($first->format('Y-m-d H:i:s'))->toBe('2026-08-09 00:00:00');
+});
+
+it('rejects a window shorter than a day when naming its first day', function (): void {
+    expect(fn () => ActivityTimeline::firstDay(new DateTimeImmutable('2026-08-22 09:00:00'), 0))
+        ->toThrow(InvalidArgumentException::class);
+});

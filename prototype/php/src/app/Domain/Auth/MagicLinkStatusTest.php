@@ -1,64 +1,28 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Auth;
 
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 
-final class MagicLinkStatusTest extends TestCase
-{
-    public function test_a_fresh_unconsumed_link_is_usable(): void
-    {
-        $status = MagicLinkStatus::of(
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-            null,
-            new DateTimeImmutable('2026-08-22 12:00:00'),
-        );
+it('derives status from expiry, consumption, and now', function (
+    string $expiresAt,
+    ?string $consumedAt,
+    string $now,
+    MagicLinkStatus $expected,
+): void {
+    $status = MagicLinkStatus::of(
+        new DateTimeImmutable($expiresAt),
+        $consumedAt === null ? null : new DateTimeImmutable($consumedAt),
+        new DateTimeImmutable($now),
+    );
 
-        $this->assertSame(MagicLinkStatus::Usable, $status);
-    }
-
-    public function test_a_link_is_expired_once_now_reaches_the_expiry(): void
-    {
-        $status = MagicLinkStatus::of(
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-            null,
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-        );
-
-        $this->assertSame(MagicLinkStatus::Expired, $status);
-    }
-
-    public function test_a_link_is_expired_after_the_expiry(): void
-    {
-        $status = MagicLinkStatus::of(
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-            null,
-            new DateTimeImmutable('2026-08-22 12:15:01'),
-        );
-
-        $this->assertSame(MagicLinkStatus::Expired, $status);
-    }
-
-    public function test_a_consumed_link_is_consumed(): void
-    {
-        $status = MagicLinkStatus::of(
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-            new DateTimeImmutable('2026-08-22 12:05:00'),
-            new DateTimeImmutable('2026-08-22 12:06:00'),
-        );
-
-        $this->assertSame(MagicLinkStatus::Consumed, $status);
-    }
-
-    public function test_consumption_outranks_expiry(): void
-    {
-        $status = MagicLinkStatus::of(
-            new DateTimeImmutable('2026-08-22 12:15:00'),
-            new DateTimeImmutable('2026-08-22 12:05:00'),
-            new DateTimeImmutable('2026-08-22 13:00:00'),
-        );
-
-        $this->assertSame(MagicLinkStatus::Consumed, $status);
-    }
-}
+    expect($status)->toBe($expected);
+})->with([
+    'a fresh unconsumed link is usable' => ['2026-08-22 12:15:00', null, '2026-08-22 12:00:00', MagicLinkStatus::Usable],
+    'a link is expired once now reaches the expiry' => ['2026-08-22 12:15:00', null, '2026-08-22 12:15:00', MagicLinkStatus::Expired],
+    'a link is expired after the expiry' => ['2026-08-22 12:15:00', null, '2026-08-22 12:15:01', MagicLinkStatus::Expired],
+    'a consumed link is consumed' => ['2026-08-22 12:15:00', '2026-08-22 12:05:00', '2026-08-22 12:06:00', MagicLinkStatus::Consumed],
+    'consumption outranks expiry' => ['2026-08-22 12:15:00', '2026-08-22 12:05:00', '2026-08-22 13:00:00', MagicLinkStatus::Consumed],
+]);

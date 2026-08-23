@@ -1,26 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Payments;
 
-use PHPUnit\Framework\TestCase;
+it('carries no decline reason on approval', function (): void {
+    $decision = CardDecision::approved('4242');
 
-final class CardDecisionTest extends TestCase
-{
-    public function test_an_approval_carries_no_decline_reason(): void
-    {
-        $decision = CardDecision::approved('4242');
+    expect($decision->isApproved)->toBeTrue()
+        ->and($decision->lastFour)->toBe('4242')
+        ->and($decision->declineReason)->toBeNull();
+});
 
-        $this->assertTrue($decision->isApproved);
-        $this->assertSame('4242', $decision->lastFour);
-        $this->assertNull($decision->declineReason);
-    }
+it('carries its reason on decline', function (): void {
+    $decision = CardDecision::declined('9995', DeclineReason::InsufficientFunds);
 
-    public function test_a_decline_carries_its_reason(): void
-    {
-        $decision = CardDecision::declined('9995', DeclineReason::InsufficientFunds);
-
-        $this->assertFalse($decision->isApproved);
-        $this->assertSame('9995', $decision->lastFour);
-        $this->assertSame(DeclineReason::InsufficientFunds, $decision->declineReason);
-    }
-}
+    expect($decision->isApproved)->toBeFalse()
+        ->and($decision->lastFour)->toBe('9995')
+        ->and($decision->declineReason)->toBe(DeclineReason::InsufficientFunds);
+});

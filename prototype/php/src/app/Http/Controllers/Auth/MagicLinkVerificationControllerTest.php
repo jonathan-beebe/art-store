@@ -1,163 +1,154 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Auth;
 
 use App\Models\Customer;
 use App\Models\MagicLink;
 use App\Models\Seller;
 use App\Support\CustomerIdentity;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Session;
 
-final class MagicLinkVerificationControllerTest extends TestCase
-{
-    use RefreshDatabase;
+$flashedLink = fn (): string => Arr::string(Session::all(), 'debug_magic_link');
 
-    public function test_a_first_time_seller_gets_an_account_and_lands_on_the_dashboard(): void
-    {
-        $response = $this->get($this->sellerLinkFor('artist@example.com'));
+$sellerLinkFor = function (string $email) use ($flashedLink): string {
+    test()->post('/seller/login', ['email' => $email]);
 
-        $response->assertRedirect(route('seller.dashboard'));
-        $this->assertAuthenticated('seller');
-        $seller = Seller::sole();
-        $this->assertSame('artist@example.com', $seller->email);
-        $this->assertNotNull($seller->email_verified_at);
-    }
+    return $flashedLink();
+};
 
-    public function test_a_returning_seller_signs_in_to_the_same_account(): void
-    {
-        $seller = Seller::factory()->create(['email' => 'artist@example.com']);
+$customerLinkFor = function (string $email, ?string $redirectTo = null) use ($flashedLink): string {
+    test()->post('/login', array_filter(['email' => $email, 'redirect_to' => $redirectTo]));
 
-        $this->get($this->sellerLinkFor('Artist@Example.com'));
+    return $flashedLink();
+};
 
-        $this->assertSame(1, Seller::count());
-        $this->assertAuthenticatedAs($seller->fresh(), 'seller');
-    }
+it('gives a first-time seller an account and lands them on the dashboard', function () use ($sellerLinkFor): void {
+    $response = $this->get($sellerLinkFor('artist@example.com'));
 
-    public function test_an_expired_link_is_refused(): void
-    {
-        config(['magic_links.expiry_minutes' => 15]);
-        $url = $this->sellerLinkFor('artist@example.com');
+    $response->assertRedirect(route('seller.dashboard'));
+    $this->assertAuthenticated('seller');
+    $seller = Seller::sole();
+    expect($seller->email)->toBe('artist@example.com')
+        ->and($seller->email_verified_at)->not->toBeNull();
+});
 
-        $this->travel(16)->minutes();
-        $response = $this->get($url);
+it('signs a returning seller in to the same account', function () use ($sellerLinkFor): void {
+    $seller = Seller::factory()->create(['email' => 'artist@example.com']);
 
-        $response->assertRedirect(route('auth.seller.login'));
-        $response->assertSessionHas('error', 'That sign-in link has expired. Ask for a new one.');
-        $this->assertGuest('seller');
-        $this->assertSame(0, Seller::count());
-    }
+    $this->get($sellerLinkFor('Artist@Example.com'));
 
-    public function test_a_link_only_works_once(): void
-    {
-        $url = $this->sellerLinkFor('artist@example.com');
-        $this->get($url);
-        $this->post('/seller/logout');
+    expect(Seller::count())->toBe(1);
+    $this->assertAuthenticatedAs($seller->refresh(), 'seller');
+});
 
-        $response = $this->get($url);
+it('refuses an expired link', function () use ($sellerLinkFor): void {
+    config(['magic_links.expiry_minutes' => 15]);
+    $url = $sellerLinkFor('artist@example.com');
 
-        $response->assertRedirect(route('auth.seller.login'));
-        $response->assertSessionHas('error', 'That sign-in link has already been used. Ask for a new one.');
-        $this->assertGuest('seller');
-    }
+    $this->travel(16)->minutes();
+    $response = $this->get($url);
 
-    public function test_an_unknown_token_is_refused(): void
-    {
-        $response = $this->get('/auth/magic/'.str_repeat('a', 80));
+    $response->assertRedirect(route('auth.seller.login'));
+    $response->assertSessionHas('error', 'That sign-in link has expired. Ask for a new one.');
+    $this->assertGuest('seller');
+    expect(Seller::count())->toBe(0);
+});
 
-        $response->assertRedirect(route('auth.customer.login'));
-        $response->assertSessionHas('error', 'That sign-in link is not valid. Ask for a new one.');
-    }
+it('only lets a link work once', function () use ($sellerLinkFor): void {
+    $url = $sellerLinkFor('artist@example.com');
+    $this->get($url);
+    $this->post('/seller/logout');
 
-    public function test_verification_marks_the_link_consumed(): void
-    {
-        $this->get($this->sellerLinkFor('artist@example.com'));
+    $response = $this->get($url);
 
-        $this->assertNotNull(MagicLink::sole()->consumed_at);
-    }
+    $response->assertRedirect(route('auth.seller.login'));
+    $response->assertSessionHas('error', 'That sign-in link has already been used. Ask for a new one.');
+    $this->assertGuest('seller');
+});
 
-    public function test_an_anonymous_customer_claims_their_own_row(): void
-    {
-        $anonymous = Customer::factory()->anonymous()->create();
+it('refuses an unknown token', function (): void {
+    $response = $this->get('/auth/magic/'.str_repeat('a', 80));
 
-        $response = $this->withCookie(CustomerIdentity::COOKIE, (string) $anonymous->id)
-            ->get($this->customerLinkFor('shopper@example.com'));
+    $response->assertRedirect(route('auth.customer.login'));
+    $response->assertSessionHas('error', 'That sign-in link is not valid. Ask for a new one.');
+});
 
-        $response->assertRedirect(route('shop.account'));
-        $response->assertCookie(CustomerIdentity::COOKIE, (string) $anonymous->id);
-        $this->assertAuthenticatedAs($anonymous->fresh(), 'customer');
-        $this->assertSame(1, Customer::count());
-        $this->assertSame('shopper@example.com', $anonymous->fresh()->email);
-        $this->assertDatabaseCount('customer_merges', 0);
-    }
+it('marks the link consumed on verification', function () use ($sellerLinkFor): void {
+    $this->get($sellerLinkFor('artist@example.com'));
 
-    public function test_an_anonymous_customer_merges_into_the_account_that_owns_the_address(): void
-    {
-        $verified = Customer::factory()->create(['email' => 'shopper@example.com']);
-        $anonymous = Customer::factory()->anonymous()->create();
+    expect(MagicLink::sole()->consumed_at)->not->toBeNull();
+});
 
-        $response = $this->withCookie(CustomerIdentity::COOKIE, (string) $anonymous->id)
-            ->get($this->customerLinkFor('shopper@example.com'));
+it('lets an anonymous customer claim their own row', function () use ($customerLinkFor): void {
+    $anonymous = Customer::factory()->anonymous()->create();
 
-        $response->assertRedirect(route('shop.account'));
-        $response->assertCookie(CustomerIdentity::COOKIE, (string) $verified->id);
-        $this->assertAuthenticatedAs($verified->fresh(), 'customer');
-        $this->assertDatabaseHas('customer_merges', [
-            'anonymous_customer_id' => $anonymous->id,
-            'customer_id' => $verified->id,
-        ]);
-    }
+    $response = $this->withCookie(CustomerIdentity::COOKIE, (string) $anonymous->id)
+        ->get($customerLinkFor('shopper@example.com'));
 
-    public function test_a_customer_with_no_cookie_gets_a_fresh_verified_account(): void
-    {
-        $response = $this->get($this->customerLinkFor('shopper@example.com'));
+    $response->assertRedirect(route('shop.account'));
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $anonymous->id);
+    $this->assertAuthenticatedAs($anonymous->refresh(), 'customer');
+    expect(Customer::count())->toBe(1)
+        ->and($anonymous->email)->toBe('shopper@example.com');
+    $this->assertDatabaseCount('customer_merges', 0);
+});
 
-        $customer = Customer::sole();
-        $response->assertCookie(CustomerIdentity::COOKIE, (string) $customer->id);
-        $this->assertAuthenticatedAs($customer, 'customer');
-        $this->assertNotNull($customer->email_verified_at);
-    }
+it('merges an anonymous customer into the account that owns the address', function () use ($customerLinkFor): void {
+    $verified = Customer::factory()->create(['email' => 'shopper@example.com']);
+    $anonymous = Customer::factory()->anonymous()->create();
 
-    public function test_verifying_an_address_a_guest_order_left_unverified_marks_it_verified(): void
-    {
-        $customer = Customer::factory()->create([
-            'email' => 'shopper@example.com',
-            'email_verified_at' => null,
-        ]);
+    $response = $this->withCookie(CustomerIdentity::COOKIE, (string) $anonymous->id)
+        ->get($customerLinkFor('shopper@example.com'));
 
-        $this->get($this->customerLinkFor('shopper@example.com'));
+    $response->assertRedirect(route('shop.account'));
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $verified->id);
+    $this->assertAuthenticatedAs($verified->refresh(), 'customer');
+    $this->assertDatabaseHas('customer_merges', [
+        'anonymous_customer_id' => $anonymous->id,
+        'customer_id' => $verified->id,
+    ]);
+});
 
-        $this->assertNotNull($customer->fresh()->email_verified_at);
-    }
+it('gives a customer with no cookie a fresh verified account', function () use ($customerLinkFor): void {
+    $response = $this->get($customerLinkFor('shopper@example.com'));
 
-    public function test_it_honours_a_local_destination_on_the_link(): void
-    {
-        $response = $this->get($this->customerLinkFor('shopper@example.com', '/checkout'));
+    $customer = Customer::sole();
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $customer->id);
+    $this->assertAuthenticatedAs($customer, 'customer');
+    expect($customer->email_verified_at)->not->toBeNull();
+});
 
-        $response->assertRedirect('/checkout');
-    }
+it('marks a guest order address verified once verified', function () use ($customerLinkFor): void {
+    $customer = Customer::factory()->create([
+        'email' => 'shopper@example.com',
+        'email_verified_at' => null,
+    ]);
 
-    public function test_it_ignores_a_destination_on_another_host(): void
-    {
-        $this->post('/login', ['email' => 'shopper@example.com']);
-        MagicLink::sole()->forceFill(['redirect_to' => 'http://evil.example/steal'])->save();
+    $this->get($customerLinkFor('shopper@example.com'));
 
-        $response = $this->get(session('debug_magic_link'));
+    expect($customer->refresh()->email_verified_at)->not->toBeNull();
+});
 
-        $response->assertRedirect(route('shop.account'));
-    }
+it('honours a local destination on the link', function () use ($customerLinkFor): void {
+    $response = $this->get($customerLinkFor('shopper@example.com', '/checkout'));
 
-    private function sellerLinkFor(string $email): string
-    {
-        $this->post('/seller/login', ['email' => $email]);
+    $response->assertRedirect('/checkout');
+});
 
-        return session('debug_magic_link');
-    }
+it('ignores a destination on another host', function () use ($flashedLink): void {
+    $this->post('/login', ['email' => 'shopper@example.com']);
+    MagicLink::sole()->forceFill(['redirect_to' => 'http://evil.example/steal'])->save();
 
-    private function customerLinkFor(string $email, ?string $redirectTo = null): string
-    {
-        $this->post('/login', array_filter(['email' => $email, 'redirect_to' => $redirectTo]));
+    $response = $this->get($flashedLink());
 
-        return session('debug_magic_link');
-    }
-}
+    $response->assertRedirect(route('shop.account'));
+});
+
+it('keeps a customer link out of the seller portal', function () use ($customerLinkFor): void {
+    $response = $this->get($customerLinkFor('shopper@example.com', '/seller/dashboard'));
+
+    $response->assertRedirect(route('shop.account'));
+});

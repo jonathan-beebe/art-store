@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', 'Checkout — Art Store')
-
-@section('content')
+<x-layouts.shop title="Checkout — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Checkout</h1>
 
     <div class="mt-12 grid gap-16 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -52,7 +48,7 @@
             @if ($isVerified)
                 <h2 class="mt-12 text-sm font-medium uppercase tracking-wide text-neutral-500">Payment</h2>
 
-                @include('shop.partials.card-fields')
+                <x-card-fields />
             @endif
 
             <button type="submit" class="mt-10 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
@@ -78,4 +74,4 @@
             </p>
         </aside>
     </div>
-@endsection
+</x-layouts.shop>

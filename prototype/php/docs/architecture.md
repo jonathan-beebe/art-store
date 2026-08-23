@@ -33,20 +33,55 @@ flowchart TD
     entry["Entry: routes/*.php, app/Providers"] --> coord
     coord["Coordination: app/Http/Controllers, app/Actions, app/Console"] --> core
     coord --> adapters
-    adapters["Adapters: app/Models (Eloquent), app/Support/MagicLinkDelivery, resources/views"] --> core
+    adapters["Adapters: app/Models (Eloquent), app/Notifications, resources/views"] --> core
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Readonly classes, enums, static functions. Receives time/ids as parameters. Unit tested without doubles. |
-| Adapters | `app/Models/`, `app/Support/`, `resources/views/` | Eloquent models (thin: relations, casts, scopes), the magic-link delivery port implementations, Blade views. |
-| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Console/Commands/` | Sequence core + adapters. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `app/Providers` | Wiring only. |
+| Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
+| Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
+| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
 tense (`OrderPlaced`).
+
+### Refusals
+
+A rule the core refuses is an `App\Domain\DomainRuleViolation` — an illegal
+status transition (`ListingStatus`, `OrderStatus`, `FulfillmentStatus`), a sale
+the stock cannot cover (`ListingStock`), a cart line the listing no longer
+supports (`CartQuantity`), an order with no items (`CartTotals`). Its message
+is written for the person who tripped it. `bootstrap/app.php` maps it once, for
+every route, to `back()->withInput()->withErrors(...)`, and both layouts render
+`$errors`; controllers therefore carry no pre-flight copy of a guard the action
+already holds. `CheckoutController::place` is the one route that overrides the
+destination: it sends the shopper to the cart, where the line the message names
+is marked unavailable. Ownership stays separate — a row that is not the
+visitor's is still a 404.
+
+### The clock
+
+`app/Domain` reads no clock (`tests/Arch.php` enforces it), so every instant
+comes from the shell. `Controller::now(): DateTimeImmutable` is the one place
+that produces it, and every controller calls it.
+
+- Actions take `DateTimeImmutable $now` as their last parameter — the commerce
+  ones (`PlaceOrder`, `FinalizeOrder`, `MarkShipped`, `ConfirmDelivered`,
+  `AddToCart`, `ToggleFavorite`, `RecordListingEvent`, `RunWeeklyPayout`) and
+  the identity ones (`SendMagicLink`, `SignInSeller`, `SignInCustomer`,
+  `ClaimCustomerIdentity`) alike. No action calls `now()`.
+- Model writes that stamp a time take it too: `MagicLink::consume($now)`,
+  `MagicLink::statusAt($now)`. The exception is the framework's
+  `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
+  frozen by `travelTo()`, but not handed in.
+- `RunWeeklyPayouts` (the artisan command) is the one other producer: a console
+  run has no controller, so it reads `now()` or parses `--as-of`.
+
+A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
+because one call per request produces the instant they all read.
 
 ## Sites
 
@@ -55,20 +90,68 @@ tense (`OrderPlaced`).
 | Seller portal | `/seller` | `seller` (session, provider `sellers`) | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
 | Storefront | `/` | `customer` (session, provider `customers`) + anonymous customer cookie | Bright, open, white space, large imagery, brand recedes. |
 
-Each site has its own Blade layout (`resources/views/layouts/seller.blade.php`,
-`resources/views/layouts/shop.blade.php`) and its own route file. Both layouts
-render the **debug alert** partial that shows any magic link flashed to the
-session.
+Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
+`<x-layouts.shop>` in `resources/views/components/layouts/`), and its own route
+file. Both layouts render the `<x-debug-alert>` component that shows any magic
+link flashed to the session.
+
+### Authorization
+
+Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
+`DatabaseNotification $notification`, `Order $order`; the storefront listing
+binds by slug) and then authorizes it. `app/Policies` holds the rules:
+
+| Policy | Abilities | Actor |
+| --- | --- | --- |
+| `ListingPolicy` | `view`, `update` | `Seller` |
+| `FulfillmentPolicy` | `view`, `update`, `ship` | `Seller` |
+| `FulfillmentPolicy` | `confirmDelivery` | `Customer` |
+| `OrderPolicy` | `view`, `pay` | `Customer` |
+| `NotificationPolicy` | `markRead` | `Seller` or `Customer` |
+
+Ownership denials are `Response::denyAsNotFound()`: a row that is not the
+actor's answers 404, so an id outside their own is never confirmed to exist.
+
+A write route backed by a form request authorizes inside that request's
+`authorize()`, which returns the same policy `Response` a controller would have
+raised. A form request runs before the controller, so the ownership answer
+lands before any validation message can describe a row the actor cannot see.
+
+`view` and `update` answer ownership alone — the whole authorization question a
+request has to pass, since the action behind it holds the state rule and
+phrases its own refusal (see **Refusals**). `ship` and `confirmDelivery` add
+the state each form needs to be worth offering, and only the views ask them:
+`@can('ship', $fulfillment)` in the seller portal, `@visitorCan` on the
+storefront. A double submission therefore still lands on the form's page with
+the domain's message rather than on a 403.
+
+Who the actor is differs per site. `Authenticate::using('seller')` makes the
+seller guard the default for the request, so seller controllers call
+`$this->authorize(...)`, their form requests call `Gate::inspect(...)`, and
+seller views use `@can`. The storefront visitor is
+resolved by `ResolveCustomerIdentity` middleware rather than signed in on a
+guard, so `ShopController::authorizeVisitor()` names them
+(`Gate::forUser($this->visitor())`) and the `@visitorCan` Blade directive
+registered in `AppServiceProvider` asks the same policies about the same
+visitor.
+
+`SellerController` and `ShopController` are the two base controllers; each
+exposes the actor behind the request (`seller()`, `visitor()`) as a non-null
+model. Both extend `App\Http\Controllers\Controller`, which holds the clock
+(see **The clock**).
 
 ## Identity
 
 - Passwordless. A `magic_links` row holds a hashed token, an `email`, an
   `actor_type` (`seller` | `customer`), `expires_at`, `consumed_at`, and an
   optional `redirect_to`.
-- Delivery is a port: `App\Support\MagicLinkDelivery\MagicLinkDelivery`
-  (interface) with `SessionFlashMagicLinkDelivery` (prototype: flash the URL so
-  the layout prints it in a debug alert) and a stubbed `MailMagicLinkDelivery`
-  (the hook for real email). Bound in a service provider from config.
+- Delivery is a notification: `App\Notifications\MagicLinkIssued`, sent to the
+  address rather than to a row (`Notification::route(...)`, an
+  `AnonymousNotifiable`) because the person may have no row yet.
+  `config/magic_links.php` names the channel: `session` is
+  `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
+  both layouts print it in a debug alert; `mail` is the framework's mail
+  channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
 - Customers: every visitor gets a `customers` row with `email = null`, id stored
   in an encrypted cookie `customer_id`. Verifying an email either claims that
   row (first time) or **merges** the anonymous row into the existing verified
@@ -107,13 +190,13 @@ erDiagram
     sellers ||--o{ payouts : receives
     payouts ||--o{ ledger_entries : settles
     customers ||--o{ customer_merges : merges
-    notifications }o--|| sellers : notifies
-    notifications }o--|| customers : notifies
 ```
 
-`magic_links` is deliberately absent: it has no foreign key to `sellers` or
-`customers`, only an `email` string plus `actor_type`. Full column list and
-both `customer_merges` foreign keys: `docs/data-model.md`.
+`magic_links` and `notifications` are deliberately absent: neither holds a
+foreign key to `sellers` or `customers`. A magic link matches on an `email`
+string plus `actor_type`; a notification names its recipient with a morph type
+and id. Full column list and both `customer_merges` foreign keys:
+`docs/data-model.md`.
 
 ### Listing status
 
@@ -146,8 +229,13 @@ moves `awaiting_shipment → shipped → delivered`.
 - Payout period = Monday–Sunday. `php artisan payouts:run {--as-of=}` creates
   one `payouts` row per seller for all `released` amounts not yet paid out, as
   of the end of the most recent completed week. Period math is pure
-  (`App\Domain\Escrow\PayoutPeriod`). The seller portal exposes a debug "Run
-  weekly payout now" button for testing.
+  (`App\Domain\Escrow\PayoutPeriod`). `routes/console.php` schedules it
+  `weeklyOn(1, '02:00')` — the Monday after a period closes. The seller portal
+  exposes a debug "Run weekly payout now" button for testing.
+- One query reads the whole ledger: `LedgerEntry::totalledByType()` sums
+  `amount_cents` per (seller, type), and `LedgerBalance::from()` folds those
+  summed movements. The payout run bounds it by `occurred_at <= period.end`;
+  `Seller::escrowBalance()` leaves it unbounded.
 - Ledger flowchart, `payouts:run` sequence diagram, and a worked $100 example:
   `docs/escrow.md`.
 
@@ -166,33 +254,132 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 
 ### Notifications
 
-`notifications` rows (nullable `seller_id`, nullable `customer_id` — exactly
-one is set per row, subject, body, url, read_at) shown in each site's header.
-The domain-facing name for which column is set is
-`App\Domain\Notifications\RecipientType`; `Notification::recipientColumn()`
-maps it. Seller receives "Item sold" when an order is finalized to `paid`;
-customer receives "Order shipped" when a fulfillment is marked shipped. The
-same port shape as magic links will carry email later.
+A business moment is an event, and what someone is told about it is a
+notification:
+
+```mermaid
+flowchart LR
+    finalize["FinalizeOrder"] -- "OrderPaid" --> sale["NotifySellerOfSale"]
+    ship["MarkShipped"] -- "FulfillmentShipped" --> shipment["NotifyCustomerOfShipment"]
+    sale -- "ItemSold" --> seller["Seller (Notifiable)"]
+    shipment -- "OrderShipped" --> customer["Customer (Notifiable)"]
+    seller --> inbox[("notifications")]
+    customer --> inbox
+```
+
+- Events (`App\Events\OrderPaid`, `App\Events\FulfillmentShipped`) are
+  `final readonly`, carry the model plus the instant, and are dispatched from
+  inside the action's transaction.
+- Listeners (`App\Listeners\NotifySellerOfSale`,
+  `App\Listeners\NotifyCustomerOfShipment`) implement
+  `ShouldHandleEventsAfterCommit`, so a rolled-back transaction tells nobody
+  and no delivery runs with the transaction still open.
+- Notifications (`App\Notifications\ItemSold`,
+  `App\Notifications\OrderShipped`) extend
+  `Illuminate\Notifications\Notification`. `via()` reads
+  `config('notifications.channels')` — `database` alone by default, with
+  `mail` a comma away; `toArray()` and `toMail()` both come from
+  `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
+  email say the same thing.
+- `Seller` and `Customer` are `Notifiable`. Rows land in Laravel's
+  `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
+  `data` json, `read_at`) and are read back as
+  `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
+  morph alias `seller` or `customer`, which is what
+  `App\Domain\Notifications\RecipientType` names; `AppServiceProvider`
+  enforces that map.
+- Each site renders its own inbox from `$notification->data`, counts
+  `unreadNotifications()`, and marks one read with `markAsRead()`.
 
 ## Testing
 
-- PHPUnit (ships with Laravel). Tests are **sidecars**: `Foo.php` →
+- Pest, `it()`/`test()` functions with `beforeEach`, no PHPUnit classes
+  outside `tests/*TestCase.php`. Tests are **sidecars**: `Foo.php` →
   `FooTest.php` in the same directory. `phpunit.xml` scans `app/`, `routes/`,
   and `database/` for `*Test.php` (the last one added for the seeders under
   `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
+- `tests/Pest.php` binds each sidecar directory to the base class its test
+  files need: `Tests\CommerceTestCase` for `app/Actions`,
+  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Seller`,
+  `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
+  `app/Notifications`, and `app/Policies`; `Tests\StorefrontTestCase` for
+  `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
+  `app/View/Composers`, and `tests/SmokeTest.php`;
+  `Tests\TestCase` alone for `routes/`;
+  `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
+  `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
+- Every model under `app/Models` has a factory under `database/factories`,
+  with a state per meaningful status (`OrderFactory::paid()`,
+  `FulfillmentFactory::shipped()`, `PaymentFactory::declined()`,
+  `MagicLinkFactory::consumed()`, `ListingFactory::archived()`, and the like).
+  A test reaches for `Model::factory()->create([...])` for a plain row and for
+  the action walk (below) only when the row's *lifecycle* — not just its
+  final shape — is what the test is about.
+- A repeated fixture is a public method on `Tests\CommerceTestCase`
+  (`cartWithOneListing()`, `paidOrderWithTwoSellers()`,
+  `shippedFulfillmentFor()`, `deliveredFulfillmentFor()`); a fixture used by
+  one file is a closure declared at the top of that file and pulled into each
+  test with `use ($fixture)`, reaching the running test case through `test()`.
+- Tabulated input/output shapes are datasets: inline `->with([...])` or a
+  file-local `dataset()` call at the top of the sidecar. Named datasets
+  declared in `tests/Pest.php` do not resolve from sidecars under `app/`
+  (dataset scope is `tests/`), so the suite keeps datasets inline or
+  file-local instead of a shared library.
+- `tests/Arch.php` enforces the layer rules: `App\Domain` uses nothing from
+  `App\Models`, `App\Http`, `App\Actions`, `App\Console`,
+  `Illuminate\Database`, or facades, and calls no clock/random functions;
+  every class under `App\Actions` is final and invokable; controllers do not
+  use the `DB` facade; no debug functions anywhere; `env()` only in
+  `config/`, never under `App`; every file declares strict types — plus
+  Pest's `laravel` and `security` presets. The preset's `ignoring` list names
+  one class at a time rather than a namespace: the nine controllers whose
+  route methods are action verbs (`CartController::add`,
+  `CheckoutController::place`, `FavoriteController::toggle`,
+  `OrderPaymentController::pay`, `AccountController::readNotification`,
+  `NotificationController::markRead`, `SignOutController::seller`/`customer`,
+  and the two `LoginController::send` pairs), `App\Domain` for enums that live
+  beside the concept they model, `App\Console\Commands\RunWeeklyPayouts` for
+  its artisan command name, `App\Notifications\Channels` for a delivery
+  channel, which is not itself a notification, and
+  `App\Http\Requests\Shop\ShopRequest`, the abstract base whose children
+  hold the rules. Every other controller is held to the preset's REST method
+  vocabulary.
+- `tests/SidecarsTest.php` asserts every non-abstract, non-interface,
+  non-enum, non-trait class under `app/` has a sidecar, against a maintained
+  list of exceptions (classes covered by another file's tests, or with no
+  independently testable behavior); a second assertion fails if any
+  exception's sidecar now exists, so the list can only shrink.
 - One exception to the sidecar rule: `tests/SmokeTest.php`, the end-to-end
   walk, has no production file to sit beside. It is its own `Smoke` testsuite
   (`make smoke`) and runs inside `make test` as well.
-- Core tests (`app/Domain/**`) extend `PHPUnit\Framework\TestCase` — no app
-  boot, no database, no doubles.
-- Coordination tests (controllers, actions, commands) extend `Tests\TestCase`
-  with `RefreshDatabase` against in-memory SQLite; they drive HTTP and assert
-  on rendered HTML and database state.
+- Core tests (`app/Domain/**`) need no app boot, no database, no doubles.
+- Coordination tests (controllers, actions, commands) run against in-memory
+  SQLite; they drive HTTP and assert on rendered HTML and database state.
+  `Event::fake([...])` and `Notification::fake()` cover "something was sent";
+  what an inbox shows is asserted through the page that renders it.
 - Coverage via `pcov`: `composer test:coverage` prints a text summary and
-  writes `coverage/`. Targets: ≥ 90% on `app/Domain`, ≥ 80% overall — the
-  actual numbers are FEAT-008's to report, in `docs/review.md`.
+  writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
+- The gate: `make check` (`composer check`) runs Pint (`declare_strict_types`
+  enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
+  `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
+  config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
+  then the full Pest suite (733 tests, 1643 assertions). `make analyse` and `make lint` run
+  the first two alone, against the file tree only (`--no-deps`, no web
+  server).
+- Sidecar tests are analysed at the same level as the code they cover: there
+  are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
+  test case, the custom expectations, and the arch DSL through traits and
+  `expect()->extend()`, none of which static analysis can follow, so
+  `src/phpstan/*.stub` declares them: `Pest\PendingCalls\TestCall` and
+  `Pest\Support\HigherOrderTapProxy` mix in `Tests\StorefrontTestCase` (the
+  deepest of the three base classes, so every file gets the members its own
+  base carries), `Pest\Expectation` gains `toBeMoney()` and `toHaveStatus()`,
+  and `pest-refs.stub` declares the classes those stubs name, which is what
+  PHPStan's stub validator resolves against. A higher-order expectation chain
+  (`expect($order)->status->toBe(...)`) resolves to `mixed`, so the suite
+  writes `expect($order->status)->toBe(...)->and(...)` instead.
 
 ## Repository layout
 
@@ -212,6 +399,6 @@ prototype/php/
 | Skill says | Here it means |
 | --- | --- |
 | `npm run test:run -- <pattern>` | `docker compose run --rm app composer test -- --filter <pattern>` |
-| Vitest unit test | PHPUnit test extending `PHPUnit\Framework\TestCase`, sidecar file |
-| React Testing Library integration test | PHPUnit feature test extending `Tests\TestCase`, driving `$this->get()/post()` |
+| Vitest unit test | Pest `it()` in a sidecar file, no app boot |
+| React Testing Library integration test | Pest `it()` bound to `Tests\CommerceTestCase` or `Tests\StorefrontTestCase`, driving `$this->get()/post()` |
 | `src/` | `prototype/php/src/` |

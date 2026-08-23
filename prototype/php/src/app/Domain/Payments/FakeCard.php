@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Payments;
 
 final class FakeCard
@@ -11,9 +13,11 @@ final class FakeCard
         '4000000000009995' => DeclineReason::InsufficientFunds,
     ];
 
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function decide(string $number): CardDecision
     {
-        $digits = preg_replace('/\D/', '', $number);
+        $digits = preg_replace('/\D/', '', $number) ?? '';
         $lastFour = substr($digits, -4);
 
         if ($digits === self::APPROVED_NUMBER) {

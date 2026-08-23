@@ -1,162 +1,170 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Orders;
 
 use App\Actions\Cart\AddToCart;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
-use App\Models\Cart;
-use App\Models\Customer;
+use App\Models\Order;
 use DomainException;
-use Tests\CommerceTestCase;
 
-final class PlaceOrderTest extends CommerceTestCase
-{
-    public function test_it_turns_the_cart_into_an_order_the_customer_can_pay_for(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartWithOneListing($customer, 45000);
+it('turns the cart into an order the customer can pay for', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        $this->assertSame(OrderStatus::AwaitingPayment, $order->status);
-        $this->assertSame(45000, $order->subtotal_cents);
-        $this->assertSame(45000, $order->total_cents);
-        $this->assertSame('2026-08-20 09:00:00', $order->placed_at->format('Y-m-d H:i:s'));
-        $this->assertNull($order->finalized_at);
-    }
+    expect($order->status)->toBe(OrderStatus::AwaitingPayment)
+        ->and($order->subtotal_cents)->toBe(45000)
+        ->and($order->total_cents)->toBe(45000)
+        ->and($order->finalized_at)->toBeNull()
+        ->and($order->placed_at->format('Y-m-d H:i:s'))->toBe('2026-08-20 09:00:00');
+});
 
-    public function test_an_unverified_customer_places_an_order_that_waits_for_verification(): void
-    {
-        $customer = $this->anonymousCustomer();
-        $cart = $this->cartWithOneListing($customer, 45000);
+it('places an order that waits for verification for an unverified customer', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        $this->assertSame(OrderStatus::PendingVerification, $order->status);
-    }
+    expect($order->status)->toBe(OrderStatus::PendingVerification);
+});
 
-    public function test_it_copies_the_shipping_address_onto_the_order(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartWithOneListing($customer, 45000);
+it('copies the shipping address onto the order', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        $this->assertSame('Ada Lovelace', $order->shipping_name);
-        $this->assertSame('12 Analytical Way', $order->shipping_line1);
-        $this->assertNull($order->shipping_line2);
-        $this->assertSame('EC1A 1BB', $order->shipping_postal_code);
-    }
+    expect($order->shipping_name)->toBe('Ada Lovelace')
+        ->and($order->shipping_line1)->toBe('12 Analytical Way')
+        ->and($order->shipping_line2)->toBeNull()
+        ->and($order->shipping_postal_code)->toBe('EC1A 1BB');
+});
 
-    public function test_it_snapshots_the_title_and_price_of_every_item(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dusk', 'price_cents' => 45000]);
-        $cart = $this->cartFor($customer);
-        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+it('snapshots the title and price of every item', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dusk', 'price_cents' => 45000]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        $item = $order->items()->sole();
-        $this->assertSame('Harbour at Dusk', $item->title);
-        $this->assertSame(45000, $item->unit_price_cents);
-        $this->assertSame($listing->seller_id, $item->seller_id);
-    }
+    $item = $order->items()->sole();
 
-    public function test_it_splits_the_order_into_one_fulfillment_per_seller(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $first = $this->listing($this->seller('Blue Kiln Studio'), ['price_cents' => 45000]);
-        $second = $this->listing($this->seller('Rye Press'), ['price_cents' => 10000]);
-        $cart = $this->cartFor($customer);
-        $addToCart = app(AddToCart::class);
-        $addToCart($cart, $first, 1, $this->moment('2026-08-20 08:00:00'));
-        $addToCart($cart, $second, 1, $this->moment('2026-08-20 08:00:00'));
+    expect($item->title)->toBe('Harbour at Dusk')
+        ->and($item->unit_price_cents)->toBe(45000)
+        ->and($item->seller_id)->toBe($listing->seller_id);
+});
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+it('splits the order into one fulfillment per seller', function (): void {
+    $customer = $this->verifiedCustomer();
+    $first = $this->listing($this->seller('Blue Kiln Studio'), ['price_cents' => 45000]);
+    $second = $this->listing($this->seller('Rye Press'), ['price_cents' => 10000]);
+    $cart = $this->cartFor($customer);
+    $addToCart = app(AddToCart::class);
+    $addToCart($cart, $first, 1, $this->moment('2026-08-20 08:00:00'));
+    $addToCart($cart, $second, 1, $this->moment('2026-08-20 08:00:00'));
 
-        $this->assertSame(55000, $order->subtotal_cents);
-        $this->assertSame(
-            [
-                [$first->seller_id, 45000, 4500, 40500],
-                [$second->seller_id, 10000, 1000, 9000],
-            ],
-            $order->fulfillments()->orderBy('seller_id')->get()
-                ->map(fn ($fulfillment) => [
-                    $fulfillment->seller_id,
-                    $fulfillment->subtotal_cents,
-                    $fulfillment->fee_cents,
-                    $fulfillment->net_cents,
-                ])->all(),
-        );
-    }
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    public function test_every_fulfillment_starts_awaiting_shipment(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartWithOneListing($customer, 45000);
+    expect($order->subtotal_cents)->toBe(55000);
+    expect(
+        $order->fulfillments()->orderBy('seller_id')->get()
+            ->map(fn ($fulfillment) => [
+                $fulfillment->seller_id,
+                $fulfillment->subtotal_cents,
+                $fulfillment->fee_cents,
+                $fulfillment->net_cents,
+            ])->all(),
+    )->toBe([
+        [$first->seller_id, 45000, 4500, 40500],
+        [$second->seller_id, 10000, 1000, 9000],
+    ]);
+});
 
-        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+it('starts every fulfillment awaiting shipment', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
 
-        $this->assertSame(FulfillmentStatus::AwaitingShipment, $order->fulfillments()->sole()->status);
-    }
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    public function test_it_takes_the_stock_the_order_claims(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => 3]);
-        $cart = $this->cartFor($customer);
-        app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 08:00:00'));
+    expect($order->fulfillments()->sole()->status)->toBe(FulfillmentStatus::AwaitingShipment);
+});
 
-        app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+it('takes the stock the order claims', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => 3]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 08:00:00'));
 
-        $listing->refresh();
-        $this->assertSame(1, $listing->quantity);
-        $this->assertSame(ListingStatus::ForSale, $listing->status);
-    }
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    public function test_the_last_of_a_listing_marks_it_sold(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => 1]);
-        $cart = $this->cartFor($customer);
-        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $listing->refresh();
 
-        app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    expect($listing->quantity)->toBe(1)
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
 
-        $listing->refresh();
-        $this->assertSame(0, $listing->quantity);
-        $this->assertSame(ListingStatus::Sold, $listing->status);
-    }
+it('marks a listing sold when the order claims the last of it', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
 
-    public function test_it_empties_the_cart(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartWithOneListing($customer, 45000);
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $listing->refresh();
 
-        $this->assertSame(0, $cart->items()->count());
-    }
+    expect($listing->quantity)->toBe(0)
+        ->and($listing->status)->toBe(ListingStatus::Sold);
+});
 
-    public function test_it_refuses_an_empty_cart(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartFor($customer);
+it('empties the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
 
-        $this->expectException(DomainException::class);
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-        app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
-    }
+    expect($cart->items()->count())->toBe(0);
+});
 
-    private function cartWithOneListing(Customer $customer, int $priceCents): Cart
-    {
-        $cart = $this->cartFor($customer);
-        $listing = $this->listing($this->seller(), ['price_cents' => $priceCents]);
-        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+it('refuses an empty cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
 
-        return $cart;
-    }
-}
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+})->throws(DomainException::class);
+
+it('refuses a listing that left the storefront while it sat in the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 45000]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” is no longer for sale.')
+        ->and(Order::count())->toBe(0)
+        ->and($cart->items()->count())->toBe(1)
+        ->and($listing->refresh()->quantity)->toBe(1)
+        ->and($listing->status)->toBe(ListingStatus::Archived);
+});
+
+it('refuses a listing whose last unit sold to someone else', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(DomainRuleViolation::class, '“Winter Elm” is no longer for sale.')
+        ->and(Order::count())->toBe(1);
+});

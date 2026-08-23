@@ -1,22 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Fulfillment;
 
-use App\Actions\Notifications\Notify;
 use App\Actions\Orders\RollUpOrderStatus;
-use App\Domain\Notifications\NotificationMessage;
-use App\Domain\Notifications\RecipientType;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Events\FulfillmentShipped;
 use App\Models\Fulfillment;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
-final class MarkShipped
+final readonly class MarkShipped
 {
-    public function __construct(
-        private readonly RollUpOrderStatus $rollUpOrderStatus,
-        private readonly Notify $notify,
-    ) {}
+    public function __construct(private RollUpOrderStatus $rollUpOrderStatus) {}
 
     public function __invoke(
         Fulfillment $fulfillment,
@@ -34,13 +31,11 @@ final class MarkShipped
                 'shipped_at' => $now,
             ]);
 
-            $order = ($this->rollUpOrderStatus)($fulfillment->order);
+            $fulfillment->load('order.fulfillments');
 
-            ($this->notify)(
-                RecipientType::Customer,
-                $order->customer_id,
-                NotificationMessage::orderShipped($order->id, $carrier, $trackingNumber),
-            );
+            ($this->rollUpOrderStatus)($fulfillment->order);
+
+            FulfillmentShipped::dispatch($fulfillment, $now);
 
             return $fulfillment;
         });

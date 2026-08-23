@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Orders\OrderPayment;
@@ -10,9 +12,8 @@ final class OrderController extends ShopController
 {
     public function index(): View
     {
-        return $this->page('shop.orders', [
-            'orders' => Order::query()
-                ->where('customer_id', $this->visitor()->id)
+        return view('shop.orders', [
+            'orders' => $this->visitor()->orders()
                 ->with('items')
                 ->orderByDesc('id')
                 ->get(),
@@ -21,15 +22,17 @@ final class OrderController extends ShopController
 
     public function show(Order $order): View
     {
-        $order = $this->orderOfVisitor($order)->load(['items.seller', 'fulfillments.seller']);
-        $isVerified = $this->visitor()->email_verified_at !== null;
+        $this->authorizeVisitor('view', $order);
 
-        return $this->page('shop.order', [
+        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order', 'latestPayment']);
+        $isVerified = $this->visitor()->isVerified();
+
+        return view('shop.order', [
             'order' => $order,
             'fulfillments' => $order->fulfillments,
             'itemsBySeller' => $order->items->groupBy('seller_id'),
-            'payment' => $order->payments()->orderByDesc('id')->first(),
-            'awaitsPayment' => OrderPayment::awaitsPayment($order->status),
+            'payment' => $order->latestPayment,
+            'awaitsPayment' => $order->status->awaitsPayment(),
             'isPayable' => OrderPayment::isPayableBy($order->status, $isVerified),
         ]);
     }

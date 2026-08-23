@@ -1,70 +1,62 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Cart;
 
 use App\Domain\Listings\ListingEventType;
 use App\Models\ListingEvent;
 use DomainException;
-use Tests\CommerceTestCase;
 
-final class AddToCartTest extends CommerceTestCase
-{
-    public function test_it_puts_a_listing_in_the_cart(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartFor($customer);
-        $listing = $this->listing($this->seller(), ['quantity' => 3]);
+it('puts a listing in the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['quantity' => 3]);
 
-        $item = app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 09:00:00'));
+    $item = app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 09:00:00'));
 
-        $this->assertSame($listing->id, $item->listing_id);
-        $this->assertSame(2, $item->quantity);
-    }
+    expect($item->listing_id)->toBe($listing->id)
+        ->and($item->quantity)->toBe(2);
+});
 
-    public function test_adding_the_same_listing_twice_raises_the_quantity_on_one_line(): void
-    {
-        $cart = $this->cartFor($this->verifiedCustomer());
-        $listing = $this->listing($this->seller(), ['quantity' => 5]);
-        $addToCart = app(AddToCart::class);
-        $now = $this->moment('2026-08-20 09:00:00');
+it('raises the quantity on one line when the same listing is added twice', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 5]);
+    $addToCart = app(AddToCart::class);
+    $now = $this->moment('2026-08-20 09:00:00');
 
-        $addToCart($cart, $listing, 1, $now);
-        $item = $addToCart($cart, $listing, 2, $now);
+    $addToCart($cart, $listing, 1, $now);
+    $item = $addToCart($cart, $listing, 2, $now);
 
-        $this->assertSame(3, $item->quantity);
-        $this->assertSame(1, $cart->items()->count());
-    }
+    expect($item->quantity)->toBe(3)
+        ->and($cart->items()->count())->toBe(1);
+});
 
-    public function test_it_caps_the_quantity_at_the_stock_the_listing_has_left(): void
-    {
-        $cart = $this->cartFor($this->verifiedCustomer());
-        $listing = $this->listing($this->seller(), ['quantity' => 2]);
+it('caps the quantity at the stock the listing has left', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 2]);
 
-        $item = app(AddToCart::class)($cart, $listing, 9, $this->moment('2026-08-20 09:00:00'));
+    $item = app(AddToCart::class)($cart, $listing, 9, $this->moment('2026-08-20 09:00:00'));
 
-        $this->assertSame(2, $item->quantity);
-    }
+    expect($item->quantity)->toBe(2);
+});
 
-    public function test_it_refuses_a_sold_out_listing(): void
-    {
-        $cart = $this->cartFor($this->verifiedCustomer());
-        $listing = $this->listing($this->seller(), ['quantity' => 0]);
+it('refuses a sold out listing', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 0]);
 
-        $this->expectException(DomainException::class);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+})->throws(DomainException::class);
 
-        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
-    }
+it('records the add as a listing event', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller());
 
-    public function test_it_records_the_add_as_a_listing_event(): void
-    {
-        $customer = $this->verifiedCustomer();
-        $cart = $this->cartFor($customer);
-        $listing = $this->listing($this->seller());
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
 
-        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+    $event = ListingEvent::query()->sole();
 
-        $event = ListingEvent::query()->sole();
-        $this->assertSame(ListingEventType::CartAdd, $event->type);
-        $this->assertSame($customer->id, $event->customer_id);
-    }
-}
+    expect($event->type)->toBe(ListingEventType::CartAdd)
+        ->and($event->customer_id)->toBe($customer->id);
+});

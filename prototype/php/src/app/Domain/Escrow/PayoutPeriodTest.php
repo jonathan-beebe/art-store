@@ -1,50 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Escrow;
 
 use DateTimeImmutable;
-use PHPUnit\Framework\TestCase;
 
-final class PayoutPeriodTest extends TestCase
-{
-    public function test_mid_week_pays_out_the_week_that_just_ended(): void
-    {
-        $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
+it('resolves the week ending before a given moment', function (string $moment, string $start, string $end): void {
+    $period = PayoutPeriod::endingBefore(new DateTimeImmutable($moment));
 
-        $this->assertSame('2026-08-10 00:00:00', $period->start->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-08-16 23:59:59', $period->end->format('Y-m-d H:i:s'));
-    }
+    expect($period->start->format('Y-m-d H:i:s'))->toBe($start)
+        ->and($period->end->format('Y-m-d H:i:s'))->toBe($end);
+})->with([
+    'mid-week pays out the week that just ended' => ['2026-08-22 09:30:00', '2026-08-10 00:00:00', '2026-08-16 23:59:59'],
+    'the first moment of a monday pays out the week before it' => ['2026-08-17 00:00:00', '2026-08-10 00:00:00', '2026-08-16 23:59:59'],
+    'the last moment of a sunday still pays out the week before it' => ['2026-08-16 23:59:59', '2026-08-03 00:00:00', '2026-08-09 23:59:59'],
+    'a week spanning the new year' => ['2027-01-06 09:30:00', '2026-12-28 00:00:00', '2027-01-03 23:59:59'],
+]);
 
-    public function test_the_first_moment_of_a_monday_pays_out_the_week_before_it(): void
-    {
-        $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-17 00:00:00'));
+it('covers seven days', function (): void {
+    $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
 
-        $this->assertSame('2026-08-10 00:00:00', $period->start->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-08-16 23:59:59', $period->end->format('Y-m-d H:i:s'));
-    }
+    expect($period->contains(new DateTimeImmutable('2026-08-10 00:00:00')))->toBeTrue()
+        ->and($period->contains(new DateTimeImmutable('2026-08-16 23:59:59')))->toBeTrue()
+        ->and($period->contains(new DateTimeImmutable('2026-08-09 23:59:59')))->toBeFalse()
+        ->and($period->contains(new DateTimeImmutable('2026-08-17 00:00:00')))->toBeFalse();
+});
 
-    public function test_the_last_moment_of_a_sunday_still_pays_out_the_week_before_it(): void
-    {
-        $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-16 23:59:59'));
+it('labels itself by its first and last day', function (): void {
+    $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
 
-        $this->assertSame('2026-08-03 00:00:00', $period->start->format('Y-m-d H:i:s'));
-        $this->assertSame('2026-08-09 23:59:59', $period->end->format('Y-m-d H:i:s'));
-    }
-
-    public function test_a_period_covers_seven_days(): void
-    {
-        $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
-
-        $this->assertTrue($period->contains(new DateTimeImmutable('2026-08-10 00:00:00')));
-        $this->assertTrue($period->contains(new DateTimeImmutable('2026-08-16 23:59:59')));
-        $this->assertFalse($period->contains(new DateTimeImmutable('2026-08-09 23:59:59')));
-        $this->assertFalse($period->contains(new DateTimeImmutable('2026-08-17 00:00:00')));
-    }
-
-    public function test_it_labels_itself_by_its_first_and_last_day(): void
-    {
-        $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
-
-        $this->assertSame('2026-08-10 to 2026-08-16', $period->label());
-    }
-}
+    expect($period->label())->toBe('2026-08-10 to 2026-08-16');
+});

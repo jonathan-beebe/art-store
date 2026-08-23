@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Customers;
 
 final class CustomerOwnedTables
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
-     * Tables whose rows move with the customer when an anonymous identity is
-     * merged into a verified one.
+     * Tables holding a customer foreign key whose rows move with the customer
+     * when an anonymous identity is merged into a verified one. Notifications
+     * move too, but they name their recipient by morph type and id, so
+     * `MergeAnonymousCustomer` re-points them through the relation instead.
      *
      * @return array<string, string> table name => column holding the customer id
      */
@@ -17,7 +23,6 @@ final class CustomerOwnedTables
             'carts' => 'customer_id',
             'orders' => 'customer_id',
             'listing_events' => 'customer_id',
-            'notifications' => 'customer_id',
         ];
     }
 }

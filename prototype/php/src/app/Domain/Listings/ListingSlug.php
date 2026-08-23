@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Domain\Listings;
+declare(strict_types=1);
 
-use Illuminate\Support\Str;
+namespace App\Domain\Listings;
 
 final class ListingSlug
 {
@@ -11,9 +11,20 @@ final class ListingSlug
     /**
      * The slug a title asks for, before any collision with another listing.
      */
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function base(string $title): string
     {
-        return Str::slug($title) ?: self::FALLBACK;
+        return self::transliterate($title) ?: self::FALLBACK;
+    }
+
+    private static function transliterate(string $title): string
+    {
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $title) ?: '';
+        $lower = mb_strtolower($ascii);
+        $hyphenated = preg_replace('/[^a-z0-9]+/', '-', $lower) ?? '';
+
+        return trim($hyphenated, '-');
     }
 
     /**

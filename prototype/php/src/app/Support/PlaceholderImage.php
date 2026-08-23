@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Support;
 
 /**
@@ -12,6 +14,8 @@ final class PlaceholderImage
     private const WIDTH = 800;
 
     private const HEIGHT = 800;
+
+    private function __construct() {} // @codeCoverageIgnore
 
     public static function svg(string $title): string
     {

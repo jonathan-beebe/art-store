@@ -1,123 +1,101 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Money;
 
 use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 
-final class MoneyTest extends TestCase
-{
-    public function test_it_holds_the_cents_it_was_built_from(): void
-    {
-        $this->assertSame(1234, Money::fromCents(1234)->cents);
-    }
+it('holds the cents it was built from', function (): void {
+    expect(Money::fromCents(1234)->cents)->toBe(1234);
+});
 
-    public function test_it_adds_another_amount(): void
-    {
-        $sum = Money::fromCents(1234)->add(Money::fromCents(66));
+it('adds another amount', function (): void {
+    $sum = Money::fromCents(1234)->add(Money::fromCents(66));
 
-        $this->assertSame(1300, $sum->cents);
-    }
+    expect($sum->cents)->toBe(1300);
+});
 
-    public function test_it_leaves_the_operands_untouched_when_adding(): void
-    {
-        $subtotal = Money::fromCents(1234);
-        $subtotal->add(Money::fromCents(66));
+it('leaves the operands untouched when adding', function (): void {
+    $subtotal = Money::fromCents(1234);
+    $subtotal->add(Money::fromCents(66));
 
-        $this->assertSame(1234, $subtotal->cents);
-    }
+    expect($subtotal->cents)->toBe(1234);
+});
 
-    public function test_it_multiplies_by_a_quantity(): void
-    {
-        $this->assertSame(3702, Money::fromCents(1234)->multiply(3)->cents);
-    }
+it('starts at zero', function (): void {
+    expect(Money::zero()->cents)->toBe(0);
+});
 
-    public function test_it_rejects_a_negative_quantity(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
+it('subtracts another amount', function (): void {
+    expect(Money::fromCents(1300)->subtract(Money::fromCents(66))->cents)->toBe(1234);
+});
 
-        Money::fromCents(1234)->multiply(-1);
-    }
+it('subtracts past zero into a negative amount', function (): void {
+    expect(Money::zero()->subtract(Money::fromCents(66))->cents)->toBe(-66);
+});
 
-    public function test_it_takes_a_percentage(): void
-    {
-        $this->assertSame(123, Money::fromCents(1230)->percent(10)->cents);
-    }
+it('equals another amount of the same cents', function (): void {
+    expect(Money::fromCents(1234)->equals(Money::fromCents(1234)))->toBeTrue()
+        ->and(Money::fromCents(1234)->equals(Money::fromCents(1235)))->toBeFalse();
+});
 
-    public function test_it_rounds_a_half_cent_percentage_up(): void
-    {
-        // 10% of 1235 is 123.5 cents; the platform fee never under-collects.
-        $this->assertSame(124, Money::fromCents(1235)->percent(10)->cents);
-    }
+it('reads whether it is above zero', function (int $cents, bool $isPositive, bool $isZero): void {
+    expect(Money::fromCents($cents)->isPositive())->toBe($isPositive)
+        ->and(Money::fromCents($cents)->isZero())->toBe($isZero);
+})->with([
+    'an amount to pay out' => [9000, true, false],
+    'nothing' => [0, false, true],
+    'an amount owed' => [-9000, false, false],
+]);
 
-    public function test_it_rounds_a_negative_half_cent_percentage_away_from_zero(): void
-    {
-        $this->assertSame(-124, Money::fromCents(-1235)->percent(10)->cents);
-    }
+it('renders as its formatted amount in a string', function (): void {
+    expect((string) Money::fromCents(1234))->toBe('$12.34');
+});
 
-    public function test_it_rejects_a_percentage_outside_zero_to_one_hundred(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
+it('multiplies by a quantity', function (): void {
+    expect(Money::fromCents(1234)->multiply(3)->cents)->toBe(3702);
+});
 
-        Money::fromCents(1234)->percent(101);
-    }
+it('rejects a negative quantity', function (): void {
+    expect(fn () => Money::fromCents(1234)->multiply(-1))->toThrow(InvalidArgumentException::class);
+});
 
-    public function test_it_formats_as_dollars_and_cents(): void
-    {
-        $this->assertSame('$12.34', Money::fromCents(1234)->format());
-    }
+it('takes a percentage, rounding half a cent away from zero', function (int $cents, int $percent, int $expected): void {
+    expect(Money::fromCents($cents)->percent($percent)->cents)->toBe($expected);
+})->with([
+    'a whole-cent percentage' => [1230, 10, 123],
+    // 10% of 1235 is 123.5 cents; the platform fee never under-collects.
+    'a positive half-cent percentage rounds up' => [1235, 10, 124],
+    'a negative half-cent percentage rounds away from zero' => [-1235, 10, -124],
+]);
 
-    public function test_it_formats_thousands_with_a_separator(): void
-    {
-        $this->assertSame('$1,234,567.89', Money::fromCents(123456789)->format());
-    }
+it('rejects a percentage outside zero to one hundred', function (): void {
+    expect(fn () => Money::fromCents(1234)->percent(101))->toThrow(InvalidArgumentException::class);
+});
 
-    public function test_it_formats_a_negative_amount_with_a_leading_sign(): void
-    {
-        $this->assertSame('-$12.34', Money::fromCents(-1234)->format());
-    }
+it('formats as dollars and cents', function (int $cents, string $expected): void {
+    expect(Money::fromCents($cents)->format())->toBe($expected);
+})->with([
+    'dollars and cents' => [1234, '$12.34'],
+    'thousands with a separator' => [123456789, '$1,234,567.89'],
+    'a negative amount with a leading sign' => [-1234, '-$12.34'],
+    'zero' => [0, '$0.00'],
+]);
 
-    public function test_it_formats_zero(): void
-    {
-        $this->assertSame('$0.00', Money::fromCents(0)->format());
-    }
+it('reads a price typed into a price field', function (string $price, int $expected): void {
+    expect(Money::fromDollars($price)->cents)->toBe($expected);
+})->with([
+    'dollars and cents' => ['12.34', 1234],
+    'whole dollars' => ['12', 1200],
+    'a single decimal place, padded' => ['12.5', 1250],
+    'surrounding whitespace' => [' 12.34 ', 1234],
+    'a price too large for a float to hold exactly' => ['80704505322479.28', 8070450532247928],
+]);
 
-    public function test_it_reads_dollars_and_cents_typed_into_a_price_field(): void
-    {
-        $this->assertSame(1234, Money::fromDollars('12.34')->cents);
-    }
-
-    public function test_it_reads_whole_dollars(): void
-    {
-        $this->assertSame(1200, Money::fromDollars('12')->cents);
-    }
-
-    public function test_it_pads_a_single_decimal_place(): void
-    {
-        $this->assertSame(1250, Money::fromDollars('12.5')->cents);
-    }
-
-    public function test_it_reads_a_price_with_surrounding_whitespace(): void
-    {
-        $this->assertSame(1234, Money::fromDollars(' 12.34 ')->cents);
-    }
-
-    public function test_it_reads_a_price_too_large_for_a_float_to_hold_exactly(): void
-    {
-        $this->assertSame(8070450532247928, Money::fromDollars('80704505322479.28')->cents);
-    }
-
-    public function test_it_rejects_a_price_that_is_not_a_number(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        Money::fromDollars('twelve');
-    }
-
-    public function test_it_rejects_a_price_carrying_more_than_two_decimal_places(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        Money::fromDollars('12.345');
-    }
-}
+it('rejects an invalid price', function (string $price): void {
+    expect(fn () => Money::fromDollars($price))->toThrow(InvalidArgumentException::class);
+})->with([
+    'not a number' => ['twelve'],
+    'more than two decimal places' => ['12.345'],
+]);

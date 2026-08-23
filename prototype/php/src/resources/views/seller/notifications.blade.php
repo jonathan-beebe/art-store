@@ -1,8 +1,4 @@
-@extends('layouts.seller')
-
-@section('title', 'Notifications — Art Store seller')
-
-@section('content')
+<x-layouts.seller title="Notifications — Art Store seller">
     <h1 class="text-xl font-semibold">Notifications</h1>
 
     @if ($notifications->isEmpty())
@@ -13,15 +9,15 @@
                 <li class="flex flex-wrap items-start gap-4 p-4">
                     <div>
                         <p class="font-medium">
-                            {{ $notification->subject }}
+                            {{ $notification->data['subject'] }}
                             @if ($notification->read_at === null)
                                 <span class="ml-1 rounded bg-gray-900 px-2 py-0.5 text-xs font-medium text-white">Unread</span>
                             @endif
                         </p>
-                        <p class="mt-1 text-gray-600">{{ $notification->body }}</p>
+                        <p class="mt-1 text-gray-600">{{ $notification->data['body'] }}</p>
                         <p class="mt-1 text-gray-500">{{ $notification->created_at->format('M j, Y g:ia') }}</p>
-                        @if ($notification->url)
-                            <p class="mt-1"><a href="{{ $notification->url }}" class="text-gray-700 underline">Open</a></p>
+                        @if ($notification->data['url'])
+                            <p class="mt-1"><a href="{{ $notification->data['url'] }}" class="text-gray-700 underline">Open</a></p>
                         @endif
                     </div>
 
@@ -35,4 +31,4 @@
             @endforeach
         </ul>
     @endif
-@endsection
+</x-layouts.seller>

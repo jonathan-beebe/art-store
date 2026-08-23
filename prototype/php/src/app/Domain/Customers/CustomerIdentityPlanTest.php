@@ -1,50 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Customers;
 
-use PHPUnit\Framework\TestCase;
+it('decides the action and resulting customer for a cookie/account pair', function (
+    ?int $anonymousId,
+    ?int $verifiedId,
+    CustomerIdentityAction $expectedAction,
+    ?int $expectedResultingId,
+): void {
+    $plan = CustomerIdentityPlan::decide($anonymousId, $verifiedId);
 
-final class CustomerIdentityPlanTest extends TestCase
-{
-    public function test_a_visitor_with_no_history_and_no_account_gets_a_new_verified_customer(): void
-    {
-        $plan = CustomerIdentityPlan::decide(null, null);
+    expect($plan->action)->toBe($expectedAction)
+        ->and($plan->resultingCustomerId())->toBe($expectedResultingId);
+})->with([
+    'a visitor with no history and no account gets a new verified customer' => [null, null, CustomerIdentityAction::CreateVerified, null],
+    'a visitor with no history signs in to the existing account' => [null, 7, CustomerIdentityAction::SignInExisting, 7],
+    'an anonymous visitor with no account claims the anonymous row' => [3, null, CustomerIdentityAction::ClaimAnonymous, 3],
+    'an anonymous visitor with an account merges into the account' => [3, 7, CustomerIdentityAction::MergeAnonymousInto, 7],
+    'a cookie already pointing at the account needs no merge' => [7, 7, CustomerIdentityAction::SignInExisting, 7],
+]);
 
-        $this->assertSame(CustomerIdentityAction::CreateVerified, $plan->action);
-        $this->assertNull($plan->resultingCustomerId());
-    }
+it('carries both ids on a merge', function (): void {
+    $plan = CustomerIdentityPlan::decide(3, 7);
 
-    public function test_a_visitor_with_no_history_signs_in_to_the_existing_account(): void
-    {
-        $plan = CustomerIdentityPlan::decide(null, 7);
-
-        $this->assertSame(CustomerIdentityAction::SignInExisting, $plan->action);
-        $this->assertSame(7, $plan->resultingCustomerId());
-    }
-
-    public function test_an_anonymous_visitor_with_no_account_claims_the_anonymous_row(): void
-    {
-        $plan = CustomerIdentityPlan::decide(3, null);
-
-        $this->assertSame(CustomerIdentityAction::ClaimAnonymous, $plan->action);
-        $this->assertSame(3, $plan->resultingCustomerId());
-    }
-
-    public function test_an_anonymous_visitor_with_an_account_merges_into_the_account(): void
-    {
-        $plan = CustomerIdentityPlan::decide(3, 7);
-
-        $this->assertSame(CustomerIdentityAction::MergeAnonymousInto, $plan->action);
-        $this->assertSame(3, $plan->anonymousCustomerId);
-        $this->assertSame(7, $plan->verifiedCustomerId);
-        $this->assertSame(7, $plan->resultingCustomerId());
-    }
-
-    public function test_a_cookie_already_pointing_at_the_account_needs_no_merge(): void
-    {
-        $plan = CustomerIdentityPlan::decide(7, 7);
-
-        $this->assertSame(CustomerIdentityAction::SignInExisting, $plan->action);
-        $this->assertSame(7, $plan->resultingCustomerId());
-    }
-}
+    expect($plan->anonymousCustomerId)->toBe(3)
+        ->and($plan->verifiedCustomerId)->toBe(7);
+});

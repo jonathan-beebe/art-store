@@ -1,23 +1,33 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
+use Database\Factories\MagicLinkFactory;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
+use Override;
 
 #[Fillable(['token_hash', 'email', 'actor_type', 'redirect_to', 'expires_at'])]
 #[Hidden(['token_hash'])]
 class MagicLink extends Model
 {
+    /** @use HasFactory<MagicLinkFactory> */
+    use HasFactory;
+
     /**
      * @return array<string, string>
      */
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -27,21 +37,19 @@ class MagicLink extends Model
         ];
     }
 
-    /**
-     * @param  Builder<$this>  $query
-     * @return Builder<$this>
-     */
-    public function scopeForToken(Builder $query, string $token): Builder
+    /** @param Builder<$this> $query */
+    #[Scope]
+    protected function forToken(Builder $query, string $token): void
     {
-        return $query->where('token_hash', MagicLinkToken::hash($token));
+        $query->where('token_hash', MagicLinkToken::hash($token));
     }
 
-    public function statusAt(Carbon $now): MagicLinkStatus
+    public function statusAt(DateTimeImmutable $now): MagicLinkStatus
     {
         return MagicLinkStatus::of($this->expires_at, $this->consumed_at, $now);
     }
 
-    public function consume(Carbon $now): void
+    public function consume(DateTimeImmutable $now): void
     {
         $this->forceFill(['consumed_at' => $now])->save();
     }

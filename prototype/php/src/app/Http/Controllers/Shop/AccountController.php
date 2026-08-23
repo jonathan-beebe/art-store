@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Notifications\RecipientType;
-use App\Models\Notification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Notifications\DatabaseNotification;
 
 final class AccountController extends ShopController
 {
@@ -13,20 +14,17 @@ final class AccountController extends ShopController
     {
         $visitor = $this->visitor();
 
-        return $this->page('shop.account', [
+        return view('shop.account', [
             'customer' => $visitor,
-            'notifications' => Notification::query()
-                ->for(RecipientType::Customer, $visitor->id)
-                ->orderByDesc('id')
-                ->get(),
+            'notifications' => $visitor->notifications()->get(),
         ]);
     }
 
-    public function readNotification(Notification $notification): RedirectResponse
+    public function readNotification(DatabaseNotification $notification): RedirectResponse
     {
-        abort_unless($notification->customer_id === $this->visitor()->id, 404);
+        $this->authorizeVisitor('markRead', $notification);
 
-        $notification->update(['read_at' => now()]);
+        $notification->markAsRead();
 
         return redirect()->route('shop.account');
     }

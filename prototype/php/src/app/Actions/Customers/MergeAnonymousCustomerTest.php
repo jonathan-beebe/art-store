@@ -1,96 +1,112 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customers;
 
+use App\Domain\Money\Money;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
+use App\Models\Seller;
+use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Tests\TestCase;
 
-final class MergeAnonymousCustomerTest extends TestCase
-{
-    use RefreshDatabase;
+it('records the merge so a stale cookie still resolves', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
 
-    public function test_it_records_the_merge_so_a_stale_cookie_still_resolves(): void
-    {
-        $anonymous = Customer::factory()->anonymous()->create();
-        $verified = Customer::factory()->create();
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        $this->merge($anonymous, $verified);
+    $this->assertDatabaseHas('customer_merges', [
+        'anonymous_customer_id' => $anonymous->id,
+        'customer_id' => $verified->id,
+    ]);
+});
 
-        $this->assertDatabaseHas('customer_merges', [
-            'anonymous_customer_id' => $anonymous->id,
-            'customer_id' => $verified->id,
-        ]);
-    }
+it('merging the same anonymous customer twice writes one merge row', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
 
-    public function test_it_returns_the_customer_the_history_moved_to(): void
-    {
-        $anonymous = Customer::factory()->anonymous()->create();
-        $verified = Customer::factory()->create();
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        $this->assertTrue($verified->is($this->merge($anonymous, $verified)));
-    }
+    expect(CustomerMerge::count())->toBe(1);
+});
 
-    public function test_it_leaves_the_anonymous_row_in_place_for_the_merge_trail(): void
-    {
-        $anonymous = Customer::factory()->anonymous()->create();
-        $verified = Customer::factory()->create();
+it('returns the customer the history moved to', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
 
-        $this->merge($anonymous, $verified);
+    $merged = app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        $this->assertDatabaseHas('customers', ['id' => $anonymous->id]);
-    }
+    expect($verified->is($merged))->toBeTrue();
+});
 
-    public function test_it_re_points_rows_in_a_customer_owned_table(): void
-    {
-        $this->replaceFavoritesWithAStandIn();
-        $anonymous = Customer::factory()->anonymous()->create();
-        $verified = Customer::factory()->create();
-        $bystander = Customer::factory()->create();
-        DB::table('favorites')->insert([
-            ['customer_id' => $anonymous->id],
-            ['customer_id' => $bystander->id],
-        ]);
+it('leaves the anonymous row in place for the merge trail', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
 
-        $this->merge($anonymous, $verified);
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        $this->assertSame(1, DB::table('favorites')->where('customer_id', $verified->id)->count());
-        $this->assertSame(0, DB::table('favorites')->where('customer_id', $anonymous->id)->count());
-        $this->assertSame(1, DB::table('favorites')->where('customer_id', $bystander->id)->count());
-    }
+    $this->assertDatabaseHas('customers', ['id' => $anonymous->id]);
+});
 
-    public function test_it_skips_a_customer_owned_table_that_does_not_exist(): void
-    {
-        Schema::dropIfExists('favorites');
-        $anonymous = Customer::factory()->anonymous()->create();
-        $verified = Customer::factory()->create();
+it('re-points rows in a customer-owned table', function (): void {
+    // The commerce tables carry columns this test knows nothing about, so the
+    // table-driven re-pointing is proven against a row this test can write on its own.
+    Schema::dropIfExists('favorites');
+    Schema::create('favorites', function (Blueprint $table): void {
+        $table->id();
+        $table->foreignId('customer_id');
+    });
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    DB::table('favorites')->insert([
+        ['customer_id' => $anonymous->id],
+        ['customer_id' => $bystander->id],
+    ]);
 
-        $this->merge($anonymous, $verified);
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        $this->assertSame(1, CustomerMerge::count());
-    }
+    expect(DB::table('favorites')->where('customer_id', $verified->id)->count())->toBe(1)
+        ->and(DB::table('favorites')->where('customer_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::table('favorites')->where('customer_id', $bystander->id)->count())->toBe(1);
+});
 
-    private function merge(Customer $anonymous, Customer $verified): Customer
-    {
-        return $this->app->call(fn (MergeAnonymousCustomer $merge) => $merge($anonymous, $verified));
-    }
+it('skips a customer-owned table that does not exist', function (): void {
+    Schema::dropIfExists('favorites');
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
 
-    /**
-     * The commerce tables carry columns this ticket knows nothing about, so
-     * the table-driven re-pointing is proven against a row this test can write
-     * on its own.
-     */
-    private function replaceFavoritesWithAStandIn(): void
-    {
-        Schema::dropIfExists('favorites');
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-        Schema::create('favorites', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('customer_id');
-        });
-    }
-}
+    expect(CustomerMerge::count())->toBe(1);
+});
+
+it('re-points the notifications addressed to the anonymous customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    $anonymous->notify(new OrderShipped(4, 'USPS', '94001'));
+    $bystander->notify(new OrderShipped(5, 'USPS', '94002'));
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect($verified->notifications()->count())->toBe(1)
+        ->and($anonymous->notifications()->count())->toBe(0)
+        ->and($bystander->notifications()->count())->toBe(1);
+});
+
+it('leaves a seller notification where it is when a customer merges', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $seller = Seller::factory()->create();
+    $seller->notify(new ItemSold(4, Money::fromCents(9000)));
+
+    app(MergeAnonymousCustomer::class)($anonymous, Customer::factory()->create());
+
+    expect($seller->notifications()->count())->toBe(1);
+});

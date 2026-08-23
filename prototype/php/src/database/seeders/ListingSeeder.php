@@ -1,42 +1,63 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
+use App\Actions\Listings\CreateListing;
+use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * 24 for_sale listings across six media, three drafts, and two sold-out
  * pieces. Three of the for_sale listings start at quantity 2 so
  * OrderHistorySeeder can sell one unit of each and leave them on the
- * storefront.
+ * storefront. Every listing is created through `CreateListing`, the same
+ * action a seller's form submits to, then moved to its target status through
+ * the model's own transitions.
  */
 class ListingSeeder extends Seeder
 {
     public function run(): void
     {
-        $sellerIds = Seller::query()->pluck('id', 'email');
+        $sellers = Seller::query()->get()->keyBy('email');
+        $createListing = app(CreateListing::class);
 
-        foreach ($this->listings() as $listing) {
-            Listing::create([
-                'seller_id' => $sellerIds[$listing['seller']],
-                'title' => $listing['title'],
-                'slug' => Str::slug($listing['title']),
-                'description' => $listing['description'],
-                'price_cents' => $listing['price_cents'],
-                'quantity' => $listing['quantity'],
-                'status' => $listing['status'],
-                'medium' => $listing['medium'],
-                'dimensions' => $listing['dimensions'],
-            ]);
+        foreach ($this->listings() as $entry) {
+            $seller = $sellers->get($entry['seller']) ?? throw new RuntimeException("No seller seeded for {$entry['seller']}.");
+
+            $listing = $createListing($seller, ListingDraft::of(
+                $entry['title'],
+                $entry['description'],
+                $entry['medium'],
+                $entry['dimensions'],
+                Money::fromCents($entry['price_cents']),
+                $entry['quantity'],
+            ));
+
+            $this->advance($listing, $entry['status']);
         }
     }
 
+    private function advance(Listing $listing, ListingStatus $target): void
+    {
+        match ($target) {
+            ListingStatus::Draft => null,
+            ListingStatus::ForSale => $listing->changeStatusTo(ListingStatus::ForSale),
+            // A listing reaches the storefront before it can sell out: put it
+            // up for sale, then sell the stock it was created with.
+            ListingStatus::Sold => $listing->changeStatusTo(ListingStatus::ForSale)->sell($listing->quantity),
+            ListingStatus::Archived => $listing->changeStatusTo(ListingStatus::Archived),
+        };
+    }
+
     /**
-     * @return list<array<string, mixed>>
+     * @return list<array{seller: string, title: string, medium: string, dimensions: string, price_cents: int, description: string, status: ListingStatus, quantity: int}>
      */
     private function listings(): array
     {
@@ -110,15 +131,15 @@ class ListingSeeder extends Seeder
 
             $this->entry(SellerSeeder::MAYA_EMAIL, 'Copper Patina Bowl', 'ceramic', '10 x 10 x 4 in', 22000,
                 'A thrown bowl finished with a copper-oxide wash that fires to a mottled green and black. The last piece from a small batch fired in the spring.',
-                status: ListingStatus::Sold, quantity: 0),
+                status: ListingStatus::Sold),
             $this->entry(SellerSeeder::LEO_EMAIL, 'Wet Plate Collodion Portrait', 'photography', '8 x 10 in', 62000,
                 'A tintype portrait made with the wet plate collodion process, each plate unique and unrepeatable. A one-of-a-kind piece, now sold.',
-                status: ListingStatus::Sold, quantity: 0),
+                status: ListingStatus::Sold),
         ];
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{seller: string, title: string, medium: string, dimensions: string, price_cents: int, description: string, status: ListingStatus, quantity: int}
      */
     private function entry(
         string $seller,

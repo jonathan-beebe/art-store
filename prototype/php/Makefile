@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage migrate fresh logs
+.PHONY: up down build assets shell test smoke coverage migrate fresh logs analyse lint check
 
 up:
 	docker compose up -d
@@ -24,6 +24,15 @@ smoke:
 
 coverage:
 	docker compose run --rm app composer test:coverage
+
+analyse:
+	docker compose run --rm --no-deps --entrypoint composer app analyse
+
+lint:
+	docker compose run --rm --no-deps --entrypoint composer app lint
+
+check:
+	docker compose run --rm --no-deps --entrypoint composer app check
 
 migrate:
 	docker compose run --rm app php artisan migrate

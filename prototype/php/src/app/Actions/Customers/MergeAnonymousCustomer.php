@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Customers;
 
 use App\Domain\Customers\CustomerOwnedTables;
@@ -26,12 +28,18 @@ final readonly class MergeAnonymousCustomer
                 DB::table($table)->where($column, $anonymous->id)->update([$column => $verified->id]);
             }
 
+            // A notification names its recipient by morph type and id, so the
+            // relation re-points only the rows addressed to this customer.
+            $anonymous->notifications()->update(['notifiable_id' => $verified->id]);
+
             // The anonymous row survives the merge so a cookie still holding its
             // id resolves forward instead of starting the visitor over.
-            CustomerMerge::create([
-                'anonymous_customer_id' => $anonymous->id,
-                'customer_id' => $verified->id,
-            ]);
+            // `anonymous_customer_id` is unique, so merging the same anonymous
+            // customer again finds the row it already wrote instead of failing.
+            CustomerMerge::firstOrCreate(
+                ['anonymous_customer_id' => $anonymous->id],
+                ['customer_id' => $verified->id],
+            );
         });
 
         return $verified;

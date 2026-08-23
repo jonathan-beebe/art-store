@@ -22,7 +22,9 @@ flowchart LR
 
 Caveats: `amount_cents` is signed — `held` and `released` are positive,
 `paid_out` is negative (`LedgerMovement::payout()` negates it). A seller's
-balance (`App\Domain\Escrow\LedgerBalance::from()`) folds every entry:
+balance (`App\Domain\Escrow\LedgerBalance::from()`) folds one summed
+movement per type — `LedgerEntry::totalledByType()` groups the entries in SQL,
+so the fold sees three rows per seller rather than the whole table:
 `held = held − released`, `available = released + paid_out`,
 `paidOut = −paid_out`. Only a fulfillment with `available > 0`
 (`isPayable()`) gets a payout row.
@@ -42,8 +44,8 @@ sequenceDiagram
 
     CLI->>Period: endingBefore(asOf)
     CLI->>Run: __invoke(asOf)
-    Run->>Ledger: entries with occurred_at <= period.end, grouped by seller
-    Run->>Run: LedgerBalance::from(movements) per seller
+    Run->>Ledger: sum(amount_cents) by seller and type, occurred_at <= period.end
+    Run->>Run: LedgerBalance::from(summed movements) per seller
     loop each seller where balance.isPayable()
         Run->>Payouts: create(seller, period, amount = balance.available)
         Run->>Ledger: create(type=paid_out, amount=-available, occurred_at=period.end)

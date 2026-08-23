@@ -1,44 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Domain\Shop;
 
 use DomainException;
-use PHPUnit\Framework\TestCase;
 
-final class ListingSearchTest extends TestCase
-{
-    public function test_it_reads_a_term_and_a_medium(): void
-    {
-        $search = ListingSearch::fromInput('  harbour  ', ' oil ');
+it('reads a term and a medium', function (): void {
+    $search = ListingSearch::fromInput('  harbour  ', ' oil ');
 
-        $this->assertTrue($search->hasTerm());
-        $this->assertTrue($search->hasMedium());
-        $this->assertSame('harbour', $search->term);
-        $this->assertSame('oil', $search->medium);
-    }
+    expect($search->hasTerm())->toBeTrue()
+        ->and($search->hasMedium())->toBeTrue()
+        ->and($search->term)->toBe('harbour')
+        ->and($search->medium)->toBe('oil');
+});
 
-    public function test_it_treats_blank_input_as_no_filter(): void
-    {
-        $search = ListingSearch::fromInput('   ', null);
+it('treats blank input as no filter', function (): void {
+    $search = ListingSearch::fromInput('   ', null);
 
-        $this->assertFalse($search->hasTerm());
-        $this->assertFalse($search->hasMedium());
-    }
+    expect($search->hasTerm())->toBeFalse()
+        ->and($search->hasMedium())->toBeFalse();
+});
 
-    public function test_it_wraps_the_term_in_wildcards(): void
-    {
-        $this->assertSame('%harbour%', ListingSearch::fromInput('harbour', null)->likePattern());
-    }
+it('wraps the term in wildcards', function (): void {
+    expect(ListingSearch::fromInput('harbour', null)->likePattern())->toBe('%harbour%');
+});
 
-    public function test_it_drops_wildcards_the_visitor_typed(): void
-    {
-        $this->assertSame('%50 off%', ListingSearch::fromInput('50% _off', null)->likePattern());
-    }
+it('drops wildcards the visitor typed', function (): void {
+    expect(ListingSearch::fromInput('50% _off', null)->likePattern())->toBe('%50 off%');
+});
 
-    public function test_it_refuses_a_pattern_without_a_term(): void
-    {
-        $this->expectException(DomainException::class);
-
-        ListingSearch::fromInput(null, 'oil')->likePattern();
-    }
-}
+it('refuses a pattern without a term', function (): void {
+    expect(fn () => ListingSearch::fromInput(null, 'oil')->likePattern())->toThrow(DomainException::class);
+});

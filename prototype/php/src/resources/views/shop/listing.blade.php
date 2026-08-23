@@ -1,8 +1,4 @@
-@extends('layouts.shop')
-
-@section('title', $listing->title.' — Art Store')
-
-@section('content')
+<x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
         <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
              class="aspect-square w-full rounded-3xl object-cover">
@@ -42,4 +38,4 @@
             </div>
         </div>
     </article>
-@endsection
+</x-layouts.shop>

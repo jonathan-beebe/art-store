@@ -1,19 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Actions\Listings;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-final class StoreListingImage
+final readonly class StoreListingImage
 {
     private const DIRECTORY = 'listings';
 
     /**
-     * @return string the path on the public disk, for `listings.image_path`
+     * @return string|null the path on the public disk, for `listings.image_path`;
+     *                     null when the disk write failed
      */
-    public function __invoke(UploadedFile $image): string
+    public function __invoke(UploadedFile $image): ?string
     {
-        return Storage::disk('public')->putFile(self::DIRECTORY, $image);
+        $path = Storage::disk('public')->putFile(self::DIRECTORY, $image);
+
+        return $path === false ? null : $path;
     }
 }
