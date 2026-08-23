@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { fixedClock } from '../clock.ts'
-import { formatCents } from '../core/money.ts'
+import { cents, formatCents, subtractCents } from '../core/money.ts'
 import type { Listing } from '../db/commerce-schema.ts'
 import { APPROVED_CARD, cartWithArtwork, DECLINED_CARD, listArtwork, TEST_SHIPPING } from '../sites/shop/storefront-fixtures.ts'
 import {
@@ -81,9 +81,9 @@ test('every site serves its own page and they all share one stylesheet', async (
 // ---------------------------------------------------------------------------
 
 const PIECE_TITLE = 'Meadow at Low Tide'
-const PIECE_PRICE_CENTS = 48_000 // $480.00
-const PLATFORM_FEE_CENTS = 4_800 // 10% of the subtotal
-const SELLER_NET_CENTS = PIECE_PRICE_CENTS - PLATFORM_FEE_CENTS // $432.00
+const PIECE_PRICE_CENTS = cents(48_000) // $480.00
+const PLATFORM_FEE_CENTS = cents(4_800) // 10% of the subtotal
+const SELLER_NET_CENTS = subtractCents(PIECE_PRICE_CENTS, PLATFORM_FEE_CENTS) // $432.00
 const CARRIER = 'Royal Mail'
 const TRACKING_NUMBER = 'RM123456789GB'
 const SELLER_EMAIL = 'smoke-seller@example.test'

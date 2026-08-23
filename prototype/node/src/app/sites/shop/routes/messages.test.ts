@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { flashSchema } from '../../../plugins/flash.ts'
+import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -30,7 +31,7 @@ async function orderWithFulfillment(
   title = 'Harbour at dusk',
 ) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
-  const listing = await listArtwork(testApp, { sellerId: seller.id, title, priceCents: 24_000 })
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title, priceCents: cents(24_000) })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
   const order = await placeCustomerOrder(testApp, { cartId, customerId })
   await payForOrder(testApp, { orderId: order.id })

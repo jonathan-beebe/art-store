@@ -7,7 +7,7 @@ import {
   FULFILLMENT_STATUSES,
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
-import { isShipmentComplete, parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
+import { parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { formatCents } from '../../../core/money.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
@@ -86,12 +86,12 @@ async function ship(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
 
   const submitted = shipmentForm.parse(formBody(request))
   const details = parseShipmentDetails({ carrier: submitted.carrier, trackingNumber: submitted.tracking_number })
-  if (!isShipmentComplete(details)) return refuseShipment(reply, id, 'A shipment needs a carrier and a tracking number.')
+  if (!details.ok) return refuseShipment(reply, id, Object.values(details.errors).join(' '))
 
   try {
     await markShipped(
       { db, clock: request.server.clock },
-      { fulfillmentId: id, carrier: details.carrier, trackingNumber: details.trackingNumber },
+      { fulfillmentId: id, carrier: details.value.carrier, trackingNumber: details.value.trackingNumber },
     )
   } catch (error) {
     if (error instanceof TransitionError) return refuseShipment(reply, id, error.message)

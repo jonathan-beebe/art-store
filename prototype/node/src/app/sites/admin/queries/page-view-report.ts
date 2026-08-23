@@ -2,6 +2,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import type { PageViewSite } from '../../../core/analytics/page-view-site.ts'
 import { pageViewWeek } from '../../../core/analytics/page-view-window.ts'
 import type { Day } from '../../../db/commerce-schema.ts'
+import { toCount } from '../../../db/count.ts'
 
 /** Traffic on one day, across every site. */
 export type DayCount = { day: Day; count: number }
@@ -31,12 +32,12 @@ export async function pageViewsByDay({
   const rows = await db
     .selectFrom('pageViewCounts')
     .select(['day'])
-    .select((eb) => eb.fn.sum<number>('count').as('count'))
+    .select((eb) => eb.fn.sum<string | number | bigint | null>('count').as('count'))
     .groupBy('day')
     .orderBy('day', 'desc')
     .execute()
 
-  return rows.map((row) => ({ day: row.day, count: Number(row.count) }))
+  return rows.map((row) => ({ day: row.day, count: toCount(row.count) }))
 }
 
 /** Every route pattern that saw traffic, busiest first. */
@@ -46,7 +47,7 @@ export async function pageViewsByPattern({
   const rows = await db
     .selectFrom('pageViewCounts')
     .select(['site', 'pathPattern'])
-    .select((eb) => eb.fn.sum<number>('count').as('count'))
+    .select((eb) => eb.fn.sum<string | number | bigint | null>('count').as('count'))
     .groupBy(['site', 'pathPattern'])
     .orderBy('count', 'desc')
     .orderBy('site')
@@ -56,7 +57,7 @@ export async function pageViewsByPattern({
   return rows.map((row) => ({
     site: row.site,
     pathPattern: row.pathPattern,
-    count: Number(row.count),
+    count: toCount(row.count),
   }))
 }
 
@@ -67,10 +68,10 @@ async function countBetween(
 ): Promise<number> {
   const counted = await db
     .selectFrom('pageViewCounts')
-    .select((eb) => eb.fn.sum<number>('count').as('count'))
+    .select((eb) => eb.fn.sum<string | number | bigint | null>('count').as('count'))
     .where('day', '>=', firstDay)
     .where('day', '<=', lastDay)
     .executeTakeFirstOrThrow()
 
-  return Number(counted.count ?? 0)
+  return toCount(counted.count)
 }

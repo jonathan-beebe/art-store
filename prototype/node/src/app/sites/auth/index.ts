@@ -10,11 +10,11 @@ import { resolveLocalRedirect } from '../../core/auth/local-redirect.ts'
 import { identityId } from '../../plugins/identity.ts'
 import { requestOrigin } from './request-origin.ts'
 
-const REFUSALS: Readonly<Record<MagicLinkRefusal, string>> = {
+const REFUSALS = {
   expired: 'That sign-in link has expired. Ask for a new one.',
   consumed: 'That sign-in link has already been used. Ask for a new one.',
   unrecognized: 'That address cannot sign in here. Ask for a new link.',
-}
+} as const satisfies Record<MagicLinkRefusal, string>
 
 const UNKNOWN_LINK = 'That sign-in link is not valid. Ask for a new one.'
 

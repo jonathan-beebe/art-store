@@ -10,11 +10,11 @@ import type { AdminTable, CustomerTable, SellerTable } from '../db/schema.ts'
  * One cookie per side of the marketplace, so a single browser can be a seller,
  * a customer, and an admin at once — the demo needs that.
  */
-const IDENTITY_COOKIES: Readonly<Record<ActorType, string>> = {
+const IDENTITY_COOKIES = {
   seller: 'seller_id',
   customer: 'customer_id',
   admin: 'admin_id',
-}
+} as const satisfies Record<ActorType, string>
 
 // A browsing history is worth more than a session, so the cookie outlives one.
 const COOKIE_LIFETIME_SECONDS = 365 * 24 * 60 * 60

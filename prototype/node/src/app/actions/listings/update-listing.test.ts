@@ -107,7 +107,7 @@ test('updatedAt moves', async (t) => {
 })
 
 function draft(overrides: ListingDraftFields = {}): ListingDraft {
-  return parseListingDraft({
+  const parsed = parseListingDraft({
     title: 'Harbour at Dusk',
     description: 'Oil on canvas.',
     medium: 'Oil',
@@ -116,4 +116,7 @@ function draft(overrides: ListingDraftFields = {}): ListingDraft {
     quantity: '2',
     ...overrides,
   })
+  if (!parsed.ok) throw new Error(`the fixture draft is not valid: ${JSON.stringify(parsed.errors)}`)
+
+  return parsed.value
 }

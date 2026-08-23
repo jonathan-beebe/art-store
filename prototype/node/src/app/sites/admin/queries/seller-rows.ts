@@ -1,6 +1,7 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { ZERO_CENTS } from '../../../core/money.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
@@ -15,7 +16,11 @@ export type SellerRow = LedgerBalance & {
   removedListingCount: number
 }
 
-const EMPTY_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutCents: 0 }
+const EMPTY_BALANCE: LedgerBalance = {
+  heldCents: ZERO_CENTS,
+  availableCents: ZERO_CENTS,
+  paidOutCents: ZERO_CENTS,
+}
 
 /**
  * Every seller with the counts and the balance the table shows. The balance

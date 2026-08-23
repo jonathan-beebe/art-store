@@ -4,6 +4,7 @@ import {
   LISTING_EVENT_TYPES,
   type ListingEventType,
 } from '../../../core/listings/listing-event-type.ts'
+import { toCount } from '../../../db/count.ts'
 
 /** How much the storefront looked, favorited, and added to a cart. */
 export async function listingEventTallies({
@@ -12,12 +13,12 @@ export async function listingEventTallies({
   const rows = await db
     .selectFrom('listingEvents')
     .select(['eventType'])
-    .select((eb) => eb.fn.countAll<number>().as('count'))
+    .select((eb) => eb.fn.countAll<string | number | bigint>().as('count'))
     .groupBy('eventType')
     .execute()
 
   return tallyOver(
     LISTING_EVENT_TYPES,
-    rows.map((row) => ({ key: row.eventType, count: Number(row.count) })),
+    rows.map((row) => ({ key: row.eventType, count: toCount(row.count) })),
   )
 }

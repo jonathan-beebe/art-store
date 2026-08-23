@@ -8,11 +8,7 @@ import { finalizeOrder } from '../../../actions/orders/finalize-order.ts'
 import { placeOrder, type PlacedOrder, type PlaceOrderInput } from '../../../actions/orders/place-order.ts'
 import { runInTransaction } from '../../../actions/transaction.ts'
 import type { ActionContext } from '../../../actions/action-context.ts'
-import {
-  isCheckoutComplete,
-  missingCheckoutParts,
-  parseCheckoutForm,
-} from '../../../core/shop/checkout-form.ts'
+import { parseCheckoutForm } from '../../../core/shop/checkout-form.ts'
 import { purchaserForCheckout } from '../../../core/shop/checkout-purchaser.ts'
 import { unavailableNotices, type UnavailableNotice } from '../../../core/orders/order-placement.ts'
 import { isPayable } from '../../../core/orders/order-payment.ts'
@@ -112,22 +108,24 @@ export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
 
     const submitted = checkoutBody.parse(formBody(request))
     const isVerified = signedInActorId(request, 'customer') !== null
-    const form = parseCheckoutForm({ email: submitted.email, shipping: shippingFromForm(submitted) })
+    const parsed = parseCheckoutForm({ email: submitted.email, shipping: shippingFromForm(submitted) })
 
-    if (!isCheckoutComplete(form)) {
+    if (!parsed.ok) {
       return renderCheckout(
         reply,
         {
-          email: form.email,
-          shipping: form.shipping,
+          email: parsed.entered.email,
+          shipping: parsed.entered.shipping,
           isVerified,
-          missingParts: missingCheckoutParts(form),
+          missingParts: parsed.errors,
           unavailable: [],
           contents,
         },
         422,
       )
     }
+
+    const form = parsed.value
 
     const purchaser = purchaserForCheckout({
       customerId: customer.id,

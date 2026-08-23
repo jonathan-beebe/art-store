@@ -1,5 +1,6 @@
 import type { Expression, ExpressionBuilder, SqlBool } from 'kysely'
 import type { AppDatabase } from '../../../db/database.ts'
+import { toCount } from '../../../db/count.ts'
 import type { Database } from '../../../db/schema.ts'
 import { BROWSABLE_STATUSES, isPurchasable } from '../../../core/listings/listing-availability.ts'
 import type { ListingStatus } from '../../../core/listings/listing-status.ts'
@@ -65,11 +66,11 @@ export async function countStorefrontListings(
 ): Promise<number> {
   const counted = await db
     .selectFrom('listings')
-    .select(({ fn }) => fn.countAll<number>().as('total'))
+    .select(({ fn }) => fn.countAll<string | number | bigint>().as('total'))
     .where((eb) => eb.and([isBrowsable(eb), ...matchesSearch(eb, search)]))
     .executeTakeFirstOrThrow()
 
-  return counted.total
+  return toCount(counted.total)
 }
 
 export async function findStorefrontListings(

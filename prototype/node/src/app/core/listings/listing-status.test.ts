@@ -54,13 +54,6 @@ test('transition refuses a move the table does not allow', () => {
   )
 })
 
-test('transition refuses a status it does not know', () => {
-  assert.throws(
-    () => transitionListing('wishlisted' as never, 'sold'),
-    TransitionError,
-  )
-})
-
 test('every status has a transition list', () => {
   assert.deepEqual(Object.keys(LISTING_STATUS_TRANSITIONS).sort(), [...LISTING_STATUSES].sort())
 })

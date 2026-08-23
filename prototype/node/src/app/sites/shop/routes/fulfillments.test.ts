@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import { cents } from '../../../core/money.ts'
 import {
   buildTestApp,
   signInAsCustomer,
@@ -16,7 +17,7 @@ import {
 
 async function shippedOrder(testApp: TestApp, customerId: number) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
-  const listing = await listArtwork(testApp, { sellerId: seller.id, priceCents: 24_000 })
+  const listing = await listArtwork(testApp, { sellerId: seller.id, priceCents: cents(24_000) })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
   const order = await placeCustomerOrder(testApp, { cartId, customerId })
   await payForOrder(testApp, { orderId: order.id })

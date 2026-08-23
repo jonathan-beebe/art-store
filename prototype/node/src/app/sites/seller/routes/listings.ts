@@ -5,7 +5,6 @@ import { changeListingStatus } from '../../../actions/listings/change-listing-st
 import { createListing } from '../../../actions/listings/create-listing.ts'
 import { updateListing } from '../../../actions/listings/update-listing.ts'
 import {
-  listingDraftErrors,
   parseListingDraft,
   type ListingDraftErrors,
   type ListingDraftFields,
@@ -22,7 +21,12 @@ import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
-import { listingDraftFieldsFrom, uploadedImagePart, type MultipartBody } from '../listing-form.ts'
+import {
+  listingDraftFieldsFrom,
+  parseListingFormBody,
+  uploadedImagePart,
+  type ListingFormBody,
+} from '../listing-form.ts'
 import { MAX_IMAGE_UPLOAD_MB, saveUploadedListingImage } from '../listing-image-upload.ts'
 import { sellerNotFound } from '../not-found.ts'
 import { identityCookieValue } from '../../../plugins/identity.ts'
@@ -39,6 +43,9 @@ const ACTIVITY_WINDOW_DAYS = 14
 const OVERSIZED_IMAGE_MESSAGE = `Upload an image under ${MAX_IMAGE_UPLOAD_MB} MB.`
 
 const statusChangeSchema = z.object({ status: z.enum(LISTING_STATUSES) })
+
+/** A form shown before anything has been submitted has nothing wrong with it. */
+const NO_ERRORS: ListingDraftErrors = {}
 
 function emptyDraftFields(): ListingDraftFields {
   return { title: '', description: '', medium: '', dimensions: '', price: '', quantity: '1' }
@@ -60,7 +67,7 @@ type UploadedImage = { buffer: Buffer; format: UploadedImageFormat }
 /** Reads the uploaded part's bytes and sniffs its format — the part's own
  * filename and `Content-Type` decide nothing. Null when the field was left
  * empty. */
-async function readUploadedImage(body: MultipartBody): Promise<UploadedImage | null> {
+async function readUploadedImage(body: ListingFormBody): Promise<UploadedImage | null> {
   const image = uploadedImagePart(body)
   if (image === null) return null
 
@@ -69,7 +76,7 @@ async function readUploadedImage(body: MultipartBody): Promise<UploadedImage | n
   return { buffer, format: sniffImageFormat(buffer) ?? 'unrecognized' }
 }
 
-/** The upload once `listingDraftErrors` has already refused an unrecognized
+/** The upload once `parseListingDraft` has already refused an unrecognized
  * format — narrows `format` to a real `ImageFormat` for the caller. */
 function acceptedUploadedImage(uploadedImage: UploadedImage | null): { buffer: Buffer; format: ImageFormat } | null {
   if (uploadedImage === null || uploadedImage.format === 'unrecognized') return null
@@ -156,17 +163,17 @@ async function newForm(_request: FastifyRequest, reply: FastifyReply): Promise<F
   return reply.render('listings/new', {
     title: 'New listing',
     fields: emptyDraftFields(),
-    errors: {} as ListingDraftErrors,
+    errors: NO_ERRORS,
   })
 }
 
 async function create(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const body = request.body as MultipartBody
+  const body = parseListingFormBody(request.body)
   const uploadedImage = await readUploadedImage(body)
   const fields = listingDraftFieldsFrom(body, uploadedImage?.format ?? null)
-  const errors = listingDraftErrors(fields)
-  if (Object.keys(errors).length > 0) {
-    return reply.code(422).render('listings/new', { title: 'New listing', fields, errors })
+  const draft = parseListingDraft(fields)
+  if (!draft.ok) {
+    return reply.code(422).render('listings/new', { title: 'New listing', fields, errors: draft.errors })
   }
 
   const { db, clock, config } = request.server
@@ -174,7 +181,7 @@ async function create(request: FastifyRequest, reply: FastifyReply): Promise<Fas
     { db, clock },
     {
       sellerId: currentSellerId(request),
-      draft: parseListingDraft(fields),
+      draft: draft.value,
       imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
     },
   )
@@ -191,7 +198,7 @@ async function editForm(request: FastifyRequest, reply: FastifyReply): Promise<F
     title: `Edit ${listing.title}`,
     listing,
     fields: editFieldsFrom(listing),
-    errors: {} as ListingDraftErrors,
+    errors: NO_ERRORS,
     imageSrc: listingImageSource(listing.imagePath, listing.title),
   })
 }
@@ -200,16 +207,16 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
   const listing = await findOwnedListing(request, reply)
   if (listing === null) return reply
 
-  const body = request.body as MultipartBody
+  const body = parseListingFormBody(request.body)
   const uploadedImage = await readUploadedImage(body)
   const fields = listingDraftFieldsFrom(body, uploadedImage?.format ?? null)
-  const errors = listingDraftErrors(fields)
-  if (Object.keys(errors).length > 0) {
+  const draft = parseListingDraft(fields)
+  if (!draft.ok) {
     return reply.code(422).render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
       fields,
-      errors,
+      errors: draft.errors,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
   }
@@ -219,7 +226,7 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
     { db, clock },
     {
       listingId: listing.id,
-      draft: parseListingDraft(fields),
+      draft: draft.value,
       imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
     },
   )

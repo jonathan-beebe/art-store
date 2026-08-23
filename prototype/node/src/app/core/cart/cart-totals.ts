@@ -1,5 +1,5 @@
 import type { Cents } from '../money.ts'
-import { addCents } from '../money.ts'
+import { addCents, ZERO_CENTS } from '../money.ts'
 import { cartLineTotal, type CartLine } from './cart-line.ts'
 
 /** What a cart is worth, whole and split by the seller each line belongs to. */
@@ -15,7 +15,7 @@ export type CartTotals = {
 }
 
 function totalOf(lines: readonly CartLine[]): Cents {
-  return lines.reduce((sum, line) => addCents(sum, cartLineTotal(line)), 0)
+  return lines.reduce((sum, line) => addCents(sum, cartLineTotal(line)), ZERO_CENTS)
 }
 
 function subtotalsBySeller(lines: readonly CartLine[]): SellerSubtotal[] {

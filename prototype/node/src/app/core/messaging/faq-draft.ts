@@ -3,7 +3,12 @@ export const FAQ_ANSWER_MAX_LENGTH = 2_000
 
 export type FaqDraftFields = { question?: string; answer?: string }
 export type FaqDraftErrors = Partial<Record<'question' | 'answer', string>>
+
+/** A published question and answer. Both parts are written — the `ok` arm of
+ * `parseFaqDraft` is the only way to hold one. */
 export type FaqDraft = { question: string; answer: string }
+
+export type FaqDraftResult = { ok: true; value: FaqDraft } | { ok: false; errors: FaqDraftErrors }
 
 function questionError(value: string | undefined): string | undefined {
   const question = (value ?? '').trim()
@@ -25,18 +30,23 @@ function answerError(value: string | undefined): string | undefined {
     : undefined
 }
 
-export function faqDraftErrors(fields: FaqDraftFields): FaqDraftErrors {
-  const entries: [keyof FaqDraftErrors, string | undefined][] = [
+export function parseFaqDraft(fields: FaqDraftFields): FaqDraftResult {
+  const checked: readonly [keyof FaqDraftErrors, string | undefined][] = [
     ['question', questionError(fields.question)],
     ['answer', answerError(fields.answer)],
   ]
 
-  return Object.fromEntries(entries.filter(([, message]) => message !== undefined)) as FaqDraftErrors
-}
+  const errors: FaqDraftErrors = {}
+  for (const [field, message] of checked) {
+    if (message !== undefined) errors[field] = message
+  }
 
-export function parseFaqDraft(fields: FaqDraftFields): FaqDraft {
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, errors }
+  }
+
   return {
-    question: (fields.question ?? '').trim(),
-    answer: (fields.answer ?? '').trim(),
+    ok: true,
+    value: { question: (fields.question ?? '').trim(), answer: (fields.answer ?? '').trim() },
   }
 }

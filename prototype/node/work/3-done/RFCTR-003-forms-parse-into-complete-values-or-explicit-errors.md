@@ -1,7 +1,7 @@
 ---
 id: RFCTR-003
 type: refactor
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -227,3 +227,112 @@ first keeps IMPRV-002's route-body changes small and stable.
 - BUG-003 (checkout can 500 or sell a removed listing) — the concrete
   `stockAfterSale`/`quantityWithinStock` `RangeError` violation of the
   `TransitionError` line documented here; distinct fix, same doctrine
+
+## Working
+
+**Re-validated.** Every problem in the ticket was still in the code, with two
+exceptions.
+
+- The `TransitionError` → result-union refactor is **not** in this ticket's
+  change. The doctrine line it establishes is: `TransitionError` is for a
+  user-triggerable, expected refusal; `RangeError`/`TypeError` are for
+  programmer error only. That line is now written into the doc comment on
+  `app/core/transition-error.ts`, where the class and its call sites can be
+  judged against it. `transitionListing`/`transitionOrder`/`transitionFulfillment`
+  still throw and the seven route `catch` blocks still catch — turning those
+  into result unions touches the same route bodies IMPRV-002 owns and the same
+  actions RFCTR-001/002 have just moved, so it is left for whoever lands next
+  in those files.
+- `platform-tallies.ts` no longer widens with `type CountedStatus`; the
+  replacement `tallies<Status>` infers the union straight off the row, so
+  `asTallies<OrderStatus>(listingRows)` is a compile error rather than a
+  silent cast.
+
+**One price grammar.** `isDollarAmount` and `parseDollars` share
+`DOLLAR_AMOUNT_PATTERN` in `app/core/money.ts`, and `priceError` calls
+`isDollarAmount`. The grammar chosen is `parseDollars`'s, the looser of the two:
+`$249` and `1,234.00` are accepted (they were refused by `priceError` before and
+accepted by `parseDollars`), `12.345` is refused by both. The form can no longer
+hand `parseDollars` something it would throw on, which is what made the throw
+reachable from a route.
+
+**`Cents` is branded.** `number & { readonly __brand: 'Cents' }`, erasable
+syntax. Three constructors, all in `app/core/money.ts`: `cents(n)` for literals
+and fixtures, `parseDollars` for a form field, `centsFromColumn` for a money
+aggregate. `cents` holds the file's only `as`, and every other money function
+returns through it, so the integer check survives where the type cannot carry
+it. `addCents`/`formatCents`/`dollarsInputValue` dropped their own
+`assertIntegerAmount` calls — a `Cents` was checked when it was made.
+`subtractCents` and `negateCents` are new because `a - b` and `-a` on a branded
+number are plain `number`s; they replace the `addCents(x, -y)` and
+`addCents(0, -y)` spellings. Money columns in `app/db/commerce-schema.ts` are
+`ColumnType<Cents, number, number>`, so reads are `Cents` and writes still take
+the plain integer the driver stores — that is what kept the seed and fixture
+insert sites unchanged. `dollarsInputValue(cents(-105)) === '1.05'` is still
+pinned by IMPRV-006's test.
+
+**Aggregates.** `toCount(value: unknown): number` in `app/db/count.ts` is the
+one reader; `countAll`/`sum` are now typed `string | number | bigint` (and
+`| null` for a `sum` that can see no rows), which is what the driver actually
+returns. `page-view-report.ts:73`'s `Number(counted.count ?? 0)` — the line that
+contradicted its own `<number>` assertion — is `toCount(counted.count)`.
+`find-storefront-listings.ts` and `current-cart.ts` are fixed too: both were
+named in the ticket, and the first returned an asserted `<number>` straight out
+of the function without so much as a `Number()`. The `Number(row.count)` reads
+in `sites/seller/queries/*` and `sites/admin/queries/{seller,customer}-rows.ts`
+are left alone — those queries never asserted `<number>`, so their `Number()` is
+an honest conversion rather than half of a contradiction.
+
+**Left alone deliberately.**
+- `docs/ontology.md:221,343`, `docs/architecture.md:227`, `docs/messaging.md:75,101`
+  and `docs/orders.md:35` name `faqDraftErrors`, `listingDraftErrors`,
+  `isCheckoutComplete` and `type Cents = number`, none of which exist now.
+  Docs are outside this ticket's territory this cycle — flagged for FEAT-017.
+- `SIGNED_IN_ACTOR` and `ACTOR_GUARDS` in `plugins/identity.ts` keep their
+  annotations: their values are functions, so `satisfies` would narrow nothing.
+  `IDENTITY_COOKIES` (cookie names) got `as const satisfies`.
+- The transition tables are `as const satisfies`, and `canTransitionListing`
+  and friends widen to `readonly Status[]` in a local before `.includes` —
+  a narrow tuple union has no callable `includes`. The `| undefined` annotation
+  and the `?? []` on a total `Record` are gone, which is what the ticket asked
+  for.
+
+**Changed.** `app/core/money.ts` (+test), `app/db/commerce-schema.ts`,
+`app/db/count.ts` (new, +test); the four form parsers
+(`core/shop/checkout-form.ts`, `core/listings/listing-draft.ts`,
+`core/messaging/faq-draft.ts`, `core/orders/shipment-details.ts`, each +test)
+and their four route call sites (`sites/shop/routes/checkout.ts`,
+`sites/seller/routes/{listings,faqs,orders}.ts`);
+`sites/seller/listing-form.ts` (+test) now parses the multipart body with one
+zod schema — the file part passes through by reference, because
+`@fastify/multipart`'s `toBuffer` reads the part it is a method of and a copy
+loses it; `app/config.ts`; the four admin aggregate queries plus
+`shop/queries/find-storefront-listings.ts` and `actions/carts/current-cart.ts`;
+`satisfies` on the lookup tables in `core/{listings/listing-status,orders/order-status,orders/fulfillment-status,auth/actor-type,messaging/conversation-kind,messaging/conversation-path,payments/decline-reason}.ts`,
+`plugins/{identity,unread-messages}.ts`, `sites/auth/index.ts`,
+`delivery/magic-link-delivery.ts`, `db/seed-page-views.ts`;
+`core/listings/listing-stock.ts` and `core/payments/decline-reason.ts` lost
+their unreachable guards (and the three `as never` tests that reached them);
+`sites/shop/routes/carts.ts`; `core/transition-error.ts`; plus the callers and
+fixtures the brand forced to compile.
+
+**Casts.** The four non-`as const` casts the ticket named are gone:
+`errors: {} as ListingDraftErrors` (twice), the three
+`Object.fromEntries(...) as …`, the `Object.entries(...) as [PageViewSite, …][]`
+in `seed-page-views.ts`, `row.status as Status` in `platform-tallies.ts`, and
+`request.body as MultipartBody` in `seller/routes/listings.ts`. What remains in
+`app/` outside tests is `amount as Cents` inside `cents()` (a brand has to be
+constructed somewhere), and two that predate this ticket:
+`JSON.parse(line) as Record<string, unknown>` in `test/log-lines.ts` and
+`{ ...row } as R` in `db/node-sqlite-dialect.ts`.
+
+**Tests.** Measured in an isolated worktree at HEAD, since the shared tree
+carries IMPRV-003's in-flight work: 1461 pass before this ticket's change,
+1470 after, 0 fail. `npm run check` exit 0 there, coverage 99.34 lines /
+96.46 branches / 99.27 functions against thresholds of 95 and 90. In the shared
+tree the same command reads exit 0, 1492 pass, 0 fail, 99.57/96.60/99.55.
+
+Note for whoever holds `app.ts`: HEAD does not compile on its own —
+`app/app.ts:13` imports `./logging.ts`, which IMPRV-003 has written but not yet
+committed. The isolated verification above copied that one file in to get a
+compilable baseline; nothing else of IMPRV-003's was needed.

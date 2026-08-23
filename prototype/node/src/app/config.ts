@@ -1,35 +1,12 @@
 import path from 'node:path'
 import { z } from 'zod'
-import {
-  MAGIC_LINK_DELIVERIES,
-  type MagicLinkDeliveryName,
-} from './delivery/magic-link-delivery.ts'
+import { MAGIC_LINK_DELIVERIES } from './delivery/magic-link-delivery.ts'
 
 export const ENVIRONMENTS = ['development', 'test', 'production'] as const
 
 export type Environment = (typeof ENVIRONMENTS)[number]
 
-export type AppConfig = {
-  environment: Environment
-  host: string
-  port: number
-  databaseFile: string
-  cookieSecret: string
-  logLevel: LogLevel
-  magicLinkDelivery: MagicLinkDeliveryName
-  uploadsDir: string
-  /** Where the drain writes `.eml` files. */
-  outboxDir: string
-  /** The origin links are built from, or null to build them from the request. */
-  publicUrl: string | null
-  trustProxy: boolean
-  secureCookies: boolean
-  showsDebugMagicLinks: boolean
-}
-
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
-
-type LogLevel = (typeof LOG_LEVELS)[number]
 
 // Same convention app.ts uses for PUBLIC_ROOT: the public directory sits
 // beside app/ at the project root.
@@ -40,7 +17,7 @@ const DEFAULT_UPLOADS_DIR = path.join(PUBLIC_ROOT, 'uploads')
 // with no configuration. Production brings its own secret or does not boot.
 const DEVELOPMENT_COOKIE_SECRET = 'art-store-prototype-cookie-secret'
 
-const environmentSchema = z.object({
+const environmentVariables = z.object({
   NODE_ENV: z.enum(ENVIRONMENTS).default('development'),
   HOST: z.string().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -59,7 +36,7 @@ const environmentSchema = z.object({
   TRUST_PROXY: z.stringbool().default(false),
 })
 
-type ParsedEnvironment = z.infer<typeof environmentSchema>
+type ParsedEnvironment = z.output<typeof environmentVariables>
 
 /** Everything a production boot must not run with, refused before it starts. */
 function refuseUnsafeProduction(parsed: ParsedEnvironment): void {
@@ -81,16 +58,12 @@ function refuseUnsafeProduction(parsed: ParsedEnvironment): void {
   }
 }
 
-/**
- * Parses the environment into the value the whole app reads its deployment
- * from. A production boot that would serve forgeable cookies or print sign-in
- * links into a page throws here instead of starting.
- */
-export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
-  const parsed = environmentSchema.parse(environment)
+/** The SCREAMING_CASE environment as the camelCase deployment the app reads. */
+function toAppConfig(parsed: ParsedEnvironment) {
   refuseUnsafeProduction(parsed)
 
   const isProduction = parsed.NODE_ENV === 'production'
+  // The origin links are built from, or null to build them from the request.
   const publicUrl = parsed.PUBLIC_URL ?? null
 
   return {
@@ -102,10 +75,26 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     logLevel: parsed.LOG_LEVEL,
     magicLinkDelivery: parsed.MAGIC_LINK_DELIVERY,
     uploadsDir: parsed.UPLOADS_DIR,
+    // Where the drain writes `.eml` files.
     outboxDir: parsed.OUTBOX_DIR,
     publicUrl,
     trustProxy: parsed.TRUST_PROXY,
     secureCookies: isProduction || publicUrl?.startsWith('https:') === true,
     showsDebugMagicLinks: !isProduction && parsed.MAGIC_LINK_DELIVERY === 'flash',
   }
+}
+
+const environmentSchema = environmentVariables.transform(toAppConfig)
+
+/** Everything the app reads its deployment from, inferred from the schema that
+ * parses it — a new setting is one edit here rather than three. */
+export type AppConfig = z.output<typeof environmentSchema>
+
+/**
+ * Parses the environment into the value the whole app reads its deployment
+ * from. A production boot that would serve forgeable cookies or print sign-in
+ * links into a page throws here instead of starting.
+ */
+export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
+  return environmentSchema.parse(environment)
 }

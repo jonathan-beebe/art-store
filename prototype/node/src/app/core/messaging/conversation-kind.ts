@@ -15,23 +15,23 @@ export type ParticipantColumn = 'sellerId' | 'customerId' | 'adminId'
 /** The column that names what a conversation is about, for the kinds that have one. */
 export type SubjectColumn = 'listingId' | 'fulfillmentId'
 
-const PARTICIPANT_COLUMNS: Readonly<Record<ActorType, ParticipantColumn>> = {
+const PARTICIPANT_COLUMNS = {
   seller: 'sellerId',
   customer: 'customerId',
   admin: 'adminId',
-}
+} as const satisfies Record<ActorType, ParticipantColumn>
 
 type KindShape = {
   participants: readonly ParticipantColumn[]
   subject: SubjectColumn | null
 }
 
-const KIND_SHAPES: Readonly<Record<ConversationKind, KindShape>> = {
+const KIND_SHAPES = {
   admin_seller: { participants: ['adminId', 'sellerId'], subject: null },
   admin_customer: { participants: ['adminId', 'customerId'], subject: null },
   fulfillment: { participants: ['sellerId', 'customerId'], subject: 'fulfillmentId' },
   listing_question: { participants: ['sellerId', 'customerId'], subject: 'listingId' },
-}
+} as const satisfies Record<ConversationKind, KindShape>
 
 /** Which column holds this actor's id, whatever kind of conversation it is. */
 export function participantColumn(actorType: ActorType): ParticipantColumn {

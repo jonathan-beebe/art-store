@@ -1,4 +1,4 @@
-import { addCents, type Cents } from '../money.ts'
+import { addCents, negateCents, subtractCents, ZERO_CENTS, type Cents } from '../money.ts'
 import type { LedgerEntryType } from './ledger-entry-type.ts'
 import type { LedgerMovement } from './ledger-movement.ts'
 
@@ -12,15 +12,15 @@ export type LedgerBalance = { heldCents: Cents; availableCents: Cents; paidOutCe
 export type SellerLedgerMovement = LedgerMovement & { sellerId: number }
 
 export function ledgerBalance(movements: readonly LedgerMovement[]): LedgerBalance {
-  const totals: Record<LedgerEntryType, Cents> = { held: 0, released: 0, paid_out: 0 }
+  const totals: Record<LedgerEntryType, Cents> = { held: ZERO_CENTS, released: ZERO_CENTS, paid_out: ZERO_CENTS }
   for (const movement of movements) {
     totals[movement.entryType] = addCents(totals[movement.entryType], movement.amountCents)
   }
 
   return {
-    heldCents: addCents(totals.held, -totals.released),
+    heldCents: subtractCents(totals.held, totals.released),
     availableCents: addCents(totals.released, totals.paid_out),
-    paidOutCents: addCents(0, -totals.paid_out),
+    paidOutCents: negateCents(totals.paid_out),
   }
 }
 

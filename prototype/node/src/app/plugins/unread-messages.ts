@@ -18,7 +18,7 @@ export function addUnreadMessages(app: FastifyInstance): void {
   app.decorateRequest('unreadMessageCount', 0)
 }
 
-const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => Promise<number | null>>> = {
+const ACTOR_IDS = {
   seller: async (request) => request.currentSeller?.id ?? null,
   admin: async (request) => request.currentAdmin?.id ?? null,
   // The storefront's sign-in pages sit outside the hook that resolves a
@@ -34,7 +34,7 @@ const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => Promise
 
     return customer?.id ?? null
   },
-}
+} satisfies Record<ActorType, (request: FastifyRequest) => Promise<number | null>>
 
 /** Counts what this site's actor has waiting, for the nav link in its layout. */
 export function countUnreadMessages(actorType: ActorType): preHandlerHookHandler {

@@ -64,7 +64,7 @@ type ListingJoinRow = {
   sellerShopName: string | null
   sellerEmail: string
   status: ListingStatus
-  priceCents: number
+  priceCents: Cents
   quantity: number
 }
 

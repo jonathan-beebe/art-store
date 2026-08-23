@@ -1,24 +1,24 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { listingDraftFieldsFrom, uploadedImagePart, type MultipartBody } from './listing-form.ts'
+import { listingDraftFieldsFrom, parseListingFormBody, uploadedImagePart } from './listing-form.ts'
 
-function textField(value: string): MultipartBody[string] {
+function textField(value: string): unknown {
   return { type: 'field', value }
 }
 
-function filePart(filename: string, mimetype = 'image/png'): MultipartBody[string] {
+function filePart(filename: string, mimetype = 'image/png'): unknown {
   return { type: 'file', filename, mimetype, toBuffer: async () => Buffer.from('') }
 }
 
 test('listingDraftFieldsFrom reads every text field', () => {
-  const body: MultipartBody = {
+  const body = parseListingFormBody({
     title: textField('Harbour at Dusk'),
     description: textField('Oil on canvas.'),
     medium: textField('Oil'),
     dimensions: textField('40 x 60 cm'),
     price: textField('249.00'),
     quantity: textField('2'),
-  }
+  })
 
   assert.deepEqual(listingDraftFieldsFrom(body, null), {
     title: 'Harbour at Dusk',
@@ -32,34 +32,45 @@ test('listingDraftFieldsFrom reads every text field', () => {
 })
 
 test('a field left out of the body reads as an empty string', () => {
-  const fields = listingDraftFieldsFrom({}, null)
+  const fields = listingDraftFieldsFrom(parseListingFormBody({}), null)
 
   assert.equal(fields.title, '')
 })
 
+test('a text field submitted as something other than text reads as absent', () => {
+  const fields = listingDraftFieldsFrom(parseListingFormBody({ title: { type: 'field', value: [1, 2] } }), null)
+
+  assert.equal(fields.title, '')
+})
+
+test('a body that is not an object at all reads as an empty form', () => {
+  const fields = listingDraftFieldsFrom(parseListingFormBody('nonsense'), null)
+
+  assert.equal(fields.title, '')
+  assert.equal(fields.price, '')
+})
+
 test('uploadedImagePart reads a file part with a filename', () => {
-  const part = uploadedImagePart({ image: filePart('harbour.png') })
+  const part = uploadedImagePart(parseListingFormBody({ image: filePart('harbour.png') }))
 
   assert.notEqual(part, null)
   assert.equal(part?.filename, 'harbour.png')
 })
 
 test('uploadedImagePart reads an untouched file input as no image', () => {
-  assert.equal(uploadedImagePart({ image: filePart('') }), null)
+  assert.equal(uploadedImagePart(parseListingFormBody({ image: filePart('') })), null)
 })
 
 test('uploadedImagePart reads a missing field as no image', () => {
-  assert.equal(uploadedImagePart({}), null)
+  assert.equal(uploadedImagePart(parseListingFormBody({})), null)
+})
+
+test('uploadedImagePart reads a text part under the image field as no image', () => {
+  assert.equal(uploadedImagePart(parseListingFormBody({ image: textField('harbour.png') })), null)
 })
 
 test('listingDraftFieldsFrom carries the sniffed image format the caller passes, not the part itself', () => {
-  const fields = listingDraftFieldsFrom({ image: filePart('harbour.png', 'image/png') }, 'png')
+  const body = parseListingFormBody({ image: filePart('harbour.png', 'image/png') })
 
-  assert.equal(fields.imageFormat, 'png')
-})
-
-test('listingDraftFieldsFrom carries an unrecognized format through unchanged', () => {
-  const fields = listingDraftFieldsFrom({ image: filePart('evil.html', 'image/anything') }, 'unrecognized')
-
-  assert.equal(fields.imageFormat, 'unrecognized')
+  assert.equal(listingDraftFieldsFrom(body, 'png').imageFormat, 'png')
 })

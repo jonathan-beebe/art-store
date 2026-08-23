@@ -7,6 +7,7 @@ import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ActionContext } from '../../actions/action-context.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
+import { cents, type Cents } from '../../core/money.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
 import type { Listing, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -22,7 +23,7 @@ export type ArtworkInput = {
   description?: string | null
   medium?: string | null
   dimensions?: string | null
-  priceCents?: number
+  priceCents?: Cents
   quantity?: number
   status?: ListingStatus
 }
@@ -46,7 +47,7 @@ function artworkDraft(input: ArtworkInput): ListingDraft {
     description: input.description ?? 'Oil study of the harbour.',
     medium: input.medium ?? 'Oil on canvas',
     dimensions: input.dimensions ?? '40 x 60 cm',
-    priceCents: input.priceCents ?? 24_000,
+    priceCents: input.priceCents ?? cents(24_000),
     quantity: input.quantity ?? 1,
   }
 }

@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
 import { listArtwork, removeListing } from '../storefront-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 test('the storefront home page renders in the storefront layout', async (t) => {
   const { app, close } = await buildTestApp()
@@ -34,7 +35,7 @@ test('the grid shows art for sale with its picture, shop, and price', async (t) 
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp, 'ada@example.test')
-  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: 24_000 })
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', priceCents: cents(24_000) })
 
   const response = await testApp.app.inject({ method: 'GET', url: '/' })
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { sql, type RawBuilder, type Selectable } from 'kysely'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from './database.ts'
 import { migrateToLatest } from './migrator.ts'
+import { cents } from '../core/money.ts'
 import type {
   AdminTable,
   CustomerMergeTable,
@@ -87,7 +88,7 @@ const listingsSample: Listing = {
   description: null,
   medium: null,
   dimensions: null,
-  priceCents: 100,
+  priceCents: cents(100),
   quantity: 1,
   status: 'draft',
   imagePath: null,
@@ -154,8 +155,8 @@ const ordersSample: Order = {
   shippingRegion: 'Region',
   shippingPostalCode: '00000',
   shippingCountry: 'US',
-  subtotalCents: 100,
-  totalCents: 100,
+  subtotalCents: cents(100),
+  totalCents: cents(100),
   placedAt: '2026-01-01T00:00:00.000Z',
   finalizedAt: null,
   cancelledAt: null,
@@ -167,7 +168,7 @@ const orderItemsSample: OrderItem = {
   listingId: 1,
   sellerId: 1,
   title: 'Untitled',
-  unitPriceCents: 100,
+  unitPriceCents: cents(100),
   quantity: 1,
 }
 
@@ -175,7 +176,7 @@ const paymentsSample: Payment = {
   id: 1,
   orderId: 1,
   status: 'approved',
-  amountCents: 100,
+  amountCents: cents(100),
   cardLastFour: '4242',
   declineReason: null,
   processedAt: '2026-01-01T00:00:00.000Z',
@@ -188,9 +189,9 @@ const fulfillmentsSample: Fulfillment = {
   status: 'awaiting_shipment',
   carrier: null,
   trackingNumber: null,
-  subtotalCents: 100,
-  feeCents: 10,
-  netCents: 90,
+  subtotalCents: cents(100),
+  feeCents: cents(10),
+  netCents: cents(90),
   shippedAt: null,
   deliveredAt: null,
 }
@@ -200,7 +201,7 @@ const payoutsSample: Payout = {
   sellerId: 1,
   periodStart: '2026-01-01',
   periodEnd: '2026-01-07',
-  amountCents: 100,
+  amountCents: cents(100),
   paidAt: '2026-01-08T00:00:00.000Z',
 }
 
@@ -210,7 +211,7 @@ const ledgerEntriesSample: LedgerEntry = {
   fulfillmentId: null,
   payoutId: null,
   entryType: 'held',
-  amountCents: 100,
+  amountCents: cents(100),
   occurredAt: '2026-01-01T00:00:00.000Z',
 }
 

@@ -11,10 +11,10 @@ export type ActorSite = {
   signedOutPath: string
 }
 
-export const ACTOR_SITES: Readonly<Record<ActorType, ActorSite>> = {
+export const ACTOR_SITES = {
   seller: { homePath: '/seller', loginPath: '/seller/login', signedOutPath: '/seller/login' },
   // A customer signing out keeps browsing, so they land on the storefront and
   // the next request hands them a fresh anonymous identity.
   customer: { homePath: '/account', loginPath: '/login', signedOutPath: '/' },
   admin: { homePath: '/admin', loginPath: '/admin/login', signedOutPath: '/admin/login' },
-}
+} as const satisfies Record<ActorType, ActorSite>

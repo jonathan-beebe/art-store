@@ -5,6 +5,7 @@ import { itemSoldMessage } from '../../core/notifications/notification-message.t
 import type { DeliveryContext } from '../../delivery/delivery-context.ts'
 import type { DeliverableNotification } from '../../delivery/notification-delivery.ts'
 import { createAdmin, createCustomer, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
+import { cents } from '../../core/money.ts'
 
 test('it files a seller message under sellerId with the other two recipient columns null', async (t) => {
   const world = await openCommerceWorld()
@@ -16,7 +17,7 @@ test('it files a seller message under sellerId with the other two recipient colu
   const notification = await notify(context, {
     recipientType: 'seller',
     recipientId: shop,
-    message: itemSoldMessage(7, 40_500),
+    message: itemSoldMessage(7, cents(40_500)),
   })
 
   assert.equal(notification.sellerId, shop)
@@ -34,7 +35,7 @@ test('it files a customer message under customerId', async (t) => {
   const notification = await notify(context, {
     recipientType: 'customer',
     recipientId: buyer,
-    message: itemSoldMessage(7, 40_500),
+    message: itemSoldMessage(7, cents(40_500)),
   })
 
   assert.equal(notification.customerId, buyer)
@@ -52,7 +53,7 @@ test('it files an admin message under adminId', async (t) => {
   const notification = await notify(context, {
     recipientType: 'admin',
     recipientId: admin,
-    message: itemSoldMessage(7, 40_500),
+    message: itemSoldMessage(7, cents(40_500)),
   })
 
   assert.equal(notification.adminId, admin)
@@ -70,7 +71,7 @@ test('a new notification is unread', async (t) => {
   const notification = await notify(context, {
     recipientType: 'seller',
     recipientId: shop,
-    message: itemSoldMessage(7, 40_500),
+    message: itemSoldMessage(7, cents(40_500)),
   })
 
   assert.equal(notification.readAt, null)
@@ -86,7 +87,7 @@ test('it carries the url the message points at', async (t) => {
   const notification = await notify(context, {
     recipientType: 'seller',
     recipientId: shop,
-    message: itemSoldMessage(7, 40_500, '/seller/orders/7'),
+    message: itemSoldMessage(7, cents(40_500), '/seller/orders/7'),
   })
 
   assert.equal(notification.url, '/seller/orders/7')
@@ -107,7 +108,7 @@ test('the notificationDelivery port receives the notification when one is on the
 
   await notify(
     { ...context, notificationDelivery },
-    { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) },
+    { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, cents(40_500)) },
   )
 
   assert.equal(delivered.length, 1)
@@ -128,7 +129,7 @@ test('a delivery that fails takes the notification down with it', async (t) => {
   await assert.rejects(() =>
     notify(
       { ...context, notificationDelivery },
-      { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) },
+      { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, cents(40_500)) },
     ),
   )
 
@@ -147,7 +148,7 @@ test('with no delivery on the context the message is queued for the outbox', asy
   await notify(context, {
     recipientType: 'seller',
     recipientId: shop,
-    message: itemSoldMessage(7, 40_500, '/seller/orders/7'),
+    message: itemSoldMessage(7, cents(40_500), '/seller/orders/7'),
   })
 
   const queued = await context.db.selectFrom('outboxMessages').selectAll().executeTakeFirstOrThrow()
@@ -167,7 +168,7 @@ test('a business transaction that rolls back leaves neither the inbox row nor th
     world.db.transaction().execute(async (transaction) => {
       await notify(
         { ...context, db: transaction },
-        { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, 40_500) },
+        { recipientType: 'seller', recipientId: shop, message: itemSoldMessage(7, cents(40_500)) },
       )
       throw new Error('the sale fell through after the seller was told')
     }),

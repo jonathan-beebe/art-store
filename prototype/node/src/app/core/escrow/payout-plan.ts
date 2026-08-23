@@ -1,4 +1,4 @@
-import { addCents, type Cents } from '../money.ts'
+import { addCents, ZERO_CENTS, type Cents } from '../money.ts'
 import { isPayable, type LedgerBalance } from './ledger-balance.ts'
 import type { PayoutPeriod } from './payout-period.ts'
 
@@ -41,5 +41,5 @@ export function planWeeklyPayout({ balances, settledSellerIds, period }: PlanWee
 }
 
 export function payoutTotal(payouts: readonly { amountCents: Cents }[]): Cents {
-  return payouts.reduce((sum, payout) => addCents(sum, payout.amountCents), 0)
+  return payouts.reduce((sum, payout) => addCents(sum, payout.amountCents), ZERO_CENTS)
 }

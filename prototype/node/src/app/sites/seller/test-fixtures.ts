@@ -10,6 +10,7 @@ import { notify } from '../../actions/notifications/notify.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
+import { cents } from '../../core/money.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
 import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
 import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
@@ -20,7 +21,7 @@ const DEFAULT_DRAFT: ListingDraft = {
   description: 'Oil on canvas.',
   medium: 'Oil',
   dimensions: '40 x 60 cm',
-  priceCents: 45_000,
+  priceCents: cents(45_000),
   quantity: 2,
 }
 

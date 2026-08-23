@@ -19,9 +19,10 @@ const SOLD_OUT_ALERT = 'That listing is no longer for sale.'
 
 const parameters = z.object({ slug: z.string() })
 
-// Undefined or junk means one: the quantity field only appears on the page
-// for a listing with more than one in stock.
-const addForm = z.object({ quantity: z.coerce.number().int().min(1).catch(1) }).catch({ quantity: 1 })
+// The quantity field only appears on the page for a listing with more than one
+// in stock, so a submission without one means one. A submission with something
+// that is not a quantity is a bad request rather than a silent default.
+const addForm = z.object({ quantity: z.coerce.number().int().min(1).optional() })
 
 export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
   shop.get('/cart', async (request, reply) => {
@@ -51,6 +52,7 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
       const { slug } = parameters.parse(request.params)
       const customer = storefrontCustomer(request)
       const { quantity } = addForm.parse(formBody(request))
+      const wanted = quantity ?? 1
 
       // The gate and the line it writes read one snapshot of the listing, so a
       // piece removed or taken off sale mid-request never lands in a cart.
@@ -60,7 +62,7 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
         if (!found.isPurchasable) return 'unavailable' as const
 
         const cart = await currentCart(transacted, customer.id)
-        await addToCart(transacted, { cartId: cart.id, listingId: found.listing.id, quantity })
+        await addToCart(transacted, { cartId: cart.id, listingId: found.listing.id, quantity: wanted })
 
         return 'added' as const
       })

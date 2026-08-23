@@ -1,7 +1,7 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
-import { addCents, type Cents } from '../../../core/money.ts'
+import { addCents, centsFromColumn, ZERO_CENTS, type Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
@@ -20,8 +20,16 @@ export type SellerAccount = LedgerBalance & {
 
 type LifetimeSales = { subtotalCents: Cents; feeCents: Cents; netCents: Cents }
 
-const ZERO_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutCents: 0 }
-const ZERO_LIFETIME: LifetimeSales = { subtotalCents: 0, feeCents: 0, netCents: 0 }
+const ZERO_BALANCE: LedgerBalance = {
+  heldCents: ZERO_CENTS,
+  availableCents: ZERO_CENTS,
+  paidOutCents: ZERO_CENTS,
+}
+const ZERO_LIFETIME: LifetimeSales = {
+  subtotalCents: ZERO_CENTS,
+  feeCents: ZERO_CENTS,
+  netCents: ZERO_CENTS,
+}
 
 /**
  * Every seller, whether or not they have moved any money, with their escrow
@@ -56,7 +64,7 @@ function toAccount(
   lifetimeSales: Map<number, LifetimeSales>,
 ): SellerAccount {
   const balance = balances.get(seller.id) ?? ZERO_BALANCE
-  const payoutTotalCents = payoutTotals.get(seller.id) ?? 0
+  const payoutTotalCents = payoutTotals.get(seller.id) ?? ZERO_CENTS
   const lifetime = lifetimeSales.get(seller.id) ?? ZERO_LIFETIME
 
   return {
@@ -74,11 +82,11 @@ function toAccount(
 async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<number, Cents>> {
   const rows = await db
     .selectFrom('payouts')
-    .select(['sellerId', (eb) => eb.fn.sum<number>('amountCents').as('total')])
+    .select(['sellerId', (eb) => eb.fn.sum<string | number | bigint>('amountCents').as('total')])
     .groupBy('sellerId')
     .execute()
 
-  return new Map(rows.map((row) => [row.sellerId, Number(row.total)]))
+  return new Map(rows.map((row) => [row.sellerId, centsFromColumn(row.total)]))
 }
 
 /**

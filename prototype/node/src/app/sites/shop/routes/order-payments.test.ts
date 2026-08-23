@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
+import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -33,7 +34,7 @@ async function cartOneArtwork(testApp: TestApp, customerId: number) {
   const listing = await listArtwork(testApp, {
     sellerId: seller.id,
     title: 'Harbour at dusk',
-    priceCents: 24_000,
+    priceCents: cents(24_000),
   })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
 

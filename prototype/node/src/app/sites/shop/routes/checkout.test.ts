@@ -14,6 +14,7 @@ import {
   type TestApp,
 } from '../../../test/build-test-app.ts'
 import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 const APPROVED_CARD = '4242 4242 4242 4242'
 const DECLINED_CARD = '4000 0000 0000 0002'
@@ -33,7 +34,7 @@ async function readyCart(testApp: TestApp, customer: SignedInActor): Promise<num
   const listing = await listArtwork(testApp, {
     sellerId: seller.id,
     title: 'Harbour at dusk',
-    priceCents: 24_000,
+    priceCents: cents(24_000),
   })
   await putInCart(testApp, customer.id, listing.id)
 

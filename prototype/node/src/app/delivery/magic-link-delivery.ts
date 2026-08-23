@@ -24,10 +24,10 @@ export const MAGIC_LINK_DELIVERIES = ['flash', 'outbox'] as const
 
 export type MagicLinkDeliveryName = (typeof MAGIC_LINK_DELIVERIES)[number]
 
-const DELIVERIES: Readonly<Record<MagicLinkDeliveryName, MagicLinkDelivery>> = {
+const DELIVERIES = {
   flash: flashMagicLinkDelivery,
   outbox: outboxMagicLinkDelivery,
-}
+} satisfies Record<MagicLinkDeliveryName, MagicLinkDelivery>
 
 export function selectMagicLinkDelivery(name: MagicLinkDeliveryName): MagicLinkDelivery {
   return DELIVERIES[name]

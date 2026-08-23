@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import { planWeeklyPayout, payoutTotal } from './payout-plan.ts'
 import type { LedgerBalance } from './ledger-balance.ts'
 import type { PayoutPeriod } from './payout-period.ts'
+import { cents } from '../money.ts'
 
 const PERIOD: PayoutPeriod = { firstDay: '2026-08-17', lastDay: '2026-08-23' }
-const ZERO_BALANCE: LedgerBalance = { heldCents: 0, availableCents: 0, paidOutCents: 0 }
+const ZERO_BALANCE: LedgerBalance = { heldCents: cents(0), availableCents: cents(0), paidOutCents: cents(0) }
 
 function balance(overrides: Partial<LedgerBalance> = {}): LedgerBalance {
   return { ...ZERO_BALANCE, ...overrides }
@@ -18,7 +19,7 @@ test('an empty ledger pays nobody', () => {
 })
 
 test('a seller with only held money is not payable', () => {
-  const balances = new Map([[1, balance({ heldCents: 40_500 })]])
+  const balances = new Map([[1, balance({ heldCents: cents(40_500) })]])
 
   const intents = planWeeklyPayout({ balances, settledSellerIds: new Set(), period: PERIOD })
 
@@ -26,7 +27,7 @@ test('a seller with only held money is not payable', () => {
 })
 
 test('a seller with available money gets an intent for the period', () => {
-  const balances = new Map([[1, balance({ availableCents: 40_500 })]])
+  const balances = new Map([[1, balance({ availableCents: cents(40_500) })]])
 
   const intents = planWeeklyPayout({ balances, settledSellerIds: new Set(), period: PERIOD })
 
@@ -36,7 +37,7 @@ test('a seller with available money gets an intent for the period', () => {
 })
 
 test('an already-settled seller is skipped even though their balance is payable', () => {
-  const balances = new Map([[1, balance({ availableCents: 40_500 })]])
+  const balances = new Map([[1, balance({ availableCents: cents(40_500) })]])
 
   const intents = planWeeklyPayout({ balances, settledSellerIds: new Set([1]), period: PERIOD })
 
@@ -45,8 +46,8 @@ test('an already-settled seller is skipped even though their balance is payable'
 
 test('each payable, unsettled seller gets their own intent', () => {
   const balances = new Map([
-    [1, balance({ availableCents: 40_500 })],
-    [2, balance({ availableCents: 9_000 })],
+    [1, balance({ availableCents: cents(40_500) })],
+    [2, balance({ availableCents: cents(9_000) })],
   ])
 
   const intents = planWeeklyPayout({ balances, settledSellerIds: new Set([2]), period: PERIOD })
@@ -56,7 +57,7 @@ test('each payable, unsettled seller gets their own intent', () => {
 
 test('a period that crosses a year boundary is carried through to the intent unchanged', () => {
   const yearBoundary: PayoutPeriod = { firstDay: '2025-12-29', lastDay: '2026-01-04' }
-  const balances = new Map([[1, balance({ availableCents: 5_000 })]])
+  const balances = new Map([[1, balance({ availableCents: cents(5_000) })]])
 
   const intents = planWeeklyPayout({ balances, settledSellerIds: new Set(), period: yearBoundary })
 
@@ -70,5 +71,5 @@ test('payoutTotal sums nothing for no payouts', () => {
 })
 
 test('payoutTotal adds every payout amount', () => {
-  assert.equal(payoutTotal([{ amountCents: 40_500 }, { amountCents: 9_000 }]), 49_500)
+  assert.equal(payoutTotal([{ amountCents: cents(40_500) }, { amountCents: cents(9_000) }]), 49_500)
 })

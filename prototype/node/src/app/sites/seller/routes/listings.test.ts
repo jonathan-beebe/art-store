@@ -4,6 +4,7 @@ import type { LightMyRequestResponse } from 'fastify'
 import { buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
 import { MAX_IMAGE_UPLOAD_BYTES } from '../listing-image-upload.ts'
 import { createForSaleListing, createFulfillment, createTestListing } from '../test-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -97,7 +98,7 @@ test("the index lists the seller's own listings with their activity", async (t) 
   const seller = await signInAsSeller(testApp)
   const listing = await createTestListing(testApp, seller.id, {
     title: 'Harbour at Dusk',
-    priceCents: 45_000,
+    priceCents: cents(45_000),
     quantity: 2,
   })
   await testApp.db
@@ -384,7 +385,7 @@ test('the edit form is filled with the listing as it stands', async (t) => {
   const seller = await signInAsSeller(testApp)
   const listing = await createTestListing(testApp, seller.id, {
     title: 'Harbour at Dusk',
-    priceCents: 45_000,
+    priceCents: cents(45_000),
     quantity: 3,
   })
 

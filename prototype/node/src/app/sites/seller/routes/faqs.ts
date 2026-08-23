@@ -5,7 +5,7 @@ import { publishListingFaq } from '../../../actions/messaging/publish-listing-fa
 import { unpublishListingFaq } from '../../../actions/messaging/unpublish-listing-faq.ts'
 import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
-import { faqDraftErrors, parseFaqDraft, type FaqDraftFields } from '../../../core/messaging/faq-draft.ts'
+import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 import { formBody } from '../../../plugins/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
@@ -30,8 +30,11 @@ function parseFaqParams(params: unknown): FaqParams | null {
   return parsed.success ? { listingId: parsed.data.id, faqId: parsed.data.faqId } : null
 }
 
-function firstFaqError(fields: FaqDraftFields): string | undefined {
-  return Object.values(faqDraftErrors(fields))[0]
+/** The first thing wrong with the submission, on the page it came from. */
+function refuseFaq(reply: FastifyReply, destination: string, errors: FaqDraftErrors): FastifyReply {
+  reply.setFlash({ alert: Object.values(errors)[0] })
+
+  return reply.redirect(destination)
 }
 
 function faqsDestination(request: FastifyRequest, listingId: number, redirectTo: string | undefined): string {
@@ -65,15 +68,12 @@ async function publish(request: FastifyRequest, reply: FastifyReply): Promise<Fa
   const submitted = faqForm.parse(formBody(request))
   const destination = faqsDestination(request, id, submitted.redirect_to)
 
-  const error = firstFaqError(submitted)
-  if (error !== undefined) {
-    reply.setFlash({ alert: error })
-    return reply.redirect(destination)
-  }
+  const draft = parseFaqDraft(submitted)
+  if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
   await publishListingFaq(
     { db, clock },
-    { listingId: id, draft: parseFaqDraft(submitted), sourceMessageId: submitted.source_message_id },
+    { listingId: id, draft: draft.value, sourceMessageId: submitted.source_message_id },
   )
 
   reply.setFlash({ notice: 'Published to the listing.' })
@@ -94,13 +94,10 @@ async function update(request: FastifyRequest, reply: FastifyReply): Promise<Fas
   const submitted = faqForm.parse(formBody(request))
   const destination = faqsDestination(request, params.listingId, submitted.redirect_to)
 
-  const error = firstFaqError(submitted)
-  if (error !== undefined) {
-    reply.setFlash({ alert: error })
-    return reply.redirect(destination)
-  }
+  const draft = parseFaqDraft(submitted)
+  if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-  await updateListingFaq({ db, clock }, { faqId: faq.id, draft: parseFaqDraft(submitted) })
+  await updateListingFaq({ db, clock }, { faqId: faq.id, draft: draft.value })
 
   reply.setFlash({ notice: 'FAQ updated.' })
   return reply.redirect(destination)

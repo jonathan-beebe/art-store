@@ -2,6 +2,7 @@ import type { ActionContext } from '../action-context.ts'
 import { createCartLine, type CartLine } from '../../core/cart/cart-line.ts'
 import { cartTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
+import type { Cents } from '../../core/money.ts'
 
 /** One line of a cart, with the listing details the page and the order need. */
 export type CartLineView = {
@@ -13,7 +14,7 @@ export type CartLineView = {
   imagePath: string | null
   status: ListingStatus
   availableQuantity: number
-  unitPriceCents: number
+  unitPriceCents: Cents
   quantity: number
 }
 

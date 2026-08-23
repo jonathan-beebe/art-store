@@ -58,10 +58,3 @@ test('keep leaves the listing as it is', () => {
   assert.equal(stock.quantity, 2)
   assert.equal(stock.status, 'for_sale')
 })
-
-test('it refuses a change it does not know', () => {
-  assert.throws(
-    () => stockAfter('reserve' as never, { quantity: 2, status: 'for_sale', items: 1 }),
-    TypeError,
-  )
-})

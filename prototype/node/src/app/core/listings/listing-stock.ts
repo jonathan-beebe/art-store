@@ -48,7 +48,11 @@ export function stockAfter(
       return stockAfterRestock({ quantity, status, restored: items })
     case 'keep':
       return { quantity, status }
-    default:
-      throw new TypeError(`unknown stock change: ${JSON.stringify(change)}`)
+    default: {
+      // Every StockChange has a case above; the compiler proves it here.
+      const unhandled: never = change
+
+      return unhandled
+    }
   }
 }

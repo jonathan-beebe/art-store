@@ -8,6 +8,7 @@ import {
   signInAsSeller,
 } from '../../../test/build-test-app.ts'
 import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
+import { cents } from '../../../core/money.ts'
 
 test('a listing page shows the piece, the shop, the price, and the description', async (t) => {
   const testApp = await buildTestApp()
@@ -17,7 +18,7 @@ test('a listing page shows the piece, the shop, the price, and the description',
     sellerId: seller.id,
     title: 'Harbour at dusk',
     description: 'Oil study of the harbour.',
-    priceCents: 24_000,
+    priceCents: cents(24_000),
   })
 
   const response = await testApp.app.inject({ method: 'GET', url: '/art/harbour-at-dusk' })

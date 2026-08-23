@@ -1,4 +1,4 @@
-import type { Generated, Selectable } from 'kysely'
+import type { ColumnType, Generated, Selectable } from 'kysely'
 import type { PageViewSite } from '../core/analytics/page-view-site.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
 import type { LedgerEntryType } from '../core/escrow/ledger-entry-type.ts'
@@ -10,10 +10,15 @@ import type { FulfillmentStatus } from '../core/orders/fulfillment-status.ts'
 import type { OrderStatus } from '../core/orders/order-status.ts'
 import type { DeclineReason } from '../core/payments/decline-reason.ts'
 import type { PaymentStatus } from '../core/payments/payment-status.ts'
+import type { Cents } from '../core/money.ts'
 import type { Timestamp } from './timestamp.ts'
 
 /** A calendar day, `YYYY-MM-DD`. Sorts and compares as text. */
 export type Day = string
+
+/** A money column: it reads back as `Cents`, and a write hands it the plain
+ * integer the driver stores. */
+type MoneyColumn = ColumnType<Cents, number, number>
 
 export type ListingsTable = {
   id: Generated<number>
@@ -23,7 +28,7 @@ export type ListingsTable = {
   description: string | null
   medium: string | null
   dimensions: string | null
-  priceCents: number
+  priceCents: MoneyColumn
   /** Defaults to 1 in the migration. */
   quantity: Generated<number>
   /** Defaults to `'draft'` in the migration. */
@@ -93,8 +98,8 @@ export type OrdersTable = {
   shippingRegion: string
   shippingPostalCode: string
   shippingCountry: string
-  subtotalCents: number
-  totalCents: number
+  subtotalCents: MoneyColumn
+  totalCents: MoneyColumn
   placedAt: Timestamp
   finalizedAt: Timestamp | null
   cancelledAt: Timestamp | null
@@ -107,7 +112,7 @@ export type OrderItemsTable = {
   sellerId: number
   /** Title and price as they were at checkout, so an edited listing cannot rewrite an order. */
   title: string
-  unitPriceCents: number
+  unitPriceCents: MoneyColumn
   quantity: number
 }
 
@@ -115,7 +120,7 @@ export type PaymentsTable = {
   id: Generated<number>
   orderId: number
   status: PaymentStatus
-  amountCents: number
+  amountCents: MoneyColumn
   cardLastFour: string
   declineReason: DeclineReason | null
   processedAt: Timestamp
@@ -129,10 +134,10 @@ export type FulfillmentsTable = {
   status: Generated<FulfillmentStatus>
   carrier: string | null
   trackingNumber: string | null
-  subtotalCents: number
+  subtotalCents: MoneyColumn
   /** Priced once at placement; every later step moves the stored `netCents`. */
-  feeCents: number
-  netCents: number
+  feeCents: MoneyColumn
+  netCents: MoneyColumn
   shippedAt: Timestamp | null
   deliveredAt: Timestamp | null
 }
@@ -142,7 +147,7 @@ export type PayoutsTable = {
   sellerId: number
   periodStart: Day
   periodEnd: Day
-  amountCents: number
+  amountCents: MoneyColumn
   paidAt: Timestamp
 }
 
@@ -153,7 +158,7 @@ export type LedgerEntriesTable = {
   payoutId: number | null
   entryType: LedgerEntryType
   /** Signed: `held` and `released` are positive, `paid_out` is negative. */
-  amountCents: number
+  amountCents: MoneyColumn
   occurredAt: Timestamp
 }
 
