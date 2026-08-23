@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:15:36:35 — BUG-002 — done: Seller::FaqsController#render_refusal reads the refused entry's source_message and re-renders the thread page holding the entry and its errors at :unprocessable_content, the way MessagingSite#create answers a refused reply, keeping render :index for an entry written from scratch; MessagingSite#present_thread moved into a ThreadPage concern and SellerThreadPage adds @faq over it for the three portal controllers that draw the thread view, which now reads @faq in place of calling ListingFaq.draft_from from the template; the hidden source_message_id moved from _publish_faq into _fields, so both forms keep the answer an entry came from and a shortened question publishes with its attribution; 748 runs at 100% line coverage (this commit)
+- 2026-08-23:15:33:37 — BUG-002 — started
 - 2026-08-23:15:33:24 — BUG-001 — done: conversations leave Customer::MERGED_ASSOCIATIONS for Conversation#move_to, which folds a thread into the one the receiving customer already holds on the same kind, participants and subject — messages move across, last_message_at takes the later of the two, the emptied row is destroyed, and per-message read_at keeps both sides' unread counts right; index_conversations_on_shape is unique over the six columns read through COALESCE, since SQLite counts two nulls as different values and every kind leaves some of them null; Conversation.open reads where(shape).order(:id).first before it creates; docs/messaging.md and docs/data-model.md state the fold and the index; 744 runs at 100% line coverage (this commit)
 - 2026-08-23:15:28:36 — BUG-001 — started
 - 2026-08-23:15:22:10 — IMPRV-001 — defined: Inbox query cost, thread-page assignment, and doc corrections from the review

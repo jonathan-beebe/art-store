@@ -25,4 +25,4 @@
   <%= form.submit "Send", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
 <% end %>
 
-<%= render "seller/conversations/publish_faq", draft: ListingFaq.draft_from(@conversation) %>
+<%= render "seller/conversations/publish_faq", draft: @faq %>

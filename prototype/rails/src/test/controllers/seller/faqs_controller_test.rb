@@ -93,6 +93,69 @@ class Seller::FaqsControllerTest < ActionDispatch::IntegrationTest
     assert_equal answer, listing.faqs.sole.source_message
   end
 
+  test "an over-long question published from a thread comes back on the thread" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    conversation = answered_question(seller, listing)
+    answer = conversation.latest_message_from(seller)
+
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "a" * 501, answer: "It is.", source_message_id: answer.id }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=?]", "publish_faq_listing_faq_question",
+      text: "Keep the question under 500 characters."
+    assert_select "ol##{conversation.messages_dom_id} li", count: 2
+    assert_select "form[action=?]", seller_conversation_messages_path(conversation)
+    assert_empty listing.faqs
+  end
+
+  test "an over-long answer published from a thread comes back on the thread" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    answer = answered_question(seller, listing).latest_message_from(seller)
+
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "Is the frame included?", answer: "b" * 2_001, source_message_id: answer.id }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=?]", "publish_faq_listing_faq_answer",
+      text: "Keep the answer under 2000 characters."
+    assert_empty listing.faqs
+  end
+
+  test "a refused publish keeps the text the seller typed and the answer it came from" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    answer = answered_question(seller, listing).latest_message_from(seller)
+
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "a" * 501, answer: "It is, in maple.", source_message_id: answer.id }
+    }
+
+    assert_select "textarea[name=?]", "listing_faq[answer]", text: /It is, in maple\./
+    assert_select "input[type=hidden][name=?][value=?]", "listing_faq[source_message_id]", answer.id.to_s
+  end
+
+  test "shortening the question in the form publishes the entry with its source" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    answer = answered_question(seller, listing).latest_message_from(seller)
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "a" * 501, answer: "It is.", source_message_id: answer.id }
+    }
+
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "Is the frame included?", answer: "It is.", source_message_id: answer.id }
+    }
+
+    assert_redirected_to seller_listing_faqs_path(listing)
+    assert_equal "Is the frame included?", listing.faqs.sole.question
+    assert_equal answer, listing.faqs.sole.source_message
+  end
+
   test "an answer from another listing's thread is not found" do
     seller = signed_in_seller
     listing = create_listing(seller)

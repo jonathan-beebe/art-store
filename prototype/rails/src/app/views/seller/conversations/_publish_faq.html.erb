@@ -6,7 +6,6 @@
 
     <%= form_with model: draft, url: seller_listing_faqs_path(draft.listing), namespace: "publish_faq",
           html: { class: "mt-3" } do |form| %>
-      <%= form.hidden_field :source_message_id %>
       <%= render "seller/faqs/fields", form: form %>
       <%= form.submit "Publish as FAQ", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
     <% end %>

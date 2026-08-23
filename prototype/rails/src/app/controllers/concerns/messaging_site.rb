@@ -4,6 +4,7 @@
 # posting are the same on all three.
 module MessagingSite
   extend ActiveSupport::Concern
+  include ThreadPage
 
   def index
     @conversations = Conversation.involving(current_participant).includes(:subject)
@@ -33,13 +34,6 @@ module MessagingSite
   # of theirs carries.
   def thread(id)
     Conversation.involving(current_participant).find(id)
-  end
-
-  # What the thread page reads: the conversation from oldest message down, and
-  # the reply being written.
-  def present_thread(message)
-    @message = message
-    @messages = @conversation.messages.oldest_first.includes(:sender)
   end
 
   def message_params

@@ -1,6 +1,8 @@
 # The answered questions published on one listing. A row exists only while
 # the entry is published, so unpublishing is a destroy.
 class Seller::FaqsController < Seller::BaseController
+  include SellerThreadPage
+
   before_action :set_listing
 
   def index
@@ -15,9 +17,7 @@ class Seller::FaqsController < Seller::BaseController
 
     redirect_to seller_listing_faqs_path(@listing), notice: "Published to the listing."
   rescue ActiveRecord::RecordInvalid => refusal
-    present_entries(refusal.record)
-
-    render :index, status: :unprocessable_content
+    render_refusal(refusal.record)
   end
 
   def update
@@ -42,6 +42,22 @@ class Seller::FaqsController < Seller::BaseController
 
   def set_listing
     @listing = current_seller.listings.find(params[:listing_id])
+  end
+
+  # A refused entry comes back where it was written: the thread the answer was
+  # lifted from, or this listing's FAQ page.
+  def render_refusal(draft)
+    @conversation = draft.source_message&.conversation
+
+    if @conversation.nil?
+      present_entries(draft)
+
+      return render :index, status: :unprocessable_content
+    end
+
+    present_thread(Message.new, faq: draft)
+
+    render SellerThreadPage::TEMPLATE, status: :unprocessable_content
   end
 
   # What the page reads: the entry being written and the ones already up. A

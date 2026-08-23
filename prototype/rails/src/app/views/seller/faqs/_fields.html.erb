@@ -1,3 +1,7 @@
+<%# The answer the entry was lifted from travels with the form, so a refused
+    publish that comes back keeps the attribution. %>
+<%= form.hidden_field :source_message_id if form.object.source_message_id %>
+
 <div>
   <%= form.label :question, "Question", class: "block font-medium text-neutral-700" %>
   <%= form.text_area :question, rows: 2, maxlength: ListingFaq::QUESTION_LIMIT,

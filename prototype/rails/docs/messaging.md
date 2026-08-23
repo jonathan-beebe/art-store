@@ -116,7 +116,14 @@ outside this listing's threads answers 404. The seller edits
 Lengths are validations on the records: `Message::BODY_LIMIT` is 2000,
 `ListingFaq::QUESTION_LIMIT` 500 and `ListingFaq::ANSWER_LIMIT` 2000. The form
 fields carry the same numbers through `maxlength`, and the controllers rescue
-`ActiveRecord::RecordInvalid` to re-render with the seller's own text.
+`ActiveRecord::RecordInvalid` to re-render with the seller's own text. A
+question is allowed 2000 characters as a message and 500 as an entry, so the
+publish form can open pre-filled with a value the model refuses;
+`Seller::FaqsController#render_refusal` sends a refused entry back where it was
+written — the thread, when the entry names a `source_message`, and this
+listing's FAQ page otherwise. `_fields.html.erb` carries `source_message_id` as
+a hidden field whenever the record holds one, so the attribution survives the
+round trip and the seller shortens the question in place.
 
 ## Who may read, who may post
 
