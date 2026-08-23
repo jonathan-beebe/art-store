@@ -10,7 +10,7 @@ import { requestOrigin } from '../../auth/request-origin.ts'
 import { formBody } from '../../../plugins/form-body.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../params.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { ownedListing } from '../queries/listings.ts'
 
 const faqForm = z.object({

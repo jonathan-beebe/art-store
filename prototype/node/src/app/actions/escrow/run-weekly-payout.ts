@@ -23,14 +23,36 @@ export async function runWeeklyPayout(context: ActionContext, asOf: Date): Promi
     const period = payoutPeriodEndingBefore(asOf)
     const endsAt = toTimestamp(payoutPeriodEndsAt(period))
     const movements = await ledgerMovements(transacted, endsAt)
+    const settled = await sellersSettledFor(transacted, period)
 
     const payouts: Payout[] = []
     for (const [sellerId, balance] of payableBalances(movements)) {
+      if (settled.has(sellerId)) continue
+
       payouts.push(await payOut(transacted, sellerId, balance, period, asOf))
     }
 
     return payouts
   })
+}
+
+/**
+ * A seller has at most one payout per period. Money released into a period that
+ * already has one — which a run of a period that has not closed yet leaves
+ * open — waits for the next run, whose own window reaches further and picks it
+ * up.
+ */
+async function sellersSettledFor(
+  { db }: ActionContext,
+  period: PayoutPeriod,
+): Promise<ReadonlySet<number>> {
+  const rows = await db
+    .selectFrom('payouts')
+    .select('sellerId')
+    .where('periodStart', '=', period.firstDay)
+    .execute()
+
+  return new Set(rows.map((row) => row.sellerId))
 }
 
 function payableBalances(movements: readonly SellerLedgerMovement[]): Map<number, Cents> {

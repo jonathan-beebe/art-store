@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-center gap-4">
     <h1 class="text-lg font-semibold"><%= listing.title %></h1>
     <p class="text-neutral-600">
-      <span data-cell="status"><%= formatLabel(listing.status) %></span>
+      <span data-cell="status"><%= statusLabel(listing.status) %></span>
       &middot; <%= formatCents(listing.priceCents) %>
       &middot; <%= listing.quantity %> in stock
       &middot; seller <%= seller.name %>
@@ -16,7 +16,7 @@
     <% if (activeRemoval) { %>
       <div data-removal="<%= activeRemoval.kind %>" class="mt-2 rounded border border-amber-300 bg-amber-50 p-4">
         <p class="font-medium">
-          <%= formatLabel(activeRemoval.kind) %> removal since <%= formatMoment(activeRemoval.createdAt) %>
+          <%= statusLabel(activeRemoval.kind) %> removal since <%= formatMoment(activeRemoval.createdAt) %>
         </p>
         <p class="mt-1 text-neutral-700"><%= activeRemoval.reason %></p>
 
@@ -36,7 +36,7 @@
           <label for="kind" class="block text-neutral-600">Kind</label>
           <select id="kind" name="kind" class="mt-1 rounded border border-neutral-400 px-2 py-1">
             <% removalKinds.forEach(function (kind) { %>
-              <option value="<%= kind %>"><%= formatLabel(kind) %></option>
+              <option value="<%= kind %>"><%= statusLabel(kind) %></option>
             <% }) %>
           </select>
         </div>
@@ -69,7 +69,7 @@
           <tbody class="divide-y divide-neutral-200">
             <% removals.forEach(function (removal) { %>
               <tr data-removal-id="<%= removal.id %>">
-                <td data-cell="kind" data-removal="<%= removal.kind %>" class="px-4 py-2"><%= formatLabel(removal.kind) %></td>
+                <td data-cell="kind" data-removal="<%= removal.kind %>" class="px-4 py-2"><%= statusLabel(removal.kind) %></td>
                 <td class="px-4 py-2"><%= removal.reason %></td>
                 <td class="px-4 py-2"><%= formatMoment(removal.createdAt) %></td>
                 <td class="px-4 py-2"><%= formatMoment(removal.liftedAt) %></td>

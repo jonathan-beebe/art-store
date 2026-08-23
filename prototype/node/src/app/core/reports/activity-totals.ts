@@ -11,7 +11,3 @@ export function activityTotals(countsByEventType: Partial<Record<ListingEventTyp
     cartAdds: countsByEventType.cart_add ?? 0,
   }
 }
-
-export function totalActivity(totals: ActivityTotals): number {
-  return totals.views + totals.favorites + totals.cartAdds
-}

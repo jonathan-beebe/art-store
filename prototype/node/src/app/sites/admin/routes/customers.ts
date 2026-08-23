@@ -1,17 +1,11 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { adminPage } from '../page.ts'
 import { customerDetail } from '../queries/customer-detail.ts'
 import { CUSTOMER_STANDING_FILTERS, customerRows } from '../queries/customer-rows.ts'
 
-const idParams = z.object({ id: z.coerce.number().int().positive() })
 const standingQuery = z.object({ standing: z.enum(CUSTOMER_STANDING_FILTERS).default('all') })
-
-function parseCustomerId(params: unknown): number | null {
-  const parsed = idParams.safeParse(params)
-
-  return parsed.success ? parsed.data.id : null
-}
 
 async function index(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   const parsed = standingQuery.safeParse(request.query)
@@ -23,7 +17,7 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
 }
 
 async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> {
-  const id = parseCustomerId(request.params)
+  const id = parseIdParam(request.params)
   if (id === null) return reply.callNotFound()
 
   const detail = await customerDetail({ db: request.server.db }, id)

@@ -11,7 +11,3 @@ export function listingStatusTally(
 ): readonly ListingStatusCount[] {
   return LISTING_STATUSES.map((status) => ({ status, count: countsByStatus[status] ?? 0 }))
 }
-
-export function totalListings(tally: readonly ListingStatusCount[]): number {
-  return tally.reduce((total, row) => total + row.count, 0)
-}

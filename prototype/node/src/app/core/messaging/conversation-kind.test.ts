@@ -1,29 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  admitsActor,
-  isConversationKind,
   participantColumn,
   participantColumnsOf,
   subjectColumnOf,
 } from './conversation-kind.ts'
-
-test('every known kind is recognized', () => {
-  assert.equal(isConversationKind('admin_seller'), true)
-  assert.equal(isConversationKind('admin_customer'), true)
-  assert.equal(isConversationKind('fulfillment'), true)
-  assert.equal(isConversationKind('listing_question'), true)
-})
-
-test('a stranger is not a conversation kind', () => {
-  assert.equal(isConversationKind('support_ticket'), false)
-})
-
-test('a non-string is not a conversation kind', () => {
-  assert.equal(isConversationKind(42), false)
-  assert.equal(isConversationKind(null), false)
-  assert.equal(isConversationKind(undefined), false)
-})
 
 test('each actor type has its own participant column', () => {
   assert.equal(participantColumn('seller'), 'sellerId')
@@ -58,12 +39,4 @@ test('a fulfillment thread is about a fulfillment', () => {
 
 test('a listing question thread is about a listing', () => {
   assert.equal(subjectColumnOf('listing_question'), 'listingId')
-})
-
-test('an admin is not a participant in a fulfillment thread', () => {
-  assert.equal(admitsActor('fulfillment', 'admin'), false)
-})
-
-test('a seller is a participant in a fulfillment thread', () => {
-  assert.equal(admitsActor('fulfillment', 'seller'), true)
 })

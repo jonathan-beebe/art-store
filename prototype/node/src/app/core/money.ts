@@ -69,3 +69,13 @@ export function parseDollars(input: string): Cents {
   const amount = Number(wholeDollars.replace(/,/g, '')) * 100 + Number(centsDigits ?? 0)
   return minus === undefined ? amount : -amount
 }
+
+/** Cents as the plain decimal string a price input wants — `formatCents` is for
+ * reading, this is for editing, so no `$` and no thousands separators. */
+export function dollarsInputValue(amount: Cents): string {
+  assertIntegerAmount(amount, 'dollarsInputValue: amount')
+
+  const absAmount = Math.abs(amount)
+
+  return `${Math.floor(absAmount / 100)}.${String(absAmount % 100).padStart(2, '0')}`
+}

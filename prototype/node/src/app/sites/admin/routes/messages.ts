@@ -10,15 +10,9 @@ import { openConversation } from '../../../actions/messaging/open-conversation.t
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 
-const idParams = z.object({ id: z.coerce.number().int().positive() })
 const replyForm = z.object({ body: z.string() })
-
-function parseId(params: unknown): number | null {
-  const parsed = idParams.safeParse(params)
-
-  return parsed.success ? parsed.data.id : null
-}
 
 function notFound(reply: FastifyReply): FastifyReply {
   return reply.code(404).type('text/plain').send('Not found')
@@ -48,7 +42,7 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
 }
 
 async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> {
-  const conversationId = parseId(request.params)
+  const conversationId = parseIdParam(request.params)
   if (conversationId === null) return notFound(reply)
 
   const context = actionContext(request)
@@ -65,7 +59,7 @@ async function postReply(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
-  const conversationId = parseId(request.params)
+  const conversationId = parseIdParam(request.params)
   if (conversationId === null) return notFound(reply)
 
   const context = actionContext(request)
@@ -98,7 +92,7 @@ async function messageSeller(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
-  const sellerId = parseId(request.params)
+  const sellerId = parseIdParam(request.params)
   if (sellerId === null) return notFound(reply)
 
   const context = actionContext(request)
@@ -118,7 +112,7 @@ async function messageCustomer(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<FastifyReply | void> {
-  const customerId = parseId(request.params)
+  const customerId = parseIdParam(request.params)
   if (customerId === null) return notFound(reply)
 
   const context = actionContext(request)

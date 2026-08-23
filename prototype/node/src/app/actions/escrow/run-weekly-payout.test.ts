@@ -116,6 +116,28 @@ test('a delivery after the period ends waits for the next run', async (t) => {
   assert.deepEqual(payouts, [])
 })
 
+test('money released into a period that was already settled waits for the next run', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  await deliverASale(world, shop)
+
+  // Settling a week before it closes leaves room for another delivery to land
+  // inside it.
+  await runWeeklyPayout(context, new Date('2026-08-24T09:00:00.000Z'))
+  await deliverASale(world, shop, { priceCents: 20_000 })
+
+  const rerun = await runWeeklyPayout(context, new Date('2026-08-24T09:00:00.000Z'))
+  assert.deepEqual(rerun, [])
+
+  const next = await runWeeklyPayout(context, new Date('2026-08-31T09:00:00.000Z'))
+  assert.equal(next.length, 1)
+  assert.equal(next[0]?.amountCents, 18_000)
+  assert.equal(next[0]?.periodStart, '2026-08-24')
+})
+
 const SHIPPED_AT = new Date('2026-08-20T11:00:00.000Z')
 
 /** A sale delivered inside the week ending 2026-08-23, ready for the payout run. */

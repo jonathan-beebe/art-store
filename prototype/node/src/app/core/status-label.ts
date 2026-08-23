@@ -1,5 +1,4 @@
-/** Order and fulfillment states are stored snake_case; a page reads one back as
- * a sentence. */
+/** A snake_case status column as a page reads it: `for_sale` → `For sale`. */
 export function statusLabel(status: string): string {
   const words = status.replace(/_/g, ' ')
 

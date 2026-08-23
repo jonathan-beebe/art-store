@@ -40,7 +40,7 @@
   </div>
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <% tallies.listings.forEach((tally) => { %>
-      <%- include('sites/admin/views/partials/stat', { key: `listing-${tally.key}`, label: formatLabel(tally.key), value: tally.count }) %>
+      <%- include('sites/admin/views/partials/stat', { key: `listing-${tally.key}`, label: statusLabel(tally.key), value: tally.count }) %>
     <% }) %>
   </dl>
 </section>
@@ -52,7 +52,7 @@
   </div>
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <% tallies.orders.forEach((tally) => { %>
-      <%- include('sites/admin/views/partials/stat', { key: `order-${tally.key}`, label: formatLabel(tally.key), value: tally.count }) %>
+      <%- include('sites/admin/views/partials/stat', { key: `order-${tally.key}`, label: statusLabel(tally.key), value: tally.count }) %>
     <% }) %>
   </dl>
 </section>
@@ -64,7 +64,7 @@
   </div>
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <% tallies.fulfillments.forEach((tally) => { %>
-      <%- include('sites/admin/views/partials/stat', { key: `fulfillment-${tally.key}`, label: formatLabel(tally.key), value: tally.count }) %>
+      <%- include('sites/admin/views/partials/stat', { key: `fulfillment-${tally.key}`, label: statusLabel(tally.key), value: tally.count }) %>
     <% }) %>
   </dl>
 </section>

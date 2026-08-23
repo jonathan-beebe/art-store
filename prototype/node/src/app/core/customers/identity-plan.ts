@@ -34,16 +34,3 @@ export function planCustomerIdentity({
 
   return { action: 'mergeAnonymousInto', anonymousCustomerId, verifiedCustomerId: ownerOfEmailId }
 }
-
-/** The customer the cookie ends on, or null when that row does not exist yet. */
-export function resultingCustomerId(plan: IdentityPlan): number | null {
-  switch (plan.action) {
-    case 'createVerified':
-      return null
-    case 'claimAnonymous':
-      return plan.anonymousCustomerId
-    case 'signInExisting':
-    case 'mergeAnonymousInto':
-      return plan.verifiedCustomerId
-  }
-}

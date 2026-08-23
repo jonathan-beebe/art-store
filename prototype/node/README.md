@@ -1,11 +1,14 @@
 # Art Store prototype (Node)
 
 A three-sided art marketplace prototype: a seller portal at `/seller`, a
-customer storefront at `/`, and an admin site at `/admin`. One Node
-deployable, one SQLite file, server-rendered HTML, no client-side JavaScript.
+customer storefront at `/`, an admin site at `/admin`, and a messaging centre
+that spans all three. One Node deployable, one SQLite file, server-rendered
+HTML, no client-side JavaScript.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it
 is the spec for layers, naming, routes, and testing conventions.
+[`docs/review.md`](docs/review.md) maps every requirement in the brief to the
+route and test that prove it, and lists what is missing.
 
 ## Prerequisites
 
@@ -16,14 +19,21 @@ and every command runs in the container.
 ## First run
 
 ```sh
+make build
 make up
 ```
 
 The entrypoint installs dependencies with `npm ci` when `node_modules` is
 missing or older than `package-lock.json`, runs `node app/db/migrate.ts`,
-builds the Tailwind stylesheet with `npm run assets`, then starts the server
-with `node --watch app/server.ts`. The first run takes a few minutes while
-the image builds and better-sqlite3 resolves; later runs take seconds.
+seeds the platform admins and demo catalog with `node app/db/seed.ts`, builds
+the Tailwind stylesheet with `npm run assets`, then starts the server with
+`node --watch app/server.ts`.
+
+Measured from an empty tree — no `src/node_modules`, no SQLite file, no
+`src/public/app.css`: `make build` took 14 seconds and `make up` another 13,
+of which `npm ci` was 9. Add the one-time pull of `node:24-bookworm-slim` on a
+machine that has never seen it. Later runs take seconds, because
+`src/node_modules` lives in the bind mount and survives `make down`.
 
 Then open:
 
@@ -47,81 +57,15 @@ sets `HOST` and `PORT` for the container.
 | `LOG_LEVEL` | `info` |
 | `MAGIC_LINK_DELIVERY` | `flash` (`mail` throws `NotImplementedError`) |
 
-## Commands
-
-Every target is a thin `docker compose` wrapper, so either form works.
-
-| Make | Docker Compose |
-| --- | --- |
-| `make up` | `docker compose up -d` |
-| `make down` | `docker compose down` |
-| `make build` | `docker compose build` |
-| `make assets` | `docker compose run --rm app npm run assets` |
-| `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app npm run check` |
-| `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
-| `make coverage` | `docker compose run --rm app npm run coverage` |
-| `make migrate` | `docker compose run --rm app npm run migrate` |
-| `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
-| `make seed` | `docker compose run --rm app npm run seed` |
-| `make payouts` | `docker compose run --rm app npm run payouts` |
-| `make logs` | `docker compose logs -f` |
-
-The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
-reads to run the container as that user, so files the container writes into
-`src/` belong to the host user. A raw `docker compose run` without that
-export needs `--user "$(id -u):$(id -g)"`.
-
-## Running one test
-
-```sh
-docker compose run --rm app node --test app/core/money.test.ts
-```
-
-Filter by test name with `--test-name-pattern`:
-
-```sh
-docker compose run --rm app node --test --test-name-pattern="percent" app/core/money.test.ts
-```
-
-## Testing
-
-Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
-`node:assert/strict` — no test framework is installed. `make test` runs
-`npm run check`: `tsc --noEmit`, then eslint (`complexity` max 8, `max-depth`
-max 3), then `node --test 'app/**/*.test.ts'`. `make coverage` prints
-Node's own coverage table and fails under 90% lines / 80% branches.
-`make smoke` runs `app/test/smoke.test.ts`, which walks every site.
-
-Core tests (`app/core/**`) import only the file under test. Route tests build
-the whole app over an in-memory SQLite with `buildTestApp()` from
-`app/test/build-test-app.ts` and drive it with `app.inject`.
-
-## Database
-
-SQLite at `src/storage/development.sqlite3`, created on first run.
-Write-ahead logging is on and foreign keys are enforced per connection.
-Kysely reads it through `SqliteDialect` with `CamelCasePlugin`, so
-snake_case columns read as camelCase in TypeScript (`price_cents` →
-`priceCents`).
-
-```sh
-make migrate    # apply pending migrations
-make fresh      # delete the file, rebuild it, seed the admins, restart the server
-make seed       # add the platform admins; running it twice adds nobody
-```
-
-Tests run against `:memory:`.
-
 ## Seeded accounts
 
-`make seed` adds the two platform admins, then a demo catalog, customers, and
-order history — all through the same actions the sites call, with a frozen
-clock so the dates read the same on any day. The demo half refuses to run
-twice: it does nothing once a seller row exists, so a second `make seed` (or
-the one `make fresh` runs for you) only confirms the admins are still there.
-Sign in as any address below from that site's `/login` page — the debug alert
-prints the magic link.
+`make seed` (and the entrypoint on every start) adds the two platform admins,
+then a demo catalog, customers, and order history — all through the same
+actions the sites call, with a frozen clock so the dates read the same on any
+day. The demo half refuses to run twice: it does nothing once a seller row
+exists, so a second `make seed` (or the one `make fresh` runs for you) only
+confirms the admins are still there. Sign in as any address below from that
+site's `/login` page — the debug alert prints the magic link.
 
 **Admins** — seeded only, never created by signing in.
 
@@ -130,7 +74,7 @@ prints the magic link.
 | `jonathan-beebe@outlook.com` | Jonathan Beebe |
 | `annaschmunk@pm.me` | Anna Schmunk |
 
-**Sellers** — all four verified, each with a shop and part of a ~30-listing
+**Sellers** — all four verified, each with a shop and part of a 29-listing
 catalog across six media (painting, print, ceramic, textile, sculpture,
 photography): 24 `for_sale` (one, "Night Freight", carries an admin's
 temporary removal and is off the storefront despite its status), 3 `draft`,
@@ -147,29 +91,117 @@ temporary removal and is off the storefront despite its status), 3 `draft`,
 
 | Email | State |
 | --- | --- |
-| `casey@example.com` | Verified. 3 favorites, 6 viewed listings, an in-progress cart, and orders in `paid`, `shipped`, and `delivered` states. |
-| `jordan@example.com` | Verified, blocked by an admin (`customer_blocks`). |
+| `casey@example.com` (Casey Whitfield) | Verified. 3 favorites, 6 viewed listings, a standing cart with 2 items, and 3 single-item orders in `paid` (awaiting shipment), `shipped`, and `delivered` states — the delivered one's escrow is released and paid out in the weekly payout run. |
+| `jordan@example.com` | Verified, blocked by an admin (`customer_blocks`, reason "Repeated chargebacks reported by two sellers."). |
 | _(3 anonymous)_ | No address given; each has view history on a few listings. |
 
-## Weekly payouts
+## Commands
 
-Escrow released by a confirmed delivery is settled a week at a time.
+Every target is a thin `docker compose` wrapper, so either form works.
+
+| Make | Docker Compose |
+| --- | --- |
+| `make up` | `docker compose up -d` |
+| `make down` | `docker compose down` |
+| `make build` | `docker compose build` |
+| `make assets` | `docker compose run --rm app npm run assets` |
+| `make shell` | `docker compose run --rm app bash` |
+| `make test` | `docker compose run --rm app npm run check` |
+| `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
+| `make coverage` | `docker compose run --rm app npm run coverage` |
+| `make docs-check` | `./docker/docs-check.sh` |
+| `make migrate` | `docker compose run --rm app npm run migrate` |
+| `make fresh` | `docker compose run --rm app npm run fresh`, then seed, then `docker compose restart app` |
+| `make seed` | `docker compose run --rm app npm run seed` |
+| `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
+| `make logs` | `docker compose logs -f` |
+
+The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
+reads to run the container as that user, so files the container writes into
+`src/` belong to the host user. A raw `docker compose run` without that
+export needs `--user "$(id -u):$(id -g)"`.
+
+`make docs-check` renders every Mermaid block under `docs/` through
+`minlag/mermaid-cli` in Docker and fails on any diagram that does not parse.
+
+## Tests
+
+Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
+`node:assert/strict` — no test framework is installed. `make test` runs
+`npm run check`: `tsc --noEmit`, then eslint (`complexity` max 8, `max-depth`
+max 3), then `node --test 'app/**/*.test.ts'`.
+
+Core tests (`app/core/**`) import only the file under test — no database, no
+doubles. Route tests build the whole app over an in-memory SQLite with
+`buildTestApp()` (`app/test/build-test-app.ts`) and drive it with
+`app.inject`.
+
+Run one file:
 
 ```sh
-make payouts                    # the Monday-to-Sunday week that just ended
-make payouts AS_OF=2026-08-24   # the week before that date
+docker compose run --rm app node --test app/core/money.test.ts
 ```
 
-The `paid_out` ledger entry a run writes is dated at the close of the period it
-settles, so running the same period again pays nothing.
+Filter by test name with `--test-name-pattern`:
 
-## Adding a migration
+```sh
+docker compose run --rm app node --test --test-name-pattern="percent" app/core/money.test.ts
+```
+
+## Coverage
+
+```sh
+make coverage
+```
+
+Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=90 --test-coverage-branches=80 'app/**/*.test.ts'`,
+printing Node's own coverage table and failing under 90% lines / 80% branches.
+
+The suite stands at 1,161 tests and 99.42% lines / 95.23% branches / 98.85%
+functions. What is left uncovered is migration `down()` bodies and a handful of
+defensive branches.
+
+## Smoke
+
+```sh
+make smoke
+```
+
+`app/test/smoke.test.ts` walks the whole product over HTTP, and `make test`
+includes it: a seller signs in by magic link and lists a piece; a fresh
+anonymous visitor views, favorites, and carts it, checks out as a guest,
+verifies the address from the debug alert, is declined once, then pays with
+4242; the seller reads the "Item sold" notification and ships; the customer
+confirms delivery; an admin runs the weekly payout and the seller's earnings
+page shows the net; a customer asks a question and the seller publishes the
+answer as an FAQ; an admin removes a listing and it leaves the storefront; an
+admin blocks a customer and checkout refuses. Time is frozen so the payout
+period reads the same whatever day it runs.
+
+## Database
+
+SQLite at `src/storage/development.sqlite3`, created on first run.
+Write-ahead logging is on and foreign keys are enforced per connection.
+Kysely reads it through `SqliteDialect` with `CamelCasePlugin`, so
+snake_case columns read as camelCase in TypeScript (`price_cents` →
+`priceCents`).
+
+```sh
+make migrate    # apply pending migrations
+make fresh      # delete the file, rebuild it, seed the admins and demo data, restart the server
+make seed       # add the platform admins and demo data; running it twice adds nobody new
+```
+
+Tests run against `:memory:`.
+
+### Adding a migration
 
 Create `src/app/db/migrations/<YYYYMMDDHHMMSS>-<kebab-name>.ts` exporting
 `up(db: Kysely<unknown>)` and `down(db: Kysely<unknown>)`; add the table's
-row type to `src/app/db/schema.ts`; run `make migrate`. Every file in that
-directory is loaded as a migration, so no sidecar test may live there — test
-the behavior from the module that uses the table.
+row type to `src/app/db/schema.ts` (or `commerce-schema.ts`); run
+`make migrate`. Every file in that directory is loaded as a migration, so no
+sidecar test may live there — test the behavior from the module that uses the
+table.
 
 ## Styling
 
@@ -184,7 +216,121 @@ make assets
 
 Layouts link it as `/app.css`, served by `@fastify/static` from
 `src/public/`. There is no JavaScript bundle and no `<script>` tag in any
-view.
+view (zero across all 57 `app/**/*.ejs` templates).
+
+## Magic links and the email hooks
+
+Passwordless for all three actor types — sellers, customers, and admins. A
+link lasts 15 minutes and works once, enforced by the update that consumes
+it rather than by the read, so two requests arriving together cannot both
+spend it. The first link for an address creates the seller row; there is no
+separate seller sign-up. Admin rows are seeded only (the two accounts above)
+— `adminSite` never sends a link to an unseeded address. Every storefront
+visitor gets a `customers` row before giving an address; verifying an
+address either claims that row or folds it into the account that already
+holds the address (carts sum quantities clamped to stock, favorites
+de-duplicate).
+
+Two hooks are where real email would go, and neither is implemented today:
+
+- `mailMagicLinkDelivery` (`app/delivery/mail-magic-link-delivery.ts`,
+  selected by `MAGIC_LINK_DELIVERY=mail`) throws `NotImplementedError` —
+  setting that env var breaks sign-in outright.
+- `NotificationDelivery` (`app/core/notifications/notification-delivery.ts`)
+  is a port type with no implementation anywhere in the tree.
+  `ActionContext.notificationDelivery` is optional and stays `undefined` in
+  the running app, so the prototype's notifications are the `notifications`
+  rows themselves, read from `/seller/notifications` and the storefront's
+  `/account`. `notify` calls the port only when one is supplied.
+
+## Paying
+
+`decideCard(cardNumber)` (`app/core/payments/fake-card.ts`) is the fake card
+processor:
+
+| Number | Result |
+| --- | --- |
+| `4242 4242 4242 4242` | approved |
+| `4000 0000 0000 0002` | declined — generic decline |
+| `4000 0000 0000 9995` | declined — insufficient funds |
+| anything else | declined — invalid card number |
+
+Every non-digit is stripped, so spaces and dashes are ignored. Only the last
+four digits are ever stored, one `payments` row per attempt. A decline
+returns the stock to the listing and leaves a retry form on the order page.
+
+## Admin
+
+Sign in at `/admin/login` as either seeded admin; the debug alert prints the
+magic link. The console (everything below `/admin`) sits behind
+`requireAdmin`.
+
+| Page | Route |
+| --- | --- |
+| Dashboard | `GET /admin` |
+| Sellers | `GET /admin/sellers`, `GET /admin/sellers/:id` |
+| Customers | `GET /admin/customers?standing=` (`all` \| `verified` \| `anonymous` \| `blocked`) |
+| Listings | `GET /admin/listings?status=&seller=&removed=` (`removed` is `any` \| `removed` \| `visible`) |
+| Orders | `GET /admin/orders?status=&customer=` |
+| Fulfillments | `GET /admin/fulfillments?status=&seller=` |
+| Accounting | `GET /admin/accounting` |
+| Payouts | `GET /admin/payouts?seller=`, `POST /admin/payouts` |
+| Ledger | `GET /admin/ledger?seller=&type=` |
+| Stats | `GET /admin/stats` |
+| Messages | `GET /admin/messages` |
+
+Two moderation tools, both catching a `TransitionError` refusal into a flash:
+
+- **Listing removal** — `POST /admin/listings/:id/removals` (`kind`:
+  `temporary` or `permanent`, plus `reason`) and
+  `POST /admin/listings/:id/removals/lift`. A permanent removal cannot be
+  lifted. Either kind takes the listing off the storefront whatever its own
+  status; the seller sees the removal and reason in the portal.
+- **Customer block** — `POST /admin/customers/:id/blocks` (`reason`) and
+  `POST /admin/customers/:id/blocks/lift`. A blocked customer can still
+  browse but is refused at cart, checkout, payment, and messages.
+
+At most one active removal per listing and one active block per customer.
+
+## Messaging and FAQ
+
+One model serves every pairing: a `conversations` row names its `kind` and
+its participants, `messages` rows hang off it.
+
+| `kind` | Participants | Opened from |
+| --- | --- | --- |
+| `admin_seller` | admin ↔ seller | `/seller/support`, or `POST /admin/sellers/:id/messages` |
+| `admin_customer` | admin ↔ customer | `/support`, or `POST /admin/customers/:id/messages` |
+| `fulfillment` | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST /orders/:id/fulfillments/:fulfillmentId/messages` |
+| `listing_question` | customer ↔ seller | `POST /art/:slug/questions` |
+
+Each site has its own inbox: `/seller/messages`, `/messages`,
+`/admin/messages`, listing conversations newest-first with an unread badge in
+the layout. Entry points on existing pages: "Ask the seller a question" on
+`/art/:slug`, "Message the customer" on a fulfillment, "Message the seller"
+on a storefront order, "Contact support" on `/account`, "Message seller" /
+"Message customer" on the admin's seller and customer pages.
+
+A seller answering a `listing_question` can publish the question and answer
+to the listing page as an FAQ entry, and can edit or unpublish it afterward —
+a published row is deleted on unpublish, so there is no draft state.
+Anonymous customers can ask a listing question with no address; the
+conversation re-points on merge like any other customer-owned row.
+
+## Weekly payouts
+
+Escrow released by a confirmed delivery is settled a week at a time, Monday
+through Sunday.
+
+```sh
+make payouts                    # the Monday-to-Sunday week that just ended
+make payouts AS_OF=2026-08-24   # the week before that date
+```
+
+The `paid_out` ledger entry a run writes is dated at the close of the period
+it settles, so running the same period again pays nothing. The admin site
+also exposes the run at `POST /admin/payouts`; the seller portal has no
+payout control.
 
 ## No build step
 
@@ -203,10 +349,15 @@ prototype/node/
   README.md            this file
   Dockerfile            node:24-bookworm-slim + build tools for better-sqlite3
   docker-compose.yml    one service: app
-  docker/entrypoint.sh  install, migrate, build assets, then the container command
-  Makefile              host-side wrappers over docker compose
-  docs/architecture.md  the spec
-  work/                 tickets and journal
+  docker/
+    entrypoint.sh        install, migrate, seed, build assets, then the container command
+    docs-check.sh        renders every Mermaid block under docs/ through mermaid-cli
+  Makefile               host-side wrappers over docker compose
+  docs/                  architecture.md (the spec) + feature docs + review.md
+    README.md, architecture.md, identity.md, orders.md, escrow.md,
+    messaging.md, admin.md, data-model.md, ontology.md, review.md
+  work/                  tickets and journal
+    1-inbox/, 2-doing/, 3-done/, journal.md
   src/                   the Node project
     package.json, package-lock.json, tsconfig.json, eslint.config.js
     app/
@@ -214,31 +365,39 @@ prototype/node/
       app.ts              buildApp(deps): composition root
       config.ts           env -> typed config
       clock.ts             systemClock and fixedClock
-      core/                functional core, sidecar tests (money.ts today)
-      db/                  database.ts, migrator.ts, migrate.ts, schema.ts, migrations/
-      plugins/             flash.ts, site-render.ts
-      sites/               shop/, seller/, admin/ — each a plugin with routes/ and views/
+      not-implemented-error.ts
+      core/                functional core, sidecar tests, no I/O:
+                           analytics/, auth/, cart/, customers/, escrow/,
+                           listings/, messaging/, moderation/, notifications/,
+                           orders/, payments/, reports/, shop/, money.ts,
+                           transition-error.ts
+      actions/             verbs over ActionContext, one folder per concept:
+                           analytics/, auth/, carts/, customers/, escrow/,
+                           favorites/, fulfillments/, listings/, messaging/,
+                           moderation/, notifications/, orders/,
+                           action-context.ts, transaction.ts
+      db/                  database.ts, migrator.ts, migrate.ts, schema.ts,
+                           commerce-schema.ts, timestamp.ts, migrations/,
+                           seed.ts + seed-admins/catalog/sellers/customers/
+                           order-history/messaging/page-views/demo-data.ts
+      delivery/            MagicLinkDelivery port + flash and mail implementations
+      plugins/             flash.ts, form-body.ts, identity.ts, page-views.ts,
+                           site-render.ts, unread-messages.ts
+      sites/               shop/, seller/, admin/, auth/ — each a plugin with
+                           routes/, views/, and (except auth) queries/
       views/partials/      debug-alert.ejs, flash.ejs
-      test/                build-test-app.ts, smoke.test.ts
+      cli/                 run-payouts.ts, parse-as-of.ts
+      test/                build-test-app.ts, commerce-world.ts, smoke.test.ts
       assets/app.css       Tailwind source
-    public/                app.css (built, not committed)
+    public/                app.css (built, not committed), uploads/
     storage/               development.sqlite3 (not committed)
 ```
 
-`app/actions/` holds the verbs over `{ db, clock }` and `app/cli/` the commands
-(`run-payouts.ts`); neither is in the tree above.
+## Known gaps
 
-## What exists today
-
-Three sites — shop at `/`, seller at `/seller`, admin at `/admin` — each in
-its own layout. The flash cookie (`app/plugins/flash.ts`) and the shared
-`debug-alert` partial. `app/core/money.ts`. The migrator. The
-test/typecheck/lint/coverage gates behind `make test` and `make coverage`.
-
-Passwordless sign-in for all three: `/seller/login`, `/login`, and
-`/admin/login` issue a magic link that `/auth/magic/:token` spends, and each
-site has `/account` and sign-out. Every storefront request carries a customer,
-anonymous until an address is verified. Admins are seeded (`make seed`), never
-created by signing in.
-
-Not yet: messaging and real email.
+Email is unimplemented on both delivery ports. Seeded listings show
+procedurally generated SVG placeholders rather than photographs. Shipment
+tracking is two free-text fields (carrier, tracking number) with no carrier
+integration — the customer confirms their own delivery. See
+[`docs/review.md`](docs/review.md) for the full numbered list of gaps and
+suggested next steps.

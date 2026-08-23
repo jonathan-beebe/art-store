@@ -23,3 +23,16 @@ export function transitionListing(from: ListingStatus, to: ListingStatus): Listi
 
   throw new TransitionError(`A listing cannot move from ${from} to ${to}.`)
 }
+
+// A listing under an active admin removal stays off the storefront whatever its
+// own status, so nothing may put it back on sale until the removal is lifted.
+export function isBlockedByRemoval(to: ListingStatus, hasActiveRemoval: boolean): boolean {
+  return hasActiveRemoval && to === 'for_sale'
+}
+
+export function availableListingTransitions(
+  status: ListingStatus,
+  hasActiveRemoval: boolean,
+): readonly ListingStatus[] {
+  return LISTING_STATUS_TRANSITIONS[status].filter((next) => !isBlockedByRemoval(next, hasActiveRemoval))
+}

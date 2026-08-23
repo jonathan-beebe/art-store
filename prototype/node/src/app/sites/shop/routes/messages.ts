@@ -9,12 +9,12 @@ import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { formBody } from '../../../plugins/form-body.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
 
-const threadParameters = z.object({ id: z.coerce.number().int().positive() })
 const listingParameters = z.object({ slug: z.string() })
 const fulfillmentMessageParameters = z.object({ fulfillmentId: z.coerce.number().int().positive() })
 const replyBody = z.object({ body: z.string() })
@@ -45,11 +45,11 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
   })
 
   shop.get('/messages/:id', async (request, reply) => {
-    const asked = threadParameters.safeParse(request.params)
-    if (!asked.success) return renderNotFound(reply)
+    const conversationId = parseIdParam(request.params)
+    if (conversationId === null) return renderNotFound(reply)
 
     const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
-    const thread = await conversationThread(context, { conversationId: asked.data.id, actor })
+    const thread = await conversationThread(context, { conversationId, actor })
     if (thread === null) return renderNotFound(reply)
 
     await markConversationRead(context, { conversationId: thread.conversation.id, reader: actor })
@@ -58,22 +58,22 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
   })
 
   shop.post('/messages/:id', async (request, reply) => {
-    const asked = threadParameters.safeParse(request.params)
-    if (!asked.success) return renderNotFound(reply)
+    const conversationId = parseIdParam(request.params)
+    if (conversationId === null) return renderNotFound(reply)
 
     const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
-    const thread = await conversationThread(context, { conversationId: asked.data.id, actor })
+    const thread = await conversationThread(context, { conversationId, actor })
     if (thread === null) return renderNotFound(reply)
 
     const submitted = replyBody.safeParse(request.body)
     if (!submitted.success) {
       reply.setFlash({ alert: 'Write a message before sending.' })
-      return await reply.redirect(`/messages/${asked.data.id}`)
+      return await reply.redirect(`/messages/${conversationId}`)
     }
 
     try {
       await postMessage(context, {
-        conversationId: asked.data.id,
+        conversationId,
         sender: actor,
         body: submitted.data.body,
       })
@@ -82,7 +82,7 @@ export const messageRoutes: FastifyPluginCallback = (shop, _options, done) => {
       reply.setFlash({ alert: error.message })
     }
 
-    return await reply.redirect(`/messages/${asked.data.id}`)
+    return await reply.redirect(`/messages/${conversationId}`)
   })
 
   shop.post('/art/:slug/questions', async (request, reply) => {

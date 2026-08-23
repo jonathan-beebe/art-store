@@ -8,7 +8,7 @@
     <select id="status" name="status" class="mt-1 rounded border border-neutral-400 px-2 py-1">
       <option value="">All</option>
       <% statuses.forEach(function (status) { %>
-        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= formatLabel(status) %></option>
+        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= statusLabel(status) %></option>
       <% }) %>
     </select>
   </div>
@@ -44,7 +44,7 @@
             <th scope="row" class="px-4 py-2 font-normal">#<%= fulfillment.id %></th>
             <td class="px-4 py-2">#<%= fulfillment.orderId %></td>
             <td data-cell="seller" class="px-4 py-2"><%= fulfillment.sellerName %></td>
-            <td data-cell="status" class="px-4 py-2"><%= formatLabel(fulfillment.status) %></td>
+            <td data-cell="status" class="px-4 py-2"><%= statusLabel(fulfillment.status) %></td>
             <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>
             <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.feeCents) %></td>
             <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>

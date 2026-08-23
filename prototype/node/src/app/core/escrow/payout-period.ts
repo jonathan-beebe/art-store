@@ -27,11 +27,6 @@ export function payoutPeriodEndsAt(period: PayoutPeriod): Date {
   return new Date(`${period.lastDay}T23:59:59.999Z`)
 }
 
-export function payoutPeriodCovers(period: PayoutPeriod, moment: Date): boolean {
-  const day = toUtcDateString(moment)
-  return day >= period.firstDay && day <= period.lastDay
-}
-
 export function payoutPeriodLabel(period: PayoutPeriod): string {
   return `${period.firstDay} to ${period.lastDay}`
 }

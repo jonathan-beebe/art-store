@@ -4,6 +4,7 @@ import { statusLabel } from './status-label.ts'
 
 test('a single-word status reads as a sentence', () => {
   assert.equal(statusLabel('draft'), 'Draft')
+  assert.equal(statusLabel('paid'), 'Paid')
 })
 
 test('the underscores of a multi-word status become spaces', () => {
@@ -11,4 +12,8 @@ test('the underscores of a multi-word status become spaces', () => {
   assert.equal(statusLabel('awaiting_shipment'), 'Awaiting shipment')
   assert.equal(statusLabel('pending_verification'), 'Pending verification')
   assert.equal(statusLabel('paid_out'), 'Paid out')
+})
+
+test('an empty status reads as nothing', () => {
+  assert.equal(statusLabel(''), '')
 })

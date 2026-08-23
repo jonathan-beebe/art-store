@@ -8,7 +8,7 @@
     <select id="status" name="status" class="mt-1 rounded border border-neutral-400 px-2 py-1">
       <option value="">All</option>
       <% statuses.forEach(function (status) { %>
-        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= formatLabel(status) %></option>
+        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= statusLabel(status) %></option>
       <% }) %>
     </select>
   </div>
@@ -20,7 +20,7 @@
     <label for="removed" class="block text-neutral-600">Removal</label>
     <select id="removed" name="removed" class="mt-1 rounded border border-neutral-400 px-2 py-1">
       <% removedFilters.forEach(function (option) { %>
-        <option value="<%= option %>" <%= filters.removed === option ? 'selected' : '' %>><%= formatLabel(option) %></option>
+        <option value="<%= option %>" <%= filters.removed === option ? 'selected' : '' %>><%= statusLabel(option) %></option>
       <% }) %>
     </select>
   </div>
@@ -51,13 +51,13 @@
               <a href="/admin/listings/<%= listing.id %>" class="font-medium underline"><%= listing.title %></a>
             </th>
             <td data-cell="seller" class="px-4 py-3"><%= listing.sellerName %></td>
-            <td data-cell="status" class="px-4 py-3"><%= formatLabel(listing.status) %></td>
+            <td data-cell="status" class="px-4 py-3"><%= statusLabel(listing.status) %></td>
             <td data-cell="price" class="px-4 py-3 text-right tabular-nums"><%= formatCents(listing.priceCents) %></td>
             <td data-cell="quantity" class="px-4 py-3 text-right tabular-nums"><%= listing.quantity %></td>
             <td data-cell="on-storefront" class="px-4 py-3"><%= listing.isOnStorefront ? 'Yes' : 'No' %></td>
             <% if (listing.activeRemoval) { %>
               <td data-cell="removal" data-removal="<%= listing.activeRemoval.kind %>" class="px-4 py-3">
-                <%= formatLabel(listing.activeRemoval.kind) %> &middot; <%= listing.activeRemoval.reason %>
+                <%= statusLabel(listing.activeRemoval.kind) %> &middot; <%= listing.activeRemoval.reason %>
               </td>
             <% } else { %>
               <td data-cell="removal" class="px-4 py-3 text-neutral-500">None</td>

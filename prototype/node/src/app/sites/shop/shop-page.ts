@@ -3,7 +3,7 @@ import { listingImageSource } from '../../core/listings/placeholder-image.ts'
 import { formatCents } from '../../core/money.ts'
 import { dayLabel } from '../../core/shop/day-label.ts'
 import { shopName } from '../../core/shop/shop-name.ts'
-import { statusLabel } from '../../core/shop/status-label.ts'
+import { statusLabel } from '../../core/status-label.ts'
 
 /**
  * The pure functions every storefront template calls. Templates cannot import,

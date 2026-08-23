@@ -14,7 +14,3 @@ export function tallyOver<Key extends string>(
 
   return keys.map((key) => ({ key, count: counts.get(key) ?? 0 }))
 }
-
-export function tallyTotal<Key extends string>(tallies: readonly Tally<Key>[]): number {
-  return tallies.reduce((total, tally) => total + tally.count, 0)
-}

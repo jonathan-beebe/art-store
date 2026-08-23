@@ -2,10 +2,6 @@ export const ACTOR_TYPES = ['seller', 'customer', 'admin'] as const
 
 export type ActorType = (typeof ACTOR_TYPES)[number]
 
-export function isActorType(value: string): value is ActorType {
-  return ACTOR_TYPES.includes(value as ActorType)
-}
-
 export type ActorSite = {
   /** Where a verified link lands when it carries no destination of its own. */
   homePath: string

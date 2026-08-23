@@ -1,7 +1,7 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
 import { sellerBalance } from '../../../actions/escrow/seller-balance.ts'
 import { formatCents } from '../../../core/money.ts'
-import { statusLabel } from '../../../core/reports/status-label.ts'
+import { statusLabel } from '../../../core/status-label.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate } from '../format.ts'
 import { fulfillmentsForSeller, itemTitlesByOrder } from '../queries/fulfillments.ts'

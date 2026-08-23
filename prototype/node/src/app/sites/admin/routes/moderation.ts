@@ -9,9 +9,8 @@ import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { formBody } from '../../../plugins/form-body.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
-
-const idParams = z.object({ id: z.coerce.number().int().positive() })
 
 /** Every moderation form carries where to go back to; a bare lift carries only that. */
 const liftForm = z.object({ redirect_to: z.string().optional() })
@@ -44,7 +43,7 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
   command: ModerationCommand<Submitted>,
 ) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
-    const subjectId = parseId(request.params)
+    const subjectId = parseIdParam(request.params)
     if (subjectId === null) return notFound(reply)
 
     const parsed = command.form.safeParse(formBody(request))
@@ -74,12 +73,6 @@ function moderationRoute<Submitted extends { redirect_to?: string }>(
 
     return reply.redirect(destination)
   }
-}
-
-function parseId(params: unknown): number | null {
-  const parsed = idParams.safeParse(params)
-
-  return parsed.success ? parsed.data.id : null
 }
 
 function notFound(reply: FastifyReply): FastifyReply {

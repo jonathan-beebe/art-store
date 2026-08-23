@@ -39,12 +39,12 @@
           <th scope="row" class="px-4 py-3 font-normal">
             <a href="/admin/listings/<%= listing.id %>" class="font-medium underline"><%= listing.title %></a>
           </th>
-          <td data-cell="status" class="px-4 py-3"><%= formatLabel(listing.status) %></td>
+          <td data-cell="status" class="px-4 py-3"><%= statusLabel(listing.status) %></td>
           <td data-cell="price" class="px-4 py-3 text-right tabular-nums"><%= formatCents(listing.priceCents) %></td>
           <td data-cell="quantity" class="px-4 py-3 text-right tabular-nums"><%= listing.quantity %></td>
           <td data-cell="removal" class="px-4 py-3">
             <% if (listing.removal) { %>
-            <span data-removal-kind="<%= listing.removal.kind %>"><%= formatLabel(listing.removal.kind) %></span>:
+            <span data-removal-kind="<%= listing.removal.kind %>"><%= statusLabel(listing.removal.kind) %></span>:
             <%= listing.removal.reason %>
             <% } else { %>
             <span class="text-neutral-500">&mdash;</span>
@@ -81,7 +81,7 @@
           <th scope="row" class="px-4 py-3 font-normal">
             <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
           </th>
-          <td data-cell="status" class="px-4 py-3"><%= formatLabel(fulfillment.status) %></td>
+          <td data-cell="status" class="px-4 py-3"><%= statusLabel(fulfillment.status) %></td>
           <td data-cell="subtotal" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>
           <td data-cell="fee" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.feeCents) %></td>
           <td data-cell="net" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>

@@ -12,8 +12,3 @@ const MESSAGING_PATHS: Readonly<Record<ActorType, ActorMessagingPaths>> = {
 export function conversationPath(actorType: ActorType, conversationId: number): string {
   return MESSAGING_PATHS[actorType].conversation.replace(':id', String(conversationId))
 }
-
-/** Where an actor of this type reads their inbox. */
-export function inboxPath(actorType: ActorType): string {
-  return MESSAGING_PATHS[actorType].inbox
-}

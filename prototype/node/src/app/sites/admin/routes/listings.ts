@@ -2,13 +2,12 @@ import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastif
 import { z } from 'zod'
 import { LISTING_STATUSES } from '../../../core/listings/listing-status.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { adminPage } from '../page.ts'
 import { listingDetail } from '../queries/listing-detail.ts'
 import { listingRows, type ListingRemovedFilter } from '../queries/listing-rows.ts'
 
 const REMOVED_FILTERS = ['any', 'removed', 'visible'] as const
-
-const idParams = z.object({ id: z.coerce.number().int().positive() })
 
 const listingsQuery = z.object({
   status: z.enum(LISTING_STATUSES).optional(),
@@ -36,10 +35,10 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
 }
 
 async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const parsed = idParams.safeParse(request.params)
-  if (!parsed.success) return reply.code(404).type('text/plain').send('Not found')
+  const id = parseIdParam(request.params)
+  if (id === null) return reply.code(404).type('text/plain').send('Not found')
 
-  const detail = await listingDetail({ db: request.server.db }, parsed.data.id)
+  const detail = await listingDetail({ db: request.server.db }, id)
   if (detail === null) return reply.code(404).type('text/plain').send('Not found')
 
   return reply.render(

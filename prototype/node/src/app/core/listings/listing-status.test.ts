@@ -1,7 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { TransitionError } from '../transition-error.ts'
-import { LISTING_STATUSES, LISTING_STATUS_TRANSITIONS, canTransitionListing, transitionListing } from './listing-status.ts'
+import {
+  LISTING_STATUSES,
+  LISTING_STATUS_TRANSITIONS,
+  availableListingTransitions,
+  canTransitionListing,
+  isBlockedByRemoval,
+  transitionListing,
+} from './listing-status.ts'
 
 test('LISTING_STATUSES names every status', () => {
   assert.deepEqual(LISTING_STATUSES, ['draft', 'for_sale', 'sold', 'archived'])
@@ -56,4 +63,39 @@ test('transition refuses a status it does not know', () => {
 
 test('every status has a transition list', () => {
   assert.deepEqual(Object.keys(LISTING_STATUS_TRANSITIONS).sort(), [...LISTING_STATUSES].sort())
+})
+
+test('with no active removal, every status offers its plain transition list', () => {
+  for (const status of LISTING_STATUSES) {
+    assert.deepEqual(availableListingTransitions(status, false), LISTING_STATUS_TRANSITIONS[status])
+  }
+})
+
+test('an active removal takes for_sale off a draft', () => {
+  assert.deepEqual(availableListingTransitions('draft', true), ['archived'])
+})
+
+test('an active removal takes for_sale off a sold listing', () => {
+  assert.deepEqual(availableListingTransitions('sold', true), [])
+})
+
+test("an active removal leaves for_sale's own transitions alone", () => {
+  assert.deepEqual(availableListingTransitions('for_sale', true), ['sold', 'archived'])
+})
+
+test('an archived listing offers no transitions either way', () => {
+  assert.deepEqual(availableListingTransitions('archived', false), [])
+  assert.deepEqual(availableListingTransitions('archived', true), [])
+})
+
+test('a removal blocks only a request to move to for_sale', () => {
+  assert.equal(isBlockedByRemoval('for_sale', true), true)
+  assert.equal(isBlockedByRemoval('sold', true), false)
+  assert.equal(isBlockedByRemoval('archived', true), false)
+})
+
+test('with no active removal, nothing is blocked', () => {
+  for (const status of LISTING_STATUSES) {
+    assert.equal(isBlockedByRemoval(status, false), false)
+  }
 })

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { addCents, multiplyCents, percentOfCents, formatCents, parseDollars } from './money.ts'
+import { addCents, dollarsInputValue, multiplyCents, percentOfCents, formatCents, parseDollars } from './money.ts'
 
 test('addCents sums two amounts', () => {
   assert.equal(addCents(1000, 500), 1500)
@@ -132,4 +132,20 @@ test('parseDollars rejects more than one decimal point', () => {
 
 test('parseDollars rejects a bare minus sign', () => {
   assert.throws(() => parseDollars('-'), Error)
+})
+
+test('dollarsInputValue writes cents as a plain decimal amount', () => {
+  assert.equal(dollarsInputValue(45_000), '450.00')
+})
+
+test('dollarsInputValue pads a fractional amount under ten cents', () => {
+  assert.equal(dollarsInputValue(105), '1.05')
+})
+
+test('dollarsInputValue writes zero as 0.00', () => {
+  assert.equal(dollarsInputValue(0), '0.00')
+})
+
+test('dollarsInputValue leaves out the thousands separators formatCents adds', () => {
+  assert.equal(dollarsInputValue(1_234_567), '12345.67')
 })

@@ -8,7 +8,7 @@
   <h2 id="events-heading" class="font-semibold text-neutral-700">Listing events</h2>
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <% events.forEach((tally) => { %>
-      <%- include('sites/admin/views/partials/stat', { key: `event-${tally.key}`, label: formatLabel(tally.key), value: tally.count }) %>
+      <%- include('sites/admin/views/partials/stat', { key: `event-${tally.key}`, label: statusLabel(tally.key), value: tally.count }) %>
     <% }) %>
   </dl>
 </section>
@@ -58,7 +58,7 @@
         <tbody class="divide-y divide-neutral-200">
           <% patterns.forEach((row) => { %>
             <tr data-pattern="<%= row.site %> <%= row.pathPattern %>">
-              <td class="px-4 py-2"><%= formatLabel(row.site) %></td>
+              <td class="px-4 py-2"><%= statusLabel(row.site) %></td>
               <th scope="row" class="px-4 py-2 font-normal"><%= row.pathPattern %></th>
               <td data-cell="count" class="px-4 py-2 text-right tabular-nums"><%= row.count %></td>
             </tr>

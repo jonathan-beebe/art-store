@@ -8,7 +8,7 @@
     <select id="status" name="status" class="mt-1 rounded border border-neutral-400 px-2 py-1">
       <option value="">All</option>
       <% statuses.forEach(function (status) { %>
-        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= formatLabel(status) %></option>
+        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= statusLabel(status) %></option>
       <% }) %>
     </select>
   </div>
@@ -42,13 +42,13 @@
           <tr data-order="<%= order.id %>">
             <th scope="row" class="px-4 py-2 font-normal">#<%= order.id %></th>
             <td data-cell="customer" class="px-4 py-2"><%= order.customerEmail ?? 'Anonymous' %></td>
-            <td data-cell="status" class="px-4 py-2"><%= formatLabel(order.status) %></td>
+            <td data-cell="status" class="px-4 py-2"><%= statusLabel(order.status) %></td>
             <td data-cell="item-count" class="px-4 py-2 text-right tabular-nums"><%= order.itemCount %></td>
             <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(order.subtotalCents) %></td>
             <td data-cell="total" class="px-4 py-2 text-right tabular-nums"><%= formatCents(order.totalCents) %></td>
             <td class="px-4 py-2"><%= formatMoment(order.placedAt) %></td>
             <td data-cell="fulfillment-statuses" class="px-4 py-2">
-              <%= order.fulfillmentStatuses.map(formatLabel).join(', ') %>
+              <%= order.fulfillmentStatuses.map(statusLabel).join(', ') %>
             </td>
           </tr>
         <% }) %>

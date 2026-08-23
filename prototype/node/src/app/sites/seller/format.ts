@@ -38,9 +38,3 @@ export function formatDateTime(timestamp: Timestamp): string {
 
   return `${formatDate(timestamp)} ${hour12}:${minute}${meridiem}`
 }
-
-/** Cents as the plain decimal string an edit form's price input wants —
- * `formatCents` is for reading, this is for editing, so no `$` and no commas. */
-export function dollarsInputValue(cents: number): string {
-  return `${Math.floor(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, '0')}`
-}

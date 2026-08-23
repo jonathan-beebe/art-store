@@ -12,20 +12,19 @@ import {
   type ListingDraftFields,
 } from '../../../core/listings/listing-draft.ts'
 import { listingImageSource } from '../../../core/listings/placeholder-image.ts'
-import { LISTING_STATUSES, type ListingStatus } from '../../../core/listings/listing-status.ts'
+import { LISTING_STATUSES, availableListingTransitions, isBlockedByRemoval } from '../../../core/listings/listing-status.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
-import { formatCents } from '../../../core/money.ts'
+import { dollarsInputValue, formatCents } from '../../../core/money.ts'
 import { activityTimeline } from '../../../core/reports/activity-timeline.ts'
 import { activityTotals } from '../../../core/reports/activity-totals.ts'
-import { statusLabel } from '../../../core/reports/status-label.ts'
+import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { currentSellerId } from '../current-seller.ts'
-import { dollarsInputValue, formatDate, formatDay } from '../format.ts'
+import { formatDate, formatDay } from '../format.ts'
 import { listingDraftFieldsFrom, uploadedImagePart, type MultipartBody } from '../listing-form.ts'
 import { saveUploadedListingImage } from '../listing-image-upload.ts'
-import { sellerListingTransitions } from '../listing-transitions.ts'
 import { sellerNotFound } from '../not-found.ts'
-import { parseIdParam } from '../params.ts'
+import { parseIdParam } from '../../../plugins/id-param.ts'
 import { listingEventCountsByDay, listingEventTotals, salesForListing } from '../queries/listing-activity.ts'
 import {
   listingEventCountsByListing,
@@ -62,10 +61,6 @@ async function imagePathFromUpload(body: MultipartBody): Promise<string | undefi
   return saveUploadedListingImage(UPLOADS_DIR, await image.toBuffer(), image.mimetype, image.filename)
 }
 
-function blocksReturnToSale(hasActiveRemoval: boolean, status: ListingStatus): boolean {
-  return hasActiveRemoval && status === 'for_sale'
-}
-
 async function findOwnedListing(request: FastifyRequest, reply: FastifyReply): Promise<Listing | null> {
   const id = parseIdParam(request.params)
   if (id === null) {
@@ -91,7 +86,7 @@ async function index(request: FastifyRequest, reply: FastifyReply): Promise<Fast
   const rows = listings.map((listing) => ({
     listing,
     activity: activityTotals(eventCounts.get(listing.id) ?? {}),
-    transitions: sellerListingTransitions(listing.status, removedIds.has(listing.id)),
+    transitions: availableListingTransitions(listing.status, removedIds.has(listing.id)),
     imageSrc: listingImageSource(listing.imagePath, listing.title),
   }))
 
@@ -178,7 +173,7 @@ async function changeStatus(request: FastifyRequest, reply: FastifyReply): Promi
 
   const { db, clock } = request.server
   const removal = await activeListingRemoval({ db }, listing.id)
-  if (blocksReturnToSale(removal !== null, parsed.data.status)) {
+  if (isBlockedByRemoval(parsed.data.status, removal !== null)) {
     return refuseStatusChange(reply, 'This listing was removed by an admin and cannot be put back on sale.')
   }
 
@@ -213,7 +208,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
     days: activityTimeline(dailyCounts, { endsOn: now, days: ACTIVITY_WINDOW_DAYS }),
     sales,
     removal,
-    transitions: sellerListingTransitions(listing.status, removal !== null),
+    transitions: availableListingTransitions(listing.status, removal !== null),
     statusLabel,
     formatCents,
     formatDate,

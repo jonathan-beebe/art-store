@@ -2,7 +2,7 @@ import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastif
 import { sellerBalance } from '../../../actions/escrow/seller-balance.ts'
 import { formatCents } from '../../../core/money.ts'
 import { listingStatusTally } from '../../../core/reports/listing-status-tally.ts'
-import { statusLabel } from '../../../core/reports/status-label.ts'
+import { statusLabel } from '../../../core/status-label.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDateTime } from '../format.ts'
 import { awaitingShipmentCount } from '../queries/fulfillments.ts'

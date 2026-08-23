@@ -33,10 +33,6 @@ const KIND_SHAPES: Readonly<Record<ConversationKind, KindShape>> = {
   listing_question: { participants: ['sellerId', 'customerId'], subject: 'listingId' },
 }
 
-export function isConversationKind(value: unknown): value is ConversationKind {
-  return CONVERSATION_KINDS.includes(value as ConversationKind)
-}
-
 /** Which column holds this actor's id, whatever kind of conversation it is. */
 export function participantColumn(actorType: ActorType): ParticipantColumn {
   return PARTICIPANT_COLUMNS[actorType]
@@ -50,8 +46,4 @@ export function participantColumnsOf(kind: ConversationKind): readonly Participa
 /** The column naming what the conversation is about, or null when it is about nothing. */
 export function subjectColumnOf(kind: ConversationKind): SubjectColumn | null {
   return KIND_SHAPES[kind].subject
-}
-
-export function admitsActor(kind: ConversationKind, actorType: ActorType): boolean {
-  return participantColumnsOf(kind).includes(participantColumn(actorType))
 }

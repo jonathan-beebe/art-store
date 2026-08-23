@@ -1,11 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  payoutPeriodEndingBefore,
-  payoutPeriodEndsAt,
-  payoutPeriodCovers,
-  payoutPeriodLabel,
-} from './payout-period.ts'
+import { payoutPeriodEndingBefore, payoutPeriodEndsAt, payoutPeriodLabel } from './payout-period.ts'
 
 test('a Monday settles the week that just ended', () => {
   const period = payoutPeriodEndingBefore(new Date('2026-08-24T09:00:00Z'))
@@ -29,24 +24,6 @@ test('the period ends with the last instant of its last day', () => {
   const period = payoutPeriodEndingBefore(new Date('2026-08-24T09:00:00Z'))
 
   assert.equal(payoutPeriodEndsAt(period).toISOString(), '2026-08-23T23:59:59.999Z')
-})
-
-test('it covers a moment inside it', () => {
-  const period = payoutPeriodEndingBefore(new Date('2026-08-24T09:00:00Z'))
-
-  assert.equal(payoutPeriodCovers(period, new Date('2026-08-21T11:00:00Z')), true)
-})
-
-test('it does not cover a moment after it', () => {
-  const period = payoutPeriodEndingBefore(new Date('2026-08-24T09:00:00Z'))
-
-  assert.equal(payoutPeriodCovers(period, new Date('2026-08-24T00:00:01Z')), false)
-})
-
-test('it does not cover a moment before it', () => {
-  const period = payoutPeriodEndingBefore(new Date('2026-08-24T09:00:00Z'))
-
-  assert.equal(payoutPeriodCovers(period, new Date('2026-08-10T00:00:00Z')), false)
 })
 
 test('it labels itself with both ends', () => {

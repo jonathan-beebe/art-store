@@ -1,19 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
-import { z } from 'zod'
+import { parseIdParam } from '../../plugins/id-param.ts'
 import { findCustomerOrder, type CustomerOrder } from './queries/find-customer-order.ts'
 import { storefrontCustomer } from './storefront-customer.ts'
 
-const parameters = z.object({ id: z.coerce.number().int().positive() })
-
-function orderIdFrom(request: FastifyRequest): number | null {
-  const asked = parameters.safeParse(request.params)
-
-  return asked.success ? asked.data.id : null
-}
-
 /** Where a page under `/orders/:id` sends a visitor it will not serve. */
 export function customerOrderPath(request: FastifyRequest): string {
-  const id = orderIdFrom(request)
+  const id = parseIdParam(request.params)
 
   return id === null ? '/orders' : `/orders/${id}`
 }
@@ -27,7 +19,7 @@ export async function loadCustomerOrder(
   app: FastifyInstance,
   request: FastifyRequest,
 ): Promise<CustomerOrder | null> {
-  const orderId = orderIdFrom(request)
+  const orderId = parseIdParam(request.params)
   if (orderId === null) return null
 
   return findCustomerOrder(app.db, { orderId, customerId: storefrontCustomer(request).id })

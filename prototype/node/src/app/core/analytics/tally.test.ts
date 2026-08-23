@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tallyOver, tallyTotal } from './tally.ts'
+import { tallyOver } from './tally.ts'
 
 const STATUSES = ['draft', 'for_sale', 'sold'] as const
 
@@ -24,9 +24,4 @@ test('the keys keep the domain order, not the measured order', () => {
     tallies.map((tally) => tally.key),
     ['draft', 'for_sale', 'sold'],
   )
-})
-
-test('the total adds every count', () => {
-  assert.equal(tallyTotal(tallyOver(STATUSES, [{ key: 'sold', count: 2 }, { key: 'draft', count: 5 }])), 7)
-  assert.equal(tallyTotal([]), 0)
 })
