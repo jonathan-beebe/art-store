@@ -101,6 +101,17 @@ class OrderTest < ActiveSupport::TestCase
     end
   end
 
+  test "an incomplete address opens no order and leaves the cart alone" do
+    buyer = create_verified_customer
+    cart = cart_holding(buyer, create_listing)
+
+    order = Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                        shipping: shipping_address(shipping_city: nil), at: moment("2026-08-20 09:00:00"))
+
+    refute_predicate order, :persisted?
+    assert_equal 1, cart.reload.items.count
+  end
+
   test "an approved card pays the order" do
     order = pay(order_for(create_verified_customer, create_listing), APPROVED_CARD)
 
@@ -343,6 +354,41 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal "An order cannot move from paid to paid.", error.message
   end
 
+  test "an order needs an email and a full shipping address" do
+    assert_predicate placeable, :valid?
+  end
+
+  test "the second address line is optional" do
+    assert_predicate placeable(shipping_line2: ""), :valid?
+    assert_nil placeable(shipping_line2: "").shipping_line2
+  end
+
+  test "a blank shipping part is refused" do
+    order = placeable(shipping_city: "   ", shipping_country: nil)
+
+    refute_predicate order, :valid?
+    assert_equal %i[shipping_city shipping_country], order.errors.attribute_names
+  end
+
+  test "a missing shipping address is refused" do
+    order = Order.new(customer: create_anonymous_customer, email: "ada@example.test")
+
+    refute_predicate order, :valid?
+    assert_equal Order::REQUIRED_SHIPPING_FIELDS, order.errors.attribute_names
+  end
+
+  test "an address that is not an email is refused" do
+    refute_predicate placeable(email: "ada"), :valid?
+  end
+
+  test "it normalizes the address the buyer typed" do
+    assert_equal "ada@example.test", placeable(email: " Ada@Example.Test ").email
+  end
+
+  test "it strips the shipping address the buyer typed" do
+    assert_equal "London", placeable(shipping_city: "  London  ").shipping_city
+  end
+
   test "an order awaiting payment takes a card" do
     assert_predicate order_with_status("awaiting_payment"), :awaits_card?
   end
@@ -395,5 +441,10 @@ class OrderTest < ActiveSupport::TestCase
 
   def order_with_status(status)
     Order.new(status: status)
+  end
+
+  # An order as checkout hands it over, before it is placed.
+  def placeable(email: "ada@example.test", **overrides)
+    Order.new(customer: create_anonymous_customer, email: email, **shipping_address(**overrides))
   end
 end

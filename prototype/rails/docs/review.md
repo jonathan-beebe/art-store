@@ -76,7 +76,7 @@ is `@import "tailwindcss"` and nothing else.
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
 | Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
-| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a domain predicate (`OrderPayment.payable?`, `FulfillmentStatus.can_transition?`, `CheckoutForm#complete?`, `ShipmentDetails#complete?`), a record predicate (`Listing#purchasable?`, `MagicLink#usable?`, `link.persisted?`), or a shell fact (signed in, empty cart, missing row) |
+| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a domain predicate (`FulfillmentStatus.can_transition?`, `ShipmentDetails#complete?`), a record predicate (`Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `data-model.md`, `ontology.md` |
 
 ## Goal

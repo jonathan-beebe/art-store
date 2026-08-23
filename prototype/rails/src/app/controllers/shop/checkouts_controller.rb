@@ -7,7 +7,7 @@ module Shop
     def show
       return redirect_to shop_cart_path if current_cart.empty?
 
-      @form = blank_form
+      @order = Order.new(email: verified_account&.email.to_s)
       load_summary
     end
 
@@ -16,18 +16,15 @@ module Shop
     def create
       return redirect_to shop_cart_path if current_cart.empty?
 
-      @form = submitted_form
-      return reject_incomplete unless @form.complete?
-
-      purchaser = checkout_purchaser
-      order = Order.place(
-        cart: current_cart, customer: current_customer, email: purchaser.email,
-        email_verified: purchaser.email_verified?, shipping: shipping_attributes, at: Time.current
+      @order = Order.place(
+        cart: current_cart, customer: current_customer, email: buyer_email,
+        email_verified: verified_account.present?, shipping: shipping_params, at: Time.current
       )
 
-      return charge(order) if order.payable_by?(purchaser.email_verified?)
+      return reject_incomplete unless @order.persisted?
+      return charge(@order) if @order.awaiting_payment?
 
-      send_verification_link(order, purchaser)
+      send_verification_link(@order)
     end
 
     private
@@ -38,13 +35,9 @@ module Shop
       redirect_to shop_order_path(order)
     end
 
-    def shipping_attributes
-      @form.shipping.to_h.transform_keys { |part| :"shipping_#{part}" }
-    end
-
-    def send_verification_link(order, purchaser)
+    def send_verification_link(order)
       send_magic_link(
-        email: purchaser.email, actor_type: :customer, redirect_to: shop_order_payment_path(order)
+        email: order.email, actor_type: :customer, redirect_to: shop_order_payment_path(order)
       )
 
       redirect_to shop_order_path(order)
@@ -57,24 +50,15 @@ module Shop
       render :show, status: :unprocessable_content
     end
 
-    def checkout_purchaser
-      Domain::Shop::CheckoutPurchaser.for_checkout(
-        id: current_customer.id,
-        account_email: verified_account&.email,
-        account_verified_at: verified_account&.email_verified_at,
-        submitted_email: @form.email
-      )
+    # A signed-in customer buys under the address on their account, so a
+    # submitted field cannot move an order onto someone else's identity. A
+    # guest buys under the address they typed and verifies it afterwards.
+    def buyer_email
+      verified_account&.email || params[:email]
     end
 
-    def blank_form
-      Domain::Shop::CheckoutForm.from_input(email: verified_account&.email, shipping: {})
-    end
-
-    def submitted_form
-      Domain::Shop::CheckoutForm.from_input(
-        email: params[:email],
-        shipping: Domain::Orders::ShippingAddress.members.to_h { |part| [part, params[:"shipping_#{part}"]] }
-      )
+    def shipping_params
+      params.permit(*Order::SHIPPING_FIELDS).to_h.symbolize_keys
     end
 
     def load_summary

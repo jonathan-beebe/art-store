@@ -1,7 +1,7 @@
 ---
 id: RFCTR-007
 type: refactor
-status: open
+status: resolved
 created: 2026-08-22
 ---
 
@@ -55,3 +55,18 @@ Left alone: `Domain::Orders::FulfillmentStatus` (RFCTR-008), the escrow value
 objects (RFCTR-009) and `Notifications::Notify` (RFCTR-010). `Fulfillments::
 MarkShipped` and `ConfirmDelivered` lost their `roll_up_order_status:`
 constructor argument and call `order.roll_up_status!` directly.
+
+Checkout now validates on `Order`. The model includes `EmailAddress`,
+normalizes the seven shipping fields (strip, blank to nil) and validates the
+email shape plus the six required shipping fields; `Order.place` returns the
+order unsaved when it is invalid, so nothing is written and the cart is left
+alone. `Shop::CheckoutsController#create` reads `@order.persisted?` for the
+`INCOMPLETE` alert and `@order.awaiting_payment?` for whether to charge, and
+picks the buyer's address itself: the account's when the visitor is signed in,
+the typed one otherwise. The checkout form reads its values off `@order`; the
+field names, the HTML and the flash text are unchanged.
+
+`Domain::Shop::{CheckoutForm,CheckoutPurchaser}` and
+`Domain::Orders::{Purchaser,ShippingAddress}` are deleted. The one behaviour
+that changed: an email typed in mixed case is rendered back downcased on the
+rejected form, since the order normalizes it on assignment.

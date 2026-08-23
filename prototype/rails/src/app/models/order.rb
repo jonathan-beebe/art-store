@@ -1,9 +1,14 @@
 class Order < ApplicationRecord
+  include EmailAddress
+
   # What checkout collects, under the column names the form posts.
   SHIPPING_FIELDS = %i[
     shipping_name shipping_line1 shipping_line2 shipping_city shipping_region
     shipping_postal_code shipping_country
   ].freeze
+
+  # A second address line is the one part a package can arrive without.
+  REQUIRED_SHIPPING_FIELDS = (SHIPPING_FIELDS - %i[shipping_line2]).freeze
 
   belongs_to :customer
   has_many :items, class_name: "OrderItem", dependent: :destroy, inverse_of: :order
@@ -37,9 +42,15 @@ class Order < ApplicationRecord
   # a listing that had sold out returns to the storefront.
   RELEASES_STOCK = %w[payment_failed cancelled].freeze
 
+  normalizes(*SHIPPING_FIELDS, with: ->(line) { line.strip.presence })
+
+  validates :email, format: { with: EmailAddress::SHAPE }
+  validates(*REQUIRED_SHIPPING_FIELDS, presence: true)
+
   # The cart becomes an order: every line keeps the title and price it was
   # bought at, the order splits into one fulfillment per seller with the
   # platform fee taken out, and the stock it claims leaves the storefront.
+  # An order checkout left incomplete comes back unsaved, so nothing moves.
   def self.place(cart:, customer:, email:, shipping:, email_verified: false, at: Time.current)
     raise ArgumentError, "an order needs at least one item" if cart.empty?
 
@@ -49,6 +60,7 @@ class Order < ApplicationRecord
       status: email_verified ? :awaiting_payment : :pending_verification,
       subtotal_cents: cart.subtotal.cents, total_cents: cart.subtotal.cents
     )
+    return order unless order.valid?
 
     transaction do
       order.save!

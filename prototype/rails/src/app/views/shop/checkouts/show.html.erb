@@ -8,7 +8,7 @@
 
     <div class="mt-4">
       <%= form.label :email, "Email address", class: "block text-base" %>
-      <%= form.email_field :email, value: @form.email, required: true, autocomplete: "email",
+      <%= form.email_field :email, value: @order.email, required: true, autocomplete: "email",
             readonly: customer_signed_in?,
             class: "mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg read-only:bg-neutral-50" %>
     </div>
@@ -32,7 +32,7 @@
        }.each do |part, (label, autocomplete)| %>
       <div class="mt-4">
         <%= form.label :"shipping_#{part}", label, class: "block text-base" %>
-        <%= form.text_field :"shipping_#{part}", value: @form.shipping.public_send(part),
+        <%= form.text_field :"shipping_#{part}", value: @order.public_send(:"shipping_#{part}"),
               autocomplete: autocomplete, required: part != :line2,
               class: "mt-2 block w-full rounded-lg border border-neutral-300 px-4 py-3 text-lg" %>
       </div>

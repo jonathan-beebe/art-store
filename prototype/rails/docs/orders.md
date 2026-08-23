@@ -49,7 +49,11 @@ posts back to the same `POST /orders/:id/pay`, which is why
 `Shop::OrderPaymentsController#create` calls `mark_awaiting_payment!` before
 `pay!` on every hit: the call is a no-op once the order is already
 `awaiting_payment`. `pay!` writes one `payments` row per attempt, so two
-declines followed by an approval leave three rows on the order.
+declines followed by an approval leave three rows on the order. An address
+checkout left incomplete never reaches an `orders` row: `Order` validates the
+email and the shipping fields, `Order.place` hands an invalid order back
+unsaved, and `Shop::CheckoutsController` re-renders the form with the
+`INCOMPLETE` alert and the values that were submitted.
 
 ## Order status
 
