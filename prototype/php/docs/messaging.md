@@ -136,6 +136,16 @@ controller receives the value object rather than a string bag — the shape
 `CheckoutRequest` and `MarkShippedRequest` already use. Laravel's
 `TrimStrings` middleware does the trimming before either rule runs.
 
+The Blade side of the same limit is a literal: every `<textarea maxlength="…">`
+and `<input maxlength="…">` in `resources/views/**/messages/*.blade.php` and
+`components/messaging/body-form.blade.php` writes `2000` (or `500` for an FAQ
+question) by hand rather than reading the domain constant, so the two only
+agree because nobody has changed one without the other yet. The form request
+is still the enforcement — a longer value submitted anyway is rejected by
+its `max:` rule regardless of what the `maxlength` attribute let through — but
+a future change to a domain constant would silently desync the client-side
+hint from the server-side rule.
+
 ## Who may read, who may post
 
 Question: given an actor and a conversation, what is that actor allowed to do?
@@ -196,6 +206,19 @@ The refusal for the paths that buy something is the action's, so the shopper
 lands back on the page they submitted from with the reason. The refusal for
 messages is the policy's, so the form is never offered in the first place. Both
 read the same `canShop()`.
+
+A blocked visitor who submits `shop.listing.questions` anyway leaves a thread
+behind with no message in it. `ListingQuestionController` calls
+`OpenConversation` before `authorizeVisitor('post', ...)`, so the thread opens
+(or is found) first and the policy only denies the `PostMessage` that would
+follow; retrying finds the same thread through `firstOrCreate` rather than
+opening a second one. That empty thread renders on both inboxes as a named row
+with no preview, stays one row no matter how many times the visitor tries, and
+notifies nobody. Accepted for the prototype rather than reordered, since
+reordering would mean authorizing against a conversation that does not exist
+yet. `shop.order.messages` carries no such risk — it only opens or finds the
+fulfillment thread and redirects to it; the reply itself is a separate
+`shop.messages.store` request, authorized before anything is written.
 
 The admin site is the minimum messaging needs: a seeded `admins` table, an
 `admin` session guard, magic-link sign-in at `/admin/login` that admits only an

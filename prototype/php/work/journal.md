@@ -13,6 +13,8 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:17:48:22 — FEAT-017 — done: composer.json test:coverage fixed with -d memory_limit=1G (make coverage now works, 100.0%), curl walk over a fresh seed covered ask-to-FAQ, both support threads answered by admin, non-participant 404s, a blocked customer's read-only thread and refused hand-rolled POST, and the SSE first frame; docs/architecture.md, docs/identity.md (new admin sign-in section), docs/messaging.md (maxlength literal + blocked-ask empty thread), docs/review.md (new admin/messaging requirements table + Node comparison), README.md, and docs/README.md brought current; 1107 tests / 2491 assertions, 100.0% coverage
+- 2026-08-23:17:32:02 — FEAT-017 — started
 - 2026-08-23:17:29:01 — FEAT-016 — reviewed: live path walked over curl (admin signed in, /admin/events held open, message posted from the seller side — the stream moved from data: 2 to data: 3 within one tick), 26s close, three guards, four concurrent streams served alongside sub-50ms page loads; docs/architecture.md "The clock" names UnreadCountStream as the third instant producer and docs/messaging.md records the measured worker capacity, the absent retry: hint, the ~5s a closed tab holds its worker, and the cookieless customer-row mint; 1107 tests / 2491 assertions, 100.0% coverage
 - 2026-08-23:17:16:52 — FEAT-016 — done: UnreadCountStream generator over Sleep::fake-testable deadline loop, seller/shop/admin /events routes behind their own guards, live-badge.js (~20 lines, no dep) wired into all three layouts without touching existing badge markup, PHP_CLI_SERVER_WORKERS+--no-reload in docker-compose.yml, README/docs/review/docs/messaging JavaScript claims rewritten; 1107 tests / 2491 assertions, 100.0% coverage
 - 2026-08-23:17:07:44 — FEAT-016 — started

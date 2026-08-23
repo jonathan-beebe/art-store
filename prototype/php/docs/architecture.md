@@ -1,9 +1,12 @@
 # Art Store prototype — system architecture
 
-Prototype of a two-sided art marketplace: a **seller portal** (back office) and a
-**customer storefront**, one Laravel deployable, one SQLite file, no JavaScript
-required. Every agent working in `prototype/php/` reads this doc first and
-follows the conventions in it.
+Prototype of a two-sided art marketplace, served from three sites: a **seller
+portal** (back office), a **customer storefront**, and an **admin site** (the
+platform's own back office, for support and moderation). One Laravel
+deployable, one SQLite file. Every page works with JavaScript off; a single
+~20-line script is a progressive enhancement over the live unread badge (see
+`docs/messaging.md` § "The live badge"). Every agent working in
+`prototype/php/` reads this doc first and follows the conventions in it.
 
 ## Deployables
 
@@ -12,17 +15,20 @@ Question: what runs, and what talks to what?
 ```mermaid
 flowchart LR
     subgraph docker["docker compose: app container"]
-        laravel["Laravel app (PHP 8.3)\n/seller/* portal\n/ storefront"]
+        laravel["Laravel app (PHP 8.3)\n/seller/* portal\n/admin/* site\n/ storefront"]
         sqlite[("SQLite\ndatabase/database.sqlite")]
         laravel --> sqlite
     end
-    seller["Seller (browser)"] -- "HTML forms" --> laravel
-    customer["Customer (browser)"] -- "HTML forms" --> laravel
+    seller["Seller (browser)"] -- "HTML forms + EventSource" --> laravel
+    customer["Customer (browser)"] -- "HTML forms + EventSource" --> laravel
+    admin["Admin (browser)"] -- "HTML forms + EventSource" --> laravel
     mail["Email delivery (future)"] -.-> laravel
 ```
 
 One container (`app`) holds PHP, Composer, Node (for the Tailwind build), and
-the SQLite file. Nothing is installed on the host.
+the SQLite file. Nothing is installed on the host. Each site's browser also
+holds one open `EventSource` per page against its own `/events` route — see
+**The clock** and `docs/messaging.md` § "The live badge".
 
 ## Layers inside the deployable
 
@@ -55,8 +61,8 @@ status transition (`ListingStatus`, `OrderStatus`, `FulfillmentStatus`), a sale
 the stock cannot cover (`ListingStock`), a cart line the listing no longer
 supports (`CartQuantity`), an order with no items (`CartTotals`). Its message
 is written for the person who tripped it. `bootstrap/app.php` maps it once, for
-every route, to `back()->withInput()->withErrors(...)`, and both layouts render
-`$errors`; controllers therefore carry no pre-flight copy of a guard the action
+every route, to `back()->withInput()->withErrors(...)`, and all three layouts
+render `$errors`; controllers therefore carry no pre-flight copy of a guard the action
 already holds. `CheckoutController::place` is the one route that overrides the
 destination: it sends the shopper to the cart, where the line the message names
 is marked unavailable. Ownership stays separate — a row that is not the
@@ -176,7 +182,7 @@ them extend `App\Http\Controllers\Controller`, which holds the clock
   `AnonymousNotifiable`) because the person may have no row yet.
   `config/magic_links.php` names the channel: `session` is
   `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
-  both layouts print it in a debug alert; `mail` is the framework's mail
+  all three layouts print it in a debug alert; `mail` is the framework's mail
   channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
 - Customers: every visitor gets a `customers` row with `email = null`, id stored
   in an encrypted cookie `customer_id`. Verifying an email either claims that
@@ -332,7 +338,8 @@ flowchart LR
   `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Admin`,
   `app/Http/Controllers/Seller`, `app/Http/Requests/Admin`,
   `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
-  `app/Notifications`, and `app/Policies`; `Tests\StorefrontTestCase` for
+  `app/Notifications`, `app/Policies`, `app/Providers`, and `app/Support`;
+  `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
   `app/View/Composers`, and `tests/SmokeTest.php`;
   `Tests\TestCase` alone for `routes/`;
@@ -396,7 +403,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (1090 tests, 2425 assertions). `make analyse` and `make lint` run
+  then the full Pest suite (1107 tests, 2491 assertions). `make analyse` and `make lint` run
   the first two alone, against the file tree only (`--no-deps`, no web
   server).
 - Sidecar tests are analysed at the same level as the code they cover: there

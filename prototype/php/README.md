@@ -1,9 +1,10 @@
 # Art Store prototype (PHP / Laravel)
 
-A two-sided art marketplace prototype: a seller portal at `/seller` and a
-customer storefront at `/`. One Laravel app, one SQLite file, and every page
-works with JavaScript off — the one script in the tree is a progressive
-enhancement, not a requirement.
+A two-sided art marketplace prototype, served from three sites: a seller
+portal at `/seller`, a customer storefront at `/`, and an admin site at
+`/admin` for support and moderation. One Laravel app, one SQLite file, and
+every page works with JavaScript off — the one script in the tree is a
+progressive enhancement, not a requirement.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -78,7 +79,7 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1099 tests (2467 assertions), run by Pest — `it()`/`test()` functions, no
+1107 tests (2491 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
@@ -239,15 +240,18 @@ prototype/php/
     app/Actions/       one job each, sequencing core + models
     app/Models/        Eloquent: relations, casts, scopes, invariant writes
     app/Http/          controllers, form requests and middleware per site:
-                       Shop/, Seller/, Auth/
+                       Shop/, Seller/, Admin/, Auth/
     app/Policies/      ownership and "is this form worth offering"
     app/Events/        past-tense business moments
     app/Listeners/     who hears about an event
     app/Notifications/ what they are told, plus Channels/
-    routes/            web.php requires auth.php, shop.php, seller.php
-    resources/views/   components/layouts/{shop,seller}, components/debug-alert,
-                       components/listing-card, components/form/field, and a
-                       page per route under shop/ and seller/
+    app/View/Composers/ per-site layout data: cart count, notifications, unread messages
+    app/Support/       CustomerIdentity, ActorDisplay, UnreadCountStream, PlaceholderImage
+    routes/            web.php requires auth.php, shop.php, seller.php, admin.php
+    resources/views/   components/layouts/{shop,seller,admin}, components/debug-alert,
+                       components/messaging/{inbox,thread,body-form}, components/listing-card,
+                       components/form/field, and a page per route under shop/, seller/, admin/
+    public/            live-badge.js, served directly rather than through Vite
     phpstan/           stub files that type Pest's traits for the analyser
     tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```
@@ -266,3 +270,6 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
+- A blocked customer's ask still opens an empty thread; a closed messaging tab
+  holds its SSE worker for a few seconds before it frees. See
+  `docs/messaging.md`.
