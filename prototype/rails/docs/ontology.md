@@ -317,7 +317,7 @@ operation (add, multiply, percent) works in whole cents.
 - used by Listing price, Order totals, Payment amount, Fulfillment
   subtotal/fee/net, Ledger entry amount, Payout amount
 
-**In code.** `Domain::Money` (value object; no table — stored as `*_cents`
+**In code.** `Money` (value object; no table — stored as `*_cents`
 integer columns).
 
 ### Platform fee

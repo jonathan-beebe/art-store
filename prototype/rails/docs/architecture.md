@@ -27,24 +27,28 @@ One container (`app`) holds Ruby, Bundler, the Tailwind standalone binary
 
 ## Layers inside the deployable
 
-Functional core / imperative shell. Dependencies point inward only.
+The stock Rails tree. `app/` holds `assets controllers helpers mailers models
+views`, `config/application.rb` has no autoloader configuration, and
+`bin/rails zeitwerk:check` passes on the defaults.
 
 ```mermaid
 flowchart TD
-    entry["Entry: config/routes.rb, config/initializers"] --> coord
-    coord["Coordination: app/controllers, lib/tasks"] --> core
-    coord --> adapters
-    adapters["Adapters: app/models (ActiveRecord), app/mailers, app/views"] --> core
-    core["Core: app/domain/** — plain Ruby, no I/O, no clock, no random"]
+    entry["config/routes.rb, config/initializers"] --> controllers
+    controllers["app/controllers/&lt;site&gt;/ + concerns, lib/tasks"] --> models
+    controllers --> views
+    views["app/views + app/helpers"] --> models
+    controllers --> mailers
+    mailers["app/mailers"] --> models
+    models["app/models — Active Record records and plain Ruby value objects"]
 ```
 
-| Layer | Lives in | Rules |
-| --- | --- | --- |
-| Core | `app/domain/<concept>/` | Plain Ruby: `Data.define` value objects, frozen classes, `module_function` modules. Receives time/ids as parameters. Unit tested in `test/domain/<concept>/` with no database. |
-| Adapters | `app/models/`, `app/mailers/`, `app/views/` | ActiveRecord models (associations, scopes, enums, validations, and the behaviour that belongs to a record — `MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`,
-`Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`), the plain value objects a record folds into (`LedgerEntry::Balance`, `PayoutPeriod`), `MagicLinkMailer`, ERB views. |
-| Coordination | `app/controllers/<site>/`, `lib/tasks/` | Sequence core + adapters. Own no domain `if`s — if one appears, extract to `app/domain`. Covered by integration tests. |
-| Entry | `config/routes.rb`, `config/initializers/*` | Wiring only. |
+| Lives in | Holds |
+| --- | --- |
+| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation both accounts share. |
+| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). |
+| `app/mailers/` | `MagicLinkMailer` and its views. |
+| `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). |
+| `config/routes.rb`, `config/initializers/*` | Wiring only. |
 
 Naming follows the `naming` skill: model methods are the verb a record answers
 to (`Order#pay!`, `Fulfillment#ship!`, `Payout.run_weekly`,
@@ -104,7 +108,7 @@ which prints `flash[:debug_magic_link]`.
 
 ## Commerce domain
 
-Money is integer cents (`Domain::Money`). Orders may span sellers; fulfillment
+Money is integer cents (`Money`). Orders may span sellers; fulfillment
 and escrow are tracked **per (order, seller)** in `fulfillments`.
 
 ```mermaid
@@ -131,9 +135,10 @@ erDiagram
 
 `draft → for_sale → sold`, `sold → for_sale` (stock restored after a declined
 card), `archived` from `draft`/`for_sale`. The table is `Listing::TRANSITIONS`;
-`listing.transition_to!(status)` raises `Domain::TransitionError` on a move it
+`listing.transition_to!(status)` raises `TransitionError` on a move it
 does not allow. Search and browse (`Shop::StorefrontController`,
-`Listing.for_sale`) show only `for_sale` listings; a listing's own page
+`Listing.search`, `Listing.media_for_sale`) show only `for_sale` listings; a
+listing's own page
 (`/art/:slug`) stays reachable through `sold` too (`Listing.on_storefront`), so
 a link a buyer already followed keeps working. `draft` and `archived` are
 unreachable either way. Quantity defaults to 1; a purchase decrements and
@@ -228,7 +233,7 @@ shipped" under the customer when a fulfillment departs.
 ## Testing
 
 - Minitest (stock Rails). Every test lives under `test/`, mirroring the tree it
-  covers: `app/domain/money.rb` → `test/domain/money_test.rb`,
+  covers: `app/models/money.rb` → `test/models/money_test.rb`,
   `app/models/order.rb` → `test/models/order_test.rb`,
   `lib/tasks/payouts.rake` → `test/tasks/payouts_test.rb`. `bin/rails test`
   with no arguments runs the whole suite. `test/test_helper.rb` is the Rails
@@ -243,16 +248,15 @@ shipped" under the customer when a fulfillment departs.
   `ActionDispatch::IntegrationTest`. There are no fixture files — `fixtures
   :all` loads one shared directory for every suite, so each test builds the
   rows it asks about.
-- Core tests (`test/domain/**`) exercise the file under test — no database, no
-  doubles.
-- Coordination tests (controllers, tasks) run against the test SQLite
-  database; they drive HTTP and assert on rendered HTML and DB state.
+- Model tests exercise the record or value object under test — no doubles. A
+  value object test needs no database; a record test builds its rows through
+  `TestRecords`.
+- Controller and task tests run against the test SQLite database; they drive
+  HTTP and assert on rendered HTML and DB state.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
-  per-group summary (Domain, Controllers, Models). `COVERAGE_MIN` is
-  one global line-coverage minimum (`make coverage` sets it to 80) — SimpleCov
-  reports the Domain group's percentage but nothing enforces a higher
-  threshold on it specifically; it has stayed near 100% in practice because
-  the core is small and pure.
+  per-group summary (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` is
+  one global line-coverage minimum (`make coverage` sets it to 80); the suite
+  has stayed at 100% line coverage.
 - TDD: failing test, make it pass, refactor. Feature tickets are done
   when their flow has an integration test that walks it end to end.
 
@@ -275,6 +279,6 @@ prototype/rails/
 | Skill says | Here it means |
 | --- | --- |
 | `npm run test:run -- <pattern>` | `docker compose run --rm app bin/rails test <path>` |
-| Vitest unit test | Minitest `ActiveSupport::TestCase` under `test/domain/` |
+| Vitest unit test | Minitest `ActiveSupport::TestCase` under `test/models/` |
 | React Testing Library integration test | `ActionDispatch::IntegrationTest` under `test/controllers/` |
 | `src/` | `prototype/rails/src/` |

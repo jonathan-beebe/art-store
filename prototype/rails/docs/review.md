@@ -2,7 +2,7 @@
 
 Every requirement in `__local__/prompts/initial-prompt.md`, its status, and the
 route helper and test class that prove it. Verified on FEAT-008 against a clean
-first run: 645 tests green, 100% line coverage.
+first run: 527 tests green, 100% line coverage.
 
 Status values: **done** — built and covered by a test; **partial** — built with
 a stated gap; **missing** — not built.
@@ -14,7 +14,7 @@ a stated gap; **missing** — not built.
 | Create an account | done | `seller_login`, `seller_send_magic_link`, `verify_magic_link` | `Auth::SellerSessionsControllerTest`, `Auth::MagicLinksControllerTest` |
 | Add items straight after sign-in | done | `new_seller_listing`, `seller_listings` (POST) | `Seller::ListingsControllerTest` |
 | Manage listings | done | `seller_listings`, `edit_seller_listing`, `seller_listing` (PATCH), `seller_listing_status` | `Seller::ListingsControllerTest`, `Seller::ListingStatusesControllerTest` |
-| Activity per listing: views, favorites, cart adds | done | `seller_listing` | `Seller::ListingsControllerTest`, `Domain::Reports::ActivityTimelineTest` |
+| Activity per listing: views, favorites, cart adds | done | `seller_listing` | `Seller::ListingsControllerTest`, `ListingTest`, `ListingEventTest` |
 | Reports on sales | done | `seller_earnings` (Sales table) | `Seller::EarningsControllerTest` |
 | Tools for fulfillment | done | `seller_orders`, `seller_order`, `seller_order_shipment` | `Seller::OrdersControllerTest`, `Seller::ShipmentsControllerTest` |
 | Accumulated earnings and payouts | done | `seller_earnings`, `seller_earnings_payout` | `Seller::EarningsControllerTest`, `Seller::PayoutsControllerTest`, `PayoutTest` |
@@ -30,7 +30,7 @@ is `@import "tailwindcss"` and nothing else.
 
 | Requirement | Status | Route helper | Test |
 | --- | --- | --- | --- |
-| Browse | done | `root` (search, medium filter, pagination), `shop_listing` | `Shop::StorefrontControllerTest`, `Shop::ListingsControllerTest`, `Domain::Shop::ListingSearchTest`, `Domain::Shop::PageTest` |
+| Browse | done | `root` (search, medium filter, pagination), `shop_listing` | `Shop::StorefrontControllerTest`, `Shop::ListingsControllerTest`, `ListingTest`, `PageTest` |
 | Favorite | done | `shop_favorites`, `shop_toggle_favorite` | `Shop::FavoritesControllerTest`, `CustomerTest` |
 | Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `CartTest`, `CartItemTest` |
 | Purchase | done | `shop_checkout`, `shop_place_order`, `shop_pay_order` | `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest` |
@@ -76,7 +76,7 @@ is `@import "tailwindcss"` and nothing else.
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
 | Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
-| Functional core / imperative shell | done | `app/domain/**` is pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
+| Functional core / imperative shell | done | The value objects in `app/models` (`Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`) are pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `data-model.md`, `ontology.md` |
 
 ## Goal
@@ -101,7 +101,7 @@ is `@import "tailwindcss"` and nothing else.
   answer 200 in 40 seconds. The stylesheet the HTML references serves 200.
 - `make fresh` against the running server re-seeds and the storefront still
   answers 200 with the seeded listings.
-- `make test`: 645 runs, 1604 assertions, 0 failures. `make coverage`: 100%
+- `make test`: 527 runs, 1604 assertions, 0 failures. `make coverage`: 100%
   line coverage, every group at 100%.
 - `make smoke`: the whole product in one test, 105 assertions, 0.7s.
 - `bin/rails zeitwerk:check`: all is good.
@@ -122,10 +122,11 @@ is `@import "tailwindcss"` and nothing else.
 2. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller_earnings` and the controller says so.
    `payouts:run` is the real entry point.
-3. **20 files under `app/` have no test of their own**: `ApplicationController`,
-   the three base controllers, `Shop::NotificationsController`, the two
-   authentication concerns, `Domain::TransitionError`, the two helpers,
-   `ApplicationRecord`, and nine thin models. Every one is at 100% line
+3. **17 files under `app/` have no test of their own**: `ApplicationController`,
+   the three base controllers, `Shop::NotificationsController`, the three
+   controller concerns, the two helpers, `ApplicationMailer`,
+   `ApplicationRecord`, the `EmailAddress` concern, `TransitionError`, and
+   `CustomerMerge`, `Favorite` and `OrderItem`. Every one is at 100% line
    coverage through the tests of its callers; `Shop::NotificationsController`
    is the only one with behavior of its own, covered by
    `Shop::AccountControllerTest`.

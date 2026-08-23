@@ -82,7 +82,7 @@ Source of truth: `Order::TRANSITIONS`, verified by
 prototype — the transition exists on the model but nothing calls it. A
 guest order cannot jump straight from `pending_verification` to `paid`: the
 table has no such edge, so `Order#pay!` on an unverified order raises
-`Domain::TransitionError` — this is the one place the Rails design departs
+`TransitionError` — this is the one place the Rails design departs
 from the PHP spike, where `pending_verification -> paid` was legal.
 `Order#roll_up_status!` rolls a multi-seller order up from its
 fulfillments: any fulfillment that has shipped or delivered counts as

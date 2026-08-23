@@ -78,7 +78,7 @@ docker compose exec app bin/rails console      # against the running server
 ## Tests
 
 Minitest, and every test lives under `test/`, mirroring `app/`:
-`app/domain/money.rb` is covered by `test/domain/money_test.rb`. `bin/rails
+`app/models/money.rb` is covered by `test/models/money_test.rb`. `bin/rails
 test` with no arguments runs the whole suite. Alongside the mirrored trees,
 `test/` holds `test_helper.rb` (the Rails base and the coverage setup),
 `support/` for the shared helpers, `smoke_test.rb`, `seeds_test.rb`, and
@@ -87,13 +87,13 @@ test` with no arguments runs the whole suite. Alongside the mirrored trees,
 
 ```sh
 make test                                                                    # whole suite
-docker compose run --rm app bin/rails test test/domain/money_test.rb         # one file
-docker compose run --rm app bin/rails test test/domain/money_test.rb -n /percent/   # one test
+docker compose run --rm app bin/rails test test/models/money_test.rb         # one file
+docker compose run --rm app bin/rails test test/models/money_test.rb -n /percent/   # one test
 ```
 
 Every test requires `test_helper` and subclasses `ActiveSupport::TestCase`,
-`ActionDispatch::IntegrationTest` or `ActionView::TestCase`. Core tests under
-`test/domain` touch no database. Controller tests drive HTTP and assert on
+`ActionDispatch::IntegrationTest` or `ActionView::TestCase`. A value object
+test touches no database. Controller tests drive HTTP and assert on
 rendered HTML. `test/support/test_records.rb` holds the record builders every
 test can reach (`create_seller`, `create_listing`, `paid_order_for`, the card
 numbers); `test/support/integration_helpers.rb` holds what only the tests
@@ -122,9 +122,9 @@ make coverage
 ```
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
-line per group (Domain, Controllers, Models). `COVERAGE_MIN` sets the
+line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 531 runs and 100% line coverage.
+suite stands at 527 runs and 100% line coverage.
 
 ## Database
 
@@ -166,13 +166,13 @@ prototype/rails/
   docs/                architecture, feature docs, and review.md
   work/                tickets and journal
   src/                 the Rails application
-    app/domain/        pure domain core
-    app/models/        the records and the behaviour that belongs to them
+    app/models/        the records, the value objects, and their behaviour
     app/controllers/   one namespace per site: shop/, seller/, auth/
+    app/helpers/       status_label and the storefront header counts
     app/mailers/       MagicLinkMailer, which sends the sign-in link
     app/views/layouts/ shop, seller, and the _debug_alert partial both render
     config/routes.rb   / and /seller
-    test/              mirrors app/: domain/, controllers/, models/
+    test/              mirrors app/: models/, controllers/, mailers/, views/
     test/test_helper.rb SimpleCov and the Rails test base
     test/support/      the record builders and the HTTP sign-in helpers
     test/smoke_test.rb  the whole product in one walk
