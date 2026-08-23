@@ -1,11 +1,18 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { finalizeOrder } from './finalize-order.ts'
 import { placeOrder } from './place-order.ts'
 import { addToCart } from '../carts/add-to-cart.ts'
 import { currentCart } from '../carts/current-cart.ts'
+import { runInTransaction } from '../transaction.ts'
+import type { ActionContext } from '../action-context.ts'
 import type { AppDatabase } from '../../db/database.ts'
+import { toTimestamp } from '../../db/timestamp.ts'
 import {
+  APPROVED_CARD,
   SHIPPING_ADDRESS,
+  cartHolding,
+  createAdmin,
   createCustomer,
   createListing,
   createSeller,
@@ -170,6 +177,111 @@ test('it refuses an empty cart', async (t) => {
     RangeError,
   )
 })
+
+test('it refuses a cart holding a listing an admin removed and places nothing', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const buyer = await createCustomer(context)
+  const art = await createListing(context, shop, { title: 'Harbour at dusk' })
+  const cartId = await cartHolding(context, buyer, [art.id])
+  await removeListing(context, art.id, await createAdmin(context))
+
+  const placement = await placeOrder(context, {
+    cartId,
+    purchaser: { id: buyer, email: 'ada@example.test', isEmailVerified: true },
+    shipping: SHIPPING_ADDRESS,
+  })
+
+  assert.deepEqual(placement, {
+    ok: false,
+    unavailable: [{ listingId: art.id, title: 'Harbour at dusk', reason: 'removed' }],
+  })
+  assert.equal((await readOrders(world.db)).length, 0)
+  assert.equal((await readCartItems(world.db, cartId)).length, 1)
+})
+
+test('it refuses a cart holding a listing another buyer already took', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const buyer = await createCustomer(context)
+  const quicker = await createCustomer(context)
+  const art = await createListing(context, shop, { title: 'Harbour at dusk', quantity: 1 })
+  const cartId = await cartHolding(context, buyer, [art.id])
+  await placedOrder(context, quicker, [art.id])
+
+  const placement = await placeOrder(context, {
+    cartId,
+    purchaser: { id: buyer, email: 'ada@example.test', isEmailVerified: true },
+    shipping: SHIPPING_ADDRESS,
+  })
+
+  assert.deepEqual(placement, {
+    ok: false,
+    unavailable: [{ listingId: art.id, title: 'Harbour at dusk', reason: 'sold_out' }],
+  })
+  assert.equal((await readOrders(world.db)).length, 1)
+})
+
+test('placement and the charge roll back together', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const buyer = await createCustomer(context)
+  const art = await createListing(context, shop)
+  const cartId = await cartHolding(context, buyer, [art.id])
+
+  await assert.rejects(() =>
+    runInTransaction(context, async (transacted) => {
+      const placement = await placeOrder(transacted, {
+        cartId,
+        purchaser: { id: buyer, email: 'ada@example.test', isEmailVerified: true },
+        shipping: SHIPPING_ADDRESS,
+      })
+      assert.equal(placement.ok, true)
+      await finalizeOrder(transacted, { orderId: placement.order.id, cardNumber: APPROVED_CARD })
+
+      throw new Error('the request failed after the charge')
+    }),
+  )
+
+  assert.equal((await readOrders(world.db)).length, 0)
+  assert.equal((await readPayments(world.db)).length, 0)
+  assert.equal((await readCartItems(world.db, cartId)).length, 1)
+})
+
+async function removeListing(
+  { db, clock }: ActionContext,
+  listingId: number,
+  adminId: number,
+): Promise<void> {
+  await db
+    .insertInto('listingRemovals')
+    .values({
+      listingId,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported as a reproduction.',
+      createdAt: toTimestamp(clock.now()),
+      liftedAt: null,
+    })
+    .execute()
+}
+
+async function readOrders(db: AppDatabase) {
+  return db.selectFrom('orders').select('id').execute()
+}
+
+async function readPayments(db: AppDatabase) {
+  return db.selectFrom('payments').select('id').execute()
+}
 
 async function readOrderItems(db: AppDatabase, orderId: number) {
   return db

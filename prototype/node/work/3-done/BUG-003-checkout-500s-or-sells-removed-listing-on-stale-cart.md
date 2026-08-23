@@ -1,7 +1,7 @@
 ---
 id: BUG-003
 type: bug
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -90,3 +90,59 @@ requirement between them.
 - 04-data-layer.md — "Checkout places and charges an order in two separate transactions"
 - 04-data-layer.md — "Purchasability is checked outside the transaction that writes the cart item"
 - BUG-005 (adjacent transaction-boundary tickets; no ordering dependency)
+
+## Working
+
+Verified against the code first. All three claims still held:
+`POST /checkout` checked only `contents.lines.length === 0`; `takeStock` ran
+`stockAfterSale`, whose `RangeError` no route catches; an active removal was
+invisible to placement, so a removed piece sold. `placeOrder` and
+`finalizeOrder` each opened their own transaction, and `POST /cart/:slug` read
+purchasability outside the transaction that wrote the line.
+
+Changed:
+- `app/core/orders/order-placement.ts` (new, + test): `planOrderPlacement`
+  takes the cart lines with each listing's status, available quantity, and
+  whether a removal stands over it, and returns `{ ok: true, lines }` or
+  `{ ok: false, unavailable }` with one reason per line
+  (`removed` | `off_sale` | `sold_out` | `short_stock`). `unavailableNotices`
+  turns those into the finished `{ title, notice }` view model. Generic in the
+  line so `placeOrder` keeps the priced view it read.
+- `app/actions/orders/place-order.ts`: reads the cart and each listing's active
+  removal inside its transaction, calls the plan, and returns
+  `PlacedOrder` — the order, or the refusal — before anything is written.
+  `placeOrderOrThrow` is the unwrapping wrapper for seeds and fixtures, which
+  build the listings they buy.
+- `app/core/listings/listing-stock.ts`, `app/core/cart/cart-quantity.ts`: still
+  throw, each with a comment naming what settles the expected cases first
+  (`planOrderPlacement`, `isPurchasable`).
+- `app/sites/shop/routes/checkout.ts`: `checkOutCart` wraps `placeOrder` +
+  `finalizeOrder` in one `runInTransaction`; a refusal re-renders checkout at
+  422 naming each unavailable piece, matching the incomplete-form idiom on the
+  same route, and leaves the order, the payment, and the cart untouched.
+- `app/sites/shop/views/checkout.ejs`: alert block over the finished
+  `unavailable` view model (loop and interpolation only).
+- `app/sites/shop/routes/carts.ts`: `findListingOnStorefront` + `currentCart` +
+  `addToCart` run in one `runInTransaction`; the handler branches on the
+  outcome the transaction returns.
+- Call sites moved to `placeOrderOrThrow`: `app/test/commerce-world.ts`,
+  `app/sites/seller/test-fixtures.ts`, `app/sites/shop/storefront-fixtures.ts`,
+  `app/db/seed-order-history.ts` (one-word change each).
+
+Left alone: `cartContents` does not carry the removal flag — the refusal
+carries the unavailable lines, so the cart page needs no second source. The
+`RangeError` from `checkoutTotals` on an empty cart stays: both routes refuse
+an empty cart before placement, so reaching it is a programmer error.
+
+What I could not provoke: a failure inside `finalizeOrder` after the charge
+that a request can actually reach — a decline is a legitimate outcome, and
+nothing else in that path fails for reachable data. The rollback test asserts
+the structural claim instead: `placeOrder` + `finalizeOrder` under one
+`runInTransaction` that then throws leaves no order, no payment, and the cart
+intact. Route-level cover is the pair of observable ends — a paid checkout
+leaves exactly one order and one payment; a refused one leaves neither.
+
+Tests: 1214 before, 1273 after with the whole suite green (21 of the new tests
+are this ticket's: 11 core, 3 on `placeOrder`, 5 on `POST /checkout`, 2 on
+`POST /cart/:slug`; the rest arrived from tickets running beside this one).
+Confirmed the three stale-cart route tests fail without the plan.

@@ -3,7 +3,7 @@ import { currentCart } from '../../actions/carts/current-cart.ts'
 import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
-import { placeOrder } from '../../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ActionContext } from '../../actions/action-context.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
@@ -112,7 +112,7 @@ export async function placeCustomerOrder(
   context: ActionContext,
   input: { cartId: number; customerId: number; email?: string; isEmailVerified?: boolean },
 ): Promise<Order> {
-  return placeOrder(context, {
+  return placeOrderOrThrow(context, {
     cartId: input.cartId,
     purchaser: {
       id: input.customerId,

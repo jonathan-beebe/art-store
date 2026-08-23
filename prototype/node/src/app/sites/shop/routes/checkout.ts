@@ -5,13 +5,16 @@ import type { CartContents } from '../../../actions/carts/cart-contents.ts'
 import { cartContents } from '../../../actions/carts/cart-contents.ts'
 import { currentCart } from '../../../actions/carts/current-cart.ts'
 import { finalizeOrder } from '../../../actions/orders/finalize-order.ts'
-import { placeOrder } from '../../../actions/orders/place-order.ts'
+import { placeOrder, type PlacedOrder, type PlaceOrderInput } from '../../../actions/orders/place-order.ts'
+import { runInTransaction } from '../../../actions/transaction.ts'
+import type { ActionContext } from '../../../actions/action-context.ts'
 import {
   isCheckoutComplete,
   missingCheckoutParts,
   parseCheckoutForm,
 } from '../../../core/shop/checkout-form.ts'
 import { purchaserForCheckout } from '../../../core/shop/checkout-purchaser.ts'
+import { unavailableNotices, type UnavailableNotice } from '../../../core/orders/order-placement.ts'
 import { isPayable } from '../../../core/orders/order-payment.ts'
 import type { ShippingAddress } from '../../../core/orders/shipping-address.ts'
 import { formBody } from '../../../plugins/form-body.ts'
@@ -39,6 +42,7 @@ type CheckoutView = {
   shipping: Partial<Record<keyof ShippingAddress, string | null>>
   isVerified: boolean
   missingParts: readonly string[]
+  unavailable: readonly UnavailableNotice[]
   contents: CartContents
 }
 
@@ -52,10 +56,30 @@ function renderCheckout(reply: FastifyReply, view: CheckoutView, status = 200): 
       shipping: view.shipping,
       isVerified: view.isVerified,
       missingParts: view.missingParts,
+      unavailable: view.unavailable,
       lines: view.contents.lines,
       totals: view.contents.totals,
     }),
   )
+}
+
+type CheckOutCartInput = PlaceOrderInput & { cardNumber: string }
+
+/**
+ * Placing the order and charging the card as one unit, so a failure part-way
+ * through leaves neither an order nor a payment behind.
+ */
+async function checkOutCart(context: ActionContext, input: CheckOutCartInput): Promise<PlacedOrder> {
+  return runInTransaction(context, async (transacted) => {
+    const placement = await placeOrder(transacted, input)
+    if (!placement.ok) return placement
+
+    if (isPayable(placement.order.status, input.purchaser.isEmailVerified)) {
+      await finalizeOrder(transacted, { orderId: placement.order.id, cardNumber: input.cardNumber })
+    }
+
+    return placement
+  })
 }
 
 export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
@@ -75,6 +99,7 @@ export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
       shipping: {},
       isVerified,
       missingParts: [],
+      unavailable: [],
       contents,
     })
   })
@@ -97,6 +122,7 @@ export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
           shipping: form.shipping,
           isVerified,
           missingParts: missingCheckoutParts(form),
+          unavailable: [],
           contents,
         },
         422,
@@ -110,14 +136,34 @@ export const checkoutRoutes: FastifyPluginCallback = (shop, _options, done) => {
       submittedEmail: form.email,
     })
 
-    const order = await placeOrder({ db, clock }, { cartId: cart.id, purchaser, shipping: form.shipping })
+    const placement = await checkOutCart(
+      { db, clock },
+      {
+        cartId: cart.id,
+        purchaser,
+        shipping: form.shipping,
+        cardNumber: submitted.card_number ?? '',
+      },
+    )
+
+    if (!placement.ok) {
+      return renderCheckout(
+        reply,
+        {
+          email: form.email,
+          shipping: form.shipping,
+          isVerified,
+          missingParts: [],
+          unavailable: unavailableNotices(placement.unavailable),
+          contents,
+        },
+        422,
+      )
+    }
+
+    const order = placement.order
 
     if (isPayable(order.status, purchaser.isEmailVerified)) {
-      await finalizeOrder(
-        { db, clock },
-        { orderId: order.id, cardNumber: submitted.card_number ?? '' },
-      )
-
       return await reply.redirect(`/orders/${order.id}`)
     }
 

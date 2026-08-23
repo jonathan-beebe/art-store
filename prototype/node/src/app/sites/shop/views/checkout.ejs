@@ -1,5 +1,16 @@
 <h1 class="text-4xl font-light tracking-tight">Checkout</h1>
 
+<% if (unavailable.length > 0) { %>
+<div role="alert" class="mt-8 max-w-xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900">
+  <p>Take these out of your cart before placing the order:</p>
+  <ul class="mt-2 list-disc pl-5">
+    <% unavailable.forEach(function (line) { %>
+    <li><%= line.title %> — <%= line.notice %></li>
+    <% }) %>
+  </ul>
+</div>
+<% } %>
+
 <% if (missingParts.length > 0) { %>
 <div role="alert" class="mt-8 max-w-xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-900">
   <p>Fill in the following before placing the order:</p>

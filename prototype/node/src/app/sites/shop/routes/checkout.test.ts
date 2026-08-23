@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { addToCart } from '../../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../../actions/carts/current-cart.ts'
+import { changeListingStatus } from '../../../actions/listings/change-listing-status.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -12,7 +13,7 @@ import {
   type SignedInActor,
   type TestApp,
 } from '../../../test/build-test-app.ts'
-import { blockCustomer, listArtwork } from '../storefront-fixtures.ts'
+import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
 
 const APPROVED_CARD = '4242 4242 4242 4242'
 const DECLINED_CARD = '4000 0000 0000 0002'
@@ -246,4 +247,108 @@ test('a blocked customer is refused checkout and places no order', async (t) => 
   assert.equal(response.headers.location, '/cart')
   assert.match(flash.alert ?? '', /on hold/)
   assert.equal(orders.length, 0)
+})
+
+async function checkOut(
+  testApp: TestApp,
+  customer: SignedInActor,
+  email: string,
+): Promise<{ statusCode: number; body: string }> {
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/checkout',
+    cookies: customer.cookies,
+    payload: { email, ...shippingPayload(), card_number: APPROVED_CARD },
+  })
+
+  return { statusCode: response.statusCode, body: response.body }
+}
+
+async function countRows(testApp: TestApp, customerId: number): Promise<{ orders: number; payments: number }> {
+  const orders = await testApp.db
+    .selectFrom('orders')
+    .select('id')
+    .where('customerId', '=', customerId)
+    .execute()
+  const payments = await testApp.db
+    .selectFrom('payments')
+    .select('payments.id')
+    .innerJoin('orders', 'orders.id', 'payments.orderId')
+    .where('orders.customerId', '=', customerId)
+    .execute()
+
+  return { orders: orders.length, payments: payments.length }
+}
+
+test('a piece an admin removed while the cart sat is refused by name and places no order', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const listingId = await readyCart(testApp, customer)
+  await removeListing(testApp, { listingId, adminId: admin.id })
+
+  const response = await checkOut(testApp, customer, 'buyer@example.com')
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /role="alert"/)
+  assert.match(response.body, /Harbour at dusk — no longer available/)
+  assert.deepEqual(await countRows(testApp, customer.id), { orders: 0, payments: 0 })
+})
+
+test('a piece another buyer took while the cart sat is refused as sold out', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const listingId = await readyCart(testApp, customer)
+  const quicker = await signInAsCustomer(testApp, 'quicker@example.com')
+  await putInCart(testApp, quicker.id, listingId)
+  await checkOut(testApp, quicker, 'quicker@example.com')
+
+  const response = await checkOut(testApp, customer, 'buyer@example.com')
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /Harbour at dusk — sold out/)
+  assert.deepEqual(await countRows(testApp, customer.id), { orders: 0, payments: 0 })
+})
+
+test('a piece the seller archived while the cart sat is refused as off sale', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const listingId = await readyCart(testApp, customer)
+  await changeListingStatus(testApp, { listingId, status: 'archived' })
+
+  const response = await checkOut(testApp, customer, 'buyer@example.com')
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /Harbour at dusk — no longer for sale/)
+  assert.deepEqual(await countRows(testApp, customer.id), { orders: 0, payments: 0 })
+})
+
+test('a refused checkout leaves the cart as it was', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const listingId = await readyCart(testApp, customer)
+  await removeListing(testApp, { listingId, adminId: admin.id })
+
+  await checkOut(testApp, customer, 'buyer@example.com')
+
+  const cart = await currentCart({ db: testApp.db, clock: testApp.clock }, customer.id)
+  const items = await testApp.db.selectFrom('cartItems').select('id').where('cartId', '=', cart.id).execute()
+
+  assert.equal(items.length, 1)
+})
+
+test('a paid checkout leaves the order and its payment together', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await readyCart(testApp, customer)
+
+  await checkOut(testApp, customer, 'buyer@example.com')
+
+  assert.deepEqual(await countRows(testApp, customer.id), { orders: 1, payments: 1 })
 })

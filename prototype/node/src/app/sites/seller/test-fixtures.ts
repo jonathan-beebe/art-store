@@ -7,7 +7,7 @@ import { createListing } from '../../actions/listings/create-listing.ts'
 import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
 import { notify } from '../../actions/notifications/notify.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
-import { placeOrder } from '../../actions/orders/place-order.ts'
+import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
 import type { ShippingAddress } from '../../core/orders/shipping-address.ts'
@@ -72,7 +72,7 @@ export async function createFulfillment(
   const cart = await currentCart({ db, clock }, buyer.id)
   await addToCart({ db, clock }, { cartId: cart.id, listingId: forSale.id, quantity: 1 })
 
-  const order = await placeOrder(
+  const order = await placeOrderOrThrow(
     { db, clock },
     {
       cartId: cart.id,

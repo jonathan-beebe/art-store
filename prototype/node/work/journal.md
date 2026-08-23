@@ -13,6 +13,9 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:08:07:30 — BUG-003 — done: checkout plans placement in core and refuses a stale cart by name instead of 500ing, placement and the charge commit as one transaction, and the add-to-cart gate reads the listing in the transaction that writes the line
+- 2026-08-23:07:53:17 — BUG-003 — started
+- 2026-08-23:07:59:56 — RFCTR-002 — started
 - 2026-08-23:07:57:57 — BUG-004 — done: consuming a magic link and claiming the actor now commit or roll back together, the nine auth/customer actions take ActionContext and join the caller's transaction, claim returns are read back from the database, and cookie-id parsing lives once in parseActorId
 - 2026-08-23:07:52:39 — IMPRV-004 — started
 - 2026-08-23:07:52:22 — BUG-004 — started

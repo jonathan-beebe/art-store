@@ -5,6 +5,7 @@ import { cartContents } from '../../../actions/carts/cart-contents.ts'
 import { currentCart } from '../../../actions/carts/current-cart.ts'
 import { removeFromCart } from '../../../actions/carts/remove-from-cart.ts'
 import { currentCustomerStanding } from '../../../actions/moderation/current-customer-standing.ts'
+import { runInTransaction } from '../../../actions/transaction.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
 import { formBody } from '../../../plugins/form-body.ts'
@@ -48,18 +49,28 @@ export const cartRoutes: FastifyPluginCallback = (shop, _options, done) => {
     async (request, reply) => {
       const { db, clock } = shop
       const { slug } = parameters.parse(request.params)
-      const found = await findListingOnStorefront(db, slug)
-      if (found === null) return renderNotFound(reply)
+      const customer = storefrontCustomer(request)
+      const { quantity } = addForm.parse(formBody(request))
 
-      if (!found.isPurchasable) {
+      // The gate and the line it writes read one snapshot of the listing, so a
+      // piece removed or taken off sale mid-request never lands in a cart.
+      const outcome = await runInTransaction({ db, clock }, async (transacted) => {
+        const found = await findListingOnStorefront(transacted.db, slug)
+        if (found === null) return 'unknown' as const
+        if (!found.isPurchasable) return 'unavailable' as const
+
+        const cart = await currentCart(transacted, customer.id)
+        await addToCart(transacted, { cartId: cart.id, listingId: found.listing.id, quantity })
+
+        return 'added' as const
+      })
+
+      if (outcome === 'unknown') return renderNotFound(reply)
+
+      if (outcome === 'unavailable') {
         reply.setFlash({ alert: SOLD_OUT_ALERT })
         return reply.redirect(`/art/${slug}`)
       }
-
-      const customer = storefrontCustomer(request)
-      const cart = await currentCart({ db, clock }, customer.id)
-      const { quantity } = addForm.parse(formBody(request))
-      await addToCart({ db, clock }, { cartId: cart.id, listingId: found.listing.id, quantity })
 
       return reply.redirect('/cart')
     },
