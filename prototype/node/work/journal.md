@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:20:06:00 — FEAT-008 — done: seed data and demo reset — 4 verified sellers with shops and a 29-listing catalog across six media (one under temporary removal), casey@example.com with favorites/views/cart/orders in paid/shipped/delivered, a blocked customer, 3 anonymous browsers, 14 days of page-view counts, all driven through the FEAT-003 actions on a frozen clock
 - 2026-08-22:20:03:52 — FEAT-008 — started
 - 2026-08-22:19:54:09 — FEAT-005 — started
 - 2026-08-22:19:53:20 — FEAT-006 — started
