@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
 import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
@@ -66,7 +67,7 @@ export async function createFulfillment(
 ): Promise<Fulfillment> {
   const { db, clock } = testApp
   const forSale = listing ?? (await createForSaleListing(testApp, sellerId))
-  const email = `buyer-${forSale.id}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`
+  const email = `buyer-${forSale.id}-${randomUUID()}@example.com`
   const buyer = await signInAsCustomer(testApp, email)
 
   const cart = await currentCart({ db, clock }, buyer.id)

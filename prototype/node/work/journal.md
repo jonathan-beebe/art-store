@@ -13,6 +13,7 @@
 - BUG: 7
 
 ## Log
+- 2026-08-23:08:20:02 — IMPRV-005 — done: `formatCents` now uses `Intl.NumberFormat` (byte-identical output), `app/core/shop/day-label.ts` gained `dateLabel`/`dateTimeLabel`/`timestampLabel`/`dayFromReportKey` on module-level `Intl.DateTimeFormat` instances (locale + UTC explicit), `app/sites/seller/format.ts` and `admin/page.ts`'s `formatMoment` are now thin wrappers over it with names/output unchanged, the `test-fixtures.ts` buyer email uses `randomUUID()` instead of `Date.now()`/`Math.random()`, and `server.ts`/`db/migrate.ts`/`db/seed.ts`/`cli/run-payouts.ts` each export a guarded `main(argv, env)` with a new test exercising `run-payouts`' `main` against a real temp-file database; `placeholder-image.ts`'s `Buffer` base64 stays — `Uint8Array.prototype.toBase64` is unflagged-unavailable on the installed Node 24.12
 - 2026-08-23:08:17:10 — FEAT-014 — done: `.github/workflows/node.yml` runs typecheck, lint, and the coverage-gated suite on Node 24 for pushes/PRs touching `prototype/node`, then uploads `coverage/lcov.info`; `npm run check` now runs `typecheck && lint && coverage`, thresholds raised 90/80 → 95/90, new `test:ci` script pairs `spec`+`lcov` reporters for CI's readable output plus the artifact
 - 2026-08-23:08:11:38 — FEAT-014 — started
 - 2026-08-23:08:08:40 — IMPRV-005 — started

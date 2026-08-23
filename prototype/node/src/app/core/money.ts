@@ -41,19 +41,12 @@ export function percentOfCents(amount: Cents, percent: number): Cents {
   return signed === 0 ? 0 : signed
 }
 
-/** Groups a non-negative whole-dollar string with commas every three digits. */
-function withThousandsSeparators(wholeDollars: string): string {
-  return wholeDollars.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-}
+const CURRENCY_FORMAT = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 export function formatCents(amount: Cents): string {
   assertIntegerAmount(amount, 'formatCents: amount')
 
-  const sign = amount < 0 ? '-' : ''
-  const absAmount = Math.abs(amount)
-  const dollars = Math.floor(absAmount / 100)
-  const cents = absAmount % 100
-  return `${sign}$${withThousandsSeparators(String(dollars))}.${String(cents).padStart(2, '0')}`
+  return CURRENCY_FORMAT.format(amount / 100)
 }
 
 const DOLLAR_AMOUNT_PATTERN = /^(-)?\$?(\d{1,3}(?:,\d{3})*|\d+)(?:\.(\d{2}))?$/

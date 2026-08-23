@@ -1,3 +1,4 @@
+import { timestampLabel } from '../../core/shop/day-label.ts'
 import { formatCents } from '../../core/money.ts'
 import { statusLabel } from '../../core/status-label.ts'
 import type { Timestamp } from '../../db/timestamp.ts'
@@ -19,5 +20,5 @@ export function adminPage(
 
 /** An ISO instant as the minute a person reads: `2026-08-24 12:00`. */
 export function formatMoment(value: Timestamp | null): string {
-  return value === null ? NOTHING : `${value.slice(0, 10)} ${value.slice(11, 16)}`
+  return value === null ? NOTHING : timestampLabel(value)
 }
