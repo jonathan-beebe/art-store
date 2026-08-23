@@ -221,13 +221,13 @@ class OrderTest < ActiveSupport::TestCase
   test "it refuses to charge an order that is already paid" do
     order = pay(order_for(create_verified_customer, create_listing), APPROVED_CARD)
 
-    assert_raises(Domain::TransitionError) { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
+    assert_raises(TransitionError) { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
   end
 
   test "it refuses to charge an order that has not been verified" do
     order = order_for(create_anonymous_customer, create_listing)
 
-    assert_raises(Domain::TransitionError) { pay(order, APPROVED_CARD) }
+    assert_raises(TransitionError) { pay(order, APPROVED_CARD) }
   end
 
   test "verifying opens payment on a guest order" do
@@ -324,7 +324,7 @@ class OrderTest < ActiveSupport::TestCase
   end
 
   test "a guest cannot pay before verifying" do
-    assert_raises(Domain::TransitionError) { Order.transition("pending_verification", "paid") }
+    assert_raises(TransitionError) { Order.transition("pending_verification", "paid") }
   end
 
   test "a failed payment retries" do
@@ -349,7 +349,7 @@ class OrderTest < ActiveSupport::TestCase
   end
 
   test "a paid order cannot be paid twice" do
-    error = assert_raises(Domain::TransitionError) { Order.transition("paid", "paid") }
+    error = assert_raises(TransitionError) { Order.transition("paid", "paid") }
 
     assert_equal "An order cannot move from paid to paid.", error.message
   end

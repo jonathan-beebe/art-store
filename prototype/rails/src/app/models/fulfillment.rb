@@ -37,7 +37,7 @@ class Fulfillment < ApplicationRecord
   end
 
   def self.net_for(subtotal)
-    Domain::Money.from_cents(subtotal.cents - fee_for(subtotal).cents)
+    Money.from_cents(subtotal.cents - fee_for(subtotal).cents)
   end
 
   # The seller hands the package over: the fulfillment records how to follow
@@ -78,15 +78,15 @@ class Fulfillment < ApplicationRecord
   end
 
   def subtotal
-    Domain::Money.from_cents(subtotal_cents)
+    Money.from_cents(subtotal_cents)
   end
 
   def fee
-    Domain::Money.from_cents(fee_cents)
+    Money.from_cents(fee_cents)
   end
 
   def net
-    Domain::Money.from_cents(net_cents)
+    Money.from_cents(net_cents)
   end
 
   private

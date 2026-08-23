@@ -40,7 +40,7 @@
             <tr data-item="<%= item.id %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= item.title %></th>
               <td class="px-4 py-2 text-right tabular-nums"><%= item.quantity %></td>
-              <td class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(item.unit_price_cents).format %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= Money.from_cents(item.unit_price_cents).format %></td>
             </tr>
           <% end %>
         </tbody>

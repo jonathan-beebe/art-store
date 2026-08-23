@@ -6,7 +6,7 @@ class Seller::ListingStatusesController < Seller::BaseController
 
     redirect_to seller_listings_path,
       notice: %("#{@listing.title}" is now #{@listing.status.humanize.downcase}.)
-  rescue Domain::TransitionError => refusal
+  rescue TransitionError => refusal
     @refusal = refusal.message
     render :refused, status: :unprocessable_content
   end

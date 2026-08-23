@@ -4,6 +4,7 @@ class Listing < ApplicationRecord
   QUANTITY_LIMIT = 999
   DOLLARS = /\A\d+(\.\d{1,2})?\z/
   SLUG_FALLBACK = "listing".freeze
+  TEXT_MATCH = "title LIKE :pattern OR description LIKE :pattern OR medium LIKE :pattern".freeze
 
   belongs_to :seller
   has_many :events, class_name: "ListingEvent", dependent: :destroy
@@ -64,10 +65,32 @@ class Listing < ApplicationRecord
   # The lifecycle move as a value, for a caller that works out a status without
   # a record to write it to.
   def self.transition(from, to)
-    raise Domain::TransitionError, "A listing cannot move from #{from} to #{to}." unless
+    raise TransitionError, "A listing cannot move from #{from} to #{to}." unless
       TRANSITIONS.fetch(from, []).include?(to)
 
     to
+  end
+
+  # What a storefront visitor asked to see: free text over the catalogue and a
+  # medium to narrow it to. Either half may be missing.
+  def self.search(term: nil, medium: nil)
+    listings = for_sale
+    listings = listings.where(TEXT_MATCH, pattern: like_pattern(term)) if term.present?
+    listings = listings.where(medium: medium) if medium.present?
+
+    listings
+  end
+
+  # SQLite LIKE has no escape character unless the query names one, so a
+  # wildcard the visitor typed is dropped rather than escaped.
+  def self.like_pattern(term)
+    "%#{term.tr('%_', '  ').squeeze(' ').strip}%"
+  end
+
+  # The media the storefront filter offers, which are the ones something is
+  # currently on sale in.
+  def self.media_for_sale
+    for_sale.where.not(medium: [nil, ""]).distinct.order(:medium).pluck(:medium)
   end
 
   # The form edits dollars; the column stores cents. What the seller typed is
@@ -120,6 +143,23 @@ class Listing < ApplicationRecord
     events.create!(event_type: event_type, customer_id: customer_id, occurred_at: at)
   end
 
+  def activity_totals
+    ListingEvent::Totals.from(events.group(:event_type).count)
+  end
+
+  # A gapless run of days ending on the day of +ends_on+, oldest first, so the
+  # breakdown keeps a row for every day a seller looks at.
+  def activity_by_day(days:, ends_on: Time.current)
+    raise ArgumentError, "a timeline covers at least one day, got #{days}" if days < 1
+
+    counts = event_counts_by_date
+    last_day = ends_on.to_date
+
+    ((last_day - (days - 1))..last_day).map do |day|
+      ListingEvent::Day.new(date: day, totals: ListingEvent::Totals.from(counts.fetch(day, {})))
+    end
+  end
+
   # A pending upload has no URL until it is saved, so a form rendered back with
   # a rejected edit still shows the image the listing has.
   def image_url
@@ -129,6 +169,12 @@ class Listing < ApplicationRecord
   end
 
   private
+
+  def event_counts_by_date
+    events.pluck(:occurred_at, :event_type)
+          .group_by { |occurred_at, _| occurred_at.to_date }
+          .transform_values { |events| events.map(&:last).tally }
+  end
 
   def reject_an_empty_change(count)
     raise ArgumentError, "a stock change covers at least one item, got #{count}" if count < 1

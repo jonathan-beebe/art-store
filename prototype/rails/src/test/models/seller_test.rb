@@ -45,6 +45,31 @@ class SellerTest < ActiveSupport::TestCase
     assert_equal existing, Seller.claim("ARTIST@Example.com")
   end
 
+  test "a named shop is displayed under its name" do
+    assert_equal "Blue Kiln Studio", create_seller(shop_name: "Blue Kiln Studio").display_name
+  end
+
+  test "an unnamed shop is displayed under the local part of the address" do
+    assert_equal "ada", create_seller(shop_name: nil, email: "ada@example.test").display_name
+  end
+
+  test "a shop named with whitespace counts as unnamed" do
+    assert_equal "ada", create_seller(shop_name: "   ", email: "ada@example.test").display_name
+  end
+
+  test "the status counts cover every status in lifecycle order" do
+    assert_equal %w[draft for_sale sold archived], create_seller.listing_status_counts.map(&:first)
+  end
+
+  test "the status counts read the listings the seller owns" do
+    shop = create_seller
+    create_listing(shop, status: :for_sale)
+    create_listing(shop, status: :for_sale)
+    create_listing(create_seller, status: :sold, quantity: 0)
+
+    assert_equal [["draft", 0], ["for_sale", 2], ["sold", 0], ["archived", 0]], shop.listing_status_counts
+  end
+
   test "a seller reads their escrow balance off their own ledger" do
     shop = create_seller
     other = create_seller

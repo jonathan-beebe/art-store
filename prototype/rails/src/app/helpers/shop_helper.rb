@@ -9,11 +9,7 @@ module ShopHelper
     current_customer.notifications.unread.count
   end
 
-  def shop_name_of(seller)
-    Domain::Shop::ShopName.of(shop_name: seller.shop_name, email: seller.email)
-  end
-
   def money(cents)
-    Domain::Money.from_cents(cents).format
+    Money.from_cents(cents).format
   end
 end

@@ -5,14 +5,12 @@ class Seller::ListingsController < Seller::BaseController
 
   def index
     @listings = current_seller.listings.order(id: :desc).to_a
-    @activity = activity_by_listing(@listings)
+    @activity = ListingEvent.totals_by_listing(@listings)
   end
 
   def show
-    @totals = Domain::Reports::ActivityTotals.from(@listing.events.group(:event_type).count)
-    @days = Domain::Reports::ActivityTimeline.last_days(
-      event_counts_by_date(@listing), ends_on: Time.current, days: WINDOW_DAYS
-    )
+    @totals = @listing.activity_totals
+    @days = @listing.activity_by_day(days: WINDOW_DAYS)
     @sales = @listing.order_items.includes(:order).order(id: :desc)
   end
 
@@ -45,20 +43,5 @@ class Seller::ListingsController < Seller::BaseController
 
   def listing_params
     params.expect(listing: %i[title description medium dimensions price quantity image])
-  end
-
-  def event_counts_by_date(listing)
-    listing.events
-           .pluck(:occurred_at, :event_type)
-           .group_by { |occurred_at, _| occurred_at.to_date }
-           .transform_values { |events| events.map(&:last).tally }
-  end
-
-  def activity_by_listing(listings)
-    counts = ListingEvent.where(listing_id: listings.map(&:id)).group(:listing_id, :event_type).count
-
-    listings.index_with do |listing|
-      Domain::Reports::ActivityTotals.from(counts.select { |(id, _)| id == listing.id }.transform_keys(&:last))
-    end
   end
 end

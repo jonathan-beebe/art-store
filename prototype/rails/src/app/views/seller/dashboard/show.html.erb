@@ -9,8 +9,8 @@
   </div>
 
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <% @tally.each do |row| %>
-      <%= render "seller/shared/stat", key: row.status, label: row.label, value: row.count %>
+    <% @listing_status_counts.each do |status, count| %>
+      <%= render "seller/shared/stat", key: status, label: status_label(status), value: count %>
     <% end %>
   </dl>
 </section>

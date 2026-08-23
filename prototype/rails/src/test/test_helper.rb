@@ -10,9 +10,9 @@ SimpleCov.start do
 
   cover "{app,lib}/**/*.rb"
 
-  group "Domain", "app/domain"
-  group "Controllers", "app/controllers"
   group "Models", "app/models"
+  group "Controllers", "app/controllers"
+  group "Helpers", "app/helpers"
   group "Mailers", "app/mailers"
 
   minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]

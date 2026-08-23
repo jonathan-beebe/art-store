@@ -29,6 +29,6 @@ class Payout < ApplicationRecord
   end
 
   def amount
-    Domain::Money.from_cents(amount_cents)
+    Money.from_cents(amount_cents)
   end
 end

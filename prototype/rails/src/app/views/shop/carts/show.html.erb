@@ -14,7 +14,7 @@
 
         <div class="flex-1">
           <%= link_to item.listing.title, shop_listing_path(slug: item.listing.slug), class: "text-lg" %>
-          <p class="mt-1 text-sm text-neutral-500"><%= shop_name_of(item.listing.seller) %></p>
+          <p class="mt-1 text-sm text-neutral-500"><%= item.listing.seller.display_name %></p>
           <p class="mt-1 text-sm text-neutral-500">Quantity <%= item.quantity %></p>
         </div>
 

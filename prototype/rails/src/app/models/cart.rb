@@ -50,6 +50,6 @@ class Cart < ApplicationRecord
   end
 
   def total_of(items)
-    items.sum(Domain::Money.from_cents(0), &:total)
+    items.sum(Money.from_cents(0), &:total)
   end
 end

@@ -149,14 +149,14 @@ class ListingTest < ActiveSupport::TestCase
   test "a move the lifecycle refuses raises and changes nothing" do
     record = create_listing(status: :draft)
 
-    error = assert_raises(Domain::TransitionError) { record.transition_to!("sold") }
+    error = assert_raises(TransitionError) { record.transition_to!("sold") }
 
     assert_equal "A listing cannot move from draft to sold.", error.message
     assert_predicate record.reload, :draft?
   end
 
   test "a status the lifecycle does not name is refused" do
-    assert_raises(Domain::TransitionError) { create_listing(status: :draft).transition_to!("on_loan") }
+    assert_raises(TransitionError) { create_listing(status: :draft).transition_to!("on_loan") }
   end
 
   test "it offers the moves the lifecycle allows" do
@@ -249,6 +249,91 @@ class ListingTest < ActiveSupport::TestCase
 
   test "an anonymous visitor leaves an event with no customer" do
     assert_nil create_listing.record_event!("view").customer_id
+  end
+
+  test "a search with no filters returns everything for sale" do
+    for_sale = create_listing(status: :for_sale)
+    create_listing(status: :draft)
+
+    assert_equal [for_sale.id], Listing.search.pluck(:id)
+  end
+
+  test "a search matches the title, the description, and the medium" do
+    titled = create_listing(title: "Harbour at Dusk", description: "Boats", medium: "Oil on canvas")
+    described = create_listing(title: "Kiln Fired", description: "A dusk-lit vessel", medium: "Ceramic")
+    in_medium = create_listing(title: "Winter Field", description: "Snow", medium: "Dusk pastel")
+    create_listing(title: "Morning Light", description: "Sun", medium: "Watercolour")
+
+    assert_equal [titled, described, in_medium].map(&:id).sort, Listing.search(term: "dusk").pluck(:id).sort
+  end
+
+  test "a search drops the wildcards a visitor typed" do
+    create_listing(title: "Harbour at Dusk", description: "Boats")
+
+    assert_empty Listing.search(term: "Harbour%Dusk")
+  end
+
+  test "a search narrows to one medium" do
+    ceramic = create_listing(title: "Kiln Fired", medium: "Ceramic")
+    create_listing(title: "Harbour at Dusk", medium: "Oil on canvas")
+
+    assert_equal [ceramic.id], Listing.search(medium: "Ceramic").pluck(:id)
+  end
+
+  test "a term and a medium narrow together" do
+    both = create_listing(title: "Harbour Ceramic", description: "Boats", medium: "Ceramic")
+    create_listing(title: "Harbour at Dusk", description: "Boats", medium: "Oil on canvas")
+    create_listing(title: "Winter Field", description: "Snow", medium: "Ceramic")
+
+    assert_equal [both.id], Listing.search(term: "harbour", medium: "Ceramic").pluck(:id)
+  end
+
+  test "the media offered are the ones something is for sale in" do
+    artist = create_seller
+    create_listing(artist, medium: "Ceramic")
+    create_listing(artist, medium: "Ceramic")
+    create_listing(artist, medium: "Watercolour", status: :draft)
+    create_listing(artist, medium: nil)
+
+    assert_equal ["Ceramic"], Listing.media_for_sale
+  end
+
+  test "its totals add up its own events" do
+    record = create_listing
+    record.record_event!("view")
+    record.record_event!("view")
+    record.record_event!("favorite")
+    record.record_event!("unfavorite")
+
+    totals = record.activity_totals
+
+    assert_equal 2, totals.views
+    assert_equal 1, totals.favorites
+    assert_equal 0, totals.cart_adds
+  end
+
+  test "the daily breakdown keeps a row per day, oldest first" do
+    record = create_listing
+    record.record_event!("view", at: moment("2026-08-21 09:00:00"))
+
+    days = record.activity_by_day(days: 3, ends_on: moment("2026-08-22 17:30:00"))
+
+    assert_equal [Date.new(2026, 8, 20), Date.new(2026, 8, 21), Date.new(2026, 8, 22)], days.map(&:date)
+    assert_equal 0, days[0].totals.total
+    assert_equal 1, days[1].totals.views
+  end
+
+  test "the daily breakdown ignores events outside the window" do
+    record = create_listing
+    record.record_event!("view", at: moment("2026-07-01 09:00:00"))
+
+    days = record.activity_by_day(days: 2, ends_on: moment("2026-08-22 17:30:00"))
+
+    assert_equal 0, days.sum { |day| day.totals.total }
+  end
+
+  test "the daily breakdown covers at least one day" do
+    assert_raises(ArgumentError) { create_listing.activity_by_day(days: 0) }
   end
 
   test "an upload is attached on save" do

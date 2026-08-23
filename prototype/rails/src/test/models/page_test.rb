@@ -1,8 +1,6 @@
 require "test_helper"
 
 class PageTest < ActiveSupport::TestCase
-  Page = Domain::Shop::Page
-
   test "the first page starts at the beginning" do
     page = Page.of(requested: 1, size: 12, total_count: 30)
 

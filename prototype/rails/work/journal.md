@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-22:20:49:42 — RFCTR-011 — started
 - 2026-08-22:20:47:00 — RFCTR-012 — done: MagicLinkMailer sends the sign-in link with deliver_later and the debug alert became a MAGIC_LINK_DEBUG_ALERT flash beside it; delivery_method is :test in development as well as test; app/delivery and test/delivery deleted, their coverage replaced by test/mailers plus enqueue assertions in the sessions and checkout tests; 531 runs at 100% line coverage (this commit)
 - 2026-08-22:20:42:30 — RFCTR-012 — started
 - 2026-08-22:20:39:08 — RFCTR-010 — done: notifications belong to a polymorphic recipient, Notification.item_sold/order_shipped write their own messages and Notification#read!/deliver_by_email carry the rest; a reversible migration converts the two nullable foreign keys; app/actions and app/domain/notifications deleted, their tests folded into test/models/notification_test.rb; 531 runs at 100% line coverage (this commit)

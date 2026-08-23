@@ -73,7 +73,7 @@
               <td class="px-4 py-2"><%= sale.order.placed_at.strftime("%b %-d, %Y") %></td>
               <td data-cell="order_status" class="px-4 py-2"><%= status_label(sale.order.status) %></td>
               <td class="px-4 py-2 text-right tabular-nums"><%= sale.quantity %></td>
-              <td class="px-4 py-2 text-right tabular-nums"><%= Domain::Money.from_cents(sale.unit_price_cents).format %></td>
+              <td class="px-4 py-2 text-right tabular-nums"><%= Money.from_cents(sale.unit_price_cents).format %></td>
             </tr>
           <% end %>
         </tbody>

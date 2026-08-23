@@ -38,7 +38,7 @@
     <% @fulfillments.each do |fulfillment| %>
       <section class="border-t border-neutral-100 py-8 first:border-t-0 first:pt-0">
         <div class="flex flex-wrap items-baseline justify-between gap-4">
-          <h2 class="text-lg"><%= shop_name_of(fulfillment.seller) %></h2>
+          <h2 class="text-lg"><%= fulfillment.seller.display_name %></h2>
           <p data-fulfillment-status class="text-base text-neutral-500"><%= status_label(fulfillment.status) %></p>
         </div>
 

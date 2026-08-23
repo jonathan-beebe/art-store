@@ -17,7 +17,21 @@ class Seller < ApplicationRecord
     seller
   end
 
+  # A seller signs up with an address and names their shop later, so the
+  # storefront falls back to the part of the address in front of the host.
+  def display_name
+    shop_name.to_s.strip.presence || email.to_s.split("@").first.to_s
+  end
+
   def escrow_balance
     ledger_entries.balance
+  end
+
+  # Every listing status in lifecycle order, so the dashboard keeps its tiles
+  # in place on a day nothing sold.
+  def listing_status_counts
+    counts = listings.group(:status).count
+
+    Listing.statuses.keys.map { |status| [status, counts.fetch(status, 0)] }
   end
 end

@@ -8,9 +8,9 @@ class LedgerEntry < ApplicationRecord
       paid_out = totals.fetch("paid_out", 0)
 
       new(
-        held: Domain::Money.from_cents(held - released),
-        available: Domain::Money.from_cents(released + paid_out),
-        paid_out: Domain::Money.from_cents(-paid_out)
+        held: Money.from_cents(held - released),
+        available: Money.from_cents(released + paid_out),
+        paid_out: Money.from_cents(-paid_out)
       )
     end
 

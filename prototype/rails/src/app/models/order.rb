@@ -98,7 +98,7 @@ class Order < ApplicationRecord
   # The lifecycle move as a value, for a caller that works out a status without
   # a record to write it to.
   def self.transition(from, to)
-    raise Domain::TransitionError, "An order cannot move from #{from} to #{to}." unless
+    raise TransitionError, "An order cannot move from #{from} to #{to}." unless
       TRANSITIONS.fetch(from, []).include?(to)
 
     to
@@ -161,7 +161,7 @@ class Order < ApplicationRecord
   end
 
   def total
-    Domain::Money.from_cents(total_cents)
+    Money.from_cents(total_cents)
   end
 
   private
