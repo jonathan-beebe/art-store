@@ -228,3 +228,116 @@ counts a customer as signed in only once `email` is set
 `/account`, `/orders/:id/pay`, and `POST /account/notifications/:id/read` with.
 A customer signing out lands on `/` (`ACTOR_SITES.customer.signedOutPath`) and
 the next request hands them a fresh anonymous identity.
+
+## Non-revealing admin sign-in
+
+`signInRoutes({actorType, admits?, accountView?})` (`app/sites/auth/sign-in-routes.ts`)
+takes an optional `admits` predicate; only `adminSite` passes one, since admin
+rows are seeded rather than opened to anyone who asks. A probe for who runs the
+platform must learn nothing from the response, so `admits` refusing an address
+answers exactly the way an admitted address does: the same `notice` flash
+(`Sign-in link sent to <email>.`), the same redirect to `site.loginPath`, the
+same status. `SignInRoutesOptions` no longer accepts a `refusal` message —
+one existed before this, and a distinct string was the leak. The one place
+this still differs is `debugMagicLink`: under `MAGIC_LINK_DELIVERY=flash`
+there is no link to print for a refused address, so the debug bar shows
+nothing where an admitted address would show one. That is a development-only
+surface (`showsDebugMagicLinks` is `false` outside it, and a production boot
+already refuses `flash` delivery — see the delivery paragraph above), not a
+gap in the production-facing response `docs/alignment.md` §7 decision 3 cares
+about; `sign-in-routes.test.ts` pins the byte-identical case under
+`outboxMagicLinkDelivery`, where neither branch prints anything.
+
+`admits` still runs before `sendMagicLink`, so an admitted and a refused
+request do genuinely different work — one extra indexed `SELECT` against
+`admins` either way, one `INSERT` and a delivery call only when admitted. That
+timing difference is not equalised: this is a demo-grade prototype, PHP's own
+non-revealing test (`IMPRV-002`, `prototype/php`) asserts response bodies are
+identical and says nothing about timing either, and closing a timing side
+channel would mean doing constant, dummy work on every refusal — machinery
+disproportionate to what a prototype's sign-in page defends. A refusal still
+writes one line server-side, `magic_link.request` `refused` at `info` with
+`reason: 'not_admitted'` and a `redactedEmail` digest in place of the address
+(`docs/alignment.md` §2.1) — a log line is not a response, so it carries no
+authority over what the requester sees.
+
+## Cross-site redirect refusal
+
+`redirect_to` rides three paths: the sign-in form (`keepLocalRedirect` in
+`GET/POST /login`), the magic link itself (stored on `sendMagicLink`, read
+back on `GET /auth/magic/:token`), and a handful of admin/seller actions that
+carry a return path (`moderation.ts`, `fulfillments.ts`, `faqs.ts`). Every one
+of them used to check only that the target stayed on this origin —
+`keepLocalRedirect`/`resolveLocalRedirect` (`app/core/auth/local-redirect.ts`)
+— which let a seller-site sign-in's `redirect_to=/admin/...` pass, since
+`/admin/...` is on-origin too.
+
+`allowsPath(actorType, path)` (same file) closes that: a pure lookup, borrowed
+from PHP's `ActorType::allowsPath` (`prototype/php`), naming the path prefixes
+each actor type holds no guard for —
+
+| Actor | Refused |
+| --- | --- |
+| `seller` | `/admin` and anything under it |
+| `customer` | `/seller` and `/admin`, and anything under either |
+| `admin` | `/seller` and anything under it |
+
+— so a seller may still be sent to `/orders/7` (no site owns that prefix) but
+never to `/admin/orders`, and an admin may be sent to a customer path but
+never a seller one. `keepLocalRedirect(requested, actorType, origin)` now
+takes the actor alongside the origin and refuses a target `allowsPath` refuses,
+on top of everything it already refused (control characters, `//`, `/\`, a
+foreign host). Every call site names the actor already in scope: the site
+being signed into for the sign-in form and the magic link's own
+`sendMagicLink`, the actor who signed in for `GET /auth/magic/:token`
+(`resolveLocalRedirect(signIn.redirectTo, {actorType: signIn.actorType, ...})`
+in `app/sites/auth/index.ts`), and the fixed actor a moderation or fulfillment
+route already runs behind. The check runs at both ends — refusing a
+cross-site target when the sign-in form submits it, and again when the stored
+link is consumed — so a `magic_links` row that reached the database holding
+one some other way still cannot carry a visitor off their own site.
+
+## CSRF tokens
+
+`docs/alignment.md` §7 decision 3 adopts CSRF tokens on every POST form.
+Node has no session store to hang a synchronizer token on, so the token is a
+double-submit derived rather than stored: `csrfToken(sessionId, secret)`
+(`app/core/security/csrf-token.ts`) is an HMAC-SHA256 of the browser's `sid`
+cookie (`app/plugins/request-log.ts`, one per browser, unsigned, a year long)
+under `COOKIE_SECRET` — the same secret that already signs the identity and
+flash cookies. A page renders it as a hidden `_csrf_token` field
+(`app/views/partials/csrf-field.ejs`), included from every `<form method="post">`
+this app has; a same-origin submission carries the `sid` cookie back on its
+own, so the server recomputes the same HMAC and compares it to the submitted
+field (`isValidCsrfToken`, constant-time). A cross-site page cannot read the
+victim's `sid` cookie to compute a matching value, and cannot guess one either,
+since the secret never leaves the server — the whole defence needs no cookie
+beyond the one `sid` already is.
+
+`csrfProtection` (`app/plugins/csrf.ts`) is one `preValidation` hook —
+registered inside each site (`admin`, `seller`, `shop`), not once at the root
+— checked ahead of Fastify's own schema validation, which is what matters:
+`submittedForm` (`app/http/request-schema.ts`) strips a field a route's
+schema does not declare, so a token forgotten from a route's schema would
+already be gone by the time a `preHandler` saw it. Checking any later than
+`preValidation` would silently let such a request through; checking here, a
+missing schema entry cannot matter, since the guard never looks past the raw
+body Fastify parsed. It is registered per site rather than at the root because
+`@fastify/multipart`'s `attachFieldsToBody` (the seller site's own image
+upload) populates `request.body` through a `preValidation` hook of its own —
+a hook the root adds always runs ahead of one a child registers, so registered
+at the root the guard would run before multipart had attached anything at
+all; registered inside seller's own site, after `multipart`, it runs once
+multipart's hook already has. The guard covers POST, PUT, PATCH, and DELETE;
+this app has no PUT, PATCH, or DELETE route today, so in practice every
+state-changing request it protects is a POST. `csrf.test.ts`'s completeness
+test reads the app's own route table (`onRoute`) rather than a hand-kept
+list, and asserts every state-changing route answers 403 with no token unless
+named, with why, in `csrf.ts`'s own allowlist — empty today, since every
+state-changing route this app registers is a plain HTML form submission with
+nowhere else a token could come from.
+
+A missing, foreign, or stale token answers 403 in the requesting site's own
+layout (`errorPageView`'s `FORBIDDEN` branch, `app/plugins/error-pages.ts`) —
+the same `error.ejs` a 429 or a 500 renders, so a rejected submission reads
+like the rest of the app rather than a bare status code.

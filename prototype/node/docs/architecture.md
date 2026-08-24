@@ -158,6 +158,7 @@ so no site guard and no site layout reaches it, and it answers JSON.
 | `securityHeaders` | `plugins/security-headers.ts` | One `onSend` hook, so a page, the JSON health check, an uploaded file, and a 404 all carry the same headers. |
 | `flashCookie` | `plugins/flash.ts` | `reply.setFlash` / `reply.takeFlash` over a signed one-request cookie. |
 | `identityCookies` | `plugins/identity.ts` | The three signed actor cookies, `signedInActorId`, `resolveCustomerIdentity`, and the `requireSeller` / `requireAdmin` guards. |
+| `csrfProtection` | `plugins/csrf.ts` | Registered inside each site (`admin`, `seller`, `shop`), not at the root — see the note below. One `preValidation` hook verifying a double-submit token on every POST/PUT/PATCH/DELETE, and `csrfTokenForRequest`, which `addSiteRender` hands every layout to render as a hidden field. |
 | `pageViewRollup` | `plugins/page-views.ts` | One root `onResponse` hook that upserts `page_view_counts`. |
 | `unreadMessages` | `plugins/unread-messages.ts` | `countUnreadMessages(actorType)` as a `preHandler`, decorating `request.unreadMessageCount`. |
 | `eventBus` | `plugins/events.ts` | `app.events` (a typed `node:events` emitter), the `onResponse` hook that fires `changed` after any request that wrote, the `preClose` hook that fires `closing`, and `unreadEventsRoute(actorType)` serving `<prefix>/events` as `text/event-stream`. |
@@ -165,6 +166,19 @@ so no site guard and no site layout reaches it, and it answers JSON.
 | rate limiting | `plugins/rate-limit.ts` | Not a registered plugin itself: `rateLimitGuard({ name, key })` and `magicLinkRequestGuard(email)` are `preHandler` factories a route applies directly, and `clientIp(request)` reads `request.ip`. `answerIfRateLimited` is the shared 429 answer both call, and the same function a route with a conditional link send (guest checkout) calls inline rather than as a `preHandler`. |
 | `addSiteRender` | `plugins/site-render.ts` | Called inside a site rather than at the root: gives that site a `reply.render(page)` carrying its layout, the flash, the identity, and the unread count, and returns the `SitePageRenderer` a 404 handed over by `callNotFound` renders through. |
 | `rootPlugin` | `plugins/root-plugin.ts` | Marks a plugin as belonging to the root context (`Symbol.for('skip-override')` and `plugin-meta` set by hand — no `fastify-plugin` dependency). |
+
+`csrfProtection` is the one plugin in that table every other row would call
+"registered at the root" — it is not, and that is deliberate. It reads
+`request.body`, and the seller site's own `@fastify/multipart` registration
+(`attachFieldsToBody: true`) populates that through a `preValidation` hook of
+its own. A hook the root adds always runs ahead of one a child registers,
+whatever order they were written in, so registered at the root the guard
+would run before multipart had attached anything at all — every seller
+upload would fail the check with no field to find. Registered inside each
+site instead, after that site's own body parser (`portal.register(csrfProtection)`
+comes after `portal.register(multipart, ...)` in `sites/seller/index.ts`), it
+runs once that parser's own hook, where one exists, already has. `docs/identity.md`'s
+CSRF section has the full account, including the token's own derivation.
 
 Naming follows the `naming` skill: actions are verb phrases, core enums name
 states (`OrderStatus`), events are past tense. Files are kebab-case and named
@@ -229,10 +243,11 @@ See [`identity.md`](identity.md) for the sequences.
   once — enforced by the UPDATE (`set consumed_at = ? where id = ? and
   consumed_at is null`), not by the read, so two requests arriving together
   cannot both spend it.
-- `signInRoutes({ actorType, admits?, refusal?, accountView? })` is a plugin
-  factory: `GET/POST /login`, `POST /logout`, `GET /account`, registered inside
+- `signInRoutes({ actorType, admits?, accountView? })` is a plugin factory:
+  `GET/POST /login`, `POST /logout`, `GET /account`, registered inside
   whichever site wants them, so all three share one implementation and keep
-  their own layout and templates.
+  their own layout and templates. `admits` answers the same response whether
+  or not it refuses — see `docs/identity.md`'s non-revealing sign-in section.
 - Delivery is a port: `MagicLinkDelivery` (`app/delivery/`) with
   `flashMagicLinkDelivery` (flash the URL so the layout prints it in the debug
   alert) and `outboxMagicLinkDelivery` (queue a row in `outbox_messages` inside
