@@ -52,6 +52,7 @@ export const authSite: ZodRoutes = (auth, _options, done) => {
 
       return await reply.redirect(
         resolveLocalRedirect(signIn.redirectTo, {
+          actorType: signIn.actorType,
           fallback: ACTOR_SITES[signIn.actorType].homePath,
           origin: requestOrigin(request),
         }),

@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { claimSellerIdentity } from '../actions/auth/claim-seller-identity.ts'
 import { findAdminByEmail } from '../actions/auth/find-admin-by-email.ts'
 import { claimCustomerIdentity } from '../actions/customers/claim-customer-identity.ts'
@@ -9,12 +9,130 @@ import { createAnonymousCustomer } from '../actions/customers/create-anonymous-c
 import { buildApp, type AppDependencies } from '../app.ts'
 import { fixedClock, type Clock } from '../clock.ts'
 import type { AppConfig } from '../config.ts'
+import { CSRF_FIELD_NAME, csrfToken } from '../core/security/csrf-token.ts'
 import type { ActorId, AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
 import { flashMagicLinkDelivery } from '../delivery/flash-magic-link-delivery.ts'
+import { newId } from '../ids.ts'
 import { flashSchema } from '../plugins/flash.ts'
+
+const STATE_CHANGING_METHODS: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+/**
+ * Attaches a valid double-submit CSRF token to a state-changing `app.inject`
+ * call, the way a real browser carries the `sid` cookie from the page it
+ * loaded a form on to the request that form submits — so an integration test
+ * about something else does not have to derive the token by hand. A test that
+ * already set its own `sid` cookie or `_csrf_token` field is left alone,
+ * which is how `csrf.test.ts` exercises the guard's failure paths through
+ * this same `app.inject`.
+ *
+ * `defaultSid` is one fixed id for the whole test app, not a fresh one per
+ * call: a test that compares two separately-injected pages byte for byte
+ * (a shared layout's rendered sign-out form among them) needs both to have
+ * carried the same session and so derived the same token.
+ */
+function withAutomaticCsrfToken(
+  rawInject: FastifyInstance['inject'],
+  secret: string,
+  defaultSid: string,
+): FastifyInstance['inject'] {
+  const inject = (opts: InjectOptions | string) => {
+    if (typeof opts === 'string') return rawInject(opts)
+
+    const method = (opts.method ?? 'GET').toString().toUpperCase()
+    if (!STATE_CHANGING_METHODS.has(method)) return rawInject(opts)
+
+    const cookies: Record<string, string> = { ...opts.cookies }
+    cookies.sid ??= defaultSid
+
+    const withToken: InjectOptions = {
+      ...opts,
+      cookies,
+      payload: attachCsrfToken(opts.payload, opts.headers, cookies.sid, secret),
+    }
+
+    return rawInject(withToken)
+  }
+
+  return inject as FastifyInstance['inject']
+}
+
+/** The `Content-Type` header value, wherever `attachCsrfToken` finds one — a
+ * `light-my-request` header bag may hold one value per name or an array of
+ * them, and the field's own name is matched case-insensitively. */
+function contentTypeOf(headers: InjectOptions['headers']): string | null {
+  if (headers === undefined) return null
+
+  const entry = Object.entries(headers).find(([name]) => name.toLowerCase() === 'content-type')
+  if (entry === undefined) return null
+
+  const [, value] = entry
+  const first = Array.isArray(value) ? value[0] : value
+
+  return typeof first === 'string' ? first : null
+}
+
+function attachCsrfToken(
+  payload: unknown,
+  headers: InjectOptions['headers'],
+  sid: string,
+  secret: string,
+): InjectOptions['payload'] {
+  const token = csrfToken(sid, secret)
+
+  if (payload === undefined || payload === null) return { [CSRF_FIELD_NAME]: token }
+  if (Buffer.isBuffer(payload)) return attachToMultipartBuffer(payload, headers, token)
+  if (typeof payload === 'string') return attachToUrlencodedString(payload, headers, token)
+  if (typeof payload !== 'object') return payload
+
+  return attachToPlainObject(payload as Record<string, unknown>, token)
+}
+
+function attachToMultipartBuffer(payload: Buffer, headers: InjectOptions['headers'], token: string): Buffer {
+  const boundary = multipartBoundary(contentTypeOf(headers))
+
+  return boundary === null ? payload : withMultipartCsrfField(payload, boundary, token)
+}
+
+function attachToUrlencodedString(payload: string, headers: InjectOptions['headers'], token: string): string {
+  const isUrlencoded = contentTypeOf(headers)?.includes('application/x-www-form-urlencoded') === true
+  if (!isUrlencoded || payload.includes(`${CSRF_FIELD_NAME}=`)) return payload
+
+  const separator = payload.length === 0 ? '' : '&'
+  return `${payload}${separator}${CSRF_FIELD_NAME}=${token}`
+}
+
+function attachToPlainObject(submitted: Record<string, unknown>, token: string): Record<string, unknown> {
+  return CSRF_FIELD_NAME in submitted ? submitted : { ...submitted, [CSRF_FIELD_NAME]: token }
+}
+
+function multipartBoundary(contentType: string | null): string | null {
+  if (contentType === null) return null
+
+  const match = /multipart\/form-data;\s*boundary=(\S+)/.exec(contentType)
+  return match?.[1] ?? null
+}
+
+/**
+ * A hand-built multipart body, with one more field spliced in just ahead of
+ * its closing boundary — `@fastify/multipart`'s parser reads a field from
+ * anywhere in the body, so where it lands among the others carries no
+ * meaning of its own.
+ */
+function withMultipartCsrfField(payload: Buffer, boundary: string, token: string): Buffer {
+  const closing = Buffer.from(`--${boundary}--`)
+  const closingIndex = payload.lastIndexOf(closing)
+  if (closingIndex === -1) return payload
+
+  const field = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="${CSRF_FIELD_NAME}"\r\n\r\n${token}\r\n`,
+  )
+
+  return Buffer.concat([payload.subarray(0, closingIndex), field, payload.subarray(closingIndex)])
+}
 
 /** Frozen so payout periods and link expiries read the same whatever day it is. */
 export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
@@ -61,6 +179,10 @@ export type TestApp = {
   app: FastifyInstance
   db: AppDatabase
   clock: Clock
+  /** `app.inject` before `buildTestApp` wrapped it with an automatic CSRF
+   * token — for a test that needs to submit a state-changing request with no
+   * token, a foreign one, or one derived from a `sid` it does not also send. */
+  rawInject: FastifyInstance['inject']
   close: () => Promise<void>
 }
 
@@ -99,10 +221,14 @@ export async function buildTestApp(overrides: TestAppOverrides = {}): Promise<Te
   })
   await app.ready()
 
+  const rawInject = app.inject.bind(app)
+  app.inject = withAutomaticCsrfToken(rawInject, config.cookieSecret, newId('ses', clock.now()))
+
   return {
     app,
     db,
     clock,
+    rawInject,
     close: async () => {
       await app.close()
       await db.destroy()

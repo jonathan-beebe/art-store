@@ -294,6 +294,33 @@ test('verification carries the visitor on to the destination the link holds', as
   assert.equal(followed.headers.location, '/orders/7/pay')
 })
 
+test('a link carrying a redirect_to outside its own site falls back on consumption', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const token = '2'.repeat(64)
+
+  // Crafted directly rather than through `POST /seller/login`, which already
+  // refuses this at the door — this is the defence for a row that reaches
+  // `magic_links` some other way, not a reachable path through the form.
+  await testApp.db
+    .insertInto('magicLinks')
+    .values({
+      id: newId('mlk', new Date()),
+      tokenDigest: digestMagicLinkToken(token),
+      email: 'artist@example.com',
+      actorType: 'seller',
+      redirectTo: '/admin/orders',
+      expiresAt: new Date(TEST_INSTANT.getTime() + 60_000).toISOString(),
+      consumedAt: null,
+      createdAt: TEST_INSTANT.toISOString(),
+    })
+    .execute()
+
+  const followed = await testApp.app.inject({ method: 'GET', url: `/auth/magic/${token}` })
+
+  assert.equal(followed.headers.location, '/seller')
+})
+
 test('consuming a link closes magic_link.consume with who signed in', async (t) => {
   const testApp = await buildLoggedTestApp()
   const log = testApp.logLines

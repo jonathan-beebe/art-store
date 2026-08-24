@@ -11,6 +11,7 @@
     <% faqs.forEach(function (faq) { %>
       <li id="faq-<%= faq.id %>" data-faq="<%= faq.id %>" class="rounded border border-neutral-300 bg-white p-4">
         <form method="post" action="/seller/listings/<%= listing.id %>/faqs/<%= faq.id %>">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
           <div>
             <label for="faq-<%= faq.id %>-question" class="block text-sm font-medium text-neutral-700">Question</label>
             <textarea
@@ -35,6 +36,7 @@
         </form>
 
         <form method="post" action="/seller/listings/<%= listing.id %>/faqs/<%= faq.id %>/unpublish" class="mt-2">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
           <button type="submit" class="rounded border border-neutral-400 px-3 py-1 text-sm">Unpublish</button>
         </form>
       </li>
@@ -46,6 +48,7 @@
   <h2 class="font-semibold text-neutral-700">Publish a new FAQ</h2>
 
   <form method="post" action="/seller/listings/<%= listing.id %>/faqs" class="mt-2">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <div>
       <label for="new-faq-question" class="block text-sm font-medium text-neutral-700">Question</label>
       <textarea

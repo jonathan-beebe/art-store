@@ -146,16 +146,20 @@ test('a fulfillment id at the order detail path is the same 404 as an order id t
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const admin = await signInAsAdmin(testApp)
+  // Same `sid` on both requests: each page renders its own CSRF token from
+  // whichever session asked for it, so two genuinely identical pages still
+  // need the same session behind them to come out byte for byte equal.
+  const cookies = { sid: `ses_${'0'.repeat(26)}`, ...admin.cookies }
 
   const wrongPrefix = await testApp.app.inject({
     method: 'GET',
     url: `/admin/orders/${fixtureId('ful', 1)}`,
-    cookies: admin.cookies,
+    cookies,
   })
   const missing = await testApp.app.inject({
     method: 'GET',
     url: `/admin/orders/${fixtureId('ord', 999_999)}`,
-    cookies: admin.cookies,
+    cookies,
   })
 
   assert.equal(wrongPrefix.statusCode, 404)

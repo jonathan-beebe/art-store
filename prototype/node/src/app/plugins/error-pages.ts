@@ -9,6 +9,7 @@ export const BAD_REQUEST = 400
 const SERVER_FAILURE = 500
 
 const NOT_FOUND = 404
+export const FORBIDDEN = 403
 
 /** What an error page says. Nothing here comes from the error itself. */
 export type ErrorPageView = { title: string; message: string }
@@ -17,6 +18,12 @@ const CLIENT_FAILURE_PAGE: ErrorPageView = {
   title: 'That request did not work',
   message:
     'Something in the form or the address was not what this page expects. Go back and try it again.',
+}
+
+const FORBIDDEN_PAGE: ErrorPageView = {
+  title: 'That request could not be verified',
+  message:
+    'The form this came from was loaded too long ago or in another browser. Reload the page and try again.',
 }
 
 const SERVER_FAILURE_PAGE: ErrorPageView = {
@@ -50,12 +57,25 @@ export function isRefusedRouteParams(error: unknown): boolean {
 }
 
 export function errorPageView(statusCode: number): ErrorPageView {
+  if (statusCode === FORBIDDEN) return FORBIDDEN_PAGE
+
   return statusCode < SERVER_FAILURE ? CLIENT_FAILURE_PAGE : SERVER_FAILURE_PAGE
 }
 
 /** The error page in the layout of whichever site the reply belongs to. */
 export function renderErrorPage(reply: FastifyReply, statusCode: number): FastifyReply {
   return reply.code(statusCode).render('error', errorPageView(statusCode))
+}
+
+/**
+ * The page a request the CSRF guard refused lands on: that site's own error
+ * page where the reply carries one, plain text where it does not (a route
+ * registered at the root, outside any site).
+ */
+export function answerForbidden(reply: FastifyReply): FastifyReply {
+  if (rendersPages(reply)) return renderErrorPage(reply, FORBIDDEN)
+
+  return reply.code(FORBIDDEN).type('text/plain; charset=utf-8').send(errorPageView(FORBIDDEN).title)
 }
 
 /**

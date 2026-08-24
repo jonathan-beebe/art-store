@@ -4,6 +4,7 @@
   prototype the link is printed at the top of this page instead of emailed.
 </p>
 <form method="post" action="<%= loginPath %>" class="mt-6 max-w-sm space-y-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <div>
     <label for="email" class="block text-sm font-medium text-neutral-700">Email address</label>
     <input

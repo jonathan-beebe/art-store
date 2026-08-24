@@ -22,6 +22,7 @@
 
         <% if (!notification.readAt) { %>
           <form method="post" action="/seller/notifications/<%= notification.id %>/read" class="ml-auto">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
             <button type="submit" class="rounded border border-neutral-400 px-3 py-1 text-sm">Mark as read</button>
           </form>
         <% } %>

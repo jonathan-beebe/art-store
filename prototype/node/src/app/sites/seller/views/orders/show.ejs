@@ -3,6 +3,7 @@
   <p data-cell="status" class="text-sm text-neutral-600"><%= statusLabel(fulfillment.status) %></p>
   <div class="ml-auto flex items-center gap-4">
     <form method="post" action="/seller/orders/<%= fulfillment.id %>/messages">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
       <button type="submit" class="rounded border border-neutral-400 px-3 py-2 text-sm">Message the customer</button>
     </form>
     <a href="/seller/orders" class="text-sm underline">All orders</a>
@@ -63,6 +64,7 @@
 
   <% if (canShip) { %>
     <form method="post" action="/seller/orders/<%= fulfillment.id %>/ship" class="mt-2 rounded border border-neutral-300 bg-white p-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
       <fieldset>
         <legend class="text-sm font-medium text-neutral-700">Mark shipped</legend>
 
@@ -123,6 +125,7 @@
   <h2 id="decline-heading" class="font-semibold text-neutral-700">Decline</h2>
 
   <form method="post" action="/seller/orders/<%= fulfillment.id %>/decline" class="mt-2 rounded border border-neutral-300 bg-white p-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <p class="text-sm text-neutral-600">
       Declining refunds <%= formatCents(fulfillment.subtotalCents) %> to the customer and puts
       your pieces back on the storefront.

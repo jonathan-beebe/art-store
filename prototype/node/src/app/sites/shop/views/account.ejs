@@ -7,6 +7,7 @@
 
 <div class="mt-8 flex flex-wrap gap-4">
   <form method="post" action="/logout">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <button
       type="submit"
       class="cursor-pointer rounded-full border border-neutral-300 px-6 py-2 hover:border-amber-600"
@@ -49,6 +50,7 @@
 
       <% if (notification.readAt === null) { %>
       <form method="post" action="/account/notifications/<%= notification.id %>/read">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
         <button
           type="submit"
           class="cursor-pointer rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-amber-600"

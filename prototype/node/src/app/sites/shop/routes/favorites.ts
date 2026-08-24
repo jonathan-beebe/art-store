@@ -29,7 +29,7 @@ export const favoriteRoutes: ZodRoutes = (shop, _options, done) => {
     await toggleFavorite({ db, clock }, { customerId: customer.id, listingId: found.listing.id })
 
     const destination =
-      keepLocalRedirect(request.headers.referer, requestOrigin(request)) ?? `/art/${slug}`
+      keepLocalRedirect(request.headers.referer, 'customer', requestOrigin(request)) ?? `/art/${slug}`
 
     return reply.redirect(destination)
   })

@@ -38,6 +38,7 @@ function faqsDestination(
   redirectTo: string | undefined,
 ): string {
   return resolveLocalRedirect(redirectTo, {
+    actorType: 'seller',
     fallback: `/seller/listings/${listingId}/faqs`,
     origin: requestOrigin(request),
   })

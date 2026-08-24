@@ -1,8 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { LightMyRequestResponse } from 'fastify'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
 import { outboxMagicLinkDelivery } from '../../delivery/outbox-magic-link-delivery.ts'
+import { flashSchema, type Flash } from '../../plugins/flash.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -13,6 +15,15 @@ import {
   type TestApp,
 } from '../../test/build-test-app.ts'
 import { buildLoggedTestApp } from '../../test/log-lines.ts'
+
+/** The full flash a response set, or `{}` for a response that flashed nothing. */
+function flashOf({ app }: TestApp, response: LightMyRequestResponse): Flash {
+  const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
+  if (cookie === undefined) return {}
+
+  const unsigned = app.unsignCookie(String(cookie.value))
+  return flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
+}
 
 type Site = {
   actorType: ActorType
@@ -233,6 +244,69 @@ test('an address with no admin row cannot obtain an admin link', async (t) => {
   assert.equal((await testApp.db.selectFrom('admins').selectAll().execute()).length, 2)
 })
 
+test('the admin sign-in answers byte-identically for an admitted and an unknown address', async (t) => {
+  // Outbox delivery, not flash: the debug bar's own difference (it can only
+  // print a link that exists) is a development-only surface this comparison
+  // is not about — see the ticket's Working notes.
+  const testApp = await buildTestApp({ magicLinkDelivery: outboxMagicLinkDelivery })
+  await seedAdmins(testApp)
+  t.after(testApp.close)
+
+  const admitted = await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'jonathan-beebe@outlook.com' },
+  })
+  const unknown = await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'nobody-runs-this@example.com' },
+  })
+
+  assert.equal(admitted.statusCode, unknown.statusCode)
+  assert.equal(admitted.headers.location, unknown.headers.location)
+  assert.equal(admitted.body, unknown.body)
+
+  const links = await testApp.db.selectFrom('magicLinks').selectAll().execute()
+  assert.equal(links.length, 1)
+  assert.equal(links[0]?.email, 'jonathan-beebe@outlook.com')
+})
+
+test('an unadmitted address is flashed the same notice an admitted one gets, never an alert', async (t) => {
+  const testApp = await buildTestApp({ magicLinkDelivery: outboxMagicLinkDelivery })
+  await seedAdmins(testApp)
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'nobody-runs-this@example.com' },
+  })
+
+  const flash = flashOf(testApp, response)
+  assert.equal(flash.notice, 'Sign-in link sent to nobody-runs-this@example.com.')
+  assert.equal(flash.alert, undefined)
+  assert.equal(flash.debugMagicLink, undefined)
+})
+
+test('refusing an unadmitted address tells magic_link.request without the address', async (t) => {
+  const testApp = await buildLoggedTestApp({ magicLinkDelivery: outboxMagicLinkDelivery })
+  const log = testApp.logLines
+  await seedAdmins(testApp)
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'nobody-runs-this@example.com' },
+  })
+
+  const refused = log.data('magic_link.request', 'refused')
+  assert.equal(refused.reason, 'not_admitted')
+  assert.equal(refused.actor_type, 'admin')
+  assert.equal(log.text().includes('nobody-runs-this@example.com'), false)
+})
+
 test('asking the storefront for a link leaves no customer row behind', async (t) => {
   const testApp = await buildSignedUpApp()
   t.after(testApp.close)
@@ -282,6 +356,82 @@ test('a destination on another host never reaches the link', async (t) => {
   const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
 
   assert.equal(link.redirectTo, null)
+})
+
+test('a seller-site sign-in drops a redirect_to onto an admin path', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: 'artist@example.com', redirect_to: '/admin/orders' },
+  })
+
+  const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
+  assert.equal(link.redirectTo, null)
+})
+
+test('a customer sign-in drops a redirect_to onto a seller or an admin path', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/login',
+    payload: { email: 'buyer@example.com', redirect_to: '/seller/listings' },
+  })
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/login',
+    payload: { email: 'buyer2@example.com', redirect_to: '/admin/orders' },
+  })
+
+  const links = await testApp.db.selectFrom('magicLinks').selectAll().execute()
+  assert.equal(links.length, 2)
+  assert.ok(links.every((link) => link.redirectTo === null))
+})
+
+test('an admin sign-in drops a redirect_to onto a seller path', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'jonathan-beebe@outlook.com', redirect_to: '/seller/listings' },
+  })
+
+  const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
+  assert.equal(link.redirectTo, null)
+})
+
+test('a seller-site sign-in keeps a redirect_to onto a path no site owns', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: 'artist@example.com', redirect_to: '/orders/7' },
+  })
+
+  const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
+  assert.equal(link.redirectTo, '/orders/7')
+})
+
+test('an admin sign-in keeps a redirect_to onto its own admin path', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/admin/login',
+    payload: { email: 'jonathan-beebe@outlook.com', redirect_to: '/admin/orders' },
+  })
+
+  const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
+  assert.equal(link.redirectTo, '/admin/orders')
 })
 
 function cookiesOf(response: { cookies: readonly { name: string; value: string }[] }): Record<

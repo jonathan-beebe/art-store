@@ -1,5 +1,6 @@
 <% statusButtons(transitions).forEach(function (button) { %>
   <form method="post" action="/seller/listings/<%= listing.id %>/status" class="inline">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <input type="hidden" name="status" value="<%= button.status %>" />
     <button
       type="submit"

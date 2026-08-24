@@ -16,6 +16,7 @@
 
 <% if (thread.mayPost) { %>
 <form method="post" action="/admin/messages/<%= thread.conversation.id %>" class="mt-6 max-w-xl space-y-3">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <div>
     <label for="body" class="block text-sm font-medium text-neutral-700">Reply</label>
     <textarea

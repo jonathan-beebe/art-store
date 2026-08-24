@@ -24,6 +24,7 @@
 
 <div class="mt-12 grid gap-16 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
   <form method="post" action="/checkout" class="max-w-xl">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <h2 class="text-xs uppercase tracking-wide text-neutral-500">Contact</h2>
 
     <div class="mt-4">

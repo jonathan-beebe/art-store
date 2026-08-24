@@ -69,6 +69,7 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
     async (request, reply) => {
       const fulfillmentId = request.params.id
       const destination = resolveLocalRedirect(request.body.redirect_to, {
+        actorType: 'admin',
         fallback: `/admin/fulfillments/${fulfillmentId}`,
         origin: requestOrigin(request),
       })

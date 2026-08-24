@@ -126,6 +126,14 @@ export function buildApp({
   app.register(eventBus)
   app.register(healthCheck)
 
+  // csrfProtection is registered inside each site rather than here: it reads
+  // `request.body`, and `@fastify/multipart`'s `attachFieldsToBody` (seller's
+  // own site) populates that itself through a `preValidation` hook of its
+  // own. A hook the root adds always runs ahead of one a child registers,
+  // whatever order they were written in — so registered here, the guard would
+  // run before multipart had attached anything at all. Registered inside
+  // each site, after that site's own body parser, it runs once that parser's
+  // own hook (if it added one) already has.
   app.register(authSite)
   app.register(shopSite)
   app.register(sellerSite, { prefix: '/seller' })

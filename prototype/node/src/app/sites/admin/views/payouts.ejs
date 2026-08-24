@@ -46,6 +46,7 @@
 <section aria-labelledby="run-payout-heading" class="mt-6">
   <h2 id="run-payout-heading" class="font-semibold text-neutral-700">Run weekly payout</h2>
   <form method="post" action="/admin/payouts" class="mt-2 flex flex-wrap items-end gap-3">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <div>
       <label for="as_of" class="block text-neutral-600">As of</label>
       <input

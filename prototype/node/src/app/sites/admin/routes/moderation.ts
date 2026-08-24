@@ -62,6 +62,7 @@ function moderationRoute<Submitted extends ModerationForm, Prefix extends IdPref
     const subjectId = request.params.id
     const submitted = request.body
     const destination = resolveLocalRedirect(submitted.redirect_to, {
+      actorType: 'admin',
       fallback: command.subjectPath(subjectId),
       origin: requestOrigin(request),
     })

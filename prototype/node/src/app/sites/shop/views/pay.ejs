@@ -7,6 +7,7 @@
 <%- include('sites/shop/views/partials/decline-notice', { declineMessage }) %>
 
 <form method="post" action="/orders/<%= order.id %>/pay" class="mt-8 max-w-xl">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <%- include('sites/shop/views/partials/card-fields') %>
 
   <button

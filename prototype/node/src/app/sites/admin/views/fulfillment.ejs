@@ -96,6 +96,7 @@
 
   <% if (canRefund) { %>
   <form method="post" action="/admin/fulfillments/<%= fulfillment.id %>/refund" class="mt-2 rounded border border-neutral-300 bg-white p-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <p class="text-sm text-neutral-600">
       Refunding hands <%= formatCents(fulfillment.subtotalCents) %> back to the customer and takes
       <%= formatCents(fulfillment.netCents) %> off the seller's ledger. Nothing returns to the storefront.

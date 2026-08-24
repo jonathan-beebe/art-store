@@ -37,6 +37,7 @@
     <p class="text-lg"><%= formatCents(line.lineTotalCents) %></p>
 
     <form method="post" action="/cart/<%= line.slug %>/remove">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
       <button
         type="submit"
         class="cursor-pointer text-sm text-neutral-500 underline hover:text-amber-700"

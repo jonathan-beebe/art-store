@@ -38,6 +38,7 @@
     <div class="mt-10 flex flex-wrap items-end gap-4">
       <% if (isPurchasable && canShop) { %>
       <form method="post" action="/cart/<%= listing.slug %>" class="flex items-end gap-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
         <% if (listing.quantity > 1) { %>
         <div>
           <label
@@ -67,6 +68,7 @@
       <% } %>
 
       <form method="post" action="/art/<%= listing.slug %>/favorite">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
         <button
           type="submit"
           class="cursor-pointer rounded-full border border-neutral-300 px-8 py-3 text-base hover:border-amber-600"
@@ -95,6 +97,7 @@
   <% } %>
 
   <form method="post" action="/art/<%= listing.slug %>/questions" class="mt-10">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <label for="question" class="block text-lg">Ask the seller a question</label>
     <textarea
       name="body"

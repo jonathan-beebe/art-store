@@ -1,4 +1,5 @@
 import type { FastifyPluginCallback } from 'fastify'
+import { csrfProtection } from '../../plugins/csrf.ts'
 import { addNotFoundPage } from '../../plugins/error-pages.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
 import { countUnreadMessages } from '../../plugins/unread-messages.ts'
@@ -11,6 +12,7 @@ export const shopSite: FastifyPluginCallback = (shop, _options, done) => {
     pages: 'sites/shop/views',
     layout: 'sites/shop/views/layout',
   })
+  shop.register(csrfProtection)
   shop.addHook('preHandler', countUnreadMessages('customer'))
 
   // The storefront has no prefix, so this is also the page for any url the
