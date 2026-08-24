@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:07:05:00 — FEAT-020 — started
 - 2026-08-24:06:20:00 — FEAT-022 — started
 - 2026-08-24:06:19:00 — IMPRV-004 — done: OrderPlacementPlan refuses with every blocked line, listing rows taken for update, card fields never flashed; 1282 tests, 3526 assertions, 100% lines
 - 2026-08-24:04:40:00 — IMPRV-004 — started
