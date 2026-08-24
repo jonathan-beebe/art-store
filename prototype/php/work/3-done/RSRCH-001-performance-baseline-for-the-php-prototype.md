@@ -253,3 +253,32 @@ at demo scale: the missing index on `carts.customer_id`; the per-cart-item
 `hasActiveRemoval()` query in `Cart::placementPlan()`;
 `Fulfillment::platformFees()`; the unpaginated `ledger_entries` and
 `favorites` reads.
+
+### The branch's numbers after the five tickets
+
+Same host, same commands, seeded demo data, `perf/php` at IMPRV-009.
+
+| metric | baseline | after | ticket |
+|---|---|---|---|
+| M2 warm restart to first `200 /up` | 3.88 s | **1.81 – 2.05 s** | IMPRV-008 |
+| `make check` wall | 104.4 s | **91.4 – 102.9 s** | IMPRV-008 |
+| Vite builds per `make check` | 3 | **1** | IMPRV-008 |
+| M5 CPU per `GET /` (min of 4 rounds) | 24.7 ms | **16.6 ms** | IMPRV-007 |
+| M6 `GET /` p50 | 39 ms | **25 ms** | IMPRV-007 |
+| M6 `GET /cart` p50 | 26 ms | **23 ms** | IMPRV-007 |
+| M6 `GET /login` p50 | 20 ms | **14 ms** | IMPRV-007 |
+| M7 queries, `/` | 16 | **14** | IMPRV-009 |
+| M7 queries, `/cart` | 13 | **11** | IMPRV-009 |
+| M7 queries, `/art/{slug}` | 18 | **16** | IMPRV-009 |
+| M7 queries, `/favorites` | 13 | **11** | IMPRV-009 |
+| M8 12 streams held, then `GET /` | 50.8 s | **0.06 s** | IMPRV-006 |
+| M8 12 streams abandoned, then `GET /` | 49.4 s | **0.06 s** | IMPRV-006 |
+| M4 CPU, 3 live streams over 30 s | 5.6 % of one core | **1.6 % of one core** | IMPRV-006 |
+| M4 memory | 101.8 MiB | 128.7 MiB | IMPRV-006 (5 → 16 workers) |
+
+Memory is the one number that moved the wrong way, and it is the price of the
+worker pool that answers a page while streams are open.
+
+The cold start is unchanged at ~44 s: `composer install` and `npm install` are
+the whole of it, they run once per checkout, and neither is work this
+repository can skip.
