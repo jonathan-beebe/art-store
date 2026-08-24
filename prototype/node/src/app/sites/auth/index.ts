@@ -7,6 +7,7 @@ import {
 } from '../../actions/auth/sign-in-with-magic-link.ts'
 import { ACTOR_SITES, type ActorType } from '../../core/auth/actor-type.ts'
 import { resolveLocalRedirect } from '../../core/auth/local-redirect.ts'
+import { requestActions } from '../../http/request-actions.ts'
 import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { identityId } from '../../plugins/identity.ts'
 import { requestOrigin } from './request-origin.ts'
@@ -27,32 +28,19 @@ const linkParams = z.object({ token: z.string().min(1) })
  */
 export const authSite: ZodRoutes = (auth, _options, done) => {
   auth.get('/auth/magic/:token', { schema: { params: linkParams } }, async (request, reply) => {
-    const { db, clock } = auth
-    const remembered = await resolveCustomerFromCookie({ db }, identityId(request, 'customer'))
+    const actions = requestActions(request)
+    const remembered = await resolveCustomerFromCookie(actions, identityId(request, 'customer'))
 
-    const signIn = await signInWithMagicLink(
-      { db, clock },
-      { token: request.params.token, currentCustomerId: remembered?.id ?? null },
-    )
+    const signIn = await signInWithMagicLink(actions, {
+      token: request.params.token,
+      currentCustomerId: remembered?.id ?? null,
+    })
 
-    if (signIn.outcome === 'unknown') {
-      request.log.info({ event: 'magic_link.refused', reason: 'unknown_token' }, 'magic link refused')
-
-      return refuse(reply, 'customer', UNKNOWN_LINK)
-    }
+    if (signIn.outcome === 'unknown') return refuse(reply, 'customer', UNKNOWN_LINK)
     if (signIn.outcome === 'refused') {
-      request.log.info(
-        { event: 'magic_link.refused', actorType: signIn.actorType, reason: signIn.refusal },
-        'magic link refused',
-      )
-
       return refuse(reply, signIn.actorType, REFUSALS[signIn.refusal])
     }
 
-    request.log.info(
-      { event: 'magic_link.consumed', actorType: signIn.actorType, actorId: signIn.actorId },
-      'magic link consumed',
-    )
     reply.signIn(signIn.actorType, signIn.actorId)
 
     return await reply.redirect(

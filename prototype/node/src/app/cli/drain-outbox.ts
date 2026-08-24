@@ -6,14 +6,14 @@ import { systemClock } from '../clock.ts'
 import { loadConfig } from '../config.ts'
 import { openDatabase } from '../db/database.ts'
 import { createCliLogger } from '../logging.ts'
+import { tellStory } from '../log-story.ts'
 
 /**
- * Writes every pending outbox message out as an `.eml` file and logs one
- * structured line per file plus a summary. `--dir=PATH` overrides
- * `OUTBOX_DIR`. A failure is logged and leaves `process.exitCode` at 1 rather
- * than crashing with a raw stack trace. Importable, with an injectable
- * `logger`, so a test can run it against a temp database without the process
- * ever starting.
+ * Writes every pending outbox message out as an `.eml` file: one `doing` line
+ * per file inside a `notification.deliver` run. `--dir=PATH` overrides
+ * `OUTBOX_DIR`. A failure leaves `process.exitCode` at 1 rather than crashing
+ * with a raw stack trace. Importable, with an injectable `logger`, so a test can
+ * run it against a temp database without the process ever starting.
  */
 export async function main(
   argv: readonly string[],
@@ -31,20 +31,24 @@ export async function main(
   const db = openDatabase(config.databaseFile)
 
   try {
-    const drained = await drainOutbox({ db, clock: systemClock }, { outboxDir })
-
-    for (const message of drained) {
-      log.info(
-        { event: 'outbox.drained', id: message.id, recipient: message.recipient, file: message.file },
-        `${message.file} ${message.recipient} ${message.subject}`,
-      )
-    }
-    log.info(
-      { event: 'outbox.drain_run', count: drained.length, outboxDir },
-      drained.length === 0 ? 'the outbox is empty' : `${drained.length} message(s) written to ${outboxDir}`,
+    await tellStory(
+      log,
+      {
+        event: 'notification.deliver',
+        will: { msg: `draining the outbox into ${outboxDir}`, data: { outbox_dir: outboxDir } },
+        ended: (drained) => ({
+          phase: 'did',
+          msg:
+            drained.length === 0
+              ? 'the outbox is empty'
+              : `${drained.length} message(s) written to ${outboxDir}`,
+          data: { outbox_dir: outboxDir, count: drained.length },
+        }),
+      },
+      () => drainOutbox({ db, clock: systemClock, log }, { outboxDir }),
     )
-  } catch (error) {
-    log.error({ err: error }, 'the outbox drain failed')
+  } catch {
+    // tellStory already wrote the `failed` line; the exit code is what is left.
     process.exitCode = 1
   } finally {
     await db.destroy()

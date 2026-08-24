@@ -5,6 +5,7 @@ import { systemClock } from './clock.ts'
 import { loadConfig } from './config.ts'
 import { openDatabase } from './db/database.ts'
 import { selectMagicLinkDelivery } from './delivery/magic-link-delivery.ts'
+import { tellStory } from './log-story.ts'
 
 const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const
 const FORCE_EXIT_DEADLINE_MS = 10_000
@@ -27,7 +28,18 @@ export async function main(_argv: readonly string[], env: NodeJS.ProcessEnv): Pr
 
   armGracefulShutdown(app)
 
-  await app.listen({ host: config.host, port: config.port })
+  await tellStory(
+    app.log,
+    {
+      event: 'app.boot',
+      will: {
+        msg: `starting on ${config.host}:${config.port}`,
+        data: { host: config.host, port: config.port, environment: config.environment },
+      },
+      ended: (address) => ({ phase: 'did', msg: `listening on ${address}`, data: { address } }),
+    },
+    () => app.listen({ host: config.host, port: config.port }),
+  )
 }
 
 /**
@@ -46,24 +58,45 @@ export function armGracefulShutdown(app: FastifyInstance): void {
 }
 
 async function shutdown(app: FastifyInstance, signal: NodeJS.Signals): Promise<void> {
-  app.log.info({ signal }, 'shutdown: draining')
-  app.draining = true
-
   const forceExit = setTimeout(() => {
-    app.log.error('shutdown: forced exit after drain deadline')
+    logDrainDeadline(app)
     process.exit(1)
   }, FORCE_EXIT_DEADLINE_MS)
   forceExit.unref()
 
   try {
-    await app.close()
-    app.log.info('shutdown: complete')
-  } catch (error) {
-    app.log.error({ error }, 'shutdown: failed')
+    await tellStory(
+      app.log,
+      {
+        event: 'app.shutdown',
+        will: { msg: `draining in-flight requests on ${signal}`, data: { signal } },
+        ended: () => ({ phase: 'did', msg: 'closed cleanly', data: { signal } }),
+      },
+      async () => {
+        app.draining = true
+        await app.close()
+      },
+    )
+  } catch {
+    // tellStory already wrote the `failed` line; the exit code is what is left.
     process.exitCode = 1
   } finally {
     clearTimeout(forceExit)
   }
+}
+
+function logDrainDeadline(app: FastifyInstance): void {
+  app.log.error(
+    {
+      event: 'app.shutdown',
+      phase: 'failed',
+      error: {
+        type: 'DrainDeadline',
+        message: `in-flight requests did not finish within ${FORCE_EXIT_DEADLINE_MS}ms`,
+      },
+    },
+    'forcing exit after the drain deadline',
+  )
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

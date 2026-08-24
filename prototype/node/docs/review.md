@@ -213,12 +213,12 @@ refinement batch landed.
    means an identity hook at the root, which costs a query on every asset
    request.
 
-4. **`listing.published` is the one business event with no log line.** The other
-   thirteen (`order.placed`, `order.paid`, `order.declined`,
-   `fulfillment.shipped`, `payout.run`, the three `magic_link.*`, the four
-   `moderation.*`) are logged from the route shell after the action result is
-   applied. A listing going `draft → for_sale` writes the row and nothing else,
-   so a reader of the logs cannot see the catalog grow.
+4. ~~**`listing.published` is the one business event with no log line.**~~
+   Closed by IMPRV-009: `changeListingStatus` logs `listing.publish` when the
+   target is `for_sale` and `listing.transition` otherwise, and every other
+   write in the app now tells a `will` → `did` / `refused` / `failed` story from
+   the action rather than the route shell. See
+   [`architecture.md`](architecture.md#the-log).
 
 5. **Seeded listings carry generated SVG placeholders, not photographs.**
    `listingImageSource` (`app/core/listings/placeholder-image.ts`) renders a

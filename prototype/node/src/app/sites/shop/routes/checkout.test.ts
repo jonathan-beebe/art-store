@@ -15,10 +15,9 @@ import {
   signInAsSeller,
   takeDebugMagicLink,
   type SignedInActor,
-  TEST_CONFIG,
   type TestApp,
 } from '../../../test/build-test-app.ts'
-import { captureLogLines } from '../../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import { blockCustomer, listArtwork, removeListing } from '../storefront-fixtures.ts'
 import { cents } from '../../../core/money.ts'
 
@@ -363,12 +362,9 @@ test('a paid checkout leaves the order and its payment together', async (t) => {
   assert.deepEqual(await countRows(testApp, customer.id), { orders: 1, payments: 1 })
 })
 
-test('checking out logs order.placed and the charge it settled in the same request', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('checking out tells the whole story in order under one request, session, and unit of work', async (t) => {
+  const testApp = await buildLoggedTestApp({ logLevel: 'info' })
+  const log = testApp.logLines
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp, 'buyer@example.com')
   await readyCart(testApp, customer)
@@ -386,21 +382,82 @@ test('checking out logs order.placed and the charge it settled in the same reque
     .where('customerId', '=', customer.id)
     .executeTakeFirstOrThrow()
 
-  const placed = stream.lines().find((entry) => entry.event === 'order.placed')
-  assert.equal(placed?.orderId, order.id)
-  assert.equal(placed?.customerId, customer.id)
-  assert.equal(placed?.amountCents, 24_000)
+  // The story a reader of the log sees, in the order it was written.
+  const story = log.story()
+  assert.deepEqual(story.slice(0, 3), [
+    'http.request will',
+    'order.place will',
+    'order.place did',
+  ])
+  assert.equal(story.at(-1), 'http.request did')
+  assert.deepEqual(story.filter((line: string) => line.startsWith('order.pay ')), [
+    'order.pay will',
+    'order.pay did',
+  ])
 
-  const paid = stream.lines().find((entry) => entry.event === 'order.paid')
-  assert.equal(paid?.orderId, order.id)
+  const placed = log.data('order.place', 'did')
+  assert.equal(placed.order_id, order.id)
+  assert.equal(placed.total_cents, 24_000)
+  assert.equal(log.data('order.pay', 'did').order_id, order.id)
+
+  // One request id, one session id, and one unit of work across the whole story.
+  assert.equal(new Set(log.lines().map((line: Record<string, unknown>) => line.request_id)).size, 1)
+  assert.equal(new Set(log.lines().map((line: Record<string, unknown>) => line.session_id)).size, 1)
+  assert.equal(
+    log.line('order.place', 'will').txn_id,
+    log.line('order.place', 'did').txn_id,
+  )
+  assert.equal(log.line('order.pay', 'did').txn_id, log.line('order.place', 'did').txn_id)
+
+  assert.equal(typeof log.line('order.place', 'did').duration_ms, 'number')
+  assert.equal(typeof log.line('http.request', 'did').duration_ms, 'number')
+  assert.equal(log.line('http.request', 'will').txn_id, undefined)
 })
 
-test('a guest checkout logs order.placed with no charge behind it yet', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
+test('an http.request line carries every always-present field and nothing renamed', async (t) => {
+  const testApp = await buildLoggedTestApp({ logLevel: 'info' })
+  const log = testApp.logLines
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await readyCart(testApp, customer)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/checkout',
+    cookies: customer.cookies,
+    payload: { email: 'buyer@example.com', ...shippingPayload(), card_number: APPROVED_CARD },
   })
+
+  const will = log.line('http.request', 'will')
+  assert.match(String(will.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  assert.equal(will.level, 'info')
+  assert.equal(will.event, 'http.request')
+  assert.equal(will.phase, 'will')
+  assert.equal(will.msg, 'POST /checkout')
+  assert.equal(typeof will.request_id, 'string')
+  assert.match(String(will.session_id), /^ses_[0-9A-HJKMNP-TV-Z]{26}$/)
+  assert.equal(will.actor_type, 'customer')
+  assert.equal(will.actor_id, customer.id)
+  assert.deepEqual(will.data, { method: 'POST', path: '/checkout' })
+  assert.equal(will.time, undefined)
+  assert.equal(will.reqId, undefined)
+
+  const placed = log.line('order.place', 'did')
+  assert.match(String(placed.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  assert.equal(placed.level, 'info')
+  assert.equal(placed.phase, 'did')
+  assert.equal(placed.msg, 'placed the order')
+  assert.equal(placed.request_id, will.request_id)
+  assert.equal(placed.session_id, will.session_id)
+  assert.equal(placed.actor_type, 'customer')
+  assert.equal(placed.actor_id, customer.id)
+  assert.match(String(placed.txn_id), /^txn_[0-9A-HJKMNP-TV-Z]{26}$/)
+  assert.equal(typeof placed.duration_ms, 'number')
+})
+
+test('a guest checkout places an order with no charge behind it yet', async (t) => {
+  const testApp = await buildLoggedTestApp({ logLevel: 'info' })
+  const log = testApp.logLines
   t.after(testApp.close)
   const customer = await browseAsAnonymousCustomer(testApp)
   await readyCart(testApp, customer)
@@ -412,12 +469,8 @@ test('a guest checkout logs order.placed with no charge behind it yet', async (t
     payload: { email: 'guest@example.com', ...shippingPayload(), card_number: APPROVED_CARD },
   })
 
-  assert.notEqual(
-    stream.lines().find((entry) => entry.event === 'order.placed'),
-    undefined,
-  )
-  assert.equal(
-    stream.lines().find((entry) => entry.event === 'order.paid'),
-    undefined,
-  )
+  assert.equal(log.line('order.place', 'did').phase, 'did')
+  assert.deepEqual(log.linesFor('order.pay'), [])
+  // The guest's address rode in on the form and must not ride out in the log.
+  assert.equal(log.text().includes('guest@example.com'), false)
 })

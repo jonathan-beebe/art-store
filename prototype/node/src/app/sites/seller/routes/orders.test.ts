@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildTestApp, signInAsSeller, TEST_CONFIG } from '../../../test/build-test-app.ts'
-import { captureLogLines } from '../../../test/log-lines.ts'
+import { buildTestApp, signInAsSeller } from '../../../test/build-test-app.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import { createDeliveredFulfillment, createForSaleListing, createFulfillment } from '../test-fixtures.ts'
 
 test('a signed-out visitor reaches no order page', async (t) => {
@@ -334,12 +334,9 @@ test("shipping another seller's order is not found", async (t) => {
   assert.equal(unchanged.status, 'awaiting_shipment')
 })
 
-test('marking a fulfillment shipped logs a fulfillment.shipped event naming the order', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('marking a fulfillment shipped tells fulfillment.ship naming the order', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
   const fulfillment = await createFulfillment(testApp, seller.id)
@@ -351,8 +348,10 @@ test('marking a fulfillment shipped logs a fulfillment.shipped event naming the 
     payload: { carrier: 'Royal Mail', tracking_number: 'RM123456789GB' },
   })
 
-  const line = stream.lines().find((entry) => entry.event === 'fulfillment.shipped')
-  assert.equal(line?.fulfillmentId, fulfillment.id)
-  assert.equal(line?.sellerId, seller.id)
-  assert.equal(line?.orderId, fulfillment.orderId)
+  const did = log.data('fulfillment.ship', 'did')
+  assert.equal(did.fulfillment_id, fulfillment.id)
+  assert.equal(did.seller_id, seller.id)
+  assert.equal(did.order_id, fulfillment.orderId)
+  assert.equal(did.status_to, 'shipped')
+  assert.equal(log.line('fulfillment.ship', 'did').actor_id, seller.id)
 })

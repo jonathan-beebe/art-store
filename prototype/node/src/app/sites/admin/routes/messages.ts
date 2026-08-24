@@ -1,6 +1,5 @@
 import type { FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import type { ActionContext } from '../../../actions/action-context.ts'
 import { conversationThread } from '../../../actions/messaging/conversation-thread.ts'
 import { inboxConversations } from '../../../actions/messaging/conversation-inbox.ts'
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
@@ -8,6 +7,7 @@ import { openConversation } from '../../../actions/messaging/open-conversation.t
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type { AdminId } from '../../../core/ids/entity-ids.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
@@ -15,10 +15,6 @@ import { customerDetail } from '../queries/customer-detail.ts'
 import { sellerDetail } from '../queries/seller-detail.ts'
 
 const replyForm = submittedForm({ body: z.string().optional() })
-
-function actionContext(request: FastifyRequest): ActionContext {
-  return { db: request.server.db, clock: request.server.clock }
-}
 
 /** `requireAdmin` guards this whole plugin, so this only narrows the type. */
 function currentAdminId(request: FastifyRequest): AdminId {
@@ -35,14 +31,14 @@ function adminActor(request: FastifyRequest): { type: 'admin'; id: AdminId } {
 
 export const messageRoutes: ZodRoutes = (admin, _options, done) => {
   admin.get('/messages', async (request, reply) => {
-    const conversations = await inboxConversations(actionContext(request), adminActor(request))
+    const conversations = await inboxConversations(requestActions(request), adminActor(request))
 
     return reply.render('messages', adminPage('Messages', { conversations }))
   })
 
   admin.get('/messages/:id', { schema: { params: idParams('cnv') } }, async (request, reply) => {
     const conversationId = request.params.id
-    const context = actionContext(request)
+    const context = requestActions(request)
     const actor = adminActor(request)
     const thread = await conversationThread(context, { conversationId, actor })
     if (thread === null) return reply.callNotFound()
@@ -57,7 +53,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
     { schema: { params: idParams('cnv'), body: replyForm } },
     async (request, reply) => {
       const conversationId = request.params.id
-      const context = actionContext(request)
+      const context = requestActions(request)
       const actor = adminActor(request)
       const thread = await conversationThread(context, { conversationId, actor })
       if (thread === null) return reply.callNotFound()
@@ -84,7 +80,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
 
   admin.post('/sellers/:id/messages', { schema: { params: idParams('sel') } }, async (request, reply) => {
     const sellerId = request.params.id
-    const context = actionContext(request)
+    const context = requestActions(request)
     const detail = await sellerDetail(context, sellerId)
     if (detail === null) return reply.callNotFound()
 
@@ -99,7 +95,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
 
   admin.post('/customers/:id/messages', { schema: { params: idParams('cus') } }, async (request, reply) => {
     const customerId = request.params.id
-    const context = actionContext(request)
+    const context = requestActions(request)
     const detail = await customerDetail(context, customerId)
     if (detail === null) return reply.callNotFound()
 

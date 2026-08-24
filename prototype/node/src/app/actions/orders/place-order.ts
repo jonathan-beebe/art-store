@@ -1,7 +1,7 @@
 import type { CartId, OrderId } from '../../core/ids/entity-ids.ts'
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { cartContents, toCartLine, type CartLineView } from '../carts/cart-contents.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { checkoutTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
@@ -41,20 +41,52 @@ export async function placeOrder(
   context: ActionContext,
   input: PlaceOrderInput,
 ): Promise<PlacedOrder> {
-  return runInTransaction(context, async (transacted) => {
-    const contents = await cartContents(transacted, input.cartId)
-    const placement = planOrderPlacement(await withRemovals(transacted, contents.lines))
-    if (!placement.ok) return { ok: false, unavailable: placement.unavailable }
+  return actionStory<PlacedOrder>(
+    context,
+    {
+      event: 'order.place',
+      will: {
+        msg: 'placing an order from the cart',
+        data: { cart_id: input.cartId, customer_id: input.purchaser.id },
+      },
+      ended: (placement) =>
+        placement.ok
+          ? {
+              phase: 'did',
+              msg: 'placed the order',
+              data: {
+                order_id: placement.order.id,
+                total_cents: placement.order.totalCents,
+                status: placement.order.status,
+              },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the cart holds lines that can no longer be bought',
+              data: {
+                cart_id: input.cartId,
+                unavailable: placement.unavailable.map((line) => ({
+                  listing_id: line.listingId,
+                  reason: line.reason,
+                })),
+              },
+            },
+    },
+    async (transacted) => {
+      const contents = await cartContents(transacted, input.cartId)
+      const placement = planOrderPlacement(await withRemovals(transacted, contents.lines))
+      if (!placement.ok) return { ok: false, unavailable: placement.unavailable }
 
-    const totals = checkoutTotals(placement.lines.map(toCartLine))
-    const order = await openOrder(transacted, input, totals)
-    await snapshotItems(transacted, order.id, placement.lines)
-    await splitBySeller(transacted, order.id, totals)
-    await takeStock(transacted, placement.lines)
-    await transacted.db.deleteFrom('cartItems').where('cartId', '=', contents.cartId).execute()
+      const totals = checkoutTotals(placement.lines.map(toCartLine))
+      const order = await openOrder(transacted, input, totals)
+      await snapshotItems(transacted, order.id, placement.lines)
+      await splitBySeller(transacted, order.id, totals)
+      await takeStock(transacted, placement.lines)
+      await transacted.db.deleteFrom('cartItems').where('cartId', '=', contents.cartId).execute()
 
-    return { ok: true, order }
-  })
+      return { ok: true, order }
+    },
+  )
 }
 
 /**

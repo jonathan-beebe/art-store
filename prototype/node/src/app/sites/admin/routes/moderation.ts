@@ -12,6 +12,7 @@ import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 
 /** Every moderation form carries where to go back to; a bare lift carries only that. */
@@ -44,12 +45,6 @@ type ModerationCommand<Submitted extends ModerationForm, Prefix extends IdPrefix
     context: ActionContext,
     input: { subjectId: PrefixedId<Prefix>; adminId: AdminId; submitted: Submitted },
   ): Promise<unknown>
-  /** The business event this write logs once `apply` has succeeded. */
-  logEvent(
-    subjectId: PrefixedId<Prefix>,
-    adminId: AdminId,
-    submitted: Submitted,
-  ): Record<string, unknown>
 }
 
 /**
@@ -74,7 +69,7 @@ function moderationRoute<Submitted extends ModerationForm, Prefix extends IdPref
     const adminId = currentAdminId(request)
 
     try {
-      await command.apply(actionContext(request), { subjectId, adminId, submitted })
+      await command.apply(requestActions(request), { subjectId, adminId, submitted })
     } catch (error) {
       if (!(error instanceof TransitionError)) throw error
 
@@ -83,17 +78,12 @@ function moderationRoute<Submitted extends ModerationForm, Prefix extends IdPref
       return reply.redirect(destination)
     }
 
-    request.log.info(command.logEvent(subjectId, adminId, submitted), command.notice)
     reply.setFlash({ notice: command.notice })
 
     return reply.redirect(destination)
   }
 
   return { schema: { params: idParams(command.subjectPrefix), body: command.form }, handler }
-}
-
-function actionContext(request: FastifyRequest): ActionContext {
-  return { db: request.server.db, clock: request.server.clock }
 }
 
 /** `requireAdmin` guards this whole plugin, so this only narrows the type. */
@@ -123,13 +113,6 @@ export const moderationRoutes: ZodRoutes = (admin, _options, done) => {
           kind: submitted.kind,
           reason: submitted.reason,
         }),
-      logEvent: (listingId, adminId, submitted) => ({
-        event: 'moderation.listing_removed',
-        listingId,
-        adminId,
-        kind: submitted.kind,
-        reason: submitted.reason,
-      }),
     }),
   )
 
@@ -141,11 +124,6 @@ export const moderationRoutes: ZodRoutes = (admin, _options, done) => {
       subjectPath: listingPath,
       notice: 'Removal lifted.',
       apply: (context, { subjectId }) => liftListingRemoval(context, { listingId: subjectId }),
-      logEvent: (listingId, adminId) => ({
-        event: 'moderation.listing_removal_lifted',
-        listingId,
-        adminId,
-      }),
     }),
   )
 
@@ -158,12 +136,6 @@ export const moderationRoutes: ZodRoutes = (admin, _options, done) => {
       notice: 'Customer blocked.',
       apply: (context, { subjectId, adminId, submitted }) =>
         blockCustomer(context, { customerId: subjectId, adminId, reason: submitted.reason }),
-      logEvent: (customerId, adminId, submitted) => ({
-        event: 'moderation.customer_blocked',
-        customerId,
-        adminId,
-        reason: submitted.reason,
-      }),
     }),
   )
 
@@ -175,11 +147,6 @@ export const moderationRoutes: ZodRoutes = (admin, _options, done) => {
       subjectPath: customerPath,
       notice: 'Block lifted.',
       apply: (context, { subjectId }) => liftCustomerBlock(context, { customerId: subjectId }),
-      logEvent: (customerId, adminId) => ({
-        event: 'moderation.customer_block_lifted',
-        customerId,
-        adminId,
-      }),
     }),
   )
 

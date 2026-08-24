@@ -38,6 +38,11 @@ export const TEST_CONFIG: AppConfig = {
   showsDebugMagicLinks: true,
 }
 
+export type TestAppOverrides = Partial<AppDependencies> & {
+  /** Raises the level above `TEST_CONFIG`'s `silent`, for a test about the log. */
+  logLevel?: AppConfig['logLevel']
+}
+
 export type TestApp = {
   app: FastifyInstance
   db: AppDatabase
@@ -49,7 +54,7 @@ export type TestApp = {
  * Builds the whole application over a migrated in-memory database, ready for
  * `app.inject`. Pass `t.after(close)` so the database goes with the test.
  */
-export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Promise<TestApp> {
+export async function buildTestApp(overrides: TestAppOverrides = {}): Promise<TestApp> {
   const db = overrides.db ?? openDatabase(IN_MEMORY_DATABASE)
   await migrateToLatest(db)
 
@@ -63,7 +68,12 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
     temporaryRoot = await mkdtemp(path.join(tmpdir(), 'art-store-test-'))
     const uploadsDir = path.join(temporaryRoot, 'uploads')
     await mkdir(uploadsDir)
-    config = { ...TEST_CONFIG, uploadsDir, outboxDir: path.join(temporaryRoot, 'outbox') }
+    config = {
+      ...TEST_CONFIG,
+      uploadsDir,
+      outboxDir: path.join(temporaryRoot, 'outbox'),
+      logLevel: overrides.logLevel ?? TEST_CONFIG.logLevel,
+    }
   }
 
   const app = buildApp({

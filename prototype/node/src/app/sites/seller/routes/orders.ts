@@ -13,6 +13,7 @@ import { parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDateTime } from '../format.ts'
@@ -91,7 +92,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
     { schema: { params: idParams('ful'), body: shipmentForm } },
     async (request, reply) => {
       const fulfillmentId = request.params.id
-      const { db, clock } = request.server
+      const { db } = request.server
       const owned = await ownedFulfillment(db, currentSellerId(request), fulfillmentId)
       if (owned === null) return sellerNotFound(reply)
 
@@ -105,24 +106,11 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
       }
 
       try {
-        const shipped = await markShipped(
-          { db, clock },
-          {
-            fulfillmentId,
-            carrier: details.value.carrier,
-            trackingNumber: details.value.trackingNumber,
-          },
-        )
-
-        request.log.info(
-          {
-            event: 'fulfillment.shipped',
-            fulfillmentId: shipped.id,
-            orderId: shipped.orderId,
-            sellerId: shipped.sellerId,
-          },
-          'fulfillment shipped',
-        )
+        await markShipped(requestActions(request), {
+          fulfillmentId,
+          carrier: details.value.carrier,
+          trackingNumber: details.value.trackingNumber,
+        })
       } catch (error) {
         if (error instanceof TransitionError) return refuseShipment(reply, fulfillmentId, error.message)
         throw error
@@ -135,20 +123,17 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
   )
 
   portal.post('/orders/:id/messages', { schema: { params: idParams('ful') } }, async (request, reply) => {
-    const { db, clock } = request.server
+    const { db } = request.server
     const sellerId = currentSellerId(request)
     const owned = await ownedFulfillment(db, sellerId, request.params.id)
     if (owned === null) return sellerNotFound(reply)
 
-    const conversation = await openConversation(
-      { db, clock },
-      {
-        kind: 'fulfillment',
-        sellerId,
-        customerId: owned.order.customerId,
-        fulfillmentId: owned.fulfillment.id,
-      },
-    )
+    const conversation = await openConversation(requestActions(request), {
+      kind: 'fulfillment',
+      sellerId,
+      customerId: owned.order.customerId,
+      fulfillmentId: owned.fulfillment.id,
+    })
 
     return reply.redirect(`/seller/messages/${conversation.id}`)
   })

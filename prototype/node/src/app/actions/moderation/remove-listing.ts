@@ -1,8 +1,8 @@
 import type { AdminId, ListingId } from '../../core/ids/entity-ids.ts'
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
+import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
-import { runInTransaction } from '../transaction.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../core/transition-error.ts'
 import type { ListingRemoval } from '../../db/commerce-schema.ts'
@@ -25,26 +25,46 @@ export async function removeListing(
   context: ActionContext,
   input: RemoveListingInput,
 ): Promise<ListingRemoval> {
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const active = await activeListingRemoval(transacted, input.listingId)
+  return actionStory<ListingRemoval>(
+    context,
+    {
+      event: 'moderation.remove_listing',
+      will: {
+        msg: 'removing the listing from the storefront',
+        data: { listing_id: input.listingId, kind: input.kind },
+      },
+      ended: (removal) => ({
+        phase: 'did',
+        msg: 'removed the listing from the storefront',
+        data: {
+          listing_removal_id: removal.id,
+          listing_id: removal.listingId,
+          admin_id: removal.adminId,
+          kind: removal.kind,
+        },
+      }),
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const active = await activeListingRemoval(transacted, input.listingId)
 
-    if (active !== null) {
-      throw new TransitionError(`listing ${input.listingId} is already removed`)
-    }
+      if (active !== null) {
+        throw new TransitionError(`listing ${input.listingId} is already removed`)
+      }
 
-    return db
-      .insertInto('listingRemovals')
-      .values({
-        id: newId('rmv', clock.now()),
-        listingId: input.listingId,
-        adminId: input.adminId,
-        kind: input.kind,
-        reason: input.reason,
-        createdAt: toTimestamp(clock.now()),
-        liftedAt: null,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      return db
+        .insertInto('listingRemovals')
+        .values({
+          id: newId('rmv', clock.now()),
+          listingId: input.listingId,
+          adminId: input.adminId,
+          kind: input.kind,
+          reason: input.reason,
+          createdAt: toTimestamp(clock.now()),
+          liftedAt: null,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    },
+  )
 }

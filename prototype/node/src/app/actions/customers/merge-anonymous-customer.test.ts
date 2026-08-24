@@ -11,6 +11,8 @@ import { newId } from '../../ids.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
+import pino from 'pino'
+import { captureLogLines } from '../../test/log-lines.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
 
@@ -123,6 +125,26 @@ async function countCarts(db: AppDatabase, customerId: CustomerId): Promise<numb
 
   return rows.rows[0]?.total ?? 0
 }
+
+test('it tells the customer.merge story naming both sides', async (t) => {
+  const merging = await startMerging()
+  t.after(merging.close)
+  const log = captureLogLines()
+
+  await mergeAnonymousCustomer(
+    { db: merging.db, clock: merging.clock, log: pino({ level: 'debug' }, log) },
+    {
+      anonymousCustomerId: merging.anonymousCustomerId,
+      verifiedCustomerId: merging.verifiedCustomerId,
+    },
+  )
+
+  assert.deepEqual(log.story(), ['customer.merge will', 'customer.merge did'])
+  const did = log.data('customer.merge', 'did')
+  assert.equal(did.anonymous_customer_id, merging.anonymousCustomerId)
+  assert.equal(did.customer_id, merging.verifiedCustomerId)
+  assert.match(String(log.line('customer.merge', 'did').txn_id), /^txn_/)
+})
 
 test('it records the merge so a stale cookie still resolves forward', async (t) => {
   const merging = await startMerging()

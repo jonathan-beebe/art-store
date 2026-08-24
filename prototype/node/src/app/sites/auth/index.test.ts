@@ -6,12 +6,11 @@ import { seedAdmins } from '../../db/seed-admins.ts'
 import { newId } from '../../ids.ts'
 import {
   buildTestApp,
-  TEST_CONFIG,
   TEST_INSTANT,
   takeDebugMagicLink,
   type TestApp,
 } from '../../test/build-test-app.ts'
-import { captureLogLines } from '../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../test/log-lines.ts'
 
 type Cookies = Record<string, string>
 
@@ -295,29 +294,38 @@ test('verification carries the visitor on to the destination the link holds', as
   assert.equal(followed.headers.location, '/orders/7/pay')
 })
 
-test('consuming a link logs a magic_link.consumed event naming who signed in', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('consuming a link closes magic_link.consume with who signed in', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
 
   const asked = await askForLink(testApp, '/seller/login', 'newcomer@example.com')
   await follow(testApp, asked.link, asked.cookies)
 
   const seller = await testApp.db.selectFrom('sellers').selectAll().executeTakeFirstOrThrow()
-  const line = stream.lines().find((entry) => entry.event === 'magic_link.consumed')
-  assert.equal(line?.actorType, 'seller')
-  assert.equal(line?.actorId, seller.id)
+  const did = log.data('magic_link.consume', 'did')
+  assert.equal(did.actor_type, 'seller')
+  assert.equal(did.actor_id, seller.id)
+  assert.equal(log.line('magic_link.consume', 'did').txn_id, log.line('magic_link.consume', 'will').txn_id)
 })
 
-test('a link past its expiry logs a magic_link.refused event naming why', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('the sign-in flow puts neither the address nor the token in the log', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
+  t.after(testApp.close)
+
+  const asked = await askForLink(testApp, '/seller/login', 'newcomer@example.com')
+  await follow(testApp, asked.link, asked.cookies)
+
+  const token = asked.link.slice(asked.link.lastIndexOf('/') + 1)
+  assert.equal(log.text().includes('newcomer@example.com'), false)
+  assert.equal(log.text().includes(token), false)
+  assert.equal(log.data('http.request', 'will').path, '/seller/login')
+})
+
+test('a link past its expiry refuses magic_link.consume naming why', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
   const token = '1'.repeat(64)
   const expired = new Date(TEST_INSTANT.getTime() - 60 * 1000).toISOString()
@@ -338,22 +346,20 @@ test('a link past its expiry logs a magic_link.refused event naming why', async 
 
   await testApp.app.inject({ method: 'GET', url: `/auth/magic/${token}` })
 
-  const line = stream.lines().find((entry) => entry.event === 'magic_link.refused')
-  assert.equal(line?.actorType, 'seller')
-  assert.equal(line?.reason, 'expired')
+  const refused = log.line('magic_link.consume', 'refused')
+  assert.equal(refused.level, 'info')
+  assert.deepEqual(refused.data, { reason: 'expired', actor_type: 'seller' })
 })
 
-test('a token no link was issued for logs a magic_link.refused event with no actor', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('a token no link was issued for refuses with no actor, and the url shows no token', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
+  const token = '0'.repeat(64)
 
-  await testApp.app.inject({ method: 'GET', url: `/auth/magic/${'0'.repeat(64)}` })
+  await testApp.app.inject({ method: 'GET', url: `/auth/magic/${token}` })
 
-  const line = stream.lines().find((entry) => entry.event === 'magic_link.refused')
-  assert.equal(line?.reason, 'unknown_token')
-  assert.equal(line?.actorType, undefined)
+  assert.deepEqual(log.data('magic_link.consume', 'refused'), { reason: 'unknown_token' })
+  assert.equal(log.data('http.request', 'will').path, '/auth/magic/:token')
+  assert.equal(log.text().includes(token), false)
 })

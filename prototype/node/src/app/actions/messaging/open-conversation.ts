@@ -1,6 +1,6 @@
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { participantColumnsOf, subjectColumnOf } from '../../core/messaging/conversation-kind.ts'
 import { planConversation } from '../../core/messaging/conversation-plan.ts'
 import {
@@ -11,6 +11,9 @@ import {
 import type { Conversation } from '../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+
+/** The thread, and whether it was already there. */
+type OpenedConversation = { conversation: Conversation; wasReused: boolean }
 
 /**
  * The one thread on a subject, opened if it is not there yet. Every entry point
@@ -24,23 +27,43 @@ export async function openConversation(
 ): Promise<Conversation> {
   const subject = conversationSubject(opening)
 
-  return runInTransaction(context, async ({ db, clock }) => {
-    const plan = planConversation(await conversationsOnSubject(db, subject), subject)
-    if (plan.outcome === 'reuse') return plan.conversation
+  const opened = await actionStory<OpenedConversation>(
+    context,
+    {
+      event: 'conversation.open',
+      will: { msg: `opening the ${subject.kind} thread`, data: { kind: subject.kind } },
+      ended: ({ conversation, wasReused }) => ({
+        phase: 'did',
+        msg: wasReused ? 'reused the thread already on this subject' : 'opened the thread',
+        data: {
+          conversation_id: conversation.id,
+          kind: conversation.kind,
+          reused: wasReused,
+        },
+      }),
+    },
+    async ({ db, clock }) => {
+      const plan = planConversation(await conversationsOnSubject(db, subject), subject)
+      if (plan.outcome === 'reuse') return { conversation: plan.conversation, wasReused: true }
 
-    const openedAt = toTimestamp(clock.now())
+      const openedAt = toTimestamp(clock.now())
 
-    return db
-      .insertInto('conversations')
-      .values({
-        id: newId('cnv', clock.now()),
-        ...plan.subject,
-        createdAt: openedAt,
-        lastMessageAt: openedAt,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      const conversation = await db
+        .insertInto('conversations')
+        .values({
+          id: newId('cnv', clock.now()),
+          ...plan.subject,
+          createdAt: openedAt,
+          lastMessageAt: openedAt,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+
+      return { conversation, wasReused: false }
+    },
+  )
+
+  return opened.conversation
 }
 
 /** The columns this kind fills — the columns `KIND_SHAPES` names for it, in `where` form. */

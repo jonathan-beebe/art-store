@@ -9,6 +9,7 @@ import type { ListingId } from '../../../core/ids/entity-ids.ts'
 import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
 import { idParams, idValue, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { requestOrigin } from '../../auth/request-origin.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
@@ -62,7 +63,7 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
     { schema: { params: idParams('lst'), body: faqForm } },
     async (request, reply) => {
       const listingId = request.params.id
-      const { db, clock } = request.server
+      const { db } = request.server
       const listing = await ownedListing(db, currentSellerId(request), listingId)
       if (listing === null) return sellerNotFound(reply)
 
@@ -72,10 +73,11 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
       const draft = parseFaqDraft(submitted)
       if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-      await publishListingFaq(
-        { db, clock },
-        { listingId, draft: draft.value, sourceMessageId: submitted.source_message_id },
-      )
+      await publishListingFaq(requestActions(request), {
+        listingId,
+        draft: draft.value,
+        sourceMessageId: submitted.source_message_id,
+      })
 
       reply.setFlash({ notice: 'Published to the listing.' })
 
@@ -88,7 +90,7 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
     { schema: { params: faqParams, body: faqForm } },
     async (request, reply) => {
       const { id: listingId, faqId } = request.params
-      const { db, clock } = request.server
+      const { db } = request.server
       const listing = await ownedListing(db, currentSellerId(request), listingId)
       if (listing === null) return sellerNotFound(reply)
 
@@ -101,7 +103,7 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
       const draft = parseFaqDraft(submitted)
       if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-      await updateListingFaq({ db, clock }, { faqId: faq.id, draft: draft.value })
+      await updateListingFaq(requestActions(request), { faqId: faq.id, draft: draft.value })
 
       reply.setFlash({ notice: 'FAQ updated.' })
 
@@ -114,14 +116,14 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
     { schema: { params: faqParams } },
     async (request, reply) => {
       const { id: listingId, faqId } = request.params
-      const { db, clock } = request.server
+      const { db } = request.server
       const listing = await ownedListing(db, currentSellerId(request), listingId)
       if (listing === null) return sellerNotFound(reply)
 
       const faq = await findListingFaq({ db }, { listingId, faqId })
       if (faq === null) return sellerNotFound(reply)
 
-      await unpublishListingFaq({ db, clock }, faq.id)
+      await unpublishListingFaq(requestActions(request), faq.id)
 
       reply.setFlash({ notice: 'Unpublished.' })
 

@@ -1,6 +1,7 @@
 import type { CartId, CartItemId, ListingId } from '../../core/ids/entity-ids.ts'
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
+import { actionStory } from '../action-story.ts'
 import { runInTransaction } from '../transaction.ts'
 import { recordListingEvent } from '../listings/record-listing-event.ts'
 import { quantityWithinStock } from '../../core/cart/cart-quantity.ts'
@@ -16,6 +17,10 @@ export type AddToCartInput = {
 /**
  * Adds to the line the cart already holds for a listing, clamped to what the
  * seller has left, and files the interest against the listing.
+ *
+ * A cart that already holds the listing is an update rather than an add, and
+ * the log says which — so the read that decides it happens before the story
+ * opens, inside the same transaction the write runs in.
  */
 export async function addToCart(context: ActionContext, input: AddToCartInput): Promise<CartItem> {
   return runInTransaction(context, async (transacted) => {
@@ -44,15 +49,37 @@ export async function addToCart(context: ActionContext, input: AddToCartInput): 
       available: listing.quantity,
     })
 
-    const item = await writeCartItem(transacted, input, quantity, held?.id)
+    return actionStory<CartItem>(
+      transacted,
+      {
+        event: held === undefined ? 'cart.add' : 'cart.update',
+        will: {
+          msg: held === undefined ? 'adding the listing to the cart' : 'changing the cart line',
+          data: {
+            cart_id: input.cartId,
+            listing_id: input.listingId,
+            quantity_from: held?.quantity ?? 0,
+            quantity_to: quantity,
+          },
+        },
+        ended: (item) => ({
+          phase: 'did',
+          msg: held === undefined ? 'added the listing to the cart' : 'changed the cart line',
+          data: { cart_id: item.cartId, listing_id: item.listingId, quantity: item.quantity },
+        }),
+      },
+      async (writing) => {
+        const item = await writeCartItem(writing, input, quantity, held?.id)
 
-    await recordListingEvent(transacted, {
-      listingId: input.listingId,
-      customerId: cart.customerId,
-      eventType: 'cart_add',
-    })
+        await recordListingEvent(writing, {
+          listingId: input.listingId,
+          customerId: cart.customerId,
+          eventType: 'cart_add',
+        })
 
-    return item
+        return item
+      },
+    )
   })
 }
 

@@ -27,6 +27,8 @@ import {
   takeDebugMagicLink,
   TEST_CONFIG,
 } from './build-test-app.ts'
+import type { LogEvent, LogPhase } from '../core/logging/log-event.ts'
+import { buildLoggedTestApp, type CapturedLogLines } from './log-lines.ts'
 
 /** Where a redirect sent the visitor. */
 function destinationOf(response: { headers: OutgoingHttpHeaders }): string {
@@ -498,7 +500,7 @@ async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildT
 }
 
 test('a listing travels from the seller signing in to their weekly payout', async (t) => {
-  const testApp = await buildTestApp({ clock: fixedClock(FROZEN_NOW) })
+  const testApp = await buildLoggedTestApp({ clock: fixedClock(FROZEN_NOW) })
   t.after(testApp.close)
 
   const seller = await signSellerIn(testApp)
@@ -525,7 +527,56 @@ test('a listing travels from the seller signing in to their weekly payout', asyn
   const admin = await signInAsAdmin(testApp)
   await adminRunsTheWeeklyPayout(testApp, admin)
   await sellerSeesTheNetPaidOut(testApp, seller)
+
+  assertTheWalkToldItsStory(testApp.logLines)
 })
+
+/**
+ * Every event the walk passes through, in the phase it ends in. Reading the log
+ * of one journey back is the point of the payload, so the walk asserts it here
+ * rather than leaving each event to the route test that fires it.
+ */
+const WALK_STORY: readonly [LogEvent, LogPhase][] = [
+  ['http.request', 'did'],
+  ['magic_link.request', 'did'],
+  ['magic_link.consume', 'did'],
+  ['listing.create', 'did'],
+  ['listing.publish', 'did'],
+  ['listing.view', 'did'],
+  ['cart.add', 'did'],
+  ['order.place', 'did'],
+  ['order.pay', 'refused'],
+  ['order.pay', 'did'],
+  ['fulfillment.ship', 'did'],
+  ['fulfillment.deliver', 'did'],
+  ['ledger.write', 'did'],
+  ['notification.write', 'did'],
+  ['payout.run', 'did'],
+  ['payout.pay', 'did'],
+]
+
+function assertTheWalkToldItsStory(log: CapturedLogLines): void {
+  for (const [event, phase] of WALK_STORY) {
+    const line = log.line(event, phase)
+
+    assert.match(String(line.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, event)
+    assert.equal(typeof line.level, 'string', event)
+    assert.equal(typeof line.msg, 'string', event)
+    assert.equal(typeof line.request_id, 'string', event)
+    assert.match(String(line.session_id), /^ses_/, event)
+  }
+
+  // Every write happened inside a unit of work, and none of the request lines did.
+  for (const [event] of WALK_STORY.filter(([event]) => event !== 'http.request')) {
+    assert.match(String(log.line(event, 'did').txn_id), /^txn_/, event)
+  }
+  assert.equal(log.line('http.request', 'did').txn_id, undefined)
+
+  // Nothing anyone typed an address or a card into rode out in the log.
+  for (const secret of [SELLER_EMAIL, CUSTOMER_EMAIL, APPROVED_CARD, DECLINED_CARD]) {
+    assert.equal(log.text().includes(secret), false, secret)
+  }
+}
 
 test('a question on a listing becomes an answer and then a published FAQ', async (t) => {
   const testApp = await buildTestApp()

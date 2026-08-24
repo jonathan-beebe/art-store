@@ -11,10 +11,9 @@ import {
   signInAsCustomer,
   signInAsSeller,
   takeDebugMagicLink,
-  TEST_CONFIG,
   type TestApp,
 } from '../../../test/build-test-app.ts'
-import { captureLogLines } from '../../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import {
   APPROVED_CARD,
   DECLINED_CARD,
@@ -341,9 +340,9 @@ test('a blocked customer cannot pay and is told why', async (t) => {
   assert.match(orderPage.body, /Your account is on hold/)
 })
 
-test('a successful charge logs an order.paid event', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+test('a successful charge closes order.pay with did', async (t) => {
+  const testApp = await buildLoggedTestApp({ logLevel: 'info' })
+  const log = testApp.logLines
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
   const { cartId } = await cartOneArtwork(testApp, customer.id)
@@ -356,14 +355,18 @@ test('a successful charge logs an order.paid event', async (t) => {
     payload: { card_number: APPROVED_CARD },
   })
 
-  const line = stream.lines().find((entry) => entry.event === 'order.paid')
-  assert.equal(line?.orderId, order.id)
-  assert.equal(line?.amountCents, 24_000)
+  const did = log.data('order.pay', 'did')
+  assert.equal(did.order_id, order.id)
+  assert.equal(did.amount_cents, 24_000)
+  assert.equal(did.status, 'paid')
+  // The card number reached the form; only its last four may reach the log.
+  assert.equal(log.text().includes(APPROVED_CARD), false)
+  assert.equal(did.card_last_four, APPROVED_CARD.slice(-4))
 })
 
-test('a declined card logs an order.declined event', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({ config: { ...TEST_CONFIG, logLevel: 'info' }, loggerStream: stream })
+test('a declined card closes order.pay with refused rather than failed', async (t) => {
+  const testApp = await buildLoggedTestApp({ logLevel: 'info' })
+  const log = testApp.logLines
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
   const { cartId } = await cartOneArtwork(testApp, customer.id)
@@ -376,9 +379,13 @@ test('a declined card logs an order.declined event', async (t) => {
     payload: { card_number: DECLINED_CARD },
   })
 
-  const line = stream.lines().find((entry) => entry.event === 'order.declined')
-  assert.equal(line?.orderId, order.id)
-  assert.equal(line?.amountCents, 24_000)
+  const refused = log.line('order.pay', 'refused')
+  assert.equal(refused.level, 'info')
+  assert.equal(typeof refused.duration_ms, 'number')
+  const data = refused.data as Record<string, unknown>
+  assert.equal(data.order_id, order.id)
+  assert.equal(data.amount_cents, 24_000)
+  assert.equal(typeof data.decline_reason, 'string')
 })
 
 function flashFrom(response: LightMyRequestResponse): Record<string, string> {

@@ -12,6 +12,7 @@ import type { Payout } from '../../../db/commerce-schema.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
 import { idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { adminPage } from '../page.ts'
 import { payoutRows } from '../queries/payout-rows.ts'
 import { sellerOptions } from '../queries/seller-accounts.ts'
@@ -37,12 +38,8 @@ export const payoutRoutes: ZodRoutes = (admin, _options, done) => {
 
   admin.post('/payouts', { schema: { body: runForm } }, async (request, reply) => {
     const asOf = parseAsOfDay(request.body.as_of, admin.clock.now())
-    const payouts = await runWeeklyPayout({ db: admin.db, clock: admin.clock }, asOf)
+    const payouts = await runWeeklyPayout(requestActions(request), asOf)
 
-    request.log.info(
-      { event: 'payout.run', count: payouts.length, totalCents: payoutTotal(payouts) },
-      'payout run',
-    )
     reply.setFlash({ notice: payoutFlashMessage(payouts, payoutPeriodEndingBefore(asOf)) })
 
     return reply.redirect('/admin/payouts')

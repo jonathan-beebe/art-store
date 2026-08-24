@@ -7,11 +7,11 @@ import type { OrderId } from '../../../core/ids/entity-ids.ts'
 import { awaitsCard, isUnpaid } from '../../../core/orders/order-payment.ts'
 import type { Order } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requireVerifiedCustomer } from '../../../plugins/identity.ts'
 import { customerOrderPath, loadCustomerOrder } from '../customer-order.ts'
 import { declineNotice } from '../decline-notice.ts'
-import { logChargeOutcome } from '../order-events.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 
@@ -75,12 +75,10 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
       if (found === null) return renderNotFound(reply)
 
       const charged = await chargeVerifiedOrder(
-        { db, clock },
+        requestActions(request),
         { orderId: found.order.id, cardNumber: request.body.card_number ?? '' },
       )
       if (charged === null) return renderNotFound(reply)
-
-      logChargeOutcome(request, charged)
 
       return await reply.redirect(`/orders/${charged.id}`)
     },

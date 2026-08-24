@@ -3,9 +3,10 @@ import type pino from 'pino'
 import { systemClock } from '../clock.ts'
 import { loadConfig } from '../config.ts'
 import { createCliLogger } from '../logging.ts'
+import { logStep, tellStory } from '../log-story.ts'
 import { openDatabase } from './database.ts'
 import { seedAdmins } from './seed-admins.ts'
-import { seedDemoData } from './seed-demo-data.ts'
+import { seedDemoData, type SeedDemoDataSummary } from './seed-demo-data.ts'
 
 /**
  * Seeds admins and demo data into the configured database. A failure is
@@ -23,22 +24,40 @@ export async function main(
   const db = openDatabase(config.databaseFile)
 
   try {
-    const adminCount = await seedAdmins({ db, clock: systemClock })
-    log.info({ event: 'seed.admins', count: adminCount }, `seeded ${adminCount} admins`)
+    await tellStory(
+      log,
+      {
+        event: 'seed.run',
+        will: {
+          msg: `seeding ${config.databaseFile}`,
+          data: { database_file: config.databaseFile },
+        },
+        ended: (summary) => ({
+          phase: 'did',
+          msg: summary === null ? 'demo data already seeded, skipping' : summarySentence(summary),
+          data: summary === null ? { skipped: true } : { ...summary },
+        }),
+      },
+      async () => {
+        const adminCount = await seedAdmins({ db, clock: systemClock })
+        logStep(log, 'seed.run', {
+          msg: `seeded ${adminCount} admins`,
+          data: { admin_count: adminCount },
+        })
 
-    const summary = await seedDemoData({ db, clock: systemClock })
-    log.info(
-      { event: 'seed.demo_data', ...(summary ?? {}) },
-      summary === null
-        ? 'demo data already seeded, skipping'
-        : `seeded ${summary.sellerCount} sellers, ${summary.listingCount} listings, ${summary.customerCount} customers, ${summary.orderCount} orders, ${summary.pageViewRowCount} page-view rows, ${summary.conversationCount} conversations, ${summary.messageCount} messages, ${summary.faqCount} listing FAQ`,
+        return seedDemoData({ db, clock: systemClock })
+      },
     )
-  } catch (error) {
-    log.error({ err: error }, 'the seed run failed')
+  } catch {
+    // tellStory already wrote the `failed` line; the exit code is what is left.
     process.exitCode = 1
   } finally {
     await db.destroy()
   }
+}
+
+function summarySentence(summary: SeedDemoDataSummary): string {
+  return `seeded ${summary.sellerCount} sellers, ${summary.listingCount} listings, ${summary.customerCount} customers, ${summary.orderCount} orders, ${summary.pageViewRowCount} page-view rows, ${summary.conversationCount} conversations, ${summary.messageCount} messages, ${summary.faqCount} listing FAQ`
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

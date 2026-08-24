@@ -25,6 +25,7 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { identityId } from '../../../plugins/identity.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
@@ -214,9 +215,9 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
       })
     }
 
-    const { db, clock, config } = request.server
+    const { config } = request.server
     const listing = await createListing(
-      { db, clock },
+      requestActions(request),
       {
         sellerId: currentSellerId(request),
         draft: draft.value,
@@ -291,9 +292,9 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
         })
       }
 
-      const { db, clock, config } = request.server
+      const { config } = request.server
       const updated = await updateListing(
-        { db, clock },
+        requestActions(request),
         {
           listingId: listing.id,
           draft: draft.value,
@@ -318,8 +319,10 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
       if (status === undefined) return refuseStatusChange(reply, 'Choose a status to change to.')
 
       try {
-        const { db, clock } = request.server
-        const updated = await changeListingStatus({ db, clock }, { listingId: listing.id, status })
+        const updated = await changeListingStatus(requestActions(request), {
+          listingId: listing.id,
+          status,
+        })
         reply.setFlash({ notice: `"${updated.title}" is now ${statusLabel(updated.status).toLowerCase()}.` })
 
         return reply.redirect('/seller/listings')

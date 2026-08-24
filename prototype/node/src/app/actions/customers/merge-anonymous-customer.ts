@@ -8,7 +8,7 @@ import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { REPOINTED_CUSTOMER_TABLES } from './repointed-customer-tables.ts'
 
 export type MergeSides = {
@@ -34,31 +34,56 @@ export async function mergeAnonymousCustomer(
   context: ActionContext,
   sides: MergeSides,
 ): Promise<void> {
-  await runInTransaction(context, async ({ db: trx, clock }) => {
-    const favorites = await readFavorites(trx, sides)
-    const carts = await readCarts(trx, sides)
-    const plan = planCustomerMerge({
-      verifiedCartLines: carts.verified.lines,
-      anonymousCartLines: carts.anonymous.lines,
-      verifiedFavoriteListingIds: favorites.verified,
-      anonymousFavoriteListingIds: favorites.anonymous,
-      stockByListing: await readStock(trx, carts),
-    })
-
-    await repointOwnedRows(trx, sides)
-    await applyFavorites(trx, sides, plan)
-    await applyCart(trx, sides, carts, plan)
-
-    await trx
-      .insertInto('customerMerges')
-      .values({
-        id: newId('cmg', clock.now()),
-        anonymousCustomerId: sides.anonymousCustomerId,
-        customerId: sides.verifiedCustomerId,
-        createdAt: toTimestamp(clock.now()),
+  await actionStory<CustomerMergePlan>(
+    context,
+    {
+      event: 'customer.merge',
+      will: {
+        msg: 'folding the anonymous browsing history into the account',
+        data: {
+          anonymous_customer_id: sides.anonymousCustomerId,
+          customer_id: sides.verifiedCustomerId,
+        },
+      },
+      ended: (plan) => ({
+        phase: 'did',
+        msg: 'folded the anonymous browsing history into the account',
+        data: {
+          anonymous_customer_id: sides.anonymousCustomerId,
+          customer_id: sides.verifiedCustomerId,
+          cart_line_count: plan.cartLines.length,
+          dropped_favorite_count: plan.favoritesToDrop.length,
+        },
+      }),
+    },
+    async ({ db: trx, clock }) => {
+      const favorites = await readFavorites(trx, sides)
+      const carts = await readCarts(trx, sides)
+      const plan = planCustomerMerge({
+        verifiedCartLines: carts.verified.lines,
+        anonymousCartLines: carts.anonymous.lines,
+        verifiedFavoriteListingIds: favorites.verified,
+        anonymousFavoriteListingIds: favorites.anonymous,
+        stockByListing: await readStock(trx, carts),
       })
-      .execute()
-  })
+
+      await repointOwnedRows(trx, sides)
+      await applyFavorites(trx, sides, plan)
+      await applyCart(trx, sides, carts, plan)
+
+      await trx
+        .insertInto('customerMerges')
+        .values({
+          id: newId('cmg', clock.now()),
+          anonymousCustomerId: sides.anonymousCustomerId,
+          customerId: sides.verifiedCustomerId,
+          createdAt: toTimestamp(clock.now()),
+        })
+        .execute()
+
+      return plan
+    },
+  )
 }
 
 async function repointOwnedRows(db: AppDatabase, sides: MergeSides): Promise<void> {

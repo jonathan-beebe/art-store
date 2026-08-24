@@ -9,11 +9,10 @@ import {
   signInAsCustomer,
   signInAsSeller,
   takeDebugMagicLink,
-  TEST_CONFIG,
   type SignedInActor,
   type TestApp,
 } from '../../test/build-test-app.ts'
-import { captureLogLines } from '../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../test/log-lines.ts'
 
 type Site = {
   actorType: ActorType
@@ -329,12 +328,9 @@ test('the queued link signs the seller in when it is followed', async (t) => {
   assert.equal(cookiesOf(followed).seller_id === undefined, false)
 })
 
-test('asking for a link logs a magic_link.requested event that never carries the link itself', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('asking for a link tells magic_link.request without the address or the link', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
 
   await testApp.app.inject({
@@ -343,10 +339,11 @@ test('asking for a link logs a magic_link.requested event that never carries the
     payload: { email: 'artist@example.com' },
   })
 
-  const line = stream.lines().find((entry) => entry.event === 'magic_link.requested')
-  assert.equal(line?.actorType, 'seller')
-  assert.equal(line?.email, 'artist@example.com')
+  const did = log.data('magic_link.request', 'did')
+  assert.equal(did.actor_type, 'seller')
+  assert.match(String(did.magic_link_id), /^mlk_/)
+  assert.equal(log.data('magic_link.request', 'will').magic_link_id, did.magic_link_id)
 
-  const rendered = JSON.stringify(stream.lines())
-  assert.doesNotMatch(rendered, /\/auth\/magic\//)
+  assert.equal(log.text().includes('artist@example.com'), false)
+  assert.doesNotMatch(log.text(), /\/auth\/magic\//)
 })

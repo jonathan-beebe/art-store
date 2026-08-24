@@ -15,6 +15,7 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import type { Conversation } from '../../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { idParams, idValue, slugParams, submittedForm } from '../../../http/request-schema.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
@@ -45,11 +46,12 @@ async function fulfillmentSellerId(
 }
 
 export const messageRoutes: ZodRoutes = (shop, _options, done) => {
-  const context = { db: shop.db, clock: shop.clock }
-
   shop.get('/messages', async (request, reply) => {
     const customer = storefrontCustomer(request)
-    const conversations = await inboxConversations(context, { type: 'customer', id: customer.id })
+    const conversations = await inboxConversations(requestActions(request), {
+      type: 'customer',
+      id: customer.id,
+    })
 
     return reply.render('messages', shopPage({ title: 'Messages', conversations }))
   })
@@ -57,10 +59,10 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
   shop.get('/messages/:id', { schema: { params: idParams('cnv') } }, async (request, reply) => {
     const conversationId = request.params.id
     const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
-    const thread = await conversationThread(context, { conversationId, actor })
+    const thread = await conversationThread(requestActions(request), { conversationId, actor })
     if (thread === null) return renderNotFound(reply)
 
-    await markConversationRead(context, { conversationId: thread.conversation.id, reader: actor })
+    await markConversationRead(requestActions(request), { conversationId: thread.conversation.id, reader: actor })
 
     return reply.render('message-thread', shopPage({ title: thread.topic, thread }))
   })
@@ -71,7 +73,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
     async (request, reply) => {
       const conversationId = request.params.id
       const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
-      const thread = await conversationThread(context, { conversationId, actor })
+      const thread = await conversationThread(requestActions(request), { conversationId, actor })
       if (thread === null) return renderNotFound(reply)
 
       const { body } = request.body
@@ -82,7 +84,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
       }
 
       try {
-        await postMessage(context, { conversationId, sender: actor, body })
+        await postMessage(requestActions(request), { conversationId, sender: actor, body })
       } catch (error) {
         if (!(error instanceof TransitionError)) throw error
         reply.setFlash({ alert: error.message })
@@ -108,7 +110,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
         // A refused first message must leave no conversation behind, so the open
         // and the post run as one transaction: `postMessage`'s `TransitionError`
         // escapes it uncaught here, which is what rolls the open back too.
-        conversation = await runInTransaction(context, async (transacted) => {
+        conversation = await runInTransaction(requestActions(request), async (transacted) => {
           const opened = await openConversation(transacted, {
             kind: 'listing_question',
             sellerId: found.listing.sellerId,
@@ -139,7 +141,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.get('/support', async (request, reply) => {
     const customer = storefrontCustomer(request)
-    const result = await openSupportConversation(context, {
+    const result = await openSupportConversation(requestActions(request), {
       actorType: 'customer',
       actorId: customer.id,
     })
@@ -169,7 +171,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
       if (sellerId === null) return renderNotFound(reply)
 
       const customer = storefrontCustomer(request)
-      const conversation = await openConversation(context, {
+      const conversation = await openConversation(requestActions(request), {
         kind: 'fulfillment',
         sellerId,
         customerId: customer.id,

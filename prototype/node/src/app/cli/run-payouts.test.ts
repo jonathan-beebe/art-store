@@ -57,19 +57,19 @@ test('main logs one line per seller paid and a summary', async (t) => {
   await setupDb.destroy()
 
   const stream = captureLogLines()
-  const logger = createCliLogger({ logLevel: 'info' }, { stream })
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
 
   await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
 
-  const lines = stream.lines()
-  const paidLine = lines.find((line) => line.event === 'payout.paid')
-  assert.equal(paidLine?.sellerId, sellerId)
-  assert.equal(paidLine?.amountCents, 40_500)
-  assert.equal(paidLine?.period, '2026-08-17 to 2026-08-23')
+  const paid = stream.data('payout.pay', 'did')
+  assert.equal(paid.seller_id, sellerId)
+  assert.equal(paid.amount_cents, 40_500)
+  assert.equal(paid.period, '2026-08-17 to 2026-08-23')
 
-  const summaryLine = lines.find((line) => line.event === 'payout.run')
-  assert.equal(summaryLine?.count, 1)
-  assert.equal(summaryLine?.totalCents, 40_500)
+  const run = stream.data('payout.run', 'did')
+  assert.equal(run.count, 1)
+  assert.equal(run.total_cents, 40_500)
+  assert.equal(stream.line('payout.run', 'did').actor_type, 'system')
 })
 
 test('main logs a zero-count summary when nothing has released escrow', async (t) => {
@@ -82,15 +82,14 @@ test('main logs a zero-count summary when nothing has released escrow', async (t
   await setupDb.destroy()
 
   const stream = captureLogLines()
-  const logger = createCliLogger({ logLevel: 'info' }, { stream })
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
 
   await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
 
-  const lines = stream.lines()
-  assert.equal(lines.some((line) => line.event === 'payout.paid'), false)
-  const summaryLine = lines.find((line) => line.event === 'payout.run')
-  assert.equal(summaryLine?.count, 0)
-  assert.equal(summaryLine?.totalCents, 0)
+  assert.deepEqual(stream.linesFor('payout.pay'), [])
+  const run = stream.data('payout.run', 'did')
+  assert.equal(run.count, 0)
+  assert.equal(run.total_cents, 0)
 })
 
 test('main logs the error and sets a failing exit code when the run itself fails', async (t) => {
@@ -101,7 +100,7 @@ test('main logs the error and sets a failing exit code when the run itself fails
   // a database with no tables — the run itself failing, not a usage mistake.
 
   const stream = captureLogLines()
-  const logger = createCliLogger({ logLevel: 'info' }, { stream })
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
   const exitCodeBefore = process.exitCode
   t.after(() => {
     process.exitCode = exitCodeBefore
@@ -110,7 +109,9 @@ test('main logs the error and sets a failing exit code when the run itself fails
   await main(['node', 'run-payouts.ts', '--as-of=2026-08-24'], { DATABASE_FILE: databaseFile }, logger)
 
   assert.equal(process.exitCode, 1)
-  assert.equal(stream.lines().some((line) => line.err !== undefined), true)
+  const failed = stream.line('payout.run', 'failed')
+  assert.equal(failed.level, 'error')
+  assert.equal(typeof failed.duration_ms, 'number')
 })
 
 test('a flag the command does not take is a mistake, not a logged failure', async (t) => {

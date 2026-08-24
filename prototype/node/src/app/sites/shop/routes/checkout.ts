@@ -19,10 +19,10 @@ import { purchaserForCheckout } from '../../../core/shop/checkout-purchaser.ts'
 import type { Order } from '../../../db/commerce-schema.ts'
 import { submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { signedInActorId } from '../../../plugins/identity.ts'
 import { magicLinkUrl } from '../../auth/request-origin.ts'
 import { missingFieldLabels, SHIPPING_FIELDS, shippingFromForm } from '../checkout-fields.ts'
-import { logChargeOutcome, logOrderPlaced } from '../order-events.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
 import { shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
@@ -159,7 +159,7 @@ export const checkoutRoutes: ZodRoutes = (shop, _options, done) => {
       })
 
       const { placement, charged } = await checkOutCart(
-        { db, clock },
+        requestActions(request),
         {
           cartId: cart.id,
           purchaser,
@@ -184,18 +184,12 @@ export const checkoutRoutes: ZodRoutes = (shop, _options, done) => {
       }
 
       const order = placement.order
-      logOrderPlaced(request, order)
 
-      if (charged !== null) {
-        logChargeOutcome(request, charged)
-
-        return await reply.redirect(`/orders/${order.id}`)
-      }
+      if (charged !== null) return await reply.redirect(`/orders/${order.id}`)
 
       const delivered = await sendMagicLink(
         {
-          db,
-          clock,
+          ...requestActions(request),
           delivery: shop.magicLinkDelivery,
           magicLinkUrl: (token) => magicLinkUrl(request, token),
         },

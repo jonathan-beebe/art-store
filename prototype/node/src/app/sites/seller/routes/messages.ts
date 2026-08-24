@@ -6,6 +6,7 @@ import { openSupportConversation } from '../../../actions/messaging/open-support
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { faqPrefill } from '../../../core/messaging/faq-prefill.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { currentSellerId } from '../current-seller.ts'
@@ -47,7 +48,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
     { schema: { params: idParams('cnv'), body: replyForm } },
     async (request, reply) => {
       const conversationId = request.params.id
-      const { db, clock } = request.server
+      const { db } = request.server
       const actor = { type: 'seller' as const, id: currentSellerId(request) }
       const thread = await conversationThread({ db }, { conversationId, actor })
       if (thread === null) return sellerNotFound(reply)
@@ -60,7 +61,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
       }
 
       try {
-        await postMessage({ db, clock }, { conversationId, sender: actor, body })
+        await postMessage(requestActions(request), { conversationId, sender: actor, body })
       } catch (error) {
         if (!(error instanceof TransitionError)) throw error
         reply.setFlash({ alert: error.message })
@@ -71,11 +72,10 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
   )
 
   portal.get('/support', async (request, reply) => {
-    const { db, clock } = request.server
-    const result = await openSupportConversation(
-      { db, clock },
-      { actorType: 'seller', actorId: currentSellerId(request) },
-    )
+    const result = await openSupportConversation(requestActions(request), {
+      actorType: 'seller',
+      actorId: currentSellerId(request),
+    })
 
     if (result.outcome === 'no-admin') {
       reply.setFlash({ alert: 'No admin is available to message yet.' })

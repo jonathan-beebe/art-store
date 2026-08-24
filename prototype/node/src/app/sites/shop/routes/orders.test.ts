@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import type { CustomerId } from '../../../core/ids/entity-ids.ts'
 import { cents } from '../../../core/money.ts'
 import {
@@ -189,7 +190,7 @@ test('a guest order tells the buyer to open the emailed link', async (t) => {
 })
 
 test('cancelling an unpaid order hands its stock back to the storefront', async (t) => {
-  const testApp = await buildTestApp()
+  const testApp = await buildLoggedTestApp()
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
   const { order, listing } = await orderOneArtwork(testApp, { customerId: customer.id })
@@ -224,6 +225,11 @@ test('cancelling an unpaid order hands its stock back to the storefront', async 
     .executeTakeFirstOrThrow()
   assert.equal(stock.status, 'for_sale')
   assert.equal(stock.quantity, 1)
+
+  const cancelledLine = testApp.logLines.data('order.cancel', 'did')
+  assert.equal(cancelledLine.order_id, order.id)
+  assert.equal(cancelledLine.status_to, 'cancelled')
+  assert.equal(testApp.logLines.line('order.cancel', 'did').actor_id, customer.id)
 })
 
 test('a paid order can no longer be cancelled', async (t) => {

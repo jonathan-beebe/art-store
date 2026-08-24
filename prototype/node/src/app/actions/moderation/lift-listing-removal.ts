@@ -1,7 +1,7 @@
 import type { ListingId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
+import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
-import { runInTransaction } from '../transaction.ts'
 import { canLiftRemoval } from '../../core/moderation/listing-removal.ts'
 import { TransitionError } from '../../core/transition-error.ts'
 import type { ListingRemoval } from '../../db/commerce-schema.ts'
@@ -16,20 +16,36 @@ export async function liftListingRemoval(
   context: ActionContext,
   { listingId }: { listingId: ListingId },
 ): Promise<ListingRemoval> {
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const active = await activeListingRemoval(transacted, listingId)
+  return actionStory<ListingRemoval>(
+    context,
+    {
+      event: 'moderation.lift_listing_removal',
+      will: { msg: 'putting the listing back under its own status', data: { listing_id: listingId } },
+      ended: (removal) => ({
+        phase: 'did',
+        msg: 'put the listing back under its own status',
+        data: {
+          listing_removal_id: removal.id,
+          listing_id: removal.listingId,
+          kind: removal.kind,
+        },
+      }),
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const active = await activeListingRemoval(transacted, listingId)
 
-    if (active === null) throw new TransitionError(`listing ${listingId} is not removed`)
-    if (!canLiftRemoval(active.kind)) {
-      throw new TransitionError(`a permanent removal cannot be lifted`)
-    }
+      if (active === null) throw new TransitionError(`listing ${listingId} is not removed`)
+      if (!canLiftRemoval(active.kind)) {
+        throw new TransitionError(`a permanent removal cannot be lifted`)
+      }
 
-    return db
-      .updateTable('listingRemovals')
-      .set({ liftedAt: toTimestamp(clock.now()) })
-      .where('id', '=', active.id)
-      .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      return db
+        .updateTable('listingRemovals')
+        .set({ liftedAt: toTimestamp(clock.now()) })
+        .where('id', '=', active.id)
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    },
+  )
 }

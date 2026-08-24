@@ -9,6 +9,7 @@ import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { blockedShopperNotice } from '../../../core/shop/blocked-shopper-notice.ts'
 import { slugParams, submittedForm, type SlugParams } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { findListingBySlug } from '../queries/find-listing-by-slug.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
@@ -49,14 +50,13 @@ export const cartRoutes: ZodRoutes = (shop, _options, done) => {
       preHandler: refuseBlockedCustomer(({ slug }: SlugParams) => `/art/${slug}`),
     },
     async (request, reply) => {
-      const { db, clock } = shop
       const { slug } = request.params
       const customer = storefrontCustomer(request)
       const wanted = request.body.quantity ?? 1
 
       // The gate and the line it writes read one snapshot of the listing, so a
       // piece removed or taken off sale mid-request never lands in a cart.
-      const outcome = await runInTransaction({ db, clock }, async (transacted) => {
+      const outcome = await runInTransaction(requestActions(request), async (transacted) => {
         const found = await findListingOnStorefront(transacted.db, slug)
         if (found === null) return 'unknown' as const
         if (!found.isPurchasable) return 'unavailable' as const
@@ -93,7 +93,7 @@ export const cartRoutes: ZodRoutes = (shop, _options, done) => {
 
     const customer = storefrontCustomer(request)
     const cart = await currentCart({ db, clock }, customer.id)
-    await removeFromCart({ db, clock }, { cartId: cart.id, listingId: found.listing.id })
+    await removeFromCart(requestActions(request), { cartId: cart.id, listingId: found.listing.id })
 
     return reply.redirect('/cart')
   })

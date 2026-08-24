@@ -67,7 +67,7 @@ sets `HOST` and `PORT` for the container.
 | `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
 | `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
-| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds the `listing.view` and `ledger.write` lines. |
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
 `https:` origin — there is no separate switch for it.
@@ -76,6 +76,30 @@ A production boot refuses to start rather than run unsafely: without
 `COOKIE_SECRET` (a shared default makes an admin cookie forgeable), and with
 `MAGIC_LINK_DELIVERY=flash` (it prints sign-in links into the page that asked
 for one). Both throw from `loadConfig` with the reason.
+
+## Logs
+
+Every line is one JSON object on stdout, in every environment, in the payload
+all three prototypes share (`docs/alignment.md` §2). A line carries `ts`,
+`level`, `event`, `phase`, and `msg` always, plus `request_id`, `session_id`,
+`actor_type`, `actor_id`, `txn_id`, `data`, `error`, and `duration_ms` where
+they apply.
+
+```json
+{"level":"info","ts":"2026-08-24T04:03:19.982Z","pid":1,"hostname":"012798ac8c7d","request_id":"208baa17-25b5-4ebe-b605-fbac29a5a9bd","session_id":"ses_01M0RYZQQQTPVW5D8MC9KWPS06","actor_type":"customer","actor_id":"cus_01M0RYZQQXD6A1SF40F6TZFFMP","event":"http.request","phase":"will","data":{"method":"GET","path":"/art/x"},"msg":"GET /art/x"}
+```
+
+Every write tells a story: `will` before it, then `did`, `refused` (the domain
+said no, at `info`), or `failed` (an exception nobody expected, at `error`).
+Reading one `txn_id` back gives the whole unit of work; reading one `request_id`
+gives the whole request. A browser is named by the `sid` cookie (`ses_<ulid>`,
+one year, unchanged by sign-in and sign-out); a caller may name its own request
+with `X-Request-Id`, which is echoed back when it matches
+`^[A-Za-z0-9_-]{1,64}$`. Cookie values, magic-link tokens, card numbers, and
+email addresses never appear.
+
+[`docs/architecture.md`](docs/architecture.md#the-log) has the field table, the
+event vocabulary, and how each field reaches a line.
 
 ## Security headers
 
@@ -590,7 +614,8 @@ prototype/node/
                            drains on SIGINT/SIGTERM
       app.ts              buildApp(deps): composition root
       config.ts           env -> typed config
-      logging.ts          logger options, request id, redacting serializers
+      logging.ts          pino payload options, request id, CLI logger
+      log-story.ts        will/doing/did/refused/failed over any logger
       clock.ts             systemClock and fixedClock
       ids.ts               newId: a prefixed ULID from a clock's instant
       core/                functional core, sidecar tests, no I/O:
@@ -602,7 +627,7 @@ prototype/node/
                            analytics/, auth/, carts/, customers/, escrow/,
                            favorites/, fulfillments/, listings/, messaging/,
                            moderation/, notifications/, orders/, outbox/,
-                           action-context.ts, transaction.ts
+                           action-context.ts, transaction.ts, action-story.ts
       db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
                            migrate.ts, schema.ts, commerce-schema.ts, count.ts,
                            timestamp.ts, migrations/,
@@ -613,10 +638,11 @@ prototype/node/
                            implementations, outbox-message.ts
       http/                zod-type-provider.ts (the validator compiler),
                            request-schema.ts (idParams, slugParams,
-                           optionalFilter, submittedForm)
+                           optionalFilter, submittedForm),
+                           request-actions.ts (a request as an ActionContext)
       plugins/             error-pages.ts, events.ts, flash.ts, health.ts,
-                           identity.ts, page-views.ts, root-plugin.ts,
-                           security-headers.ts, site-render.ts,
+                           identity.ts, page-views.ts, request-log.ts,
+                           root-plugin.ts, security-headers.ts, site-render.ts,
                            unread-messages.ts
       sites/               shop/, seller/, admin/ — each a plugin with routes/,
                            views/, queries/; auth/ is three flat files

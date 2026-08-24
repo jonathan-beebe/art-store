@@ -6,6 +6,7 @@ import { isEmailAddress, normalizeEmail } from '../../core/auth/email-address.ts
 import { keepLocalRedirect } from '../../core/auth/local-redirect.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { submittedForm } from '../../http/request-schema.ts'
+import { requestActions } from '../../http/request-actions.ts'
 import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
@@ -79,19 +80,18 @@ export function signInRoutes({
         return await refuseLink(reply, refusal ?? NO_ADDRESS, redirectTo)
       }
 
+      // The action logs the request; neither the address nor the token reaches
+      // the log. `delivered` carries the debug magic link, and the flash it
+      // becomes is the only place that link is allowed.
       const delivered = await sendMagicLink(
         {
-          db: routes.db,
-          clock: routes.clock,
+          ...requestActions(request),
           delivery: routes.magicLinkDelivery,
           magicLinkUrl: (token) => magicLinkUrl(request, token),
         },
         { email, actorType, redirectTo },
       )
 
-      // Never the token or the URL: `delivered` carries the debug magic link
-      // and the flash it becomes is the only place that link is allowed.
-      request.log.info({ event: 'magic_link.requested', actorType, email }, 'magic link requested')
       reply.setFlash({ ...delivered, notice: `Sign-in link sent to ${email}.` })
 
       return await reply.redirect(loginPath(site.loginPath, redirectTo))

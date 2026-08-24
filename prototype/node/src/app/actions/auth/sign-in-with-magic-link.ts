@@ -8,7 +8,7 @@ import type { AppDatabase } from '../../db/database.ts'
 import type { MagicLinkTable } from '../../db/schema.ts'
 import { fromNullableTimestamp, fromTimestamp, toTimestamp } from '../../db/timestamp.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { claimSellerIdentity } from './claim-seller-identity.ts'
 import { findAdminByEmail } from './find-admin-by-email.ts'
 
@@ -35,35 +35,57 @@ export async function signInWithMagicLink(
   context: ActionContext,
   { token, currentCustomerId }: SignInWithMagicLinkInput,
 ): Promise<MagicLinkSignIn> {
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const link = await db
-      .selectFrom('magicLinks')
-      .selectAll()
-      .where('tokenDigest', '=', digestMagicLinkToken(token))
-      .executeTakeFirst()
+  return actionStory<MagicLinkSignIn>(
+    context,
+    {
+      event: 'magic_link.consume',
+      will: { msg: 'spending a sign-in link' },
+      ended: (signIn) =>
+        signIn.outcome === 'signedIn'
+          ? {
+              phase: 'did',
+              msg: `signed in a ${signIn.actorType}`,
+              data: { actor_type: signIn.actorType, actor_id: signIn.actorId },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the sign-in link cannot be spent',
+              data: {
+                reason: signIn.outcome === 'unknown' ? 'unknown_token' : signIn.refusal,
+                ...(signIn.outcome === 'unknown' ? {} : { actor_type: signIn.actorType }),
+              },
+            },
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const link = await db
+        .selectFrom('magicLinks')
+        .selectAll()
+        .where('tokenDigest', '=', digestMagicLinkToken(token))
+        .executeTakeFirst()
 
-    if (link === undefined) return { outcome: 'unknown' }
+      if (link === undefined) return { outcome: 'unknown' }
 
-    const now = clock.now()
-    const status = magicLinkStatus(
-      {
-        expiresAt: fromTimestamp(link.expiresAt),
-        consumedAt: fromNullableTimestamp(link.consumedAt),
-      },
-      now,
-    )
+      const now = clock.now()
+      const status = magicLinkStatus(
+        {
+          expiresAt: fromTimestamp(link.expiresAt),
+          consumedAt: fromNullableTimestamp(link.consumedAt),
+        },
+        now,
+      )
 
-    if (status !== 'usable') {
-      return { outcome: 'refused', actorType: link.actorType, refusal: status }
-    }
+      if (status !== 'usable') {
+        return { outcome: 'refused', actorType: link.actorType, refusal: status }
+      }
 
-    if (!(await consume(db, link.id, now))) {
-      return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
-    }
+      if (!(await consume(db, link.id, now))) {
+        return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
+      }
 
-    return await signInAs(transacted, link, currentCustomerId)
-  })
+      return await signInAs(transacted, link, currentCustomerId)
+    },
+  )
 }
 
 async function signInAs(

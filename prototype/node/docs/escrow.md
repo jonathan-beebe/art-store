@@ -81,7 +81,7 @@ sequenceDiagram
     deactivate Run
     Note over Run,Payouts: one transaction
     Run-->>CLI: Payout[]
-    CLI->>CLI: log payout.paid per seller, then payout.run
+    Run->>Run: log payout.pay per seller, inside payout.run
 ```
 
 Caveats: the `paid_out` entry is dated at `payoutPeriodEndsAt(period)` —

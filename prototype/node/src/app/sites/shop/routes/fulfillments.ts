@@ -3,6 +3,7 @@ import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivere
 import { TransitionError } from '../../../core/transition-error.ts'
 import { idValue } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { renderNotFound } from '../shop-page.ts'
 
@@ -26,7 +27,7 @@ export const fulfillmentRoutes: ZodRoutes = (shop, _options, done) => {
       if (fulfillment === undefined) return renderNotFound(reply)
 
       try {
-        await confirmDelivered({ db: shop.db, clock: shop.clock }, fulfillment.id)
+        await confirmDelivered(requestActions(request), fulfillment.id)
       } catch (error) {
         if (!(error instanceof TransitionError)) throw error
         reply.setFlash({ alert: error.message })

@@ -3,6 +3,7 @@ import { isPayable, isUnpaid } from '../../../core/orders/order-payment.ts'
 import { isCancellable } from '../../../core/orders/order-status.ts'
 import { idParams } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import { signedInActorId } from '../../../plugins/identity.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { declineNotice } from '../decline-notice.ts'
@@ -42,7 +43,7 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
     // Fast 404 for a status cancelOrder would refuse anyway — transitionOrder is the authority.
     if (found === null || !isCancellable(found.order.status)) return renderNotFound(reply)
 
-    await cancelOrder({ db: shop.db, clock: shop.clock }, found.order.id)
+    await cancelOrder(requestActions(request), found.order.id)
     reply.setFlash({ notice: 'Order cancelled. Anything it held is back on the storefront.' })
 
     return await reply.redirect(`/orders/${found.order.id}`)

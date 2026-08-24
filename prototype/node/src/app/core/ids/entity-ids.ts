@@ -65,5 +65,11 @@ export type NotificationId = PrefixedId<typeof ID_PREFIXES.notifications>
 export type OutboxMessageId = PrefixedId<typeof ID_PREFIXES.outbox_messages>
 export type PageViewCountId = PrefixedId<typeof ID_PREFIXES.page_view_counts>
 
+/** The `sid` cookie's value: one browser, across sign-ins and sign-outs. */
+export type SessionId = PrefixedId<typeof ID_PREFIXES.sessions>
+
+/** The `txn_id` every log line written inside one unit of work carries. */
+export type TransactionId = PrefixedId<typeof ID_PREFIXES.transactions>
+
 /** Whoever a message or an audit row names as the actor behind it. */
 export type ActorId = SellerId | CustomerId | AdminId

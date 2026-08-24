@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, RouteHandlerMethod } from 'fastify'
 import { ZodError } from 'zod'
+import { logRequestFailure } from './request-log.ts'
 import { rootPlugin } from './root-plugin.ts'
 import type { SitePageRenderer } from './site-render.ts'
 
@@ -80,11 +81,11 @@ export function addNotFoundPage(site: FastifyInstance, renderPage: SitePageRende
 }
 
 /**
- * The one handler every unhandled error reaches. A server fault is logged with
- * the request id the child logger carries and answered with a page that says
- * nothing about it; a bad request is answered as a bad request rather than
- * reported as a crash; a url segment a route's `params` schema refused reaches
- * that site's own not-found page.
+ * The one handler every unhandled error reaches. A server fault closes the
+ * request's story with `failed` and answers with a page that says nothing about
+ * it; a bad request is answered as a bad request rather than reported as a
+ * crash; a url segment a route's `params` schema refused reaches that site's
+ * own not-found page.
  */
 export const errorPages = rootPlugin({ name: 'errorPages' }, (app) => {
   app.setErrorHandler(async (error, request, reply) => {
@@ -92,7 +93,7 @@ export const errorPages = rootPlugin({ name: 'errorPages' }, (app) => {
 
     const statusCode = failureStatusCode(error)
 
-    if (statusCode >= SERVER_FAILURE) request.log.error({ err: error }, 'the request failed')
+    if (statusCode >= SERVER_FAILURE) logRequestFailure(request, reply, error, statusCode)
 
     if (rendersPages(reply)) return renderErrorPage(reply, statusCode)
 

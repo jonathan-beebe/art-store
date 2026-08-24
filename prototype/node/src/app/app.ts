@@ -18,6 +18,7 @@ import { flashCookie } from './plugins/flash.ts'
 import { healthCheck } from './plugins/health.ts'
 import { identityCookies } from './plugins/identity.ts'
 import { pageViewRollup } from './plugins/page-views.ts'
+import { requestLog } from './plugins/request-log.ts'
 import { securityHeaders } from './plugins/security-headers.ts'
 import { unreadMessages } from './plugins/unread-messages.ts'
 import { adminSite } from './sites/admin/index.ts'
@@ -82,6 +83,10 @@ export function buildApp({
   app.decorate('draining', false)
 
   app.register(fastifyCookie, { secret: config.cookieSecret })
+  // Ahead of the static and site plugins: a route inherits the root's hooks as
+  // they stand when its own context is built, so a hook added after them would
+  // never see the requests they answer.
+  app.register(requestLog)
   // Kept in place of a `URLSearchParams` parser of its own. Every form here is
   // flat and would survive the swap, but this parser also decides what a
   // repeated or bracketed field name means, and deciding that by hand is a
