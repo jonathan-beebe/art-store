@@ -17,6 +17,18 @@ module Shop
 
     private
 
+    # A tripped `conversation_open` comes back on the listing page the
+    # question form sits on, the sentence standing in for a field error.
+    def render_too_many_requests(trip)
+      @listing = Listing.on_storefront.includes(:seller).find_by!(slug: params[:slug])
+      @purchasable = @listing.purchasable?
+      @favorited = current_customer.favorited?(@listing)
+      @faqs = @listing.faqs.oldest_first
+      flash.now[:alert] = rate_limit_message(trip)
+
+      render "shop/listings/show", status: :too_many_requests
+    end
+
     # A refused question leaves no thread behind, so an empty body puts no
     # empty row in either inbox.
     def ask(listing, body)

@@ -183,13 +183,73 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     post shop_support_path
     assert_response :redirect
 
-    listing = create_listing(seller)
+    listing = create_listing(seller, title: "Harbour at Dusk")
     before = Conversation.count
     post shop_listing_questions_path(slug: listing.slug), params: { message: { body: "One too many" } }
 
     assert_response :too_many_requests
-    assert_select "h1", "Too many requests"
+    assert_select "h1", "Harbour at Dusk"
+    assert_select "[role=alert]", text: /Too many requests/
     assert_equal before, Conversation.count
+  end
+
+  test "conversation_open trips on a listing question and re-renders the listing page" do
+    limit = RateLimits.fetch(:conversation_open)
+    seller = create_seller
+    listing = create_listing(seller, title: "Harbour at Dusk")
+    sign_in_as_customer(email: "asker@example.com")
+
+    limit.count.times do |i|
+      post shop_listing_questions_path(slug: listing.slug), params: { message: { body: "Q#{i}" } }
+      assert_response :redirect
+    end
+
+    post shop_listing_questions_path(slug: listing.slug), params: { message: { body: "One too many" } }
+
+    assert_response :too_many_requests
+    assert_select "body[data-site=?]", "shop"
+    assert_select "h1", "Harbour at Dusk"
+    assert_select "form[action=?]", shop_listing_questions_path(slug: listing.slug)
+    assert_select "[role=alert]", text: /Too many requests/
+  end
+
+  test "conversation_open trips on repeated support requests and re-renders the account page" do
+    limit = RateLimits.fetch(:conversation_open)
+    create_admin
+    sign_in_as_customer(email: "supportseeker@example.com")
+
+    limit.count.times do
+      post shop_support_path
+      assert_response :redirect
+    end
+
+    post shop_support_path
+
+    assert_response :too_many_requests
+    assert_select "body[data-site=?]", "shop"
+    assert_select "h1", "Your account"
+    assert_select "[role=alert]", text: /Too many requests/
+  end
+
+  test "conversation_open trips on repeated fulfillment conversations and re-renders the order page" do
+    limit = RateLimits.fetch(:conversation_open)
+    sign_in_as_customer(email: "buyer@example.com")
+    post shop_add_to_cart_path(slug: create_listing.slug)
+    post shop_place_order_path, params: { email: "buyer@example.com", card_number: APPROVED_CARD }.merge(shipping_params)
+    order = visiting_customer.orders.order(:id).last
+    fulfillment = order.fulfillments.sole
+
+    limit.count.times do
+      post shop_fulfillment_conversation_path(order_id: order.id, id: fulfillment.id)
+      assert_response :redirect
+    end
+
+    post shop_fulfillment_conversation_path(order_id: order.id, id: fulfillment.id)
+
+    assert_response :too_many_requests
+    assert_select "body[data-site=?]", "shop"
+    assert_select "h1", "Order #{order.id}"
+    assert_select "[role=alert]", text: /Too many requests/
   end
 
   test "conversation_open resets once its window passes" do

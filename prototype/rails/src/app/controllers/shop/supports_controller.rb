@@ -13,5 +13,17 @@ module Shop
 
       redirect_to shop_conversation_path(conversation)
     end
+
+    private
+
+    # A tripped `conversation_open` comes back on the account page the
+    # "Contact support" button sits on, the sentence standing in for a field
+    # error — there is no body to preserve, since the button carries none.
+    def render_too_many_requests(trip)
+      @notifications = current_customer.notifications.order(created_at: :desc, id: :desc)
+      flash.now[:alert] = rate_limit_message(trip)
+
+      render "shop/account/show", status: :too_many_requests
+    end
   end
 end
