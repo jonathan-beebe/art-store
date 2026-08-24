@@ -90,8 +90,17 @@ flowchart TD
 ```
 
 `Order.place` builds the plan as the first statement inside the transaction
-that takes the stock, against the listing rows as they stand at that moment —
-so a listing another shopper claimed first is refused rather than oversold.
+that takes the stock, against the listing rows as they stand at that moment,
+after `OrderPlacement.lock_listings` locks them (`Listing.lock`, in ascending
+id order, so two placements locking the same listings cannot deadlock). Two
+shoppers cannot both take the last piece because Rails' SQLite3 adapter opens
+every top-level transaction with `BEGIN IMMEDIATE`, which serializes writers:
+a second placement's transaction cannot begin until the first has committed
+or rolled back, so its plan is always built against the first's outcome —
+the row lock states that intent in code (and is what would carry the
+guarantee on an adapter that runs transactions concurrently) but is not,
+under SQLite, what stops the interleaving.
+
 A blocked plan rolls the transaction back (`ActiveRecord::Rollback`) and
 `Order.place` hands back an unsaved order carrying `blocked_lines`, named and
 reasoned; `Shop::CheckoutsController#create` re-renders checkout at 422 with

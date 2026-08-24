@@ -194,6 +194,29 @@ half differs:
 9. **`allow_browser versions: :modern`** answers 406 to old browsers, which is
    stock Rails and the one place the prototype needs a modern browser it does
    not otherwise need.
+10. **An intermittent `RecordNotFound` was seen once in
+    `Shop::ConversationsControllerTest`** on a single full-suite run; it passed
+    on reruns and in isolation, and 24 further full-suite runs (5 with fixed
+    seeds, 19 with randomized ones) reproduced nothing. Two candidate causes
+    were investigated: `Message#broadcast_arrival` and `Conversation#read_by!`
+    writing Turbo Stream broadcasts to `solid_cable_messages` outside a test's
+    rollback is ruled out — `config/cable.yml` sets `adapter: test` for the
+    test environment, and `solid_cable_messages` holds zero rows both before
+    and after a full suite run. `PrefixedUlid`'s module-level `@clock`/`@value`
+    persisting across tests, combined with a clock that jumps backward (a
+    `travel_to`/`freeze_time` block, or `unused_id`'s un-frozen `Time.current`
+    landing behind an earlier frozen mint), does not look like a real
+    duplicate-id vector on inspection: every change in the millisecond
+    `next_value` sees — earlier or later than the last one — draws a fresh
+    80-bit random value, so only ids minted back-to-back on one unchanged
+    millisecond share a lineage, and those are unique by construction (a
+    monotonic counter that never resets). A "clock never goes backward" clamp
+    was tried and reverted: it broke two tests that deliberately rely on an
+    explicit past `at:` being embedded in the id exactly as given
+    (`PrefixedUlidTest#test_the_leading_digits_are_the_millisecond_the_caller's_clock_reads`,
+    `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
+    which is deliberate, tested behaviour, not a drift bug. The flake stands
+    unreproduced.
 
 ## Suggested next steps
 

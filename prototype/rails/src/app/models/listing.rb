@@ -143,8 +143,7 @@ class Listing < ApplicationRecord
   end
 
   # Whether an admin has pulled this listing off the storefront independent of
-  # its status. No admin removal exists yet in this prototype; FEAT-021 backs
-  # this with a listing_removals row.
+  # its status. Nothing in this prototype sets it yet.
   def actively_removed?
     false
   end

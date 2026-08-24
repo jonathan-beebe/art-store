@@ -61,10 +61,10 @@ class Order < ApplicationRecord
   # The cart becomes an order: every line keeps the title and price it was
   # bought at, the order splits into one fulfillment per seller with the
   # platform fee taken out, and the stock it claims leaves the storefront.
-  # What the cart holds is judged fresh inside the transaction that takes the
-  # stock, so a line another shopper claimed first is refused rather than
-  # oversold. An order checkout left incomplete or blocked comes back
-  # unsaved, so nothing moves.
+  # The transaction that takes the stock locks the listings the cart is about,
+  # in id order, before the plan reads them, so a line another shopper
+  # claimed first is refused rather than oversold. An order checkout left
+  # incomplete or blocked comes back unsaved, so nothing moves.
   def self.place(cart:, customer:, email:, shipping:, email_verified: false, at: Time.current)
     raise ArgumentError, "an order needs at least one item" if cart.empty?
 
@@ -82,7 +82,7 @@ class Order < ApplicationRecord
       fulfillments = nil
 
       transaction do
-        plan = OrderPlacement.plan(cart.items.includes(:listing))
+        plan = OrderPlacement.plan(OrderPlacement.lock_listings(cart.items))
         raise ActiveRecord::Rollback unless plan.ok?
 
         order.save!
@@ -186,8 +186,9 @@ class Order < ApplicationRecord
   # One charge attempt. The card decides where the order lands, a payments row
   # keeps what was tried, and the stock follows the status. A paid order holds
   # each seller's net in escrow and tells them their item sold. A retry that
-  # reclaims stock judges each item fresh, so a listing that sold out while
-  # the order sat unpaid refuses the charge instead of overselling.
+  # reclaims stock locks its items' listings, in id order, before judging
+  # each one fresh, so a listing that sold out while the order sat unpaid
+  # refuses the charge instead of overselling.
   def pay!(card_number, at: Time.current)
     Story.tell("order.pay", "charging the card for the order",
       order_id: id, amount_cents: total_cents) do |story|
@@ -254,7 +255,7 @@ class Order < ApplicationRecord
   def restock_plan(to)
     return nil unless holds_stock?(status) != holds_stock?(to) && holds_stock?(to)
 
-    OrderPlacement.plan(items.includes(:listing))
+    OrderPlacement.plan(OrderPlacement.lock_listings(items))
   end
 
   def move_stock(from, to, plan)

@@ -163,6 +163,20 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 1, Order.count
   end
 
+  test "placement locks the listings the cart holds, in id order, before reading their stock" do
+    low_tide = create_listing(title: "Low tide")
+    harbour = create_listing(title: "Harbour at dusk")
+    buyer = create_verified_customer
+    cart = cart_holding(buyer, low_tide, harbour)
+
+    locking_reads = capture_listing_locking_reads do
+      Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                  shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+    end
+
+    assert_equal 1, locking_reads.size
+  end
+
   test "a refused placement carries the blocked lines in the log" do
     buyer = create_verified_customer
     art = create_listing(title: "Harbour at Dusk")
@@ -302,6 +316,16 @@ class OrderTest < ActiveSupport::TestCase
       order.blocked_lines.map { |line| { listing_id: line.listing_id, title: line.title, reason: line.reason } }
     assert_equal 1, order.payments.count
     assert_equal 0, art.reload.quantity
+  end
+
+  test "a retry that reclaims stock locks its order's listings before reading them" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+
+    locking_reads = capture_listing_locking_reads { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
+
+    assert_equal 1, locking_reads.size
   end
 
   test "a stale retry carries the blocked lines in the log rather than failing" do
@@ -548,5 +572,24 @@ class OrderTest < ActiveSupport::TestCase
   # An order as checkout hands it over, before it is placed.
   def placeable(email: "ada@example.test", **overrides)
     Order.new(customer: create_anonymous_customer, email: email, **shipping_address(**overrides))
+  end
+
+  # The SQL statements block ran that read the listings table in ascending id
+  # order — the shape `OrderPlacement.lock_listings` issues, and not one a
+  # plain `includes(:listing)` read would produce on its own.
+  def capture_listing_locking_reads(&block)
+    reads = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      sql = payload[:sql]
+      reads << sql if sql.include?(%(FROM "listings")) && sql.include?(%(ORDER BY "listings"."id"))
+    end
+
+    begin
+      block.call
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    reads
   end
 end

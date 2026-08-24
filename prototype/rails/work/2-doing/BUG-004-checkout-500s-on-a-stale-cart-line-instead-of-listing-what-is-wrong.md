@@ -120,3 +120,73 @@ end-to-end today; that is the intended, documented gap FEAT-021 closes.
   on a single full-suite run (`RecordNotFound` looking up a conversation);
   it passed in isolation and on two subsequent full-suite reruns. Unrelated
   to this ticket's files — not chased further here.
+
+### Fix-up
+
+A review of this commit raised three defects; all three addressed here.
+
+**1. An unbacked concurrency claim.** Nothing locked the listing rows the
+placement plan read, so "two shoppers cannot both take the last piece" rested
+on the SQLite3 adapter's default transaction behaviour without saying so or
+testing it. Added `OrderPlacement.lock_listings(items)`: locks the listings
+`items` is about, in ascending id order (`Listing.lock.where(id: ...).order(:id)`
+— a stable order so two placements locking the same listings cannot deadlock),
+and points each item's cached `listing` association at the locked row, so the
+plan and the stock change that follows read the same rows. Wired into
+`Order.place`'s placement transaction and `Order#pay!`'s `restock_plan` (the
+`payment_failed -> paid` retry, the only other path that takes stock). Reading
+the actual Rails 8.1 SQLite3 adapter source
+(`activerecord-8.1.3.1/lib/active_record/connection_adapters/sqlite3/database_statements.rb`)
+found that `begin_db_transaction` already opens every top-level transaction
+with `BEGIN IMMEDIATE`, which serializes writers: a second placement's
+transaction cannot begin until the first has committed or rolled back, so
+its plan is always built against the first's outcome. That, not the row
+lock, is what stops the interleaving under SQLite — `Listing.lock` compiles
+to a plain `SELECT` there (confirmed by inspecting its `to_sql`), so it adds
+no SQLite-level locking of its own; it states the intent in code and is what
+would carry the guarantee on an adapter that runs transactions concurrently.
+`docs/orders.md` now says this. Added two tests
+(`OrderTest#"placement locks the listings the cart holds, in id order, before
+reading their stock"`, `OrderTest#"a retry that reclaims stock locks its
+order's listings before reading them"`) that subscribe to `sql.active_record`
+and assert a `SELECT ... FROM "listings" ... ORDER BY "listings"."id"` read
+runs — the shape `lock_listings` issues and a plain `includes(:listing)`
+would not — rather than a threaded concurrency test.
+
+**2. A code comment naming a future ticket.** `Listing#actively_removed?`'s
+comment named FEAT-021. Reworded to describe only current code: "Whether an
+admin has pulled this listing off the storefront independent of its status.
+Nothing in this prototype sets it yet." Swept the rest of `13ed4cc`'s diff
+for other code comments naming a ticket, "previously", or "now" — the only
+other ticket-naming line was in `docs/orders.md`, which tickets may
+reference.
+
+**3. The reported flake, chased.** Ran the full suite 24 times (5 with fixed
+seeds 1-5, 19 with randomized seeds), all green — could not reproduce the
+`RecordNotFound`. Investigated both candidate causes:
+  - `solid_cable_messages` outside the rollback boundary: ruled out.
+    `config/cable.yml` sets `adapter: test` for the test environment (an
+    in-memory Action Cable adapter), not `solid_cable`; queried
+    `solid_cable_messages` directly before and after a full suite run and it
+    held zero rows both times. `Message#broadcast_arrival` and
+    `Conversation#read_by!` never reach that table in tests.
+  - `PrefixedUlid`'s module-level `@clock`/`@value` under a clock that jumps
+    backward: read `next_value` closely. Every millisecond `next_value`
+    sees that differs from the last one — earlier or later — draws a fresh
+    80-bit random value; only ids minted back-to-back on one unchanged
+    millisecond share a counter, and that counter only ever increments, so
+    it cannot repeat a value. A literal duplicate would need two independent
+    80-bit random draws to coincide. Tried a "clock never goes backward"
+    clamp in `next_value` anyway, to see whether it would matter: it broke
+    two tests that deliberately rely on an explicit past `at:` being
+    embedded in the id exactly as given
+    (`PrefixedUlidTest#"the leading digits are the millisecond the caller's
+    clock reads"`, `PrefixedIdTest#"a row built under a frozen clock mints an
+    id stamped with that instant"`) — honoring an arbitrary `at:` is
+    deliberate, tested behaviour, not clock drift, so the clamp was reverted
+    and nothing in `prefixed_ulid.rb` changed.
+  - Recorded as known gap 10 in `docs/review.md` with both candidates and
+    what ruled them in or out. Not papered over with a retry or a skip.
+
+Numbers after the fix-up: 807 -> 809 runs (2687 -> 2689 assertions), 0
+failures, 0 errors. Coverage: 100% line (1587/1587). `make check` green.

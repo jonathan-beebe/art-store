@@ -18,6 +18,23 @@ class OrderPlacement
       new(items)
     end
 
+    # Locks the listing every item in +items+ is about, in ascending id
+    # order — a stable order so two callers locking the same listings cannot
+    # deadlock on each other — and points each item's cached listing at the
+    # locked row. Call inside the transaction that will act on the plan,
+    # before building it, so the plan and whatever takes or restores stock
+    # afterward read the same rows.
+    def lock_listings(items)
+      items = items.to_a
+      listing_ids = items.map(&:listing_id).uniq
+      return items if listing_ids.empty?
+
+      locked = Listing.lock.where(id: listing_ids).order(:id).index_by(&:id)
+      items.each { |item| item.association(:listing).target = locked.fetch(item.listing_id) }
+
+      items
+    end
+
     # Which reason blocks a line, or nil when nothing does. A removal
     # outranks whatever the status says; sold outranks a bare quantity of
     # zero reading as merely out of stock.
