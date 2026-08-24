@@ -155,3 +155,27 @@ what the ticket and Node's reference both call out on purpose.
   `handle()`-time write — the write happens after the response is already
   sent, so it is free on the request it counts. Node's `onResponse` hook is
   the same idea in Fastify's terms.
+
+### Review fix-up
+
+Two claims the ticket made were not held down by an assertion. Both are
+missing tests, not broken code.
+
+`/admin/ledger`'s filter tests checked which rows came back but never the
+four `data-stat` tiles above them, so "folded totals for the filtered set"
+(docs/alignment.md §5) rested on the controller's comment alone.
+`LedgerControllerTest` now builds two sellers with different balances — one
+sale delivered, one delivered and one still awaiting shipment — and reads the
+tiles three ways: unfiltered ($180.00 held, $135.00 available), `seller=`
+($180.00 held, $45.00 available), and `type=held` ($315.00 held, $0.00
+available). A tile showing the platform total under a filter fails all three.
+
+`LedgerBalancesTest`'s `total()` case asserted `held` and `available` only,
+while the claim under test is that `LedgerBalance::combine()` is valid for
+all four fields. It now folds a seller carrying money in every field — hold,
+release, refund netted against that fulfillment's escrow, and a payout — and
+asserts `paidOut` and `refunded` sum alongside the other two.
+
+**What Node and Rails must match:** the ledger browser's totals are the
+filtered set's, not the platform's, and the per-seller fold sums correctly in
+all four fields.

@@ -27,6 +27,32 @@ it('filters by seller, folding the total to that seller\'s entries alone', funct
     expect($content)->not->toMatch('/data-cell="seller"[\s\S]*?Blue Kiln Studio/');
 });
 
+it('folds the totals tiles to the filtered set rather than the platform', function (): void {
+    // Blue Kiln: one sale delivered, so $90.00 released and nothing held.
+    // Rye Press: one sale delivered ($45.00 released) and one still awaiting
+    // shipment ($180.00 held).
+    $this->deliveredFulfillmentFor($this->seller('Blue Kiln Studio'), priceCents: 10000);
+    $rye = $this->seller('Rye Press');
+    $this->deliveredFulfillmentFor($rye, priceCents: 5000);
+    $this->paidFulfillmentFor($rye, priceCents: 20000);
+    $admin = $this->admin();
+
+    $platform = (string) $this->actingAs($admin, 'admin')->get('/admin/ledger')->getContent();
+    $bySeller = (string) $this->actingAs($admin, 'admin')->get('/admin/ledger?seller='.$rye->id)->getContent();
+    $byType = (string) $this->actingAs($admin, 'admin')->get('/admin/ledger?type=held')->getContent();
+
+    expect($platform)->toContain('data-stat="held">$180.00')
+        ->and($platform)->toContain('data-stat="available">$135.00');
+
+    expect($bySeller)->toContain('data-stat="held">$180.00')
+        ->and($bySeller)->toContain('data-stat="available">$45.00');
+
+    // Every hold the ledger holds, none of the releases that emptied two of
+    // them: $90.00 + $45.00 + $180.00.
+    expect($byType)->toContain('data-stat="held">$315.00')
+        ->and($byType)->toContain('data-stat="available">$0.00');
+});
+
 it('filters by type, leaving every other type out', function (): void {
     $this->deliveredFulfillmentFor($this->seller(), priceCents: 10000);
 
