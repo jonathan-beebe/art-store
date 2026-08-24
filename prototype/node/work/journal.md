@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:06:00:00 — FEAT-019 — started
+- 2026-08-24:05:59:00 — BUG-007 — done: `GET /admin/orders/:id` (customer, items, payments, fulfillments) and `GET /admin/fulfillments/:id` (order, seller, status, items, ledger entries) with unscoped admin query modules, list rows linked, wrong-prefix and unknown ids answering the same 404 body; refunds section and action forms left to FEAT-019; 1623 -> 1631 tests, coverage 99.53/97.34/99.51; reviewer found no defects
 - 2026-08-24:05:00:00 — BUG-007 — started
 - 2026-08-24:04:59:00 — IMPRV-009 — done: one JSON payload per §2.1 (ts/level/event/phase/msg + request_id/session_id/actor_type/actor_id/txn_id/data/error/duration_ms), `sid` session cookie surviving sign-in and sign-out, `txn_id` minted where the transaction opens, every write action telling will -> did/refused/failed, 20 events renamed to the imperative and 20 newly emitted; 1575 -> 1623 tests, coverage 99.53/97.32/99.51; reviewer: accept-with-fixes, the only finding a proposed §2.1 amendment (duration_ms on refused)
 - 2026-08-23:23:20:00 — IMPRV-009 — started
