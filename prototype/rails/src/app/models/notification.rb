@@ -9,7 +9,7 @@ class Notification < ApplicationRecord
     deliver(
       recipient: fulfillment.seller,
       subject: "Item sold",
-      body: "Order ##{fulfillment.order_id} is paid. #{fulfillment.net.format} is held until the customer confirms delivery."
+      body: "Order #{fulfillment.order_id} is paid. #{fulfillment.net.format} is held until the customer confirms delivery."
     )
   end
 
@@ -17,7 +17,7 @@ class Notification < ApplicationRecord
     deliver(
       recipient: fulfillment.order.customer,
       subject: "Order shipped",
-      body: "Order ##{fulfillment.order_id} shipped with #{fulfillment.carrier}. " \
+      body: "Order #{fulfillment.order_id} shipped with #{fulfillment.carrier}. " \
             "Tracking number #{fulfillment.tracking_number}."
     )
   end
@@ -28,7 +28,7 @@ class Notification < ApplicationRecord
     deliver(
       recipient: fulfillment.order.customer,
       subject: "Order refunded",
-      body: "#{fulfillment.seller.display_name} could not fulfill part of order ##{fulfillment.order_id}. " \
+      body: "#{fulfillment.seller.display_name} could not fulfill part of order #{fulfillment.order_id}. " \
             "#{refund.amount.format} is on its way back to you. Reason: #{refund.reason}"
     )
   end
@@ -38,12 +38,12 @@ class Notification < ApplicationRecord
     deliver(
       recipient: fulfillment.order.customer,
       subject: "Order refunded",
-      body: "#{refund.amount.format} of order ##{fulfillment.order_id} has been refunded. Reason: #{refund.reason}"
+      body: "#{refund.amount.format} of order #{fulfillment.order_id} has been refunded. Reason: #{refund.reason}"
     )
     deliver(
       recipient: fulfillment.seller,
       subject: "Sale refunded",
-      body: "The platform refunded #{refund.amount.format} of order ##{fulfillment.order_id}. " \
+      body: "The platform refunded #{refund.amount.format} of order #{fulfillment.order_id}. " \
             "#{fulfillment.net.format} has been taken back off your balance. Reason: #{refund.reason}"
     )
   end
@@ -54,13 +54,13 @@ class Notification < ApplicationRecord
     deliver(
       recipient: order.customer,
       subject: "Order cancelled",
-      body: "Order ##{order.id} has been cancelled. Nothing was charged."
+      body: "Order #{order.id} has been cancelled. Nothing was charged."
     )
     order.fulfillments.includes(:seller).each do |fulfillment|
       deliver(
         recipient: fulfillment.seller,
         subject: "Order cancelled",
-        body: "Order ##{order.id} has been cancelled. Your items are back on the storefront."
+        body: "Order #{order.id} has been cancelled. Your items are back on the storefront."
       )
     end
   end

@@ -10,7 +10,7 @@ class NotificationTest < ActiveSupport::TestCase
     assert_equal shop, notification.recipient
     assert_equal "Item sold", notification.subject
     assert_equal(
-      "Order ##{fulfillment.order_id} is paid. $405.00 is held until the customer confirms delivery.",
+      "Order #{fulfillment.order_id} is paid. $405.00 is held until the customer confirms delivery.",
       notification.body
     )
   end
@@ -25,7 +25,7 @@ class NotificationTest < ActiveSupport::TestCase
     assert_equal buyer, notification.recipient
     assert_equal "Order shipped", notification.subject
     assert_equal(
-      "Order ##{fulfillment.order_id} shipped with USPS. Tracking number 9400111899.",
+      "Order #{fulfillment.order_id} shipped with USPS. Tracking number 9400111899.",
       notification.body
     )
   end

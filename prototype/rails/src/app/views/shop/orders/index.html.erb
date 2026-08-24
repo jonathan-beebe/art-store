@@ -9,7 +9,7 @@
     <% @orders.each do |order| %>
       <li class="flex flex-wrap items-baseline justify-between gap-6 py-6">
         <div>
-          <%= link_to "Order ##{order.id}", shop_order_path(order), class: "text-lg" %>
+          <%= link_to "Order #{order.id}", shop_order_path(order), class: "text-lg" %>
           <p class="mt-1 text-base text-neutral-500"><%= order.items.map(&:title).join(", ") %></p>
         </div>
 

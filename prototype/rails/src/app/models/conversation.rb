@@ -29,7 +29,7 @@ class Conversation < ApplicationRecord
     "admin_customer" => Kind.new(sides: %i[admin customer], subject_type: nil, topic: ->(_) { SUPPORT_DESK }),
     "fulfillment" => Kind.new(
       sides: %i[seller customer], subject_type: "Fulfillment",
-      topic: ->(fulfillment) { "order ##{fulfillment.order_id}" }
+      topic: ->(fulfillment) { "order #{fulfillment.order_id}" }
     ),
     "listing_question" => Kind.new(
       sides: %i[seller customer], subject_type: "Listing",

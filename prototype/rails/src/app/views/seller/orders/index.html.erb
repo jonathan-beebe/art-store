@@ -27,7 +27,7 @@
             <% fulfillments.each do |fulfillment| %>
               <tr data-fulfillment="<%= fulfillment.id %>">
                 <th scope="row" class="px-4 py-2 font-normal">
-                  <%= link_to "##{fulfillment.order_id}", seller_order_path(fulfillment), class: "font-medium underline" %>
+                  <%= link_to "#{fulfillment.order_id}", seller_order_path(fulfillment), class: "font-medium underline" %>
                 </th>
                 <td class="px-4 py-2"><%= fulfillment.order.shipping_name %></td>
                 <td class="px-4 py-2"><%= fulfillment.items.map(&:title).join(", ") %></td>

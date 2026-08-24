@@ -241,7 +241,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     @seller_browser.assert_response :success
     @seller_browser.assert_select "[data-notification] p", text: /Item sold/
-    @seller_browser.assert_select "[data-notification] p", text: /Order ##{order.id} is paid/
+    @seller_browser.assert_select "[data-notification] p", text: /Order #{order.id} is paid/
 
     @seller_browser.get seller_orders_path
     @seller_browser.assert_select "[data-group=awaiting_shipment] td", text: LISTING_TITLE

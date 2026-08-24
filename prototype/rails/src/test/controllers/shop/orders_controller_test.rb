@@ -8,7 +8,7 @@ module Shop
       get shop_orders_path
 
       assert_response :success
-      assert_select "a", text: "Order ##{order.id}"
+      assert_select "a", text: "Order #{order.id}"
       assert_select "p", text: "Harbour at Dusk"
       assert_select "p", text: "Paid"
     end

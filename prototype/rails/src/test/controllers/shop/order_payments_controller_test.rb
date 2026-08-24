@@ -8,7 +8,7 @@ module Shop
       get shop_order_payment_path(order)
 
       assert_response :success
-      assert_select "h1", text: "Pay for order ##{order.id}"
+      assert_select "h1", text: "Pay for order #{order.id}"
       assert_select "input[name=card_number]"
     end
 

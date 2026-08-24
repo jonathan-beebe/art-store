@@ -1,7 +1,7 @@
-<% content_for :title, "Order ##{@fulfillment.order_id} — Art Store seller" %>
+<% content_for :title, "Order #{@fulfillment.order_id} — Art Store seller" %>
 
 <div class="flex flex-wrap items-center gap-4">
-  <h1 class="text-lg font-semibold">Order #<%= @fulfillment.order_id %></h1>
+  <h1 class="text-lg font-semibold">Order <%= @fulfillment.order_id %></h1>
   <p data-cell="status" class="text-neutral-600"><%= status_label(@fulfillment.status) %></p>
   <%= button_to "Message the customer", seller_order_conversation_path(@fulfillment),
         form_class: "ml-auto", class: "rounded border border-neutral-400 bg-white px-3 py-1 font-medium" %>

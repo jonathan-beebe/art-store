@@ -1,6 +1,6 @@
-<% content_for :title, "Order ##{@order.id} — Art Store" %>
+<% content_for :title, "Order #{@order.id} — Art Store" %>
 
-<h1 class="text-4xl font-light tracking-tight">Order #<%= @order.id %></h1>
+<h1 class="text-4xl font-light tracking-tight">Order <%= @order.id %></h1>
 
 <p class="mt-3 text-lg text-neutral-500">
   <span data-order-status><%= status_label(@order.status) %></span> &middot; <%= @order.total.format %>

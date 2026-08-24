@@ -413,7 +413,7 @@ class ConversationTest < ActiveSupport::TestCase
 
     conversation = Conversation.open(kind: :fulfillment, seller: shop, customer: buyer, subject: fulfillment)
 
-    assert_equal "order ##{fulfillment.order_id}", conversation.topic
+    assert_equal "order #{fulfillment.order_id}", conversation.topic
   end
 
   test "a question is about the listing it was asked on" do

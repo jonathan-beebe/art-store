@@ -111,7 +111,7 @@ class CustomerTest < ActiveSupport::TestCase
   test "a visitor who has given no address is displayed by their id" do
     anonymous = create_anonymous_customer
 
-    assert_equal "Visitor ##{anonymous.id}", anonymous.display_name
+    assert_equal "Visitor #{anonymous.id}", anonymous.display_name
   end
 
   test "absorb moves the history of the anonymous customer" do

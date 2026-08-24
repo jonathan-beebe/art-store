@@ -110,7 +110,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     get seller_listing_path(listing)
 
     assert_select "[data-sale]", 1
-    assert_select "[data-sale] th", text: "##{order.id}"
+    assert_select "[data-sale] th", text: "#{order.id}"
     assert_select "[data-cell=order_status]", text: "Paid"
   end
 

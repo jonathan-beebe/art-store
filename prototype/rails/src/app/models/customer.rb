@@ -187,7 +187,7 @@ class Customer < ApplicationRecord
   # A customer gives an address before they give a name, and a visitor gives
   # neither, so the display falls back through what is there.
   def display_name
-    name.to_s.strip.presence || email.to_s.split("@").first.presence || "Visitor ##{id}"
+    name.to_s.strip.presence || email.to_s.split("@").first.presence || "Visitor #{id}"
   end
 
   # The cart a customer shops from: the one holding the most items, if more
