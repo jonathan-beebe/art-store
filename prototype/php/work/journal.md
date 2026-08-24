@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-23:21:55:00 — FEAT-019 — started
 - 2026-08-23:21:11:00 — FEAT-018 — started
 - 2026-08-23:21:10:00 — MAINT-003 — done: make vocabulary complete, check = lint -> assets -> test, test gated at 100% coverage, .github/workflows/php.yml runs make check; 1111 tests, 2503 assertions
 - 2026-08-23:20:45:00 — MAINT-003 — started
