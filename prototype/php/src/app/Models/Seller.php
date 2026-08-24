@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Escrow\LedgerMovement;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\SellerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -23,7 +24,13 @@ class Seller extends Authenticatable
     /** @use HasFactory<SellerFactory> */
     use HasFactory;
 
+    use HasPrefixedUlid;
     use Notifiable;
+
+    public static function idPrefix(): string
+    {
+        return 'sel';
+    }
 
     /**
      * @return array<string, string>

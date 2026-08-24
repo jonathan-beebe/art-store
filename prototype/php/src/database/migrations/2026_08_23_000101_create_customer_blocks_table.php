@@ -11,8 +11,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customer_blocks', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->string('reason');
             // "At most one active block" is the action's rule, not a partial
             // unique index here — SQLite has no partial unique index.

@@ -8,12 +8,15 @@ use App\Actions\Messaging\PostMessage;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Fulfillment;
 use App\Models\Message;
 use App\Support\CustomerIdentity;
+use Illuminate\Support\Facades\Config;
+use Tests\CapturedStory;
 
 it('lists the admins threads newest first with who, what, and unread count', function (): void {
     $admin = $this->admin();
@@ -180,7 +183,7 @@ it('names an order thread and a support thread by their fulfillment counterpart'
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
-    $response->assertDontSee("Order #{$fulfillment->order_id}");
+    $response->assertDontSee("Order {$fulfillment->order_id}");
 });
 
 it('carries a sellers support request to the admin and the answer back', function (): void {
@@ -263,7 +266,9 @@ it('renders the inbox on a fixed number of queries however many threads the admi
     }
 
     $response = $this->actingAs($admin, 'admin')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(7)
         ->get('/admin/messages');
 
     $response->assertOk();
@@ -273,4 +278,31 @@ it('sends a guest to the admin login page', function (): void {
     $response = $this->get('/admin/messages');
 
     $response->assertRedirect(route('auth.admin.login'));
+});
+
+it('trips the message-post limit on the admin site, handing the thread back with the reply still in the box', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->adminSeller()->create(['admin_id' => $admin->id]);
+    $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", ['body' => 'First reply.']);
+
+    $log = CapturedStory::capture();
+    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", ['body' => 'Second reply.']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('Art Store admin', escape: false);
+    $response->assertSee('First reply.');
+    $response->assertSee('>Second reply.</textarea>', escape: false);
+    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second reply.')->exists())->toBeFalse();
+
+    $line = $log->line('rate_limit.exceed', 'refused');
+
+    /** @var array<string, mixed> $data */
+    $data = $line['data'];
+
+    expect($line['level'])->toBe('warn')
+        ->and($data['limit'])->toBe('message_post')
+        ->and($data['key'])->toBe($admin->id);
 });

@@ -97,6 +97,213 @@ the exception a test drives with `Sleep::fake(syncWithCarbon: true)`, which
 advances the frozen clock by each faked sleep so the loop reaches its deadline
 without waiting.
 
+## Logging
+
+`docs/alignment.md` §2 is the contract. Every log line is one JSON object on
+stdout, in every environment: `config/logging.php` has one channel that writes
+lines, `stdout`, and it is the default everywhere. `App\Logging\StoryFormatter`
+is the Monolog formatter that spells the payload.
+
+| Field | Always | Where it comes from |
+| --- | --- | --- |
+| `ts` | yes | the record's time, ISO-8601 UTC with milliseconds |
+| `level` | yes | `debug` \| `info` \| `warn` \| `error` |
+| `event` | yes | `App\Logging\StoryEvent` — the §2.3 vocabulary |
+| `phase` | yes | `App\Logging\StoryPhase` |
+| `msg` | yes | one sentence, present tense for `will`/`doing`, past for `did` |
+| `request_id` | on requests | `LogRequestStory`, through `Log::withContext()` |
+| `session_id` | on requests, from the group inward | `NameRequestVisitor`, the same way |
+| `actor_type`, `actor_id` | when known | the same, plus `ResolveCustomerIdentity` for a brand-new visitor |
+| `txn_id` | inside a unit of work | minted by `Story::will()` |
+| `data` | when useful | the small facts the line is about; every id is a prefixed id |
+| `error` | on `failed` | `{type, message}`, plus `stack` while `APP_DEBUG` is on |
+| `duration_ms` | on `did`/`failed` after a `will` | wall time since the `will` line |
+
+### The phases
+
+`App\Support\Story` writes them. A unit of work opens with `will` and ends
+exactly once — `did` when it happened, `refused` when the core turned it down
+and the world is unchanged (`info`, because a rule held), `failed` when
+something nobody planned for escaped it (`error`, carrying the exception).
+`doing` marks a long step in between.
+
+`Story::tell($message, $data, $work)` is how an action says all of that at
+once: it writes `will`, runs the work, and ends the unit whichever way the
+work leaves — the work names its own `did`, a `DomainRuleViolation` becomes
+`refused`, anything else becomes `failed`, and both still reach the caller.
+Every path closes the unit, so a `txn_id` cannot outlive the work that minted
+it and name a later line.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant M as LogRequestStory
+    participant C as CheckoutController
+    participant A as PlaceOrder
+    participant L as stdout
+
+    B->>M: POST /checkout
+    M->>L: http.request will — request_id
+    M->>C: next() — through NameRequestVisitor, which adds session and actor
+    C->>A: place the order
+    A->>L: order.place will — txn_id minted
+    A->>L: order.place did — txn_id, duration_ms
+    A-->>C: order
+    C-->>M: 302
+    M->>L: http.request did — status, duration_ms
+    M-->>B: 302 + X-Request-Id
+```
+
+### Two middlewares, not one
+
+`LogRequestStory` is the outermost middleware in the application, ahead of
+every group. A request that matches no route and one the forgery guard
+refuses never reach a group, and a 404 is the line an operator goes looking
+for first; both come back through it as an ordinary response, because the
+framework's pipeline renders an exception into one at the stage that raised
+it. Running that early costs the session and the guards, so `session_id`,
+`actor_type`, and `actor_id` are added by `NameRequestVisitor`, appended to
+the `web` group where cookies are decrypted and the session has started.
+Every line from there on carries them; the request's own `will` line, written
+before the group, carries `request_id` alone.
+
+A request that ends in an exception is answered by the exception handler
+rather than by the middleware that opened it, so `bootstrap/app.php` stamps
+`X-Request-Id` on the handler's response from the id the middleware left on
+the request.
+
+### The three ids
+
+- `request_id` (`req_…`) is one HTTP request. It goes back in the
+  `X-Request-Id` response header, and an incoming header is honoured only when
+  it matches `^[A-Za-z0-9_-]{1,64}$`.
+- `session_id` (`ses_…`) is one browser. It lives in the `sid` cookie for a
+  year, is minted on the first response a browser gets, and neither sign-in nor
+  sign-out changes it. It is separate from `customer_id`, which names the
+  visitor rather than the browser.
+- `txn_id` (`txn_…`) is one unit of work. `Story::will()` mints it, and every
+  line written before that story ends carries it — the action's own, and the
+  ledger entries and notifications that fall out of it. A request is not a unit
+  of work, so `http.request` carries none. All three are minted by
+  `App\Support\IdMint`, the same value object every row's key comes from.
+
+### What this prototype emits
+
+`http.request`, `magic_link.request`, `magic_link.consume`, `customer.merge`,
+`listing.create`, `listing.update`, `listing.publish`, `listing.transition`,
+`listing.view`, `cart.add`, `cart.update`, `cart.remove`, `order.place`,
+`order.pay`, `order.cancel`, `order.sweep`, `fulfillment.ship`,
+`fulfillment.deliver`, `fulfillment.decline`, `refund.issue`, `ledger.write`,
+`payout.run`, `payout.pay`, `conversation.open`, `message.post`,
+`faq.publish`, `faq.unpublish`, `notification.write`, `notification.deliver`,
+`moderation.block_customer`, `moderation.lift_customer_block`, `migrate.run`,
+`migrate.apply`, `seed.run`, `app.boot`, `app.shutdown`.
+
+`rate_limit.exceed` comes from `RateLimitGate` at `warn`;
+`moderation.remove_listing` and `moderation.lift_listing_removal` come from
+the two actions behind the admin's removal routes.
+
+Domain events are emitted by the action that does the work. Three are not:
+`ledger.write` comes from `LedgerEntryObserver`, so all three writers of a
+ledger entry are covered by one place; `app.boot`, `app.shutdown`,
+`migrate.run`, `migrate.apply`, `notification.write`, and
+`notification.deliver` come from `LoggingServiceProvider`, which listens for
+the framework events that already announce them.
+
+### Redaction
+
+No cookie value, magic-link token, card number, or email address reaches
+`data`. An actor's id identifies them. `LogRequestStory` runs before the
+router has resolved anything, so it matches the magic-link path itself and
+logs `GET /auth/magic/<token>` as `/auth/magic/{token}`. `CheckoutControllerTest` and
+`SendMagicLinkTest` each assert it over the whole captured log.
+
+The same rule covers the session: a card number never reaches the old input a
+re-rendered form reads (`ShopRequest::CARD_FIELDS`, and `bootstrap/app.php` for
+the validation redirect and a `DomainRuleViolation`'s `back()->withInput()`).
+
+### Reading the log in a test
+
+`Tests\CapturedStory` swaps a Monolog handler carrying the same
+`StoryFormatter` behind the `Log` facade, so a test reads the JSON a reader
+would: `lines()`, `linesFor($event)`, `line($event, $phase)`, `outline()` for
+the story in order, and `raw()` for the assertions that something appears
+nowhere. `phpunit.xml` points `LOG_CHANNEL` at `null` so the suite's own output
+stays readable.
+
+## Rate limits and security headers
+
+docs/alignment.md §3 fixes seven limits, one env variable each, read at boot:
+`App\Domain\RateLimiting\RateLimitValue::parse()` turns `"<count>/<window>"`
+(or `"off"`) into a budget, and `config/rate_limits.php` calls it once per
+`App\Domain\RateLimiting\RateLimitName` case while the config file loads — a
+malformed value throws there, before the process ever answers a request.
+Both are pure: no `Illuminate`, no clock, no random.
+
+`App\Support\RateLimiting\RateLimitGate` is the one place a limit is checked
+and, if it holds, hit: it wraps `Illuminate\Cache\RateLimiter` over the
+default cache store (`database`, so a count survives a restart the way an
+in-memory one would not), and `checkEach()` looks at every key before
+recording a hit against any of them — `magic_link_request`'s email and ip
+budgets each trip on their own count, independently, and a request refused
+on one key leaves no mark against the other. A trip throws
+`App\Domain\RateLimiting\RateLimitExceeded` after writing the
+`rate_limit.exceed` line itself (`warn`, `data.limit`, `data.key`,
+`data.retry_after_seconds`) — the log line, the throw, and (through the
+key) the redaction all happen in the one place, so no caller can do one
+without the other.
+
+A limit's key never reaches the log as an email address: the caller hashes
+it first (`'email:'.hash('sha256', EmailNormalizer::normalize($email))`)
+before it ever reaches the gate, so the gate has nothing to redact and the
+cache key and the logged key are the same hash. Every other key — a
+prefixed id, an ip — is already safe to log under docs/alignment.md §2.1.
+
+Where each limit is checked runs ahead of the write it guards, inside the
+action that would otherwise perform it, so a trip leaves no side effect:
+
+| Limit | Checked in | Key |
+| --- | --- | --- |
+| `magic_link_request` | the three login `send()` methods; `CheckoutController::place()` for a guest's implicit link | `email:<hash>` and `ip:<ip>`, independently |
+| `magic_link_consume` | `MagicLinkVerificationController` | `ip:<ip>` |
+| `message_post` | every `MessageController::store()`; `Admin\SellerMessageController` and `Admin\CustomerMessageController` | the poster's own id |
+| `conversation_open` | `ListingQuestionController`, `SupportController` (shop and seller), `OrderMessageController` (shop and seller) | the opener's own id |
+| `checkout` | `CheckoutController::place()` | the customer's id |
+| `payment_attempt` | `OrderPaymentController::pay()` | the order's id |
+| `listing_write` | `Seller\ListingController::store()` and `update()` | the seller's id |
+
+On a trip: HTTP 429, `Retry-After: <seconds>`, one `rate_limit.exceed` line,
+no side effect. The response body splits two ways. A route the visitor
+reached by filling in a field catches `RateLimitExceeded` itself and
+re-renders the page that field sits on — the three sign-ins, checkout, pay,
+the seller's listing create/edit, every message `store()` (shop, seller,
+admin), the admin's two message forms on the seller and customer pages, and
+the storefront's ask-the-seller form. Each flashes the input first, so the
+`body` textarea and every other field come back filled from `old()`, and
+each renders through `Controller::tooManyRequests()`, which shares a
+`ViewErrorBag` holding the sentence under a synthetic key (`errors->any()`
+shows it the way every other page-level refusal already does, field-less
+because no real form field matches it). What is left is a route with no
+field to give back — the shop's and seller's support and order-thread
+buttons, and the magic-link verification GET — and it falls through to a
+matching `$exceptions->render()` in `bootstrap/app.php`, which picks the
+site by path the same way `redirectGuestsTo()` does and renders that site's
+own `resources/views/errors/rate-limited-{shop,seller,admin}.blade.php`.
+
+Client ip (`$request->ip()`) is the socket's own unless `TRUSTED_PROXIES` is
+set, in which case `bootstrap/app.php` wires Laravel's `TrustProxies` from
+it (a comma list of IPs/CIDRs, or `*`) and reads the first
+`X-Forwarded-For` value instead.
+
+`App\Http\Middleware\SecurityHeaders` sits in the global middleware stack
+(not the `web` group — a route that matches nothing still needs to answer
+with these, the way `LogRequestStory` is global for the same reason) and
+sets, on every response: `Content-Security-Policy` (`default-src 'self'`,
+`img-src 'self' data:` for a listing's inline SVG placeholder, `form-action
+'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, and, in production only,
+`Strict-Transport-Security`.
+
 ## Sites
 
 | Site | URL prefix | Guard | Theme |
@@ -263,8 +470,9 @@ moves `awaiting_shipment → shipped → delivered`.
   one `payouts` row per seller for all `released` amounts not yet paid out, as
   of the end of the most recent completed week. Period math is pure
   (`App\Domain\Escrow\PayoutPeriod`). `routes/console.php` schedules it
-  `weeklyOn(1, '02:00')` — the Monday after a period closes. The seller portal
-  exposes a debug "Run weekly payout now" button for testing.
+  `weeklyOn(1, '02:00')` — the Monday after a period closes. `POST
+  /admin/payouts` runs the same action for every seller; the seller portal
+  offers no control that runs one.
 - One query reads the whole ledger: `LedgerEntry::totalledByType()` sums
   `amount_cents` per (seller, type), and `LedgerBalance::from()` folds those
   summed movements. The payout run bounds it by `occurred_at <= period.end`;
@@ -308,14 +516,16 @@ flowchart LR
   `ShouldHandleEventsAfterCommit`, so a rolled-back transaction tells nobody
   and no delivery runs with the transaction still open.
 - Notifications (`App\Notifications\ItemSold`,
-  `App\Notifications\OrderShipped`) extend
-  `Illuminate\Notifications\Notification`. `via()` reads
+  `App\Notifications\OrderShipped`, `App\Notifications\MessageReceived`)
+  extend `App\Notifications\PrefixedUlidNotification`, which gives each one a `ntf_`
+  id before it is sent so the row carries the platform's id shape rather than
+  the framework's UUID. `via()` reads
   `config('notifications.channels')` — `database` alone by default, with
   `mail` a comma away; `toArray()` and `toMail()` both come from
   `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
   email say the same thing.
 - `Seller`, `Customer`, and `Admin` are `Notifiable`. Rows land in Laravel's
-  `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
+  `notifications` table (`ntf_` id, `type`, `notifiable_type`/`notifiable_id`,
   `data` json, `read_at`) and are read back as
   `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
   morph alias `seller`, `customer`, or `admin`, which is what
@@ -399,13 +609,14 @@ flowchart LR
   writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
-- The gate: `make check` (`composer check`) runs Pint (`declare_strict_types`
-  enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
-  `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
-  config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (1107 tests, 2491 assertions). `make analyse` and `make lint` run
-  the first two alone, against the file tree only (`--no-deps`, no web
-  server).
+- The gate: `make check` runs `lint`, then `assets`, then `test`, stopping at
+  the first failure. `lint` runs Pint (`declare_strict_types` enforced
+  tree-wide via the `laravel` preset), then PHPStan/Larastan at `level: max`
+  over `app`, `database`, `routes`, and `tests` (model casts and config types
+  understood via `parseModelCastsMethod` and `checkConfigTypes`), against the
+  file tree only (`--no-deps`, no web server). `assets` builds the Tailwind
+  CSS. `test` runs the full Pest suite under pcov, gated at 100% of lines
+  (`--min=100`). `make analyse` runs PHPStan alone.
 - Sidecar tests are analysed at the same level as the code they cover: there
   are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
   test case, the custom expectations, and the arch DSL through traits and

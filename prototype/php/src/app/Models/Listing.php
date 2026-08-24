@@ -8,7 +8,9 @@ use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
+use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
 use Closure;
 use Database\Factories\ListingFactory;
@@ -20,6 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Override;
 
@@ -38,6 +41,13 @@ class Listing extends Model
 {
     /** @use HasFactory<ListingFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'lst';
+    }
 
     /**
      * @return array<string, string>
@@ -82,6 +92,41 @@ class Listing extends Model
         return $this->hasMany(ListingFaq::class);
     }
 
+    /** @return HasMany<ListingRemoval, $this> */
+    public function removals(): HasMany
+    {
+        return $this->hasMany(ListingRemoval::class);
+    }
+
+    /** @return HasOne<ListingRemoval, $this> */
+    public function activeRemoval(): HasOne
+    {
+        return $this->removals()->one()->whereNull('lifted_at')->latestOfMany('created_at');
+    }
+
+    /**
+     * A fresh read rather than the loaded relation, so a caller that never
+     * eager-loaded `activeRemoval` still gets an answer under strict mode.
+     */
+    public function currentRemoval(): ?ListingRemoval
+    {
+        return $this->activeRemoval()->first();
+    }
+
+    public function hasActiveRemoval(): bool
+    {
+        return $this->currentRemoval() !== null;
+    }
+
+    /**
+     * The admin's own words for why this listing is off the storefront, for
+     * the seller's own page. Null when nothing is removed.
+     */
+    public function removalReason(): ?string
+    {
+        return $this->currentRemoval()?->reason;
+    }
+
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);
@@ -90,6 +135,25 @@ class Listing extends Model
     public function isPurchasable(): bool
     {
         return ListingAvailability::isPurchasable($this->status, $this->quantity);
+    }
+
+    /**
+     * Whether `/art/{slug}` answers this listing or a 404 — a removal
+     * outranks whatever `status` says, the same as browse and search.
+     */
+    public function isOnStorefront(): bool
+    {
+        return ListingAvailability::isOnStorefront($this->status, $this->hasActiveRemoval());
+    }
+
+    /**
+     * The transitions the seller's own page offers right now.
+     *
+     * @return list<ListingStatus>
+     */
+    public function availableTransitions(): array
+    {
+        return ListingAvailability::availableTransitions($this->status, $this->hasActiveRemoval());
     }
 
     /**
@@ -135,11 +199,140 @@ class Listing extends Model
             : Storage::disk('public')->url($this->image_path);
     }
 
-    /** @param Builder<$this> $query */
+    /**
+     * The storefront's own listing set: for sale, and clear of any active
+     * removal — a removed listing stays `for_sale` in the row, so status
+     * alone is not enough to keep it out of browse and search.
+     *
+     * @param  Builder<$this>  $query
+     */
     #[Scope]
     protected function forSale(Builder $query): void
     {
-        $query->where('status', ListingStatus::ForSale);
+        $query->where($query->qualifyColumn('status'), ListingStatus::ForSale)->notRemoved();
+    }
+
+    /**
+     * Everything a customer can still reach through the storefront: on it by
+     * status, and clear of any active removal. `isOnStorefront` answers this
+     * for one row in hand; the pages that turn a set of rows into listings —
+     * the favorites page among them — ask it here, so a removal takes a
+     * listing off all of them at once.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function onStorefront(Builder $query): void
+    {
+        $query->whereIn($query->qualifyColumn('status'), ListingAvailability::storefrontStatuses())->notRemoved();
+    }
+
+    /**
+     * The removal half of `isOnStorefront`, in the only dialect a `where`
+     * clause speaks. Every query that keeps removed listings out spells the
+     * rule through this one, so lifting a removal puts the listing back
+     * everywhere at once.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function notRemoved(Builder $query): void
+    {
+        $query->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at'));
+    }
+
+    /**
+     * Takes the rows this query selects for update. Placement reads a
+     * listing's quantity and status and writes the pair back from what it
+     * read, so the row has to be held from that read until the transaction
+     * commits — otherwise two shoppers both read `quantity = 1`, both pass the
+     * plan, and the second `UPDATE` overwrites the first with its own stale
+     * arithmetic. In id order, so two carts holding the same listings ask for
+     * them in the same order. SQLite, which the prototype develops and tests
+     * on, has no row lock and serialises writers instead; its grammar compiles
+     * the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForPlacement(Builder $query): void
+    {
+        $query->orderBy('id')->lockForUpdate();
+    }
+
+    /**
+     * Takes the rows a moderation decision is judged against for update. A
+     * removal is refused when one already stands, and that check reads the
+     * `listing_removals` table rather than this row, so nothing there keeps
+     * two admins apart: both read no active removal and both insert one. The
+     * listing row they each have to take first is what serialises them.
+     * SQLite, which the prototype develops and tests on, has no row lock and
+     * serialises writers instead; its grammar compiles the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForModeration(Builder $query): void
+    {
+        $query->lockForUpdate();
+    }
+
+    /**
+     * Re-reads this row for update inside the caller's transaction, the way
+     * `Fulfillment::takeForTransition` re-reads the row a transition is
+     * judged against.
+     */
+    public function takeForModeration(): static
+    {
+        /** @var static $locked */
+        $locked = $this->newQuery()->whereKey($this->getKey())->lockedForModeration()->sole();
+
+        return $this->setRawAttributes($locked->getAttributes(), sync: true);
+    }
+
+    /**
+     * The admin listings list, narrowed to one status. A null filter adds no
+     * clause, which is what the console's "All statuses" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofStatus(Builder $query, ?ListingStatus $status): void
+    {
+        if ($status instanceof ListingStatus) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * The same list narrowed to one seller. A seller id naming nobody selects
+     * nothing rather than everything.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSeller(Builder $query, ?string $sellerId): void
+    {
+        if ($sellerId !== null) {
+            $query->where('seller_id', $sellerId);
+        }
+    }
+
+    /**
+     * The same list narrowed by removal state. `null` and `Any` both add no
+     * clause, which is what an absent, empty, or `removed=any` filter asks
+     * for — the same "empty means all" shape `ofStatus` and `ofSeller` hold.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofRemoval(Builder $query, ?RemovedFilter $removed): void
+    {
+        match ($removed) {
+            null, RemovedFilter::Any => null,
+            RemovedFilter::Removed => $query->whereHas('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at')),
+            RemovedFilter::Visible => $query->notRemoved(),
+        };
     }
 
     /**
@@ -153,6 +346,22 @@ class Listing extends Model
         $query->select('status')
             ->selectRaw('count(*) as tally')
             ->groupBy('status');
+    }
+
+    /**
+     * The same tally, across every seller — `/admin`'s listing count.
+     *
+     * @return array<string, int> status value => count
+     */
+    public static function platformCountsByStatus(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
     }
 
     /** @param Builder<$this> $query */

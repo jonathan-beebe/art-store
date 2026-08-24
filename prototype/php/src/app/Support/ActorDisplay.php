@@ -21,7 +21,7 @@ final class ActorDisplay
     public static function nameOf(Seller|Customer|Admin|null $actor): string
     {
         return match (true) {
-            $actor instanceof Customer => $actor->name ?? 'Customer #'.$actor->id,
+            $actor instanceof Customer => $actor->name ?? 'Customer '.$actor->id,
             $actor instanceof Seller, $actor instanceof Admin => $actor->displayName(),
             default => 'Deleted account',
         };

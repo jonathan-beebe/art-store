@@ -11,10 +11,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ledger_entries', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('seller_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('fulfillment_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('payout_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('fulfillment_id', 30)->nullable()->constrained()->nullOnDelete();
+            $table->foreignUlid('payout_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('type');
             $table->integer('amount_cents');
             $table->timestamp('occurred_at');

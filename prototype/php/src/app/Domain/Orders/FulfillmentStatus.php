@@ -11,6 +11,8 @@ enum FulfillmentStatus: string
     case AwaitingShipment = 'awaiting_shipment';
     case Shipped = 'shipped';
     case Delivered = 'delivered';
+    case Declined = 'declined';
+    case Refunded = 'refunded';
 
     /**
      * @return list<self>
@@ -18,9 +20,10 @@ enum FulfillmentStatus: string
     public function transitions(): array
     {
         return match ($this) {
-            self::AwaitingShipment => [self::Shipped],
-            self::Shipped => [self::Delivered],
-            self::Delivered => [],
+            self::AwaitingShipment => [self::Shipped, self::Declined, self::Refunded],
+            self::Shipped => [self::Delivered, self::Refunded],
+            self::Delivered => [self::Refunded],
+            self::Declined, self::Refunded => [],
         };
     }
 
@@ -39,6 +42,16 @@ enum FulfillmentStatus: string
     public function hasLeftTheStudio(): bool
     {
         return $this === self::Shipped || $this === self::Delivered;
+    }
+
+    /**
+     * A fulfillment the order still rolls up from. A declined or refunded one
+     * is settled: the money went back and the order reads as if the line were
+     * never part of it.
+     */
+    public function isLive(): bool
+    {
+        return $this !== self::Declined && $this !== self::Refunded;
     }
 
     public function label(): string

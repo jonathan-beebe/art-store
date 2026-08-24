@@ -11,5 +11,10 @@ use DomainException;
  * sale the stock cannot cover, a cart line the listing no longer supports.
  * The message is written for the person who tripped it, because
  * bootstrap/app.php flashes it back to them.
+ *
+ * Open for a subclass that names more than a message —
+ * `App\Domain\Orders\OrderPlacementRefused` is one, folding the blocked
+ * lines in through `CarriesRefusalData` so `Story::tell()` can log them
+ * without knowing what kind of refusal it caught.
  */
-final class DomainRuleViolation extends DomainException {}
+class DomainRuleViolation extends DomainException {}

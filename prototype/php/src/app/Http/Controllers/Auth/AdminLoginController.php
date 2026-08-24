@@ -6,10 +6,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\SendMagicLink;
 use App\Domain\Auth\ActorType;
+use App\Domain\Auth\EmailNormalizer;
+use App\Domain\RateLimiting\RateLimitExceeded;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendAdminMagicLinkRequest;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 final class AdminLoginController extends Controller
@@ -26,11 +31,24 @@ final class AdminLoginController extends Controller
     /**
      * The response reads the same whether or not the address admits an
      * admin, so a probe for who runs the platform learns nothing from it.
-     * Under session delivery an unadmitted address still gets a debug
-     * notice, since that delivery has no mailbox behind it to fall back on.
+     * The rate-limit check runs ahead of that read for the same reason: an
+     * address that never admits an admin must spend the same budget as one
+     * that does, or counting requests would leak what checking the address
+     * does not. Under session delivery an unadmitted address still gets a
+     * debug notice, since that delivery has no mailbox behind it to fall
+     * back on.
      */
-    public function send(SendAdminMagicLinkRequest $request, SendMagicLink $sendMagicLink): RedirectResponse
+    public function send(SendAdminMagicLinkRequest $request, SendMagicLink $sendMagicLink, RateLimitGate $rateLimit): RedirectResponse|Response
     {
+        try {
+            $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
+                'email:'.hash('sha256', EmailNormalizer::normalize($request->email())),
+                'ip:'.$request->ip(),
+            ]);
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'auth.admin-login');
+        }
+
         $redirect = redirect()->route('auth.admin.login')->with('sent_to', $request->email());
 
         if ($request->admits()) {

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Escrow\LedgerBalance;
 use App\Models\Fulfillment;
@@ -28,7 +29,14 @@ it('renders the earnings page', function (): void {
 
     $response->assertOk();
     $response->assertSee('Earnings');
-    $response->assertSee('Run weekly payout now');
+});
+
+it('offers no control that runs a payout', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/earnings');
+
+    $response->assertOk();
+    $response->assertDontSee('Run weekly payout');
+    $response->assertDontSee(route('admin.payouts.run'), escape: false);
 });
 
 it('reports the subtotal fee and net of each sale', function () use ($paidFulfillment): void {
@@ -101,8 +109,30 @@ it('renders on a fixed number of queries however many entries the ledger holds',
     $this->deliveredFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(8)
         ->get('/seller/earnings');
 
     $response->assertOk();
+});
+
+it('says so when nothing has been refunded', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/earnings');
+
+    $response->assertOk();
+    $response->assertSee('No refunds.');
+});
+
+it('lists the refunded movements taken back out of escrow', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor($seller, priceCents: 10000);
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute settled.', $this->moment('2026-08-23 09:00:00'));
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
+
+    $response->assertOk();
+    $response->assertSee('Refunded');
+    $response->assertSee('-$90.00');
+    $response->assertSee($fulfillment->order_id);
 });

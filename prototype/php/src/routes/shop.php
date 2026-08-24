@@ -11,6 +11,7 @@ use App\Http\Controllers\Shop\FavoriteController;
 use App\Http\Controllers\Shop\ListingController;
 use App\Http\Controllers\Shop\ListingQuestionController;
 use App\Http\Controllers\Shop\MessageController;
+use App\Http\Controllers\Shop\OrderCancellationController;
 use App\Http\Controllers\Shop\OrderController;
 use App\Http\Controllers\Shop\OrderMessageController;
 use App\Http\Controllers\Shop\OrderPaymentController;
@@ -35,6 +36,7 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('order');
+    Route::post('/orders/{order}/cancel', OrderCancellationController::class)->name('order.cancel');
     Route::get('/orders/{order}/pay', [OrderPaymentController::class, 'show'])->name('order.pay');
     Route::post('/orders/{order}/pay', [OrderPaymentController::class, 'pay'])->name('order.pay.submit');
     Route::post('/orders/{order}/fulfillments/{fulfillment}/delivered', DeliveryConfirmationController::class)

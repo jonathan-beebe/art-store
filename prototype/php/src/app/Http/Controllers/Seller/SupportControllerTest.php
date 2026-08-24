@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Admin;
 use App\Models\Conversation;
+use Illuminate\Support\Facades\Config;
 
 it('opens the sellers admin thread and lands on it', function (): void {
     $admin = $this->admin();
@@ -44,4 +46,17 @@ it('redirects with an error when no admin has been seeded', function (): void {
 
     $response->assertSessionHasErrors('support');
     expect(Conversation::count())->toBe(0);
+});
+
+it('trips the conversation-open limit on a second visit within the window, rendering the sellers own 429 page', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $this->admin();
+    $seller = $this->seller();
+    $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
 });

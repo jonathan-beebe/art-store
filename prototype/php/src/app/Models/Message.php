@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\ActorDisplay;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,6 +25,13 @@ class Message extends Model
 {
     /** @use HasFactory<MessageFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'msg';
+    }
 
     /**
      * @return array<string, string>

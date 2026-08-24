@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Cart\CartLine;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,13 @@ class CartItem extends Model
 {
     /** @use HasFactory<CartItemFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'cti';
+    }
 
     /**
      * @return array<string, string>

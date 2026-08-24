@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerMergeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,13 @@ class CustomerMerge extends Model
 {
     /** @use HasFactory<CustomerMergeFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'cmg';
+    }
 
     /** @return BelongsTo<Customer, $this> */
     public function anonymousCustomer(): BelongsTo

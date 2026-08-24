@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Listings\ListingStatus;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
@@ -12,6 +13,7 @@ use App\Models\Message;
 use App\Notifications\MessageReceived;
 use App\Support\CustomerIdentity;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 
@@ -81,7 +83,7 @@ it('answers not found for a listing not on the storefront', function (): void {
     expect(Conversation::count())->toBe(0);
 });
 
-it('opens the thread but refuses the question while blocked', function (): void {
+it('refuses the question while blocked and opens no thread', function (): void {
     $visitor = $this->visitor();
     CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
@@ -90,42 +92,43 @@ it('opens the thread but refuses the question while blocked', function (): void 
     $response = $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
 
     $response->assertForbidden();
-    expect(Message::count())->toBe(0);
+    // The thread and its first message are one transaction, so the refusal
+    // takes the thread with it rather than leaving an empty row in two
+    // inboxes.
+    expect(Conversation::count())->toBe(0)
+        ->and(Message::count())->toBe(0);
     Notification::assertNothingSent();
 });
 
-it('opens no second thread when a blocked visitor asks again', function (): void {
-    $visitor = $this->visitor();
-    CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
-    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
-
-    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
-    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Hello?']);
-
-    // The thread opens before the policy refuses the post, so a blocked
-    // visitor leaves an empty one behind. The subject key is what keeps it
-    // to one however many times they try.
-    expect(Conversation::count())->toBe(1)
-        ->and(Message::count())->toBe(0);
-});
-
-it('reads the empty thread as an inbox row with no preview on both sites', function (): void {
+it('leaves both inboxes empty however often a blocked visitor asks', function (): void {
     $visitor = $this->visitor();
     CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
     $seller = $this->seller('Blue Kiln Studio');
     $this->listing($seller, ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn']);
+
     $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Hello?']);
 
     $visitorInbox = $this->get('/messages');
     $sellerInbox = $this->actingAs($seller, 'seller')->get('/seller/messages');
 
-    $visitorInbox->assertOk();
-    $visitorInbox->assertSee('Blue Kiln Studio');
-    $visitorInbox->assertSee('Harbour at Dawn');
-    $sellerInbox->assertOk();
-    $sellerInbox->assertSee("Customer #{$visitor->id}");
-    $sellerInbox->assertSee('Harbour at Dawn');
-    $sellerInbox->assertDontSee('unread');
+    expect(Conversation::count())->toBe(0)
+        ->and(Message::count())->toBe(0);
+    $visitorInbox->assertDontSee('Harbour at Dawn');
+    $sellerInbox->assertDontSee('Harbour at Dawn');
+});
+
+it('lets the visitor ask once the block is lifted', function (): void {
+    $visitor = $this->visitor();
+    $block = CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
+    $block->update(['lifted_at' => now()]);
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Still available?']);
+
+    expect(Conversation::count())->toBe(1)
+        ->and(Message::sole()->body)->toBe('Still available?');
 });
 
 it('finds the anonymous thread on the verified account after the asker verifies', function (): void {
@@ -173,4 +176,21 @@ it('carries the question to the seller and the answer back to the visitor', func
     $this->get('/')->assertSee('Messages (1)', escape: false);
     $this->get(route('shop.messages.show', $conversation))->assertSee('Yes, in black wood.');
     $this->get('/')->assertDontSee('Messages (1)', escape: false);
+});
+
+it('trips the conversation-open limit, handing the listing back with the question still in the box', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $this->listing($this->seller('Rye Press'), ['slug' => 'winter-elm']);
+    $this->visitor();
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Does this ship framed?']);
+
+    $response = $this->post('/art/winter-elm/questions', ['body' => 'Is this signed?']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('Ask the seller a question');
+    $response->assertSee('>Is this signed?</textarea>', escape: false);
+    expect(Conversation::count())->toBe(1);
 });

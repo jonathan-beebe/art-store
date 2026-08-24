@@ -8,7 +8,7 @@
             @foreach ($orders as $order)
                 <li class="flex flex-wrap items-baseline justify-between gap-6 py-6">
                     <div>
-                        <a href="{{ route('shop.order', $order) }}" class="text-lg font-medium">Order #{{ $order->id }}</a>
+                        <a href="{{ route('shop.order', $order) }}" class="text-lg font-medium">Order {{ $order->id }}</a>
                         <p class="mt-1 text-base text-neutral-600">
                             {{ $order->items->pluck('title')->join(', ') }}
                         </p>

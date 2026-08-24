@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Messaging\ConversationSubject;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
+use Illuminate\Support\Facades\Config;
 
 it('opens the thread for the order and the seller and lands on it', function (): void {
     $seller = $this->seller();
@@ -54,4 +56,18 @@ it('refuses a fulfillment that belongs to another order', function (): void {
 
     $response->assertNotFound();
     expect(Conversation::count())->toBe(0);
+});
+
+it('trips the conversation-open limit before opening a second fulfillment thread', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $customer = $this->arriveAs($this->verifiedCustomer());
+    $first = $this->shippedFulfillmentFor($this->seller('Blue Kiln Studio'), $customer);
+    $second = $this->shippedFulfillmentFor($this->seller('Rye Press'), $customer);
+    $this->post("/orders/{$first->order_id}/fulfillments/{$first->id}/messages");
+
+    $response = $this->post("/orders/{$second->order_id}/fulfillments/{$second->id}/messages");
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    expect(Conversation::count())->toBe(1);
 });

@@ -18,7 +18,7 @@ final class AskSellerRequest extends FormRequest
      */
     public function authorize(): Response
     {
-        return $this->listing()->status->isOnStorefront()
+        return $this->listing()->isOnStorefront()
             ? Response::allow()
             : Response::denyAsNotFound();
     }

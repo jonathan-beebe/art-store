@@ -11,9 +11,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('listing_events', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('listing_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('type');
             $table->timestamp('occurred_at');
             $table->timestamps();

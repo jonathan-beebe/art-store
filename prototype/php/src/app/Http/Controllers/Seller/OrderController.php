@@ -40,6 +40,7 @@ final class OrderController extends SellerController
         return view('seller.orders.show', [
             'fulfillment' => $fulfillment->load([
                 'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
+                'refund',
             ]),
         ]);
     }
@@ -52,6 +53,7 @@ final class OrderController extends SellerController
         return Fulfillment::query()
             ->whereBelongsTo($seller)
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
-            ->latest('id');
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 }

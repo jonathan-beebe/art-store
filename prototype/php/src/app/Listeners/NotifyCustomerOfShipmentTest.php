@@ -21,6 +21,6 @@ it('tells the customer behind the order that it shipped', function (): void {
         $customer,
         OrderShipped::class,
         fn (OrderShipped $notification): bool => $notification->toArray($customer)['body']
-            === "Order #{$fulfillment->order_id} shipped with USPS. Tracking number 9400111899.",
+            === "Order {$fulfillment->order_id} shipped with USPS. Tracking number 9400111899.",
     );
 });

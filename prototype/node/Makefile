@@ -1,5 +1,10 @@
 .PHONY: up down build assets shell test smoke coverage docs-check routes migrate fresh seed payouts outbox logs image run-image
 
+# Compose names its project after this directory, so two checkouts of the
+# same prototype (the main repo and a worktree) would share one container.
+# Naming it after the checkout as well keeps them apart.
+export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(CURDIR))
+
 # docker-compose.yml reads these to run the container as the host user.
 export UID := $(shell id -u)
 export GID := $(shell id -g)

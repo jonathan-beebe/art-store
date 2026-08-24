@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Money\Money;
 use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\PaymentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,13 @@ class Payment extends Model
 {
     /** @use HasFactory<PaymentFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'pay';
+    }
 
     /**
      * @return array<string, string>

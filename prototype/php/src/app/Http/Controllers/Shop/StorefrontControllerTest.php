@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Listings\RemoveListing;
+use App\Domain\Listings\ListingRemovalKind;
 use App\Domain\Listings\ListingStatus;
+use App\Models\ListingRemoval;
 
 it('shows a for sale listing with its artist and price', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
@@ -27,6 +30,26 @@ it('leaves out listings that are not for sale', function (): void {
 
     $response->assertDontSee('Unfinished Sketch');
     $response->assertDontSee('Sold Vase');
+});
+
+it('leaves out a removed listing even while its status still says for sale', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Recalled Print']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->get('/');
+
+    $response->assertDontSee('Recalled Print');
+});
+
+it('drops a removed listing from search results', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour Study', 'description' => 'A harbour scene.']);
+    app(RemoveListing::class)($listing, ListingRemovalKind::Temporary, 'Under review.');
+
+    $response = $this->get('/?q=harbour');
+
+    $response->assertDontSee('Harbour Study');
 });
 
 it('searches titles descriptions and media', function (): void {

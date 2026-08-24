@@ -1,6 +1,17 @@
 <x-layouts.shop title="Checkout — Art Store">
     <h1 class="text-4xl font-semibold tracking-tight">Checkout</h1>
 
+    @if (count($blocked) > 0)
+        <div role="alert" class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+            <p>Take these out of your cart before placing the order:</p>
+            <ul class="mt-2 list-disc pl-5">
+                @foreach ($blocked as $line)
+                    <li>{{ $line->title }} — {{ $line->reason->notice() }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="mt-12 grid gap-16 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <form method="POST" action="{{ route('shop.checkout.place') }}" class="max-w-xl">
             @csrf

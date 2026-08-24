@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\ListingEventFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,6 +25,13 @@ class ListingEvent extends Model
 {
     /** @use HasFactory<ListingEventFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'lev';
+    }
 
     /**
      * @return array<string, string>
@@ -63,5 +71,22 @@ class ListingEvent extends Model
             ->selectRaw('date(occurred_at) as day')
             ->selectRaw('count(*) as tally')
             ->groupBy('day', 'type');
+    }
+
+    /**
+     * How many events of each type the whole platform has recorded, across
+     * every listing — `/admin/stats`'s tally.
+     *
+     * @return array<string, int> event type value => count
+     */
+    public static function platformCountsByType(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->select('type')->selectRaw('count(*) as tally')->groupBy('type')->get() as $row) {
+            $counts[$row->type->value] = $row->tally;
+        }
+
+        return $counts;
     }
 }

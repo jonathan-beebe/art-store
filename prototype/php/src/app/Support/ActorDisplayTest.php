@@ -12,7 +12,7 @@ it('reads a customer by name, falling back to their id', function (): void {
     $unnamed = Customer::factory()->create(['name' => null]);
 
     expect(ActorDisplay::nameOf($named))->toBe('Ada Lovelace')
-        ->and(ActorDisplay::nameOf($unnamed))->toBe('Customer #'.$unnamed->id);
+        ->and(ActorDisplay::nameOf($unnamed))->toBe('Customer '.$unnamed->id);
 });
 
 it('reads a seller or an admin by their display name', function (): void {

@@ -6,12 +6,16 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
+use App\Domain\RateLimiting\RateLimitExceeded;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ActivityTimeline;
 use App\Http\Requests\Seller\ListingRequest;
 use App\Models\Listing;
 use App\Models\OrderItem;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 final class ListingController extends SellerController
@@ -21,7 +25,7 @@ final class ListingController extends SellerController
     public function index(): View
     {
         return view('seller.listings.index', [
-            'listings' => $this->seller()->listings()->withEventCounts()->latest('id')->get(),
+            'listings' => $this->seller()->listings()->withEventCounts()->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 
@@ -30,8 +34,14 @@ final class ListingController extends SellerController
         return view('seller.listings.create');
     }
 
-    public function store(ListingRequest $request, CreateListing $createListing): RedirectResponse
+    public function store(ListingRequest $request, CreateListing $createListing, RateLimitGate $rateLimit): RedirectResponse|Response
     {
+        try {
+            $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'seller.listings.create');
+        }
+
         $listing = $createListing($this->seller(), $request->toDraft(), $request->file('image'));
 
         return redirect()
@@ -46,7 +56,7 @@ final class ListingController extends SellerController
         $endsOn = $this->now();
 
         return view('seller.listings.show', [
-            'listing' => $listing->loadEventCounts(),
+            'listing' => $listing->loadEventCounts()->load('activeRemoval'),
             'days' => ActivityTimeline::lastDays(
                 $listing->eventCountsByDateSince(ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
                 $endsOn,
@@ -64,8 +74,14 @@ final class ListingController extends SellerController
         return view('seller.listings.edit', ['listing' => $listing]);
     }
 
-    public function update(ListingRequest $request, Listing $listing, UpdateListing $updateListing): RedirectResponse
+    public function update(ListingRequest $request, Listing $listing, UpdateListing $updateListing, RateLimitGate $rateLimit): RedirectResponse|Response
     {
+        try {
+            $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'seller.listings.edit', ['listing' => $listing]);
+        }
+
         $updated = $updateListing($listing, $request->toDraft(), $request->file('image'));
 
         return redirect()
@@ -93,7 +109,8 @@ final class ListingController extends SellerController
     {
         return $listing->orderItems()
             ->with('order')
-            ->latest('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
     }
 }

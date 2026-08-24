@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Cart\AddToCart;
+use App\Domain\Customers\StandingFilter;
 use App\Domain\Money\Money;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
+use Illuminate\Database\Query\Grammars\MySqlGrammar;
+use Illuminate\Support\Facades\DB;
 
 it('is anonymous when it has no email', function (): void {
     expect((new Customer)->isAnonymous())->toBeTrue();
@@ -51,8 +55,8 @@ it('reads its favorites and the listings behind them', function (): void {
 
 it('reads the notifications addressed to it', function (): void {
     $customer = $this->verifiedCustomer();
-    $customer->notify(new OrderShipped(4, 'USPS', '94001'));
-    $this->seller()->notify(new ItemSold(5, Money::fromCents(9000)));
+    $customer->notify(new OrderShipped('ord_00000000000000000000000004', 'USPS', '94001'));
+    $this->seller()->notify(new ItemSold('ord_00000000000000000000000005', Money::fromCents(9000)));
 
     expect($customer->notifications()->count())->toBe(1)
         ->and($customer->unreadNotifications()->count())->toBe(1);
@@ -93,7 +97,7 @@ it('reads the listing events it left', function (): void {
 it('gives a customer without a cart one', function (): void {
     $customer = $this->anonymousCustomer();
 
-    $cart = $customer->currentCart();
+    $cart = $customer->cart();
 
     expect($cart->customer_id)->toBe($customer->id)
         ->and(Cart::count())->toBe(1);
@@ -102,20 +106,15 @@ it('gives a customer without a cart one', function (): void {
 it('returns the same cart twice', function (): void {
     $customer = $this->anonymousCustomer();
 
-    expect($customer->currentCart()->id)->toBe($customer->currentCart()->id);
+    expect($customer->cart()->id)->toBe($customer->cart()->id);
 });
 
-it('picks the cart holding the items after a merge', function (): void {
+it('reads the customer\'s existing cart rather than creating another', function (): void {
     $customer = $this->verifiedCustomer();
-    $this->cartFor($customer);
-    $filled = $this->cartFor($customer);
-    CartItem::factory()->create([
-        'cart_id' => $filled->id,
-        'listing_id' => $this->listing($this->seller())->id,
-        'quantity' => 1,
-    ]);
+    $existing = $this->cartFor($customer);
 
-    expect($customer->currentCart()->id)->toBe($filled->id);
+    expect($customer->cart()->id)->toBe($existing->id)
+        ->and(Cart::count())->toBe(1);
 });
 
 it('can shop with no active block', function (): void {
@@ -148,4 +147,62 @@ it('reads only the active block when it has been blocked more than once', functi
     CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Second block.']);
 
     expect($customer->blockReason())->toBe('Second block.');
+});
+
+it('names itself by its name, then its address, then its id', function (): void {
+    $named = new Customer(['name' => 'Ada Painter', 'email' => 'ada@example.com']);
+    $addressed = new Customer(['email' => 'ada@example.com']);
+    $anonymous = Customer::factory()->anonymous()->create();
+
+    expect($named->displayName())->toBe('Ada Painter')
+        ->and($addressed->displayName())->toBe('ada@example.com')
+        ->and($anonymous->displayName())->toBe($anonymous->id);
+});
+
+it('reads every line across the carts it holds', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['quantity' => 3]);
+    app(AddToCart::class)($this->cartFor($customer), $listing, 2, $this->moment('2026-08-20 08:00:00'));
+
+    expect($customer->cartItems()->count())->toBe(1)
+        ->and($customer->cartItems()->sum('quantity'))->toBe(2);
+});
+
+it('reads the merges it stands on either side of', function (): void {
+    $customer = $this->verifiedCustomer();
+    $anonymous = $this->anonymousCustomer();
+    CustomerMerge::create(['anonymous_customer_id' => $anonymous->id, 'customer_id' => $customer->id]);
+
+    expect($customer->mergesAsCustomer()->count())->toBe(1)
+        ->and($customer->mergesAsAnonymous()->count())->toBe(0)
+        ->and($anonymous->mergesAsAnonymous()->count())->toBe(1)
+        ->and($anonymous->mergesAsCustomer()->count())->toBe(0);
+});
+
+it('narrows to one standing', function (): void {
+    $verified = $this->verifiedCustomer();
+    $anonymous = $this->anonymousCustomer();
+    $blocked = $this->verifiedCustomer();
+    CustomerBlock::factory()->create(['customer_id' => $blocked->id, 'reason' => 'Chargeback fraud.']);
+
+    expect(Customer::query()->inStanding(StandingFilter::All)->count())->toBe(3)
+        ->and(Customer::query()->inStanding(StandingFilter::Verified)->count())->toBe(2)
+        ->and(Customer::query()->inStanding(StandingFilter::Anonymous)->pluck('id')->all())->toBe([$anonymous->id])
+        ->and(Customer::query()->inStanding(StandingFilter::Blocked)->pluck('id')->all())->toBe([$blocked->id]);
+});
+
+it('takes the row a moderation decision is judged against for update', function (): void {
+    // SQLite has no row lock and its grammar compiles the clause away, so the
+    // query is compiled here with the grammar of a database that does have
+    // one — what the same read asks for in production.
+    $query = Customer::query()->lockedForModeration()->toBase();
+
+    expect((new MySqlGrammar(DB::connection()))->compileSelect($query))->toEndWith('for update');
+});
+
+it('re-reads the locked row rather than trusting the instance it was handed', function (): void {
+    $customer = $this->verifiedCustomer();
+    Customer::whereKey($customer->id)->update(['name' => 'Rey Alvarez']);
+
+    expect($customer->takeForModeration()->name)->toBe('Rey Alvarez');
 });

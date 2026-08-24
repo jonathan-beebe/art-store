@@ -24,6 +24,7 @@ flowchart LR
     subgraph moneySide["Money"]
         platform["Platform"]
         payment["Payment"]
+        refund["Refund"]
         fulfillment["Fulfillment"]
         ledger["Ledger entry"]
         payout["Payout"]
@@ -37,6 +38,8 @@ flowchart LR
     order -->|"charged via"| payment
     order -->|"splits by seller into"| fulfillment
     seller -->|"ships"| fulfillment
+    fulfillment -->|"declined or refunded into"| refund
+    refund -->|"reverses"| payment
     fulfillment -->|"produces"| ledger
     platform -->|"takes fee from"| fulfillment
     ledger -->|"settles into"| payout
@@ -126,6 +129,27 @@ weekly payout job.
 **In code.** `App\Domain\Escrow\Fee` (`PLATFORM_PERCENT`); no model — the
 platform holds no row of its own.
 
+### Admin
+
+**Who/what.** A platform operator. Seeded, never signed up.
+
+**Why it exists.** Someone has to read the whole platform, moderate what is on
+it, and pay sellers. The Platform is the abstraction; an Admin is the person
+acting for it.
+
+**Lifecycle.** None — seeded and permanent.
+
+**Relates to.**
+- reaches every Seller, Customer, Listing, Order and Fulfillment through the
+  admin site
+- removes a Listing and blocks a Customer
+- issues a Refund on a Fulfillment and cancels an unpaid Order
+- runs the weekly Payout
+- holds one side of a support Conversation
+
+**In code.** `App\Models\Admin`, the `admin` guard, `App\Http\Controllers\Admin\*`
+(table `admins`).
+
 ## Catalog
 
 ### Listing
@@ -168,6 +192,27 @@ favorites, cart adds) and the dashboard's daily activity timeline.
 **In code.** `App\Models\ListingEvent`, `App\Domain\Listings\ListingEventType`
 (enum: `view` | `favorite` | `unfavorite` | `cart_add`) (table
 `listing_events`).
+
+### Listing removal
+
+**Who/what.** An admin taking a listing off the storefront, with a reason.
+
+**Why it exists.** A piece may need to come down for review or for good,
+whatever its seller set its status to. Status is the seller's word; a removal
+is the platform's, and it outranks the status.
+
+**Lifecycle.** `temporary` may be lifted; `permanent` may not. At most one
+removal is active on a listing at a time.
+
+**Relates to.**
+- belongs to one Listing
+- while it stands, the listing leaves browse, search, `/art/{slug}` and the
+  favorites page, and its seller cannot put it back on sale
+- blocks the line at checkout with the `removed` reason
+
+**In code.** `App\Models\ListingRemoval`,
+`App\Domain\Listings\ListingRemovalKind`,
+`App\Domain\Listings\ListingAvailability` (table `listing_removals`).
 
 ### Favorite
 
@@ -228,17 +273,20 @@ delivery; the parent of the per-seller Fulfillments.
 
 **Lifecycle.** `pending_verification` (guest) or `awaiting_payment`
 (verified) → `paid` or `payment_failed` → `partially_shipped` / `shipped` →
-`delivered`; `cancelled` is a reachable state with no route to it in the UI.
-A multi-seller order's status rolls up from its Fulfillments
-(`OrderStatus::fromFulfillments()`). Full diagram: `docs/orders.md`.
+`delivered`. `cancelled` is reached from any state before payment, by the
+customer, an admin, or the stale sweep; `refunded` is reached once every
+Fulfillment is declined or refunded. A multi-seller order's status rolls up
+from its **live** Fulfillments (`OrderStatus::fromFulfillments()`). Full
+diagram: `docs/orders.md`.
 
 **Relates to.**
 - placed by one Customer
 - contains Order items
 - attempts Payments
 - splits by seller into Fulfillments
+- sends money back through Refunds
 - raises `OrderPaid` when it reaches `paid`, which tells each seller their
-  item sold
+  item sold, and `OrderCancelled` when it ends unpaid
 
 **In code.** `App\Models\Order`, `App\Domain\Orders\OrderStatus` (enum),
 `Purchaser`, `ShippingAddress`, `OrderPayment` (table `orders`).
@@ -277,6 +325,28 @@ current payment is the latest row.
 **In code.** `App\Models\Payment`, `App\Domain\Payments\PaymentStatus` (enum)
 (table `payments`).
 
+### Refund
+
+**Who/what.** Money sent back to a customer for one Fulfillment, always the
+whole subtotal.
+
+**Why it exists.** A decline and a dispute both end the same way — the
+customer is made whole — and the platform needs one record of who decided it
+and why.
+
+**Lifecycle.** Written once, never edited. There is no gateway behind it: the
+row is the refund, and it always succeeds.
+
+**Relates to.**
+- belongs to one Order and one Fulfillment (at most one per Fulfillment)
+- reverses the approved Payment on that Order
+- issued by a Seller (declining) or an Admin (settling a dispute)
+- writes a `refunded` Ledger entry for the Fulfillment's net
+- raises `RefundIssued`, which tells the counterpart
+
+**In code.** `App\Models\Refund`, `App\Actions\Escrow\IssueRefund` (table
+`refunds`).
+
 ### Fulfillment
 
 **Who/what.** One seller's slice of an order — what that seller owes to ship
@@ -285,13 +355,16 @@ and what they're owed once it's delivered.
 **Why it exists.** An order can span sellers; escrow and shipping status are
 tracked per (order, seller) pair rather than per order.
 
-**Lifecycle.** `awaiting_shipment → shipped → delivered`. Full diagram:
-`docs/orders.md`.
+**Lifecycle.** `awaiting_shipment → shipped → delivered`, with `declined`
+(the seller turning it down before it ships, stock restored) and `refunded`
+(an admin settling it, stock unchanged) as the two settled endings. Full
+diagram: `docs/orders.md`.
 
 **Relates to.**
 - belongs to one Order and one Seller
 - produces Ledger entries when the order is paid (`held`), when delivered
-  (`released`), and when included in a Payout (`paid_out`)
+  (`released`), when refunded (`refunded`), and when included in a Payout
+  (`paid_out`)
 - raises `FulfillmentShipped` when it ships, which tells the customer their
   order is on its way
 - carries the Platform fee taken from its subtotal
@@ -344,13 +417,16 @@ Fulfillment row (`fee_cents`, `net_cents`) rather than recomputed later.
 rather than a single mutable balance column.
 
 **Lifecycle.** Written once per movement: `held` (order paid), `released`
-(fulfillment delivered), `paid_out` (included in a payout run — negative
-amount). A seller's balance is the fold of all their entries
-(`LedgerBalance::from()`). Flowchart: `docs/escrow.md`.
+(fulfillment delivered), `refunded` (fulfillment declined or refunded —
+negative amount), `paid_out` (included in a payout run — negative amount). A
+seller's balance is the fold of all their entries, grouped by fulfillment so a
+refund nets against its own sale (`LedgerBalance::from()`). Flowchart:
+`docs/escrow.md`.
 
 **Relates to.**
 - belongs to one Seller
-- produced by one Fulfillment (`held`/`released`) or one Payout (`paid_out`)
+- produced by one Fulfillment (`held`/`released`/`refunded`) or one Payout
+  (`paid_out`)
 
 **In code.** `App\Models\LedgerEntry`, `App\Domain\Escrow\LedgerEntryType`
 (enum), `LedgerMovement`, `LedgerBalance` (table `ledger_entries`).
@@ -438,6 +514,81 @@ resolves to `MergeAnonymousInto`; never undone.
 `App\Domain\Customers\CustomerIdentityPlan`, `CustomerIdentityAction`,
 `CustomerOwnedTables` (table `customer_merges`).
 
+### Customer block
+
+**Who/what.** An admin stopping a customer from buying and posting, with a
+reason.
+
+**Why it exists.** A customer may need to be stopped from spending and from
+messaging without being stopped from reading what they already have.
+
+**Lifecycle.** Active until lifted. At most one active block per customer.
+
+**Relates to.**
+- belongs to one Customer
+- removes cart add, checkout, pay, and message post; browsing, favorites and
+  reading threads stay open
+
+**In code.** `App\Models\CustomerBlock`,
+`App\Domain\Customers\CustomerStanding` (table `customer_blocks`).
+
+### Conversation
+
+**Who/what.** One thread, of one of four kinds: a listing question, a
+fulfillment thread, seller support, customer support.
+
+**Why it exists.** Every thread on the platform is the same shape; what
+differs is who is in it and what it is about.
+
+**Lifecycle.** Opened on the first message about a subject, then found rather
+than reopened. A thread and its first message are written in one transaction,
+so a refused first post leaves no thread behind.
+
+**Relates to.**
+- names its participants (a Seller, a Customer, an Admin) and its subject (a
+  Listing or a Fulfillment)
+- holds many Messages
+- one thread per subject, held by a unique index on `subject_key`
+
+**In code.** `App\Models\Conversation`,
+`App\Domain\Messaging\ConversationKind`,
+`App\Domain\Messaging\ConversationSubject` (table `conversations`).
+
+### Message
+
+**Who/what.** One post in a Conversation, by a seller, a customer, or an
+admin.
+
+**Why it exists.** The unit of the messaging centre, and what an unread count
+counts.
+
+**Lifecycle.** Sent, then read by its recipient.
+
+**Relates to.**
+- belongs to one Conversation
+- has one sender, named by a morph alias rather than a class string
+- may be published as a Listing FAQ
+
+**In code.** `App\Models\Message`, `App\Domain\Messaging\MessageBody`
+(table `messages`).
+
+### Listing FAQ
+
+**Who/what.** A question and its answer, published by a seller onto a
+listing's page for every visitor.
+
+**Why it exists.** One shopper's question is usually every shopper's question;
+answering it once in public beats answering it privately many times.
+
+**Lifecycle.** Published from a message, edited, unpublished.
+
+**Relates to.**
+- belongs to one Listing
+- may name the Message it was published from
+
+**In code.** `App\Models\ListingFaq`, `App\Domain\Messaging\FaqDraft`
+(table `listing_faqs`).
+
 ### Notification
 
 **Who/what.** A message shown in a seller's or a customer's header: "Item
@@ -460,6 +611,25 @@ goes out by email the day `config/notifications.php` names `mail`.
 `App\Domain\Notifications\NotificationMessage`, and the recipient kinds are
 `App\Domain\Auth\ActorType` (enum), whose values are the morph aliases stored
 in `notifiable_type`.
+
+### Page view count
+
+**Who/what.** How many times a route pattern was served on a site on a day.
+
+**Why it exists.** Traffic has to be readable without the table growing with
+traffic. Storing the route's pattern rather than the URL means a thousand
+listing pages share one row, so the table grows with routes and days.
+
+**Lifecycle.** The first hit of a day inserts; every later one increments, in
+one upsert and no read.
+
+**Relates to.**
+- belongs to no one — it counts requests, not people
+- a Listing event of type `view` is the per-listing counterpart, collapsed to
+  at most one per (listing, customer, UTC hour)
+
+**In code.** `App\Models\PageViewCount`, `App\Domain\Analytics\*`,
+`App\Http\Middleware\RollUpPageViews` (table `page_view_counts`).
 
 ## Decisions
 
@@ -494,14 +664,16 @@ page prints; `isOnStorefront()` answers whether the listing has a public page.
 
 **In code.** `App\Domain\Orders\OrderStatus`. `label()` is the sentence a page
 prints; `awaitsPayment()` and `retakesStockOnRetry()` answer what a card
-attempt may still do.
+attempt may still do; `releasesStockOnCancel()` and `hasBeenPaid()` answer what
+a cancel and a refund may still do.
 
 ### Fulfillment status
 
 **Who/what.** The lifecycle state of a Fulfillment (see Buying above).
 
 **In code.** `App\Domain\Orders\FulfillmentStatus`. `label()` is the sentence a
-page prints.
+page prints; `isLive()` is what the order roll-up counts, so a declined or
+refunded fulfillment no longer holds the order back.
 
 ## Vocabulary notes
 
@@ -521,6 +693,11 @@ page prints.
 - "Available" (as in a seller's available balance,
   `LedgerBalance::available`) means released and not yet paid out — it does
   not mean "in the seller's bank account."
+- "Live" fulfillment = one that is neither `declined` nor `refunded`; it is
+  the set an Order's status rolls up from.
+- "Declined" on a Fulfillment is the seller turning a parcel down;
+  "declined" on a Payment is the card being refused. Different subjects, the
+  same word.
 - An anonymous customer is not a distinct model — it is a `Customer` row
   with `email = null`; "customer" in prose can mean either the anonymous or
   the verified case unless qualified.

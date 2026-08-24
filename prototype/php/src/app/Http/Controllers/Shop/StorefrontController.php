@@ -33,7 +33,7 @@ final class StorefrontController extends ShopController
      */
     private function matching(ListingSearch $search): Builder
     {
-        $listings = Listing::query()->forSale()->with('seller')->orderByDesc('id');
+        $listings = Listing::query()->forSale()->with('seller')->orderByDesc('created_at')->orderByDesc('id');
 
         if ($search->hasTerm()) {
             $pattern = $search->likePattern();

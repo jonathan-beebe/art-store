@@ -11,10 +11,17 @@ use Illuminate\Http\RedirectResponse;
 
 final class FavoriteController extends ShopController
 {
+    /**
+     * The pieces the visitor saved and can still reach. A listing the seller
+     * archived or an admin removed leaves this page with the rest of the
+     * storefront, while the favorite row stays: the save outlives the
+     * removal, so lifting one puts the card back.
+     */
     public function index(): View
     {
         return view('shop.favorites', [
             'listings' => $this->visitor()->favoriteListings()
+                ->onStorefront()
                 ->with('seller')
                 ->orderByDesc('listings.id')
                 ->get(),

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Escrow;
 
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Models\LedgerEntry;
@@ -79,4 +80,39 @@ it('waits for the next run when a delivery lands after the period ends', functio
     $payouts = app(RunWeeklyPayout::class)($this->moment('2026-08-24 12:00:00'));
 
     expect($payouts)->toBe([]);
+});
+
+it('writes no payout row for a seller a refund left in the red, and carries the negative forward', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor($seller, priceCents: 45000, deliveredAt: $this->moment('2026-08-21 11:00:00'));
+    app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'));
+
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute.', $this->moment('2026-08-25 10:00:00'));
+
+    expect($seller->escrowBalance()->available->cents)->toBe(-40500);
+
+    $second = app(RunWeeklyPayout::class)($this->moment('2026-08-31 09:00:00'));
+
+    expect($second)->toBe([])
+        ->and(Payout::query()->count())->toBe(1)
+        ->and($seller->escrowBalance()->available->cents)->toBe(-40500);
+});
+
+it('nets a carried negative against the next sale before it pays anything', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor($seller, priceCents: 45000, deliveredAt: $this->moment('2026-08-21 11:00:00'));
+    app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'));
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute.', $this->moment('2026-08-25 10:00:00'));
+
+    $this->deliveredFulfillmentFor(
+        $seller,
+        priceCents: 100000,
+        trackingNumber: 'RM777',
+        deliveredAt: $this->moment('2026-08-28 11:00:00'),
+    );
+
+    $payouts = app(RunWeeklyPayout::class)($this->moment('2026-08-31 09:00:00'));
+
+    expect($payouts)->toHaveCount(1)
+        ->and($payouts[0]->amount_cents)->toBe(49500);
 });

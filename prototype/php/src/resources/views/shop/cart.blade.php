@@ -19,11 +19,11 @@
                         <p class="mt-1 text-sm text-neutral-500">{{ $item->listing->seller->displayName() }}</p>
                         <p class="mt-1 text-sm text-neutral-500">Quantity {{ $item->quantity }}</p>
 
-                        @unless ($item->listing->isPurchasable())
+                        @if ($reason = $plan->blockedReasonFor($item->listing_id))
                             <p class="mt-2 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-900">
-                                No longer available
+                                {{ ucfirst($reason->notice()) }}
                             </p>
-                        @endunless
+                        @endif
                     </div>
 
                     <p class="text-lg">{{ $item->listing->price()->multiply($item->quantity)->format() }}</p>
@@ -40,9 +40,17 @@
         <div class="mt-10 flex flex-wrap items-center justify-between gap-6">
             <p class="text-xl">Subtotal <span class="ml-4 font-semibold">{{ $totals->subtotal->format() }}</span></p>
 
-            <a href="{{ route('shop.checkout') }}" class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
-                Checkout
-            </a>
+            @if ($plan->isPlaceable())
+                <a href="{{ route('shop.checkout') }}" class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
+                    Checkout
+                </a>
+            @else
+                <button type="button" disabled aria-disabled="true"
+                        title="Remove what is no longer available before checking out"
+                        class="cursor-not-allowed rounded-full bg-neutral-300 px-8 py-3 text-base font-medium text-neutral-500">
+                    Checkout
+                </button>
+            @endif
         </div>
     @endif
 </x-layouts.shop>

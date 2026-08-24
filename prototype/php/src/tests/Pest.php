@@ -30,6 +30,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Listeners',
     '../app/Models',
     '../app/Notifications',
+    '../app/Observers',
     '../app/Policies',
     '../app/Providers',
     '../app/Support',
@@ -42,7 +43,7 @@ pest()->extend(Tests\StorefrontTestCase::class)->in(
     'SmokeTest.php',
 );
 
-pest()->extend(Tests\TestCase::class)->in('../routes');
+pest()->extend(Tests\TestCase::class)->in('../app/Logging', '../routes');
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',

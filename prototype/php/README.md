@@ -48,25 +48,30 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app npm run build` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app composer test` |
-| `make smoke` | `docker compose run --rm app composer test -- --testsuite Smoke` |
+| `make test` | `docker compose run --rm app composer test` (Pest under pcov, gated at 100% of lines) |
+| `make smoke` | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke` |
 | `make coverage` | `docker compose run --rm app composer test:coverage` |
+| `make lint` | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan) |
+| `make lint-fix` | `docker compose run --rm --no-deps --entrypoint composer app lint:fix` |
 | `make analyse` | `docker compose run --rm --no-deps --entrypoint composer app analyse` |
-| `make lint` | `docker compose run --rm --no-deps --entrypoint composer app lint` |
-| `make check` | `docker compose run --rm --no-deps --entrypoint composer app check` |
+| `make check` | `lint`, then `assets`, then `test` — the commit gate |
 | `make migrate` | `docker compose run --rm app php artisan migrate` |
 | `make fresh` | `docker compose run --rm app php artisan migrate:fresh --seed` |
+| `make seed` | `docker compose run --rm app php artisan db:seed` |
+| `make routes` | `docker compose run --rm app php artisan route:list` |
+| `make payouts` | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))` |
+| `make sweep` | `docker compose run --rm app php artisan orders:sweep` |
+| `make outbox` | prints a note — this prototype has no outbox; notifications are in-app |
 | `make logs` | `docker compose logs -f` |
 
-`make check` runs lint, then static analysis, then the test suite, stopping at
-the first failure. `analyse` and `lint` skip the container entrypoint (no web
-server needed for a static run).
+`make check` runs `lint` (style, then static analysis), then the asset build,
+then the coverage-gated test suite, stopping at the first failure. `lint`,
+`lint-fix`, and `analyse` skip the container entrypoint (no web server needed
+for a static run).
 
 Run any other tool the same way:
 
 ```sh
-docker compose run --rm app php artisan route:list
-docker compose run --rm app php artisan payouts:run --as-of=2026-07-16
 docker compose exec app php artisan tinker      # against the running server
 ```
 
@@ -75,11 +80,11 @@ docker compose exec app php artisan tinker      # against the running server
 ```sh
 make test                                                    # whole suite
 make smoke                                                   # the end-to-end walk alone
-make check                                                   # lint + analyse + test
+make check                                                   # lint + assets + test
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1107 tests (2491 assertions), run by Pest — `it()`/`test()` functions, no
+1827 tests (4934 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
@@ -97,13 +102,14 @@ plus Pest's `laravel` and `security` presets. `tests/SidecarsTest.php` asserts
 every non-abstract class under `app/` has a sidecar test file, against a
 shrink-only list of exceptions that is currently empty.
 
-Static analysis (`make analyse`) runs PHPStan/Larastan at `level: max` over
-`app`, `database`, `routes`, and `tests` — the sidecar tests are analysed with
-the code they cover, and there are no `excludePaths` and no `ignoreErrors`.
-`src/phpstan/*.stub` gives PHPStan the types Pest carries in traits and in
-`expect()->extend()`: the test case a Pest closure runs on, the two custom
-expectations, and the arch DSL. Formatting (`make lint`) runs Pint with
-`declare(strict_types=1)` enforced on every file.
+Static analysis (`make analyse`, and half of `make lint`) runs PHPStan/Larastan
+at `level: max` over `app`, `database`, `routes`, and `tests` — the sidecar
+tests are analysed with the code they cover, and there are no `excludePaths`
+and no `ignoreErrors`. `src/phpstan/*.stub` gives PHPStan the types Pest
+carries in traits and in `expect()->extend()`: the test case a Pest closure
+runs on, the two custom expectations, and the arch DSL. Formatting (Pint,
+checked read-only by the other half of `make lint`, auto-fixed by
+`make lint-fix`) enforces `declare(strict_types=1)` on every file.
 
 `src/tests/SmokeTest.php` is the exception to the sidecar rule: one HTTP walk of
 the whole product — seller sign-in, listing, sale, guest checkout, magic-link
@@ -264,13 +270,11 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Email delivery is a hook, not an implementation. Every notification has a
   `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS=database,mail`
   switch the channel, but `MAIL_MAILER` points at `log`.
-- No order cancellation route; `OrderStatus::Cancelled` exists in the domain
-  with no way to reach it over HTTP.
-- A cart holding a line the listing can no longer supply still shows a live
-  Checkout button. The write refuses and names the item.
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
-- A blocked customer's ask still opens an empty thread; a closed messaging tab
-  holds its SSE worker for a few seconds before it frees. See
-  `docs/messaging.md`.
+- A closed messaging tab holds its SSE worker for a few seconds before it
+  frees. See `docs/messaging.md`.
+- A merged cart keeps a line whose listing carries an active removal, at
+  whatever quantity it clamps to; checkout refuses it and names the item
+  rather than the merge dropping it.
