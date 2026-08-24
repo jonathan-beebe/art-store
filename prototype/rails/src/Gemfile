@@ -52,3 +52,5 @@ group :test do
   # Coverage report for `bin/rails test app lib` [https://github.com/simplecov-ruby/simplecov]
   gem "simplecov", require: false
 end
+
+gem "solid_cache", "~> 1.0"

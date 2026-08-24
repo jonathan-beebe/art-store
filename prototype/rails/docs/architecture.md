@@ -302,6 +302,89 @@ broadcasts are in [`messaging.md`](messaging.md), beside
 [`identity.md`](identity.md), [`orders.md`](orders.md) and
 [`escrow.md`](escrow.md).
 
+## Rate limits
+
+Seven limits, named and shaped by `docs/alignment.md` §3, parsed from their
+environment variables in `config/initializers/rate_limits.rb` at boot into
+`RateLimits::CONFIG`, a frozen table of `RateLimits::Limit`s the controllers
+read by name. A value is `<count>/<window>` (window `<n>s`, `<n>m`, or
+`<n>h`), `off` to disable the limit, or the variable left unset to take the
+default. A value shaped like none of those refuses to boot, naming the
+variable and the value.
+
+| Name | Env | Default | Keyed by | Guards |
+| --- | --- | --- | --- | --- |
+| `magic_link_request` | `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | email (lowercased) and, separately, client ip | every sign-in `create` and guest checkout's implicit link |
+| `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip | `Auth::MagicLinksController#show` |
+| `message_post` | `RATE_LIMIT_MESSAGE_POST` | `30/1h` | actor id | `MessagingSite#create`, every site |
+| `conversation_open` | `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | actor id | listing question, support, fulfillment thread opens |
+| `checkout` | `RATE_LIMIT_CHECKOUT` | `10/1h` | customer id | `Shop::CheckoutsController#create` |
+| `payment_attempt` | `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | order id | `Shop::OrderPaymentsController#create` |
+| `listing_write` | `RATE_LIMIT_LISTING_WRITE` | `60/1h` | seller id | `Seller::ListingsController#create`/`#update` |
+
+`TRUSTED_PROXIES` (a comma-separated list of addresses or CIDR ranges) names
+the proxy a deployment sits behind. Unset, `rate_limit_client_ip` reads the
+socket's own peer (`request.remote_addr`); set, it reads
+`request.remote_ip`, which is the first trusted-proxy header once
+`config.action_dispatch.trusted_proxies` is drawn from the same variable.
+
+**Mechanism**: `app/controllers/concerns/rate_limiting.rb`. Six of the seven
+limits are declared with `rate_limit_guard name, by:, only:`, a thin wrapper
+over Rails' own `rate_limit to:, within:, by:, with:` controller macro.
+`magic_link_request` keys on two facts at once and guards one shared method
+(`MagicLinkSender#send_magic_link`) called from four different actions
+rather than one action outright, so it is checked imperatively with
+`rate_limit_trip!` instead — `send_magic_link` returns `nil` on a trip, and
+each of its four callers returns early rather than touching the `nil`.
+Neither path raises: a trip renders the 429 right where it is found, the same
+way a `before_action` halts its chain by rendering rather than by raising, so
+a trip never crosses `RequestStory`'s own `rescue StandardError` (which would
+otherwise log the request's `did` line with the wrong, guessed status).
+
+**Storage**: a fixed-window counter per (name, key, window_start), keeping
+Rails' `rate_limit` macro's own `store.increment(cache_key, 1, expires_in:)`
+but folding the window's start into the key `by:` returns
+(`RateLimiting.windowed_key`) — a fresh cache key every window rather than
+one count whose expiry the macro keeps pushing back. The store is
+`RateLimits::STORE`, a `SolidCache::Store` instance dedicated to rate
+limiting rather than the app's general `Rails.cache` (`:memory_store` in
+development, `:null_store` in test — neither would survive a restart, and
+`:null_store` would never trip at all). No `config/cache.yml` and no
+`connects_to`: `solid_cache_entries` sits in this app's own SQLite database,
+the same single-database way `solid_cable_messages` already does for Action
+Cable (`db/migrate/*_create_solid_cache_entries.rb`).
+
+**Trip behaviour**: HTTP 429, a `Retry-After: <seconds>` header, one
+`rate_limit.exceed` log line at `warn` (`data` carries `limit`, `key`,
+`retry_after_seconds`; an email-shaped key is logged as `[FILTERED]`, since
+`docs/alignment.md` §2.1 keeps addresses out of `data`), and no side effect —
+the guarded action's own write never runs. The response is the site's own
+page: `application/rate_limit_exceeded.html.erb` renders inside whichever
+layout the tripped controller already carries, unless that action guards a
+form, in which case it re-renders that form with the sentence
+(`"Too many requests — try again in N minutes."`) as a `flash.now[:alert]`
+rather than a field error — `Auth::*SessionsController`, `Shop::
+CheckoutsController`, `Shop::OrderPaymentsController`, `Seller::
+ListingsController`, and `MessagingSite` all override `render_too_many_requests`
+for this. `Auth::MagicLinksController#show` is shared by all three sign-in
+flows and answers before there is a token to say which site the visitor was
+headed to, so it renders in the storefront's own layout as the nearest thing
+that route has to a home.
+
+## Security headers
+
+Every response carries a Content Security Policy
+(`config/initializers/content_security_policy.rb`): `default-src 'self'`,
+`img-src 'self' data:` (a listing with no photograph renders a generated SVG
+placeholder inline), `style-src 'self'`, `script-src 'self'` with a nonce
+`importmap-rails` applies to its own inline `<script type="importmap">` and
+module tags automatically, `form-action 'self'`, `frame-ancestors 'none'` —
+the same set `prototype/node` sends. `X-Content-Type-Options: nosniff` and
+`Referrer-Policy: strict-origin-when-cross-origin` are Rails' own defaults
+(`config.action_dispatch.default_headers`) and needed no change.
+`config.force_ssl = true` in `config/environments/production.rb` adds
+`Strict-Transport-Security` in production.
+
 ## Logging
 
 Every log line is one JSON object on stdout, in every environment. The payload
@@ -400,13 +483,13 @@ wrote share another. All of them share the request's `request_id`.
 | `refund.issue` | `Fulfillment#decline!` and `Fulfillment#refund!` |
 | `migrate.run`, `migrate.apply`, `seed.run` | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed` |
 | `app.boot`, `app.shutdown` | `src/config/initializers/logging.rb` |
+| `rate_limit.exceed` | `RateLimiting#render_rate_limit_trip`, at `warn`; see Rate limits above |
 
 Deferred, with the ticket that brings the feature and its event:
 
 | Event | Ticket |
 | --- | --- |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 (admin moderation) |
-| `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
 
 `listing.view` writes its `did` on every storefront view. The once per
 (listing, customer, hour) collapse, logged as `refused` at `debug`, lands with

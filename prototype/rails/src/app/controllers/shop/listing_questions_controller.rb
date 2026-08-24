@@ -3,6 +3,8 @@ module Shop
   # the participant whether or not it carries a verified address, so a visitor
   # can ask without an account and keeps the thread when they verify one.
   class ListingQuestionsController < BaseController
+    rate_limit_guard :conversation_open, by: -> { current_participant.id }, only: :create
+
     def create
       listing = Listing.on_storefront.find_by!(slug: params[:slug])
 

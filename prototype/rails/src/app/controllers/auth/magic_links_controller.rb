@@ -1,5 +1,7 @@
 module Auth
   class MagicLinksController < BaseController
+    rate_limit_guard :magic_link_consume, by: -> { rate_limit_client_ip }, only: :show
+
     EXPIRED = "That sign-in link has expired. Ask for a new one.".freeze
     CONSUMED = "That sign-in link has already been used. Ask for a new one.".freeze
     UNKNOWN_LINK = "That sign-in link is not valid. Ask for a new one.".freeze
@@ -63,6 +65,14 @@ module Auth
 
     def path_for(paths, actor_type)
       public_send(paths.fetch(actor_type))
+    end
+
+    # This route is shared by all three sign-in flows, so a trip here answers
+    # before there is a token to say which site the visitor was headed to.
+    # The storefront layout is the nearest thing this endpoint has to a home.
+    def render_too_many_requests(trip)
+      render "application/rate_limit_exceeded", layout: "shop", status: :too_many_requests,
+        locals: { message: rate_limit_message(trip) }
     end
   end
 end

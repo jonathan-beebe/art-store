@@ -1,5 +1,7 @@
 module Shop
   class OrderPaymentsController < BaseController
+    rate_limit_guard :payment_attempt, by: -> { params[:id] }, only: :create
+
     def show
       order = order_of_customer(params[:id])
       return redirect_to shop_order_path(order) unless order.unpaid?
@@ -43,6 +45,16 @@ module Shop
 
     def sign_in_to_pay(order)
       customer_login_path(redirect_to: shop_order_payment_path(order))
+    end
+
+    # A tripped `payment_attempt` comes back on the same card form a decline
+    # does, the sentence standing in for a decline reason.
+    def render_too_many_requests(trip)
+      @order = order_of_customer(params[:id])
+      @payment = @order.payments.order(:created_at, :id).last
+      flash.now[:alert] = rate_limit_message(trip)
+
+      render :show, status: :too_many_requests
     end
   end
 end

@@ -301,6 +301,24 @@ The card is fake and nothing is stored but the last four digits.
 Spaces and dashes are ignored. A decline leaves the order on a retry form with
 the stock returned to the listing.
 
+## Rate limits
+
+Seven write routes are rate limited, each configurable from the environment
+(`<count>/<window>`, `off` to disable, unset for the default); see [`docs/
+architecture.md`](docs/architecture.md#rate-limits) for the full table and
+the trip behaviour.
+
+```sh
+RATE_LIMIT_MAGIC_LINK_REQUEST=5/15m
+RATE_LIMIT_MAGIC_LINK_CONSUME=20/15m
+RATE_LIMIT_MESSAGE_POST=30/1h
+RATE_LIMIT_CONVERSATION_OPEN=10/1h
+RATE_LIMIT_CHECKOUT=10/1h
+RATE_LIMIT_PAYMENT_ATTEMPT=5/15m
+RATE_LIMIT_LISTING_WRITE=60/1h
+TRUSTED_PROXIES=                # unset: client ip is the socket's own peer
+```
+
 ## Known gaps
 
 The full list, with the next steps for each, is in

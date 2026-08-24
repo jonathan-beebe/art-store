@@ -2,6 +2,8 @@ module Shop
   # The thread a customer and a seller keep about one order. An order may span
   # sellers, so the thread hangs off the fulfillment rather than the order.
   class FulfillmentConversationsController < BaseController
+    rate_limit_guard :conversation_open, by: -> { current_participant.id }, only: :create
+
     def create
       fulfillment = order_of_customer(params[:order_id]).fulfillments.find(params[:id])
       conversation = Conversation.open(

@@ -3,6 +3,8 @@ module Shop
   # given no address still has an identity, so the thread has somewhere to
   # hang and travels with them when they verify.
   class SupportsController < BaseController
+    rate_limit_guard :conversation_open, by: -> { current_participant.id }, only: :create
+
     def create
       admin = Admin.on_duty
       return redirect_back_or_to(root_path, alert: "Nobody is on the support desk yet.") if admin.nil?

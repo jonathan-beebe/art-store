@@ -2,6 +2,7 @@ class Seller::ListingsController < Seller::BaseController
   WINDOW_DAYS = 14
 
   before_action :set_listing, only: %i[show edit update]
+  rate_limit_guard :listing_write, by: -> { current_seller.id }, only: %i[create update]
 
   def index
     @listings = current_seller.listings.order(created_at: :desc, id: :desc).to_a
@@ -59,5 +60,16 @@ class Seller::ListingsController < Seller::BaseController
 
   def listing_params
     params.expect(listing: %i[title description medium dimensions price quantity image])
+  end
+
+  # A tripped `listing_write` comes back on the same form the listing was
+  # being written on, holding the seller's own text: `set_listing` already
+  # loaded `@listing` for an edit, and a create builds the same unsaved
+  # record `create` itself would have.
+  def render_too_many_requests(trip)
+    @listing ||= current_seller.listings.new(listing_params)
+    flash.now[:alert] = rate_limit_message(trip)
+
+    render action_name == "create" ? :new : :edit, status: :too_many_requests
   end
 end
