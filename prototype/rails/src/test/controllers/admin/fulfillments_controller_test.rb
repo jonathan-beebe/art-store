@@ -91,11 +91,10 @@ class Admin::FulfillmentsControllerTest < ActionDispatch::IntegrationTest
 
   test "the list costs the same however many fulfillments it holds" do
     sign_in_as_admin
-    seller = create_seller
-    create_fulfillment(seller)
+    create_fulfillment(create_seller)
     one = count_queries { get admin_fulfillments_path }
 
-    4.times { create_fulfillment(seller) }
+    4.times { create_fulfillment(create_seller) }
     five = count_queries { get admin_fulfillments_path }
 
     assert_equal one, five

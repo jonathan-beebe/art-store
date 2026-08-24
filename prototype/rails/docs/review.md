@@ -218,7 +218,17 @@ half differs:
     `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
     which is deliberate, tested behaviour, not a drift bug. The flake stands
     unreproduced.
-11. **The admin directory lists are unpaginated.** `/admin/sellers`,
+11. **No site renders its own 400 or 404.** `Admin::BaseController#filter_from`
+    / `#id_filter` raise `ActionController::BadRequest` for a filter value a
+    page does not offer, and `ActiveRecord::RecordNotFound` answers an unknown
+    id everywhere. Neither is rescued anywhere in the controller tree, and
+    there is no `config.exceptions_app`, so both fall through to Rails'
+    static, un-themed `public/400.html` and `public/404.html` — shared by the
+    storefront, seller portal, and admin site, with no site's own layout or
+    nav. Node's `plugins/error-pages.ts` renders both statuses inside the
+    site's own layout. Building that for all three sites is out of scope for
+    any one ticket that touches a single site.
+12. **The admin directory lists are unpaginated.** `/admin/sellers`,
     `/admin/customers`, `/admin/listings`, `/admin/orders` and
     `/admin/fulfillments` render every matching row, and the seller and
     customer selects in their filter forms hold every row of those tables.

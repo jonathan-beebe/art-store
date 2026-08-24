@@ -65,6 +65,13 @@ wrong shape (`?seller=cus_01J…`) answers 400 for the same reason; a
 well-formed id that names nobody narrows to nothing and renders the empty
 state.
 
+Nothing in `Admin::BaseController` rescues the `ActionController::BadRequest`
+this raises, and no site in this app renders its own error page, so the 400
+falls through to Rails' static `public/400.html` — no admin nav, no admin
+layout. Node's `plugins/error-pages.ts` renders the same status inside the
+site's own layout; Rails matches the status code, not the rendering (see
+`docs/review.md`'s known gaps).
+
 ## Balances are folded, never queried per seller
 
 `/admin/sellers` shows every seller's held, available and paid-out balance.
@@ -112,8 +119,15 @@ will hang from:
 | Dashboard tallies, accounting, ledger, stats | `/admin`, `/admin/accounting`, `/admin/ledger`, `/admin/stats` | FEAT-020 |
 
 The `refunds`, `listing_removals` and `customer_blocks` tables do not exist
-yet. Three model methods stand in their place and render an empty section:
+yet. Four model methods stand in their place and render an empty section:
 `Order#refunds`, `Fulfillment#refunds`, `Listing#removals` and
 `Customer#blocks` each answer `[]`, and `Customer.blocked` /
 `Listing.removed` are `none`. Each is one line to replace with the
-`has_many` or the `where` once the table lands; no page changes.
+`has_many` or the `where` once the table lands.
+
+`Listing.visible` (`-> { all }`) is a seventh stand-in, and not a drop-in one:
+it is what `admin/listings?removed=visible` reads as "no removal stands over
+this listing," and `-> { all }` only answers that correctly because nothing
+removes a listing yet. Once `listing_removals` is real, `visible` has to
+become a scope that excludes a listing a removal stands over, or
+`removed=visible` shows removed listings alongside the rest.

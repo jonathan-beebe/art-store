@@ -91,11 +91,10 @@ class Admin::OrdersControllerTest < ActionDispatch::IntegrationTest
 
   test "the list costs the same however many orders it holds" do
     sign_in_as_admin
-    customer = create_verified_customer
-    order_for(customer, create_listing)
+    order_for(create_verified_customer, create_listing)
     one = count_queries { get admin_orders_path }
 
-    4.times { order_for(customer, create_listing) }
+    4.times { order_for(create_verified_customer, create_listing) }
     five = count_queries { get admin_orders_path }
 
     assert_equal one, five

@@ -63,18 +63,24 @@ resource (`admin/listings/_listing`, `admin/orders/_order`,
 sections. The admin layout's nav carries all five directories.
 
 `docs/admin.md` is written and linked from `docs/README.md`; `docs/review.md`
-gains a directory row and known gap 11 (the lists are unpaginated).
+gains a directory row and known gap 12 (the lists are unpaginated).
 
 ### Decisions on ambiguities
 
 1. **An unknown filter value is 400 Bad Request.** `?standing=wat`,
    `?status=wat`, `?removed=wat` and an id filter carrying another table's
    prefix all raise `ActionController::BadRequest`. Node has an answer here —
-   its route `querystring` zod schema refuses the value and
-   `plugins/error-pages.ts` turns a `ZodError` into 400 — so Rails matches it.
-   Not 404: the page exists, the query string is what does not. Not "treated
-   as all": a filter that silently widens is a lie about what the operator is
-   reading.
+   its route `querystring` zod schema refuses the value and turns it into
+   400 — so Rails matches the status code. It does not match the rendering:
+   Node's `plugins/error-pages.ts` renders the 400 inside the site's own
+   layout, while nothing in `Admin::BaseController` or its ancestors rescues
+   `ActionController::BadRequest`, so Rails serves the static, un-themed
+   `public/400.html` — the same page every site falls back to, with no admin
+   nav. No site in this app renders its own 404 or 400 today (see
+   `docs/review.md`'s known gaps), so this is not a regression FEAT-019
+   introduced; it is out of this ticket's scope to fix. Not 404: the page
+   exists, the query string is what does not. Not "treated as all": a filter
+   that silently widens is a lie about what the operator is reading.
 2. **An id filter naming nobody is not an error.** `?seller=sel_<unused>` is a
    well-formed id, so it narrows to nothing and renders the empty state, the
    way Node's `idValue` does.
@@ -125,18 +131,27 @@ render an empty state:
 | Run the weekly payout | `/admin/payouts` (not built here) | FEAT-021 |
 
 The `refunds`, `listing_removals` and `customer_blocks` tables are **not**
-created here. Four one-line model methods and two scopes stand in their place,
-each a drop-in replacement for a `has_many` or a `where`:
+created here. Four one-line model methods and three scopes stand in their
+place, each a drop-in replacement for a `has_many` or a `where`:
 
 - `Order#refunds` → `[]`; `Fulfillment#refunds` → `[]` (FEAT-017 replaces both
   with `has_many :refunds`)
-- `Listing#removals` → `[]` and `scope :removed, -> { none }`;
-  `Listing#actively_removed?` already reads `removals.any?`, so the storefront
-  predicate `Listing#on_storefront?` needs no change either (FEAT-021)
+- `Listing#removals` → `[]`, `scope :removed, -> { none }`, and
+  `scope :visible, -> { all }`; `Listing#actively_removed?` already reads
+  `removals.any?`, so the storefront predicate `Listing#on_storefront?` needs
+  no change either (FEAT-021)
 - `Customer#blocks` → `[]`, `Customer#blocked?` → `blocks.any?`, and
   `scope :blocked, -> { none }` (FEAT-021)
 
-No page changes when those tables land — only the six model lines.
+No page changes when those tables land — only the seven model lines above.
+`visible` is not a drop-in replacement the way the other six are, though:
+`removal_standing`'s `visible` branch calls it, and `admin/listings?removed=visible`
+reads that branch to mean "no removal stands over this listing." `-> { all }`
+answers that correctly only because nothing removes a listing yet. Once
+`listing_removals` is real, `visible` has to become a scope that excludes a
+listing a removal stands over (e.g. `where.not(id: Removal.select(:listing_id))`)
+— leaving it as `all` would make `removed=visible` show removed listings
+alongside the rest.
 
 ### Deviations from the contract
 
@@ -163,3 +178,71 @@ to `ApplicationHelper` — the admin views format cents too.
 Before: 809 runs, 2689 assertions, 0 failures, 1587/1587 lines.
 After: 882 runs, 2956 assertions, 0 failures, 1706/1706 lines. `make lint`
 clean.
+
+### Fix-up
+
+A review of `f72b9f5` found three defects:
+
+1. **The `count_queries` N+1 guard was structurally blind on three list
+   tests.** The orders, listings, and fulfillments "5 rows" cases each built
+   their rows against a single shared parent (one customer, one seller, one
+   seller) — `ActiveRecord::QueryCache` serves the repeated identical
+   `SELECT … WHERE id = <same value>` from cache, and `count_queries` excludes
+   `payload[:cached]`, so dropping the `.includes(:customer)` /
+   `.includes(:seller)` from those index actions would leave the pinned
+   counts equal and the test green. Fixed by giving each of the three tests
+   five distinct parents (`create_verified_customer` / `create_seller` called
+   fresh for each row instead of reused). Verified the guard now bites:
+   removing the parent `.includes` from each of the three index actions in
+   turn (keeping the other `.includes` args) and rerunning that one test
+   failed every time —
+   `Admin::OrdersControllerTest#test_the_list_costs_the_same_however_many_orders_it_holds`
+   (9 expected, 13 actual with `.includes(:customer)` dropped),
+   `Admin::ListingsControllerTest#test_the_list_costs_the_same_however_many_listings_it_holds`
+   (failed with `.includes(:seller)` dropped), and
+   `Admin::FulfillmentsControllerTest#test_the_list_costs_the_same_however_many_fulfillments_it_holds`
+   (failed with `.includes(:seller)` dropped) — then restored each `.includes`
+   and confirmed green again. `Admin::SellersController#index` and
+   `Admin::CustomersController#index` were checked and are sound as they
+   stand: `Seller.directory` / `Customer.directory` fold every per-row count
+   into one grouped query rather than preloading a nested association, and
+   their `count_queries` tests already build distinct sellers/customers per
+   row (no shared parent to begin with). Sanity-checked by swapping one
+   grouped count for a per-row `seller.listings.count` /
+   `customer.orders.count` in each — both breakages were caught (the test
+   failed) without any test change needed, then reverted.
+2. **The 400 for an unknown filter value is not the admin site's own page.**
+   `Admin::BaseController#filter_from` / `#id_filter` raise
+   `ActionController::BadRequest`; nothing rescues it anywhere in the
+   controller tree and there is no `config.exceptions_app`, so it falls
+   through to Rails' static `public/400.html` — no admin nav, no admin
+   layout, shared by all three sites. Checked how 404 is handled first, per
+   the review: it is the same story. `ActiveRecord::RecordNotFound` is never
+   rescued either, and there is no per-site 404 template or handler anywhere
+   in `app/controllers/` — every site, not just admin, falls through to the
+   static `public/404.html`. So no site in this app renders its own error
+   page today; matching Node's `plugins/error-pages.ts` (which renders both
+   inside the site's own layout) would mean building an error-page mechanism
+   for all three sites, which is out of scope for a ticket that touches only
+   the admin directory. Chose (b): corrected the overstated claim in
+   "Decisions on ambiguities" #1 above (it cited `plugins/error-pages.ts` as
+   something Rails "matches" — true of the status code, not the rendering),
+   corrected the same claim in `docs/admin.md`, and added it as known gap 11
+   in `docs/review.md` (the old gap 11, unpaginated lists, is now 12).
+3. **Two nits in `docs/admin.md` / this ticket.** "Where the write actions
+   attach" said "Three model methods stand in their place" and then named
+   four (`Order#refunds`, `Fulfillment#refunds`, `Listing#removals`,
+   `Customer#blocks`) — corrected to "Four". And "No page changes when those
+   tables land — only the six model lines" omitted `Listing.visible`
+   (`scope :visible, -> { all }`): once `listing_removals` is real, `visible`
+   is what `removed=visible` reads as "no removal stands over this listing,"
+   and `-> { all }` only answers that correctly because nothing removes a
+   listing yet — left as `all`, `removed=visible` would show removed listings
+   alongside the rest. Corrected the count to seven and added the caveat in
+   both this ticket's "Deliberately left out" section and `docs/admin.md`, so
+   `FEAT-021`'s worker knows `visible` needs real logic, not just a rename.
+
+`make check`: 882 runs, 2956 assertions, 0 failures, 1706/1706 lines, `make
+lint` clean — unchanged from before the fix-up, since the changes were test
+setup, documentation, and a verification exercise that left production code
+as it was.

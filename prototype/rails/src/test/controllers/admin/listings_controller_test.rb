@@ -144,11 +144,10 @@ class Admin::ListingsControllerTest < ActionDispatch::IntegrationTest
 
   test "the list costs the same however many listings it holds" do
     sign_in_as_admin
-    seller = create_seller
-    create_listing(seller)
+    create_listing(create_seller)
     one = count_queries { get admin_listings_path }
 
-    4.times { create_listing(seller) }
+    4.times { create_listing(create_seller) }
     five = count_queries { get admin_listings_path }
 
     assert_equal one, five
