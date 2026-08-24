@@ -1,7 +1,7 @@
 ---
 id: IMPRV-009
 type: improvement
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -181,6 +181,11 @@ them arrives with the features.
   parsing an upload. Silencing them would mean dropping third-party diagnostics
   wholesale, which is worse than the gap. Everything the application itself
   writes conforms.
+- **`duration_ms` is written on `refused` too**, not only on `did`/`failed`.
+  A refusal took wall time like any other ending and the number is as useful
+  there. §2.1's `duration_ms` row names only `did`/`failed`; the lane proposes
+  amending it to `did`/`refused`/`failed` so PHP and Rails match this.
+
 - **`http.request` `will` has no `txn_id`** and neither does `did`: a request is
   not a unit of work. Only the action lines inside it carry one.
 

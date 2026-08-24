@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:05:00:00 — BUG-007 — started
+- 2026-08-24:04:59:00 — IMPRV-009 — done: one JSON payload per §2.1 (ts/level/event/phase/msg + request_id/session_id/actor_type/actor_id/txn_id/data/error/duration_ms), `sid` session cookie surviving sign-in and sign-out, `txn_id` minted where the transaction opens, every write action telling will -> did/refused/failed, 20 events renamed to the imperative and 20 newly emitted; 1575 -> 1623 tests, coverage 99.53/97.32/99.51; reviewer: accept-with-fixes, the only finding a proposed §2.1 amendment (duration_ms on refused)
 - 2026-08-23:23:20:00 — IMPRV-009 — started
 - 2026-08-23:23:19:00 — FEAT-018 — done: every table keyed by a prefixed ULID text id (`core/ids/prefixed-id.ts` pure, `app/ids.ts` mints from the action clock), prefix-aware `idParams(prefix)` 404ing a wrong prefix, identity cookie parsed per actor prefix, `#` sigil dropped, ordering moved to creation timestamps with `created_at` added to cart_items/order_items/fulfillments; 1536 -> 1575 tests, coverage 99.59/97.25/99.47; reviewer found no defects
 - 2026-08-23:21:30:00 — FEAT-018 — started
