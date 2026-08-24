@@ -106,6 +106,42 @@ class CartTest < ActiveSupport::TestCase
     assert_equal [ first.id, second.id ], cart.subtotals_by_seller.keys
   end
 
+  test "a line removed after it was added is left out of the subtotal" do
+    shop = create_seller
+    cart = cart_for(create_verified_customer)
+    kept = create_listing(shop, price_cents: 1_000)
+    removed = create_listing(shop, price_cents: 45_000)
+    cart.add(kept)
+    cart.add(removed)
+
+    removed.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    assert_equal 1_000, cart.subtotal.cents
+  end
+
+  test "a line removed after it was added is left out of the per-seller subtotal" do
+    shop = create_seller
+    cart = cart_for(create_verified_customer)
+    kept = create_listing(shop, price_cents: 1_000)
+    removed = create_listing(shop, price_cents: 45_000)
+    cart.add(kept)
+    cart.add(removed)
+
+    removed.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    assert_equal({ shop.id => 1_000 }, cart.subtotals_by_seller.transform_values(&:cents))
+  end
+
+  test "a sold-out line is left out of the subtotal" do
+    cart = cart_for(create_verified_customer)
+    listing = create_listing(quantity: 1, price_cents: 45_000)
+    cart.add(listing)
+
+    listing.update!(quantity: 0, status: "sold")
+
+    assert_equal 0, cart.subtotal.cents
+  end
+
   test "an empty cart totals nothing" do
     cart = cart_for(create_verified_customer)
 

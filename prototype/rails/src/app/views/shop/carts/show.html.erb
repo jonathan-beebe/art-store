@@ -31,7 +31,14 @@
   </ul>
 
   <div class="mt-10 flex flex-wrap items-center justify-between gap-6">
-    <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= @subtotal.format %></span></p>
+    <div>
+      <p class="text-xl">Subtotal <span data-cart-subtotal class="ml-4"><%= @subtotal.format %></span></p>
+      <% if @blocked_reasons.any? %>
+        <p data-cart-subtotal-note class="mt-1 text-sm text-neutral-500">
+          Excludes the unavailable line<%= @blocked_reasons.size == 1 ? "" : "s" %> above.
+        </p>
+      <% end %>
+    </div>
 
     <% if @blocked_reasons.any? %>
       <span class="rounded-full bg-neutral-300 px-8 py-3 text-base text-neutral-500" aria-disabled="true" data-checkout-disabled>Checkout</span>
