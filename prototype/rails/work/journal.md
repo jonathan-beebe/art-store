@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:23:30:00 — BUG-004 — started
+- 2026-08-23:23:29:00 — FEAT-016 — done: JSON log formatter, Current attributes, Story will/did/refused/failed, sid cookie, request id, 28 events; 780 runs / 2608 assertions / 100% lines
 - 2026-08-23:22:20:00 — FEAT-016 — started
 - 2026-08-23:22:19:00 — FEAT-015 — done: prefixed ULID primary keys on all 20 domain tables, route prefix constraints, seeds on a frozen clock; 772 runs / 2428 assertions / 100% lines
 - 2026-08-23:22:10:00 — FEAT-015 — implemented: prefixed ULID primary keys on every domain table, route constraints per prefix, schema and seeds rebuilt; 768 runs / 2417 assertions / 100% lines
