@@ -300,3 +300,86 @@ clean before the real commit.
 Non-negotiable core delivered in full: A1–A3, `make check` green from a
 clean tree, the route walk with no 5xx, `docs/review.md` coherent, docs no
 longer lying about test counts or make targets. Nothing was cut.
+
+### Node-lane alignment
+
+Six gaps the Node lane's own alignment pass surfaced, verified against
+this codebase and fixed on `align/rails`. Final state: 1262 runs, 4506
+assertions, 0 failures, 100% line coverage (2264/2264), `make lint` clean.
+
+1. **No `#` sigil before a prefixed id (FEAT-015)** — `docs/alignment.md`
+   §1 makes the order number the order id. Swept every view, model
+   display method (`Customer#display_name`, `Conversation#topic`), and
+   `Notification` body builder for a literal `#` immediately before a
+   prefixed id and dropped it. Commit `c3b2b7d`.
+
+2. **Admin cancel takes a reason (FEAT-017)** — `Order#cancel!` gained a
+   `reason:` keyword, required and validated (present, 1–500 chars,
+   against `Refund::REASON_LIMIT`) only when `by:` is an `Admin`; a
+   customer's own cancel and the stale sweep still pass none. **Decision:
+   the reason lives in a new `orders.cancellation_reason` column**, not a
+   join table like `ListingRemoval`/`CustomerBlock`/`Refund` — a
+   cancellation happens at most once per order and is a dead end in the
+   state machine (`cancelled` has no outgoing transitions), so there is
+   no multiplicity a separate table would earn its keep on; a nullable
+   column is the smaller vanilla-Rails answer. `Admin::CancellationsController`
+   now rescues `ActiveRecord::RecordInvalid` alongside `TransitionError`,
+   matching `Admin::ListingRemovalsController`'s existing shape (the
+   sibling check this ticket asked for: `Admin::RefundsController`
+   already rescued only `RecordInvalid` — it has no `TransitionError`
+   path of its own to catch, since `Fulfillment#reverse_to!` judges the
+   transition through the same `validate!` that carries the reason
+   check, not a raised `TransitionError`). Commit `7f82ab2`.
+
+3. **FAQ uniqueness on `(listing_id, source_message_id)` (MAINT-003)** —
+   added the unique index (SQLite does not treat NULL as equal to NULL in
+   a unique index, so hand-written entries with no source message stay
+   unrestricted) plus a model validation, so a second publish is a
+   readable domain refusal. The thread now shows a published marker
+   (`Message#listing_faq`) and drops the publish form for a message
+   already published. Found and fixed a real bug while wiring the
+   "already published" check: reading it as `draft.source_message.listing_faq`
+   always found the draft itself, because `belongs_to :source_message,
+   inverse_of: :listing_faq` on the still-unsaved draft wires the
+   association's other end as a side effect of assignment — switched to a
+   direct `ListingFaq.exists?` query. Folded in the CSRF status-code
+   divergence note (item 6) since both touch `docs/review.md`. Commit
+   `bb3b7e5`.
+
+4. **Blocked cart line excluded from the subtotal (BUG-004)** —
+   `Cart#subtotal`/`#subtotals_by_seller` now run over `available_items`,
+   which reuses `OrderPlacement`'s own blocked-line classification. The
+   cart page states what the total covers once a line is blocked.
+   Regression found and fixed while implementing this: `Order.place` had
+   been deriving its fulfillment split from `cart.subtotals_by_seller`
+   *after* `snapshot` already took the cart's stock — with blocked-line
+   filtering added to that method, a listing that sold out **because of
+   this very order** read back as blocked on the fresh query the fix
+   introduced, so the order lost its fulfillments. Moved the split onto
+   `plan.items` instead (already locked, already confirmed unblocked, no
+   fresh query racing the stock change) — this fix landed inside commit
+   `7f82ab2` (FEAT-017) because `order.rb` was already staged there
+   before the regression was found; it is `Order.place`-only and has no
+   bearing on the admin cancel reason. Commit `20a2c64` (cart/view/tests).
+
+5. **Two rate-limited forms fell to the plain 429 page (FEAT-018)** —
+   `Shop::ListingQuestionsController`, `Shop::SupportsController`, and
+   `Shop::FulfillmentConversationsController` all fell through, not just
+   two: the "consistent, not a divergence" reasoning recorded in this
+   ticket's own §C reconciliation notes above (all three routes just
+   redirect+flash on an ordinary refusal, so there is no form convention
+   to extend) turned out to be the shape of the bug, not a defense of it.
+   `ListingQuestionsController` re-renders the listing page the question
+   form sits on. `SupportsController` and `FulfillmentConversationsController`
+   have no field to preserve — both are plain buttons with no body param
+   — so each re-renders the page the button sits on (account page, order
+   page) rather than forcing a form that does not exist. `magic_link_consume`
+   is unchanged: its own guarded route (`GET /auth/magic/:token`) is a
+   link click, not a form submit, so it keeps the plain page. Commit
+   `65dc32f`.
+
+6. **CSRF divergence recorded** — verified empirically
+   (`ActionDispatch::ExceptionWrapper.rescue_responses["ActionController::InvalidAuthenticityToken"]`
+   `=> :unprocessable_content`, i.e. 422): Rails answers 422, Node 403,
+   Laravel 419. Folded into commit `bb3b7e5` (item 3) as a
+   `docs/review.md` addition.
