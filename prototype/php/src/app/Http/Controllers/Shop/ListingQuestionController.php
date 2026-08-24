@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Messaging\OpenConversation;
-use App\Actions\Messaging\PostMessage;
+use App\Actions\Messaging\OpenConversationWithMessage;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitExceeded;
@@ -22,8 +21,7 @@ final class ListingQuestionController extends ShopController
     public function __invoke(
         Listing $listing,
         AskSellerRequest $request,
-        OpenConversation $openConversation,
-        PostMessage $postMessage,
+        OpenConversationWithMessage $ask,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $visitor = $this->visitor();
@@ -40,14 +38,12 @@ final class ListingQuestionController extends ShopController
             return $this->tooManyRequests($exceeded, 'shop.listing', $this->listingPage($listing, $visitor));
         }
 
-        $conversation = $openConversation(
+        $conversation = $ask(
             ConversationSubject::listingQuestion($listing->seller_id, $visitor->id, $listing->id),
+            $visitor,
+            $request->body(),
             $this->now(),
         );
-
-        $this->authorizeVisitor('post', $conversation);
-
-        $postMessage($conversation, $visitor, $request->body(), $this->now());
 
         return redirect()->route('shop.messages.show', $conversation);
     }

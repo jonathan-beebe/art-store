@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Messaging\OpenConversation;
-use App\Actions\Messaging\PostMessage;
+use App\Actions\Messaging\OpenConversationWithMessage;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -20,8 +19,7 @@ final class CustomerMessageController extends AdminController
     public function __invoke(
         Customer $customer,
         SendMessageRequest $request,
-        OpenConversation $openConversation,
-        PostMessage $postMessage,
+        OpenConversationWithMessage $send,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $admin = $this->admin();
@@ -40,12 +38,12 @@ final class CustomerMessageController extends AdminController
             ]);
         }
 
-        $conversation = $openConversation(
+        $conversation = $send(
             ConversationSubject::adminCustomer($admin->id, $customer->id),
+            $admin,
+            $request->body(),
             $this->now(),
         );
-
-        $postMessage($conversation, $admin, $request->body(), $this->now());
 
         return redirect()->route('admin.messages.show', $conversation);
     }

@@ -23,6 +23,8 @@ use Illuminate\Http\Request;
 
 final class MagicLinkVerificationController extends Controller
 {
+    private const string ALREADY_USED = 'That sign-in link has already been used. Ask for a new one.';
+
     public function __invoke(
         Request $request,
         string $token,
@@ -60,7 +62,7 @@ final class MagicLinkVerificationController extends Controller
             $refusal = match ($link->statusAt($now)) {
                 MagicLinkStatus::Usable => null,
                 MagicLinkStatus::Expired => 'That sign-in link has expired. Ask for a new one.',
-                MagicLinkStatus::Consumed => 'That sign-in link has already been used. Ask for a new one.',
+                MagicLinkStatus::Consumed => self::ALREADY_USED,
             };
 
             if ($refusal !== null) {
@@ -72,7 +74,17 @@ final class MagicLinkVerificationController extends Controller
                 return $this->refuse($link->actor_type, $refusal);
             }
 
-            $link->consume($now);
+            // The claim is the check: whatever the status read a moment ago,
+            // only the verification the database hands the row to signs
+            // anybody in, so a token verified twice at once opens one session.
+            if (! $link->consume($now)) {
+                $story->refused(self::ALREADY_USED, [
+                    'magic_link_id' => $link->id,
+                    'actor_type' => $link->actor_type->value,
+                ]);
+
+                return $this->refuse($link->actor_type, self::ALREADY_USED);
+            }
 
             match ($link->actor_type) {
                 ActorType::Seller => $signInSeller($link->email, $now),

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
+- 2026-08-24:22:05:00 — FEAT-024 — fixed up: favorites page reads the storefront set, cart add refuses a removed listing, moderation checks judged against a locked row; 1793 tests, 4865 assertions, 100% lines
 - 2026-08-24:21:30:00 — BUG-003 — started
 - 2026-08-24:21:29:00 — FEAT-024 — done: listing removals with temporary/permanent kinds, removal outranks status, payout run moved to admin; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:19:05:00 — FEAT-023 — done: zero-filled dashboard tallies, accounting, ledger browser, stats, page-view roll-up and view collapse; 1699 tests, 4655 assertions, 100% lines

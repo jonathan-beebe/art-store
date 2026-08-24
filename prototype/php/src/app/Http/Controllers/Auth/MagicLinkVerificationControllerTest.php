@@ -86,6 +86,25 @@ it('refuses an unknown token', function (): void {
     $response->assertSessionHas('error', 'That sign-in link is not valid. Ask for a new one.');
 });
 
+it('signs nobody in when the link is consumed between the read and the write', function () use ($sellerLinkFor): void {
+    $url = $sellerLinkFor('artist@example.com');
+
+    // The other verification lands after this request read the row and before
+    // it wrote to it — the window the row count closes. Writing through the
+    // query builder leaves the instance the request is holding stale, which
+    // is what the losing side of a real race is holding too.
+    MagicLink::retrieved(fn (MagicLink $link) => MagicLink::query()
+        ->whereKey($link->id)
+        ->update(['consumed_at' => now()]));
+
+    $response = $this->get($url);
+
+    $response->assertRedirect(route('auth.seller.login'));
+    $response->assertSessionHas('error', 'That sign-in link has already been used. Ask for a new one.');
+    $this->assertGuest('seller');
+    expect(Seller::count())->toBe(0);
+});
+
 it('marks the link consumed on verification', function () use ($sellerLinkFor): void {
     $this->get($sellerLinkFor('artist@example.com'));
 

@@ -57,8 +57,23 @@ class MagicLink extends Model
         return MagicLinkStatus::of($this->expires_at, $this->consumed_at, $now);
     }
 
-    public function consume(DateTimeImmutable $now): void
+    /**
+     * Claims the link for one verification, and says whether this caller is
+     * the one that got it. `consumed_at is null` is part of the write rather
+     * than a read taken before it, so of two verifications racing on the same
+     * token the database hands one an affected row and the other none — a
+     * link read as usable a moment ago is not a link still usable now.
+     */
+    public function consume(DateTimeImmutable $now): bool
     {
-        $this->forceFill(['consumed_at' => $now])->save();
+        $claimed = $this->newQuery()->whereKey($this->getKey())->whereNull('consumed_at')->update([
+            'consumed_at' => $now,
+        ]) === 1;
+
+        if ($claimed) {
+            $this->forceFill(['consumed_at' => $now])->syncOriginal();
+        }
+
+        return $claimed;
     }
 }

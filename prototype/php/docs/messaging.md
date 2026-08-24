@@ -99,9 +99,10 @@ sequenceDiagram
 
     Shopper->>Ask: POST /art/{listing:slug}/questions (AskSellerRequest)
     Ask->>Ask: route-model binding by slug, ListingAvailability or 404
-    Ask->>Open: __invoke(ConversationSubject::listingQuestion(...), now)
+    Ask->>Open: OpenConversationWithMessage: one DB::transaction
     Open->>Open: Conversation::firstOrCreate(subject_key)
-    Ask->>Post: __invoke(conversation, visitor, MessageBody, now)
+    Open->>Open: Gate::forUser(visitor)->authorize('post', conversation)
+    Open->>Post: __invoke(conversation, visitor, MessageBody, now)
     Post->>Post: append message, touch last_message_at
     Post->>Notify: MessagePosted (after commit)
     Notify->>Notify: MessageReceived to the seller,\nurl = route(ActorType::Seller->conversationRouteName())
@@ -200,25 +201,31 @@ with a `DomainRuleViolation`, which `bootstrap/app.php` already turns into
 `back()->withErrors(...)` for every route. `customer_blocks` carries
 `(customer_id, lifted_at)` for the read; the "only one active" rule is the
 action's, since a partial unique index is not portable to the SQLite file this
-prototype ships.
+prototype ships. `BlockCustomer` judges it inside the transaction that writes,
+against the customer row taken through `Customer::takeForModeration()`, so two
+admins blocking at once cannot both pass the check.
 
 The refusal for the paths that buy something is the action's, so the shopper
 lands back on the page they submitted from with the reason. The refusal for
 messages is the policy's, so the form is never offered in the first place. Both
 read the same `canShop()`.
 
-A blocked visitor who submits `shop.listing.questions` anyway leaves a thread
-behind with no message in it. `ListingQuestionController` calls
-`OpenConversation` before `authorizeVisitor('post', ...)`, so the thread opens
-(or is found) first and the policy only denies the `PostMessage` that would
-follow; retrying finds the same thread through `firstOrCreate` rather than
-opening a second one. That empty thread renders on both inboxes as a named row
-with no preview, stays one row no matter how many times the visitor tries, and
-notifies nobody. Accepted for the prototype rather than reordered, since
-reordering would mean authorizing against a conversation that does not exist
-yet. `shop.order.messages` carries no such risk — it only opens or finds the
-fulfillment thread and redirects to it; the reply itself is a separate
-`shop.messages.store` request, authorized before anything is written.
+A blocked visitor who submits `shop.listing.questions` anyway leaves nothing
+behind. Opening a thread and posting the message that opens it is one
+transaction: `OpenConversationWithMessage` runs `OpenConversation`, the
+`post` gate, and `PostMessage` inside a single `DB::transaction`, so the
+policy's refusal rolls the `conversations` row back with it. However many
+times the visitor tries, both inboxes stay empty and nobody is notified. The
+gate is inside the action rather than in the controller because a
+`Conversation` is what `ConversationPolicy::post` judges, and the only
+conversation to judge is the one the transaction just opened.
+
+The three routes that ask something — `shop.listing.questions`,
+`admin.sellers.messages`, `admin.customers.messages` — all go through it. The
+routes that only open a thread and redirect to it (`shop.support`,
+`seller.support`, `shop.order.messages`, `seller.order.messages`) still call
+`OpenConversation` alone: an empty thread is the point there, since the actor
+types the first message on the page they land on.
 
 The admin site is the minimum messaging needs: a seeded `admins` table, an
 `admin` session guard, magic-link sign-in at `/admin/login` that admits only an

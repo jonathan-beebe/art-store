@@ -29,7 +29,7 @@ sequenceDiagram
 
     Seller->>Verify: GET /auth/magic/{token}
     Verify->>MagicLinks: forToken(token)->first()
-    Verify->>MagicLinks: consume(now)
+    Verify->>MagicLinks: consume(now) -> claimed? (update ... where consumed_at is null)
     Verify->>SignIn: __invoke(email, now)
     SignIn->>SignIn: Seller::firstOrNew(email), email_verified_at ??= now
     SignIn->>Seller: Auth::guard('seller')->login()
@@ -41,6 +41,16 @@ Caveats: the link goes to an address, not to a row —
 first-time email creates the seller row, and there is no separate sign-up
 step. An expired or already-consumed link redirects back to
 `auth.seller.login` with an error instead of reaching `SignInSeller`.
+
+**A link is consumed once.** `MagicLink::consume(now)` is a single
+`update ... where consumed_at is null` and returns whether it affected a row;
+only the caller it hands the row to reaches `SignInSeller` / `SignInCustomer`
+/ `SignInAdmin`. The status read that precedes it is what names the refusal
+for a link already used or expired, but it is not what decides: two
+verifications of the same token arriving together both read a usable link, and
+the write is what settles which of them gets it. The loser is refused with the
+same sentence an already-used link gets. Without the row count in the write,
+one token would open two sessions — a session-fixation primitive.
 
 ## Admin magic-link sign-in
 
@@ -69,7 +79,7 @@ sequenceDiagram
 
     Admin->>Verify: GET /auth/magic/{token}
     Verify->>MagicLinks: forToken(token)->first()
-    Verify->>MagicLinks: consume(now)
+    Verify->>MagicLinks: consume(now) -> claimed? (update ... where consumed_at is null)
     Verify->>SignIn: __invoke(email, now)
     SignIn->>Admin: Admin::where('email', ...)->firstOrFail()
     SignIn->>Admin: Auth::guard('admin')->login()
@@ -108,7 +118,7 @@ sequenceDiagram
     Send-->>Customer: flash "check your email"
 
     Customer->>Verify: GET /auth/magic/{token}
-    Verify->>Verify: consume link
+    Verify->>Verify: consume link (one row, or the request is refused)
     Verify->>Resolve: resolve(cookie value) -> anonymous Customer
     Verify->>SignIn: __invoke(email, anonymous)
     SignIn->>Claim: __invoke(email, anonymous)
