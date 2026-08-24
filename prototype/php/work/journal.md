@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:21:30:00 — BUG-003 — started
+- 2026-08-24:21:29:00 — FEAT-024 — done: listing removals with temporary/permanent kinds, removal outranks status, payout run moved to admin; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:19:05:00 — FEAT-023 — done: zero-filled dashboard tallies, accounting, ledger browser, stats, page-view roll-up and view collapse; 1699 tests, 4655 assertions, 100% lines
 - 2026-08-24:19:04:00 — FEAT-021 — done: seven configurable rate limits keyed per §3, 429 with Retry-After, CSP and security headers; 1596 tests, 4438 assertions, 100% lines
 - 2026-08-24:19:03:00 — FEAT-020 — done: cancel, stale sweep, seller decline, admin refund, refunds table and refunded ledger entry across the three timings; 1514 tests, 4187 assertions, 100% lines
