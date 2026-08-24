@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:19:00:00 — MAINT-004 — started
+- 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:23:50:00 — IMPRV-005 — done: CustomerMergePlan folds cart quantities and unions favorites, currentCart heuristic gone, schema manifest test added
 - 2026-08-24:22:35:00 — IMPRV-005 — started
 - 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
