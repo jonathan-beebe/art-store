@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:19:10:00 — IMPRV-011 — done (fix-up): review found a real cross-site redirect bypass — `pathOf` collapsed dot segments only on the origin-prefixed branch, so `redirect_to=/./admin/orders` passed the prefix check and the browser then normalised the Location to `/admin/orders`. Both branches now resolve through `new URL`, which also decodes `%2e`; a kept target still returns the raw string so query and fragment survive. 1887 -> 1898 tests, b251bb8
 - 2026-08-24:17:30:00 — IMPRV-012 — started
 - 2026-08-24:16:30:00 — IMPRV-011 — done: admin sign-in answers identically whether or not `admits()` admits the address (same notice/redirect, refusal logged server-side with a redacted email digest, timing deliberately not equalised); `allowsPath(actorType, path)` mirrors PHP's `ActorType::allowsPath` and `keepLocalRedirect`/`resolveLocalRedirect` now refuse a `redirect_to` outside an actor's own site paths, checked at both sign-in and magic-link consumption; every POST form carries a double-submit CSRF token (HMAC of the `sid` cookie under `COOKIE_SECRET`) verified by a `preValidation` hook registered inside each site (after multipart on the seller site, since `attachFieldsToBody` populates `request.body` via its own `preValidation` hook), 403 on a missing/foreign/wrong token, empty allowlist proven by a route-table completeness test; 1827 -> 1887 tests, coverage 99.50/96.76/99.56
 - 2026-08-24:16:00:00 — IMPRV-011 — started
