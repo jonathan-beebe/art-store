@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-23:21:00:00 — MAINT-001 — started
 - 2026-08-23:20:33:31 — MAINT-002 — defined: Final validation and docs refresh for the alignment branch
 - 2026-08-23:20:33:31 — IMPRV-012 — defined: Field-level errors on every form
 - 2026-08-23:20:33:31 — IMPRV-011 — defined: Identity hardening: non-revealing admin login, cross-site redirect refusal, CSRF tokens
