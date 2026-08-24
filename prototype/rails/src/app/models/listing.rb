@@ -8,9 +8,11 @@ class Listing < ApplicationRecord
   SLUG_FALLBACK = "listing".freeze
   TEXT_MATCH = "title LIKE :pattern OR description LIKE :pattern OR medium LIKE :pattern".freeze
 
-  # The multipart size limit an uploaded listing image is held to, stated on
-  # the form's own help text below.
-  MAX_IMAGE_UPLOAD_BYTES = 5.megabytes
+  # The size limit an uploaded listing image is held to, stated on the
+  # form's own help text below. config/boot.rb reads the same
+  # UploadLimits::MAX_IMAGE_BYTES to size the transport-level Rack limit
+  # that backs this check up, so the two cannot drift apart.
+  MAX_IMAGE_UPLOAD_BYTES = UploadLimits::MAX_IMAGE_BYTES
 
   belongs_to :seller
   has_many :events, class_name: "ListingEvent", dependent: :destroy

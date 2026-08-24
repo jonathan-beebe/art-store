@@ -110,7 +110,7 @@ badge.
 - Passwordless. `magic_links` holds a hashed token, `email`, `actor_type`
   (`seller` | `customer` | `admin`), `expires_at`, `consumed_at`, optional
   `redirect_to`. `MagicLink.issue` writes the row and returns the plaintext
-  token beside it; `MagicLink.find_by_token`, `#usable?` and `#consume!` are the
+  token beside it; `MagicLink.find_by_token`, `#usable?` and `#consume` are the
   verify side. `Seller.claim` and `Customer.claim` turn a followed link into an
   account.
 - Admins are seeded. `Admin.claim` finds the row rather than creating one, so a

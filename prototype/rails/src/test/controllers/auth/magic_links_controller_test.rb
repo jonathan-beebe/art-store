@@ -71,7 +71,7 @@ module Auth
       assert_equal "That sign-in link has already been used. Ask for a new one.", flash[:alert]
     end
 
-    test "a second visit to a used link is refused by the row-count check, not by re-reading a stale timestamp" do
+    test "a second, sequential visit to a used link is refused and logged" do
       post seller_send_magic_link_path, params: { email: "artist@example.com" }
       url = flash[:debug_magic_link]
       get url

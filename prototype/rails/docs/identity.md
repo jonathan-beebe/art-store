@@ -83,7 +83,7 @@ sequenceDiagram
     Checkout-->>Customer: MagicLinkMailer.sign_in, plus flash[:debug_magic_link]
 
     Customer->>Verify: GET /auth/magic/:token
-    Verify->>Verify: consume!
+    Verify->>Verify: consume
     Verify->>Customers: claim(link.email, current: customer_from_cookie)
     alt no row owns the address yet
         Customers->>Customers: create!(email:, email_verified_at: now)

@@ -262,7 +262,7 @@ address creates a seller or a customer account; an admin address with no
 
 `MagicLink.issue(email:, actor_type:)` writes the row and returns the
 plaintext token beside it — only the SHA256 digest is stored — and the verify
-side is `MagicLink.find_by_token`, `#usable?` and `#consume!`. A followed link
+side is `MagicLink.find_by_token`, `#usable?` and `#consume`. A followed link
 reaches `Seller.claim(email)`, `Customer.claim(email, current:)` or
 `Admin.claim(email)`.
 

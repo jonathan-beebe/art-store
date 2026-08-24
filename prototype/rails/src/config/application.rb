@@ -30,8 +30,9 @@ module ArtStore
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    # The formatter is required by hand above, so Zeitwerk leaves it alone.
-    config.autoload_lib(ignore: %w[assets tasks json_log_formatter.rb])
+    # The formatter and the upload limits are required by hand (the latter
+    # in config/boot.rb, ahead of Bundler), so Zeitwerk leaves both alone.
+    config.autoload_lib(ignore: %w[assets tasks json_log_formatter.rb upload_limits.rb])
 
     # One JSON object per line on stdout, in every environment, so the log
     # reads the same wherever it is being read.

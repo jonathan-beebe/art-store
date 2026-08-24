@@ -126,6 +126,12 @@ class ListingTest < ActiveSupport::TestCase
     assert_empty draft.errors[:image]
   end
 
+  test "the Rack transport limit is set from the same constant as the app-level cap" do
+    expected = Listing::MAX_IMAGE_UPLOAD_BYTES + 1.megabyte
+
+    assert_equal expected.to_s, ENV["RACK_MULTIPART_PARSER_BYTESIZE_LIMIT"]
+  end
+
   test "it stores the price in cents" do
     assert_equal 24_900, draft(price: "249.00").price_cents
     assert_equal 24_900, draft(price: "249").price_cents

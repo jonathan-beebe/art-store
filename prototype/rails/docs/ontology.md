@@ -444,7 +444,7 @@ once). Sequence diagrams: `docs/identity.md`.
 
 **In code.** `MagicLink` (table `magic_links`, column `token_digest`,
 `actor_type` enum), issued by `MagicLink.issue` and spent through
-`MagicLink.find_by_token`, `#usable?` and `#consume!`.
+`MagicLink.find_by_token`, `#usable?` and `#consume`.
 
 ### Customer merge
 

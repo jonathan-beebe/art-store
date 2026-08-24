@@ -108,3 +108,48 @@ is and is not responsible for.
 
 **Deviations from the ticket's literal wording:** none. `make check`
 (rubocop → tailwindcss build → full suite at `COVERAGE_MIN=100`) is green.
+
+### Fix-up
+
+Three review items on this ticket's commit (`b639352`):
+
+- **Transport-level upload cap.** `Listing#image_upload_rejection`'s size
+  check only runs after Rack has already streamed the whole multipart body
+  to a tempfile — Rack's own ceiling
+  (`Rack::Multipart::Parser::PARSER_BYTESIZE_LIMIT`, read once from
+  `ENV["RACK_MULTIPART_PARSER_BYTESIZE_LIMIT"]` the first time
+  `rack/multipart/parser.rb` loads) defaults to 10 GiB, so a seller with a
+  session could park gigabytes on disk per request before the app-level
+  check ever ran. `lib/upload_limits.rb` now holds `UploadLimits::MAX_IMAGE_BYTES`
+  (plain arithmetic, no ActiveSupport) as the one source of truth;
+  `Listing::MAX_IMAGE_UPLOAD_BYTES` is defined from it, and `config/boot.rb`
+  sets `ENV["RACK_MULTIPART_PARSER_BYTESIZE_LIMIT"]` from it too — before
+  `bundler/setup` runs, so the value is in place before Rack ever reads it
+  (an initializer would be too late; Rack is already loaded by then). The
+  transport limit is **6 MiB** — the 5 MiB image cap plus 1 MiB of headroom
+  for the multipart envelope (boundaries, headers, and the form's other
+  fields: title, description, medium, dimensions, price, quantity, none of
+  which individually exceeds a few KB). It protects against a request whose
+  multipart body — as declared by `Content-Length`, or as actually
+  streamed, whichever comes first — exceeds that total; Rack raises and
+  aborts the parse mid-read rather than finishing the write to a tempfile.
+  A new test (`test/models/listing_test.rb`) asserts
+  `ENV["RACK_MULTIPART_PARSER_BYTESIZE_LIMIT"]` equals
+  `Listing::MAX_IMAGE_UPLOAD_BYTES + 1.megabyte` rather than pushing
+  gigabytes through the suite.
+- **Stale method name in docs.** `#consume!` (renamed to `#consume` in this
+  commit) was still named in `docs/architecture.md`, `docs/ontology.md`,
+  `docs/identity.md` (a second sequence diagram the original doc edit
+  missed), and `README.md`. All four now say `#consume`. A repo-wide grep
+  turned up no other reference to a method or route this commit renamed or
+  removed.
+- **Mislabelled test.** `test/controllers/auth/magic_links_controller_test.rb`
+  had a test named for the row-count check, but a second `get` on a used
+  link reloads a row with `consumed_at` already set — `usable?` refuses it
+  before `consume` ever runs, so the row-count race is never exercised here.
+  Renamed to "a second, sequential visit to a used link is refused and
+  logged"; the row-count guarantee stays proved by
+  `test/models/magic_link_test.rb`'s racer test and its single-UPDATE test.
+
+`make check` is green: 1211 runs, 4287 assertions, 100% line coverage
+(2183/2183).
