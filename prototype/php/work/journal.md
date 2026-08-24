@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:06:20:00 — FEAT-022 — started
+- 2026-08-24:06:19:00 — IMPRV-004 — done: OrderPlacementPlan refuses with every blocked line, listing rows taken for update, card fields never flashed; 1282 tests, 3526 assertions, 100% lines
 - 2026-08-24:04:40:00 — IMPRV-004 — started
 - 2026-08-24:04:39:00 — FEAT-019 — done: one JSON line per event on stdout, Story::tell brackets every unit of work, http.request on every request incl. 404/419; 1247 tests, 3395 assertions, 100% lines
 - 2026-08-24:04:10:00 — FEAT-018 — done: prefixed ULID ids on all 20 domain tables plus notifications, PrefixedId value object refuses wrong prefixes at the route boundary; 1234 tests, 3302 assertions, 100% lines
