@@ -31,7 +31,7 @@ FEAT-017 is the pattern: an independent audit agent reads `docs/` against `src/a
 ### A. Audit — `docs/` against `src/app`, before any rewrite
 
 Read every doc under `prototype/php/docs/` plus the prototype `README.md`
-against `src/app`, `src/database/migrations`, and the `## Working` section of
+against `src/app`, `src/database/migrations`, and the `` section of
 every closed ticket in `work/3-done/` for MAINT-003, FEAT-018..024, IMPRV-004,
 IMPRV-005, and BUG-003. Mismatches found:
 
@@ -125,7 +125,6 @@ Working notes:
   kept for contract symmetry with `docs/alignment.md` §4.4, flagged in
   FEAT-020's own notes as worth revisiting as a product call.
 
-## Working
 
 ### Audit — what the docs said and what the code does
 
@@ -163,12 +162,29 @@ Working notes:
   first draft and were corrected (`seller.orders.decline`,
   `admin.orders.cancel`, `App\Actions\Escrow\IssueRefund`).
 
-### Deliberately left out
+### The remaining six docs
 
-- `docs/ontology.md` and `docs/data-model.md` were **not** rewritten. They
-  predate the admin site and messaging and are the two most stale documents in
-  the tree; refreshing them properly is a substantial piece of work and this
-  ticket ran out of room for it. Both are named here so the gap is not silent.
+- `docs/ontology.md` gained the seven entity sections it was missing: Admin,
+  Listing removal, Customer block, Conversation, Message, Listing FAQ, and
+  Page view count.
+- `docs/data-model.md` gained `listing_removals` (`rmv`) and
+  `page_view_counts` (`pvc`) in the prefix table and in the ER diagram, with
+  the removal's relationship to its listing.
+- `docs/orders.md` said the `Removed` reason waited on FEAT-024 and that every
+  caller passed `hasActiveRemoval: false`. Both builders pass the listing's
+  real answer now.
+- `docs/architecture.md` said `rate_limit.exceed`,
+  `moderation.remove_listing` and `moderation.lift_listing_removal` waited on
+  features that have since shipped, and still described a seller-portal
+  "Run weekly payout now" debug button that no longer exists.
+- `docs/escrow.md` and `docs/admin.md` narrated the branch's history ("the
+  debug button this prototype started with is gone"); both state the present
+  now. `docs/escrow.md` also said `/admin/accounting` "lands with FEAT-023".
+- `docs/identity.md` and `docs/messaging.md` needed nothing.
+- The Pint file count was measured rather than guessed: **615 files clean**,
+  598 analysed by PHPStan with 0 errors.
+
+### Deliberately left out
 - The **validation run was not performed**: `make fresh`, the GET-route walk,
   and the hook-refusal demonstration the ticket asks for were not run. The
   suite itself is green at 1827 tests / 4934 assertions / 100 % of lines, and

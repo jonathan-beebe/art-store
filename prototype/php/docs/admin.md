@@ -317,6 +317,6 @@ the block.
 one. `GET /admin/payouts?seller=` lists payout history, the same shape
 `/admin/ledger` and the other admin lists use. The seller portal shows a
 seller their held / available / paid-out balance and their payout history on
-`/seller/earnings` and offers no control that runs one — the "run payouts"
-debug button this prototype started with is gone. The full sequence and the
-re-run rule are in [`escrow.md`](escrow.md).
+`/seller/earnings` and offers no control that runs one: paying sellers is a
+platform action. The full sequence and the re-run rule are in
+[`escrow.md`](escrow.md).

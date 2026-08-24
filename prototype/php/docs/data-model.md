@@ -29,6 +29,7 @@ prototypes share.
 | conversations | `cnv` | ledger_entries | `led` |
 | messages | `msg` | payouts | `pyt` |
 | notifications | `ntf` | refunds | `rfd` |
+| listing_removals | `rmv` | page_view_counts | `pvc` |
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -67,6 +68,20 @@ erDiagram
         text customer_id FK "indexed with lifted_at"
         string reason "shown to the shopper on refusal"
         timestamp lifted_at "nullable, null while the block is active"
+    }
+    listing_removals {
+        text id PK
+        text listing_id FK "indexed with lifted_at"
+        string kind "temporary | permanent"
+        string reason "shown to the seller on their own listing page"
+        timestamp lifted_at "nullable, null while the removal stands"
+    }
+    page_view_counts {
+        text id PK
+        string site "shop | seller | admin, read off the route pattern"
+        string path_pattern "the route's pattern, not the concrete URL"
+        date day "unique with site and path_pattern"
+        unsigned count "incremented by the roll-up's upsert"
     }
     customer_merges {
         text id PK
@@ -251,6 +266,7 @@ erDiagram
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
     orders ||--o{ fulfillments : split_by_seller
+    listings ||--o{ listing_removals : taken_off_sale_by
     orders ||--o{ refunds : sends_back
     fulfillments ||--o| refunds : settled_by
     payments ||--o{ refunds : reversed_by

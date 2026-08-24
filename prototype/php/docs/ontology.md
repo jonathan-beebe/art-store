@@ -129,6 +129,27 @@ weekly payout job.
 **In code.** `App\Domain\Escrow\Fee` (`PLATFORM_PERCENT`); no model — the
 platform holds no row of its own.
 
+### Admin
+
+**Who/what.** A platform operator. Seeded, never signed up.
+
+**Why it exists.** Someone has to read the whole platform, moderate what is on
+it, and pay sellers. The Platform is the abstraction; an Admin is the person
+acting for it.
+
+**Lifecycle.** None — seeded and permanent.
+
+**Relates to.**
+- reaches every Seller, Customer, Listing, Order and Fulfillment through the
+  admin site
+- removes a Listing and blocks a Customer
+- issues a Refund on a Fulfillment and cancels an unpaid Order
+- runs the weekly Payout
+- holds one side of a support Conversation
+
+**In code.** `App\Models\Admin`, the `admin` guard, `App\Http\Controllers\Admin\*`
+(table `admins`).
+
 ## Catalog
 
 ### Listing
@@ -171,6 +192,27 @@ favorites, cart adds) and the dashboard's daily activity timeline.
 **In code.** `App\Models\ListingEvent`, `App\Domain\Listings\ListingEventType`
 (enum: `view` | `favorite` | `unfavorite` | `cart_add`) (table
 `listing_events`).
+
+### Listing removal
+
+**Who/what.** An admin taking a listing off the storefront, with a reason.
+
+**Why it exists.** A piece may need to come down for review or for good,
+whatever its seller set its status to. Status is the seller's word; a removal
+is the platform's, and it outranks the status.
+
+**Lifecycle.** `temporary` may be lifted; `permanent` may not. At most one
+removal is active on a listing at a time.
+
+**Relates to.**
+- belongs to one Listing
+- while it stands, the listing leaves browse, search, `/art/{slug}` and the
+  favorites page, and its seller cannot put it back on sale
+- blocks the line at checkout with the `removed` reason
+
+**In code.** `App\Models\ListingRemoval`,
+`App\Domain\Listings\ListingRemovalKind`,
+`App\Domain\Listings\ListingAvailability` (table `listing_removals`).
 
 ### Favorite
 
@@ -472,6 +514,81 @@ resolves to `MergeAnonymousInto`; never undone.
 `App\Domain\Customers\CustomerIdentityPlan`, `CustomerIdentityAction`,
 `CustomerOwnedTables` (table `customer_merges`).
 
+### Customer block
+
+**Who/what.** An admin stopping a customer from buying and posting, with a
+reason.
+
+**Why it exists.** A customer may need to be stopped from spending and from
+messaging without being stopped from reading what they already have.
+
+**Lifecycle.** Active until lifted. At most one active block per customer.
+
+**Relates to.**
+- belongs to one Customer
+- removes cart add, checkout, pay, and message post; browsing, favorites and
+  reading threads stay open
+
+**In code.** `App\Models\CustomerBlock`,
+`App\Domain\Customers\CustomerStanding` (table `customer_blocks`).
+
+### Conversation
+
+**Who/what.** One thread, of one of four kinds: a listing question, a
+fulfillment thread, seller support, customer support.
+
+**Why it exists.** Every thread on the platform is the same shape; what
+differs is who is in it and what it is about.
+
+**Lifecycle.** Opened on the first message about a subject, then found rather
+than reopened. A thread and its first message are written in one transaction,
+so a refused first post leaves no thread behind.
+
+**Relates to.**
+- names its participants (a Seller, a Customer, an Admin) and its subject (a
+  Listing or a Fulfillment)
+- holds many Messages
+- one thread per subject, held by a unique index on `subject_key`
+
+**In code.** `App\Models\Conversation`,
+`App\Domain\Messaging\ConversationKind`,
+`App\Domain\Messaging\ConversationSubject` (table `conversations`).
+
+### Message
+
+**Who/what.** One post in a Conversation, by a seller, a customer, or an
+admin.
+
+**Why it exists.** The unit of the messaging centre, and what an unread count
+counts.
+
+**Lifecycle.** Sent, then read by its recipient.
+
+**Relates to.**
+- belongs to one Conversation
+- has one sender, named by a morph alias rather than a class string
+- may be published as a Listing FAQ
+
+**In code.** `App\Models\Message`, `App\Domain\Messaging\MessageBody`
+(table `messages`).
+
+### Listing FAQ
+
+**Who/what.** A question and its answer, published by a seller onto a
+listing's page for every visitor.
+
+**Why it exists.** One shopper's question is usually every shopper's question;
+answering it once in public beats answering it privately many times.
+
+**Lifecycle.** Published from a message, edited, unpublished.
+
+**Relates to.**
+- belongs to one Listing
+- may name the Message it was published from
+
+**In code.** `App\Models\ListingFaq`, `App\Domain\Messaging\FaqDraft`
+(table `listing_faqs`).
+
 ### Notification
 
 **Who/what.** A message shown in a seller's or a customer's header: "Item
@@ -494,6 +611,25 @@ goes out by email the day `config/notifications.php` names `mail`.
 `App\Domain\Notifications\NotificationMessage`, and the recipient kinds are
 `App\Domain\Auth\ActorType` (enum), whose values are the morph aliases stored
 in `notifiable_type`.
+
+### Page view count
+
+**Who/what.** How many times a route pattern was served on a site on a day.
+
+**Why it exists.** Traffic has to be readable without the table growing with
+traffic. Storing the route's pattern rather than the URL means a thousand
+listing pages share one row, so the table grows with routes and days.
+
+**Lifecycle.** The first hit of a day inserts; every later one increments, in
+one upsert and no read.
+
+**Relates to.**
+- belongs to no one — it counts requests, not people
+- a Listing event of type `view` is the per-listing counterpart, collapsed to
+  at most one per (listing, customer, UTC hour)
+
+**In code.** `App\Models\PageViewCount`, `App\Domain\Analytics\*`,
+`App\Http\Middleware\RollUpPageViews` (table `page_view_counts`).
 
 ## Decisions
 

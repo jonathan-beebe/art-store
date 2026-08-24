@@ -14,8 +14,7 @@ Running a payout is a platform action: the CLI (`payouts:run`) and
 `RunWeeklyPayout` — the admin route for every seller in one run, the same as
 the CLI. The seller portal shows a seller their held / available / paid-out
 balance and their payout history on `/seller/earnings` and offers no control
-that runs one; the "run payouts" debug button this prototype started with is
-gone (docs/alignment.md §5).
+that runs one: paying sellers is a platform action (docs/alignment.md §5).
 
 ## Ledger entry types through hold → release → payout
 
@@ -88,8 +87,7 @@ The platform fee on a refunded fulfillment is **forgone**: the `refunded` entry
 runs the whole `net_cents` back out and the `fee_cents` is never collected as
 revenue. Accounting reads `fees_earned_cents` over fulfillments that are not
 declined or refunded (`FulfillmentStatus::isLive()`) and reports
-`fees_refunded_cents` beside it; the `/admin/accounting` page that surfaces
-both lands with FEAT-023.
+`fees_refunded_cents` beside it; `/admin/accounting` surfaces both.
 
 ## `payouts:run`
 

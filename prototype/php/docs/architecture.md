@@ -199,9 +199,9 @@ the request.
 `moderation.block_customer`, `moderation.lift_customer_block`, `migrate.run`,
 `migrate.apply`, `seed.run`, `app.boot`, `app.shutdown`.
 
-The rest of §2.3 waits on the features that emit it: `rate_limit.exceed` with
-configurable rate limits, and `moderation.remove_listing` and
-`moderation.lift_listing_removal` with admin moderation of listings.
+`rate_limit.exceed` comes from `RateLimitGate` at `warn`;
+`moderation.remove_listing` and `moderation.lift_listing_removal` come from
+the two actions behind the admin's removal routes.
 
 Domain events are emitted by the action that does the work. Three are not:
 `ledger.write` comes from `LedgerEntryObserver`, so all three writers of a
@@ -470,8 +470,9 @@ moves `awaiting_shipment → shipped → delivered`.
   one `payouts` row per seller for all `released` amounts not yet paid out, as
   of the end of the most recent completed week. Period math is pure
   (`App\Domain\Escrow\PayoutPeriod`). `routes/console.php` schedules it
-  `weeklyOn(1, '02:00')` — the Monday after a period closes. The seller portal
-  exposes a debug "Run weekly payout now" button for testing.
+  `weeklyOn(1, '02:00')` — the Monday after a period closes. `POST
+  /admin/payouts` runs the same action for every seller; the seller portal
+  offers no control that runs one.
 - One query reads the whole ledger: `LedgerEntry::totalledByType()` sums
   `amount_cents` per (seller, type), and `LedgerBalance::from()` folds those
   summed movements. The payout run bounds it by `occurred_at <= period.end`;

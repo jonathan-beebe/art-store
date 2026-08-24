@@ -67,9 +67,9 @@ behind it allows right now) and folds them into `isPlaceable(): bool` plus a
 `UnavailableReason` — `Removed`, `OffSale`, `SoldOut`, or `ShortStock`. It
 reads nothing itself: `Cart::placementPlan()` and `Order::placementPlan()`
 build the lines from their own `items.listing` relation, so the plan stays
-testable with no database. `Removed` waits on FEAT-024 to wire an admin
-listing removal in — every caller passes `hasActiveRemoval: false` until
-then, so a removed listing reads as whatever its ordinary status says.
+testable with no database. `Removed` reads an admin's listing removal:
+both builders pass the listing's `hasActiveRemoval()`, so a removed listing
+blocks its line whatever its ordinary status says.
 
 `PlaceOrder` builds the plan **inside its own transaction**, from listing rows
 it reads **for update** (`Listing`'s `lockedForPlacement` scope: `order by id`,

@@ -10,7 +10,7 @@ a stated gap; **missing** — not built.
 
 | Measure | Where it is set | Result |
 | --- | --- | --- |
-| Formatting | `src/pint.json` — `laravel` preset plus `strict_comparison`, `strict_param`, `void_return` | `make lint` clean over 610 files |
+| Formatting | `src/pint.json` — `laravel` preset plus `strict_comparison`, `strict_param`, `void_return` | `make lint` clean over 615 files |
 | Static analysis | `src/phpstan.neon` — PHPStan/Larastan, `level: max` over `app`, `database`, `routes`, `tests` | 0 errors, no `excludePaths`, no `ignoreErrors`, no baseline |
 | Strict types | Pint's `declare_strict_types`, re-asserted by `tests/Arch.php` | every PHP file |
 | Tests | Pest, sidecars beside the file they cover | 1827 tests, 4934 assertions |
