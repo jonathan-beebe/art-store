@@ -70,12 +70,15 @@ migrate:
 
 # The app is stopped for the rebuild: a server left running holds the deleted
 # database file open, and every write it makes to that unlinked file is lost.
-# Stopping and starting a stack that was never up does nothing.
+# `stop` on a stack that was never up is a no-op (exit 0), but `start` refuses
+# with "has no container to start" in that case, so it only runs when a
+# container for the service actually exists — which also covers the case
+# where `stop` above just stopped one.
 fresh:
 	@docker compose stop app
 	docker compose run --rm app npm run fresh
 	docker compose run --rm app npm run seed
-	@docker compose start app
+	@if [ -n "$$(docker compose ps -aq app)" ]; then docker compose start app; fi
 
 # Adds the platform admins and the full demo catalog. Nobody else can reach
 # /admin without the admins; the demo half does nothing once a seller row
