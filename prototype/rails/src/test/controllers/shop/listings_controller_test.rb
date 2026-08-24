@@ -75,6 +75,17 @@ module Shop
       assert_response :not_found
     end
 
+    test "a removed listing is not on the storefront, whatever its status" do
+      Listing.statuses.keys.each do |status|
+        listing = create_listing(status: status, quantity: status == "sold" ? 0 : 1)
+        listing.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+
+        get shop_listing_path(slug: listing.slug)
+
+        assert_response :not_found
+      end
+    end
+
     test "it offers to ask the seller a question" do
       listing = create_listing
 

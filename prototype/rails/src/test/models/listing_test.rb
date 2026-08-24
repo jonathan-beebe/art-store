@@ -235,6 +235,104 @@ class ListingTest < ActiveSupport::TestCase
     assert_equal [ for_sale, sold ].map(&:id).sort, Listing.on_storefront.pluck(:id).sort
   end
 
+  test "a removal takes a listing off the storefront whatever its status" do
+    record = create_listing(status: :for_sale)
+    record.remove!(kind: :temporary, reason: "Reported as counterfeit", by: create_admin)
+
+    assert_empty Listing.on_storefront.where(id: record.id)
+    refute_predicate record, :on_storefront?
+    refute_predicate record, :purchasable?
+  end
+
+  test "removing a listing names the reason and who removed it" do
+    admin = create_admin
+    record = create_listing
+
+    removal = record.remove!(kind: :permanent, reason: "Counterfeit artwork.", by: admin)
+
+    assert_equal "permanent", removal.kind
+    assert_equal "Counterfeit artwork.", removal.reason
+    assert_equal admin, removal.admin
+    assert_predicate record, :actively_removed?
+    assert_equal removal, record.active_removal
+  end
+
+  test "a listing already removed is not removed a second time" do
+    record = create_listing
+    record.remove!(kind: :temporary, reason: "First report.", by: create_admin)
+
+    error = assert_raises(TransitionError) do
+      record.remove!(kind: :permanent, reason: "Second report.", by: create_admin)
+    end
+
+    assert_equal "listing #{record.id} is already removed", error.message
+    assert_equal 1, record.removals.count
+  end
+
+  test "lifting a temporary removal puts the listing back on the storefront" do
+    record = create_listing(status: :for_sale)
+    record.remove!(kind: :temporary, reason: "Retake the photograph.", by: create_admin)
+
+    lifted = record.lift_removal!
+
+    refute_nil lifted.lifted_at
+    refute_predicate record, :actively_removed?
+    assert_predicate record, :on_storefront?
+  end
+
+  test "a permanent removal is refused, and the listing stays off" do
+    record = create_listing
+    record.remove!(kind: :permanent, reason: "Counterfeit.", by: create_admin)
+
+    error = assert_raises(TransitionError) { record.lift_removal! }
+
+    assert_equal "a permanent removal cannot be lifted", error.message
+    assert_predicate record, :actively_removed?
+  end
+
+  test "a listing nobody removed cannot be lifted" do
+    record = create_listing
+
+    error = assert_raises(TransitionError) { record.lift_removal! }
+
+    assert_equal "listing #{record.id} is not removed", error.message
+  end
+
+  test "a removal drops for_sale from the moves the seller can make" do
+    record = create_listing(status: :draft)
+    record.remove!(kind: :temporary, reason: "Under review.", by: create_admin)
+
+    assert_equal [ "archived" ], record.next_statuses
+  end
+
+  test "the seller cannot put a removed listing back on sale" do
+    record = create_listing(status: :draft)
+    record.remove!(kind: :temporary, reason: "Under review.", by: create_admin)
+
+    error = assert_raises(TransitionError) { record.transition_to!("for_sale") }
+
+    assert_equal "This listing was removed by an admin and cannot be put back on sale.", error.message
+    assert_predicate record.reload, :draft?
+  end
+
+  test "Listing.removed carries only the listings a removal stands over" do
+    removed = create_listing
+    removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+    untouched = create_listing
+
+    assert_equal [ removed.id ], Listing.removed.pluck(:id)
+    assert_equal [ untouched.id ], Listing.visible.pluck(:id)
+  end
+
+  test "a lifted removal leaves a listing visible again" do
+    record = create_listing
+    record.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+    record.lift_removal!
+
+    assert_equal [ record.id ], Listing.visible.pluck(:id)
+    assert_empty Listing.removed.where(id: record.id)
+  end
+
   test "it records what happened and when" do
     record = create_listing
     shopper = create_verified_customer
@@ -300,6 +398,14 @@ class ListingTest < ActiveSupport::TestCase
   test "a search with no filters returns everything for sale" do
     for_sale = create_listing(status: :for_sale)
     create_listing(status: :draft)
+
+    assert_equal [ for_sale.id ], Listing.search.pluck(:id)
+  end
+
+  test "a search drops a listing an admin removed" do
+    for_sale = create_listing(status: :for_sale)
+    removed = create_listing(status: :for_sale)
+    removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
 
     assert_equal [ for_sale.id ], Listing.search.pluck(:id)
   end

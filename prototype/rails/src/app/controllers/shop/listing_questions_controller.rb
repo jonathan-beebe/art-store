@@ -11,6 +11,8 @@ module Shop
       redirect_to shop_conversation_path(ask(listing, question_params[:body]))
     rescue ActiveRecord::RecordInvalid => refusal
       redirect_to shop_listing_path(slug: params[:slug]), alert: refusal.record.errors[:body].first
+    rescue TransitionError => refusal
+      redirect_to shop_listing_path(slug: params[:slug]), alert: refusal.message
     end
 
     private

@@ -117,6 +117,30 @@ module Shop
       assert_equal 1, order.payments.count
     end
 
+    test "a blocked customer cannot pay" do
+      order = placed_order
+      get shop_order_payment_path(order)
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_redirected_to shop_order_path(order)
+      assert_equal "Your account is on hold, so you cannot add to a cart or check out. Chargeback fraud.",
+        flash[:alert]
+      assert_equal "awaiting_payment", order.reload.status
+    end
+
+    test "a lift restores paying" do
+      order = placed_order
+      get shop_order_payment_path(order)
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+      visiting_customer.lift_block!
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_equal "paid", order.reload.status
+    end
+
     private
 
     # A guest checkout followed by the magic link, which is the only way a card

@@ -2,15 +2,15 @@
 
 What a platform operator does here: find and read any seller, customer,
 listing, order or fulfillment on the platform, read the platform's state and
-money at a glance, reconcile every seller, browse the ledger, read site
-traffic, and reach the messaging inbox. Every page is read-only today — the
-write actions land with the tickets named under
-[Where the write actions attach](#where-the-write-actions-attach).
+money at a glance, reconcile every seller, browse the ledger, run the weekly
+payout, moderate listings and customers, read site traffic, and reach the
+messaging inbox.
 
 Code: `app/controllers/admin/`, `app/views/admin/`,
 `app/views/layouts/admin.html.erb`, `app/models/page_view.rb`,
 `app/models/page_view_count.rb`, `app/models/tally.rb`,
 `app/models/platform_money.rb`, `app/models/seller_account.rb`,
+`app/models/listing_removal.rb`, `app/models/customer_block.rb`,
 `app/controllers/concerns/page_view_rollup.rb`.
 
 Admins are seeded, never created: `db/seeds.rb` writes the `admins` rows and
@@ -36,6 +36,12 @@ guard — a check on each action would let the next page forget it.
 | `GET /admin/fulfillments/:id` | one fulfillment, the lines of the order its seller ships, its refunds, and its refund action |
 | `GET /admin/accounting` | `SellerAccount.for_every_seller` and `PlatformMoney.fold` — every seller reconciled, folded once |
 | `GET /admin/ledger?seller=&type=` | `LedgerEntry.for_seller(…).with_type(…)`, plus `.balance` folded over that same filtered relation |
+| `GET /admin/payouts?seller=` | `Payout.for_seller(…)`, newest first |
+| `POST /admin/payouts` | runs `Payout.run_weekly` (optional `as_of`) — see [`escrow.md`](escrow.md) |
+| `POST /admin/listings/:id/removals` | `Listing#remove!(kind:, reason:, by:)` |
+| `POST /admin/listings/:id/removals/lift` | `Listing#lift_removal!` |
+| `POST /admin/customers/:id/blocks` | `Customer#block!(reason:, by:)` |
+| `POST /admin/customers/:id/blocks/lift` | `Customer#lift_block!` |
 | `GET /admin/stats` | `PageViewCount.by_day`, `PageViewCount.by_pattern`, and a tally of every `listing_events` type |
 | `GET\|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
 
@@ -223,33 +229,95 @@ answer.
 
 ## Where the write actions attach
 
-The directory answers reads. Each page already carries the section a write
-will hang from:
+Each page carries the section its write hangs from:
 
 | Action | Page and section | Where |
 | --- | --- | --- |
 | Cancel an unpaid order | `/admin/orders/:id`, beside the status | `POST /admin/orders/:id/cancellation` |
 | Refund a fulfillment | `/admin/fulfillments/:id` Refunds, linked from each `/admin/orders/:id` fulfillment row | `POST /admin/fulfillments/:id/refund` |
-| Remove a listing, lift a removal | `/admin/listings/:id` Removal history | FEAT-021 |
-| Block a customer, lift a block | `/admin/customers/:id` Block history | FEAT-021 |
-| Run the weekly payout | `/admin/payouts` | FEAT-021 |
+| Remove a listing, lift a removal | `/admin/listings/:id` Removal history | `POST /admin/listings/:id/removals`, `…/removals/lift` |
+| Block a customer, lift a block | `/admin/customers/:id` Block history | `POST /admin/customers/:id/blocks`, `…/blocks/lift` |
+| Run the weekly payout | `/admin/payouts` | `POST /admin/payouts` |
 
 Cancel and Refund are both `Admin::BaseController` actions
 (`Admin::CancellationsController`, `Admin::RefundsController`) that call
 `Order#cancel!` and `Fulfillment#refund!` and redirect back to the page the
 action hangs off, with the refusal sentence in `flash[:alert]` when the model
 says no. The refund form asks for a reason (1–500 characters) and the button
-only appears where the move is still open — see `docs/orders.md`.
+only appears where the move is still open — see `docs/orders.md`. Remove,
+Lift, Block and Lift-block follow the same shape
+(`Admin::ListingRemovalsController`, `Admin::CustomerBlocksController` calling
+`Listing#remove!`/`#lift_removal!` and `Customer#block!`/`#lift_block!`) — see
+[What a removal or a block actually does](#what-a-removal-or-a-block-actually-does)
+below.
 
-The `listing_removals` and `customer_blocks` tables do not exist yet. Two
-model methods stand in their place and render an empty section:
-`Listing#removals` and `Customer#blocks` each answer `[]`, and
-`Customer.blocked` / `Listing.removed` are `none`. Each is one line to
-replace with the `has_many` or the `where` once the table lands.
+## What a removal or a block actually does
 
-`Listing.visible` (`-> { all }`) is a third stand-in, and not a drop-in one:
-it is what `admin/listings?removed=visible` reads as "no removal stands over
-this listing," and `-> { all }` only answers that correctly because nothing
-removes a listing yet. Once `listing_removals` is real, `visible` has to
-become a scope that excludes a listing a removal stands over, or
-`removed=visible` shows removed listings alongside the rest.
+Question: an admin removes a listing or blocks a customer — what changes, and
+where?
+
+```mermaid
+flowchart TD
+    remove["POST /admin/listings/:id/removals<br/>Listing#remove!(kind:, reason:, by:)"] --> removalRow[("listing_removals row,<br/>lifted_at nil")]
+    removalRow --> availability["Listing#actively_removed? true<br/>on_storefront? false, purchasable? false"]
+    availability --> browse["Listing.on_storefront drops it:<br/>storefront and search stop showing it"]
+    availability --> page["/art/:slug answers 404"]
+    availability --> portal["/seller/listings/:id shows the reason;<br/>next_statuses drops for_sale"]
+    removalRow --> lift{"kind"}
+    lift -- temporary --> lifted["liftable? true:<br/>.../removals/lift sets lifted_at"]
+    lift -- permanent --> refused["liftable? false:<br/>the lift is refused"]
+
+    block["POST /admin/customers/:id/blocks<br/>Customer#block!(reason:, by:)"] --> blockRow[("customer_blocks row,<br/>lifted_at nil")]
+    blockRow --> standing["Customer#can_shop? false"]
+    standing --> shopping["refuse_blocked_customer on POST /cart/:slug,<br/>/checkout, /orders/:id/pay"]
+    standing --> messages["Conversation#post! refuses<br/>when the sender is this customer"]
+    standing --> browsing["browsing, favorites and reading threads stay open"]
+```
+
+Caveats: a listing with an active removal is off the storefront **whatever
+its status** — `Listing.on_storefront` (`where(status: ON_STOREFRONT).visible`)
+and `Listing#on_storefront?` both read `actively_removed?`, and every page
+that turns a slug into a visible listing goes through one of them, so the
+storefront's 404 is the same page for an unknown slug, a draft, a removed
+listing, or someone else's order — nothing reveals whether a thing exists.
+
+The seller keeps their own page for a removed listing and reads the reason
+there (`@listing.active_removal.reason`). `Listing#next_statuses` is
+`TRANSITIONS.fetch(status, [])` with `for_sale` dropped while
+`actively_removed?`, and it feeds both the status buttons
+(`seller/listings/_status_buttons`) and `transition_to!`'s own refusal, so a
+seller cannot put a removed piece back on the storefront by posting directly
+either.
+
+At most one active removal per listing and one active block per customer —
+enforced by a partial unique index (`WHERE lifted_at IS NULL`) so two removals
+racing each other cannot both land active. Raising a temporary removal to a
+permanent one is lift then remove, which leaves the seller one reason to read
+rather than two overlapping ones. Each refusal is a `TransitionError`:
+`Listing#remove!` on an already-removed listing, `Listing#lift_removal!` on a
+listing with nothing active or a `permanent` removal, `Customer#block!` on an
+already-blocked customer, `Customer#lift_block!` on an unblocked one.
+
+Both lifts key off the **subject**, not the removal or block row —
+`Listing#active_removal` / `Customer#active_block` — so a page that knows the
+listing or the customer needs nothing else, and "which one is active" stays a
+single answer.
+
+A blocked customer can still browse, favorite, and read their threads. What a
+block removes is adding to a cart, checking out, paying, and sending
+messages — which is why the predicate is named `can_shop?` rather than after
+the block. Cart add, checkout, and pay share one guard,
+`Shop::BaseController#refuse_blocked_customer`, called as a `before_action` on
+each of the three write actions; message post is enforced at the one seam
+every entry point posts through, `Conversation#post!`, since a seller's reply,
+an admin's reply, a customer's reply, and a customer's opening question on a
+listing all call it.
+
+## Running a payout from the admin site
+
+Payouts are a platform action: `Admin::PayoutsController#create` parses its
+own `as_of` field and calls `Payout.run_weekly`, the same class method
+`payouts:run` calls, for every seller rather than one. The seller portal's
+earnings page shows a seller their held / available / paid-out balance and
+their payout history and offers no control that runs one. The full sequence
+and the re-run rule are in [`escrow.md`](escrow.md).

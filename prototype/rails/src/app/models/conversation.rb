@@ -131,12 +131,17 @@ class Conversation < ApplicationRecord
   end
 
   # Appends one message, moves the thread to the top of both inboxes, and tells
-  # the other side.
+  # the other side. A blocked customer reads and joins threads same as ever;
+  # this is the one seam every entry point posts through, so the refusal lives
+  # here rather than in each route that can start a reply.
   def post!(sender, body, at: Time.current)
     raise ArgumentError, "a conversation takes messages from its participants only" unless participant?(sender)
 
     Story.tell("message.post", "posting a message to the thread",
       conversation_id: id, kind: kind) do |story|
+      raise TransitionError, "This account is blocked and cannot send messages." if
+        sender.is_a?(Customer) && !sender.can_shop?
+
       message = transaction do
         posted = messages.create!(sender: sender, body: body)
         update!(last_message_at: at)

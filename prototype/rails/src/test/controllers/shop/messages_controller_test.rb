@@ -44,6 +44,21 @@ module Shop
       assert_empty thread.messages
     end
 
+    test "a blocked customer cannot reply, but still reads the thread" do
+      thread = listing_question
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_conversation_messages_path(thread), params: { message: { body: "Is this still available?" } }
+
+      assert_response :unprocessable_content
+      assert_select "[data-flash=alert]", text: "This account is blocked and cannot send messages."
+      assert_empty thread.messages
+
+      get shop_conversation_path(thread)
+
+      assert_response :success
+    end
+
     private
 
     # A thread the storefront's current visitor is in, opened before they say

@@ -4,7 +4,7 @@ class Admin::ListingsController < Admin::BaseController
     @seller_id = id_filter(:seller, :sel)
     @removed = filter_from(:removed, Listing::REMOVAL_STANDINGS, default: "any")
     @listings = Listing.with_status(@status).for_seller(@seller_id).removal_standing(@removed)
-      .includes(:seller).order(created_at: :desc, id: :desc)
+      .includes(:seller, :removals).order(created_at: :desc, id: :desc)
     @sellers = Seller.order(:created_at, :id)
   end
 

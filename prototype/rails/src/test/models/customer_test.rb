@@ -291,6 +291,73 @@ class CustomerTest < ActiveSupport::TestCase
     assert shopper.favorited?(listing)
   end
 
+  test "a good-standing customer can shop" do
+    assert_predicate create_verified_customer, :can_shop?
+    refute_predicate create_verified_customer, :blocked?
+  end
+
+  test "blocking a customer names the reason and who blocked them" do
+    admin = create_admin
+    customer = create_verified_customer
+
+    block = customer.block!(reason: "Chargeback fraud.", by: admin)
+
+    assert_equal "Chargeback fraud.", block.reason
+    assert_equal admin, block.admin
+    assert_predicate customer, :blocked?
+    refute_predicate customer, :can_shop?
+    assert_equal "Chargeback fraud.", customer.blocked_reason
+  end
+
+  test "a customer already blocked is not blocked a second time" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+    error = assert_raises(TransitionError) { customer.block!(reason: "Again.", by: create_admin) }
+
+    assert_equal "customer #{customer.id} is already blocked", error.message
+    assert_equal 1, customer.blocks.count
+  end
+
+  test "lifting a block hands the cart and checkout back" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+    lifted = customer.lift_block!
+
+    refute_nil lifted.lifted_at
+    assert_predicate customer, :can_shop?
+    refute_predicate customer, :blocked?
+    assert_nil customer.blocked_reason
+  end
+
+  test "a customer nobody blocked cannot be lifted" do
+    customer = create_verified_customer
+
+    error = assert_raises(TransitionError) { customer.lift_block! }
+
+    assert_equal "customer #{customer.id} is not blocked", error.message
+  end
+
+  test "a lifted block leaves the customer blockable again, on a new reason" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+    customer.lift_block!
+
+    customer.block!(reason: "It happened again.", by: create_admin)
+
+    assert_equal "It happened again.", customer.blocked_reason
+  end
+
+  test "Customer.blocked carries only the customers a block stands over" do
+    blocked = create_verified_customer
+    blocked.block!(reason: "Chargeback fraud.", by: create_admin)
+    untouched = create_verified_customer
+
+    assert_equal [ blocked ], Customer.blocked.to_a
+    assert_not_includes Customer.blocked, untouched
+  end
+
   test "a customer counts the unread messages across their own threads" do
     buyer = create_verified_customer
     shop = create_seller

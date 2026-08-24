@@ -28,6 +28,11 @@
   </div>
 
   <div>
+    <dt class="text-slate-400">Blocked</dt>
+    <dd data-field="blocked" class="mt-1"><%= @customer.blocked? ? "Blocked" : "Not blocked" %></dd>
+  </div>
+
+  <div>
     <dt class="text-slate-400">Orders</dt>
     <dd data-field="orders" class="mt-1 tabular-nums"><%= @orders.size %></dd>
   </div>
@@ -87,6 +92,28 @@
 
   <% if @blocks.empty? %>
     <%= render "admin/shared/empty", key: "customer_blocks", message: "Nobody has blocked this customer." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Every block placed on this customer, oldest first",
+          headings: [ "Reason", "Admin", "Blocked", "Lifted" ],
+          rows: render(partial: "admin/customers/block", collection: @blocks, as: :block) %>
+  <% end %>
+
+  <% if @customer.blocked? %>
+    <%= button_to "Lift block", lift_admin_customer_blocks_path(@customer), method: :post,
+          form_class: "mt-4",
+          class: "rounded border border-slate-600 bg-slate-900 px-3 py-1 font-medium" %>
+  <% else %>
+    <%= form_with url: admin_customer_blocks_path(@customer), method: :post,
+          html: { class: "mt-4 max-w-xl rounded border border-slate-700 bg-slate-800 p-4" } do |form| %>
+      <div>
+        <%= form.label :reason, "Why", class: "block text-slate-400" %>
+        <%= form.text_area :reason, rows: 3, required: true, maxlength: 500,
+              class: "mt-1 block w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" %>
+      </div>
+
+      <%= form.submit "Block customer", class: "mt-4 rounded bg-slate-100 px-3 py-1 font-medium text-slate-900" %>
+    <% end %>
   <% end %>
 </section>
 

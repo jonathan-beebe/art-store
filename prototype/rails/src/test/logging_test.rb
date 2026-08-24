@@ -275,6 +275,92 @@ class LoggingTest < ActionDispatch::IntegrationTest
     assert_equal "Dispute found for the buyer.", issued["reason"]
   end
 
+  test "an admin removing a listing says an admin did it, with the reason" do
+    listing = create_listing
+    sign_in_as_admin
+
+    lines = captured_log_lines do
+      post admin_listing_removals_path(listing), params: { kind: "temporary", reason: "Reported as counterfeit." }
+    end
+
+    removing = log_lines_for("moderation.remove_listing", lines)
+    assert_equal [ "will", "did" ], removing.map { |line| line["phase"] }
+    assert_equal [ "admin" ], removing.map { |line| line["actor_type"] }.uniq
+    assert_equal listing.id, removing.last["data"]["listing_id"]
+    assert_equal "temporary", removing.last["data"]["kind"]
+  end
+
+  test "lifting a listing removal is told with what changed" do
+    listing = create_listing
+    listing.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+    sign_in_as_admin
+
+    lines = captured_log_lines { post lift_admin_listing_removals_path(listing) }
+
+    lifting = log_lines_for("moderation.lift_listing_removal", lines)
+    assert_equal [ "will", "did" ], lifting.map { |line| line["phase"] }
+    assert_equal listing.id, lifting.last["data"]["listing_id"]
+  end
+
+  test "an admin blocking a customer says an admin did it" do
+    customer = create_verified_customer
+    sign_in_as_admin
+
+    lines = captured_log_lines do
+      post admin_customer_blocks_path(customer), params: { reason: "Chargeback fraud." }
+    end
+
+    blocking = log_lines_for("moderation.block_customer", lines)
+    assert_equal [ "will", "did" ], blocking.map { |line| line["phase"] }
+    assert_equal [ "admin" ], blocking.map { |line| line["actor_type"] }.uniq
+    assert_equal customer.id, blocking.last["data"]["customer_id"]
+  end
+
+  test "lifting a customer block is told with what changed" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+    sign_in_as_admin
+
+    lines = captured_log_lines { post lift_admin_customer_blocks_path(customer) }
+
+    lifting = log_lines_for("moderation.lift_customer_block", lines)
+    assert_equal [ "will", "did" ], lifting.map { |line| line["phase"] }
+    assert_equal customer.id, lifting.last["data"]["customer_id"]
+  end
+
+  test "running the payout from admin tells the run and one pay per seller" do
+    seller = create_seller
+    create_delivered_fulfillment(seller)
+    LedgerEntry.update_all(occurred_at: PayoutPeriod.ending_before(Time.current).ends_at - 1.day)
+    sign_in_as_admin
+
+    lines = captured_log_lines { post admin_payouts_path }
+
+    assert_equal [ "will", "did" ], log_lines_for("payout.run", lines).map { |line| line["phase"] }
+    assert_equal [ "admin" ], log_lines_for("payout.run", lines).map { |line| line["actor_type"] }.uniq
+
+    paying = log_lines_for("payout.pay", lines)
+    assert_equal [ "will", "did" ], paying.map { |line| line["phase"] }
+    assert_equal seller.id, paying.last["data"]["seller_id"]
+    assert_equal 40_500, paying.last["data"]["amount_cents"]
+  end
+
+  test "a refusal to remove an already-removed listing is told at info, with the world unchanged" do
+    listing = create_listing
+    listing.remove!(kind: :temporary, reason: "First report.", by: create_admin)
+
+    lines = captured_log_lines do
+      assert_raises(TransitionError) do
+        listing.remove!(kind: :permanent, reason: "Second report.", by: create_admin)
+      end
+    end
+
+    removing = log_lines_for("moderation.remove_listing", lines)
+    assert_equal [ "will", "refused" ], removing.map { |line| line["phase"] }
+    assert_equal "info", removing.last["level"]
+    assert_equal 1, listing.removals.count
+  end
+
   private
 
   def stale_guest_order

@@ -45,7 +45,6 @@ Rails.application.routes.draw do
     end
 
     get "earnings", to: "earnings#show", as: :earnings
-    post "earnings/payout", to: "payouts#create", as: :earnings_payout
 
     resources :notifications, only: :index do
       resource :read, only: :create, controller: "notification_reads",
@@ -71,9 +70,19 @@ Rails.application.routes.draw do
     resources :customers, only: %i[index show], constraints: PrefixedUlid.constraints(id: :cus) do
       resource :conversation, only: :create, controller: "customer_conversations",
         constraints: PrefixedUlid.constraints(customer_id: :cus)
+      resources :blocks, only: :create, controller: "customer_blocks",
+        constraints: PrefixedUlid.constraints(customer_id: :cus) do
+        post :lift, on: :collection
+      end
     end
 
-    resources :listings, only: %i[index show], constraints: PrefixedUlid.constraints(id: :lst)
+    resources :listings, only: %i[index show], constraints: PrefixedUlid.constraints(id: :lst) do
+      resources :removals, only: :create, controller: "listing_removals",
+        constraints: PrefixedUlid.constraints(listing_id: :lst) do
+        post :lift, on: :collection
+      end
+    end
+
     resources :orders, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ord) do
       resource :cancellation, only: :create,
         constraints: PrefixedUlid.constraints(order_id: :ord)
@@ -91,6 +100,8 @@ Rails.application.routes.draw do
 
     get "accounting", to: "accounting#show", as: :accounting
     get "ledger", to: "ledger#index", as: :ledger
+    get "payouts", to: "payouts#index", as: :payouts
+    post "payouts", to: "payouts#create"
     get "stats", to: "stats#show", as: :stats
   end
 

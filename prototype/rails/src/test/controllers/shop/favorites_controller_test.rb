@@ -12,6 +12,17 @@ module Shop
       assert_equal "favorite", listing.events.sole.event_type
     end
 
+    test "a blocked customer can still favorite" do
+      listing = create_listing
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_toggle_favorite_path(slug: listing.slug)
+
+      assert_response :redirect
+      assert visiting_customer.favorites.exists?(listing: listing)
+    end
+
     test "favoriting twice drops the favorite and records the event" do
       listing = create_listing
       post shop_toggle_favorite_path(slug: listing.slug)

@@ -4,6 +4,8 @@ class Payout < ApplicationRecord
   belongs_to :seller
   has_many :ledger_entries, dependent: :nullify
 
+  scope :for_seller, ->(seller_id) { where(seller_id: seller_id) if seller_id.present? }
+
   # The weekly settlement: one row per seller holding money released and not
   # yet sent, for the Monday-to-Sunday week that ended before as_of.
   def self.run_weekly(as_of: Time.current)

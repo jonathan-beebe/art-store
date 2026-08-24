@@ -11,6 +11,13 @@
   <%= link_to "Edit", edit_seller_listing_path(@listing), class: "rounded border border-neutral-400 px-3 py-2" %>
 </div>
 
+<% if @listing.actively_removed? %>
+  <p data-field="removal" role="alert" class="mt-4 rounded border border-red-300 bg-red-50 p-4 text-red-900">
+    An admin removed this listing and it cannot be put back on sale.
+    <%= @listing.active_removal.reason %>
+  </p>
+<% end %>
+
 <section aria-labelledby="totals-heading" class="mt-6">
   <h2 id="totals-heading" class="font-semibold text-neutral-700">Totals</h2>
 

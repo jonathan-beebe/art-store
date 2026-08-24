@@ -1,6 +1,6 @@
 # Data model
 
-Generated from `src/db/schema.rb` (version `2026_08_24_000103`). Active
+Generated from `src/db/schema.rb` (version `2026_08_24_000105`). Active
 Storage's own tables (`active_storage_attachments`, `active_storage_blobs`,
 `active_storage_variant_records`) are omitted — nothing in the domain reads
 or writes them directly; `Listing#image_url` falls back to a generated
@@ -40,6 +40,13 @@ erDiagram
         string anonymous_customer_id FK "UK, -> customers"
         string customer_id FK "-> customers, the verified survivor"
     }
+    customer_blocks {
+        string id PK "blk_<ulid>"
+        string customer_id FK "UK while active"
+        string admin_id FK
+        text reason
+        timestamp lifted_at "nullable, unlifted is active"
+    }
     listings {
         string id PK "lst_<ulid>"
         string seller_id FK
@@ -58,6 +65,14 @@ erDiagram
         string customer_id FK "nullable"
         string event_type "view|favorite|unfavorite|cart_add"
         timestamp occurred_at
+    }
+    listing_removals {
+        string id PK "rmv_<ulid>"
+        string listing_id FK "UK while active"
+        string admin_id FK
+        string kind "temporary|permanent"
+        text reason
+        timestamp lifted_at "nullable, unlifted is active"
     }
     favorites {
         string id PK "fav_<ulid>"
@@ -220,7 +235,11 @@ erDiagram
     customers ||--o{ orders : places
     customers ||--o{ customer_merges : "merged from (anonymous)"
     customers ||--o{ customer_merges : "merged into (verified)"
+    customers ||--o{ customer_blocks : has
+    admins ||--o{ customer_blocks : blocks
     listings ||--o{ listing_events : has
+    listings ||--o{ listing_removals : has
+    admins ||--o{ listing_removals : removes
     listings ||--o{ favorites : favorited_in
     listings ||--o{ cart_items : held_in
     listings ||--o{ order_items : sold_as
@@ -296,6 +315,10 @@ Caveats:
 - `carts.customer_id` is not unique — `Customer#absorb` can
   re-point a second cart onto a customer that already has one
   (`Customer#current_cart` picks the one with the most items).
+- `listing_removals.listing_id` and `customer_blocks.customer_id` are each
+  unique only over the rows where `lifted_at IS NULL` (a partial index), which
+  is what "at most one active removal / block" means at the schema level —
+  lifting one and writing a fresh one is never blocked by the row it replaces.
 - Two columns are named `entry_type` / `event_type` rather than `type`:
   `type` is Active Record's reserved single-table-inheritance column, and
   renaming beat disabling inheritance on `LedgerEntry` and `ListingEvent`.

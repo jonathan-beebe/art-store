@@ -18,7 +18,7 @@ a stated gap; **missing** — not built.
 | Activity per listing: views, favorites, cart adds | done | `seller_listing` | `Seller::ListingsControllerTest`, `ListingTest`, `ListingEventTest` |
 | Reports on sales | done | `seller_earnings` (Sales table) | `Seller::EarningsControllerTest` |
 | Tools for fulfillment | done | `seller_orders`, `seller_order`, `seller_order_shipment` | `Seller::OrdersControllerTest`, `Seller::ShipmentsControllerTest` |
-| Accumulated earnings and payouts | done | `seller_earnings`, `seller_earnings_payout` | `Seller::EarningsControllerTest`, `Seller::PayoutsControllerTest`, `PayoutTest` |
+| Accumulated earnings and payouts | done | `seller_earnings` (balances and history; the payout run is a platform action, `admin_payouts`) | `Seller::EarningsControllerTest`, `Admin::PayoutsControllerTest`, `PayoutTest` |
 | Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `root` | `SmokeTest` |
 | Magic links, no passwords | done | `verify_magic_link` | `Auth::MagicLinksControllerTest` |
 | Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `layouts/seller` | none (visual) |
@@ -53,7 +53,7 @@ is `@import "tailwindcss"` and nothing else.
 | Notify customers of shipment | done | `shop_account` inbox, `shop_read_notification` | `Shop::AccountControllerTest`, `Shop::NotificationReadsControllerTest` |
 | Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `LedgerEntryTest` |
 | Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
-| Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `PayoutTest`, `PayoutPeriodTest` |
+| Pay out at the end of every week | done | `payouts:run`, `admin_payouts` (POST) | `PayoutsTaskTest`, `Admin::PayoutsControllerTest`, `PayoutTest`, `PayoutPeriodTest` |
 
 ## Messaging and the admin site
 
@@ -69,6 +69,8 @@ claims rather than requirements from `initial-prompt.md`.
 | Reply, with the counterpart notified at their own path | done | each site's `…_conversation_messages` | `Shop::MessagesControllerTest`, `Seller::MessagesControllerTest`, `Admin::MessagesControllerTest`, `NotificationTest` |
 | Support threads against `Admin.on_duty` | done | `shop_support`, `seller_support` | `Shop::SupportsControllerTest`, `Seller::SupportsControllerTest` |
 | The desk opens a thread from either account page | done | `admin_seller_conversation`, `admin_customer_conversation` | `Admin::SellerConversationsControllerTest`, `Admin::CustomerConversationsControllerTest` |
+| Admin removes a listing (temporary or permanent) and lifts a removal; a removal takes the listing off browse, search and its own page whatever its status, and blocks the seller from putting it back on sale | done | `admin_listing_removals` (POST), `lift_admin_listing_removals` (POST) | `Admin::ListingRemovalsControllerTest`, `ListingTest`, `Shop::ListingsControllerTest`, `Shop::StorefrontControllerTest`, `Seller::ListingStatusesControllerTest` |
+| Admin blocks a customer and lifts a block; a block stops cart add, checkout, pay and message post, leaving browsing, favorites and reading threads open | done | `admin_customer_blocks` (POST), `lift_admin_customer_blocks` (POST) | `Admin::CustomerBlocksControllerTest`, `CustomerTest`, `ConversationTest`, `Shop::CartItemsControllerTest`, `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest`, `Shop::MessagesControllerTest`, `Shop::ListingQuestionsControllerTest` |
 | A thread per fulfillment from either order page | done | `shop_fulfillment_conversation`, `seller_order_conversation` | `Shop::FulfillmentConversationsControllerTest`, `Seller::OrderConversationsControllerTest` |
 | Anonymous shopper asks a question on a listing | done | `shop_listing_questions` | `Shop::ListingQuestionsControllerTest`, `CustomerTest` (merge carries the thread) |
 | Seller publishes, edits, unpublishes an FAQ; the storefront shows it | done | `seller_listing_faqs` | `Seller::FaqsControllerTest`, `Shop::ListingsControllerTest`, `ListingFaqTest` |
@@ -166,38 +168,35 @@ half differs:
    `ActionMailer::Base.deliveries`. Production needs the SMTP settings that are
    commented out in `config/environments/production.rb`, and
    `Notification#deliver_by_email` does nothing.
-2. **The payout button pays every seller**, not the signed-in one. It is
-   labelled a debug control on `seller_earnings` and the controller says so.
-   `payouts:run` is the real entry point.
-3. **20 files under `app/` have no test of their own**: `ApplicationController`,
+2. **20 files under `app/` have no test of their own**: `ApplicationController`,
    the four base controllers, the five controller concerns
    (`AdminAuthentication`, `CustomerAuthentication`, `SellerAuthentication`,
    `MagicLinkSender`, `MessagingSite`), the two helpers, `ApplicationMailer`,
    `ApplicationRecord`, the `EmailAddress` and `Messaging` model concerns,
    `TransitionError`, and `CustomerMerge`, `Favorite` and `OrderItem`. Every
    one is at 100% line coverage through the tests of its callers.
-4. **A merge can leave a customer holding two carts.**
+3. **A merge can leave a customer holding two carts.**
    `Customer#absorb` re-points the anonymous cart rather than
    folding it into the account's cart, and `Customer#current_cart` then shops with
    whichever holds more items. Items in the other cart are still in the
    database and no page shows them.
-5. **Refunds are whole-fulfillment only.** A `refunds` row is always the
+4. **Refunds are whole-fulfillment only.** A `refunds` row is always the
    fulfillment's entire `subtotal_cents`; there is no partial line refund and
    no way to refund shipping separately. `docs/alignment.md` §4.1 fixes that
    for this cut.
-6. **No image variants.** There is no libvips in the image, so
+5. **No image variants.** There is no libvips in the image, so
    `Listing#image_url` serves the original blob. Asking for a variant would
    raise.
-7. **Shipment tracking is two text fields.** No carrier integration; the
+6. **Shipment tracking is two text fields.** No carrier integration; the
    customer confirms delivery from the order page.
-8. **Seeded listings carry no image files.** `PlaceholderImage` renders a
+7. **Seeded listings carry no image files.** `PlaceholderImage` renders a
    generated SVG from the title, so the storefront demo shows shapes rather
    than artwork. An uploaded image is served for listings created through the
    portal.
-9. **`allow_browser versions: :modern`** answers 406 to old browsers, which is
+8. **`allow_browser versions: :modern`** answers 406 to old browsers, which is
    stock Rails and the one place the prototype needs a modern browser it does
    not otherwise need.
-10. **An intermittent `RecordNotFound` was seen once in
+9. **An intermittent `RecordNotFound` was seen once in
     `Shop::ConversationsControllerTest`** on a single full-suite run; it passed
     on reruns and in isolation, and 24 further full-suite runs (5 with fixed
     seeds, 19 with randomized ones) reproduced nothing. Two candidate causes
@@ -220,7 +219,7 @@ half differs:
     `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
     which is deliberate, tested behaviour, not a drift bug. The flake stands
     unreproduced.
-11. **No site renders its own 400 or 404.** `Admin::BaseController#filter_from`
+10. **No site renders its own 400 or 404.** `Admin::BaseController#filter_from`
     / `#id_filter` raise `ActionController::BadRequest` for a filter value a
     page does not offer, and `ActiveRecord::RecordNotFound` answers an unknown
     id everywhere. Neither is rescued anywhere in the controller tree, and
@@ -230,14 +229,15 @@ half differs:
     nav. Node's `plugins/error-pages.ts` renders both statuses inside the
     site's own layout. Building that for all three sites is out of scope for
     any one ticket that touches a single site.
-12. **The admin directory lists are unpaginated.** `/admin/sellers`,
+11. **The admin directory lists are unpaginated.** `/admin/sellers`,
     `/admin/customers`, `/admin/listings`, `/admin/orders`,
-    `/admin/fulfillments` and `/admin/ledger` render every matching row, and
-    the seller selects in their filter forms hold every row of that table.
-    The page cost does not grow with the row count in statements — every list
-    carries a `count_queries` assertion that pins that — but it does in rows
-    rendered. The storefront's `Page` value object is the shape to reuse.
-13. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
+    `/admin/fulfillments`, `/admin/ledger` and `/admin/payouts` render every
+    matching row, and the seller selects in their filter forms hold every row
+    of that table. The page cost does not grow with the row count in
+    statements — every list carries a `count_queries` assertion that pins
+    that — but it does in rows rendered. The storefront's `Page` value object
+    is the shape to reuse.
+12. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
     walks placement through delivery and payout; the reversal surfaces are
     reachable in the app and covered by tests, but the demo data does not
     exercise them. `/admin/accounting` and `/admin/ledger` (FEAT-020) render
@@ -245,6 +245,10 @@ half differs:
     the zero case their tests already cover — but a reviewer clicking through
     the seeded demo never sees `fees_refunded_cents` or a `refunded` ledger
     row without triggering one by hand.
+13. **Nothing seeded is removed or blocked.** `db/seeds.rb` writes no
+    `listing_removals` or `customer_blocks` row, so a reviewer clicking
+    through the seeded demo never sees a removed listing's storefront 404 or
+    a blocked customer's notice without triggering one by hand.
 
 ## Suggested next steps
 
@@ -252,11 +256,11 @@ half differs:
    own mailer. Closes gap 1 and lets `MAGIC_LINK_DEBUG_ALERT=false` take the
    debug alert off the demo path.
 2. Fold the anonymous cart into the account's cart during the merge, so one
-   customer has one cart. Closes gap 4.
-3. Scope the payout button to the signed-in seller, or drop it and keep
-   `payouts:run` as the single entry point. Closes gap 2.
-4. Seed a declined fulfillment and an admin refund in `db/seeds/order_history.rb`
-   so the demo shows the reversal surfaces. Closes gap 14.
-5. Delete or use the model relations no caller reads. Shrinks gap 3.
-6. Attach real images in `db/seeds.rb` and add libvips to the image so the
-   storefront can ask for a thumbnail variant. Closes gaps 6 and 8.
+   customer has one cart. Closes gap 3.
+3. Seed a declined fulfillment and an admin refund in `db/seeds/order_history.rb`
+   so the demo shows the reversal surfaces. Closes gap 12.
+4. Delete or use the model relations no caller reads. Shrinks gap 2.
+5. Attach real images in `db/seeds.rb` and add libvips to the image so the
+   storefront can ask for a thumbnail variant. Closes gaps 5 and 7.
+6. Seed a removed listing and a blocked customer in `db/seeds.rb` so the demo
+   shows both without triggering one by hand. Closes gap 13.

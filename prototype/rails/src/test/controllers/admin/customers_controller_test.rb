@@ -99,6 +99,18 @@ class Admin::CustomersControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-empty=?]", "customers"
   end
 
+  test "standing=blocked keeps only the customers a block stands over" do
+    sign_in_as_admin
+    blocked = create_verified_customer
+    blocked.block!(reason: "Chargeback fraud.", by: create_admin)
+    untouched = create_verified_customer
+
+    get admin_customers_path(standing: "blocked")
+
+    assert_select "[data-customer=?]", blocked.id
+    assert_select "[data-customer=?]", untouched.id, false
+  end
+
   test "a standing the page does not offer is a bad request" do
     sign_in_as_admin
 
@@ -209,6 +221,18 @@ class Admin::CustomersControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-empty=?]", "customer_cart"
     assert_select "[data-empty=?]", "customer_blocks"
     assert_select "[data-empty=?]", "customer_merges"
+  end
+
+  test "the page reads the block history and the reason it stands over the customer" do
+    sign_in_as_admin
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+    get admin_customer_path(customer)
+
+    assert_select "[data-field=?]", "blocked", text: "Blocked"
+    assert_select "[data-block] th", text: "Chargeback fraud."
+    assert_select "form[action=?] button", lift_admin_customer_blocks_path(customer), text: "Lift block"
   end
 
   test "a customer path carrying another table's id is not found" do

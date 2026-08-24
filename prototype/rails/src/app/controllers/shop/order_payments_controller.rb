@@ -1,6 +1,7 @@
 module Shop
   class OrderPaymentsController < BaseController
     rate_limit_guard :payment_attempt, by: -> { params[:id] }, only: :create
+    before_action -> { refuse_blocked_customer(to: shop_order_path(id: params[:id])) }, only: :create
 
     def show
       order = order_of_customer(params[:id])

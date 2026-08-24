@@ -157,6 +157,17 @@ module Shop
       assert_empty Order.all
     end
 
+    test "a cart line an admin removed after it was added answers 422 and names it as removed" do
+      listing = fill_cart(title: "Harbour at Dusk")
+      listing.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+      post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-lines] [data-blocked-line][data-reason=removed]", text: /Harbour at Dusk/
+      assert_empty Order.all
+    end
+
     test "every blocked line in the cart is reported at once" do
       low_tide = fill_cart(title: "Low tide")
       harbour = fill_cart(title: "Harbour at dusk")
@@ -183,6 +194,30 @@ module Shop
       assert_select "[data-blocked-line][data-reason=sold_out]"
       assert_equal 1, Order.count
       assert_equal 0, art.reload.quantity
+    end
+
+    test "a blocked customer cannot check out" do
+      sign_in_as_customer
+      fill_cart
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_place_order_path, params: { email: "buyer@example.com" }.merge(shipping_params)
+
+      assert_redirected_to shop_cart_path
+      assert_equal "Your account is on hold, so you cannot add to a cart or check out. Chargeback fraud.",
+        flash[:alert]
+      assert_empty Order.all
+    end
+
+    test "a lift restores checkout" do
+      sign_in_as_customer
+      fill_cart
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+      visiting_customer.lift_block!
+
+      post shop_place_order_path, params: { email: "buyer@example.com" }.merge(shipping_params)
+
+      assert_equal 1, Order.count
     end
 
     private

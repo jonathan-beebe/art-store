@@ -38,6 +38,28 @@ module Shop
       assert_select "h2", text: "Already Sold", count: 0
     end
 
+    test "a blocked customer can still browse" do
+      create_listing(title: "Harbour at Dusk")
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      get root_path
+
+      assert_response :success
+      assert_select "h2", text: "Harbour at Dusk"
+    end
+
+    test "it leaves out a listing an admin removed" do
+      removed = create_listing(title: "Under Review")
+      removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+      create_listing(title: "Harbour at Dusk")
+
+      get root_path
+
+      assert_select "h2", text: "Harbour at Dusk"
+      assert_select "h2", text: "Under Review", count: 0
+    end
+
     test "it searches titles, descriptions, and media" do
       create_listing(title: "Harbour at Dusk", description: "Boats", medium: "Oil on canvas")
       create_listing(title: "Kiln Fired", description: "A dusk-lit vessel", medium: "Ceramic")

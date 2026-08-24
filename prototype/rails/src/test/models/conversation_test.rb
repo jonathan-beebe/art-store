@@ -291,6 +291,31 @@ class ConversationTest < ActiveSupport::TestCase
     assert_equal moment("2026-08-20 09:00:00"), conversation.reload.last_message_at
   end
 
+  test "a blocked customer cannot post" do
+    shop = create_seller
+    buyer = create_verified_customer
+    buyer.block!(reason: "Chargeback fraud.", by: create_admin)
+    conversation = listing_question(shop, buyer, at: moment("2026-08-20 09:00:00"))
+
+    error = assert_raises(TransitionError) { conversation.post!(buyer, "Is it framed?") }
+
+    assert_equal "This account is blocked and cannot send messages.", error.message
+    assert_empty conversation.messages.reload
+    assert_equal moment("2026-08-20 09:00:00"), conversation.reload.last_message_at
+  end
+
+  test "a blocked customer still reads their thread, and the other side still posts to it" do
+    shop = create_seller
+    buyer = create_verified_customer
+    buyer.block!(reason: "Chargeback fraud.", by: create_admin)
+    conversation = listing_question(shop, buyer)
+
+    message = conversation.post!(shop, "Still available.")
+
+    assert_equal shop, message.sender
+    assert conversation.participant?(buyer)
+  end
+
   test "the unread count for a side counts what the other side sent" do
     shop = create_seller
     buyer = create_verified_customer

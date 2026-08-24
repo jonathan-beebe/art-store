@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_000105) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -81,6 +81,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
     t.index ["customer_id", "last_message_at"], name: "index_conversations_on_customer_id_and_last_message_at"
     t.index ["kind", "subject_type", "subject_id"], name: "index_conversations_on_kind_and_subject_type_and_subject_id"
     t.index ["seller_id", "last_message_at"], name: "index_conversations_on_seller_id_and_last_message_at"
+  end
+
+  create_table "customer_blocks", id: :string, force: :cascade do |t|
+    t.string "admin_id", null: false
+    t.datetime "created_at", null: false
+    t.string "customer_id", null: false
+    t.datetime "lifted_at"
+    t.text "reason", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_id"], name: "index_customer_blocks_on_admin_id"
+    t.index ["customer_id"], name: "index_customer_blocks_on_customer_id"
+    t.index ["customer_id"], name: "index_customer_blocks_on_customer_id_while_active", unique: true, where: "lifted_at IS NULL"
   end
 
   create_table "customer_merges", id: :string, force: :cascade do |t|
@@ -166,6 +178,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
     t.string "source_message_id"
     t.datetime "updated_at", null: false
     t.index ["listing_id", "created_at"], name: "index_listing_faqs_on_listing_id_and_created_at"
+  end
+
+  create_table "listing_removals", id: :string, force: :cascade do |t|
+    t.string "admin_id", null: false
+    t.datetime "created_at", null: false
+    t.string "kind", null: false
+    t.datetime "lifted_at"
+    t.string "listing_id", null: false
+    t.text "reason", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_id"], name: "index_listing_removals_on_admin_id"
+    t.index ["listing_id"], name: "index_listing_removals_on_listing_id"
+    t.index ["listing_id"], name: "index_listing_removals_on_listing_id_while_active", unique: true, where: "lifted_at IS NULL"
   end
 
   create_table "listings", id: :string, force: :cascade do |t|
@@ -346,6 +371,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
   add_foreign_key "conversations", "admins"
   add_foreign_key "conversations", "customers"
   add_foreign_key "conversations", "sellers"
+  add_foreign_key "customer_blocks", "admins"
+  add_foreign_key "customer_blocks", "customers"
   add_foreign_key "customer_merges", "customers"
   add_foreign_key "customer_merges", "customers", column: "anonymous_customer_id"
   add_foreign_key "favorites", "customers"
@@ -359,6 +386,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
   add_foreign_key "listing_events", "listings"
   add_foreign_key "listing_faqs", "listings"
   add_foreign_key "listing_faqs", "messages", column: "source_message_id", on_delete: :nullify
+  add_foreign_key "listing_removals", "admins"
+  add_foreign_key "listing_removals", "listings"
   add_foreign_key "listings", "sellers"
   add_foreign_key "messages", "conversations"
   add_foreign_key "order_items", "listings"

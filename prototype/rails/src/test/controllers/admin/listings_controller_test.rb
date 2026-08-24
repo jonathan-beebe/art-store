@@ -117,6 +117,30 @@ class Admin::ListingsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-empty=?]", "listings"
   end
 
+  test "removed=removed keeps only the listings a removal stands over" do
+    sign_in_as_admin
+    removed = create_listing
+    removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+    untouched = create_listing
+
+    get admin_listings_path(removed: "removed")
+
+    assert_select "[data-listing=?]", removed.id
+    assert_select "[data-listing=?]", untouched.id, false
+  end
+
+  test "removed=visible drops the listings a removal stands over" do
+    sign_in_as_admin
+    removed = create_listing
+    removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+    untouched = create_listing
+
+    get admin_listings_path(removed: "visible")
+
+    assert_select "[data-listing=?]", removed.id, false
+    assert_select "[data-listing=?]", untouched.id
+  end
+
   test "an empty removal filter keeps every listing" do
     sign_in_as_admin
     listing = create_listing
@@ -181,6 +205,18 @@ class Admin::ListingsControllerTest < ActionDispatch::IntegrationTest
     get admin_listing_path(create_listing)
 
     assert_select "[data-empty=?]", "listing_removals"
+  end
+
+  test "the page reads the removal history and the reason it stands over the listing" do
+    sign_in_as_admin
+    listing = create_listing
+    listing.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    get admin_listing_path(listing)
+
+    assert_select "[data-field=?]", "removed", text: "Removed"
+    assert_select "[data-removal] td", text: "Reported as counterfeit."
+    assert_select "form[action=?] button", lift_admin_listing_removals_path(listing), text: "Lift removal"
   end
 
   test "a listing path carrying another table's id is not found" do

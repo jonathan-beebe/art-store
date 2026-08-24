@@ -35,6 +35,11 @@ module MessagingSite
     present_thread(refusal.record)
 
     render thread_template, status: :unprocessable_content
+  rescue TransitionError => refusal
+    present_thread(Message.new)
+    flash.now[:alert] = refusal.message
+
+    render thread_template, status: :unprocessable_content
   end
 
   private

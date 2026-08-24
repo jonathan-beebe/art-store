@@ -105,9 +105,14 @@ task runs — that is what makes re-running the same period a no-op (the money
 is already inside `occurred_at <= period.ends_at` on the next run, so it nets
 to zero and `payable?` is false). `payouts` also has a unique index on
 `(seller_id, period_start)`. `PayoutPeriod.ending_before` is pure —
-Monday–Sunday, the most recently completed week as of `as_of`. The seller
-portal's "Run weekly payout now" button (`Seller::PayoutsController#create`)
-runs the same weekly settlement for every seller, not just the one signed in.
+Monday–Sunday, the most recently completed week as of `as_of`.
+
+Two entry points call the same class method: the CLI, and `POST /admin/payouts`
+on the admin site (`Admin::PayoutsController#create`, optional `as_of` field).
+Both run the settlement for every seller, not just one. Payouts are a
+platform action — the seller portal has no control that runs one; its
+earnings page (`Seller::EarningsController#show`) shows a seller their
+held / available / paid-out balance and their payout history only.
 
 ## Worked example
 

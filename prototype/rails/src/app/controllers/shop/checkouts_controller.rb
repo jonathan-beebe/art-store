@@ -3,6 +3,7 @@ module Shop
     include MagicLinkSender
 
     rate_limit_guard :checkout, by: -> { current_customer.id }, only: :create
+    before_action -> { refuse_blocked_customer(to: shop_cart_path) }, only: :create
 
     INCOMPLETE = "Enter an email address and a full shipping address.".freeze
     UNAVAILABLE = "Your cart changed before checkout. Take these out before placing the order.".freeze

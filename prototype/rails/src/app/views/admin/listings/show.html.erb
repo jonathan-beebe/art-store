@@ -25,6 +25,13 @@
   </div>
 
   <div>
+    <dt class="text-slate-400">Removal</dt>
+    <dd data-field="removed" class="mt-1">
+      <%= @listing.actively_removed? ? "Removed" : "Not removed" %>
+    </dd>
+  </div>
+
+  <div>
     <dt class="text-slate-400">Price</dt>
     <dd data-field="price" class="mt-1 tabular-nums"><%= money(@listing.price_cents) %></dd>
   </div>
@@ -53,5 +60,37 @@
 
   <% if @removals.empty? %>
     <%= render "admin/shared/empty", key: "listing_removals", message: "Nobody has removed this listing." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Every removal placed on this listing, oldest first",
+          headings: [ "Kind", "Reason", "Admin", "Removed", "Lifted" ],
+          rows: render(partial: "admin/listings/removal", collection: @removals, as: :removal) %>
+  <% end %>
+
+  <% if @listing.actively_removed? %>
+    <% if @listing.active_removal.liftable? %>
+      <%= button_to "Lift removal", lift_admin_listing_removals_path(@listing), method: :post,
+            form_class: "mt-4",
+            class: "rounded border border-slate-600 bg-slate-900 px-3 py-1 font-medium" %>
+    <% else %>
+      <p class="mt-4 text-slate-400">A permanent removal cannot be lifted.</p>
+    <% end %>
+  <% else %>
+    <%= form_with url: admin_listing_removals_path(@listing), method: :post,
+          html: { class: "mt-4 max-w-xl rounded border border-slate-700 bg-slate-800 p-4" } do |form| %>
+      <div>
+        <%= form.label :kind, "Kind", class: "block text-slate-400" %>
+        <%= form.select :kind, ListingRemoval.kinds.keys.map { |kind| [ status_label(kind), kind ] },
+              {}, class: "mt-1 rounded border border-slate-600 bg-slate-900 px-2 py-1" %>
+      </div>
+
+      <div class="mt-4">
+        <%= form.label :reason, "Why", class: "block text-slate-400" %>
+        <%= form.text_area :reason, rows: 3, required: true, maxlength: 500,
+              class: "mt-1 block w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" %>
+      </div>
+
+      <%= form.submit "Remove listing", class: "mt-4 rounded bg-slate-100 px-3 py-1 font-medium text-slate-900" %>
+    <% end %>
   <% end %>
 </section>

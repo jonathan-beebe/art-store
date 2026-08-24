@@ -17,9 +17,11 @@ class Customer < ApplicationRecord
   STANDINGS = %w[all verified anonymous blocked].freeze
 
   # One line of the customers directory: a customer beside the counts the
-  # table shows for them.
-  Row = Data.define(:customer, :order_count, :favorite_count, :cart_line_count) do
-    delegate :id, :email, :display_name, :anonymous?, :blocked?, to: :customer
+  # table shows for them. `blocked` is read once for the whole table rather
+  # than through `Customer#blocked?`, which would cost a query per row.
+  Row = Data.define(:customer, :order_count, :favorite_count, :cart_line_count, :blocked) do
+    delegate :id, :email, :display_name, :anonymous?, to: :customer
+    alias_method :blocked?, :blocked
   end
 
   # A merge from this customer's side: the visitor folded into them, or the
@@ -34,12 +36,12 @@ class Customer < ApplicationRecord
   has_many :listing_events, dependent: :nullify
   has_many :notifications, as: :recipient, dependent: :destroy
   has_many :orders, dependent: :restrict_with_error
+  has_many :blocks, -> { order(:created_at, :id) }, class_name: "CustomerBlock", dependent: :destroy
 
   scope :verified, -> { where.not(email: nil) }
   scope :anonymous, -> { where(email: nil) }
   # An admin's block takes shopping and messaging away from a customer.
-  # Nothing blocks a customer, so nobody stands blocked.
-  scope :blocked, -> { none }
+  scope :blocked, -> { where(id: CustomerBlock.active.select(:customer_id)) }
   scope :standing, ->(standing) {
     case standing
     when "verified" then verified
@@ -54,13 +56,15 @@ class Customer < ApplicationRecord
     order_counts = Order.group(:customer_id).count
     favorite_counts = Favorite.group(:customer_id).count
     cart_line_counts = CartItem.joins(:cart).group("carts.customer_id").count
+    blocked_ids = CustomerBlock.active.distinct.pluck(:customer_id).to_set
 
     order(:created_at, :id).map do |customer|
       Row.new(
         customer: customer,
         order_count: order_counts.fetch(customer.id, 0),
         favorite_count: favorite_counts.fetch(customer.id, 0),
-        cart_line_count: cart_line_counts.fetch(customer.id, 0)
+        cart_line_count: cart_line_counts.fetch(customer.id, 0),
+        blocked: blocked_ids.include?(customer.id)
       )
     end
   end
@@ -92,15 +96,58 @@ class Customer < ApplicationRecord
     email.nil?
   end
 
-  # Whether an admin has taken shopping and messaging away from this customer.
-  def blocked?
-    blocks.any?
+  # The block standing over this customer right now, if any. Both `block!`
+  # and `lift_block!` key off this rather than a block id, so a page that
+  # knows the customer needs nothing else.
+  def active_block
+    blocks.active.first
   end
 
-  # The blocks an admin has placed on this customer, newest first. Nothing
-  # blocks a customer, so the history is empty.
-  def blocks
-    []
+  # Whether an admin has taken shopping and messaging away from this customer.
+  def blocked?
+    active_block.present?
+  end
+
+  # What a blocked customer reads for why, or nil in good standing.
+  def blocked_reason
+    active_block&.reason
+  end
+
+  # The one predicate a block turns off: adding to a cart, checking out,
+  # paying, and posting a message. Browsing, favorites, and reading threads
+  # stay open, which is why this is named for what shopping needs rather than
+  # after the block itself.
+  def can_shop?
+    !blocked?
+  end
+
+  # Stops the customer buying and messaging. At most one block is active at a
+  # time.
+  def block!(reason:, by:)
+    Story.tell("moderation.block_customer", "blocking the customer",
+      customer_id: id) do |story|
+      raise TransitionError, "customer #{id} is already blocked" if blocked?
+
+      block = blocks.create!(reason: reason, admin: by)
+
+      story.did("blocked the customer", customer_id: id, block_id: block.id)
+
+      block
+    end
+  end
+
+  # Hands a blocked customer their cart, checkout, and messages back.
+  def lift_block!
+    Story.tell("moderation.lift_customer_block", "lifting the block", customer_id: id) do |story|
+      block = active_block
+      raise TransitionError, "customer #{id} is not blocked" if block.nil?
+
+      block.update!(lifted_at: Time.current)
+
+      story.did("lifted the block", customer_id: id, block_id: block.id)
+
+      block
+    end
   end
 
   # Every merge this customer was named in, oldest first, whichever side of it
