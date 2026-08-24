@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:17:30:00 — FEAT-024 — started
 - 2026-08-24:15:10:00 — FEAT-023 — started
 - 2026-08-24:13:40:00 — FEAT-021 — started
 - 2026-08-24:13:39:00 — FEAT-022 — done: nine admin directory pages with folded balances and 404 boundaries, docs/admin.md written; 1514 tests, 4187 assertions, 100% lines
