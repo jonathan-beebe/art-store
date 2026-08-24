@@ -22,15 +22,17 @@ Rules:
 
 - Foreign keys hold the same string as the referenced primary key.
 - The id is minted in the shell (action / model layer) when the row is
-  created, from the clock the action already receives, so seeds on a fixed
-  clock stay reproducible in time order. Random bits stay random.
-- Ordering by creation uses `created_at`, never the id, even though ULIDs
-  sort by millisecond.
+  created, from the application's freezable clock, so seeds on a fixed clock
+  stay reproducible in time order. Random bits stay random; within one
+  millisecond the generator is monotonic.
+- Ordering by creation uses the creation timestamp with the id as tiebreak
+  (second-resolution timestamps tie), never the id alone.
 - URLs carry the full prefixed id (`/orders/ord_…`, `/admin/customers/cus_…`).
   Storefront listing pages keep `/art/:slug`.
 - An id whose prefix does not match the route's table answers 404, the same
   page as an unknown id. No prototype accepts an unprefixed ULID.
-- The order number shown to customers and sellers is the order id.
+- The order number shown to customers and sellers is the order id, rendered
+  bare — no `#` sigil before a prefixed id anywhere in copy.
 - Fixtures and seeds may use hand-written ids of the right shape
   (`ord_00000000000000000000000001` is a valid ULID).
 - Framework-owned tables (Rails `active_storage_*`, `solid_cable_messages`;
@@ -97,13 +99,13 @@ prototype. No prose logs, no per-environment format switch.
 | `phase` | string | yes | `will` \| `doing` \| `did` \| `refused` \| `failed` |
 | `msg` | string | yes | one human sentence, present tense for `will`/`doing`, past for `did` |
 | `request_id` | string | on requests | one per HTTP request; echoed as `X-Request-Id` response header; honoured from an incoming `X-Request-Id` only when it matches `^[A-Za-z0-9_-]{1,64}$` |
-| `session_id` | string | on requests | value of the `sid` cookie (`ses_<ulid>`), minted on the first response a browser gets and kept for a year, unchanged by sign-in/out |
+| `session_id` | string | on requests | value of the `sid` cookie (`ses_<ulid>`), minted on the first response a browser gets and kept for a year, unchanged by sign-in/out; carried from the point the session is available — a framework's outermost request line may carry `request_id` alone |
 | `actor_type` | string | when known | `seller` \| `customer` \| `admin` \| `system` |
 | `actor_id` | string | when known | the actor's prefixed id; an anonymous customer's `cus_…` counts as known |
 | `txn_id` | string | inside a unit of work | `txn_<ulid>` minted when an action's transaction opens; every line inside it carries the same value |
 | `data` | object | when useful | entity ids and the small facts the line is about (`order_id`, `amount_cents`, `status_from`, `status_to`, …). Ids are prefixed ids. |
 | `error` | object | on `failed` | `{ "type": "<class or code>", "message": "<text>" }` and, in development, `"stack"` |
-| `duration_ms` | number | on `did`/`failed` when a `will` preceded it | wall time since the `will` line |
+| `duration_ms` | number | on `did`/`refused`/`failed` when a `will` preceded it | wall time since the `will` line |
 
 Additional keys are allowed at the top level for framework-native fields the
 stack's logger adds (Fastify's `pid`/`hostname`, Rails' `pid`), but nothing in
@@ -111,7 +113,8 @@ the table may be renamed, nested, or omitted where marked always.
 
 Redaction: no cookie values, magic-link tokens, card numbers, or email
 addresses in `data`. An actor's id identifies them; the address does not
-appear.
+appear. A line the framework writes with no event of its own uses the event
+`app.log`.
 
 ### 2.2 The story
 
@@ -139,7 +142,7 @@ prototype emits every event below that its features support.
 
 | Event | Emitted by |
 | --- | --- |
-| `http.request` | every request (will on entry, did on response) |
+| `http.request` | every request (will on entry, did on response), including 404s and CSRF refusals |
 | `magic_link.request` | sign-in form submit; `refused` when the address is not admitted or the rate limit trips |
 | `magic_link.consume` | verification; `refused` on expired/used/foreign token |
 | `customer.merge` | anonymous → verified fold |
@@ -161,6 +164,10 @@ prototype emits every event below that its features support.
 | `migrate.run`, `migrate.apply`, `seed.run` | CLI |
 | `app.boot`, `app.shutdown` | process lifecycle |
 
+The vocabulary is closed: a write with no event above stays silent rather than
+minting a name one prototype has and the others lack. Reserved for a future
+round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`.
+
 ## 3. Rate limits
 
 Every limit has a name, an env variable, and a key. Values are
@@ -181,7 +188,10 @@ unset. Limits are read at boot; a malformed value refuses to boot.
 Behaviour on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
 HTML page ("Too many requests — try again in N minutes"; for a form, the form
 re-renders with that sentence as a field-less error), one `rate_limit.exceed`
-log line, no side effect performed.
+log line, no side effect performed. A POST that came from a form re-renders
+that form — every form, including the storefront question box and the
+fulfillment message form. An email-keyed `rate_limit.exceed` line logs
+`sha256:<first 16 hex>` of the address, never the address.
 
 Storage: a fixed-window counter per (name, key, window_start) that survives a
 process restart. Node — a `rate_limit_windows` table in the same SQLite file;
@@ -213,7 +223,8 @@ pending_verification ─verify─▶ awaiting_payment ─approve─▶ paid
   live fulfillments only: `paid` / `partially_shipped` / `shipped` /
   `delivered` are computed over fulfillments that are neither declined nor
   refunded. `orders.refunded_cents` carries the sum of its refunds.
-- The stale sweep cancels `pending_verification` orders older than
+- An admin cancel records a reason, like decline and refund.
+- The stale sweep cancels `pending_verification` orders strictly older than
   `STALE_ORDER_HOURS` (default `24`). It runs from `make sweep` (a CLI /
   artisan command / rake task) and is idempotent.
 
@@ -246,14 +257,18 @@ numbers invalid at the form. The customer may retry after a decline or cancel.
 
 Refund: a `refunds` row per issue — `id` (`rfd_`), `order_id`,
 `fulfillment_id`, `payment_id`, `amount_cents`, `reason`, `issued_by_type`
-(`seller` | `admin`), `issued_by_id`, `created_at`. Refunds always succeed
+(`seller` | `admin`), `issued_by_id`, `created_at`, with `fulfillment_id`
+unique — one refund per fulfillment. `issued_by_type` is a plain enum plus an
+id, never a framework polymorphic association. Refunds always succeed
 (no gateway); the amount is always the whole fulfillment subtotal (no partial
 line refunds in this cut).
 
 ### 4.2 Ledger
 
 Entry types: `held`, `released`, `paid_out`, `refunded`. The balance is still a
-fold. A `refunded` entry carries `-net_cents` for the fulfillment:
+fold, and the fold groups by `(fulfillment_id, entry_type)` — a flat per-type
+fold cannot reproduce the timings below. "Refund after release" is decided by
+whether that fulfillment's `released` entry exists, not by its status. A `refunded` entry carries `-net_cents` for the fulfillment:
 
 - Refund before release: `held` +net, `refunded` −net → the seller's held
   balance returns to zero for that fulfillment; nothing releases.
@@ -328,6 +343,12 @@ Decisions carried by this table:
   one row per (listing, customer, UTC hour). PHP and Rails adopt both.
 - Ownership refusals answer 404 everywhere; admin pages are behind one guard
   hook/middleware/`before_action`, never per route.
+- An empty filter value means "all"; an unrecognised value answers 400.
+- `path_pattern` is stored bare (`/art/:slug`, no format suffix); HEAD
+  requests are not counted as page views.
+- A removed listing leaves every storefront surface: browse, search,
+  `/art/:slug`, the favorites page, and an existing cart line (the row stays,
+  the card is marked unavailable and excluded from the total).
 
 ## 6. Workflows
 
@@ -376,3 +397,21 @@ From `__local__/prototype-alignment.md` §8:
 4. Attachments stay as they are per stack.
 5. Payouts run from the admin site only (§5).
 6. ULID prefixes: §1. Timezone rendering: deferred; UTC stays the rendered zone.
+7. CSRF refusal status stays per-stack idiom — Node 403, Laravel 419,
+   Rails 422 — each recorded in its `docs/review.md`.
+8. `customer_blocks` stay behind on merge in all three, so a blocked anonymous
+   customer can escape a block by verifying into an unblocked account. Shared
+   gap, held for a product decision; no prototype fixes it unilaterally.
+
+## 8. Reconciliation log
+
+2026-08-25, after the three alignment lanes finished: §1 (freezable clock,
+monotonic-within-ms, timestamp-then-id ordering, bare ids), §2 (`session_id`
+availability, `duration_ms` on `refused`, `app.log`, closed vocabulary,
+`http.request` on 404s), §3 (form re-render, hashed email keys), §4 (strict
+sweep cutoff, admin-cancel reason, fulfillment-grouped fold, released-entry
+timing, unique refund per fulfillment), §5 (400 on unknown filters, bare
+`path_pattern`, no HEAD, removal reach), §7 (decisions 7–8). Known deviations
+outstanding: PHP answers "treat as absent" where §5 now says 400 on an
+unrecognised filter value, and PHP lacks the `listing_faqs
+(listing_id, source_message_id)` uniqueness — both queued as PHP follow-ups.
