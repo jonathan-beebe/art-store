@@ -7,14 +7,16 @@ namespace App\Notifications;
 use App\Domain\Money\Money;
 use App\Domain\Notifications\NotificationMessage;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Tells a seller one of their listings has been paid for.
  */
-final class ItemSold extends Notification
+final class ItemSold extends PrefixedUlidNotification
 {
-    public function __construct(private readonly int $orderId, private readonly Money $net) {}
+    public function __construct(private readonly string $orderId, private readonly Money $net)
+    {
+        parent::__construct();
+    }
 
     /**
      * @return array<int, string>

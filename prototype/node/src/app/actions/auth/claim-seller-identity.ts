@@ -1,8 +1,10 @@
 import type { Selectable } from 'kysely'
 import { normalizeEmail } from '../../core/auth/email-address.ts'
+import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { SellerTable } from '../../db/schema.ts'
 import { toTimestamp, type Timestamp } from '../../db/timestamp.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 
@@ -19,14 +21,15 @@ export async function claimSellerIdentity(
   const address = normalizeEmail(email)
 
   return runInTransaction(context, async ({ db, clock }) => {
-    const verifiedAt = toTimestamp(clock.now())
+    const now = clock.now()
+    const verifiedAt = toTimestamp(now)
     const existing = await db
       .selectFrom('sellers')
       .selectAll()
       .where('email', '=', address)
       .executeTakeFirst()
 
-    if (existing === undefined) return await createSeller(db, address, verifiedAt)
+    if (existing === undefined) return await createSeller(db, address, now)
     if (existing.emailVerifiedAt !== null) return existing
 
     return await settleVerification(db, existing.id, verifiedAt)
@@ -36,11 +39,14 @@ export async function claimSellerIdentity(
 async function createSeller(
   db: AppDatabase,
   address: string,
-  verifiedAt: Timestamp,
+  at: Date,
 ): Promise<Selectable<SellerTable>> {
+  const verifiedAt = toTimestamp(at)
+
   return await db
     .insertInto('sellers')
     .values({
+      id: newId('sel', at),
       email: address,
       name: null,
       shopName: null,
@@ -54,7 +60,7 @@ async function createSeller(
 /** Returns the row the update leaves behind rather than one rebuilt in memory. */
 async function settleVerification(
   db: AppDatabase,
-  sellerId: number,
+  sellerId: SellerId,
   verifiedAt: Timestamp,
 ): Promise<Selectable<SellerTable>> {
   return await db

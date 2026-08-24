@@ -53,11 +53,11 @@ enum ConversationKind: string
     /**
      * What a notification or an inbox row says the thread is about.
      */
-    public function topic(?int $orderId, ?string $listingTitle): string
+    public function topic(?string $orderId, ?string $listingTitle): string
     {
         return match ($this) {
             self::AdminSeller, self::AdminCustomer => 'Support',
-            self::Fulfillment => "Order #{$orderId}",
+            self::Fulfillment => "Order {$orderId}",
             self::ListingQuestion => $listingTitle ?? 'a listing',
         };
     }

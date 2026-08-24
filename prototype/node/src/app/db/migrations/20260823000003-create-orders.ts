@@ -13,8 +13,8 @@ import { PAYMENT_STATUSES } from '../../core/payments/payment-status.ts'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('orders')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('customer_id', 'integer', (column) => column.notNull().references('customers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('customer_id', 'text', (column) => column.notNull().references('customers.id'))
     .addColumn('email', 'text')
     .addColumn('status', 'text', (column) =>
       column.notNull().check(sql`status in (${sql.join(ORDER_STATUSES.map((status) => sql.lit(status)))})`),
@@ -28,6 +28,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('shipping_country', 'text', (column) => column.notNull())
     .addColumn('subtotal_cents', 'integer', (column) => column.notNull())
     .addColumn('total_cents', 'integer', (column) => column.notNull())
+    .addColumn('refunded_cents', 'integer', (column) => column.notNull().defaultTo(0))
     .addColumn('placed_at', 'text', (column) => column.notNull())
     .addColumn('finalized_at', 'text')
     .addColumn('cancelled_at', 'text')
@@ -41,13 +42,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('order_items')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('order_id', 'integer', (column) => column.notNull().references('orders.id'))
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
-    .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('order_id', 'text', (column) => column.notNull().references('orders.id'))
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
+    .addColumn('seller_id', 'text', (column) => column.notNull().references('sellers.id'))
     .addColumn('title', 'text', (column) => column.notNull())
     .addColumn('unit_price_cents', 'integer', (column) => column.notNull())
     .addColumn('quantity', 'integer', (column) => column.notNull())
+    .addColumn('created_at', 'text', (column) => column.notNull())
     .execute()
 
   await db.schema
@@ -58,8 +60,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('payments')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('order_id', 'integer', (column) => column.notNull().references('orders.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('order_id', 'text', (column) => column.notNull().references('orders.id'))
     .addColumn('status', 'text', (column) =>
       column
         .notNull()
@@ -81,9 +83,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('fulfillments')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('order_id', 'integer', (column) => column.notNull().references('orders.id'))
-    .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('order_id', 'text', (column) => column.notNull().references('orders.id'))
+    .addColumn('seller_id', 'text', (column) => column.notNull().references('sellers.id'))
     .addColumn('status', 'text', (column) =>
       column
         .notNull()
@@ -95,6 +97,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('subtotal_cents', 'integer', (column) => column.notNull())
     .addColumn('fee_cents', 'integer', (column) => column.notNull())
     .addColumn('net_cents', 'integer', (column) => column.notNull())
+    .addColumn('created_at', 'text', (column) => column.notNull())
     .addColumn('shipped_at', 'text')
     .addColumn('delivered_at', 'text')
     .execute()

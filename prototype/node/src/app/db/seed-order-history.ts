@@ -6,10 +6,13 @@ import { runWeeklyPayout } from '../actions/escrow/run-weekly-payout.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import { fixedClock } from '../clock.ts'
+import type { FulfillmentId, ListingId, OrderId } from '../core/ids/entity-ids.ts'
 import type { Purchaser } from '../core/orders/purchaser.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
+import { newId } from '../ids.ts'
 import type { Order, Payout } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
+import { requireListingId } from './seed-catalog.ts'
 import type { SeededCasey } from './seed-customers.ts'
 import { toTimestamp } from './timestamp.ts'
 
@@ -30,7 +33,7 @@ const CASEY_SHIPPING: ShippingAddress = {
 export type SeededOrderHistory = {
   paidOrder: Order
   shippedOrder: Order
-  shippedFulfillmentId: number
+  shippedFulfillmentId: FulfillmentId
   deliveredOrder: Order
   payouts: readonly Payout[]
 }
@@ -45,21 +48,21 @@ export type SeededOrderHistory = {
 export async function seedOrderHistory(
   db: AppDatabase,
   casey: SeededCasey,
-  listingIdsByTitle: Record<string, number>,
+  listingIdsByTitle: Record<string, ListingId>,
 ): Promise<SeededOrderHistory> {
   const purchaser: Purchaser = { id: casey.id, email: casey.email, isEmailVerified: true }
 
   const paidOrder = await placeAndPay(
     db,
     purchaser,
-    listingIdsByTitle['Ash-Glazed Tea Bowl'] ?? 0,
+    requireListingId(listingIdsByTitle, 'Ash-Glazed Tea Bowl'),
     new Date('2026-07-06T09:00:00.000Z'),
   )
 
   const shippedOrder = await placeAndPay(
     db,
     purchaser,
-    listingIdsByTitle['Kitchen Table, Late Morning'] ?? 0,
+    requireListingId(listingIdsByTitle, 'Kitchen Table, Late Morning'),
     new Date('2026-07-07T09:00:00.000Z'),
   )
   await ship(db, shippedOrder.id, 'UPS', '1Z999AA10123456784', new Date('2026-07-08T09:00:00.000Z'))
@@ -68,7 +71,7 @@ export async function seedOrderHistory(
   const deliveredOrder = await placeAndPay(
     db,
     purchaser,
-    listingIdsByTitle['Standing Figure in Reclaimed Oak'] ?? 0,
+    requireListingId(listingIdsByTitle, 'Standing Figure in Reclaimed Oak'),
     new Date('2026-07-06T11:00:00.000Z'),
   )
   await ship(db, deliveredOrder.id, 'USPS', '9400111899223197428490', new Date('2026-07-08T10:00:00.000Z'))
@@ -84,12 +87,16 @@ export async function seedOrderHistory(
 async function placeAndPay(
   db: AppDatabase,
   purchaser: Purchaser,
-  listingId: number,
+  listingId: ListingId,
   placedAt: Date,
 ): Promise<Order> {
   const cart = await db
     .insertInto('carts')
-    .values({ customerId: purchaser.id, createdAt: toTimestamp(placedAt) })
+    .values({
+      id: newId('crt', placedAt),
+      customerId: purchaser.id,
+      createdAt: toTimestamp(placedAt),
+    })
     .returningAll()
     .executeTakeFirstOrThrow()
 
@@ -101,7 +108,7 @@ async function placeAndPay(
   return finalizeOrder(finalizingContext, { orderId: order.id, cardNumber: APPROVED_CARD })
 }
 
-async function fulfillmentIdFor(db: AppDatabase, orderId: number): Promise<number> {
+async function fulfillmentIdFor(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId> {
   const fulfillment = await db
     .selectFrom('fulfillments')
     .select('id')
@@ -113,7 +120,7 @@ async function fulfillmentIdFor(db: AppDatabase, orderId: number): Promise<numbe
 
 async function ship(
   db: AppDatabase,
-  orderId: number,
+  orderId: OrderId,
   carrier: string,
   trackingNumber: string,
   shippedAt: Date,
@@ -124,6 +131,6 @@ async function ship(
   )
 }
 
-async function deliver(db: AppDatabase, orderId: number, deliveredAt: Date): Promise<void> {
+async function deliver(db: AppDatabase, orderId: OrderId, deliveredAt: Date): Promise<void> {
   await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId))
 }

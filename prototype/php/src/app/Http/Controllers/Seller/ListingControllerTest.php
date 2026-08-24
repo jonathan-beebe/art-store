@@ -8,12 +8,15 @@ use App\Actions\Listings\RecordListingEvent;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Reports\DailyActivity;
 use App\Models\Listing;
+use App\Models\ListingRemoval;
 use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -146,6 +149,28 @@ it('renders the activity page', function (): void {
     $response->assertSee('Harbour at Dusk');
 });
 
+it('reads the removal reason on its own listing page', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id, 'reason' => 'Under review for a copyright claim.']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('Under review for a copyright claim.');
+    $response->assertSee('Removed from the storefront');
+});
+
+it('shows no removal notice on a listing that was never removed', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Removed from the storefront');
+});
+
 it('hides another sellers listing from the activity page', function (): void {
     $listing = $this->listing($this->seller('Other Studio'));
 
@@ -213,7 +238,7 @@ it('lists the sales of the listing', function (): void {
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
     $response->assertViewHas('sales', fn (Collection $sales): bool => $sales->count() === 1);
-    $response->assertSee("#{$order->id}");
+    $response->assertSee($order->id);
 });
 
 it('renders the activity page on a fixed number of queries however many events the listing recorded', function (): void {
@@ -225,7 +250,10 @@ it('renders the activity page on a fixed number of queries however many events t
     }
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(5)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews); +1 for the active-removal
+        // eager load.
+        ->expectsDatabaseQueryCount(7)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
@@ -301,4 +329,44 @@ it('refuses to update another sellers listing', function () use ($form): void {
 
     $response->assertNotFound();
     expect($listing->refresh()->title)->toBe('Not Mine');
+});
+
+it('trips the listing-write limit on create, re-rendering the create form with nothing saved', function () use ($form): void {
+    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
+    $seller = $this->seller();
+    $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form(['title' => 'Second piece']));
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('New listing');
+    expect(Listing::where('seller_id', $seller->id)->count())->toBe(1);
+});
+
+it('trips the listing-write limit on update, re-rendering the edit form with nothing changed', function () use ($form): void {
+    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Old title']);
+    $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form());
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($listing->refresh()->title)->toBe('Old title');
+});
+
+it('resets the listing-write limit once its window passes', function () use ($form): void {
+    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
+    $seller = $this->seller();
+    $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
+
+    $this->travel(61)->minutes();
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form(['title' => 'Second piece']));
+
+    $response->assertRedirect(route('seller.listings.index'));
+    expect(Listing::where('seller_id', $seller->id)->count())->toBe(2);
 });

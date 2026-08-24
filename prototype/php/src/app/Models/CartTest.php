@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Listings\ListingStatus;
+use App\Domain\Orders\UnavailableReason;
+
 it('reads its items as cart lines', function (): void {
     $seller = $this->seller();
     $customer = $this->anonymousCustomer();
@@ -30,4 +33,31 @@ it('reads the customer it belongs to', function (): void {
     $cart = $this->cartFor($customer);
 
     expect($cart->customer()->sole()->is($customer))->toBeTrue();
+});
+
+it('plans placement from its items against the listings behind them', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]);
+    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+
+    $plan = $cart->load('items.listing')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Harbour at Dawn')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::OffSale);
+});
+
+it('blocks a line whose listing carries an active removal, even while for sale', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+
+    $plan = $cart->load('items.listing')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
 });

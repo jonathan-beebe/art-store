@@ -22,7 +22,7 @@ final class ListingFaqController extends SellerController
 
         return view('seller.listings.faqs.index', [
             'listing' => $listing,
-            'faqs' => $listing->faqs()->latest('id')->get(),
+            'faqs' => $listing->faqs()->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 

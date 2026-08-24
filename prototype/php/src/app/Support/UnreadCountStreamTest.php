@@ -26,7 +26,7 @@ it("sends the actor's own count as the first frame", function (): void {
         ->and($event->data)->toBe(1);
 });
 
-it('sends nothing more while the count holds steady, and stops at the deadline', function (): void {
+it('repeats a steady count on every tick, so every tick reaches the client, and stops at the deadline', function (): void {
     Sleep::fake(syncWithCarbon: true);
     $this->freezeTime();
 
@@ -36,17 +36,15 @@ it('sends nothing more while the count holds steady, and stops at the deadline',
     Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id]);
 
     $deadline = now()->addSeconds(UnreadCountStream::LIFETIME_SECONDS)->toDateTimeImmutable();
-    $generator = UnreadCountStream::forActor($seller, $deadline);
+    $frames = iterator_to_array(UnreadCountStream::forActor($seller, $deadline), preserve_keys: false);
+    $ticks = (int) ceil(UnreadCountStream::LIFETIME_SECONDS / UnreadCountStream::TICK_SECONDS);
 
-    expect($generator->current()->data)->toBe(1);
-
-    $generator->next();
-
-    expect($generator->valid())->toBeFalse();
-    Sleep::assertSleptTimes((int) ceil(UnreadCountStream::LIFETIME_SECONDS / UnreadCountStream::TICK_SECONDS));
+    expect($frames)->toHaveCount($ticks)
+        ->and(array_map(fn (StreamedEvent $frame): mixed => $frame->data, $frames))->each->toBe(1);
+    Sleep::assertSleptTimes($ticks);
 });
 
-it('sends a new frame once the count changes mid-stream', function (): void {
+it('sends the new count on the first tick after it changes mid-stream', function (): void {
     Sleep::fake(syncWithCarbon: true);
     $this->freezeTime();
 

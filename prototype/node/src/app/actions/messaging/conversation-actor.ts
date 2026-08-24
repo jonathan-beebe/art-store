@@ -1,10 +1,12 @@
 import type { ActionContext } from '../action-context.ts'
 import { activeCustomerBlock } from '../moderation/active-customer-block.ts'
-import type { ActorType } from '../../core/auth/actor-type.ts'
-import type { ConversationActor } from '../../core/messaging/conversation-access.ts'
+import type {
+  ConversationActor,
+  ConversationParticipant,
+} from '../../core/messaging/conversation-access.ts'
 
 /** Who is asking, before their standing is known. */
-export type MessagingActor = { type: ActorType; id: number }
+export type MessagingActor = ConversationParticipant
 
 /**
  * The actor `conversationAccess` needs, with the moderation block filled in.
@@ -14,7 +16,11 @@ export async function conversationActor(
   { db }: Pick<ActionContext, 'db'>,
   actor: MessagingActor,
 ): Promise<ConversationActor> {
-  if (actor.type !== 'customer') return { type: actor.type, id: actor.id }
+  if (actor.type !== 'customer') return actor
 
-  return { type: 'customer', id: actor.id, isBlocked: (await activeCustomerBlock({ db }, actor.id)) !== null }
+  return {
+    type: 'customer',
+    id: actor.id,
+    isBlocked: (await activeCustomerBlock({ db }, actor.id)) !== null,
+  }
 }

@@ -27,10 +27,20 @@ test('an empty environment yields the development defaults', () => {
     magicLinkDelivery: 'flash',
     uploadsDir: DEFAULT_UPLOADS_DIR,
     outboxDir: 'storage/outbox',
+    staleOrderHours: 24,
     publicUrl: null,
-    trustProxy: false,
+    trustedProxies: null,
     secureCookies: false,
     showsDebugMagicLinks: true,
+    rateLimits: {
+      magic_link_request: { count: 5, windowSeconds: 900 },
+      magic_link_consume: { count: 20, windowSeconds: 900 },
+      message_post: { count: 30, windowSeconds: 3600 },
+      conversation_open: { count: 10, windowSeconds: 3600 },
+      checkout: { count: 10, windowSeconds: 3600 },
+      payment_attempt: { count: 5, windowSeconds: 900 },
+      listing_write: { count: 60, windowSeconds: 3600 },
+    },
   })
 })
 
@@ -46,7 +56,14 @@ test('the environment overrides every default', () => {
     UPLOADS_DIR: '/var/data/uploads',
     OUTBOX_DIR: '/var/data/outbox',
     PUBLIC_URL: 'https://art-store.example.com',
-    TRUST_PROXY: 'true',
+    TRUSTED_PROXIES: '10.0.0.1, 10.0.0.2',
+    RATE_LIMIT_MAGIC_LINK_REQUEST: '3/1m',
+    RATE_LIMIT_MAGIC_LINK_CONSUME: '3/1m',
+    RATE_LIMIT_MESSAGE_POST: '3/1m',
+    RATE_LIMIT_CONVERSATION_OPEN: '3/1m',
+    RATE_LIMIT_CHECKOUT: '3/1m',
+    RATE_LIMIT_PAYMENT_ATTEMPT: '3/1m',
+    RATE_LIMIT_LISTING_WRITE: '3/1m',
   })
 
   assert.equal(config.environment, 'test')
@@ -59,7 +76,16 @@ test('the environment overrides every default', () => {
   assert.equal(config.uploadsDir, '/var/data/uploads')
   assert.equal(config.outboxDir, '/var/data/outbox')
   assert.equal(config.publicUrl, 'https://art-store.example.com')
-  assert.equal(config.trustProxy, true)
+  assert.deepEqual(config.trustedProxies, ['10.0.0.1', '10.0.0.2'])
+  assert.deepEqual(config.rateLimits, {
+    magic_link_request: { count: 3, windowSeconds: 60 },
+    magic_link_consume: { count: 3, windowSeconds: 60 },
+    message_post: { count: 3, windowSeconds: 60 },
+    conversation_open: { count: 3, windowSeconds: 60 },
+    checkout: { count: 3, windowSeconds: 60 },
+    payment_attempt: { count: 3, windowSeconds: 60 },
+    listing_write: { count: 3, windowSeconds: 60 },
+  })
 })
 
 test('unrelated environment variables are ignored', () => {
@@ -132,9 +158,45 @@ test('a public url that is not a url is refused', () => {
   assert.throws(() => loadConfig({ PUBLIC_URL: 'art-store.example.com' }))
 })
 
-test('the proxy is trusted only when the environment says so', () => {
-  assert.equal(loadConfig({}).trustProxy, false)
-  assert.equal(loadConfig({ TRUST_PROXY: 'true' }).trustProxy, true)
-  assert.equal(loadConfig({ TRUST_PROXY: 'false' }).trustProxy, false)
-  assert.throws(() => loadConfig({ TRUST_PROXY: 'maybe' }))
+test('no trusted proxies are named unless TRUSTED_PROXIES is set', () => {
+  assert.equal(loadConfig({}).trustedProxies, null)
+})
+
+test('trusted proxies are a comma-separated list, trimmed', () => {
+  assert.deepEqual(loadConfig({ TRUSTED_PROXIES: '10.0.0.1,10.0.0.2' }).trustedProxies, [
+    '10.0.0.1',
+    '10.0.0.2',
+  ])
+  assert.deepEqual(loadConfig({ TRUSTED_PROXIES: ' 10.0.0.1 , 10.0.0.2 ' }).trustedProxies, [
+    '10.0.0.1',
+    '10.0.0.2',
+  ])
+})
+
+test('every limit falls back to its docs/alignment.md §3 default', () => {
+  assert.deepEqual(loadConfig({}).rateLimits, {
+    magic_link_request: { count: 5, windowSeconds: 900 },
+    magic_link_consume: { count: 20, windowSeconds: 900 },
+    message_post: { count: 30, windowSeconds: 3600 },
+    conversation_open: { count: 10, windowSeconds: 3600 },
+    checkout: { count: 10, windowSeconds: 3600 },
+    payment_attempt: { count: 5, windowSeconds: 900 },
+    listing_write: { count: 60, windowSeconds: 3600 },
+  })
+})
+
+test('off disables one limit without touching the others', () => {
+  const config = loadConfig({ RATE_LIMIT_CHECKOUT: 'off' })
+
+  assert.equal(config.rateLimits.checkout, 'off')
+  assert.deepEqual(config.rateLimits.message_post, { count: 30, windowSeconds: 3600 })
+})
+
+test('a malformed rate limit refuses to boot, naming its own variable', () => {
+  assert.throws(
+    () => loadConfig({ RATE_LIMIT_MAGIC_LINK_REQUEST: 'plenty' }),
+    /RATE_LIMIT_MAGIC_LINK_REQUEST/,
+  )
+  assert.throws(() => loadConfig({ RATE_LIMIT_CHECKOUT: '0/1h' }), /RATE_LIMIT_CHECKOUT/)
+  assert.throws(() => loadConfig({ RATE_LIMIT_PAYMENT_ATTEMPT: '5/1d' }), /RATE_LIMIT_PAYMENT_ATTEMPT/)
 })

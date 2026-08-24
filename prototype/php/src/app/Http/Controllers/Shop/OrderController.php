@@ -15,6 +15,7 @@ final class OrderController extends ShopController
         return view('shop.orders', [
             'orders' => $this->visitor()->orders()
                 ->with('items')
+                ->orderByDesc('placed_at')
                 ->orderByDesc('id')
                 ->get(),
         ]);
@@ -24,7 +25,7 @@ final class OrderController extends ShopController
     {
         $this->authorizeVisitor('view', $order);
 
-        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order', 'latestPayment']);
+        $order->load(['items.seller', 'fulfillments.seller', 'fulfillments.order', 'fulfillments.refund', 'latestPayment']);
         $isVerified = $this->visitor()->isVerified();
 
         return view('shop.order', [

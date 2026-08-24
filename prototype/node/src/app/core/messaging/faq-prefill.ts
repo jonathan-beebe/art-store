@@ -1,4 +1,6 @@
-export type FaqPrefill = { question: string; answer: string; sourceMessageId: number | null }
+import type { MessageId } from '../ids/entity-ids.ts'
+
+export type FaqPrefill = { question: string; answer: string; sourceMessageId: MessageId | null }
 
 /**
  * What a "Publish as FAQ" form starts from: the thread's opening message reads
@@ -6,7 +8,7 @@ export type FaqPrefill = { question: string; answer: string; sourceMessageId: nu
  * alongside it.
  */
 export function faqPrefill(
-  messages: readonly { id: number; body: string; isMine: boolean }[],
+  messages: readonly { id: MessageId; body: string; isMine: boolean }[],
 ): FaqPrefill {
   const first = messages[0]
   const lastFromSeller = messages.findLast((message) => message.isMine)

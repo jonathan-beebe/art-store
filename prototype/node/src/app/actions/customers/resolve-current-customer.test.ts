@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp } from '../../test/build-test-app.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
 import { resolveCurrentCustomer } from './resolve-current-customer.ts'
 
@@ -31,7 +32,7 @@ test('a cookie naming a row that is gone gets a fresh anonymous customer', async
   const { db, clock, close } = await buildTestApp()
   t.after(close)
 
-  const customer = await resolveCurrentCustomer({ db, clock }, 999999)
+  const customer = await resolveCurrentCustomer({ db, clock }, fixtureId('cus', 999999))
 
   assert.notEqual(customer.id, 999999)
   const rows = await db.selectFrom('customers').selectAll().execute()

@@ -45,13 +45,47 @@
                             <tr>
                                 <td class="px-4 py-2">{{ $fulfillment->order->placed_at?->format('M j, Y') }}</td>
                                 <th scope="row" class="px-4 py-2 font-normal">
-                                    <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="underline">#{{ $fulfillment->order_id }}</a>
+                                    <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="underline">{{ $fulfillment->order_id }}</a>
                                 </th>
                                 <td class="px-4 py-2">{{ $fulfillment->order->items->pluck('title')->join(', ') }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->subtotal() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->fee() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->net()->format() }}</td>
                                 <td class="px-4 py-2">{{ $fulfillment->status->label() }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    <section aria-labelledby="refunds-heading" class="mt-6">
+        <h2 id="refunds-heading" class="font-semibold text-gray-700">Refunds</h2>
+
+        @if ($refunds->isEmpty())
+            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No refunds.</p>
+        @else
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <table class="w-full text-left">
+                    <caption class="sr-only">Every refund taken back out of your escrow, newest first</caption>
+                    <thead class="border-b border-gray-300 bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 font-semibold">Date</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Order</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Movement</th>
+                            <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($refunds as $entry)
+                            <tr>
+                                <td class="px-4 py-2">{{ $entry->occurred_at?->format('M j, Y') }}</td>
+                                <th scope="row" class="px-4 py-2 font-normal">
+                                    <a href="{{ route('seller.orders.show', $entry->fulfillment_id) }}" class="underline">{{ $entry->fulfillment?->order_id }}</a>
+                                </th>
+                                <td class="px-4 py-2">{{ $entry->type->label() }}</td>
+                                <td class="px-4 py-2 text-right tabular-nums">{{ $entry->amount()->format() }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -90,11 +124,5 @@
                 </table>
             </div>
         @endif
-
-        <form method="POST" action="{{ route('seller.earnings.payout') }}" class="mt-4">
-            @csrf
-            <button type="submit" class="rounded border border-gray-400 bg-white px-4 py-2 font-medium">Run weekly payout now</button>
-            <span class="ml-2 text-gray-600">Debug control: settles every seller's released escrow for the last completed week.</span>
-        </form>
     </section>
 </x-layouts.seller>

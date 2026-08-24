@@ -24,6 +24,6 @@ it('flashes the url under the debug alert key', function (): void {
 it('refuses a notification that carries no url', function (): void {
     $channel = new SessionFlashChannel(new Store('art-store', new ArraySessionHandler(60)));
 
-    expect(fn () => $channel->send(new AnonymousNotifiable, new ItemSold(4, Money::fromCents(9000))))
+    expect(fn () => $channel->send(new AnonymousNotifiable, new ItemSold('ord_00000000000000000000000004', Money::fromCents(9000))))
         ->toThrow(InvalidArgumentException::class, 'carries no URL to flash to the session.');
 });

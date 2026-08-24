@@ -4,6 +4,7 @@
 </dl>
 
 <form method="post" action="/admin/customers/<%= customer.id %>/messages" class="mt-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
     Message customer
   </button>
@@ -17,6 +18,7 @@
     Blocked <%= formatMoment(block.createdAt.toISOString()) %>: <%= block.reason %>
   </p>
   <form method="post" action="/admin/customers/<%= customer.id %>/blocks/lift" class="mt-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <input type="hidden" name="redirect_to" value="/admin/customers/<%= customer.id %>" />
     <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
       Lift block
@@ -25,6 +27,7 @@
   <% } else { %>
   <p class="mt-2 text-neutral-600">Not blocked.</p>
   <form method="post" action="/admin/customers/<%= customer.id %>/blocks" class="mt-4 max-w-md space-y-3">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <input type="hidden" name="redirect_to" value="/admin/customers/<%= customer.id %>" />
     <div>
       <label for="reason" class="block text-sm font-medium text-neutral-700">Reason</label>
@@ -62,7 +65,7 @@
         <% orders.forEach((order) => { %>
         <tr data-order="<%= order.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
-            <a href="/admin/orders/<%= order.id %>" class="font-medium underline">#<%= order.id %></a>
+            <a href="/admin/orders/<%= order.id %>" class="font-medium underline"><%= order.id %></a>
           </th>
           <td data-cell="status" class="px-4 py-3"><%= statusLabel(order.status) %></td>
           <td data-cell="total" class="px-4 py-3 text-right tabular-nums"><%= formatCents(order.totalCents) %></td>
@@ -132,7 +135,7 @@
       <% } else { %>
       Folded into customer
       <% } %>
-      <a href="/admin/customers/<%= merge.otherCustomerId %>" class="underline">#<%= merge.otherCustomerId %></a>
+      <a href="/admin/customers/<%= merge.otherCustomerId %>" class="underline"><%= merge.otherCustomerId %></a>
       on <%= formatMoment(merge.createdAt) %>
     </li>
     <% }) %>

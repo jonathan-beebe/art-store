@@ -2,17 +2,73 @@
 
 ## Next ticket numbers
 
-- RSRCH: 1
+- RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 18
-- IMPRV: 4
-- MAINT: 3
+- FEAT: 25
+- IMPRV: 10
+- MAINT: 5
 - A11Y: 1
 - RFCTR: 9
-- BUG: 3
+- BUG: 5
 
 ## Log
+
+- 2026-08-24:23:20:00 — IMPRV-009 — done: `CustomerIdentity::fromCookie()` resolves once per request and both middlewares read that answer; on identical seeded data `/` 16 -> 14 queries, `/cart` 13 -> 11, `/art/{slug}` 18 -> 16, `/favorites` 13 -> 11; 1831 tests, 4955 assertions, 100% lines
+- 2026-08-24:23:00:00 — IMPRV-009 — started
+- 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines
+- 2026-08-24:22:35:00 — IMPRV-008 — started
+- 2026-08-24:22:30:00 — IMPRV-007 — done: `docker/pcov.ini` disables pcov in the image and the two coverage composer scripts turn it back on with `-d`; `GET /` 24.7 -> 17.4 ms CPU/req measured independently; 1827 tests, 4946 assertions, 100% lines
+- 2026-08-24:22:15:00 — IMPRV-007 — started
+- 2026-08-24:22:10:00 — IMPRV-006 — done: the stream yields a frame per tick so a failed write reaches `connection_aborted()`, and the worker pool goes 5 -> 16; twelve abandoned streams then `GET /` 49.4s -> 0.25s, twelve held 50.8s -> 0.11s, three live streams 5.6% -> 0.99% of one core; 1827 tests, 100% lines
+- 2026-08-24:21:50:00 — IMPRV-006 — started
+- 2026-08-24:21:45:00 — BUG-004 — done: RateLimitsConfigTest writes and reads through Dotenv's repository and restores what `.env` gave it, so the gate is green whatever `.env` holds; 1827 tests, 4934 assertions, 100% lines
+- 2026-08-24:21:25:00 — BUG-004 — started
+- 2026-08-24:21:20:00 — IMPRV-009 — defined: the visitor is resolved from the cookie twice per request (16 queries on /, two of them duplicates)
+- 2026-08-24:21:19:00 — IMPRV-008 — defined: the entrypoint rebuilds the Vite bundle on every container start and every `docker compose run` (three builds per `make check`)
+- 2026-08-24:21:18:00 — IMPRV-007 — defined: pcov instruments every request the dev server answers (24.7 -> 16.6 ms CPU/req with it off)
+- 2026-08-24:21:17:00 — IMPRV-006 — defined: a closed tab keeps holding a serve worker, so a page load stalls 49.4s after twelve streams
+- 2026-08-24:21:16:00 — BUG-004 — defined: `make check` is red on a fresh checkout, RateLimitsConfigTest reads `.env` instead of its own putenv
+- 2026-08-24:21:15:00 — RSRCH-001 — done: performance baseline recorded (startup, idle CPU, latency, CPU/req, query counts, stream occupancy) with the commands to re-run each
+- 2026-08-24:20:30:00 — MAINT-004 — done: every doc refreshed against the branch, validation run complete (make check green, make fresh seeds, 34 GET routes with no 5xx, hook refuses a failing test); 1827 tests, 4934 assertions, 100% lines
+- 2026-08-24:19:00:00 — MAINT-004 — started
+- 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines
+- 2026-08-24:23:50:00 — IMPRV-005 — done: CustomerMergePlan folds cart quantities and unions favorites, currentCart heuristic gone, schema manifest test added
+- 2026-08-24:22:35:00 — IMPRV-005 — started
+- 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
+- 2026-08-24:22:05:00 — FEAT-024 — fixed up: favorites page reads the storefront set, cart add refuses a removed listing, moderation checks judged against a locked row; 1793 tests, 4865 assertions, 100% lines
+- 2026-08-24:21:30:00 — BUG-003 — started
+- 2026-08-24:21:29:00 — FEAT-024 — done: listing removals with temporary/permanent kinds, removal outranks status, payout run moved to admin; 1770 tests, 4796 assertions, 100% lines
+- 2026-08-24:19:05:00 — FEAT-023 — done: zero-filled dashboard tallies, accounting, ledger browser, stats, page-view roll-up and view collapse; 1699 tests, 4655 assertions, 100% lines
+- 2026-08-24:19:04:00 — FEAT-021 — done: seven configurable rate limits keyed per §3, 429 with Retry-After, CSP and security headers; 1596 tests, 4438 assertions, 100% lines
+- 2026-08-24:19:03:00 — FEAT-020 — done: cancel, stale sweep, seller decline, admin refund, refunds table and refunded ledger entry across the three timings; 1514 tests, 4187 assertions, 100% lines
+- 2026-08-24:18:45:00 — FEAT-024 — done: listing_removals (temporary/permanent, at most one active), removed listings dropped from browse/search/art/{slug}/checkout, seller-portal payout button removed in favor of /admin/payouts; 1770 tests, 4796 assertions, 100% lines
+- 2026-08-24:17:30:00 — FEAT-024 — started
+- 2026-08-24:15:10:00 — FEAT-023 — started
+- 2026-08-24:13:40:00 — FEAT-021 — started
+- 2026-08-24:13:39:00 — FEAT-022 — done: nine admin directory pages with folded balances and 404 boundaries, docs/admin.md written; 1514 tests, 4187 assertions, 100% lines
+- 2026-08-24:07:05:00 — FEAT-020 — started
+- 2026-08-24:06:20:00 — FEAT-022 — started
+- 2026-08-24:06:19:00 — IMPRV-004 — done: OrderPlacementPlan refuses with every blocked line, listing rows taken for update, card fields never flashed; 1282 tests, 3526 assertions, 100% lines
+- 2026-08-24:04:40:00 — IMPRV-004 — started
+- 2026-08-24:04:39:00 — FEAT-019 — done: one JSON line per event on stdout, Story::tell brackets every unit of work, http.request on every request incl. 404/419; 1247 tests, 3395 assertions, 100% lines
+- 2026-08-24:04:10:00 — FEAT-018 — done: prefixed ULID ids on all 20 domain tables plus notifications, PrefixedId value object refuses wrong prefixes at the route boundary; 1234 tests, 3302 assertions, 100% lines
+- 2026-08-23:21:55:00 — FEAT-019 — started
+- 2026-08-23:21:11:00 — FEAT-018 — started
+- 2026-08-23:21:10:00 — MAINT-003 — done: make vocabulary complete, check = lint -> assets -> test, test gated at 100% coverage, .github/workflows/php.yml runs make check; 1111 tests, 2503 assertions
+- 2026-08-23:20:45:00 — MAINT-003 — started
+- 2026-08-23:20:36:19 — MAINT-004 — defined: Final validation and docs refresh for the alignment branch
+- 2026-08-23:20:36:19 — IMPRV-005 — defined: Merge folds the cart and de-duplicates favorites
+- 2026-08-23:20:36:19 — BUG-003 — defined: A blocked customer's ask leaves an empty thread, and a magic link can be consumed twice
+- 2026-08-23:20:36:19 — FEAT-024 — defined: Admin moderation of listings, and the payout run moves to admin
+- 2026-08-23:20:36:19 — FEAT-023 — defined: Admin dashboard, accounting, ledger browser, and site stats
+- 2026-08-23:20:36:19 — FEAT-022 — defined: Admin directory: sellers, customers, listings, orders, fulfillments
+- 2026-08-23:20:36:19 — FEAT-021 — defined: Configurable rate limits and security headers
+- 2026-08-23:20:36:19 — FEAT-020 — defined: Order lifecycle back half: cancel, stale sweep, seller decline, admin refund
+- 2026-08-23:20:36:19 — IMPRV-004 — defined: Checkout refusal lists every blocked line and the cart gates checkout
+- 2026-08-23:20:36:19 — FEAT-019 — defined: Structured JSON logs that tell the story
+- 2026-08-23:20:36:19 — FEAT-018 — defined: Prefixed ULID identifiers on every table
+- 2026-08-23:20:36:19 — MAINT-003 — defined: Common make vocabulary, check gate, and CI
 - 2026-08-23:19:12:59 — IMPRV-002 — amended: debug notice no longer names a seeded admin address
 - 2026-08-23:19:03:03 — IMPRV-003 — done: AdminSeeder now seeds two real operators (Jonathan Beebe, Anna Schmunk) via AdminSeeder::ADMINS replacing the single EMAIL constant; MessagingSeeder/debug notice/README/tests updated to match; 1111 tests / 2501 assertions, 100.0% coverage
 - 2026-08-23:18:58:30 — IMPRV-003 — started
@@ -41,7 +97,6 @@
 - 2026-08-23:14:29:48 — FEAT-010 — reviewed: arch rules now run in the gate, SignInAdmin refuses an unknown address, unused admin base controller dropped, docs carry the third site; 826 tests / 1887 assertions, 100.0% coverage
 - 2026-08-23:14:14:49 — FEAT-010 — done: admin actor/site + customer blocks landed, 810 tests / 1788 assertions, make check green
 - 2026-08-23:13:59:13 — FEAT-010 — started
-
 - 2026-08-23:13:50:48 — FEAT-017 — defined: Final validation and documentation refresh
 - 2026-08-23:13:50:48 — FEAT-016 — defined: Live unread badge over eventstream sse
 - 2026-08-23:13:50:48 — FEAT-015 — defined: Seed data for messaging and smoke walk

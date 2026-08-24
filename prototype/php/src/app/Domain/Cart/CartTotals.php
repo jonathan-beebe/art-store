@@ -10,7 +10,7 @@ use App\Domain\Money\Money;
 final readonly class CartTotals
 {
     /**
-     * @param  array<int, Money>  $subtotalsBySeller
+     * @param  array<string, Money>  $subtotalsBySeller
      */
     private function __construct(
         public int $itemCount,
@@ -52,7 +52,7 @@ final readonly class CartTotals
     }
 
     /**
-     * @return array<int, Money>
+     * @return array<string, Money>
      */
     public function subtotalsBySeller(): array
     {

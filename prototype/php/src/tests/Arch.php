@@ -88,11 +88,14 @@ arch()->preset()->laravel()
         'App\Http\Controllers\Shop\OrderPaymentController',
         // Domain enums live beside the concept they model (docs/architecture.md:
         // "domain enums name states"), not centralized under App\Enums as the
-        // preset assumes.
+        // preset assumes. The log vocabulary — event, phase, level — is named
+        // by the same rule, beside the formatter that writes it.
         'App\Domain',
-        // Named for the artisan command it registers (`payouts:run`), not
-        // suffixed `Command` — the one command in the app.
+        'App\Logging',
+        // Named for the artisan command each registers (`payouts:run`,
+        // `orders:sweep`), not suffixed `Command`.
         'App\Console\Commands\RunWeeklyPayouts',
+        'App\Console\Commands\SweepOrders',
         // A delivery channel is not a notification, and Laravel's own docs
         // home for a custom channel is App\Notifications\Channels.
         'App\Notifications\Channels',

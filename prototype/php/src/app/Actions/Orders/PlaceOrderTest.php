@@ -7,11 +7,16 @@ namespace App\Actions\Orders;
 use App\Actions\Cart\AddToCart;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Orders\BlockedLine;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
+use App\Domain\Orders\UnavailableReason;
 use App\Models\CustomerBlock;
+use App\Models\Listing;
 use App\Models\Order;
 use DomainException;
+use RuntimeException;
 
 it('turns the cart into an order the customer can pay for', function (): void {
     $customer = $this->verifiedCustomer();
@@ -150,11 +155,26 @@ it('refuses a listing that left the storefront while it sat in the cart', functi
 
     $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($place)->toThrow(DomainRuleViolation::class, '“Harbour at Dawn” is no longer for sale.')
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Harbour at Dawn” is no longer available to buy.')
         ->and(Order::count())->toBe(0)
         ->and($cart->items()->count())->toBe(1)
         ->and($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::Archived);
+});
+
+it('judges the cart against the rows it locked, not what the caller loaded before', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    // What the page the shopper submitted from had read: one left, placeable.
+    $cart->load('items.listing');
+    Listing::whereKey($listing->id)->update(['quantity' => 0, 'status' => ListingStatus::Sold]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Winter Elm” is no longer available to buy.')
+        ->and(Order::count())->toBe(0);
 });
 
 it('refuses a blocked customer', function (): void {
@@ -177,6 +197,48 @@ it('refuses a listing whose last unit sold to someone else', function (): void {
 
     $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    expect($place)->toThrow(DomainRuleViolation::class, '“Winter Elm” is no longer for sale.')
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Winter Elm” is no longer available to buy.')
         ->and(Order::count())->toBe(1);
+});
+
+it('refuses a line asking for more than remains in stock', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 2]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 08:00:00'));
+    $this->orderFor($this->verifiedCustomer(), $listing->refresh());
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class)
+        ->and(Order::count())->toBe(1)
+        ->and($listing->refresh()->quantity)->toBe(1);
+});
+
+it('refuses every blocked line at once, not just the first', function (): void {
+    $customer = $this->verifiedCustomer();
+    $offSale = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $soldOut = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 24500, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    $addToCart = app(AddToCart::class);
+    $addToCart($cart, $offSale, 1, $this->moment('2026-08-20 08:00:00'));
+    $addToCart($cart, $soldOut, 1, $this->moment('2026-08-20 08:00:00'));
+    $offSale->update(['status' => ListingStatus::Archived]);
+    $this->orderFor($this->verifiedCustomer(), $soldOut->refresh());
+
+    try {
+        app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+        throw new RuntimeException('Expected placement to be refused.');
+    } catch (OrderPlacementRefused $refusal) {
+        expect(array_map(
+            fn (BlockedLine $line): array => [$line->title, $line->reason],
+            $refusal->blocked,
+        ))->toBe([
+            ['Harbour at Dawn', UnavailableReason::OffSale],
+            ['Winter Elm', UnavailableReason::SoldOut],
+        ]);
+    }
+
+    expect(Order::count())->toBe(1);
 });

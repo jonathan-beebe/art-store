@@ -8,7 +8,7 @@ use App\Models\Customer;
 use App\Notifications\OrderShipped;
 use Illuminate\Notifications\DatabaseNotification;
 
-$notify = function (Customer $customer, int $orderId): DatabaseNotification {
+$notify = function (Customer $customer, string $orderId): DatabaseNotification {
     $customer->notify(new OrderShipped($orderId, 'Royal Mail', 'RM123456789GB'));
 
     return $customer->notifications()->firstOrFail();
@@ -42,20 +42,20 @@ it('offers a link to contact support', function (): void {
 it('lists the notifications of the customer', function () use ($notify): void {
     $shopper = Customer::factory()->create();
     $this->actingAs($shopper, 'customer');
-    $notify($shopper, 41);
-    $notify(Customer::factory()->create(), 77);
+    $notify($shopper, 'ord_00000000000000000000000041');
+    $notify(Customer::factory()->create(), 'ord_00000000000000000000000077');
 
     $response = $this->get('/account');
 
     $response->assertSee('Order shipped');
-    $response->assertSee('Order #41 shipped with Royal Mail. Tracking number RM123456789GB.');
-    $response->assertDontSee('Order #77');
+    $response->assertSee('Order ord_00000000000000000000000041 shipped with Royal Mail. Tracking number RM123456789GB.');
+    $response->assertDontSee('Order ord_00000000000000000000000077');
 });
 
 it('marks a notification read', function () use ($notify): void {
     $shopper = Customer::factory()->create();
     $this->actingAs($shopper, 'customer');
-    $notification = $notify($shopper, 41);
+    $notification = $notify($shopper, 'ord_00000000000000000000000041');
 
     $response = $this->post(route('shop.account.notifications.read', $notification));
 
@@ -65,10 +65,21 @@ it('marks a notification read', function () use ($notify): void {
 
 it('leaves another customer notification alone', function () use ($notify): void {
     $this->actingAs(Customer::factory()->create(), 'customer');
-    $notification = $notify(Customer::factory()->create(), 41);
+    $notification = $notify(Customer::factory()->create(), 'ord_00000000000000000000000041');
 
     $response = $this->post(route('shop.account.notifications.read', $notification));
 
     $response->assertNotFound();
     expect($notification->refresh()->read_at)->toBeNull();
 });
+
+it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
+    $this->actingAs(Customer::factory()->create(), 'customer');
+
+    $this->post("/account/notifications/{$id}/read")->assertNotFound();
+})->with([
+    'another table prefix' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'a notification that does not exist' => 'ntf_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

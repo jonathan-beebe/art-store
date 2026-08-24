@@ -8,6 +8,7 @@ use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingEventType;
 use App\Models\CustomerBlock;
 use App\Models\ListingEvent;
+use App\Models\ListingRemoval;
 use DomainException;
 
 it('puts a listing in the cart', function (): void {
@@ -49,6 +50,27 @@ it('refuses a sold out listing', function (): void {
 
     app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
 })->throws(DomainException::class);
+
+it('refuses a listing an admin has removed from the storefront', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 3]);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $add = fn () => app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+
+    expect($add)->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.')
+        ->and($cart->items()->count())->toBe(0);
+});
+
+it('takes a listing whose removal was lifted', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 3]);
+    ListingRemoval::factory()->lifted()->create(['listing_id' => $listing->id]);
+
+    $item = app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+
+    expect($item->quantity)->toBe(1);
+});
 
 it('refuses a blocked customer', function (): void {
     $customer = $this->verifiedCustomer();

@@ -1,3 +1,4 @@
+import type { ConversationId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { MessagingActor } from './conversation-actor.ts'
 import { participantNames } from './conversation-participants.ts'
@@ -15,7 +16,7 @@ import type { Timestamp } from '../../db/timestamp.ts'
 
 /** One row of an inbox, on whichever of the three sites is showing it. */
 export type InboxConversation = {
-  id: number
+  id: ConversationId
   topic: string
   counterpart: string
   lastMessageAt: Timestamp
@@ -85,11 +86,12 @@ async function conversationsFor(
 }
 
 /** Ordered oldest first, so the last write of each preview wins. */
-async function messagesIn(db: AppDatabase, conversationIds: readonly number[]) {
+async function messagesIn(db: AppDatabase, conversationIds: readonly ConversationId[]) {
   return db
     .selectFrom('messages')
     .select(['id', 'conversationId', 'senderType', 'senderId', 'body', 'readAt'])
     .where('conversationId', 'in', conversationIds)
+    .orderBy('sentAt')
     .orderBy('id')
     .execute()
 }

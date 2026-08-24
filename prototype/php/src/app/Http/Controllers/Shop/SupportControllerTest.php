@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Admin;
 use App\Models\Conversation;
+use Illuminate\Support\Facades\Config;
 
 it('opens the visitors admin thread and lands on it', function (): void {
     $admin = $this->admin();
@@ -55,4 +57,17 @@ it('works for a visitor who has never signed in', function (): void {
 
     $response->assertRedirect();
     expect(Conversation::count())->toBe(1);
+});
+
+it('trips the conversation-open limit on a second visit within the window', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $this->admin();
+    $this->visitor();
+    $this->get('/support');
+
+    $response = $this->get('/support');
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
 });

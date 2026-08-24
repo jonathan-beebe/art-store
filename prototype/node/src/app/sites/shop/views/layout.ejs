@@ -31,6 +31,7 @@
           <% if (identity.customer && identity.customer.email) { %>
           <a href="/account" class="hover:text-amber-700">Account</a>
           <form method="post" action="/logout">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
             <button type="submit" class="cursor-pointer hover:text-amber-700">Sign out</button>
           </form>
           <% } else { %>

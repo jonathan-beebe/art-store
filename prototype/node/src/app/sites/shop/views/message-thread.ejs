@@ -8,20 +8,32 @@
       <%= message.senderName %> &middot; <%= dayLabel(message.sentAt) %>
     </p>
     <p class="mt-1 whitespace-pre-line text-lg"><%= message.body %></p>
+    <% if (message.publishedFaqId && thread.listing) { %>
+    <p class="mt-1 text-sm text-neutral-500">
+      <a href="/art/<%= thread.listing.slug %>#faq-<%= message.publishedFaqId %>" class="underline">Published to FAQ</a>
+    </p>
+    <% } %>
   </li>
   <% }) %>
 </ul>
 
 <% if (thread.mayPost) { %>
 <form method="post" action="/messages/<%= thread.conversation.id %>" class="mt-12 max-w-2xl">
-  <label for="body" class="sr-only">Reply</label>
-  <textarea
-    name="body"
-    id="body"
-    rows="4"
-    class="w-full rounded-2xl border border-neutral-300 px-5 py-4 text-lg"
-    placeholder="Write a reply…"
-  ></textarea>
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
+  <%- include('views/partials/form-error', { formError: typeof replyFormError !== 'undefined' ? replyFormError : null }) %>
+  <%- include('views/partials/form-field', {
+    name: 'body',
+    id: 'body',
+    label: 'Reply',
+    type: 'textarea',
+    rows: 4,
+    value: typeof replyBody !== 'undefined' ? replyBody : '',
+    error: typeof replyError !== 'undefined' ? replyError : undefined,
+    placeholder: 'Write a reply…',
+    labelClass: 'sr-only',
+    inputClass: 'w-full rounded-2xl border border-neutral-300 px-5 py-4 text-lg',
+    wrapperClass: '',
+  }) %>
   <button
     type="submit"
     class="mt-4 cursor-pointer rounded-full bg-amber-600 px-8 py-3 text-base text-white hover:bg-amber-700"

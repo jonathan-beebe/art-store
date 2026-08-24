@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +23,13 @@ class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'oit';
+    }
 
     /**
      * @return array<string, string>

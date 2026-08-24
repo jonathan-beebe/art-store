@@ -58,7 +58,7 @@ moment — how does one row come back to both?
 ```mermaid
 flowchart TD
     entry["a route asks for a thread\n(ask, support, message the customer)"] --> subject["ConversationSubject::for(kind, ids)\npure: the row's columns + subject_key"]
-    subject --> key["subject_key\n'listing_question:s3:c9:l24'"]
+    subject --> key["subject_key\n'listing_question:ssel_01J…:ccus_01J…:llst_01J…'"]
     key --> find["Conversation::firstOrCreate(\n  ['subject_key' => key],\n  the columns the kind fills\n)"]
     find --> index[("unique index\nconversations_subject_key_unique")]
     index --> row[("one conversations row")]
@@ -99,9 +99,10 @@ sequenceDiagram
 
     Shopper->>Ask: POST /art/{listing:slug}/questions (AskSellerRequest)
     Ask->>Ask: route-model binding by slug, ListingAvailability or 404
-    Ask->>Open: __invoke(ConversationSubject::listingQuestion(...), now)
+    Ask->>Open: OpenConversationWithMessage: one DB::transaction
     Open->>Open: Conversation::firstOrCreate(subject_key)
-    Ask->>Post: __invoke(conversation, visitor, MessageBody, now)
+    Open->>Open: Gate::forUser(visitor)->authorize('post', conversation)
+    Open->>Post: __invoke(conversation, visitor, MessageBody, now)
     Post->>Post: append message, touch last_message_at
     Post->>Notify: MessagePosted (after commit)
     Notify->>Notify: MessageReceived to the seller,\nurl = route(ActorType::Seller->conversationRouteName())
@@ -200,25 +201,31 @@ with a `DomainRuleViolation`, which `bootstrap/app.php` already turns into
 `back()->withErrors(...)` for every route. `customer_blocks` carries
 `(customer_id, lifted_at)` for the read; the "only one active" rule is the
 action's, since a partial unique index is not portable to the SQLite file this
-prototype ships.
+prototype ships. `BlockCustomer` judges it inside the transaction that writes,
+against the customer row taken through `Customer::takeForModeration()`, so two
+admins blocking at once cannot both pass the check.
 
 The refusal for the paths that buy something is the action's, so the shopper
 lands back on the page they submitted from with the reason. The refusal for
 messages is the policy's, so the form is never offered in the first place. Both
 read the same `canShop()`.
 
-A blocked visitor who submits `shop.listing.questions` anyway leaves a thread
-behind with no message in it. `ListingQuestionController` calls
-`OpenConversation` before `authorizeVisitor('post', ...)`, so the thread opens
-(or is found) first and the policy only denies the `PostMessage` that would
-follow; retrying finds the same thread through `firstOrCreate` rather than
-opening a second one. That empty thread renders on both inboxes as a named row
-with no preview, stays one row no matter how many times the visitor tries, and
-notifies nobody. Accepted for the prototype rather than reordered, since
-reordering would mean authorizing against a conversation that does not exist
-yet. `shop.order.messages` carries no such risk — it only opens or finds the
-fulfillment thread and redirects to it; the reply itself is a separate
-`shop.messages.store` request, authorized before anything is written.
+A blocked visitor who submits `shop.listing.questions` anyway leaves nothing
+behind. Opening a thread and posting the message that opens it is one
+transaction: `OpenConversationWithMessage` runs `OpenConversation`, the
+`post` gate, and `PostMessage` inside a single `DB::transaction`, so the
+policy's refusal rolls the `conversations` row back with it. However many
+times the visitor tries, both inboxes stay empty and nobody is notified. The
+gate is inside the action rather than in the controller because a
+`Conversation` is what `ConversationPolicy::post` judges, and the only
+conversation to judge is the one the transaction just opened.
+
+The three routes that ask something — `shop.listing.questions`,
+`admin.sellers.messages`, `admin.customers.messages` — all go through it. The
+routes that only open a thread and redirect to it (`shop.support`,
+`seller.support`, `shop.order.messages`, `seller.order.messages`) still call
+`OpenConversation` alone: an empty thread is the point there, since the actor
+types the first message on the page they land on.
 
 The admin site is the minimum messaging needs: a seeded `admins` table, an
 `admin` session guard, magic-link sign-in at `/admin/login` that admits only an
@@ -276,9 +283,7 @@ sequenceDiagram
     loop until the deadline or connection_aborted()
         Stream->>Scope: the actor's total
         Scope->>DB: one count
-        alt the number moved
-            Stream-->>Browser: event: unread\ndata: 3
-        end
+        Stream-->>Browser: event: unread\ndata: 3
         Stream->>Stream: wait one tick
     end
     Stream-->>Browser: stream ends at the deadline
@@ -302,25 +307,30 @@ anything. The tick interval and the deadline are named constants on
 `UnreadCountStream`: `TICK_SECONDS = 2`, `LIFETIME_SECONDS = 25`.
 
 Two costs, stated rather than hidden. One open stream holds one PHP worker for
-its whole lifetime: `artisan serve` runs PHP's built-in server, which handles
-one request per worker, so `PHP_CLI_SERVER_WORKERS` is set to `5` in
-`docker-compose.yml` (alongside `--no-reload`, which the built-in server
-requires for that variable to take effect at all) and the number of concurrent
-readers this prototype supports is that value minus the workers pages need.
-Measured against the running container: four concurrent streams are served and
-page loads still answer in under 50ms; a fifth stream plus a page load both
-wait. And the generator polls — one `count` per tick per open stream — because
-this deployable has no queue, no broadcaster, and no shared bus. Both facts
-live in a comment on the stream as well as here.
+as long as its tab stays open: `artisan serve` runs PHP's built-in server,
+which handles one request per worker, so `PHP_CLI_SERVER_WORKERS` is set to
+`16` in `docker-compose.yml` (alongside `--no-reload`, which the built-in
+server requires for that variable to take effect at all) and the number of
+concurrent readers this prototype supports is that value minus the workers
+pages need. Measured against the running container (RSRCH-001 M8): twelve
+streams held open still answer a page load in 0.11-0.12 s, and twelve streams
+whose browsers are gone answer it in 0.08-0.29 s. Past sixteen readers a page
+load waits for a worker to come back. And the generator polls — one `count`
+per tick per open stream — because this deployable has no queue, no
+broadcaster, and no shared bus. Both facts live in a comment on the stream as
+well as here.
 
 Two more costs the shape carries. `eventStream()` consults
-`connection_aborted()` between yields, and this generator yields only when the
-number moved, so a closed tab does not free its worker at once — measured, the
-worker comes back within about five seconds rather than instantly. And the
-storefront's `/events` sits inside `customer.identity`, so a client with no
-`customer_id` cookie mints a `customers` row, the same as `GET /` and every
-other storefront route; a crawler that ignores cookies mints one per request
-and holds a worker for the stream's lifetime each time. Both are bounded and
+`connection_aborted()` between yields, and PHP learns a socket is dead only
+from a failed write, so the generator yields the count on every tick to keep
+that check reachable: an abandoned stream gives its worker back within one
+`TICK_SECONDS`, and a repeated number is a no-op in the browser because
+`live-badge.js` writes whatever the frame carries. A tab that is still open
+holds its worker for the whole lifetime, which is what the worker count is
+sized against. And the storefront's `/events` sits inside `customer.identity`,
+so a client with no `customer_id` cookie mints a `customers` row, the same as
+`GET /` and every other storefront route; a crawler that ignores cookies mints
+one per request and holds a worker until it disconnects. Both are bounded and
 both are the prototype's own scale, not a deployment's.
 
 The client is one `<script defer>` per layout over ~20 lines of dependency-free

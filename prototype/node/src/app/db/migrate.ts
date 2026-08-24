@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import type pino from 'pino'
 import { loadConfig } from '../config.ts'
 import { createCliLogger } from '../logging.ts'
+import { logLine, logStep, tellStory } from '../log-story.ts'
 import { openDatabase, removeDatabaseFile } from './database.ts'
 import { migrateToLatest } from './migrator.ts'
 
@@ -28,33 +29,55 @@ export async function main(
   })
 
   try {
-    if (values.fresh) {
-      await removeDatabaseFile(config.databaseFile)
-      log.info({ event: 'migrate.removed', databaseFile: config.databaseFile }, 'removed the database file')
-    }
+    await tellStory(
+      log,
+      {
+        event: 'migrate.run',
+        will: {
+          msg: `migrating ${config.databaseFile}`,
+          data: { database_file: config.databaseFile, fresh: values.fresh },
+        },
+        ended: (count) => ({
+          phase: 'did',
+          msg: `${config.databaseFile} is up to date (${count} applied)`,
+          data: { database_file: config.databaseFile, count },
+        }),
+      },
+      async () => {
+        if (values.fresh) {
+          await removeDatabaseFile(config.databaseFile)
+          logStep(log, 'migrate.run', {
+            msg: 'removing the database file',
+            data: { database_file: config.databaseFile },
+          })
+        }
 
-    const db = openDatabase(config.databaseFile)
-
-    try {
-      const applied = await migrateToLatest(db)
-
-      for (const migration of applied) {
-        log.info(
-          { event: 'migrate.applied', migration: migration.migrationName, status: migration.status },
-          `${migration.status} ${migration.migrationName}`,
-        )
-      }
-
-      log.info(
-        { event: 'migrate.run', databaseFile: config.databaseFile, count: applied.length },
-        `${config.databaseFile} is up to date (${applied.length} applied)`,
-      )
-    } finally {
-      await db.destroy()
-    }
-  } catch (error) {
-    log.error({ err: error }, 'the migration run failed')
+        return applyMigrations(log, config.databaseFile)
+      },
+    )
+  } catch {
+    // tellStory already wrote the `failed` line; the exit code is what is left.
     process.exitCode = 1
+  }
+}
+
+/** How many migrations ran, with one line naming each. */
+async function applyMigrations(log: pino.Logger, databaseFile: string): Promise<number> {
+  const db = openDatabase(databaseFile)
+
+  try {
+    const applied = await migrateToLatest(db)
+
+    for (const migration of applied) {
+      logLine(log, 'info', 'migrate.apply', 'did', {
+        msg: `${migration.status} ${migration.migrationName}`,
+        data: { migration: migration.migrationName, status: migration.status },
+      })
+    }
+
+    return applied.length
+  } finally {
+    await db.destroy()
   }
 }
 

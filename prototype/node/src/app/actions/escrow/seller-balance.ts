@@ -1,3 +1,4 @@
+import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { ledgerMovements } from './ledger-movements.ts'
 import { ledgerBalance, type LedgerBalance } from '../../core/escrow/ledger-balance.ts'
@@ -9,7 +10,7 @@ import type { Timestamp } from '../../db/timestamp.ts'
  */
 export async function sellerBalance(
   context: Pick<ActionContext, 'db'>,
-  sellerId: number,
+  sellerId: SellerId,
   occurredBy?: Timestamp,
 ): Promise<LedgerBalance> {
   const movements = await ledgerMovements(context, occurredBy, sellerId)

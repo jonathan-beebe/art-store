@@ -10,20 +10,56 @@ final readonly class NotificationMessage
 {
     private function __construct(public string $subject, public string $body, public ?string $url) {}
 
-    public static function itemSold(int $orderId, Money $net): self
+    public static function itemSold(string $orderId, Money $net): self
     {
         return new self(
             'Item sold',
-            "Order #{$orderId} is paid. {$net->format()} is held until the customer confirms delivery.",
+            "Order {$orderId} is paid. {$net->format()} is held until the customer confirms delivery.",
             null,
         );
     }
 
-    public static function orderShipped(int $orderId, string $carrier, string $trackingNumber): self
+    public static function orderShipped(string $orderId, string $carrier, string $trackingNumber): self
     {
         return new self(
             'Order shipped',
-            "Order #{$orderId} shipped with {$carrier}. Tracking number {$trackingNumber}.",
+            "Order {$orderId} shipped with {$carrier}. Tracking number {$trackingNumber}.",
+            null,
+        );
+    }
+
+    public static function purchaseCancelled(string $orderId): self
+    {
+        return new self(
+            'Order cancelled',
+            "Order {$orderId} was cancelled before it was paid. Nothing has been charged.",
+            null,
+        );
+    }
+
+    public static function saleCancelled(string $orderId): self
+    {
+        return new self(
+            'Order cancelled',
+            "Order {$orderId} was cancelled before it was paid. Your pieces are back on the storefront.",
+            null,
+        );
+    }
+
+    public static function purchaseRefunded(string $orderId, Money $amount, string $reason): self
+    {
+        return new self(
+            'Refund issued',
+            "{$amount->format()} of order {$orderId} was refunded. Reason: {$reason}",
+            null,
+        );
+    }
+
+    public static function saleRefunded(string $orderId, Money $amount, string $reason): self
+    {
+        return new self(
+            'Refund issued',
+            "A refund of {$amount->format()} was issued on order {$orderId}. Reason: {$reason}",
             null,
         );
     }

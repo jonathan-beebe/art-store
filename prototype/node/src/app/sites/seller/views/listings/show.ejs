@@ -87,7 +87,7 @@
         <tbody class="divide-y divide-neutral-200">
           <% sales.forEach(function (sale) { %>
             <tr data-sale="<%= sale.orderId %>">
-              <th scope="row" class="px-4 py-2 font-normal">#<%= sale.orderId %></th>
+              <th scope="row" class="px-4 py-2 font-normal"><%= sale.orderId %></th>
               <td class="px-4 py-2"><%= formatDate(sale.placedAt) %></td>
               <td data-cell="order_status" class="px-4 py-2"><%= statusLabel(sale.orderStatus) %></td>
               <td class="px-4 py-2 text-right tabular-nums"><%= sale.quantity %></td>

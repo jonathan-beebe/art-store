@@ -1,58 +1,93 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loggingOptions, readOrGenerateRequestId, redactedCookies } from './logging.ts'
+import { acceptRequestId, createCliLogger, loggingOptions } from './logging.ts'
+import { captureLogLines } from './test/log-lines.ts'
 
-test('redactedCookies redacts the identity and flash cookies and keeps the rest', () => {
-  const header = 'seller_id=s.sig; customer_id=c.sig=; admin_id=a.sig; flash=%7B%22notice%22; theme=dark'
-
-  assert.deepEqual(redactedCookies(header), {
-    seller_id: '[redacted]',
-    customer_id: '[redacted]',
-    admin_id: '[redacted]',
-    flash: '[redacted]',
-    theme: 'dark',
-  })
+test('acceptRequestId returns a caller-supplied id that matches the accepted shape', () => {
+  assert.equal(acceptRequestId('req-123_ABC'), 'req-123_ABC')
 })
 
-test('redactedCookies keeps a value containing an = sign intact when not redacted', () => {
-  assert.deepEqual(redactedCookies('theme=dark=default'), { theme: 'dark=default' })
+test('acceptRequestId takes the first value of a repeated header', () => {
+  assert.equal(acceptRequestId(['req-1', 'req-2']), 'req-1')
 })
 
-test('redactedCookies returns undefined for a request with no Cookie header', () => {
-  assert.equal(redactedCookies(undefined), undefined)
+test('acceptRequestId mints its own for an id carrying anything but the accepted characters', () => {
+  const minted = acceptRequestId('req 1; drop table')
+
+  assert.notEqual(minted, 'req 1; drop table')
+  assert.match(minted, /^[A-Za-z0-9_-]{1,64}$/)
 })
 
-test('readOrGenerateRequestId returns the caller-supplied header value', () => {
-  assert.equal(readOrGenerateRequestId('req-123'), 'req-123')
+test('acceptRequestId mints its own for an absent, empty, or over-long id', () => {
+  assert.match(acceptRequestId(undefined), /^[A-Za-z0-9_-]{1,64}$/)
+  assert.match(acceptRequestId(''), /^[A-Za-z0-9_-]{1,64}$/)
+  assert.match(acceptRequestId('x'.repeat(65)), /^[A-Za-z0-9_-]{1,64}$/)
 })
 
-test('readOrGenerateRequestId takes the first value of a repeated header', () => {
-  assert.equal(readOrGenerateRequestId(['req-1', 'req-2']), 'req-1')
+test('acceptRequestId mints a different id each time', () => {
+  assert.notEqual(acceptRequestId(undefined), acceptRequestId(undefined))
 })
 
-test('readOrGenerateRequestId generates one when the header is absent or empty', () => {
-  const generated = readOrGenerateRequestId(undefined)
-  const generatedFromEmpty = readOrGenerateRequestId('')
+test('loggingOptions carries the level, the request-id wiring, and no framework request lines', () => {
+  const options = loggingOptions({ logLevel: 'warn', environment: 'test' })
 
-  assert.equal(generated.length > 0, true)
-  assert.equal(generatedFromEmpty.length > 0, true)
-  assert.notEqual(generated, generatedFromEmpty)
-})
-
-test('loggingOptions carries the configured level and the request id wiring', () => {
-  const options = loggingOptions({ logLevel: 'warn' })
-
-  assert.equal(options.requestIdHeader, 'x-request-id')
+  assert.equal(options.requestIdHeader, false)
+  assert.equal(options.logController?.requestIdLogLabel, 'request_id')
+  assert.equal(options.logController?.disableRequestLogging, true)
   assert.equal(typeof options.genReqId, 'function')
-  assert.equal(typeof options.logger === 'object' && options.logger !== null, true)
   const logger = options.logger as { level?: string }
   assert.equal(logger.level, 'warn')
 })
 
-test("loggingOptions' genReqId reads x-request-id and falls back to a generated id", () => {
-  const options = loggingOptions({ logLevel: 'silent' })
-  const genReqId = options.genReqId as (req: { headers: Record<string, string | string[] | undefined> }) => string
+test("loggingOptions' genReqId reads x-request-id and refuses one that is not the accepted shape", () => {
+  const options = loggingOptions({ logLevel: 'silent', environment: 'test' })
+  const genReqId = options.genReqId as (req: {
+    headers: Record<string, string | string[] | undefined>
+  }) => string
 
   assert.equal(genReqId({ headers: { 'x-request-id': 'incoming-id' } }), 'incoming-id')
+  assert.notEqual(genReqId({ headers: { 'x-request-id': 'has spaces' } }), 'has spaces')
   assert.equal(genReqId({ headers: {} }).length > 0, true)
+})
+
+test('a CLI line carries ts, the level by name, and the system actor', () => {
+  const stream = captureLogLines()
+  const log = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+
+  log.info({ event: 'seed.run', phase: 'did' }, 'seeded')
+
+  const line = stream.lines()[0]
+  assert.equal(line?.level, 'info')
+  assert.equal(line?.actor_type, 'system')
+  assert.equal(line?.event, 'seed.run')
+  assert.equal(line?.msg, 'seeded')
+  assert.match(String(line?.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+  assert.equal(line?.time, undefined)
+})
+
+test('a failed line keeps its stack in development and drops it everywhere else', () => {
+  const inDevelopment = captureLogLines()
+  createCliLogger({ logLevel: 'info', environment: 'development' }, { stream: inDevelopment }).error(
+    { event: 'seed.run', phase: 'failed', error: { type: 'Error', message: 'no', stack: 'at x' } },
+    'the seed run failed',
+  )
+
+  const inProduction = captureLogLines()
+  createCliLogger({ logLevel: 'info', environment: 'production' }, { stream: inProduction }).error(
+    { event: 'seed.run', phase: 'failed', error: { type: 'Error', message: 'no', stack: 'at x' } },
+    'the seed run failed',
+  )
+
+  assert.deepEqual(inDevelopment.lines()[0]?.error, {
+    type: 'Error',
+    message: 'no',
+    stack: 'at x',
+  })
+  assert.deepEqual(inProduction.lines()[0]?.error, { type: 'Error', message: 'no' })
+})
+
+test('createCliLogger writes to stdout when no stream is given', () => {
+  const log = createCliLogger({ logLevel: 'silent', environment: 'test' })
+
+  assert.equal(typeof log.info, 'function')
 })

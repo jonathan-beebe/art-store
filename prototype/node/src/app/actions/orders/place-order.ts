@@ -1,5 +1,7 @@
+import type { CartId, OrderId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { cartContents, toCartLine, type CartLineView } from '../carts/cart-contents.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { checkoutTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
@@ -13,7 +15,7 @@ import type { Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type PlaceOrderInput = {
-  cartId: number
+  cartId: CartId
   purchaser: Purchaser
   shipping: ShippingAddress
 }
@@ -39,20 +41,52 @@ export async function placeOrder(
   context: ActionContext,
   input: PlaceOrderInput,
 ): Promise<PlacedOrder> {
-  return runInTransaction(context, async (transacted) => {
-    const contents = await cartContents(transacted, input.cartId)
-    const placement = planOrderPlacement(await withRemovals(transacted, contents.lines))
-    if (!placement.ok) return { ok: false, unavailable: placement.unavailable }
+  return actionStory<PlacedOrder>(
+    context,
+    {
+      event: 'order.place',
+      will: {
+        msg: 'placing an order from the cart',
+        data: { cart_id: input.cartId, customer_id: input.purchaser.id },
+      },
+      ended: (placement) =>
+        placement.ok
+          ? {
+              phase: 'did',
+              msg: 'placed the order',
+              data: {
+                order_id: placement.order.id,
+                total_cents: placement.order.totalCents,
+                status: placement.order.status,
+              },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the cart holds lines that can no longer be bought',
+              data: {
+                cart_id: input.cartId,
+                unavailable: placement.unavailable.map((line) => ({
+                  listing_id: line.listingId,
+                  reason: line.reason,
+                })),
+              },
+            },
+    },
+    async (transacted) => {
+      const contents = await cartContents(transacted, input.cartId)
+      const placement = planOrderPlacement(await withRemovals(transacted, contents.lines))
+      if (!placement.ok) return { ok: false, unavailable: placement.unavailable }
 
-    const totals = checkoutTotals(placement.lines.map(toCartLine))
-    const order = await openOrder(transacted, input, totals)
-    await snapshotItems(transacted, order.id, placement.lines)
-    await splitBySeller(transacted, order.id, totals)
-    await takeStock(transacted, placement.lines)
-    await transacted.db.deleteFrom('cartItems').where('cartId', '=', contents.cartId).execute()
+      const totals = checkoutTotals(placement.lines.map(toCartLine))
+      const order = await openOrder(transacted, input, totals)
+      await snapshotItems(transacted, order.id, placement.lines)
+      await splitBySeller(transacted, order.id, totals)
+      await takeStock(transacted, placement.lines)
+      await transacted.db.deleteFrom('cartItems').where('cartId', '=', contents.cartId).execute()
 
-    return { ok: true, order }
-  })
+      return { ok: true, order }
+    },
+  )
 }
 
 /**
@@ -96,6 +130,7 @@ async function openOrder(
   return db
     .insertInto('orders')
     .values({
+      id: newId('ord', clock.now()),
       customerId: input.purchaser.id,
       email: input.purchaser.email,
       status: orderStatusForPlacement(input.purchaser.isEmailVerified),
@@ -117,20 +152,22 @@ async function openOrder(
 }
 
 async function snapshotItems(
-  { db }: ActionContext,
-  orderId: number,
+  { db, clock }: ActionContext,
+  orderId: OrderId,
   lines: readonly CartLineView[],
 ): Promise<void> {
   await db
     .insertInto('orderItems')
     .values(
       lines.map((line) => ({
+        id: newId('oit', clock.now()),
         orderId,
         listingId: line.listingId,
         sellerId: line.sellerId,
         title: line.title,
         unitPriceCents: line.unitPriceCents,
         quantity: line.quantity,
+        createdAt: toTimestamp(clock.now()),
       })),
     )
     .execute()
@@ -139,14 +176,15 @@ async function snapshotItems(
 /** One fulfillment per seller on the order, each born `awaiting_shipment` —
  * the status the column defaults to. */
 async function splitBySeller(
-  { db }: ActionContext,
-  orderId: number,
+  { db, clock }: ActionContext,
+  orderId: OrderId,
   totals: CartTotals,
 ): Promise<void> {
   await db
     .insertInto('fulfillments')
     .values(
       totals.subtotalsBySeller.map((seller) => ({
+        id: newId('ful', clock.now()),
         orderId,
         sellerId: seller.sellerId,
         carrier: null,
@@ -154,6 +192,7 @@ async function splitBySeller(
         subtotalCents: seller.subtotalCents,
         feeCents: platformFee(seller.subtotalCents),
         netCents: sellerNet(seller.subtotalCents),
+        createdAt: toTimestamp(clock.now()),
         shippedAt: null,
         deliveredAt: null,
       })),

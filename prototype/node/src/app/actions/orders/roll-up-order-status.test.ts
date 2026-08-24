@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { FulfillmentId, OrderId } from '../../core/ids/entity-ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { rollUpOrderStatus } from './roll-up-order-status.ts'
 import type { FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -32,7 +34,7 @@ test('one shipped fulfillment of two partially ships the order', async (t) => {
   const print = await createListing(context, printer)
   const order = await paidOrder(context, buyer, [painting.id, print.id])
   const [first] = await fulfillmentIds(world.db, order.id)
-  await setFulfillmentStatus(world.db, first ?? 0, 'shipped')
+  await setFulfillmentStatus(world.db, first ?? fixtureId('ful', 0), 'shipped')
 
   const rolled = await rollUpOrderStatus(context, order.id)
 
@@ -49,14 +51,14 @@ test('every fulfillment delivered delivers the order', async (t) => {
   const art = await createListing(context, shop)
   const order = await paidOrder(context, buyer, [art.id])
   const [only] = await fulfillmentIds(world.db, order.id)
-  await setFulfillmentStatus(world.db, only ?? 0, 'delivered')
+  await setFulfillmentStatus(world.db, only ?? fixtureId('ful', 0), 'delivered')
 
   const rolled = await rollUpOrderStatus(context, order.id)
 
   assert.equal(rolled.status, 'delivered')
 })
 
-async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[]> {
+async function fulfillmentIds(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .select('id')
@@ -67,6 +69,6 @@ async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[
   return rows.map((row) => row.id)
 }
 
-async function setFulfillmentStatus(db: AppDatabase, fulfillmentId: number, status: FulfillmentStatus): Promise<void> {
+async function setFulfillmentStatus(db: AppDatabase, fulfillmentId: FulfillmentId, status: FulfillmentStatus): Promise<void> {
   await db.updateTable('fulfillments').set({ status }).where('id', '=', fulfillmentId).execute()
 }

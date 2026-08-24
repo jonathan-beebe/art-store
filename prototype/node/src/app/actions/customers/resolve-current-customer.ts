@@ -1,5 +1,6 @@
 import type { Selectable } from 'kysely'
 import type { CustomerTable } from '../../db/schema.ts'
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
@@ -13,7 +14,7 @@ import { resolveCustomerFromCookie } from './resolve-customer-from-cookie.ts'
  */
 export async function resolveCurrentCustomer(
   context: ActionContext,
-  cookieId: number | null,
+  cookieId: CustomerId | null,
 ): Promise<Selectable<CustomerTable>> {
   return runInTransaction(context, async (transacted) => {
     const remembered = await resolveCustomerFromCookie(transacted, cookieId)

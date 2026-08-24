@@ -11,6 +11,7 @@ use App\Notifications\MagicLinkIssued;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use Tests\CapturedStory;
 
 $send = function (string $email, ActorType $actorType, ?string $redirectTo = null): string {
     app(SendMagicLink::class)($email, $actorType, $redirectTo, now()->toDateTimeImmutable());
@@ -75,4 +76,22 @@ it('sends the link to the address that asked for it', function (): void {
 
 it('flashes the link for the debug alert to render', function () use ($send): void {
     expect($send('artist@example.com', ActorType::Seller))->toContain('/auth/magic/');
+});
+
+it('tells the story of issuing a link without writing the address or the token', function () use ($send): void {
+    $log = CapturedStory::capture();
+
+    $url = $send('Artist@Example.com', ActorType::Seller);
+    $token = basename((string) parse_url($url, PHP_URL_PATH));
+
+    expect($log->outline())->toContain('magic_link.request will', 'magic_link.request did')
+        ->and($log->line('magic_link.request', 'did')['data'])
+        ->toHaveKey('magic_link_id', MagicLink::sole()->id)
+        ->toHaveKey('actor_type', 'seller');
+
+    $written = $log->raw();
+
+    expect($written)->not->toContain($token);
+    expect($written)->not->toContain('artist@example.com');
+    expect($written)->not->toContain('Artist@Example.com');
 });

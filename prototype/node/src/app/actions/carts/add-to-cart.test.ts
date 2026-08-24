@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { CartId, ListingId } from '../../core/ids/entity-ids.ts'
 import { addToCart } from './add-to-cart.ts'
 import { currentCart } from './current-cart.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -90,12 +91,12 @@ test('it records a cart_add listing event against the visitor who added it', asy
   assert.deepEqual(events, [{ eventType: 'cart_add', customerId }])
 })
 
-async function countCartItems(db: AppDatabase, cartId: number): Promise<number> {
+async function countCartItems(db: AppDatabase, cartId: CartId): Promise<number> {
   const rows = await db.selectFrom('cartItems').select('id').where('cartId', '=', cartId).execute()
   return rows.length
 }
 
-async function lineQuantity(db: AppDatabase, cartId: number, listingId: number): Promise<number | undefined> {
+async function lineQuantity(db: AppDatabase, cartId: CartId, listingId: ListingId): Promise<number | undefined> {
   const row = await db
     .selectFrom('cartItems')
     .select('quantity')

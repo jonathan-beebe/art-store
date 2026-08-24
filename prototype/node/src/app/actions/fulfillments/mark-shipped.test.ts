@@ -1,5 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  OrderId,
+} from '../../core/ids/entity-ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { markShipped } from './mark-shipped.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { createCustomer, createListing, createSeller, openCommerceWorld, paidOrder } from '../../test/commerce-world.ts'
@@ -16,7 +22,7 @@ test('it records the carrier, the tracking number, and shippedAt', async (t) => 
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
   const shipped = await markShipped(context, {
-    fulfillmentId: fulfillmentId ?? 0,
+    fulfillmentId: fulfillmentId ?? fixtureId('ful', 0),
     carrier: 'USPS',
     trackingNumber: '9400111899',
   })
@@ -37,7 +43,7 @@ test('the only shipment of an order ships the order', async (t) => {
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
 
   assert.equal(await readOrderStatus(world.db, order.id), 'shipped')
 })
@@ -55,7 +61,7 @@ test('one shipment of two partially ships the order', async (t) => {
   const order = await paidOrder(context, buyer, [painting.id, print.id])
   const [first] = await fulfillmentIds(world.db, order.id)
 
-  await markShipped(context, { fulfillmentId: first ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: first ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
 
   assert.equal(await readOrderStatus(world.db, order.id), 'partially_shipped')
 })
@@ -71,7 +77,7 @@ test('it tells the customer how to track it', async (t) => {
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
 
   const [notification] = await readNotifications(world.db, order.customerId)
   assert.equal(notification?.subject, 'Order shipped')
@@ -89,15 +95,15 @@ test('it refuses to ship the same fulfillment twice', async (t) => {
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
 
   await assert.rejects(
-    () => markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' }),
+    () => markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' }),
     /cannot move from shipped to shipped/,
   )
 })
 
-async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[]> {
+async function fulfillmentIds(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .select('id')
@@ -108,7 +114,7 @@ async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[
   return rows.map((row) => row.id)
 }
 
-async function readOrderStatus(db: AppDatabase, orderId: number): Promise<string> {
+async function readOrderStatus(db: AppDatabase, orderId: OrderId): Promise<string> {
   const order = await db
     .selectFrom('orders')
     .select('status')
@@ -118,6 +124,6 @@ async function readOrderStatus(db: AppDatabase, orderId: number): Promise<string
   return order.status
 }
 
-async function readNotifications(db: AppDatabase, customerId: number) {
+async function readNotifications(db: AppDatabase, customerId: CustomerId) {
   return db.selectFrom('notifications').selectAll().where('customerId', '=', customerId).execute()
 }

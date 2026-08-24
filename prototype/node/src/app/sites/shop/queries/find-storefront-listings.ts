@@ -1,4 +1,5 @@
 import type { Expression, ExpressionBuilder, SqlBool } from 'kysely'
+import type { ListingId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { toCount } from '../../../db/count.ts'
 import type { Database } from '../../../db/schema.ts'
@@ -9,7 +10,7 @@ import { searchLikePattern, type ListingSearch } from '../../../core/shop/listin
 
 /** A listing as the grid draws it: the picture, the price, and whose shop it is. */
 export type StorefrontListing = {
-  id: number
+  id: ListingId
   title: string
   slug: string
   medium: string | null
@@ -94,6 +95,7 @@ export async function findStorefrontListings(
     ])
     .where((eb) => eb.and([isBrowsable(eb), ...matchesSearch(eb, input.search)]))
     // Newest first: an artist who lists today is on the first screen.
+    .orderBy('listings.createdAt', 'desc')
     .orderBy('listings.id', 'desc')
     .offset(input.page.offset)
     .limit(input.page.limit)
@@ -107,7 +109,7 @@ export async function findStorefrontListings(
  * availability the card shows turns on status and stock alone.
  */
 export function toStorefrontListing(row: {
-  id: number
+  id: ListingId
   title: string
   slug: string
   medium: string | null

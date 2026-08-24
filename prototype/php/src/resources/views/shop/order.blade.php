@@ -1,9 +1,21 @@
-<x-layouts.shop :title="'Order #'.$order->id.' — Art Store'">
-    <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
+<x-layouts.shop :title="'Order '.$order->id.' — Art Store'">
+    <h1 class="text-4xl font-semibold tracking-tight">Order {{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
         {{ $order->status->label() }} · {{ $order->total() }}
+        @if ($order->refunded_cents > 0)
+            · {{ $order->refunded() }} refunded
+        @endif
     </p>
+
+    @visitorCan('cancel', $order)
+        <form method="POST" action="{{ route('shop.order.cancel', $order) }}" class="mt-6">
+            @csrf
+            <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
+                Cancel this order
+            </button>
+        </form>
+    @endvisitorCan
 
     @if ($awaitsPayment && ! $isPayable)
         <div role="status" class="mt-10 max-w-xl rounded-2xl border border-green-200 bg-green-50 p-6 text-green-900">
@@ -47,6 +59,12 @@
                     @if ($fulfillment->carrier)
                         <p class="mt-2 text-base text-neutral-600">
                             {{ $fulfillment->carrier }} · tracking {{ $fulfillment->tracking_number }}
+                        </p>
+                    @endif
+
+                    @if ($fulfillment->refund)
+                        <p class="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-base text-amber-900">
+                            {{ $fulfillment->refund->amount() }} refunded — {{ $fulfillment->refund->reason }}
                         </p>
                     @endif
 

@@ -1,12 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildTestApp, signInAsAdmin, signInAsCustomer, TEST_CONFIG, type TestApp } from '../../../test/build-test-app.ts'
+import { buildTestApp, signInAsAdmin, signInAsCustomer, type TestApp } from '../../../test/build-test-app.ts'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
 import { currentCustomerStanding } from '../../../actions/moderation/current-customer-standing.ts'
 import { isOnStorefront } from '../../../core/listings/listing-availability.ts'
 import { canShop } from '../../../core/moderation/customer-standing.ts'
 import { cartHolding, createListing, createCustomer, createSeller } from '../../../test/commerce-world.ts'
-import { captureLogLines } from '../../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 
 function flashFrom(testApp: TestApp, response: { cookies: { name: string; value: string }[] }): Record<string, string> {
   const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
@@ -430,12 +430,9 @@ test('a blocked customer is turned away from checkout on the storefront', async 
   assert.match(flashFrom(testApp, afterBlock).alert ?? '', /Chargeback fraud\./)
 })
 
-test('the four moderation writes each log a business event with the admin who did it', async (t) => {
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+test('the four moderation writes each tell their story naming the admin who did it', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
   t.after(testApp.close)
 
   const admin = await signInAsAdmin(testApp)
@@ -466,32 +463,52 @@ test('the four moderation writes each log a business event with the admin who di
     cookies: admin.cookies,
   })
 
-  const lines = stream.lines()
+  for (const event of MODERATION_EVENTS) {
+    assert.equal(log.line(event, 'will').actor_id, admin.id, event)
+    assert.equal(log.line(event, 'did').actor_type, 'admin', event)
+  }
 
-  const removed = eventLine(lines, 'moderation.listing_removed')
-  assert.equal(removed.listingId, listing.id)
-  assert.equal(removed.adminId, admin.id)
-  assert.equal(removed.reason, 'Reported artwork.')
+  assert.equal(log.data('moderation.remove_listing', 'did').listing_id, listing.id)
+  assert.equal(log.data('moderation.remove_listing', 'did').admin_id, admin.id)
+  assert.equal(log.data('moderation.lift_listing_removal', 'did').listing_id, listing.id)
+  assert.equal(log.data('moderation.block_customer', 'did').customer_id, customerId)
+  assert.equal(log.data('moderation.lift_customer_block', 'did').customer_id, customerId)
 
-  const lifted = eventLine(lines, 'moderation.listing_removal_lifted')
-  assert.equal(lifted.listingId, listing.id)
-  assert.equal(lifted.adminId, admin.id)
-
-  const blocked = eventLine(lines, 'moderation.customer_blocked')
-  assert.equal(blocked.customerId, customerId)
-  assert.equal(blocked.adminId, admin.id)
-  assert.equal(blocked.reason, 'Chargeback fraud.')
-
-  const unblocked = eventLine(lines, 'moderation.customer_block_lifted')
-  assert.equal(unblocked.customerId, customerId)
-  assert.equal(unblocked.adminId, admin.id)
+  // The reason a moderator typed is theirs and the subject's; the log names who
+  // and what, and the row keeps the words.
+  assert.equal(log.text().includes('Chargeback fraud.'), false)
 })
 
-/** The one line logging the named event, so an assertion on its fields never
- * needs to guard against the line being absent. */
-function eventLine(lines: readonly Record<string, unknown>[], event: string): Record<string, unknown> {
-  const line = lines.find((candidate) => candidate.event === event)
-  if (line === undefined) throw new Error(`no log line carries event ${event}`)
+test('a moderation write the domain refuses is refused rather than failed', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
+  t.after(testApp.close)
 
-  return line
-}
+  const admin = await signInAsAdmin(testApp)
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+  const block = {
+    method: 'POST' as const,
+    url: `/admin/customers/${customerId}/blocks`,
+    cookies: admin.cookies,
+    payload: { reason: 'Chargeback fraud.' },
+  }
+
+  await testApp.app.inject(block)
+  await testApp.app.inject(block)
+
+  const refused = log.line('moderation.block_customer', 'refused')
+  assert.equal(refused.level, 'info')
+  assert.equal(typeof refused.duration_ms, 'number')
+  assert.equal((refused.data as { reason?: string }).reason, 'TransitionError')
+  assert.equal(
+    log.linesFor('moderation.block_customer').some((line: Record<string, unknown>) => line.phase === 'failed'),
+    false,
+  )
+})
+
+const MODERATION_EVENTS = [
+  'moderation.remove_listing',
+  'moderation.lift_listing_removal',
+  'moderation.block_customer',
+  'moderation.lift_customer_block',
+] as const

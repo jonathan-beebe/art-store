@@ -7,7 +7,13 @@ import { toggleFavorite } from '../actions/favorites/toggle-favorite.ts'
 import { recordListingEvent } from '../actions/listings/record-listing-event.ts'
 import { blockCustomer } from '../actions/moderation/block-customer.ts'
 import { fixedClock } from '../clock.ts'
+import type {
+  AdminId,
+  CustomerId,
+  ListingId,
+} from '../core/ids/entity-ids.ts'
 import type { AppDatabase } from './database.ts'
+import { requireListingId } from './seed-catalog.ts'
 
 export const CASEY_EMAIL = 'casey@example.com'
 const CASEY_NAME = 'Casey Whitfield'
@@ -40,12 +46,12 @@ const ANONYMOUS_BROWSING: readonly (readonly string[])[] = [
   ['Rag-Rug Runner, Ochre', 'Terminal, Platform 4', 'Portrait of a Welder'],
 ]
 
-export type SeededCasey = { id: number; email: string }
+export type SeededCasey = { id: CustomerId; email: string }
 
 export type SeededCustomers = {
   casey: SeededCasey
-  blockedCustomerId: number
-  anonymousCustomerIds: readonly number[]
+  blockedCustomerId: CustomerId
+  anonymousCustomerIds: readonly CustomerId[]
   count: number
 }
 
@@ -53,8 +59,8 @@ export type SeededCustomers = {
  * reviewer needs to see every corner of the storefront and admin site. */
 export async function seedCustomers(
   db: AppDatabase,
-  listingIdsByTitle: Record<string, number>,
-  adminId: number,
+  listingIdsByTitle: Record<string, ListingId>,
+  adminId: AdminId,
 ): Promise<SeededCustomers> {
   const casey = await seedCasey(db, listingIdsByTitle)
   const blockedCustomerId = await seedBlockedCustomer(db, adminId)
@@ -68,7 +74,7 @@ export async function seedCustomers(
   }
 }
 
-async function seedCasey(db: AppDatabase, listingIdsByTitle: Record<string, number>): Promise<SeededCasey> {
+async function seedCasey(db: AppDatabase, listingIdsByTitle: Record<string, ListingId>): Promise<SeededCasey> {
   const claimed = await claimCustomerIdentity(
     { db, clock: fixedClock(CASEY_VERIFIED_AT) },
     { email: CASEY_EMAIL, currentCustomerId: null },
@@ -86,8 +92,8 @@ async function seedCasey(db: AppDatabase, listingIdsByTitle: Record<string, numb
  * per-listing-per-hour window. */
 async function recordViews(
   db: AppDatabase,
-  customerId: number,
-  listingIdsByTitle: Record<string, number>,
+  customerId: CustomerId,
+  listingIdsByTitle: Record<string, ListingId>,
   titles: readonly string[],
   startingAt: Date,
 ): Promise<void> {
@@ -95,7 +101,7 @@ async function recordViews(
   for (const title of titles) {
     await recordListingEvent(
       { db, clock: fixedClock(new Date(at)) },
-      { listingId: listingIdsByTitle[title] ?? 0, customerId, eventType: 'view' },
+      { listingId: requireListingId(listingIdsByTitle, title), customerId, eventType: 'view' },
     )
     at += 60_000
   }
@@ -103,8 +109,8 @@ async function recordViews(
 
 async function favoriteEach(
   db: AppDatabase,
-  customerId: number,
-  listingIdsByTitle: Record<string, number>,
+  customerId: CustomerId,
+  listingIdsByTitle: Record<string, ListingId>,
   titles: readonly string[],
   startingAt: Date,
 ): Promise<void> {
@@ -112,7 +118,7 @@ async function favoriteEach(
   for (const title of titles) {
     await toggleFavorite(
       { db, clock: fixedClock(new Date(at)) },
-      { customerId, listingId: listingIdsByTitle[title] ?? 0 },
+      { customerId, listingId: requireListingId(listingIdsByTitle, title) },
     )
     at += 60_000
   }
@@ -120,8 +126,8 @@ async function favoriteEach(
 
 async function fillCart(
   db: AppDatabase,
-  customerId: number,
-  listingIdsByTitle: Record<string, number>,
+  customerId: CustomerId,
+  listingIdsByTitle: Record<string, ListingId>,
   titles: readonly string[],
   at: Date,
 ): Promise<void> {
@@ -129,11 +135,15 @@ async function fillCart(
   const cart = await currentCart(context, customerId)
 
   for (const title of titles) {
-    await addToCart(context, { cartId: cart.id, listingId: listingIdsByTitle[title] ?? 0, quantity: 1 })
+    await addToCart(context, {
+      cartId: cart.id,
+      listingId: requireListingId(listingIdsByTitle, title),
+      quantity: 1,
+    })
   }
 }
 
-async function seedBlockedCustomer(db: AppDatabase, adminId: number): Promise<number> {
+async function seedBlockedCustomer(db: AppDatabase, adminId: AdminId): Promise<CustomerId> {
   const context: ActionContext = { db, clock: fixedClock(BLOCKED_AT) }
   const blocked = await claimCustomerIdentity(context, {
     email: BLOCKED_CUSTOMER_EMAIL,
@@ -147,9 +157,9 @@ async function seedBlockedCustomer(db: AppDatabase, adminId: number): Promise<nu
 
 async function seedAnonymousBrowsers(
   db: AppDatabase,
-  listingIdsByTitle: Record<string, number>,
-): Promise<readonly number[]> {
-  const ids: number[] = []
+  listingIdsByTitle: Record<string, ListingId>,
+): Promise<readonly CustomerId[]> {
+  const ids: CustomerId[] = []
   let at = new Date('2026-07-12T15:00:00.000Z').getTime()
 
   for (const titles of ANONYMOUS_BROWSING) {

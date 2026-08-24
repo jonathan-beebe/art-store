@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Logging\StoryFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
-use Monolog\Handler\SyslogUdpHandler;
-use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
 
@@ -14,13 +13,19 @@ return [
     | Default Log Channel
     |--------------------------------------------------------------------------
     |
-    | This option defines the default log channel that is utilized to write
-    | messages to your logs. The value provided here should match one of
-    | the channels present in the list of "channels" configured below.
+    | docs/alignment.md §2: every log line is one JSON object on stdout, in
+    | every environment. There is one channel that writes lines and one
+    | format they are written in, so nothing decides between prose and JSON
+    | by environment.
+    |
+    | The test runner points LOG_CHANNEL at "null": a suite that printed the
+    | application's log to the same stream as its own output would be
+    | unreadable. The tests that read log lines capture them through the
+    | formatter below, so the payload under test is the deployed one.
     |
     */
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => env('LOG_CHANNEL', 'stdout'),
 
     /*
     |--------------------------------------------------------------------------
@@ -42,90 +47,23 @@ return [
     |--------------------------------------------------------------------------
     | Log Channels
     |--------------------------------------------------------------------------
-    |
-    | Here you may configure the log channels for your application. Laravel
-    | utilizes the Monolog PHP logging library, which includes a variety
-    | of powerful log handlers and formatters that you're free to use.
-    |
-    | Available drivers: "single", "daily", "monthly", "slack", "syslog",
-    |                    "errorlog", "monolog", "custom", "stack"
-    |
     */
 
     'channels' => [
 
-        'stack' => [
-            'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
-            'ignore_exceptions' => false,
-        ],
-
-        'single' => [
-            'driver' => 'single',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'replace_placeholders' => true,
-        ],
-
-        'daily' => [
-            'driver' => 'daily',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'max_files' => env('LOG_DAILY_DAYS', 14),
-            'replace_placeholders' => true,
-        ],
-
-        'monthly' => [
-            'driver' => 'monthly',
-            'path' => storage_path('logs/laravel.log'),
-            'level' => env('LOG_LEVEL', 'debug'),
-            'max_files' => 3,
-            'replace_placeholders' => true,
-        ],
-
-        'slack' => [
-            'driver' => 'slack',
-            'url' => env('LOG_SLACK_WEBHOOK_URL'),
-            'username' => env('LOG_SLACK_USERNAME', env('APP_NAME', 'Laravel')),
-            'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
-            'level' => env('LOG_LEVEL', 'critical'),
-            'replace_placeholders' => true,
-        ],
-
-        'papertrail' => [
-            'driver' => 'monolog',
-            'level' => env('LOG_LEVEL', 'debug'),
-            'handler' => env('LOG_PAPERTRAIL_HANDLER', SyslogUdpHandler::class),
-            'handler_with' => [
-                'host' => env('PAPERTRAIL_URL'),
-                'port' => env('PAPERTRAIL_PORT'),
-                'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
-            ],
-            'processors' => [PsrLogMessageProcessor::class],
-        ],
-
-        'stderr' => [
+        'stdout' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
             'handler_with' => [
-                'stream' => 'php://stderr',
+                'stream' => 'php://stdout',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
-        ],
-
-        'syslog' => [
-            'driver' => 'syslog',
-            'level' => env('LOG_LEVEL', 'debug'),
-            'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
-            'replace_placeholders' => true,
-        ],
-
-        'errorlog' => [
-            'driver' => 'errorlog',
-            'level' => env('LOG_LEVEL', 'debug'),
-            'replace_placeholders' => true,
+            'formatter' => StoryFormatter::class,
+            'formatter_with' => [
+                // A failure shows the stack it came from while someone is
+                // developing against it, and nowhere else.
+                'tracesStacks' => (bool) env('APP_DEBUG', false),
+            ],
         ],
 
         'null' => [
@@ -133,6 +71,8 @@ return [
             'handler' => NullHandler::class,
         ],
 
+        // Where the framework writes when the logger itself cannot be built,
+        // which is the one moment there is no channel to write through.
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],

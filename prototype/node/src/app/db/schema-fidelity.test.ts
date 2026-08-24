@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { sql, type RawBuilder, type Selectable } from 'kysely'
+import { fixtureId } from '../test/fixture-ids.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from './database.ts'
 import { migrateToLatest } from './migrator.ts'
 import { cents } from '../core/money.ts'
@@ -31,6 +32,8 @@ import type {
   PageViewCountsTable,
   Payment,
   Payout,
+  RateLimitWindowsTable,
+  Refund,
 } from './commerce-schema.ts'
 
 /**
@@ -39,7 +42,7 @@ import type {
  * test expects the migration to leave nullable.
  */
 const sellersSample: Selectable<SellerTable> = {
-  id: 1,
+  id: fixtureId('sel', 1),
   email: 'seller@example.com',
   name: null,
   shopName: null,
@@ -48,7 +51,7 @@ const sellersSample: Selectable<SellerTable> = {
 }
 
 const customersSample: Selectable<CustomerTable> = {
-  id: 1,
+  id: fixtureId('cus', 1),
   email: null,
   name: null,
   emailVerifiedAt: null,
@@ -56,14 +59,14 @@ const customersSample: Selectable<CustomerTable> = {
 }
 
 const adminsSample: Selectable<AdminTable> = {
-  id: 1,
+  id: fixtureId('adm', 1),
   email: 'admin@example.com',
   name: 'Admin',
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const magicLinksSample: Selectable<MagicLinkTable> = {
-  id: 1,
+  id: fixtureId('mlk', 1),
   tokenDigest: 'digest',
   email: 'seller@example.com',
   actorType: 'seller',
@@ -74,15 +77,15 @@ const magicLinksSample: Selectable<MagicLinkTable> = {
 }
 
 const customerMergesSample: Selectable<CustomerMergeTable> = {
-  id: 1,
-  anonymousCustomerId: 1,
-  customerId: 2,
+  id: fixtureId('cmg', 1),
+  anonymousCustomerId: fixtureId('cus', 1),
+  customerId: fixtureId('cus', 2),
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const listingsSample: Listing = {
-  id: 1,
-  sellerId: 1,
+  id: fixtureId('lst', 1),
+  sellerId: fixtureId('sel', 1),
   title: 'Untitled',
   slug: 'untitled',
   description: null,
@@ -97,24 +100,24 @@ const listingsSample: Listing = {
 }
 
 const listingEventsSample: ListingEvent = {
-  id: 1,
-  listingId: 1,
+  id: fixtureId('lev', 1),
+  listingId: fixtureId('lst', 1),
   customerId: null,
   eventType: 'view',
   occurredAt: '2026-01-01T00:00:00.000Z',
 }
 
 const favoritesSample: Selectable<FavoritesTable> = {
-  id: 1,
-  customerId: 1,
-  listingId: 1,
+  id: fixtureId('fav', 1),
+  customerId: fixtureId('cus', 1),
+  listingId: fixtureId('lst', 1),
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const listingRemovalsSample: ListingRemoval = {
-  id: 1,
-  listingId: 1,
-  adminId: 1,
+  id: fixtureId('rmv', 1),
+  listingId: fixtureId('lst', 1),
+  adminId: fixtureId('adm', 1),
   kind: 'temporary',
   reason: 'reason',
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -122,30 +125,31 @@ const listingRemovalsSample: ListingRemoval = {
 }
 
 const customerBlocksSample: CustomerBlock = {
-  id: 1,
-  customerId: 1,
-  adminId: 1,
+  id: fixtureId('blk', 1),
+  customerId: fixtureId('cus', 1),
+  adminId: fixtureId('adm', 1),
   reason: 'reason',
   createdAt: '2026-01-01T00:00:00.000Z',
   liftedAt: null,
 }
 
 const cartsSample: Cart = {
-  id: 1,
-  customerId: 1,
+  id: fixtureId('crt', 1),
+  customerId: fixtureId('cus', 1),
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const cartItemsSample: CartItem = {
-  id: 1,
-  cartId: 1,
-  listingId: 1,
+  id: fixtureId('cti', 1),
+  cartId: fixtureId('crt', 1),
+  listingId: fixtureId('lst', 1),
   quantity: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const ordersSample: Order = {
-  id: 1,
-  customerId: 1,
+  id: fixtureId('ord', 1),
+  customerId: fixtureId('cus', 1),
   email: null,
   status: 'pending_verification',
   shippingName: 'Name',
@@ -157,24 +161,26 @@ const ordersSample: Order = {
   shippingCountry: 'US',
   subtotalCents: cents(100),
   totalCents: cents(100),
+  refundedCents: cents(0),
   placedAt: '2026-01-01T00:00:00.000Z',
   finalizedAt: null,
   cancelledAt: null,
 }
 
 const orderItemsSample: OrderItem = {
-  id: 1,
-  orderId: 1,
-  listingId: 1,
-  sellerId: 1,
+  id: fixtureId('oit', 1),
+  orderId: fixtureId('ord', 1),
+  listingId: fixtureId('lst', 1),
+  sellerId: fixtureId('sel', 1),
   title: 'Untitled',
   unitPriceCents: cents(100),
   quantity: 1,
+  createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const paymentsSample: Payment = {
-  id: 1,
-  orderId: 1,
+  id: fixtureId('pay', 1),
+  orderId: fixtureId('ord', 1),
   status: 'approved',
   amountCents: cents(100),
   cardLastFour: '4242',
@@ -182,23 +188,36 @@ const paymentsSample: Payment = {
   processedAt: '2026-01-01T00:00:00.000Z',
 }
 
+const refundsSample: Refund = {
+  id: fixtureId('rfd', 1),
+  orderId: fixtureId('ord', 1),
+  fulfillmentId: fixtureId('ful', 1),
+  paymentId: fixtureId('pay', 1),
+  amountCents: cents(100),
+  reason: 'Damaged in the kiln',
+  issuedByType: 'seller',
+  issuedById: fixtureId('sel', 1),
+  createdAt: '2026-01-01T00:00:00.000Z',
+}
+
 const fulfillmentsSample: Fulfillment = {
-  id: 1,
-  orderId: 1,
-  sellerId: 1,
+  id: fixtureId('ful', 1),
+  orderId: fixtureId('ord', 1),
+  sellerId: fixtureId('sel', 1),
   status: 'awaiting_shipment',
   carrier: null,
   trackingNumber: null,
   subtotalCents: cents(100),
   feeCents: cents(10),
   netCents: cents(90),
+  createdAt: '2026-01-01T00:00:00.000Z',
   shippedAt: null,
   deliveredAt: null,
 }
 
 const payoutsSample: Payout = {
-  id: 1,
-  sellerId: 1,
+  id: fixtureId('pyt', 1),
+  sellerId: fixtureId('sel', 1),
   periodStart: '2026-01-01',
   periodEnd: '2026-01-07',
   amountCents: cents(100),
@@ -206,8 +225,8 @@ const payoutsSample: Payout = {
 }
 
 const ledgerEntriesSample: LedgerEntry = {
-  id: 1,
-  sellerId: 1,
+  id: fixtureId('led', 1),
+  sellerId: fixtureId('sel', 1),
   fulfillmentId: null,
   payoutId: null,
   entryType: 'held',
@@ -216,7 +235,7 @@ const ledgerEntriesSample: LedgerEntry = {
 }
 
 const notificationsSample: Notification = {
-  id: 1,
+  id: fixtureId('ntf', 1),
   // A CHECK keeps exactly one of these three set; the column itself is
   // nullable on all three.
   sellerId: null,
@@ -230,7 +249,7 @@ const notificationsSample: Notification = {
 }
 
 const outboxMessagesSample: OutboxMessage = {
-  id: 1,
+  id: fixtureId('obx', 1),
   recipient: 'seller@example.com',
   subject: 'Subject',
   body: 'Body',
@@ -240,16 +259,25 @@ const outboxMessagesSample: OutboxMessage = {
 }
 
 const pageViewCountsSample: Selectable<PageViewCountsTable> = {
-  id: 1,
+  id: fixtureId('pvc', 1),
   site: 'shop',
   pathPattern: '/',
   day: '2026-01-01',
   count: 1,
 }
 
+const rateLimitWindowsSample: Selectable<RateLimitWindowsTable> = {
+  id: fixtureId('rlw', 1),
+  name: 'magic_link_request',
+  key: 'a1b2c3d4e5f6a7b8',
+  windowStart: '2026-01-01T00:00:00.000Z',
+  count: 1,
+}
+
 const conversationsSample: Conversation = {
-  id: 1,
+  id: fixtureId('cnv', 1),
   kind: 'admin_seller',
+  subjectKey: 'admin_seller:a:adm_00000000000000000000000001:s:sel_00000000000000000000000001',
   // Every participant/subject column is nullable at the schema level; which
   // ones a row fills depends on `kind`.
   sellerId: null,
@@ -262,18 +290,18 @@ const conversationsSample: Conversation = {
 }
 
 const messagesSample: Message = {
-  id: 1,
-  conversationId: 1,
+  id: fixtureId('msg', 1),
+  conversationId: fixtureId('cnv', 1),
   senderType: 'admin',
-  senderId: 1,
+  senderId: 'adm_00000000000000000000000001',
   body: 'Body',
   sentAt: '2026-01-01T00:00:00.000Z',
   readAt: null,
 }
 
 const listingFaqsSample: ListingFaq = {
-  id: 1,
-  listingId: 1,
+  id: fixtureId('faq', 1),
+  listingId: fixtureId('lst', 1),
   question: 'Question?',
   answer: 'Answer.',
   sourceMessageId: null,
@@ -298,11 +326,13 @@ const TABLE_SAMPLES: ReadonlyArray<readonly [string, Record<string, unknown>]> =
   ['order_items', orderItemsSample],
   ['payments', paymentsSample],
   ['fulfillments', fulfillmentsSample],
+  ['refunds', refundsSample],
   ['payouts', payoutsSample],
   ['ledger_entries', ledgerEntriesSample],
   ['notifications', notificationsSample],
   ['outbox_messages', outboxMessagesSample],
   ['page_view_counts', pageViewCountsSample],
+  ['rate_limit_windows', rateLimitWindowsSample],
   ['conversations', conversationsSample],
   ['messages', messagesSample],
   ['listing_faqs', listingFaqsSample],
@@ -353,11 +383,6 @@ for (const [table, sample] of TABLE_SAMPLES) {
     )
 
     for (const column of columns) {
-      // SQLite reports `notnull = 0` for an `integer primary key` column
-      // regardless of an explicit `NOT NULL`, because the column is a rowid
-      // alias and can never hold one; the flag is meaningless here.
-      if (column.name === 'id') continue
-
       const property = snakeToCamel(column.name)
       const expectedNullable = sample[property] === null
       const actualNullable = column.notNull === 0
@@ -374,27 +399,46 @@ for (const [table, sample] of TABLE_SAMPLES) {
 }
 
 /**
+ * The rows every insert below hangs off. Ids are written by hand rather than
+ * minted: this test is about the schema, and a fixed id keeps the statements
+ * readable.
+ */
+const SELLER_ID = fixtureId('sel', 1)
+const CUSTOMER_ID = fixtureId('cus', 1)
+const ADMIN_ID = fixtureId('adm', 1)
+const LISTING_ID = fixtureId('lst', 1)
+const ORDER_ID = fixtureId('ord', 1)
+const FULFILLMENT_ID = fixtureId('ful', 1)
+const PAYMENT_ID = fixtureId('pay', 9)
+const CONVERSATION_ID = fixtureId('cnv', 1)
+
+/**
  * One parent row per foreign key an invalid insert below needs to reach its
  * own CHECK constraint instead of failing on the FK first.
  */
 async function seedParentRows(db: AppDatabase): Promise<void> {
-  await sql`insert into sellers (id, email, created_at) values (1, 'seller@example.com', '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into sellers (id, email, created_at) values (${SELLER_ID}, 'seller@example.com', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into customers (id, created_at) values (1, '2026-01-01T00:00:00.000Z')`.execute(db)
-  await sql`insert into admins (id, email, name, created_at) values (1, 'admin@example.com', 'Admin', '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into customers (id, created_at) values (${CUSTOMER_ID}, '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into listings (id, seller_id, title, slug, price_cents, created_at, updated_at) values (1, 1, 'Untitled', 'untitled', 100, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into admins (id, email, name, created_at) values (${ADMIN_ID}, 'admin@example.com', 'Admin', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into orders (id, customer_id, status, shipping_name, shipping_line1, shipping_city, shipping_region, shipping_postal_code, shipping_country, subtotal_cents, total_cents, placed_at) values (1, 1, 'pending_verification', 'Name', 'Line 1', 'City', 'Region', '00000', 'US', 100, 100, '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into listings (id, seller_id, title, slug, price_cents, created_at, updated_at) values (${LISTING_ID}, ${SELLER_ID}, 'Untitled', 'untitled', 100, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into fulfillments (id, order_id, seller_id, subtotal_cents, fee_cents, net_cents) values (1, 1, 1, 100, 10, 90)`.execute(
+  await sql`insert into orders (id, customer_id, status, shipping_name, shipping_line1, shipping_city, shipping_region, shipping_postal_code, shipping_country, subtotal_cents, total_cents, placed_at) values (${ORDER_ID}, ${CUSTOMER_ID}, 'pending_verification', 'Name', 'Line 1', 'City', 'Region', '00000', 'US', 100, 100, '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into conversations (id, kind, seller_id, admin_id, created_at, last_message_at) values (1, 'admin_seller', 1, 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into fulfillments (id, order_id, seller_id, subtotal_cents, fee_cents, net_cents, created_at) values (${FULFILLMENT_ID}, ${ORDER_ID}, ${SELLER_ID}, 100, 10, 90, '2026-01-01T00:00:00.000Z')`.execute(
+    db,
+  )
+  await sql`insert into payments (id, order_id, status, amount_cents, card_last_four, processed_at) values (${PAYMENT_ID}, ${ORDER_ID}, 'approved', 100, '4242', '2026-01-01T00:00:00.000Z')`.execute(
+    db,
+  )
+  await sql`insert into conversations (id, kind, subject_key, seller_id, admin_id, created_at, last_message_at) values (${CONVERSATION_ID}, 'admin_seller', 'admin_seller:key', ${SELLER_ID}, ${ADMIN_ID}, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
 }
@@ -403,47 +447,51 @@ async function seedParentRows(db: AppDatabase): Promise<void> {
 const INVALID_STATUS_INSERTS: ReadonlyArray<readonly [string, RawBuilder<unknown>]> = [
   [
     'magic_links.actor_type',
-    sql`insert into magic_links (token_digest, email, actor_type, expires_at, created_at) values ('digest', 'seller@example.com', 'not_an_actor', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into magic_links (id, token_digest, email, actor_type, expires_at, created_at) values (${fixtureId('mlk', 1)}, 'digest', 'seller@example.com', 'not_an_actor', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'listings.status',
-    sql`insert into listings (seller_id, title, slug, price_cents, status, created_at, updated_at) values (1, 'Untitled', 'untitled-2', 100, 'not_a_status', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into listings (id, seller_id, title, slug, price_cents, status, created_at, updated_at) values (${fixtureId('lst', 2)}, ${SELLER_ID}, 'Untitled', 'untitled-2', 100, 'not_a_status', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'listing_events.event_type',
-    sql`insert into listing_events (listing_id, event_type, occurred_at) values (1, 'not_an_event', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into listing_events (id, listing_id, event_type, occurred_at) values (${fixtureId('lev', 1)}, ${LISTING_ID}, 'not_an_event', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'listing_removals.kind',
-    sql`insert into listing_removals (listing_id, admin_id, kind, reason, created_at) values (1, 1, 'not_a_kind', 'reason', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into listing_removals (id, listing_id, admin_id, kind, reason, created_at) values (${fixtureId('rmv', 1)}, ${LISTING_ID}, ${ADMIN_ID}, 'not_a_kind', 'reason', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'orders.status',
-    sql`insert into orders (customer_id, status, shipping_name, shipping_line1, shipping_city, shipping_region, shipping_postal_code, shipping_country, subtotal_cents, total_cents, placed_at) values (1, 'not_a_status', 'Name', 'Line 1', 'City', 'Region', '00000', 'US', 100, 100, '2026-01-01T00:00:00.000Z')`,
+    sql`insert into orders (id, customer_id, status, shipping_name, shipping_line1, shipping_city, shipping_region, shipping_postal_code, shipping_country, subtotal_cents, total_cents, placed_at) values (${fixtureId('ord', 2)}, ${CUSTOMER_ID}, 'not_a_status', 'Name', 'Line 1', 'City', 'Region', '00000', 'US', 100, 100, '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'payments.status',
-    sql`insert into payments (order_id, status, amount_cents, card_last_four, processed_at) values (1, 'not_a_status', 100, '4242', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into payments (id, order_id, status, amount_cents, card_last_four, processed_at) values (${fixtureId('pay', 1)}, ${ORDER_ID}, 'not_a_status', 100, '4242', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'payments.decline_reason',
-    sql`insert into payments (order_id, status, amount_cents, card_last_four, decline_reason, processed_at) values (1, 'declined', 100, '4242', 'not_a_reason', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into payments (id, order_id, status, amount_cents, card_last_four, decline_reason, processed_at) values (${fixtureId('pay', 2)}, ${ORDER_ID}, 'declined', 100, '4242', 'not_a_reason', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'fulfillments.status',
-    sql`insert into fulfillments (order_id, seller_id, status, subtotal_cents, fee_cents, net_cents) values (1, 1, 'not_a_status', 100, 10, 90)`,
+    sql`insert into fulfillments (id, order_id, seller_id, status, subtotal_cents, fee_cents, net_cents, created_at) values (${fixtureId('ful', 2)}, ${ORDER_ID}, ${SELLER_ID}, 'not_a_status', 100, 10, 90, '2026-01-01T00:00:00.000Z')`,
+  ],
+  [
+    'refunds.issued_by_type',
+    sql`insert into refunds (id, order_id, fulfillment_id, payment_id, amount_cents, reason, issued_by_type, issued_by_id, created_at) values (${fixtureId('rfd', 1)}, ${ORDER_ID}, ${FULFILLMENT_ID}, ${PAYMENT_ID}, 100, 'Reason', 'not_an_issuer', ${SELLER_ID}, '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'ledger_entries.entry_type',
-    sql`insert into ledger_entries (seller_id, entry_type, amount_cents, occurred_at) values (1, 'not_an_entry_type', 100, '2026-01-01T00:00:00.000Z')`,
+    sql`insert into ledger_entries (id, seller_id, entry_type, amount_cents, occurred_at) values (${fixtureId('led', 1)}, ${SELLER_ID}, 'not_an_entry_type', 100, '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'conversations.kind',
-    sql`insert into conversations (kind, created_at, last_message_at) values ('not_a_kind', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into conversations (id, kind, subject_key, created_at, last_message_at) values (${fixtureId('cnv', 2)}, 'not_a_kind', 'not_a_kind:key', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'messages.sender_type',
-    sql`insert into messages (conversation_id, sender_type, sender_id, body, sent_at) values (1, 'not_an_actor', 1, 'Body', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into messages (id, conversation_id, sender_type, sender_id, body, sent_at) values (${fixtureId('msg', 1)}, ${CONVERSATION_ID}, 'not_an_actor', ${SELLER_ID}, 'Body', '2026-01-01T00:00:00.000Z')`,
   ],
 ]
 

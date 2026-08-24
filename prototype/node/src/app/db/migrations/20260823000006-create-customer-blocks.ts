@@ -7,9 +7,9 @@ import type { Kysely } from 'kysely'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('customer_blocks')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('customer_id', 'integer', (column) => column.notNull().references('customers.id'))
-    .addColumn('admin_id', 'integer', (column) => column.notNull().references('admins.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('customer_id', 'text', (column) => column.notNull().references('customers.id'))
+    .addColumn('admin_id', 'text', (column) => column.notNull().references('admins.id'))
     .addColumn('reason', 'text', (column) => column.notNull())
     .addColumn('created_at', 'text', (column) => column.notNull())
     .addColumn('lifted_at', 'text')

@@ -12,13 +12,13 @@ use App\Notifications\OrderShipped;
 use Illuminate\Notifications\DatabaseNotification;
 
 $soldTo = function (Seller $seller): DatabaseNotification {
-    $seller->notify(new ItemSold(4, Money::fromCents(9000)));
+    $seller->notify(new ItemSold('ord_00000000000000000000000004', Money::fromCents(9000)));
 
     return $seller->notifications()->sole();
 };
 
 $shippedTo = function (Customer $customer): DatabaseNotification {
-    $customer->notify(new OrderShipped(4, 'USPS', '9400111899'));
+    $customer->notify(new OrderShipped('ord_00000000000000000000000004', 'USPS', '9400111899'));
 
     return $customer->notifications()->sole();
 };
@@ -53,11 +53,8 @@ it('answers not found for another customers notification', function () use ($shi
         ->and($response->status())->toBe(404);
 });
 
-it('reads the recipient type as well as the id, which the two sites number apart', function () use ($shippedTo): void {
-    $customer = $this->verifiedCustomer();
-    $seller = $this->seller();
-    $notification = $shippedTo($customer);
+it('reads the recipient type as well as the id', function () use ($shippedTo): void {
+    $notification = $shippedTo($this->verifiedCustomer());
 
-    expect($seller->id)->toBe($customer->id)
-        ->and((new NotificationPolicy)->markRead($seller, $notification)->denied())->toBeTrue();
+    expect((new NotificationPolicy)->markRead($this->seller(), $notification)->denied())->toBeTrue();
 });

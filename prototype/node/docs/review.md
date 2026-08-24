@@ -98,7 +98,7 @@ a stated gap; **missing** — not built.
 | `/work-*` skills for defining and managing work | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 35 tickets: the ten build tickets and BUG-001, then 24 refinement tickets (BUG-002…006, FEAT-011…017, IMPRV-001…008, RFCTR-001…004) |
 | `/write-*` skills for classes, functions, comments | partial | process; not independently verifiable from the tree |
 | TDD flow | partial | process; each ticket's `## Working` notes assert it (e.g. FEAT-001 built `app/core/money.ts` test-first) |
-| Measure and keep test coverage high | done | `npm run coverage` — `--test-coverage-lines=95 --test-coverage-branches=90`, enforced; `npm run check` ends with it and CI runs `npm run test:ci`, the same gate plus an lcov report |
+| Measure and keep test coverage high | done | `npm run coverage` — `--test-coverage-lines=95 --test-coverage-branches=90`, enforced, and writes `coverage/lcov.info`; `npm run check` ends with it, and CI runs that same `npm run check` |
 | Functional core / imperative shell | done | `app/core/**` is pure (no I/O, no clock, no random — `now: Date` and ids arrive as parameters); `app/actions/**` sequences core + adapters in one transaction; routes hold no domain `if` |
 | `/diagramming` skill used to capture docs | done | `docs/README.md`, `docs/architecture.md`, `docs/identity.md`, `docs/orders.md`, `docs/escrow.md`, `docs/messaging.md`, `docs/admin.md`, `docs/data-model.md`, `docs/ontology.md`; `make docs-check` renders every Mermaid block through `minlag/mermaid-cli` and fails on one that does not parse |
 
@@ -213,12 +213,12 @@ refinement batch landed.
    means an identity hook at the root, which costs a query on every asset
    request.
 
-4. **`listing.published` is the one business event with no log line.** The other
-   thirteen (`order.placed`, `order.paid`, `order.declined`,
-   `fulfillment.shipped`, `payout.run`, the three `magic_link.*`, the four
-   `moderation.*`) are logged from the route shell after the action result is
-   applied. A listing going `draft → for_sale` writes the row and nothing else,
-   so a reader of the logs cannot see the catalog grow.
+4. ~~**`listing.published` is the one business event with no log line.**~~
+   Closed by IMPRV-009: `changeListingStatus` logs `listing.publish` when the
+   target is `for_sale` and `listing.transition` otherwise, and every other
+   write in the app now tells a `will` → `did` / `refused` / `failed` story from
+   the action rather than the route shell. See
+   [`architecture.md`](architecture.md#the-log).
 
 5. **Seeded listings carry generated SVG placeholders, not photographs.**
    `listingImageSource` (`app/core/listings/placeholder-image.ts`) renders a
@@ -250,7 +250,7 @@ refinement batch landed.
 9. **Migration `down()` bodies are uncovered.** `FileMigrationProvider`
    supplies both `up` and `down` per file, but nothing in the suite runs a
    `down` — `app/db/migrator.test.ts` and `app/db/database.test.ts` only apply
-   forward. Coverage on the eleven migration files under `app/db/migrations/`
+   forward. Coverage on the thirteen migration files under `app/db/migrations/`
    reflects `up` only.
 
 10. **The seller portal has no payout control by design, and the admin payout
@@ -261,6 +261,61 @@ refinement batch landed.
     every week" is a platform action) but means there is no way to demo a
     single seller's payout in isolation from `/admin`.
 
+11. ~~**A `conversation_open` trip on the listing-question box answers the
+    generic 429 page, not a re-rendered listing page.**~~ Closed by the
+    IMPRV-012 fix-up: `guardConversationOpen` (`app/sites/shop/routes/
+    messages.ts`) split into three. The original, still carrying no `onTrip`,
+    stays on `GET /support`'s two uses — a link click has nowhere of its own
+    to re-render, so a trip there keeps the shared `error` page by design.
+    `guardConversationOpenForQuestion` reuses the same listing-page re-render
+    `guardQuestionMessagePost` already gave `POST /art/:slug/questions`, so
+    either of that route's two guards tripping lands the visitor back on the
+    listing page with the question kept. `guardConversationOpenForFulfillmentMessage`
+    re-renders the order page for `POST /orders/:id/fulfillments/:fulfillmentId/messages`
+    — a second route with the same bug the original gap write-up did not
+    name — through `renderOrderPage` (`app/sites/shop/order-page.ts`),
+    extracted from `GET /orders/:id` so both share it; the order page gained
+    a `form-error.ejs` slot scoped to the fulfillment section that tripped,
+    since one order can hold a "Message the seller" form per seller.
+
+12. **The admin's `POST /sellers/:id/messages` and `POST /customers/:id/messages`
+    carry no rate limit.** Both open a conversation with no message body, the
+    same shape as the fulfillment-thread open `conversation_open` guards
+    elsewhere, but `docs/alignment.md` §3's guard list names only "listing
+    question, support, fulfillment thread opens" — these two admin routes are
+    not among them, and an admin is already authenticated. Left unguarded
+    rather than stretching the contract's list past what it says (FEAT-020).
+
+13. **The admin site's five write forms still flash a single sentence instead
+    of a field-level error.** IMPRV-012 moved every seller and storefront form
+    onto the shared `form-field.ejs`/`form-error.ejs` partials — the listing
+    form, the FAQ forms, the ship and decline forms, checkout, the cart and
+    ask-a-question forms, and all three sites' message replies — but cut its
+    own explicit fallback line at the admin site: `views/customer.ejs` (block
+    reason), `views/listing.ejs` (removal kind and reason), `views/order.ejs`
+    (cancel reason, inline refund amount), `views/fulfillment.ejs` (refund
+    reason), and `views/payouts.ejs` (threshold) still call `reply.setFlash({
+    alert })` and redirect. `parseRefundReason` was still brought onto the
+    shared `Partial<Record<Field, string>>` shape its seller-side call site
+    needed, so `admin/routes/orders.ts` and `admin/routes/fulfillments.ts`
+    read `Object.values(reason.errors)[0]` for that flash rather than
+    `reason.error` — the two admin call sites were left otherwise unconverted.
+
+14. **Checkout's implicit magic-link guard answers the generic 429 page even
+    though the order it is protecting is already placed.** `verifyGuestAddress`
+    (`app/sites/shop/routes/checkout.ts`) calls `answerIfRateLimited` for
+    `magic_link_request` after `checkOutCart` has already written the order —
+    and, for an already-verified customer, charged it — inside the same
+    request; a trip there only blocks the verification link the guest still
+    needs, never the order. `docs/alignment.md` §3 fixes the trip response as
+    HTTP 429 with no side effect performed for every guard alike, so
+    redirecting to the order page instead (the way `input.charged !== null`
+    already does above it) would drop that status for this one guard —
+    a change to what §3 promises across all three prototypes, not a
+    same-shape `onTrip` re-render like IMPRV-012's other callbacks. Left
+    answering the generic page rather than special-cased against the
+    contract.
+
 Closed by the refinement batch, and listed here so a reader of an older copy of
 this file is not misled: email had no implementation at all (FEAT-015 added the
 outbox), an unmatched route answered Fastify's JSON (IMPRV-001), the admin
@@ -270,6 +325,9 @@ no CI (FEAT-014).
 
 ## Suggested next steps
 
+Numbered against the open gaps above; gaps 4 and 11 are closed and need no
+step.
+
 1. Add an SMTP implementation of `MagicLinkDelivery` and `NotificationDelivery`
    beside the outbox ones, selected the same way `MAGIC_LINK_DELIVERY` already
    is, and drain to it instead of to files. Closes gap 1.
@@ -278,24 +336,35 @@ no CI (FEAT-014).
    Closes gap 2.
 3. Resolve the customer cookie in a root hook that skips static paths, so the
    storefront's 404 page renders in the visitor's own session. Closes gap 3.
-4. Log `listing.published` from `POST /seller/listings/:id/status` beside the
-   other thirteen. Closes gap 4.
-5. Attach real images in `app/db/seed-catalog.ts` so the demo storefront shows
+4. Attach real images in `app/db/seed-catalog.ts` so the demo storefront shows
    artwork instead of generated shapes. Closes gap 5.
-6. If a real carrier integration is in scope for a later prototype, replace
+5. If a real carrier integration is in scope for a later prototype, replace
    the two free-text shipment fields with a tracking lookup; for this
    prototype's purposes the customer-confirms-delivery model is an accepted
    simplification. Closes gap 6.
-7. Add an assignment column to `conversations` (or a round-robin over
+6. Add an assignment column to `conversations` (or a round-robin over
    `admins`) so support threads are not all routed to the same admin. Closes
    gap 7.
-8. Add a `message_attachments` table and an `archived_at` column on
+7. Add a `message_attachments` table and an `archived_at` column on
    `conversations` if the product review calls for either. Closes gap 8.
-9. Add a migration-cycle test that runs every `down()` after its `up()` on a
+8. Add a migration-cycle test that runs every `down()` after its `up()` on a
    scratch database. Closes gap 9.
-10. Document the platform-wide payout run as intentional in the seller-facing
-    copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
-    demo one seller's payout in isolation. Closes gap 10.
+9. Document the platform-wide payout run as intentional in the seller-facing
+   copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
+   demo one seller's payout in isolation. Closes gap 10.
+10. Decide at the contract level whether `docs/alignment.md` §3's guard list
+    should name the admin's two message-open routes; add a `conversation_open`
+    guard to `POST /admin/sellers/:id/messages` and
+    `POST /admin/customers/:id/messages` if so. Closes gap 12.
+11. Move the admin site's five write forms onto `form-field.ejs`/
+    `form-error.ejs`, re-rendering in place instead of flashing and
+    redirecting, the same conversion IMPRV-012 gave every seller and
+    storefront form. Closes gap 13.
+12. Decide at the contract level whether a trip on checkout's implicit guest
+    magic-link guard should redirect to the order page instead of answering
+    the generic 429 — a change to `docs/alignment.md` §3's every-trip-is-429
+    promise, not a same-shape `onTrip` re-render — and implement to match.
+    Closes gap 14.
 
 ## Stack notes
 

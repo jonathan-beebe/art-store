@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Customers;
 
 use App\Domain\DomainRuleViolation;
+use App\Models\Customer;
 use App\Models\CustomerBlock;
 
 it('blocks a customer with a reason', function (): void {
@@ -36,4 +37,15 @@ it('blocks a customer again once an earlier block was lifted', function (): void
 
     expect($block->reason)->toBe('Repeat offense.')
         ->and(CustomerBlock::count())->toBe(2);
+});
+
+it('judges the block against the row it locks, not the instance it was handed', function (): void {
+    $customer = $this->verifiedCustomer();
+    $stale = Customer::query()->findOrFail($customer->id);
+    app(BlockCustomer::class)($customer, 'Chargeback fraud.');
+
+    $block = fn () => app(BlockCustomer::class)($stale, 'Second reason.');
+
+    expect($block)->toThrow(DomainRuleViolation::class, 'This customer is already blocked.')
+        ->and(CustomerBlock::count())->toBe(1);
 });

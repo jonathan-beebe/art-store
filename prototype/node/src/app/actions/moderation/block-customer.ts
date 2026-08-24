@@ -1,13 +1,15 @@
+import type { AdminId, CustomerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
+import { actionStory } from '../action-story.ts'
 import { activeCustomerBlock } from './active-customer-block.ts'
-import { runInTransaction } from '../transaction.ts'
 import { TransitionError } from '../../core/transition-error.ts'
 import type { CustomerBlock } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type BlockCustomerInput = {
-  customerId: number
-  adminId: number
+  customerId: CustomerId
+  adminId: AdminId
   reason: string
 }
 
@@ -20,24 +22,44 @@ export async function blockCustomer(
   context: ActionContext,
   input: BlockCustomerInput,
 ): Promise<CustomerBlock> {
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const active = await activeCustomerBlock(transacted, input.customerId)
+  return actionStory<CustomerBlock>(
+    context,
+    {
+      event: 'moderation.block_customer',
+      will: {
+        msg: 'blocking the customer from buying and messaging',
+        data: { customer_id: input.customerId },
+      },
+      ended: (block) => ({
+        phase: 'did',
+        msg: 'blocked the customer from buying and messaging',
+        data: {
+          customer_block_id: block.id,
+          customer_id: block.customerId,
+          admin_id: block.adminId,
+        },
+      }),
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const active = await activeCustomerBlock(transacted, input.customerId)
 
-    if (active !== null) {
-      throw new TransitionError(`customer ${input.customerId} is already blocked`)
-    }
+      if (active !== null) {
+        throw new TransitionError(`customer ${input.customerId} is already blocked`)
+      }
 
-    return db
-      .insertInto('customerBlocks')
-      .values({
-        customerId: input.customerId,
-        adminId: input.adminId,
-        reason: input.reason,
-        createdAt: toTimestamp(clock.now()),
-        liftedAt: null,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      return db
+        .insertInto('customerBlocks')
+        .values({
+          id: newId('blk', clock.now()),
+          customerId: input.customerId,
+          adminId: input.adminId,
+          reason: input.reason,
+          createdAt: toTimestamp(clock.now()),
+          liftedAt: null,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    },
+  )
 }

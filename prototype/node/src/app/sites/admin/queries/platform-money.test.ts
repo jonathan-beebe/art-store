@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { platformMoney } from './platform-money.ts'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
+import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../../../actions/escrow/run-weekly-payout.ts'
 import {
@@ -22,6 +23,8 @@ test('an empty platform holds, owes, and has earned nothing', async (t) => {
     availableCents: 0,
     paidOutCents: 0,
     feesEarnedCents: 0,
+    feesRefundedCents: 0,
+    refundedCents: 0,
   })
 })
 
@@ -40,6 +43,8 @@ test('a paid order holds the net and earns the fee', async (t) => {
     availableCents: 0,
     paidOutCents: 0,
     feesEarnedCents: 4_500,
+    feesRefundedCents: 0,
+    refundedCents: 0,
   })
 })
 
@@ -58,6 +63,8 @@ test('an order nobody paid for earns no fee', async (t) => {
     availableCents: 0,
     paidOutCents: 0,
     feesEarnedCents: 0,
+    feesRefundedCents: 0,
+    refundedCents: 0,
   })
 })
 
@@ -88,6 +95,8 @@ test('delivery moves the money to available and a payout moves it out', async (t
     availableCents: 40_500,
     paidOutCents: 0,
     feesEarnedCents: 4_500,
+    feesRefundedCents: 0,
+    refundedCents: 0,
   })
 
   await runWeeklyPayout(world.context, new Date('2026-08-24T12:00:00.000Z'))
@@ -97,6 +106,8 @@ test('delivery moves the money to available and a payout moves it out', async (t
     availableCents: 0,
     paidOutCents: 40_500,
     feesEarnedCents: 4_500,
+    feesRefundedCents: 0,
+    refundedCents: 0,
   })
 })
 
@@ -119,5 +130,37 @@ test('two sellers fold into one platform balance', async (t) => {
     availableCents: 0,
     paidOutCents: 0,
     feesEarnedCents: 6_500,
+    feesRefundedCents: 0,
+    refundedCents: 0,
+  })
+})
+
+test('a refund forgoes the fee and counts what went back to the customer', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await createSeller(world.context)
+  const customerId = await createCustomer(world.context)
+  const listing = await createListing(world.context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(world.context, customerId, [listing.id])
+  const fulfillment = await world.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  await declineFulfillment(world.context, {
+    fulfillmentId: fulfillment.id,
+    sellerId,
+    reason: 'The piece cracked in the kiln.',
+  })
+
+  assert.deepEqual(await platformMoney(world.context), {
+    heldCents: 0,
+    availableCents: 0,
+    paidOutCents: 0,
+    feesEarnedCents: 0,
+    feesRefundedCents: 4_500,
+    refundedCents: 45_000,
   })
 })

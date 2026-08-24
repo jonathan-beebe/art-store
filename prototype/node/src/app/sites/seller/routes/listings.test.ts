@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
+import { newId } from '../../../ids.ts'
 import { buildTestApp, signInAsAdmin, signInAsSeller } from '../../../test/build-test-app.ts'
 import { MAX_IMAGE_UPLOAD_BYTES } from '../listing-image-upload.ts'
 import { createForSaleListing, createFulfillment, createTestListing } from '../test-fixtures.ts'
@@ -104,8 +105,8 @@ test("the index lists the seller's own listings with their activity", async (t) 
   await testApp.db
     .insertInto('listingEvents')
     .values([
-      { listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
-      { listingId: listing.id, customerId: null, eventType: 'cart_add', occurredAt: new Date().toISOString() },
+      { id: newId('lev', new Date()), listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
+      { id: newId('lev', new Date()), listingId: listing.id, customerId: null, eventType: 'cart_add', occurredAt: new Date().toISOString() },
     ])
     .execute()
 
@@ -227,7 +228,7 @@ test('a listing with no title is refused', async (t) => {
 
   assert.equal(response.statusCode, 422)
   assert.match(response.body, /data-field-error="listing_title"[^>]*>Enter a title\./)
-  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error" aria-invalid="true"/)
+  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error"[^>]*aria-invalid="true"/)
   // A field with no error of its own carries neither attribute.
   assert.doesNotMatch(response.body, /id="listing_medium"[^>]*aria-describedby/)
 })
@@ -584,6 +585,7 @@ test('a removed listing shows the removal kind and reason and cannot be put back
   await testApp.db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: listing.id,
       adminId: admin.id,
       kind: 'temporary',
@@ -631,6 +633,7 @@ test('a removed listing cannot go back on sale even through a transition the lif
   await testApp.db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: listing.id,
       adminId: admin.id,
       kind: 'permanent',
@@ -666,9 +669,9 @@ test("the activity page totals the events of the seller's own listing", async (t
   await testApp.db
     .insertInto('listingEvents')
     .values([
-      { listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
-      { listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
-      { listingId: listing.id, customerId: null, eventType: 'favorite', occurredAt: new Date().toISOString() },
+      { id: newId('lev', new Date()), listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
+      { id: newId('lev', new Date()), listingId: listing.id, customerId: null, eventType: 'view', occurredAt: new Date().toISOString() },
+      { id: newId('lev', new Date()), listingId: listing.id, customerId: null, eventType: 'favorite', occurredAt: new Date().toISOString() },
     ])
     .execute()
 

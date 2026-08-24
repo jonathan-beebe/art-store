@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\AdminFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -21,7 +22,13 @@ class Admin extends Authenticatable
     /** @use HasFactory<AdminFactory> */
     use HasFactory;
 
+    use HasPrefixedUlid;
     use Notifiable;
+
+    public static function idPrefix(): string
+    {
+        return 'adm';
+    }
 
     /**
      * @return array<string, string>
@@ -53,10 +60,12 @@ class Admin extends Authenticatable
 
     /**
      * The one admin a support thread opens against, in a prototype with no
-     * assignment model. Null when no admin has been seeded yet.
+     * assignment model. Null when no admin has been seeded yet. Two admins
+     * seeded in the same second are separated by their ids, which a
+     * prefixed ULID orders the way they were minted.
      */
     public static function platformAdmin(): ?self
     {
-        return self::query()->oldest('id')->first();
+        return self::query()->oldest('created_at')->oldest('id')->first();
     }
 }

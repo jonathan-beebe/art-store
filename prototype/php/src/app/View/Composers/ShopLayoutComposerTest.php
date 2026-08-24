@@ -14,7 +14,7 @@ use App\Notifications\OrderShipped;
 it('counts the items the visitor is carrying', function (): void {
     $visitor = $this->visitor();
     app(AddToCart::class)(
-        $visitor->currentCart(),
+        $visitor->cart(),
         $this->listing($this->seller(), ['quantity' => 3]),
         2,
         $this->moment('2026-08-20 08:00:00'),
@@ -27,7 +27,7 @@ it('counts the items the visitor is carrying', function (): void {
 
 it('counts the notifications the visitor has not read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
-    $visitor->notify(new OrderShipped(1, 'Royal Mail', 'RM1'));
+    $visitor->notify(new OrderShipped('ord_00000000000000000000000001', 'Royal Mail', 'RM1'));
 
     $response = $this->actingAs($visitor, 'customer')->get('/');
 

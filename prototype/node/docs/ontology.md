@@ -279,16 +279,18 @@ with a shipping address and a snapshot of what was bought.
 
 **Why it exists.** The commitment. Everything after checkout keys off it.
 
-**Lifecycle.** Eight states — see [`orders.md`](orders.md). A guest's order
+**Lifecycle.** Nine states — see [`orders.md`](orders.md). A guest's order
 starts `pending_verification`; a verified customer's starts
-`awaiting_payment`. Above `paid`, the status is rolled up from fulfillments and
-never set directly.
+`awaiting_payment`. Above `paid`, the status is rolled up from the fulfillments
+that are neither declined nor refunded, and never set directly; an order with
+none of those left is `refunded`.
 
 **Relates to.** Placed by a Customer. Contains Order items. Attempts Payments.
-Splits into Fulfillments.
+Splits into Fulfillments. Reversed by Refunds.
 
 **In code.** `Order` (`orders`), `ORDER_STATUSES`, `placeOrder`,
-`finalizeOrder`, `cancelOrder`, `rollUpOrderStatus`.
+`finalizeOrder`, `cancelOrder`, `cancelOrderAsAdmin`, `sweepStaleOrders`,
+`rollUpOrderStatus`.
 
 ### Order item
 
@@ -329,14 +331,63 @@ seller's whole view of the sale are per seller. A seller's "order" **is** a
 fulfillment.
 
 **Lifecycle.** `awaiting_shipment → shipped → delivered`
-(`FULFILLMENT_STATUS_TRANSITIONS`). Created by `placeOrder`, unique per (order,
-seller).
+(`FULFILLMENT_STATUS_TRANSITIONS`), or out sideways to `declined` (the seller,
+before shipping) or `refunded` (the platform, from any live state). Created by
+`placeOrder`, unique per (order, seller).
 
 **Relates to.** Belongs to an Order and a Seller. Produces Ledger entries.
-Carries the Platform fee. Subject of `fulfillment` Conversations.
+Carries the Platform fee. Subject of `fulfillment` Conversations. Reversed by
+at most one Refund.
 
 **In code.** `Fulfillment` (`fulfillments`), `markShipped`, `confirmDelivered`,
-`hasDeparted`.
+`declineFulfillment`, `hasDeparted`, `isReversed`.
+
+### Refund
+
+**Who/what.** One reversal of one fulfillment: the whole subtotal handed back
+to the customer, the reason, and who issued it — the seller who declined or the
+admin who refunded.
+
+**Why it exists.** A sale that goes wrong has to be recorded, not undone. The
+row is the audit trail behind the customer's money, the seller's negative
+ledger entry, and the platform's forgone fee.
+
+**Lifecycle.** Written once by `issueRefund`, never changed. At most one per
+fulfillment; the state machine refuses the second and a unique index backs it.
+
+**Relates to.** Belongs to an Order and a Fulfillment. Names the approved
+Payment it goes back against. Produces the `refunded` Ledger entry.
+
+**In code.** `Refund` (`refunds`), `issueRefund`, `planRefund`,
+`refundMovement`, `REFUND_ISSUER_TYPES`.
+
+## Identifiers
+
+### Prefixed id
+
+**Who/what.** What names every row: a three-letter table prefix, an underscore,
+and a 26-character Crockford base32 ULID — `ord_01J5X3M9A2K8YB7Q4R6T1V0WZE`,
+thirty characters. There is no second column; the primary key is the public id
+and it appears in the URL.
+
+**Why it exists.** A sequential integer leaks how many orders the platform has
+taken and lets anyone walk the next one. A prefixed id says what it names in a
+log line or a URL without a lookup, and the same prefixes across the three
+prototypes let a reader compare their logs directly (`docs/alignment.md` §1).
+
+**Lifecycle.** Minted in the shell when the row is written, from the clock the
+action already holds, so a seed on a fixed clock mints the same time order
+every run. The random draw is fresh per millisecond and stepped by one for each
+id after the first inside it.
+
+**Relates to.** Every table. Every foreign key holds the referenced table's own
+id, and the types say so: `OrderId` will not go where a `ListingId` belongs.
+
+**In code.** `PrefixedId`, `encodeUlid`, `parsePrefixedId`
+(`app/core/ids/prefixed-id.ts`); the prefix table and the named id types
+(`app/core/ids/entity-ids.ts`); `newId` (`app/ids.ts`); `idParams` and
+`idValue` (`app/http/request-schema.ts`); `fixtureId` for tests that name their
+rows (`app/test/fixture-ids.ts`).
 
 ## Money
 
@@ -494,7 +545,8 @@ the same subject (`planConversation`). `last_message_at` moves on every post,
 which is the inbox order. No archive and no close in this prototype.
 
 **Relates to.** Names two of Seller / Customer / Admin, and optionally a
-Listing or a Fulfillment. Holds Messages. Re-pointed by a Customer merge.
+Listing or a Fulfillment. Holds Messages. Folded by a Customer merge rather
+than re-pointed — a subject never ends up with two threads.
 
 **In code.** `Conversation` (`conversations`), `CONVERSATION_KINDS`,
 `conversationSubject`, `conversationAccess`, `conversationPath`.
@@ -594,11 +646,12 @@ where it has a lifecycle, plus `canTransition<Thing>` and a throwing
 | Type | Values | Where |
 | --- | --- | --- |
 | `ListingStatus` | `draft`, `for_sale`, `sold`, `archived` | `core/listings/listing-status.ts` |
-| `OrderStatus` | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`, `partially_shipped`, `shipped`, `delivered`, `cancelled` | `core/orders/order-status.ts` |
-| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered` | `core/orders/fulfillment-status.ts` |
+| `OrderStatus` | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`, `partially_shipped`, `shipped`, `delivered`, `cancelled`, `refunded` | `core/orders/order-status.ts` |
+| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered`, `declined`, `refunded` | `core/orders/fulfillment-status.ts` |
 | `PaymentStatus` | `approved`, `declined` | `core/payments/payment-status.ts` |
 | `DeclineReason` | `generic_decline`, `insufficient_funds`, `invalid_card_number` | `core/payments/decline-reason.ts` |
-| `LedgerEntryType` | `held`, `released`, `paid_out` | `core/escrow/ledger-entry-type.ts` |
+| `LedgerEntryType` | `held`, `released`, `paid_out`, `refunded` | `core/escrow/ledger-entry-type.ts` |
+| `RefundIssuerType` | `seller`, `admin` | `core/orders/refund.ts` |
 | `StockChange` | `take`, `restore`, `keep` | `core/listings/stock-change.ts` |
 | `ListingEventType` | `view`, `favorite`, `unfavorite`, `cart_add` | `core/listings/listing-event-type.ts` |
 | `RemovalKind` | `temporary`, `permanent` | `core/moderation/listing-removal.ts` |

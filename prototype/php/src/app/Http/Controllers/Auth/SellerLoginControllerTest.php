@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Auth\ActorType;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\MagicLink;
 use App\Models\Seller;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Session;
 
 it('renders an email form', function (): void {
@@ -43,4 +45,27 @@ it('sends a signed in seller to the dashboard', function (): void {
     $response = $this->actingAs(Seller::factory()->create(), 'seller')->get('/seller/login');
 
     $response->assertRedirect(route('seller.dashboard'));
+});
+
+it('trips the magic-link limit for a repeated address, re-rendering the form with no link issued', function (): void {
+    Config::set('rate_limits.magic_link_request', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_REQUEST'));
+    $this->post('/seller/login', ['email' => 'artist@example.com']);
+
+    $response = $this->post('/seller/login', ['email' => 'artist@example.com']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect(MagicLink::count())->toBe(1);
+});
+
+it('resets the magic-link limit once its window passes', function (): void {
+    Config::set('rate_limits.magic_link_request', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_REQUEST'));
+    $this->post('/seller/login', ['email' => 'artist@example.com']);
+
+    $this->travel(16)->minutes();
+    $response = $this->post('/seller/login', ['email' => 'artist@example.com']);
+
+    $response->assertRedirect(route('auth.seller.login'));
+    expect(MagicLink::count())->toBe(2);
 });

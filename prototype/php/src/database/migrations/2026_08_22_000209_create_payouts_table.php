@@ -11,8 +11,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('payouts', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('seller_id')->constrained()->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->date('period_start');
             $table->date('period_end');
             $table->unsignedInteger('amount_cents');

@@ -1,10 +1,11 @@
+import type { CustomerId, OrderId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { OrderStatus } from '../../../core/orders/order-status.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 /** One row of the orders list: what it cost, where it is, and what is in it. */
 export type OrderSummary = {
-  id: number
+  id: OrderId
   status: OrderStatus
   totalCents: number
   placedAt: Timestamp
@@ -13,12 +14,13 @@ export type OrderSummary = {
 
 export async function findCustomerOrders(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<readonly OrderSummary[]> {
   const orders = await db
     .selectFrom('orders')
     .select(['id', 'status', 'totalCents', 'placedAt'])
     .where('customerId', '=', customerId)
+    .orderBy('placedAt', 'desc')
     .orderBy('id', 'desc')
     .execute()
 
@@ -32,6 +34,7 @@ export async function findCustomerOrders(
       'in',
       orders.map((order) => order.id),
     )
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 

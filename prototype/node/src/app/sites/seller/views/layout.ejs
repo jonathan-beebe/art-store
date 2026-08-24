@@ -26,6 +26,7 @@
           <li><a href="/seller/account" class="hover:text-neutral-900">Account</a></li>
           <li>
             <form method="post" action="/seller/logout">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
               <button type="submit" class="cursor-pointer hover:text-neutral-900">Sign out</button>
             </form>
           </li>

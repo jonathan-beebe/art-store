@@ -32,6 +32,6 @@ it('tells each seller their own share of the order', function (): void {
         $fulfillment->seller,
         ItemSold::class,
         fn (ItemSold $notification): bool => $notification->toArray($fulfillment->seller)['body']
-            === "Order #{$order->id} is paid. {$fulfillment->net()->format()} is held until the customer confirms delivery.",
+            === "Order {$order->id} is paid. {$fulfillment->net()->format()} is held until the customer confirms delivery.",
     );
 });

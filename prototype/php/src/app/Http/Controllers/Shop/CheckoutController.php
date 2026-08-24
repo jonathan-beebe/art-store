@@ -8,30 +8,34 @@ use App\Actions\Auth\SendMagicLink;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
+use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Cart\CartTotals;
 use App\Domain\DomainRuleViolation;
+use App\Domain\Orders\BlockedLine;
 use App\Domain\Orders\OrderPayment;
+use App\Domain\Orders\OrderPlacementRefused;
+use App\Domain\RateLimiting\RateLimitExceeded;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\CheckoutRequest;
+use App\Models\Cart;
+use App\Models\Customer;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 final class CheckoutController extends ShopController
 {
     public function show(): View|RedirectResponse
     {
         $visitor = $this->visitor();
-        $cart = $visitor->currentCart()->load('items.listing.seller');
+        $cart = $visitor->cart()->load('items.listing.seller');
 
         if ($cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
         }
 
-        return view('shop.checkout', [
-            'cart' => $cart,
-            'totals' => CartTotals::from($cart->lines()),
-            'visitor' => $visitor,
-            'isVerified' => $visitor->isVerified(),
-        ]);
+        return view('shop.checkout', $this->viewData($cart, $visitor));
     }
 
     /**
@@ -44,9 +48,10 @@ final class CheckoutController extends ShopController
         PlaceOrder $placeOrder,
         FinalizeOrder $finalizeOrder,
         SendMagicLink $sendMagicLink,
-    ): RedirectResponse {
+        RateLimitGate $rateLimit,
+    ): View|RedirectResponse|Response {
         $visitor = $this->visitor();
-        $cart = $visitor->currentCart();
+        $cart = $visitor->cart();
 
         if ($cart->items()->doesntExist()) {
             return redirect()->route('shop.cart');
@@ -56,10 +61,44 @@ final class CheckoutController extends ShopController
         $now = $this->now();
 
         try {
+            $rateLimit->check(RateLimitName::Checkout, (string) $visitor->id);
+
+            // An unverified guest leaves this method with a magic link
+            // rather than a receipt (below), so that budget is spent here
+            // too — ahead of placing the order, the same as the checkout
+            // budget just above, so a trip on either leaves no order behind.
+            if (! $purchaser->isEmailVerified()) {
+                $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
+                    'email:'.hash('sha256', EmailNormalizer::normalize($request->email())),
+                    'ip:'.$request->ip(),
+                ]);
+            }
+
             $order = $placeOrder($cart, $purchaser, $request->toShippingAddress(), $now);
+        } catch (RateLimitExceeded $exceeded) {
+            $request->flash();
+
+            return $this->tooManyRequests(
+                $exceeded,
+                'shop.checkout',
+                $this->viewData($visitor->cart()->load('items.listing.seller'), $visitor),
+            );
+        } catch (OrderPlacementRefused $refusal) {
+            // Checkout is where the shopper is already looking at every
+            // line: the whole cart re-renders with each blocked one named,
+            // rather than a redirect that loses the form to fill in again.
+            // `flash()` leaves the card fields behind (`ShopRequest`).
+            $request->flash();
+
+            return response()->view(
+                'shop.checkout',
+                $this->viewData($visitor->cart()->load('items.listing.seller'), $visitor, $refusal->blocked),
+                422,
+            );
         } catch (DomainRuleViolation $violation) {
-            // The cart is where the shopper can act on the refusal: it still
-            // holds every line, and the one the message names is marked there.
+            // A refusal that is not about a specific line — the customer's
+            // own standing — sends the shopper to the cart instead: it still
+            // holds every line, and there is no per-line blame to show here.
             return redirect()->route('shop.cart')->withErrors($violation->getMessage());
         }
 
@@ -77,5 +116,20 @@ final class CheckoutController extends ShopController
         );
 
         return redirect()->route('shop.order', $order);
+    }
+
+    /**
+     * @param  list<BlockedLine>  $blocked
+     * @return array<string, mixed>
+     */
+    private function viewData(Cart $cart, Customer $visitor, array $blocked = []): array
+    {
+        return [
+            'cart' => $cart,
+            'totals' => CartTotals::from($cart->lines()),
+            'visitor' => $visitor,
+            'isVerified' => $visitor->isVerified(),
+            'blocked' => $blocked,
+        ];
     }
 }

@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../../ids.ts'
 import { sellerAccounts, sellerOptions } from './seller-accounts.ts'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
@@ -26,6 +27,7 @@ test('a seller with no activity shows a zeroed, reconciled row', async (t) => {
       availableCents: 0,
       paidOutCents: 0,
       payoutTotalCents: 0,
+      refundedCents: 0,
       reconciles: true,
       lifetimeSubtotalCents: 0,
       lifetimeFeeCents: 0,
@@ -131,6 +133,7 @@ test('a payout total that does not match the ledger does not reconcile', async (
   await world.db
     .insertInto('payouts')
     .values({
+      id: newId('pyt', new Date()),
       sellerId,
       periodStart: '2026-08-24',
       periodEnd: '2026-08-30',
@@ -151,6 +154,7 @@ test('sellerOptions names a seller by shop name and falls back to the address be
   const unnamedId = await world.db
     .insertInto('sellers')
     .values({
+      id: newId('sel', new Date()),
       email: 'unnamed@example.test',
       name: null,
       shopName: null,
@@ -175,6 +179,7 @@ test('sellerOptions falls back to the address before the @, not a blank shop nam
   const sellerId = await world.db
     .insertInto('sellers')
     .values({
+      id: newId('sel', new Date()),
       email: 'blank-name@example.test',
       name: null,
       shopName: '   ',

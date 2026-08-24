@@ -4,15 +4,15 @@ import type { LightMyRequestResponse } from 'fastify'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import type { Clock } from '../../../clock.ts'
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import {
   buildTestApp,
   signInAsAdmin,
-  TEST_CONFIG,
   TEST_INSTANT,
   type TestApp,
 } from '../../../test/build-test-app.ts'
 import { createCustomer, createListing, createSeller, paidOrder } from '../../../test/commerce-world.ts'
-import { captureLogLines } from '../../../test/log-lines.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 
 const PLACED_AT = new Date('2026-08-20T09:00:00.000Z')
 const SHIPPED_AT = new Date('2026-08-20T11:00:00.000Z')
@@ -33,7 +33,7 @@ function travellingClock(instant: Date): TravellingClock {
 
 async function deliverASale(
   context: { db: Awaited<ReturnType<typeof buildTestApp>>['db']; clock: TravellingClock },
-  sellerId: number,
+  sellerId: SellerId,
   priceCents: number,
 ): Promise<void> {
   const customerId = await createCustomer(context)
@@ -221,14 +221,10 @@ test('a bodiless run POST falls back to the clock’s today instead of failing',
   assert.equal(flashNotice(testApp, response), 'No seller had a released balance to pay for 2026-08-17 to 2026-08-23.')
 })
 
-test('running a payout logs a payout.run event with the count and total paid', async (t) => {
+test('running a payout tells the payout.run story with the count and total paid', async (t) => {
   const clock = travellingClock(PLACED_AT)
-  const stream = captureLogLines()
-  const testApp = await buildTestApp({
-    clock,
-    config: { ...TEST_CONFIG, logLevel: 'info' },
-    loggerStream: stream,
-  })
+  const testApp = await buildLoggedTestApp({ clock })
+  const log = testApp.logLines
   t.after(testApp.close)
 
   const admin = await signInAsAdmin(testApp)
@@ -247,9 +243,12 @@ test('running a payout logs a payout.run event with the count and total paid', a
     payload: { as_of: '2026-08-24' },
   })
 
-  const line = stream.lines().find((entry) => entry.event === 'payout.run')
-  assert.equal(line?.count, 2)
-  assert.equal(line?.totalCents, 49_500)
+  const run = log.data('payout.run', 'did')
+  assert.equal(run.count, 2)
+  assert.equal(run.total_cents, 49_500)
+  assert.equal(log.linesFor('payout.pay').length, 2)
+  // Both sellers were paid inside the one unit of work the run opened.
+  assert.equal(new Set(log.linesFor('payout.pay').map((line: Record<string, unknown>) => line.txn_id)).size, 1)
 })
 
 function flashNotice(testApp: TestApp, response: LightMyRequestResponse): string {

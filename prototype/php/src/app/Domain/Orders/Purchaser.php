@@ -10,7 +10,7 @@ use DateTimeImmutable;
 final readonly class Purchaser
 {
     private function __construct(
-        public int $customerId,
+        public string $customerId,
         public ?string $email,
         public ?DateTimeImmutable $emailVerifiedAt,
     ) {}
@@ -19,7 +19,7 @@ final readonly class Purchaser
      * The purchaser their account already describes, with no form field in
      * play — a re-paid order, a seeded history, a test fixture.
      */
-    public static function onAccount(int $customerId, ?string $email, ?DateTimeImmutable $emailVerifiedAt): self
+    public static function onAccount(string $customerId, ?string $email, ?DateTimeImmutable $emailVerifiedAt): self
     {
         return new self($customerId, $email, $emailVerifiedAt);
     }
@@ -29,7 +29,7 @@ final readonly class Purchaser
      * submitted field cannot move an order onto someone else's identity.
      */
     public static function forCheckout(
-        int $customerId,
+        string $customerId,
         ?string $accountEmail,
         ?DateTimeImmutable $emailVerifiedAt,
         string $submittedEmail,

@@ -7,17 +7,29 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Listings\RecordListingEvent;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
+use App\Logging\StoryEvent;
 use App\Models\Listing;
+use App\Support\Story;
 use Illuminate\Contracts\View\View;
 
 final class ListingController extends ShopController
 {
     public function __invoke(Listing $listing, RecordListingEvent $recordListingEvent): View
     {
-        abort_unless($listing->status->isOnStorefront(), 404);
+        abort_unless($listing->isOnStorefront(), 404);
 
         $visitor = $this->visitor();
-        $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
+        $event = $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
+
+        // A repeat view within the hour writes no row (RecordListingEvent
+        // returns null), so the story reads it as a refusal rather than a
+        // second `did` for the same visit.
+        $story = Story::for(StoryEvent::ListingView);
+        $data = ['listing_id' => $listing->id, 'seller_id' => $listing->seller_id];
+
+        $event === null
+            ? $story->refused('collapsed a repeat view into the hour already recorded', $data)
+            : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
 
         return view('shop.listing', [
             'listing' => $listing->load('seller', 'faqs'),

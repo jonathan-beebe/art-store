@@ -5,14 +5,25 @@
  *
  * A migration and its row type land together: whoever creates a table adds its
  * type here and touches no other line.
+ *
+ * Every key is a text prefixed ULID the application mints, so `id` is a plain
+ * required column rather than something the database generates, and a foreign
+ * key carries the referenced table's own id type: a `ListingId` will not go
+ * where an `OrderId` belongs.
  */
-import type { Generated } from 'kysely'
 import type { ActorType } from '../core/auth/actor-type.ts'
+import type {
+  AdminId,
+  CustomerId,
+  CustomerMergeId,
+  MagicLinkId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import type { CommerceTables } from './commerce-schema.ts'
 import type { Timestamp } from './timestamp.ts'
 
 export type SellerTable = {
-  id: Generated<number>
+  id: SellerId
   email: string
   name: string | null
   shopName: string | null
@@ -22,7 +33,7 @@ export type SellerTable = {
 
 /** `email` is null until a link verifies one: every visitor gets a row on arrival. */
 export type CustomerTable = {
-  id: Generated<number>
+  id: CustomerId
   email: string | null
   name: string | null
   emailVerifiedAt: Timestamp | null
@@ -30,14 +41,14 @@ export type CustomerTable = {
 }
 
 export type AdminTable = {
-  id: Generated<number>
+  id: AdminId
   email: string
   name: string
   createdAt: Timestamp
 }
 
 export type MagicLinkTable = {
-  id: Generated<number>
+  id: MagicLinkId
   tokenDigest: string
   email: string
   actorType: ActorType
@@ -49,9 +60,9 @@ export type MagicLinkTable = {
 
 /** Points a cookie still holding `anonymousCustomerId` forward to `customerId`. */
 export type CustomerMergeTable = {
-  id: Generated<number>
-  anonymousCustomerId: number
-  customerId: number
+  id: CustomerMergeId
+  anonymousCustomerId: CustomerId
+  customerId: CustomerId
   createdAt: Timestamp
 }
 

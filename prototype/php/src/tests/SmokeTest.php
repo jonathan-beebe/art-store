@@ -247,7 +247,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
         $this->get('/seller/notifications')
             ->assertOk()
             ->assertSee('Item sold')
-            ->assertSee("Order #{$order->id} is paid.");
+            ->assertSee("Order {$order->id} is paid.");
 
         $fulfillment = Fulfillment::sole();
         expect($fulfillment->status)->toBe(FulfillmentStatus::AwaitingShipment);

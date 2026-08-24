@@ -11,8 +11,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('orders', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->string('email')->nullable();
             $table->string('status');
             $table->string('shipping_name');
@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('shipping_country');
             $table->unsignedInteger('subtotal_cents');
             $table->unsignedInteger('total_cents');
+            $table->unsignedInteger('refunded_cents')->default(0);
             $table->timestamp('placed_at');
             $table->timestamp('finalized_at')->nullable();
             $table->timestamps();

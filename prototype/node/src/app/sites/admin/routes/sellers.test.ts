@@ -102,7 +102,7 @@ test('the seller detail page shows listings, an active removal, fulfillments, an
   assert.match(response.body, new RegExp(`data-listing="${removedListing.id}"[^]*?Reported as counterfeit\\.`))
   assert.match(response.body, new RegExp(`data-listing="${okListing.id}"`))
   assert.match(response.body, /data-cell="net"[^]*?\$405\.00</)
-  assert.match(response.body, /href="\/admin\/listings\/\d+"/)
+  assert.match(response.body, /href="\/admin\/listings\/lst_[0-9A-HJKMNP-TV-Z]{26}"/)
 })
 
 test('the seller detail page titles a blank shop name by the address before the @, not the whole address', async (t) => {

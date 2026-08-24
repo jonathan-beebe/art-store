@@ -1,5 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  OrderId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import { conversationTopicOf, conversationTopics } from './conversation-topics.ts'
 import { openConversation } from './open-conversation.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
@@ -48,12 +55,13 @@ async function admin(context: ActionContext) {
 
 async function insertFulfillment(
   db: AppDatabase,
-  sellerId: number,
-  customerId: number,
-): Promise<{ id: number; orderId: number }> {
+  sellerId: SellerId,
+  customerId: CustomerId,
+): Promise<{ id: FulfillmentId; orderId: OrderId }> {
   const order = await db
     .insertInto('orders')
     .values({
+      id: newId('ord', new Date()),
       customerId,
       email: null,
       status: 'paid',
@@ -76,6 +84,7 @@ async function insertFulfillment(
   const fulfillment = await db
     .insertInto('fulfillments')
     .values({
+      id: newId('ful', new Date()),
       orderId: order.id,
       sellerId,
       status: 'awaiting_shipment',
@@ -84,6 +93,7 @@ async function insertFulfillment(
       subtotalCents: 45_000,
       feeCents: 4_500,
       netCents: 40_500,
+      createdAt: NOW.toISOString(),
       shippedAt: null,
       deliveredAt: null,
     })
@@ -131,7 +141,7 @@ test('conversationTopics names a fulfillment thread by its order number', async 
 
   const topics = await conversationTopics(world.context, [conversation])
 
-  assert.equal(topics.get(conversation.id), `order #${fulfillment.orderId}`)
+  assert.equal(topics.get(conversation.id), `order ${fulfillment.orderId}`)
 })
 
 test('conversationTopics names a listing question by the quoted listing title', async (t) => {

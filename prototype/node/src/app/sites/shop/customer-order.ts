@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import { cartLineTotal } from '../../core/cart/cart-line.ts'
+import type { OrderId } from '../../core/ids/entity-ids.ts'
 import type { Cents } from '../../core/money.ts'
 import type { OrderItem } from '../../db/commerce-schema.ts'
 import {
@@ -21,7 +22,7 @@ export type CustomerOrderView = Omit<CustomerOrder, 'fulfillments'> & {
 }
 
 /** Where a page under `/orders/:id` sends a visitor it will not serve. */
-export function customerOrderPath({ id }: { id: number }): string {
+export function customerOrderPath({ id }: { id: OrderId }): string {
   return `/orders/${id}`
 }
 
@@ -38,7 +39,7 @@ function withLineTotal(item: OrderItem): OrderItemView {
 export async function loadCustomerOrder(
   app: FastifyInstance,
   request: FastifyRequest,
-  orderId: number,
+  orderId: OrderId,
 ): Promise<CustomerOrderView | null> {
   const found = await findCustomerOrder(app.db, {
     orderId,

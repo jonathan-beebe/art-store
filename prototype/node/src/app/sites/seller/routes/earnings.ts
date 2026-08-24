@@ -5,7 +5,7 @@ import { statusLabel } from '../../../core/status-label.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate } from '../format.ts'
 import { fulfillmentsForSeller, itemTitlesByOrder } from '../queries/fulfillments.ts'
-import { payoutsForSeller } from '../queries/payouts.ts'
+import { ledgerEntriesForSeller, payoutsForSeller } from '../queries/payouts.ts'
 
 async function show(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
   const { db } = request.server
@@ -19,6 +19,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
   )
   const balance = await sellerBalance({ db }, sellerId)
   const payouts = await payoutsForSeller(db, sellerId)
+  const movements = await ledgerEntriesForSeller(db, sellerId)
 
   return reply.render('earnings/show', {
     title: 'Earnings',
@@ -26,6 +27,7 @@ async function show(request: FastifyRequest, reply: FastifyReply): Promise<Fasti
     itemTitles,
     balance,
     payouts,
+    movements,
     statusLabel,
     formatCents,
     formatDate,

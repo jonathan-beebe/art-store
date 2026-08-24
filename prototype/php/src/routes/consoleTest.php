@@ -14,3 +14,13 @@ it('schedules the weekly payout for the Monday after the period closes', functio
     expect($runs)->toHaveCount(1)
         ->and($runs[0]->expression)->toBe('0 2 * * 1');
 });
+
+it('schedules the stale-order sweep every hour', function (): void {
+    $runs = array_values(array_filter(
+        app(Schedule::class)->events(),
+        fn (Event $event): bool => str_contains((string) $event->command, 'orders:sweep'),
+    ));
+
+    expect($runs)->toHaveCount(1)
+        ->and($runs[0]->expression)->toBe('0 * * * *');
+});

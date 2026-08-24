@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\MagicLink;
 use App\Models\Seller;
 use App\Support\CustomerIdentity;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Session;
+use Tests\CapturedStory;
 
 $flashedLink = fn (): string => Arr::string(Session::all(), 'debug_magic_link');
 
@@ -81,6 +84,25 @@ it('refuses an unknown token', function (): void {
 
     $response->assertRedirect(route('auth.customer.login'));
     $response->assertSessionHas('error', 'That sign-in link is not valid. Ask for a new one.');
+});
+
+it('signs nobody in when the link is consumed between the read and the write', function () use ($sellerLinkFor): void {
+    $url = $sellerLinkFor('artist@example.com');
+
+    // The other verification lands after this request read the row and before
+    // it wrote to it — the window the row count closes. Writing through the
+    // query builder leaves the instance the request is holding stale, which
+    // is what the losing side of a real race is holding too.
+    MagicLink::retrieved(fn (MagicLink $link) => MagicLink::query()
+        ->whereKey($link->id)
+        ->update(['consumed_at' => now()]));
+
+    $response = $this->get($url);
+
+    $response->assertRedirect(route('auth.seller.login'));
+    $response->assertSessionHas('error', 'That sign-in link has already been used. Ask for a new one.');
+    $this->assertGuest('seller');
+    expect(Seller::count())->toBe(0);
 });
 
 it('marks the link consumed on verification', function () use ($sellerLinkFor): void {
@@ -207,4 +229,45 @@ it('keeps an admin link out of the seller portal', function () use ($flashedLink
     $response = $this->get($flashedLink());
 
     $response->assertRedirect(route('admin.dashboard'));
+});
+
+it('trips the verification limit by ip, answering 429 before the link is even read', function () use ($customerLinkFor): void {
+    Config::set('rate_limits.magic_link_consume', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_CONSUME'));
+    $link = $customerLinkFor('shopper@example.com');
+    $this->get($link);
+
+    $response = $this->get('/auth/magic/'.str_repeat('a1b2', 20));
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+});
+
+it('resets the verification limit once its window passes', function () use ($customerLinkFor): void {
+    Config::set('rate_limits.magic_link_consume', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_CONSUME'));
+    $this->get($customerLinkFor('first@example.com'));
+
+    $this->travel(16)->minutes();
+    $link = $customerLinkFor('second@example.com');
+    $response = $this->get($link);
+
+    $response->assertRedirect(route('shop.account'));
+});
+
+it('logs the verification trip as rate_limit.exceed at warn, keyed by ip', function () use ($customerLinkFor): void {
+    Config::set('rate_limits.magic_link_consume', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_CONSUME'));
+    $this->get($customerLinkFor('shopper@example.com'));
+
+    $log = CapturedStory::capture();
+    $this->get('/auth/magic/'.str_repeat('a1b2', 20));
+
+    $line = $log->line('rate_limit.exceed', 'refused');
+
+    /** @var array<string, mixed> $data */
+    $data = $line['data'];
+
+    expect($line['level'])->toBe('warn')
+        ->and($data['limit'])->toBe('magic_link_consume')
+        ->and($data['key'])->toStartWith('ip:')
+        ->and($log->linesFor('magic_link.consume'))->toBeEmpty();
 });

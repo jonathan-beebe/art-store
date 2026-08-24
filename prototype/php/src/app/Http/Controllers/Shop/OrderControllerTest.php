@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Fulfillment\ConfirmDelivered;
+use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Customer;
@@ -95,4 +96,46 @@ it('offers a form to message the seller for each fulfillment', function () use (
 
     $response->assertSee('Message the seller');
     $response->assertSee(route('shop.order.messages', [$order, $fulfillment]), escape: false);
+});
+
+it('answers not found for a value that is not an order id, the same as an unknown one', function (string $id): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $this->get("/orders/{$id}")->assertNotFound();
+})->with([
+    'another table prefix' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'an order that does not exist' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);
+
+it('offers to cancel an order nothing has been charged for', function (): void {
+    $customer = $this->visitor();
+    $order = $this->orderFor($customer, $this->listing($this->seller()));
+
+    $response = $this->get("/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('Cancel this order');
+});
+
+it('stops offering to cancel once the card cleared', function () use ($paidOrderFor): void {
+    $order = $paidOrderFor($this->visitor());
+
+    $response = $this->get("/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Cancel this order');
+});
+
+it('shows a declined fulfillment with its reason and the amount refunded', function () use ($paidOrderFor): void {
+    $order = $paidOrderFor($this->visitor());
+    app(DeclineFulfillment::class)($order->fulfillments()->sole(), 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $response = $this->get("/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('Declined');
+    $response->assertSee('The kiln cracked the glaze.');
+    $response->assertSee('$245.00 refunded');
 });

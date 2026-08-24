@@ -9,6 +9,7 @@ use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use DomainException;
 
@@ -62,3 +63,14 @@ it('refuses a fulfillment that never shipped', function (): void {
 
     app(ConfirmDelivered::class)($order->fulfillments()->sole(), $this->moment('2026-08-23 14:00:00'));
 })->throws(DomainException::class);
+
+it('judges the transition against the row it locks, not the instance it was handed', function (): void {
+    $fulfillment = $this->shippedFulfillmentFor($this->seller(), priceCents: 45000);
+    $stale = Fulfillment::query()->findOrFail($fulfillment->id);
+    app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00'));
+
+    expect(fn () => app(ConfirmDelivered::class)($stale, $this->moment('2026-08-24 14:00:00')))
+        ->toThrow(DomainRuleViolation::class, 'delivered to delivered');
+
+    expect(LedgerEntry::query()->where('type', LedgerEntryType::Released)->count())->toBe(1);
+});

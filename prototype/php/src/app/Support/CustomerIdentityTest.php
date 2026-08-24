@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Customers\ResolveCustomerFromCookie;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 
@@ -48,4 +49,19 @@ it('has no current customer when nothing was attached', function (): void {
     app()->instance('request', Request::create('/'));
 
     expect(CustomerIdentity::current())->toBeNull();
+});
+
+it('resolves the cookie once and answers every later ask from the request', function (): void {
+    $customer = $this->anonymousCustomer();
+    $request = Request::create('/', 'GET', [], [CustomerIdentity::COOKIE => (string) $customer->id]);
+    $resolve = app(ResolveCustomerFromCookie::class);
+
+    $first = CustomerIdentity::fromCookie($request, $resolve);
+    // Whatever the second ask reads, it is not the database: the row the
+    // cookie names is gone by the time it is made.
+    $customer->delete();
+    $second = CustomerIdentity::fromCookie($request, $resolve);
+
+    expect($first?->is($customer))->toBeTrue()
+        ->and($second)->toBe($first);
 });

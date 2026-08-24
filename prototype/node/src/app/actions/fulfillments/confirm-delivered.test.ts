@@ -1,5 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  OrderId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { confirmDelivered } from './confirm-delivered.ts'
 import { markShipped } from './mark-shipped.ts'
 import { sellerBalance } from '../escrow/seller-balance.ts'
@@ -81,7 +88,7 @@ test('it refuses a fulfillment that has not shipped', async (t) => {
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
   await assert.rejects(
-    () => confirmDelivered(context, fulfillmentId ?? 0),
+    () => confirmDelivered(context, fulfillmentId ?? fixtureId('ful', 0)),
     /cannot move from awaiting_shipment to delivered/,
   )
 })
@@ -90,17 +97,17 @@ test('it refuses a fulfillment that has not shipped', async (t) => {
 async function shippedFulfillmentId(
   context: ActionContext,
   db: AppDatabase,
-  buyer: number,
-  sellerId: number,
-): Promise<number> {
+  buyer: CustomerId,
+  sellerId: SellerId,
+): Promise<FulfillmentId> {
   const art = await createListing(context, sellerId)
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(db, order.id)
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
-  return fulfillmentId ?? 0
+  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
+  return fulfillmentId ?? fixtureId('ful', 0)
 }
 
-async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[]> {
+async function fulfillmentIds(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .select('id')
@@ -115,7 +122,7 @@ async function readReleasedEntry(db: AppDatabase) {
   return db.selectFrom('ledgerEntries').selectAll().where('entryType', '=', 'released').executeTakeFirst()
 }
 
-async function readOrderStatus(db: AppDatabase, fulfillmentId: number): Promise<string> {
+async function readOrderStatus(db: AppDatabase, fulfillmentId: FulfillmentId): Promise<string> {
   const fulfillment = await db
     .selectFrom('fulfillments')
     .innerJoin('orders', 'orders.id', 'fulfillments.orderId')

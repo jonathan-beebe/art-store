@@ -49,7 +49,7 @@ it('names the desk for the two support kinds', function (ConversationKind $kind)
 ]);
 
 it('names the order for a fulfillment thread', function (): void {
-    expect(ConversationKind::Fulfillment->topic(42, null))->toBe('Order #42');
+    expect(ConversationKind::Fulfillment->topic('ord_00000000000000000000000001', null))->toBe('Order ord_00000000000000000000000001');
 });
 
 it('names the listing for a listing question', function (): void {

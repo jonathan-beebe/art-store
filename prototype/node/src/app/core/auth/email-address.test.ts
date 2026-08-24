@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { normalizeEmail, isEmailAddress } from './email-address.ts'
+import { isEmailAddress, normalizeEmail, redactedEmail } from './email-address.ts'
 
 test('normalizeEmail lowercases', () => {
   assert.equal(normalizeEmail('Artist@Example.COM'), 'artist@example.com')
@@ -60,4 +60,24 @@ test('isEmailAddress rejects a leading @ with no local part', () => {
 
 test('isEmailAddress rejects a domain with a trailing dot and nothing after', () => {
   assert.equal(isEmailAddress('artist@example.'), false)
+})
+
+test('redactedEmail never contains the address it redacts', () => {
+  assert.equal(redactedEmail('artist@example.com').includes('artist'), false)
+})
+
+test('redactedEmail is deterministic for the same address', () => {
+  assert.equal(redactedEmail('artist@example.com'), redactedEmail('artist@example.com'))
+})
+
+test('redactedEmail ignores case and surrounding whitespace, like normalizeEmail', () => {
+  assert.equal(redactedEmail('Artist@Example.COM'), redactedEmail('  artist@example.com  '))
+})
+
+test('redactedEmail differs for a different address', () => {
+  assert.notEqual(redactedEmail('artist@example.com'), redactedEmail('other@example.com'))
+})
+
+test('redactedEmail is a 16-character hex digest', () => {
+  assert.match(redactedEmail('artist@example.com'), /^[0-9a-f]{16}$/)
 })

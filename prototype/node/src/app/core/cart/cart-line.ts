@@ -1,8 +1,9 @@
 import type { Cents } from '../money.ts'
 import { multiplyCents } from '../money.ts'
+import type { SellerId } from '../ids/entity-ids.ts'
 
 export type CartLine = {
-  sellerId: number
+  sellerId: SellerId
   unitPriceCents: Cents
   quantity: number
 }

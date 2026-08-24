@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { OutboxMessageId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
+import { actionStep } from '../action-story.ts'
 import type { OutboxMessage } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { renderOutboxMessage } from '../../delivery/outbox-message.ts'
@@ -11,7 +13,7 @@ export type DrainOutboxOptions = {
 }
 
 export type DrainedMessage = {
-  id: number
+  id: OutboxMessageId
   recipient: string
   subject: string
   file: string
@@ -24,13 +26,15 @@ export type DrainedMessage = {
  * message already on disk must not be un-stamped by a later rollback.
  */
 export async function drainOutbox(
-  { db, clock }: ActionContext,
+  context: ActionContext,
   { outboxDir }: DrainOutboxOptions,
 ): Promise<readonly DrainedMessage[]> {
+  const { db, clock } = context
   const pending = await db
     .selectFrom('outboxMessages')
     .selectAll()
     .where('deliveredAt', 'is', null)
+    .orderBy('createdAt', 'asc')
     .orderBy('id', 'asc')
     .execute()
 
@@ -49,6 +53,10 @@ export async function drainOutbox(
       .execute()
 
     drained.push({ id: message.id, recipient: message.recipient, subject: message.subject, file })
+    actionStep(context, 'notification.deliver', {
+      msg: `wrote ${file}`,
+      data: { outbox_message_id: message.id, file },
+    })
   }
 
   return drained

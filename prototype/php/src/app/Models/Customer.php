@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Customers\StandingFilter;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Override;
@@ -23,7 +29,13 @@ class Customer extends Authenticatable
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
+    use HasPrefixedUlid;
     use Notifiable;
+
+    public static function idPrefix(): string
+    {
+        return 'cus';
+    }
 
     /**
      * @return array<string, string>
@@ -52,6 +64,39 @@ class Customer extends Authenticatable
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    /**
+     * Every line in every cart the customer holds, so a page counts or lists
+     * them without walking the carts first.
+     *
+     * @return HasManyThrough<CartItem, Cart, $this>
+     */
+    public function cartItems(): HasManyThrough
+    {
+        return $this->hasManyThrough(CartItem::class, Cart::class);
+    }
+
+    /**
+     * Merges this customer absorbed: an anonymous visitor's rows folded into
+     * this account when they verified an address.
+     *
+     * @return HasMany<CustomerMerge, $this>
+     */
+    public function mergesAsCustomer(): HasMany
+    {
+        return $this->hasMany(CustomerMerge::class);
+    }
+
+    /**
+     * The merge that folded this row into someone else, which only an
+     * anonymous customer has.
+     *
+     * @return HasMany<CustomerMerge, $this>
+     */
+    public function mergesAsAnonymous(): HasMany
+    {
+        return $this->hasMany(CustomerMerge::class, 'anonymous_customer_id');
     }
 
     /** @return BelongsToMany<Listing, $this> */
@@ -87,7 +132,7 @@ class Customer extends Authenticatable
     /** @return HasOne<CustomerBlock, $this> */
     public function activeBlock(): HasOne
     {
-        return $this->blocks()->one()->whereNull('lifted_at')->latestOfMany();
+        return $this->blocks()->one()->whereNull('lifted_at')->latestOfMany('created_at');
     }
 
     /**
@@ -119,18 +164,14 @@ class Customer extends Authenticatable
     }
 
     /**
-     * A merge hands the verified customer whatever cart the anonymous visitor
-     * was filling, so they can own two. The one holding items is the one the
-     * visitor was shopping with.
+     * A customer holds at most one cart — `MergeAnonymousCustomer` folds an
+     * anonymous visitor's cart into the verified customer's own rather than
+     * re-pointing it alongside, so there is never a second one to choose
+     * between.
      */
-    public function currentCart(): Cart
+    public function cart(): Cart
     {
-        return $this->carts()
-            ->withCount('items')
-            ->orderByDesc('items_count')
-            ->orderByDesc('id')
-            ->first()
-            ?? $this->carts()->create();
+        return $this->carts()->first() ?? $this->carts()->create();
     }
 
     /**
@@ -148,5 +189,80 @@ class Customer extends Authenticatable
     public function isVerified(): bool
     {
         return $this->email_verified_at !== null;
+    }
+
+    /**
+     * What the admin console calls this customer: their name, the address
+     * they verified, or — for a visitor who has given neither — their id.
+     */
+    public function displayName(): string
+    {
+        return $this->name ?? $this->email ?? $this->id;
+    }
+
+    /**
+     * Everything the admin console's customer page reads off this row. Two
+     * routes render that page — the page itself, and the message form on it
+     * handing the page back when the message-post budget is spent — so the
+     * eager loads it needs are named here once.
+     */
+    public function loadForConsole(): static
+    {
+        return $this->load([
+            'activeBlock',
+            'orders' => fn (Relation $orders) => $orders->withCount('items')->orderByDesc('placed_at')->orderByDesc('id'),
+            'blocks' => fn (Relation $blocks) => $blocks->orderByDesc('created_at')->orderByDesc('id'),
+            'favorites.listing',
+            'cartItems.listing',
+            'mergesAsCustomer',
+            'mergesAsAnonymous',
+        ]);
+    }
+
+    /**
+     * Takes the rows a moderation decision is judged against for update. A
+     * block is refused when one already stands, and that check reads the
+     * `customer_blocks` table rather than this row, so nothing there keeps
+     * two admins apart: both read no active block and both insert one. The
+     * customer row they each have to take first is what serialises them.
+     * SQLite, which the prototype develops and tests on, has no row lock and
+     * serialises writers instead; its grammar compiles the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForModeration(Builder $query): void
+    {
+        $query->lockForUpdate();
+    }
+
+    /**
+     * Re-reads this row for update inside the caller's transaction, the way
+     * `Fulfillment::takeForTransition` re-reads the row a transition is
+     * judged against.
+     */
+    public function takeForModeration(): static
+    {
+        /** @var static $locked */
+        $locked = $this->newQuery()->whereKey($this->getKey())->lockedForModeration()->sole();
+
+        return $this->setRawAttributes($locked->getAttributes(), sync: true);
+    }
+
+    /**
+     * The admin customers list, narrowed to one standing. `All` adds no
+     * clause at all, which is what an empty filter asks for.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function inStanding(Builder $query, StandingFilter $standing): void
+    {
+        match ($standing) {
+            StandingFilter::All => $query,
+            StandingFilter::Verified => $query->whereNotNull('email_verified_at'),
+            StandingFilter::Anonymous => $query->whereNull('email'),
+            StandingFilter::Blocked => $query->whereHas('blocks', fn (Builder $blocks): Builder => $blocks->whereNull('lifted_at')),
+        };
     }
 }

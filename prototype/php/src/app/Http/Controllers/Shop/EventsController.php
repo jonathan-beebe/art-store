@@ -13,9 +13,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * customer.identity middleware resolved, never to anything the request
  * carries.
  *
- * One open stream holds one `php artisan serve` worker for
- * UnreadCountStream::LIFETIME_SECONDS; docker-compose.yml sizes
- * PHP_CLI_SERVER_WORKERS with that cost in mind.
+ * One open stream holds one `php artisan serve` worker for as long as the
+ * tab stays open, up to UnreadCountStream::LIFETIME_SECONDS;
+ * docker-compose.yml sizes PHP_CLI_SERVER_WORKERS with that cost in mind.
  */
 final class EventsController extends ShopController
 {

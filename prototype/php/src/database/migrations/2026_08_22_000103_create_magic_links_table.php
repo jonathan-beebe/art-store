@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('magic_links', function (Blueprint $table): void {
-            $table->id();
+            $table->string('id', 30)->primary();
             $table->string('token_hash')->unique();
             $table->string('email');
             $table->string('actor_type');

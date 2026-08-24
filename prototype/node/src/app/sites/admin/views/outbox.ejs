@@ -26,7 +26,7 @@
       <% rows.forEach((row) => { %>
       <tr data-outbox-message="<%= row.id %>">
         <th scope="row" class="px-4 py-2 font-normal">
-          <a href="/admin/outbox/<%= row.id %>" class="font-medium underline">#<%= row.id %></a>
+          <a href="/admin/outbox/<%= row.id %>" class="font-medium underline"><%= row.id %></a>
         </th>
         <td data-cell="recipient" class="px-4 py-2"><%= row.recipient %></td>
         <td data-cell="subject" class="px-4 py-2"><%= row.subject %></td>
@@ -44,6 +44,7 @@
 <section aria-labelledby="drain-outbox-heading" class="mt-6">
   <h2 id="drain-outbox-heading" class="font-semibold text-neutral-700">Send what is waiting</h2>
   <form method="post" action="/admin/outbox/drain" class="mt-2">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <button type="submit" class="rounded border border-neutral-400 bg-white px-4 py-2 font-medium">
       Drain the outbox
     </button>

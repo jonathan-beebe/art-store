@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -11,12 +12,7 @@ import {
 } from '../../../test/build-test-app.ts'
 import { createForSaleListing } from '../test-fixtures.ts'
 
-function flashCookieOf(response: { cookies: { name: string; value: string }[] }): Record<string, string> {
-  const flash = response.cookies.find((cookie) => cookie.name === 'flash')
-  return flash ? { flash: String(flash.value) } : {}
-}
-
-async function openListingQuestion(testApp: TestApp, sellerId: number, listingId: number) {
+async function openListingQuestion(testApp: TestApp, sellerId: SellerId, listingId: ListingId) {
   const { db, clock } = testApp
   const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
   const conversation = await openConversation(
@@ -118,7 +114,7 @@ test('posting a reply appends the message and redirects to the thread', async (t
   assert.equal(message.body, 'Sure, framed in oak.')
 })
 
-test('an empty reply flashes and appends nothing', async (t) => {
+test('an empty reply re-renders the thread with a field error and appends nothing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -132,7 +128,8 @@ test('an empty reply flashes and appends nothing', async (t) => {
     payload: { body: '   ' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="body"[^>]*>Write a message before sending\./)
   const messages = await testApp.db
     .selectFrom('messages')
     .selectAll()
@@ -140,13 +137,6 @@ test('an empty reply flashes and appends nothing', async (t) => {
     .where('senderType', '=', 'seller')
     .execute()
   assert.equal(messages.length, 0)
-
-  const follow = await testApp.app.inject({
-    method: 'GET',
-    url: `/seller/messages/${conversation.id}`,
-    cookies: { ...seller.cookies, ...flashCookieOf(response) },
-  })
-  assert.match(follow.body, /Write a message before sending\./)
 })
 
 test('a conversation id belonging to another seller answers 404 on the GET and the POST', async (t) => {
@@ -202,7 +192,7 @@ test('/seller/support opens the admin thread and reuses it on a second visit', a
 
   const first = await testApp.app.inject({ method: 'GET', url: '/seller/support', cookies: seller.cookies })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location ?? '', /^\/seller\/messages\/\d+$/)
+  assert.match(first.headers.location ?? '', /^\/seller\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({ method: 'GET', url: '/seller/support', cookies: seller.cookies })
   assert.equal(second.headers.location, first.headers.location)

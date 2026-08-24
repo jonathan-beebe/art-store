@@ -31,7 +31,7 @@
     <tbody class="divide-y divide-neutral-200">
       <% rows.forEach((payout) => { %>
       <tr data-payout="<%= payout.id %>">
-        <th scope="row" class="px-4 py-2 font-normal">#<%= payout.id %></th>
+        <th scope="row" class="px-4 py-2 font-normal"><%= payout.id %></th>
         <td data-cell="seller" class="px-4 py-2"><%= payout.sellerName %></td>
         <td data-cell="period" class="px-4 py-2"><%= payout.periodStart %> to <%= payout.periodEnd %></td>
         <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= formatCents(payout.amountCents) %></td>
@@ -46,6 +46,7 @@
 <section aria-labelledby="run-payout-heading" class="mt-6">
   <h2 id="run-payout-heading" class="font-semibold text-neutral-700">Run weekly payout</h2>
   <form method="post" action="/admin/payouts" class="mt-2 flex flex-wrap items-end gap-3">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
     <div>
       <label for="as_of" class="block text-neutral-600">As of</label>
       <input

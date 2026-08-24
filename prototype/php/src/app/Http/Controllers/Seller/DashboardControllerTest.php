@@ -99,8 +99,8 @@ it('makes a delivered order available', function (): void {
 
 it('counts unread notifications', function (): void {
     $seller = $this->seller();
-    $seller->notify(new ItemSold(41, Money::fromCents(9000)));
-    $seller->notify(new ItemSold(42, Money::fromCents(9000)));
+    $seller->notify(new ItemSold('ord_00000000000000000000000041', Money::fromCents(9000)));
+    $seller->notify(new ItemSold('ord_00000000000000000000000042', Money::fromCents(9000)));
     $seller->notifications()->firstOrFail()->markAsRead();
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
@@ -113,14 +113,14 @@ it('shows the five most recent notifications', function (): void {
     $this->freezeTime();
     foreach (range(1, 6) as $number) {
         $this->travel(1)->minutes();
-        $seller->notify(new ItemSold($number, Money::fromCents(9000)));
+        $seller->notify(new ItemSold(sprintf('ord_%026d', $number), Money::fromCents(9000)));
     }
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
     $response->assertViewHas('notifications', fn (Collection $notifications): bool => $notifications->count() === 5);
-    $response->assertSee('Order #6 is paid.');
-    $response->assertDontSee('Order #1 is paid.');
+    $response->assertSee('Order ord_00000000000000000000000006 is paid.');
+    $response->assertDontSee('Order ord_00000000000000000000000001 is paid.');
 });
 
 it('renders on a fixed number of queries however many rows the seller holds', function (): void {
@@ -131,7 +131,9 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
     $this->deliveredFulfillmentFor($seller, priceCents: 10000);
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(7)
         ->get('/seller');
 
     $response->assertOk();

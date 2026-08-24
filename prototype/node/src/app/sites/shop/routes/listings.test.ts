@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -74,7 +75,7 @@ test('the listing page carries a form to ask the seller a question', async (t) =
 })
 
 test('looking at a listing records a view against it', async (t) => {
-  const testApp = await buildTestApp()
+  const testApp = await buildLoggedTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
   const customer = await browseAsAnonymousCustomer(testApp)
@@ -95,6 +96,26 @@ test('looking at a listing records a view against it', async (t) => {
   assert.equal(events.length, 1)
   assert.equal(events[0]?.eventType, 'view')
   assert.equal(events[0]?.customerId, customer.id)
+
+  const did = testApp.logLines.line('listing.view', 'did')
+  assert.equal(did.level, 'debug')
+  assert.equal((did.data as { listing_id?: string }).listing_id, listing.id)
+})
+
+test('a second look inside the hour is refused rather than counted again', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const look = { method: 'GET' as const, url: '/art/harbour-at-dusk', cookies: customer.cookies }
+  await testApp.app.inject(look)
+  await testApp.app.inject(look)
+
+  const refused = testApp.logLines.line('listing.view', 'refused')
+  assert.equal(refused.level, 'debug')
+  assert.equal(refused.msg, 'this customer already viewed the listing this hour')
 })
 
 test('a sold listing keeps its page and says it is sold out', async (t) => {

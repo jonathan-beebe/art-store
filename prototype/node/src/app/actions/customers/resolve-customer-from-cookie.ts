@@ -1,4 +1,5 @@
 import type { Selectable } from 'kysely'
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
 import type { CustomerTable } from '../../db/schema.ts'
 import type { ActionContext } from '../action-context.ts'
 
@@ -11,7 +12,7 @@ import type { ActionContext } from '../action-context.ts'
  */
 export async function resolveCustomerFromCookie(
   { db }: Pick<ActionContext, 'db'>,
-  cookieId: number | null,
+  cookieId: CustomerId | null,
 ): Promise<Selectable<CustomerTable> | null> {
   if (cookieId === null) return null
 

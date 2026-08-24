@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customers', function (Blueprint $table): void {
-            $table->id();
+            $table->string('id', 30)->primary();
             // Null until the visitor verifies an address; anonymous rows are the
             // common case, so the unique index has to tolerate many of them.
             $table->string('email')->nullable()->unique();

@@ -8,7 +8,7 @@ import type { Kysely } from 'kysely'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('outbox_messages')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
     .addColumn('recipient', 'text', (column) => column.notNull())
     .addColumn('subject', 'text', (column) => column.notNull())
     .addColumn('body', 'text', (column) => column.notNull())
@@ -18,9 +18,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute()
 
   await db.schema
-    .createIndex('outbox_messages_delivered_at_id_index')
+    .createIndex('outbox_messages_delivered_at_created_at_index')
     .on('outbox_messages')
-    .columns(['delivered_at', 'id'])
+    .columns(['delivered_at', 'created_at'])
     .execute()
 }
 

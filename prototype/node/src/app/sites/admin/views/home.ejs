@@ -19,6 +19,8 @@
     <%- include('sites/admin/views/partials/stat', { key: 'available', label: 'Released, awaiting payout', value: formatCents(money.availableCents) }) %>
     <%- include('sites/admin/views/partials/stat', { key: 'paid-out', label: 'Paid out', value: formatCents(money.paidOutCents) }) %>
     <%- include('sites/admin/views/partials/stat', { key: 'fees-earned', label: 'Platform fees earned', value: formatCents(money.feesEarnedCents) }) %>
+    <%- include('sites/admin/views/partials/stat', { key: 'fees-refunded', label: 'Platform fees refunded', value: formatCents(money.feesRefundedCents) }) %>
+    <%- include('sites/admin/views/partials/stat', { key: 'refunded', label: 'Refunded to customers', value: formatCents(money.refundedCents) }) %>
   </dl>
 </section>
 

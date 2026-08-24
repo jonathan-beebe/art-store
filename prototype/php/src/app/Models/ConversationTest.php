@@ -115,7 +115,7 @@ it('reads a customer counterpart by name, falling back to their id', function ()
     $unnamed->load(['seller', 'customer', 'admin']);
 
     expect($named->counterpartName(ActorType::Seller))->toBe('Ada Lovelace')
-        ->and($unnamed->counterpartName(ActorType::Seller))->toBe('Customer #'.$unnamed->customer_id);
+        ->and($unnamed->counterpartName(ActorType::Seller))->toBe('Customer '.$unnamed->customer_id);
 });
 
 it('reads an admin or seller counterpart by their display name', function (): void {

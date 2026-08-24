@@ -3,6 +3,7 @@ import {
   isAnonymousCustomer,
   isVerifiedCustomer,
 } from '../../../core/customers/customer-verification.ts'
+import type { CustomerId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
@@ -11,7 +12,7 @@ export type CustomerStandingFilter = (typeof CUSTOMER_STANDING_FILTERS)[number]
 
 /** A customer as the customers table shows it, one row per customer. */
 export type CustomerRow = {
-  id: number
+  id: CustomerId
   email: string | null
   createdAt: Timestamp
   orderCount: number
@@ -29,6 +30,7 @@ export async function customerRows(
   const customers = await db
     .selectFrom('customers')
     .select(['id', 'email', 'createdAt'])
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
   const orderCounts = await countByCustomer(db, 'orders')
@@ -61,7 +63,7 @@ function matchesStanding(
 async function countByCustomer(
   db: AppDatabase,
   table: 'orders' | 'favorites',
-): Promise<Map<number, number>> {
+): Promise<Map<CustomerId, number>> {
   const rows = await db
     .selectFrom(table)
     .select(['customerId', (eb) => eb.fn.countAll().as('count')])
@@ -71,7 +73,7 @@ async function countByCustomer(
   return new Map(rows.map((row) => [row.customerId, Number(row.count)]))
 }
 
-async function cartLineCountsByCustomer(db: AppDatabase): Promise<Map<number, number>> {
+async function cartLineCountsByCustomer(db: AppDatabase): Promise<Map<CustomerId, number>> {
   const rows = await db
     .selectFrom('cartItems')
     .innerJoin('carts', 'carts.id', 'cartItems.cartId')
@@ -83,7 +85,7 @@ async function cartLineCountsByCustomer(db: AppDatabase): Promise<Map<number, nu
 }
 
 /** A customer carries at most one unlifted block at a time, per `blockCustomer`. */
-async function blockedCustomerIds(db: AppDatabase): Promise<Set<number>> {
+async function blockedCustomerIds(db: AppDatabase): Promise<Set<CustomerId>> {
   const rows = await db
     .selectFrom('customerBlocks')
     .select('customerId')

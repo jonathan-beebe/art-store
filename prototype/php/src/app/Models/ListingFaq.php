@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\ListingFaqFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,13 @@ class ListingFaq extends Model
 {
     /** @use HasFactory<ListingFaqFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'faq';
+    }
 
     /**
      * @return array<string, string>

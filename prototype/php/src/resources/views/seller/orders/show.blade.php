@@ -1,6 +1,6 @@
-<x-layouts.seller :title="'Order #'.$fulfillment->order_id.' — Art Store seller'">
+<x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
+        <h1 class="text-xl font-semibold">Order {{ $fulfillment->order_id }}</h1>
         <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
 
         <form method="POST" action="{{ route('seller.orders.messages', $fulfillment) }}" class="ml-auto">
@@ -60,6 +60,21 @@
         </section>
     </div>
 
+    @if ($fulfillment->refund)
+        <section aria-labelledby="refund-heading" class="mt-6 max-w-xl">
+            <h2 id="refund-heading" class="font-semibold text-gray-700">Refund</h2>
+
+            <dl class="mt-2 rounded border border-gray-300 bg-white p-4">
+                <dt class="text-gray-600">Amount</dt>
+                <dd class="mt-1 tabular-nums">{{ $fulfillment->refund->amount()->format() }}</dd>
+                <dt class="mt-3 text-gray-600">Reason</dt>
+                <dd class="mt-1">{{ $fulfillment->refund->reason }}</dd>
+                <dt class="mt-3 text-gray-600">Issued by</dt>
+                <dd class="mt-1">{{ $fulfillment->refund->issuerLabel() }}</dd>
+            </dl>
+        </section>
+    @endif
+
     <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
         <h2 id="shipment-heading" class="font-semibold text-gray-700">Shipment</h2>
 
@@ -107,4 +122,31 @@
             </dl>
         @endcan
     </section>
+
+    @can('decline', $fulfillment)
+        <section aria-labelledby="decline-heading" class="mt-6 max-w-xl">
+            <h2 id="decline-heading" class="font-semibold text-gray-700">Decline</h2>
+
+            <form method="POST" action="{{ route('seller.orders.decline', $fulfillment->id) }}"
+                  class="mt-2 rounded border border-gray-300 bg-white p-4">
+                @csrf
+
+                <p class="text-gray-600">
+                    Declining refunds {{ $fulfillment->subtotal()->format() }} to the customer and puts your pieces
+                    back on the storefront.
+                </p>
+
+                <div class="mt-4">
+                    <label for="reason" class="block font-medium text-gray-700">Reason</label>
+                    <textarea id="reason" name="reason" required minlength="1" maxlength="500" rows="3"
+                              class="mt-1 block w-full rounded border border-gray-400 px-3 py-2">{{ old('reason') }}</textarea>
+                    @error('reason')
+                        <p class="mt-1 text-red-700">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <button type="submit" class="mt-4 rounded border border-gray-400 bg-white px-4 py-2 font-medium">Decline and refund</button>
+            </form>
+        </section>
+    @endcan
 </x-layouts.seller>

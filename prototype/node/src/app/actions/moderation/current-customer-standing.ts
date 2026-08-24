@@ -1,3 +1,4 @@
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { customerStanding, type CustomerStanding } from '../../core/moderation/customer-standing.ts'
 import { fromNullableTimestamp } from '../../db/timestamp.ts'
@@ -9,13 +10,14 @@ import { fromNullableTimestamp } from '../../db/timestamp.ts'
  */
 export async function currentCustomerStanding(
   { db }: Pick<ActionContext, 'db'>,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<CustomerStanding> {
   const blocks = await db
     .selectFrom('customerBlocks')
     .select(['reason', 'liftedAt'])
     .where('customerId', '=', customerId)
     .where('liftedAt', 'is', null)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 

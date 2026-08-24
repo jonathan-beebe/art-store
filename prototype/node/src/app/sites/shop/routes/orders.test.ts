@@ -1,6 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import { buildLoggedTestApp } from '../../../test/log-lines.ts'
+import type { CustomerId } from '../../../core/ids/entity-ids.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -18,7 +21,7 @@ import {
 
 async function orderOneArtwork(
   testApp: TestApp,
-  input: { customerId: number; sellerEmail?: string; title?: string; isEmailVerified?: boolean },
+  input: { customerId: CustomerId; sellerEmail?: string; title?: string; isEmailVerified?: boolean },
 ) {
   const seller = await signInAsSeller(testApp, input.sellerEmail ?? 'ada@example.test')
   const listing = await listArtwork(testApp, {
@@ -53,15 +56,15 @@ test('the orders page lists what a customer has bought, newest first', async (t)
   })
 
   assert.equal(response.statusCode, 200)
-  assert.match(response.body, new RegExp(`Order #${second.order.id}`))
-  assert.match(response.body, new RegExp(`Order #${first.order.id}`))
+  assert.match(response.body, new RegExp(`Order ${second.order.id}`))
+  assert.match(response.body, new RegExp(`Order ${first.order.id}`))
   assert.match(response.body, /Harbour at dusk/)
   assert.match(response.body, /Kiln study/)
   assert.match(response.body, /\$240\.00/)
   assert.match(response.body, /24 August 2026/)
   assert.ok(
-    response.body.indexOf(`Order #${second.order.id}`) <
-      response.body.indexOf(`Order #${first.order.id}`),
+    response.body.indexOf(`Order ${second.order.id}`) <
+      response.body.indexOf(`Order ${first.order.id}`),
   )
 })
 
@@ -93,7 +96,7 @@ test('an order page shows the shipping address and one section per seller', asyn
   })
 
   assert.equal(response.statusCode, 200)
-  assert.match(response.body, new RegExp(`Order #${order.id}`))
+  assert.match(response.body, new RegExp(`Order ${order.id}`))
   assert.match(response.body, /data-order-status[^>]*>\s*Paid/)
   assert.match(response.body, /ada/)
   assert.match(response.body, /Awaiting shipment/)
@@ -188,7 +191,7 @@ test('a guest order tells the buyer to open the emailed link', async (t) => {
 })
 
 test('cancelling an unpaid order hands its stock back to the storefront', async (t) => {
-  const testApp = await buildTestApp()
+  const testApp = await buildLoggedTestApp()
   t.after(testApp.close)
   const customer = await signInAsCustomer(testApp)
   const { order, listing } = await orderOneArtwork(testApp, { customerId: customer.id })
@@ -223,6 +226,11 @@ test('cancelling an unpaid order hands its stock back to the storefront', async 
     .executeTakeFirstOrThrow()
   assert.equal(stock.status, 'for_sale')
   assert.equal(stock.quantity, 1)
+
+  const cancelledLine = testApp.logLines.data('order.cancel', 'did')
+  assert.equal(cancelledLine.order_id, order.id)
+  assert.equal(cancelledLine.status_to, 'cancelled')
+  assert.equal(testApp.logLines.line('order.cancel', 'did').actor_id, customer.id)
 })
 
 test('a paid order can no longer be cancelled', async (t) => {
@@ -282,4 +290,34 @@ test('an order id that names nothing is not found', async (t) => {
 
   assert.equal(missing.statusCode, 404)
   assert.equal(nonsense.statusCode, 404)
+})
+
+test('a declined fulfillment shows the reason and what came back', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { seller, order } = await orderOneArtwork(testApp, { customerId: customer.id })
+  await payForOrder(testApp, { orderId: order.id })
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+  await declineFulfillment(
+    { db: testApp.db, clock: testApp.clock },
+    { fulfillmentId: fulfillment.id, sellerId: seller.id, reason: 'The piece cracked in the kiln.' },
+  )
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/orders/${order.id}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /data-fulfillment-status[\s\S]*Declined/)
+  assert.match(response.body, /data-refund[\s\S]*data-cell="amount">\$240\.00<\/span> refunded/)
+  assert.match(response.body, /data-cell="reason"[^>]*>The piece cracked in the kiln\.</)
+  assert.match(response.body, /data-order-status[^>]*>Refunded</)
+  assert.doesNotMatch(response.body, /Confirm delivery/)
 })

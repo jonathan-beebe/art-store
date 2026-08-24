@@ -15,10 +15,17 @@ use Illuminate\Support\Sleep;
 
 /**
  * The live badge's producer: a generator that re-runs the same unread scope
- * every layout already reads and yields a frame only when the number moved.
- * Polls rather than pushes, because this deployable has no queue, no
- * broadcaster, and no bus a write could publish to — one `count` query per
- * tick, for as long as one stream stays open.
+ * every layout already reads and yields the count on every tick. Polls
+ * rather than pushes, because this deployable has no queue, no broadcaster,
+ * and no bus a write could publish to — one `count` query per tick, for as
+ * long as one stream stays open.
+ *
+ * A frame per tick is what keeps a closed tab from parking a worker:
+ * `eventStream` writes each frame and checks `connection_aborted()` once per
+ * frame, and PHP learns a connection is gone only from a failed write, so a
+ * stream that yields nothing never notices the browser left. A repeated
+ * count costs the browser nothing — `live-badge.js` sets the label from
+ * whatever the frame carries.
  */
 final class UnreadCountStream
 {
@@ -39,15 +46,8 @@ final class UnreadCountStream
      */
     public static function forActor(Seller|Customer|Admin $actor, DateTimeImmutable $deadline): Generator
     {
-        $lastSent = null;
-
         while (now()->lt($deadline)) {
-            $count = Message::query()->unreadInInboxOf($actor)->count();
-
-            if ($count !== $lastSent) {
-                yield new StreamedEvent('unread', $count);
-                $lastSent = $count;
-            }
+            yield new StreamedEvent('unread', Message::query()->unreadInInboxOf($actor)->count());
 
             Sleep::for(self::TICK_SECONDS)->seconds();
         }

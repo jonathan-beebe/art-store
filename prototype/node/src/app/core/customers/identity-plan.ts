@@ -1,3 +1,5 @@
+import type { CustomerId } from '../ids/entity-ids.ts'
+
 /**
  * What verifying an address does to the customer rows already in play: the
  * anonymous row the cookie points at, and the row that already holds the
@@ -6,15 +8,15 @@
  */
 export type IdentityPlan =
   | { action: 'createVerified' }
-  | { action: 'signInExisting'; verifiedCustomerId: number }
-  | { action: 'claimAnonymous'; anonymousCustomerId: number }
-  | { action: 'mergeAnonymousInto'; anonymousCustomerId: number; verifiedCustomerId: number }
+  | { action: 'signInExisting'; verifiedCustomerId: CustomerId }
+  | { action: 'claimAnonymous'; anonymousCustomerId: CustomerId }
+  | { action: 'mergeAnonymousInto'; anonymousCustomerId: CustomerId; verifiedCustomerId: CustomerId }
 
 export type IdentityAction = IdentityPlan['action']
 
 export type IdentityPlanInput = {
-  anonymousCustomerId: number | null
-  ownerOfEmailId: number | null
+  anonymousCustomerId: CustomerId | null
+  ownerOfEmailId: CustomerId | null
 }
 
 export function planCustomerIdentity({

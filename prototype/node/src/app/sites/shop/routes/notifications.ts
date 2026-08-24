@@ -9,7 +9,7 @@ import { storefrontCustomer } from '../storefront-customer.ts'
 export const notificationRoutes: ZodRoutes = (shop, _options, done) => {
   shop.post(
     '/account/notifications/:id/read',
-    { schema: { params: idParams }, preHandler: requireVerifiedCustomer },
+    { schema: { params: idParams('ntf') }, preHandler: requireVerifiedCustomer },
     async (request, reply) => {
       const { db, clock } = shop
       const id = request.params.id

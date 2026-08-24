@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../../ids.ts'
 import { orderRows } from './order-rows.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
@@ -47,6 +48,7 @@ test('an order with no email on file carries a null customer email', async (t) =
   await world.db
     .insertInto('orders')
     .values({
+      id: newId('ord', new Date()),
       customerId,
       email: null,
       status: 'pending_verification',

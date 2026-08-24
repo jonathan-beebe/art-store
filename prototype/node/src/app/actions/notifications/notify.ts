@@ -1,29 +1,27 @@
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
-import type { RecipientType } from '../../core/notifications/recipient-type.ts'
+import type { NotificationRecipient } from '../../core/notifications/recipient-type.ts'
 import type { Notification } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { outboxNotificationDelivery } from '../../delivery/outbox-notification-delivery.ts'
 
-export type NotifyInput = {
-  recipientType: RecipientType
-  recipientId: number
+export type NotifyInput = NotificationRecipient & {
   message: NotificationMessage
 }
 
 /** The three recipient columns with the one this inbox names filled and the rest null. */
 function recipientColumns(
-  recipientType: RecipientType,
-  recipientId: number,
+  recipient: NotificationRecipient,
 ): Pick<Notification, 'sellerId' | 'customerId' | 'adminId'> {
-  switch (recipientType) {
+  switch (recipient.recipientType) {
     case 'seller':
-      return { sellerId: recipientId, customerId: null, adminId: null }
+      return { sellerId: recipient.recipientId, customerId: null, adminId: null }
     case 'customer':
-      return { sellerId: null, customerId: recipientId, adminId: null }
+      return { sellerId: null, customerId: recipient.recipientId, adminId: null }
     case 'admin':
-      return { sellerId: null, customerId: null, adminId: recipientId }
+      return { sellerId: null, customerId: null, adminId: recipient.recipientId }
   }
 }
 
@@ -36,26 +34,47 @@ function recipientColumns(
 export async function notify(context: ActionContext, input: NotifyInput): Promise<Notification> {
   const delivery = context.notificationDelivery ?? outboxNotificationDelivery
 
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const notification = await db
-      .insertInto('notifications')
-      .values({
-        ...recipientColumns(input.recipientType, input.recipientId),
-        subject: input.message.subject,
-        body: input.message.body,
-        url: input.message.url,
-        createdAt: toTimestamp(clock.now()),
+  return actionStory<Notification>(
+    context,
+    {
+      event: 'notification.write',
+      will: {
+        msg: `filing a notification for the ${input.recipientType}`,
+        data: { recipient_type: input.recipientType, recipient_id: input.recipientId },
+      },
+      ended: (notification) => ({
+        phase: 'did',
+        msg: 'filed the notification',
+        data: {
+          notification_id: notification.id,
+          recipient_type: input.recipientType,
+          recipient_id: input.recipientId,
+          subject: notification.subject,
+        },
+      }),
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const notification = await db
+        .insertInto('notifications')
+        .values({
+          id: newId('ntf', clock.now()),
+          ...recipientColumns(input),
+          subject: input.message.subject,
+          body: input.message.body,
+          url: input.message.url,
+          createdAt: toTimestamp(clock.now()),
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+
+      await delivery.deliver(transacted, {
+        recipientType: input.recipientType,
+        recipientId: input.recipientId,
+        ...input.message,
       })
-      .returningAll()
-      .executeTakeFirstOrThrow()
 
-    await delivery.deliver(transacted, {
-      recipientType: input.recipientType,
-      recipientId: input.recipientId,
-      ...input.message,
-    })
-
-    return notification
-  })
+      return notification
+    },
+  )
 }

@@ -8,9 +8,11 @@ use App\Actions\Messaging\PostMessage;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
 use App\Models\Message;
+use Illuminate\Support\Facades\Config;
 
 it('lists the sellers threads newest first with who, what, and unread count', function (): void {
     $seller = $this->seller();
@@ -62,7 +64,7 @@ it('names an order thread and a support thread on the inbox', function (): void 
     $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
 
     $response->assertOk();
-    $response->assertSee("Order #{$fulfillment->order_id}");
+    $response->assertSee("Order {$fulfillment->order_id}");
     $response->assertSee($admin->displayName());
 });
 
@@ -78,7 +80,9 @@ it('renders the inbox on a fixed number of queries however many threads the sell
     }
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(7)
         ->get('/seller/messages');
 
     $response->assertOk();
@@ -190,4 +194,20 @@ it('moves the thread to the top of the inbox after a reply', function (): void {
     $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'Not yet framed.']);
 
     expect($conversation->fresh()?->last_message_at?->greaterThan($this->moment('2026-08-01 09:00:00')))->toBeTrue();
+});
+
+it('trips the message-post limit, handing the thread back with the reply still in the box', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
+    $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'First reply.']);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'Second reply.']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('First reply.');
+    $response->assertSee('>Second reply.</textarea>', escape: false);
+    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second reply.')->exists())->toBeFalse();
 });

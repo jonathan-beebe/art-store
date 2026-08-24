@@ -1,3 +1,11 @@
+import type {
+  ConversationId,
+  FulfillmentId,
+  ListingFaqId,
+  ListingId,
+  MessageId,
+  OrderId,
+} from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { conversationActor, type MessagingActor } from './conversation-actor.ts'
 import { participantNames } from './conversation-participants.ts'
@@ -12,19 +20,21 @@ import type { Timestamp } from '../../db/timestamp.ts'
 
 /** One message as a thread page shows it. */
 export type ThreadMessage = {
-  id: number
+  id: MessageId
   body: string
   sentAt: Timestamp
   senderType: ActorType
   senderName: string
   isMine: boolean
   isUnread: boolean
+  /** The published FAQ entry this message is the answer of, or null if it is not one. */
+  publishedFaqId: ListingFaqId | null
 }
 
 /** What the listing question is about, for the page that offers "Publish as FAQ". */
-export type ThreadListing = { id: number; title: string; slug: string }
+export type ThreadListing = { id: ListingId; title: string; slug: string }
 
-export type ThreadFulfillment = { id: number; orderId: number }
+export type ThreadFulfillment = { id: FulfillmentId; orderId: OrderId }
 
 export type ConversationThread = {
   conversation: Conversation
@@ -43,7 +53,7 @@ export type ConversationThread = {
  */
 export async function conversationThread(
   context: Pick<ActionContext, 'db'>,
-  { conversationId, actor }: { conversationId: number; actor: MessagingActor },
+  { conversationId, actor }: { conversationId: ConversationId; actor: MessagingActor },
 ): Promise<ConversationThread | null> {
   const conversation = await context.db
     .selectFrom('conversations')
@@ -59,6 +69,7 @@ export async function conversationThread(
     .selectFrom('messages')
     .selectAll()
     .where('conversationId', '=', conversation.id)
+    .orderBy('sentAt')
     .orderBy('id')
     .execute()
 
@@ -66,12 +77,13 @@ export async function conversationThread(
   const names = await participantNames(context, [conversation])
   const listing = await findThreadListing(context.db, conversation.listingId)
   const fulfillment = await findThreadFulfillment(context.db, conversation.fulfillmentId)
+  const publishedFaqIds = await findPublishedFaqIds(context.db, conversation.listingId, messages)
 
   return {
     conversation,
     topic,
     counterpart: counterpartName(conversation, actor, names),
-    messages: messages.map((message) => toThreadMessage(message, actor, names)),
+    messages: messages.map((message) => toThreadMessage(message, actor, names, publishedFaqIds)),
     mayPost: access.mayPost,
     listing,
     fulfillment,
@@ -82,6 +94,7 @@ function toThreadMessage(
   message: Message,
   actor: MessagingActor,
   names: Awaited<ReturnType<typeof participantNames>>,
+  publishedFaqIds: ReadonlyMap<MessageId, ListingFaqId>,
 ): ThreadMessage {
   return {
     id: message.id,
@@ -91,12 +104,37 @@ function toThreadMessage(
     senderName: senderName(message, names),
     isMine: isSentBy(message, actor),
     isUnread: isUnreadBy(message, actor),
+    publishedFaqId: publishedFaqIds.get(message.id) ?? null,
   }
+}
+
+/** The published FAQ entry each message in this thread is the answer of, keyed by message id. */
+async function findPublishedFaqIds(
+  db: AppDatabase,
+  listingId: ListingId | null,
+  messages: readonly Message[],
+): Promise<ReadonlyMap<MessageId, ListingFaqId>> {
+  if (listingId === null || messages.length === 0) return new Map()
+
+  const rows = await db
+    .selectFrom('listingFaqs')
+    .select(['id', 'sourceMessageId'])
+    .where('listingId', '=', listingId)
+    .where(
+      'sourceMessageId',
+      'in',
+      messages.map((message) => message.id),
+    )
+    .execute()
+
+  return new Map(
+    rows.flatMap((row) => (row.sourceMessageId === null ? [] : [[row.sourceMessageId, row.id] as const])),
+  )
 }
 
 async function findThreadListing(
   db: AppDatabase,
-  listingId: number | null,
+  listingId: ListingId | null,
 ): Promise<ThreadListing | null> {
   if (listingId === null) return null
 
@@ -111,7 +149,7 @@ async function findThreadListing(
 
 async function findThreadFulfillment(
   db: AppDatabase,
-  fulfillmentId: number | null,
+  fulfillmentId: FulfillmentId | null,
 ): Promise<ThreadFulfillment | null> {
   if (fulfillmentId === null) return null
 

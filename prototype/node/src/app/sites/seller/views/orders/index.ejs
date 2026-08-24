@@ -25,7 +25,7 @@
             <% group.fulfillments.forEach(function (fulfillment) { %>
               <tr data-fulfillment="<%= fulfillment.id %>">
                 <th scope="row" class="px-4 py-2 font-normal">
-                  <a href="/seller/orders/<%= fulfillment.id %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
+                  <a href="/seller/orders/<%= fulfillment.id %>" class="font-medium underline"><%= fulfillment.orderId %></a>
                 </th>
                 <td class="px-4 py-2"><%= fulfillment.shippingName %></td>
                 <td class="px-4 py-2"><%= (itemTitles.get(fulfillment.orderId) || []).join(', ') %></td>

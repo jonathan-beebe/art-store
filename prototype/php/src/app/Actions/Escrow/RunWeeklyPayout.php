@@ -8,8 +8,10 @@ use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Domain\Money\Money;
+use App\Logging\StoryEvent;
 use App\Models\LedgerEntry;
 use App\Models\Payout;
+use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,14 +25,29 @@ final readonly class RunWeeklyPayout
     {
         $period = PayoutPeriod::endingBefore($asOf);
 
-        return DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
-            ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
-            ->map(fn (LedgerBalance $balance, int $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
-            ->all()));
+        /** @var list<Payout> $payouts */
+        $payouts = Story::for(StoryEvent::PayoutRun)->tell('settling the weekly payout period', [
+            'period' => $period->label(),
+        ], function (Story $story) use ($period, $asOf): array {
+            $payouts = DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
+                ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
+                ->map(fn (LedgerBalance $balance, string $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
+                ->all()));
+
+            $story->did('settled the weekly payout period', [
+                'period' => $period->label(),
+                'payout_count' => count($payouts),
+                'amount_cents' => array_sum(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts)),
+            ]);
+
+            return $payouts;
+        });
+
+        return $payouts;
     }
 
     /**
-     * @return Collection<int, LedgerBalance>
+     * @return Collection<string, LedgerBalance>
      */
     private function balancesBySeller(PayoutPeriod $period): Collection
     {
@@ -44,7 +61,7 @@ final readonly class RunWeeklyPayout
             ));
     }
 
-    private function payOut(int $sellerId, Money $available, PayoutPeriod $period, DateTimeImmutable $asOf): Payout
+    private function payOut(string $sellerId, Money $available, PayoutPeriod $period, DateTimeImmutable $asOf): Payout
     {
         $payout = Payout::create([
             'seller_id' => $sellerId,
@@ -64,6 +81,13 @@ final readonly class RunWeeklyPayout
             // Dated inside the period it settles so a re-run of the same period
             // sees the money as already paid.
             'occurred_at' => $period->end,
+        ]);
+
+        Story::for(StoryEvent::PayoutPay)->did('paid a seller for the period', [
+            'payout_id' => $payout->id,
+            'seller_id' => $sellerId,
+            'amount_cents' => $payout->amount_cents,
+            'period' => $period->label(),
         ]);
 
         return $payout;

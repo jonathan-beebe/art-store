@@ -1,12 +1,14 @@
+import type { SellerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { firstFreeSlug, slugBase } from '../../core/listings/listing-slug.ts'
 import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type CreateListingInput = {
-  sellerId: number
+  sellerId: SellerId
   draft: ListingDraft
   /** Where the uploaded file landed under `public/`; null shows a generated placeholder. */
   imagePath?: string | null
@@ -20,28 +22,50 @@ export async function createListing(
   context: ActionContext,
   input: CreateListingInput,
 ): Promise<Listing> {
-  return runInTransaction(context, async ({ db, clock }) => {
-    const now = toTimestamp(clock.now())
-    const taken = await db
-      .selectFrom('listings')
-      .select('slug')
-      .where('slug', 'like', `${slugBase(input.draft.title)}%`)
-      .execute()
+  return actionStory<Listing>(
+    context,
+    {
+      event: 'listing.create',
+      will: {
+        msg: 'opening a listing',
+        data: { seller_id: input.sellerId, title: input.draft.title },
+      },
+      ended: (listing) => ({
+        phase: 'did',
+        msg: 'opened the listing as a draft',
+        data: {
+          listing_id: listing.id,
+          seller_id: listing.sellerId,
+          slug: listing.slug,
+          status: listing.status,
+          price_cents: listing.priceCents,
+        },
+      }),
+    },
+    async ({ db, clock }) => {
+      const now = toTimestamp(clock.now())
+      const taken = await db
+        .selectFrom('listings')
+        .select('slug')
+        .where('slug', 'like', `${slugBase(input.draft.title)}%`)
+        .execute()
 
-    return db
-      .insertInto('listings')
-      .values({
-        ...input.draft,
-        sellerId: input.sellerId,
-        slug: firstFreeSlug(
-          input.draft.title,
-          taken.map((row) => row.slug),
-        ),
-        imagePath: input.imagePath ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      return db
+        .insertInto('listings')
+        .values({
+          id: newId('lst', clock.now()),
+          ...input.draft,
+          sellerId: input.sellerId,
+          slug: firstFreeSlug(
+            input.draft.title,
+            taken.map((row) => row.slug),
+          ),
+          imagePath: input.imagePath ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returningAll()
+        .executeTakeFirstOrThrow()
+    },
+  )
 }

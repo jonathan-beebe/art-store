@@ -34,3 +34,13 @@ it('reads the seller it belongs to and the ledger entries it settled', function 
     expect($payout->seller->is($fulfillment->seller))->toBeTrue()
         ->and($payout->ledgerEntries()->count())->toBe(1);
 });
+
+it('narrows the list to one seller, or to everyone when the filter is empty', function (): void {
+    $matching = $this->seller('Blue Kiln Studio');
+    $other = $this->seller('Rye Press');
+    Payout::create(['seller_id' => $matching->id, 'period_start' => '2026-08-10', 'period_end' => '2026-08-16', 'amount_cents' => 9000, 'paid_at' => '2026-08-17 00:00:00']);
+    Payout::create(['seller_id' => $other->id, 'period_start' => '2026-08-10', 'period_end' => '2026-08-16', 'amount_cents' => 5000, 'paid_at' => '2026-08-17 00:00:00']);
+
+    expect(Payout::query()->ofSeller($matching->id)->pluck('seller_id')->all())->toBe([$matching->id])
+        ->and(Payout::query()->ofSeller(null)->count())->toBe(2);
+});

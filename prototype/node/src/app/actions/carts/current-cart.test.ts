@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../ids.ts'
 import { addToCart } from './add-to-cart.ts'
 import { currentCart } from './current-cart.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -40,7 +41,7 @@ test('a customer left with two carts keeps shopping with the one holding items',
 
   const filledCart = await db
     .insertInto('carts')
-    .values({ customerId, createdAt: toTimestamp(context.clock.now()) })
+    .values({ id: newId('crt', new Date()), customerId, createdAt: toTimestamp(context.clock.now()) })
     .returningAll()
     .executeTakeFirstOrThrow()
 

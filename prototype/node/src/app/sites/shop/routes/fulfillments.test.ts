@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import type { CustomerId, FulfillmentId } from '../../../core/ids/entity-ids.ts'
 import { cents } from '../../../core/money.ts'
 import {
   buildTestApp,
@@ -15,7 +16,7 @@ import {
   placeCustomerOrder,
 } from '../storefront-fixtures.ts'
 
-async function shippedOrder(testApp: TestApp, customerId: number) {
+async function shippedOrder(testApp: TestApp, customerId: CustomerId) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
   const listing = await listArtwork(testApp, { sellerId: seller.id, priceCents: cents(24_000) })
   const cartId = await cartWithArtwork(testApp, { customerId, listingId: listing.id })
@@ -33,7 +34,7 @@ async function shippedOrder(testApp: TestApp, customerId: number) {
 
 /** The fulfillment's status and ledger rows, so a refused request can be
  * checked for leaving both exactly as they were. */
-async function fulfillmentState(testApp: TestApp, fulfillmentId: number) {
+async function fulfillmentState(testApp: TestApp, fulfillmentId: FulfillmentId) {
   const fulfillment = await testApp.db
     .selectFrom('fulfillments')
     .selectAll()

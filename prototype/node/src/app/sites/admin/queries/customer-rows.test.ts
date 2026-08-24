@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../../ids.ts'
 import { customerRows } from './customer-rows.ts'
 import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
@@ -37,7 +38,7 @@ test('counts and standing fold per customer', async (t) => {
   await cartHolding(world.context, verified, [listingTwo.id])
   await world.db
     .insertInto('favorites')
-    .values({ customerId: verified, listingId: listing.id, createdAt: toTimestamp(new Date()) })
+    .values({ id: newId('fav', new Date()), customerId: verified, listingId: listing.id, createdAt: toTimestamp(new Date()) })
     .execute()
 
   await blockCustomer(world.context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' })

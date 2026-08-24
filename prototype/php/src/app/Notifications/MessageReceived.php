@@ -6,14 +6,16 @@ namespace App\Notifications;
 
 use App\Domain\Notifications\NotificationMessage;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Tells a thread's other participant a message is waiting for them.
  */
-final class MessageReceived extends Notification
+final class MessageReceived extends PrefixedUlidNotification
 {
-    public function __construct(private readonly string $topic, private readonly ?string $url) {}
+    public function __construct(private readonly string $topic, private readonly ?string $url)
+    {
+        parent::__construct();
+    }
 
     /**
      * @return array<int, string>

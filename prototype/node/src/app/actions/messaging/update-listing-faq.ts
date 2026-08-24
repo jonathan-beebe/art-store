@@ -1,9 +1,10 @@
+import type { ListingFaqId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { FaqDraft } from '../../core/messaging/faq-draft.ts'
 import type { ListingFaq } from '../../db/commerce-schema.ts'
 
 export type UpdateListingFaqInput = {
-  faqId: number
+  faqId: ListingFaqId
   draft: FaqDraft
 }
 
