@@ -29,6 +29,9 @@ class Fulfillment < ApplicationRecord
   # asks for the pair, so the refusal is one sentence.
   MISSING_DETAILS = "A shipment needs a carrier and a tracking number.".freeze
 
+  scope :with_status, ->(status) { where(status: status) if status.present? }
+  scope :for_seller, ->(seller_id) { where(seller_id: seller_id) if seller_id.present? }
+
   normalizes :carrier, :tracking_number, with: ->(field) { field.strip.presence }
 
   validate :shipment_is_trackable, on: :ship
@@ -82,6 +85,18 @@ class Fulfillment < ApplicationRecord
 
       self
     end
+  end
+
+  # An order may span sellers. These are the lines of it this fulfillment
+  # ships.
+  def items
+    order.items.select { |item| item.seller_id == seller_id }
+  end
+
+  # The money sent back to the customer against this fulfillment, newest
+  # first. Nothing issues a refund, so the history is empty.
+  def refunds
+    []
   end
 
   def can_transition_to?(status)

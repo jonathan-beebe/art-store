@@ -8,8 +8,4 @@ module ShopHelper
   def unread_notification_count
     current_customer.notifications.unread.count
   end
-
-  def money(cents)
-    Money.from_cents(cents).format
-  end
 end

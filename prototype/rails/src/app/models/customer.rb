@@ -12,7 +12,23 @@ class Customer < ApplicationRecord
     favorites carts orders listing_events notifications sent_messages
   ].freeze
 
+  # The standings the admin directory narrows the table to. `all` is the
+  # filter a page carries when nobody has chosen one.
+  STANDINGS = %w[all verified anonymous blocked].freeze
+
+  # One line of the customers directory: a customer beside the counts the
+  # table shows for them.
+  Row = Data.define(:customer, :order_count, :favorite_count, :cart_line_count) do
+    delegate :id, :email, :display_name, :anonymous?, :blocked?, to: :customer
+  end
+
+  # A merge from this customer's side: the visitor folded into them, or the
+  # account they were folded into.
+  Merge = Data.define(:direction, :other, :created_at)
+
   has_many :merges_absorbed, class_name: "CustomerMerge", dependent: :destroy, inverse_of: :customer
+  has_one :merge_into, class_name: "CustomerMerge", foreign_key: :anonymous_customer_id,
+    inverse_of: :anonymous_customer
   has_many :carts, dependent: :destroy
   has_many :favorites, dependent: :destroy
   has_many :listing_events, dependent: :nullify
@@ -20,6 +36,34 @@ class Customer < ApplicationRecord
   has_many :orders, dependent: :restrict_with_error
 
   scope :verified, -> { where.not(email: nil) }
+  scope :anonymous, -> { where(email: nil) }
+  # An admin's block takes shopping and messaging away from a customer.
+  # Nothing blocks a customer, so nobody stands blocked.
+  scope :blocked, -> { none }
+  scope :standing, ->(standing) {
+    case standing
+    when "verified" then verified
+    when "anonymous" then anonymous
+    when "blocked" then blocked
+    end
+  }
+
+  # Every customer in the current scope with the counts the directory shows.
+  # Each count is one grouped read for the whole table.
+  def self.directory
+    order_counts = Order.group(:customer_id).count
+    favorite_counts = Favorite.group(:customer_id).count
+    cart_line_counts = CartItem.joins(:cart).group("carts.customer_id").count
+
+    order(:created_at, :id).map do |customer|
+      Row.new(
+        customer: customer,
+        order_count: order_counts.fetch(customer.id, 0),
+        favorite_count: favorite_counts.fetch(customer.id, 0),
+        cart_line_count: cart_line_counts.fetch(customer.id, 0)
+      )
+    end
+  end
 
   # The customer that owns the address once a link for it is followed:
   # a new account, the account already holding it, the anonymous row the
@@ -46,6 +90,30 @@ class Customer < ApplicationRecord
 
   def anonymous?
     email.nil?
+  end
+
+  # Whether an admin has taken shopping and messaging away from this customer.
+  def blocked?
+    blocks.any?
+  end
+
+  # The blocks an admin has placed on this customer, newest first. Nothing
+  # blocks a customer, so the history is empty.
+  def blocks
+    []
+  end
+
+  # Every merge this customer was named in, oldest first, whichever side of it
+  # they were on.
+  def merges
+    history = merges_absorbed.includes(:anonymous_customer).map do |merge|
+      Merge.new(direction: "absorbed", other: merge.anonymous_customer, created_at: merge.created_at)
+    end
+    if merge_into
+      history << Merge.new(direction: "folded_into", other: merge_into.customer, created_at: merge_into.created_at)
+    end
+
+    history.sort_by(&:created_at)
   end
 
   # A customer gives an address before they give a name, and a visitor gives

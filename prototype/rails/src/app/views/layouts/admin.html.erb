@@ -25,8 +25,11 @@
         <% if admin_signed_in? %>
           <nav aria-label="Admin" class="flex flex-wrap gap-4 text-slate-400">
             <%= link_to "Dashboard", admin_root_path %>
-            <%= link_to "Sellers", admin_root_path(anchor: "sellers") %>
-            <%= link_to "Customers", admin_root_path(anchor: "customers") %>
+            <%= link_to "Sellers", admin_sellers_path %>
+            <%= link_to "Customers", admin_customers_path %>
+            <%= link_to "Listings", admin_listings_path %>
+            <%= link_to "Orders", admin_orders_path %>
+            <%= link_to "Fulfillments", admin_fulfillments_path %>
             <%= link_to admin_conversations_path, class: "flex items-center gap-1" do %>
               Messages
               <%= render "admin/conversations/unread_badge", actor: current_admin %>

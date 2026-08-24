@@ -44,6 +44,9 @@ class Order < ApplicationRecord
   # a listing that had sold out returns to the storefront.
   RELEASES_STOCK = %w[payment_failed cancelled].freeze
 
+  scope :with_status, ->(status) { where(status: status) if status.present? }
+  scope :for_customer, ->(customer_id) { where(customer_id: customer_id) if customer_id.present? }
+
   normalizes(*SHIPPING_FIELDS, with: ->(line) { line.strip.presence })
 
   validates :email, format: { with: EmailAddress::SHAPE }
@@ -225,6 +228,12 @@ class Order < ApplicationRecord
 
   def total
     Money.from_cents(total_cents)
+  end
+
+  # The money sent back to the customer against this order, newest first.
+  # Nothing issues a refund, so the history is empty.
+  def refunds
+    []
   end
 
   private

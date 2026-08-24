@@ -4,6 +4,10 @@ class LedgerEntry < ApplicationRecord
   # What a seller's ledger adds up to: money waiting on delivery, money ready
   # for the next payout, and money already sent.
   Balance = Data.define(:held, :available, :paid_out) do
+    def self.zero
+      from({})
+    end
+
     def self.from(totals)
       held = totals.fetch("held", 0)
       released = totals.fetch("released", 0)

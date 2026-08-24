@@ -63,6 +63,7 @@ claims rather than requirements from `initial-prompt.md`.
 | Capability | Status | Route helper | Test |
 | --- | --- | --- | --- |
 | An admin site with a seeded-only account | done | `admin_login`, `admin_root`, `admin_seller`, `admin_customer` | `Auth::AdminSessionsControllerTest`, `Admin::DashboardControllerTest`, `Admin::SellersControllerTest`, `Admin::CustomersControllerTest`, `AdminTest` |
+| A directory over every seller, customer, listing, order and fulfillment | done | `admin_sellers`, `admin_customers`, `admin_listings`, `admin_orders`, `admin_fulfillments` and each `…/:id` — see [`admin.md`](admin.md) | `Admin::SellersControllerTest`, `Admin::CustomersControllerTest`, `Admin::ListingsControllerTest`, `Admin::OrdersControllerTest`, `Admin::FulfillmentsControllerTest` |
 | One conversation record for four kinds | done | — | `ConversationTest`, `MessageTest` |
 | Inbox and thread on all three sites, non-participant answers 404 | done | `shop_conversations`, `seller_conversations`, `admin_conversations` and each `…_conversation` | `Shop::ConversationsControllerTest`, `Seller::ConversationsControllerTest`, `Admin::ConversationsControllerTest` |
 | Reply, with the counterpart notified at their own path | done | each site's `…_conversation_messages` | `Shop::MessagesControllerTest`, `Seller::MessagesControllerTest`, `Admin::MessagesControllerTest`, `NotificationTest` |
@@ -217,6 +218,13 @@ half differs:
     `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
     which is deliberate, tested behaviour, not a drift bug. The flake stands
     unreproduced.
+11. **The admin directory lists are unpaginated.** `/admin/sellers`,
+    `/admin/customers`, `/admin/listings`, `/admin/orders` and
+    `/admin/fulfillments` render every matching row, and the seller and
+    customer selects in their filter forms hold every row of those tables.
+    The page cost does not grow with the row count in statements — every list
+    carries a `count_queries` assertion that pins that — but it does in rows
+    rendered. The storefront's `Page` value object is the shape to reuse.
 
 ## Suggested next steps
 

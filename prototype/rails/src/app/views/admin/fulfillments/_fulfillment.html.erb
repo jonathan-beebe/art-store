@@ -1,0 +1,15 @@
+<tr data-fulfillment="<%= fulfillment.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to fulfillment.id, admin_fulfillment_path(fulfillment), class: "font-medium underline" %>
+  </th>
+  <td class="px-4 py-2">
+    <%= link_to fulfillment.order_id, admin_order_path(fulfillment.order), class: "underline" %>
+  </td>
+  <td class="px-4 py-2">
+    <%= link_to fulfillment.seller.display_name, admin_seller_path(fulfillment.seller), class: "underline" %>
+  </td>
+  <td data-cell="status" class="px-4 py-2"><%= status_label(fulfillment.status) %></td>
+  <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.subtotal_cents) %></td>
+  <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.fee_cents) %></td>
+  <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.net_cents) %></td>
+</tr>

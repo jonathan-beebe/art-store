@@ -33,6 +33,23 @@ class Listing < ApplicationRecord
   ON_STOREFRONT = %w[for_sale sold].freeze
   scope :on_storefront, -> { where(status: ON_STOREFRONT) }
 
+  # What the admin directory narrows the table to. `any` is the filter a page
+  # carries when nobody has chosen one.
+  REMOVAL_STANDINGS = %w[any removed visible].freeze
+
+  scope :with_status, ->(status) { where(status: status) if status.present? }
+  scope :for_seller, ->(seller_id) { where(seller_id: seller_id) if seller_id.present? }
+  # An admin's removal takes a listing off the storefront whatever its status.
+  # Nothing removes a listing, so none stands removed.
+  scope :removed, -> { none }
+  scope :visible, -> { all }
+  scope :removal_standing, ->(standing) {
+    case standing
+    when "removed" then removed
+    when "visible" then visible
+    end
+  }
+
   normalizes :title, :description, :medium, :dimensions, with: ->(text) { text.strip.presence }
 
   validates :title,
@@ -145,7 +162,19 @@ class Listing < ApplicationRecord
   # Whether an admin has pulled this listing off the storefront independent of
   # its status. Nothing in this prototype sets it yet.
   def actively_removed?
-    false
+    removals.any?
+  end
+
+  # The removals an admin has placed on this listing, oldest first. Nothing
+  # removes a listing, so the history is empty.
+  def removals
+    []
+  end
+
+  # Whether a shopper can reach this listing's page: a status that keeps it
+  # public and no removal standing over it.
+  def on_storefront?
+    ON_STOREFRONT.include?(status) && !actively_removed?
   end
 
   # An order claims stock when it is placed and hands it back when the card is

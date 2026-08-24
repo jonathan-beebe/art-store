@@ -1,0 +1,6 @@
+<tr data-cart-item="<%= cart_item.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to cart_item.listing.title, admin_listing_path(cart_item.listing), class: "underline" %>
+  </th>
+  <td data-cell="quantity" class="px-4 py-2 text-right tabular-nums"><%= cart_item.quantity %></td>
+</tr>

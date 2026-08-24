@@ -61,15 +61,19 @@ Rails.application.routes.draw do
   namespace :admin do
     root "dashboard#show"
 
-    resources :sellers, only: :show, constraints: PrefixedUlid.constraints(id: :sel) do
+    resources :sellers, only: %i[index show], constraints: PrefixedUlid.constraints(id: :sel) do
       resource :conversation, only: :create, controller: "seller_conversations",
         constraints: PrefixedUlid.constraints(seller_id: :sel)
     end
 
-    resources :customers, only: :show, constraints: PrefixedUlid.constraints(id: :cus) do
+    resources :customers, only: %i[index show], constraints: PrefixedUlid.constraints(id: :cus) do
       resource :conversation, only: :create, controller: "customer_conversations",
         constraints: PrefixedUlid.constraints(customer_id: :cus)
     end
+
+    resources :listings, only: %i[index show], constraints: PrefixedUlid.constraints(id: :lst)
+    resources :orders, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ord)
+    resources :fulfillments, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ful)
 
     resources :conversations, path: "messages", only: %i[index show],
       constraints: PrefixedUlid.constraints(id: :cnv) do

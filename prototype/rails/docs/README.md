@@ -8,6 +8,7 @@
 | [`escrow.md`](escrow.md) | Ledger entry types (`held` / `released` / `paid_out`), `payouts:run`, a worked dollar example. |
 | [`data-model.md`](data-model.md) | ER diagram generated from `src/db/schema.rb`. |
 | [`ontology.md`](ontology.md) | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One concept-level diagram. |
+| [`admin.md`](admin.md) | The admin site: the directory pages, the filter rule, the folded-balance rule, and where the write actions attach. |
 | [`review.md`](review.md) | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next steps. |
 
 Every diagram is Mermaid, states the question it answers in the prose above

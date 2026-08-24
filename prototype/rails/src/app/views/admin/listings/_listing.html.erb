@@ -1,0 +1,12 @@
+<tr data-listing="<%= listing.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to listing.title, admin_listing_path(listing), class: "font-medium underline" %>
+  </th>
+  <td class="px-4 py-2">
+    <%= link_to listing.seller.display_name, admin_seller_path(listing.seller), class: "underline" %>
+  </td>
+  <td data-cell="status" class="px-4 py-2"><%= status_label(listing.status) %></td>
+  <td data-cell="price" class="px-4 py-2 text-right tabular-nums"><%= money(listing.price_cents) %></td>
+  <td data-cell="quantity" class="px-4 py-2 text-right tabular-nums"><%= listing.quantity %></td>
+  <td data-cell="storefront" class="px-4 py-2"><%= listing.on_storefront? ? "On the storefront" : "Off the storefront" %></td>
+</tr>

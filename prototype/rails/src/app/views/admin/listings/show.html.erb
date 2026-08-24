@@ -1,0 +1,57 @@
+<% content_for :title, "#{@listing.title} — Art Store admin" %>
+
+<p><%= link_to "Listings", admin_listings_path, class: "text-slate-400 underline" %></p>
+
+<h1 class="mt-2 text-lg font-semibold"><%= @listing.title %></h1>
+
+<dl class="mt-4 grid gap-3 rounded border border-slate-700 bg-slate-800 p-4 sm:grid-cols-3">
+  <div>
+    <dt class="text-slate-400">Seller</dt>
+    <dd data-field="seller" class="mt-1">
+      <%= link_to @listing.seller.display_name, admin_seller_path(@listing.seller), class: "underline" %>
+    </dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Status</dt>
+    <dd data-field="status" class="mt-1"><%= status_label(@listing.status) %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Storefront</dt>
+    <dd data-field="storefront" class="mt-1">
+      <%= @listing.on_storefront? ? "On the storefront" : "Off the storefront" %>
+    </dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Price</dt>
+    <dd data-field="price" class="mt-1 tabular-nums"><%= money(@listing.price_cents) %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Quantity</dt>
+    <dd data-field="quantity" class="mt-1 tabular-nums"><%= @listing.quantity %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Medium</dt>
+    <dd data-field="medium" class="mt-1"><%= @listing.medium %></dd>
+  </div>
+</dl>
+
+<section aria-labelledby="description-heading" class="mt-6">
+  <h2 id="description-heading" class="font-semibold text-slate-300">Description</h2>
+
+  <p data-field="description" class="mt-2 rounded border border-slate-700 bg-slate-800 p-4">
+    <%= @listing.description %>
+  </p>
+</section>
+
+<section aria-labelledby="removals-heading" class="mt-6">
+  <h2 id="removals-heading" class="font-semibold text-slate-300">Removal history</h2>
+
+  <% if @removals.empty? %>
+    <%= render "admin/shared/empty", key: "listing_removals", message: "Nobody has removed this listing." %>
+  <% end %>
+</section>

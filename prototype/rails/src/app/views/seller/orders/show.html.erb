@@ -38,7 +38,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-neutral-200">
-          <% own_items(@fulfillment.order).each do |item| %>
+          <% @fulfillment.items.each do |item| %>
             <tr data-item="<%= item.id %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= item.title %></th>
               <td class="px-4 py-2 text-right tabular-nums"><%= item.quantity %></td>
