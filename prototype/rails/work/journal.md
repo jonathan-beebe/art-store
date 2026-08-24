@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:22:20:00 — FEAT-016 — started
+- 2026-08-23:22:19:00 — FEAT-015 — done: prefixed ULID primary keys on all 20 domain tables, route prefix constraints, seeds on a frozen clock; 772 runs / 2428 assertions / 100% lines
 - 2026-08-23:22:10:00 — FEAT-015 — implemented: prefixed ULID primary keys on every domain table, route constraints per prefix, schema and seeds rebuilt; 768 runs / 2417 assertions / 100% lines
 - 2026-08-23:21:36:00 — FEAT-015 — started
 - 2026-08-23:21:35:00 — MAINT-002 — done: make vocabulary, RuboCop omakase gate, rails.yml CI, db:test:prepare before every run; 748 runs / 2361 assertions / 100% lines
