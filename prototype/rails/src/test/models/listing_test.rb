@@ -251,6 +251,68 @@ class ListingTest < ActiveSupport::TestCase
     assert_nil create_listing.record_event!("view").customer_id
   end
 
+  test "a second view from the same customer in the same UTC hour is collapsed" do
+    record = create_listing
+    shopper = create_verified_customer
+    record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:03:00"))
+
+    collapsed = record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:57:00"))
+
+    assert_nil collapsed
+    assert_equal 1, record.events.where(event_type: "view").count
+  end
+
+  test "a view in the next UTC hour writes its own row" do
+    record = create_listing
+    shopper = create_verified_customer
+    record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:57:00"))
+
+    second = record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 09:03:00"))
+
+    refute_nil second
+    assert_equal 2, record.events.where(event_type: "view").count
+  end
+
+  test "a different customer in the same hour writes their own view" do
+    record = create_listing
+    first_shopper = create_verified_customer
+    second_shopper = create_verified_customer
+    record.record_event!("view", customer_id: first_shopper.id, at: moment("2026-08-20 08:03:00"))
+
+    second = record.record_event!("view", customer_id: second_shopper.id, at: moment("2026-08-20 08:04:00"))
+
+    refute_nil second
+    assert_equal 2, record.events.where(event_type: "view").count
+  end
+
+  test "a collapsed view logs listing.view refused at debug" do
+    record = create_listing
+    shopper = create_verified_customer
+    record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:03:00"))
+
+    lines = captured_log_lines do
+      record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:57:00"))
+    end
+
+    line = log_lines_for("listing.view", lines).sole
+    assert_equal "refused", line["phase"]
+    assert_equal "debug", line["level"]
+    assert_equal record.id, line["data"]["listing_id"]
+    assert_equal shopper.id, line["data"]["customer_id"]
+  end
+
+  test "favorite, unfavorite and cart_add are recorded every time, with no collapse" do
+    record = create_listing
+    shopper = create_verified_customer
+
+    first = record.record_event!("favorite", customer_id: shopper.id, at: moment("2026-08-20 08:03:00"))
+    second = record.record_event!("favorite", customer_id: shopper.id, at: moment("2026-08-20 08:04:00"))
+
+    refute_nil first
+    refute_nil second
+    assert_equal 2, record.events.where(event_type: "favorite").count
+  end
+
   test "a search with no filters returns everything for sale" do
     for_sale = create_listing(status: :for_sale)
     create_listing(status: :draft)
@@ -300,8 +362,8 @@ class ListingTest < ActiveSupport::TestCase
 
   test "its totals add up its own events" do
     record = create_listing
-    record.record_event!("view")
-    record.record_event!("view")
+    record.record_event!("view", at: moment("2026-08-20 08:00:00"))
+    record.record_event!("view", at: moment("2026-08-20 09:00:00"))
     record.record_event!("favorite")
     record.record_event!("unfavorite")
 

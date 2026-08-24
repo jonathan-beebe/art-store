@@ -28,6 +28,21 @@ class ListingEvent < ApplicationRecord
 
   enum :event_type, { view: "view", favorite: "favorite", unfavorite: "unfavorite", cart_add: "cart_add" }
 
+  # Every page load would otherwise be a row, and a seller's activity numbers
+  # only need to know that someone looked, not how many times they
+  # refreshed — a favorite or a cart add is a deliberate act and is recorded
+  # every time.
+  ONCE_PER_HOUR = %w[view].freeze
+
+  def self.recorded_once_per_hour?(event_type)
+    ONCE_PER_HOUR.include?(event_type.to_s)
+  end
+
+  # The window a repeated event collapses into: the UTC hour containing `at`.
+  def self.view_window_start(at)
+    at.utc.beginning_of_hour
+  end
+
   # Totals for a whole table of listings, so the seller's index costs one query
   # rather than one per row.
   def self.totals_by_listing(listings)

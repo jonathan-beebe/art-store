@@ -231,22 +231,20 @@ half differs:
     site's own layout. Building that for all three sites is out of scope for
     any one ticket that touches a single site.
 12. **The admin directory lists are unpaginated.** `/admin/sellers`,
-    `/admin/customers`, `/admin/listings`, `/admin/orders` and
-    `/admin/fulfillments` render every matching row, and the seller and
-    customer selects in their filter forms hold every row of those tables.
+    `/admin/customers`, `/admin/listings`, `/admin/orders`,
+    `/admin/fulfillments` and `/admin/ledger` render every matching row, and
+    the seller selects in their filter forms hold every row of that table.
     The page cost does not grow with the row count in statements — every list
     carries a `count_queries` assertion that pins that — but it does in rows
     rendered. The storefront's `Page` value object is the shape to reuse.
-13. **The refund figures have no accounting page yet.**
-    `Fulfillment.fees_earned_cents` and `Fulfillment.fees_refunded_cents` fold
-    the forgone platform fee, and `LedgerEntry` carries the `refunded` entry
-    type, but `/admin/accounting` and `/admin/ledger` are FEAT-020's. The
-    ledger browser's `refunded` filter value works from the enum the moment
-    that page exists.
-14. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
+13. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
     walks placement through delivery and payout; the reversal surfaces are
     reachable in the app and covered by tests, but the demo data does not
-    exercise them.
+    exercise them. `/admin/accounting` and `/admin/ledger` (FEAT-020) render
+    correctly for it either way — a page with nothing declined or refunded is
+    the zero case their tests already cover — but a reviewer clicking through
+    the seeded demo never sees `fees_refunded_cents` or a `refunded` ledger
+    row without triggering one by hand.
 
 ## Suggested next steps
 

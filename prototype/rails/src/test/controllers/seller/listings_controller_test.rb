@@ -72,7 +72,8 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "the activity page totals the events of the seller's own listing" do
     seller = signed_in_seller
     listing = create_listing(seller)
-    2.times { create_listing_event(listing, "view", 1.day.ago) }
+    create_listing_event(listing, "view", 2.days.ago)
+    create_listing_event(listing, "view", 1.day.ago)
     create_listing_event(listing, "favorite", 1.day.ago)
     create_listing_event(listing, "unfavorite", 1.day.ago)
 

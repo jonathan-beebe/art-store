@@ -1,0 +1,11 @@
+<tr data-account="<%= account.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to account.display_name, admin_seller_path(account.seller), class: "font-medium underline" %>
+  </th>
+  <td data-cell="held" class="px-4 py-2 text-right tabular-nums"><%= account.held.format %></td>
+  <td data-cell="available" class="px-4 py-2 text-right tabular-nums"><%= account.available.format %></td>
+  <td data-cell="paid_out" class="px-4 py-2 text-right tabular-nums"><%= account.paid_out.format %></td>
+  <td data-cell="refunded" class="px-4 py-2 text-right tabular-nums"><%= account.refunded.format %></td>
+  <td data-cell="fees_earned" class="px-4 py-2 text-right tabular-nums"><%= account.fees_earned.format %></td>
+  <td data-cell="fees_refunded" class="px-4 py-2 text-right tabular-nums"><%= account.fees_refunded.format %></td>
+</tr>

@@ -17,43 +17,90 @@ class Admin::DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "body[data-site=?]", "admin"
     assert_select "head link[rel=stylesheet][href*=?]", "tailwind"
     assert_select "nav a[href=?]", admin_root_path
+    assert_select "nav a[href=?]", admin_accounting_path
+    assert_select "nav a[href=?]", admin_ledger_path
+    assert_select "nav a[href=?]", admin_stats_path
   end
 
-  test "it lists every seller with a link to their page" do
+  test "it counts sellers and customers by standing" do
     sign_in_as_admin
-    seller = create_seller(shop_name: "Terra & Glaze")
+    create_seller
+    create_verified_customer
+    create_anonymous_customer
 
     get admin_root_path
 
-    assert_select "[data-seller=?] a[href=?]", seller.id.to_s, admin_seller_path(seller), text: "Terra & Glaze"
-    assert_select "[data-seller=?]", seller.id.to_s, text: /#{seller.email}/
+    assert_select "[data-stat=sellers] dd", text: "1"
+    assert_select "[data-stat=verified-customers] dd", text: "1"
+    assert_select "[data-stat=anonymous-customers] dd", text: "1"
   end
 
-  test "it lists the verified customers with a link to their page" do
-    sign_in_as_admin
-    customer = create_verified_customer(name: "Casey Whitfield")
-
-    get admin_root_path
-
-    assert_select "[data-customer=?] a[href=?]", customer.id.to_s, admin_customer_path(customer),
-      text: "Casey Whitfield"
-  end
-
-  test "a visitor who has given no address stays off the customer list" do
-    sign_in_as_admin
-    anonymous = create_anonymous_customer
-
-    get admin_root_path
-
-    assert_select "[data-customer=?]", anonymous.id.to_s, false
-  end
-
-  test "it says so where nobody has signed up" do
+  test "every listing, order and fulfillment status is listed, even at zero" do
     sign_in_as_admin
 
     get admin_root_path
 
-    assert_select "[data-empty=?]", "sellers"
-    assert_select "[data-empty=?]", "customers"
+    assert_response :success
+    Listing.statuses.keys.each { |status| assert_select "[data-stat=?] dd", "listing-#{status}", text: "0" }
+    Order.statuses.keys.each { |status| assert_select "[data-stat=?] dd", "order-#{status}", text: "0" }
+    Fulfillment.statuses.keys.each { |status| assert_select "[data-stat=?] dd", "fulfillment-#{status}", text: "0" }
+  end
+
+  test "a status with a row is counted under its own tally, and the rest stay zero" do
+    sign_in_as_admin
+    create_listing(status: :draft)
+
+    get admin_root_path
+
+    assert_select "[data-stat=listing-draft] dd", text: "1"
+    assert_select "[data-stat=listing-for_sale] dd", text: "0"
+  end
+
+  test "the money section reads the platform's folded balance" do
+    sign_in_as_admin
+    seller = create_seller
+    fulfillment = paid_order_for(create_verified_customer, create_listing(seller, price_cents: 45_000))
+      .fulfillments.sole
+    fulfillment.ship!(carrier: "Royal Mail", tracking_number: "RM1", at: moment("2026-08-21 09:00:00"))
+    fulfillment.deliver!(at: moment("2026-08-22 09:00:00"))
+
+    get admin_root_path
+
+    assert_select "[data-stat=held] dd", text: "$0.00"
+    assert_select "[data-stat=available] dd", text: "$405.00"
+    assert_select "[data-stat=fees-earned] dd", text: "$45.00"
+    assert_select "[data-stat=fees-refunded] dd", text: "$0.00"
+    assert_select "[data-stat=refunded] dd", text: "$0.00"
+  end
+
+  test "page views this week counts the seven days ending today" do
+    sign_in_as_admin
+    PageViewCount.record!(path_pattern: "/art/:slug", at: Time.current)
+    PageViewCount.record!(path_pattern: "/art/:slug", at: 30.days.ago)
+
+    get admin_root_path
+
+    assert_select "[data-stat=views-this-week] dd", text: "1"
+  end
+
+  test "the folded money and tallies cost the same statements however many sellers hold money" do
+    sign_in_as_admin
+    build_delivered_seller
+    one = count_queries { get admin_root_path }
+
+    4.times { build_delivered_seller }
+    five = count_queries { get admin_root_path }
+
+    assert_equal one, five
+  end
+
+  private
+
+  def build_delivered_seller
+    seller = create_seller
+    fulfillment = paid_order_for(create_verified_customer, create_listing(seller, price_cents: 45_000))
+      .fulfillments.sole
+    fulfillment.ship!(carrier: "Royal Mail", tracking_number: "RM1", at: moment("2026-08-21 09:00:00"))
+    fulfillment.deliver!(at: moment("2026-08-22 09:00:00"))
   end
 end

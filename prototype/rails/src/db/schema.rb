@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_000102) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_000103) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -255,6 +255,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000102) do
     t.datetime "updated_at", null: false
     t.index ["customer_id", "placed_at"], name: "index_orders_on_customer_id_and_placed_at"
     t.index ["customer_id"], name: "index_orders_on_customer_id"
+  end
+
+  create_table "page_view_counts", id: :string, force: :cascade do |t|
+    t.integer "count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.date "day", null: false
+    t.string "path_pattern", null: false
+    t.string "site", null: false
+    t.datetime "updated_at", null: false
+    t.index ["site", "path_pattern", "day"], name: "index_page_view_counts_on_site_and_path_pattern_and_day", unique: true
   end
 
   create_table "payments", id: :string, force: :cascade do |t|

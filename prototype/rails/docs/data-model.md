@@ -1,6 +1,6 @@
 # Data model
 
-Generated from `src/db/schema.rb` (version `2026_08_23_202914`). Active
+Generated from `src/db/schema.rb` (version `2026_08_24_000103`). Active
 Storage's own tables (`active_storage_attachments`, `active_storage_blobs`,
 `active_storage_variant_records`) are omitted — nothing in the domain reads
 or writes them directly; `Listing#image_url` falls back to a generated
@@ -201,6 +201,13 @@ erDiagram
         timestamp expires_at
         timestamp consumed_at "nullable"
     }
+    page_view_counts {
+        string id PK "pvc_<ulid>"
+        string site "shop|seller|admin, UK with path_pattern, day"
+        string path_pattern "a route pattern, e.g. /art/:slug(.:format), UK with site, day"
+        date day "UK with site, path_pattern"
+        integer count
+    }
 
     sellers ||--o{ listings : owns
     sellers ||--o{ order_items : sold_via
@@ -242,6 +249,13 @@ Caveats:
   `email` string plus `actor_type`, so it is drawn without a relationship line
   above. A seller, a customer and an admin can share an email address; each
   gets its own row in its own table.
+- `page_view_counts` names no other table either — it is rolled up from a
+  request's own route pattern, not from a row a request read. The unique
+  index on `(site, path_pattern, day)` is what turns the first hit of a day
+  into an insert and every later one into an increment, in the one `upsert`
+  statement `PageViewCount.record!` runs. `count` defaults to `0` at the
+  column level only because `create_table` asks for a default; every row that
+  exists carries at least `1`, written by that same `upsert`.
 - `notifications` addresses a polymorphic `recipient` (`recipient_type` is
   `Seller`, `Customer` or `Admin`), so the table carries no foreign key to any
   of them. An anonymous-customer merge re-points rows by `recipient_id` the

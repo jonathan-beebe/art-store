@@ -88,6 +88,10 @@ Rails.application.routes.draw do
       constraints: PrefixedUlid.constraints(id: :cnv) do
       resources :messages, only: :create, constraints: PrefixedUlid.constraints(conversation_id: :cnv)
     end
+
+    get "accounting", to: "accounting#show", as: :accounting
+    get "ledger", to: "ledger#index", as: :ledger
+    get "stats", to: "stats#show", as: :stats
   end
 
   namespace :shop, path: "" do

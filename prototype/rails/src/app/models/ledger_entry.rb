@@ -53,6 +53,8 @@ class LedgerEntry < ApplicationRecord
   enum :entry_type, { held: "held", released: "released", paid_out: "paid_out", refunded: "refunded" }
 
   scope :occurred_by, ->(moment) { where(occurred_at: ..moment) }
+  scope :for_seller, ->(seller_id) { where(seller_id: seller_id) if seller_id.present? }
+  scope :with_type, ->(entry_type) { where(entry_type: entry_type) if entry_type.present? }
 
   # amount_cents is signed: a hold and a release are positive and a payout is
   # negative, which is what lets a balance fold the whole ledger by adding.
