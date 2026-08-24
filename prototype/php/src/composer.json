@@ -51,7 +51,7 @@
             "@php artisan dev"
         ],
         "test": [
-            "@php vendor/bin/pest"
+            "@php -d memory_limit=1G vendor/bin/pest --coverage --min=100"
         ],
         "test:coverage": [
             "@php -d memory_limit=1G vendor/bin/pest --coverage --coverage-html coverage"
@@ -64,11 +64,6 @@
         ],
         "lint:fix": [
             "@php vendor/bin/pint"
-        ],
-        "check": [
-            "@lint",
-            "@analyse",
-            "@test"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

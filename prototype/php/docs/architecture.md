@@ -399,13 +399,14 @@ flowchart LR
   writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
-- The gate: `make check` (`composer check`) runs Pint (`declare_strict_types`
-  enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
-  `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
-  config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (1107 tests, 2491 assertions). `make analyse` and `make lint` run
-  the first two alone, against the file tree only (`--no-deps`, no web
-  server).
+- The gate: `make check` runs `lint`, then `assets`, then `test`, stopping at
+  the first failure. `lint` runs Pint (`declare_strict_types` enforced
+  tree-wide via the `laravel` preset), then PHPStan/Larastan at `level: max`
+  over `app`, `database`, `routes`, and `tests` (model casts and config types
+  understood via `parseModelCastsMethod` and `checkConfigTypes`), against the
+  file tree only (`--no-deps`, no web server). `assets` builds the Tailwind
+  CSS. `test` runs the full Pest suite under pcov, gated at 100% of lines
+  (`--min=100`). `make analyse` runs PHPStan alone.
 - Sidecar tests are analysed at the same level as the code they cover: there
   are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
   test case, the custom expectations, and the arch DSL through traits and

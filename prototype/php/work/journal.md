@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-23:20:45:00 — MAINT-003 — started
 - 2026-08-23:20:36:19 — MAINT-004 — defined: Final validation and docs refresh for the alignment branch
 - 2026-08-23:20:36:19 — IMPRV-005 — defined: Merge folds the cart and de-duplicates favorites
 - 2026-08-23:20:36:19 — BUG-003 — defined: A blocked customer's ask leaves an empty thread, and a magic link can be consumed twice
