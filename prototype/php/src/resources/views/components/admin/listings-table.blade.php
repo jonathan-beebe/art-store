@@ -13,6 +13,7 @@
                         <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
                     @endif
                     <th scope="col" class="px-4 py-2 font-semibold">Status</th>
+                    <th scope="col" class="px-4 py-2 font-semibold">Removed</th>
                     <th scope="col" class="px-4 py-2 text-right font-semibold">Price</th>
                     <th scope="col" class="px-4 py-2 text-right font-semibold">Quantity</th>
                 </tr>
@@ -29,6 +30,13 @@
                             </td>
                         @endif
                         <td class="px-4 py-2">{{ $listing->status->label() }}</td>
+                        <td class="px-4 py-2">
+                            @if ($listing->activeRemoval)
+                                <span class="text-red-700">{{ $listing->activeRemoval->kind->label() }}</span>
+                            @else
+                                <span class="text-gray-600">—</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-right tabular-nums">{{ $listing->price()->format() }}</td>
                         <td class="px-4 py-2 text-right tabular-nums">{{ $listing->quantity }}</td>
                     </tr>

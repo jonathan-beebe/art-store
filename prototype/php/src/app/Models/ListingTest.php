@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Actions\Listings\RecordListingEvent;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Listings\RemovedFilter;
 use DomainException;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,83 @@ it('surfaces only listings for sale on the storefront', function (): void {
 
     expect(Listing::query()->forSale()->pluck('id')->all())->toBe([$forSale->id]);
 });
+
+it('drops a removed listing from forSale even while its status still says for_sale', function (): void {
+    $seller = $this->seller();
+    $forSale = $this->listing($seller);
+    $removed = $this->listing($seller);
+    ListingRemoval::factory()->create(['listing_id' => $removed->id]);
+
+    expect(Listing::query()->forSale()->pluck('id')->all())->toBe([$forSale->id]);
+});
+
+it('reads whether it carries an active removal, and its reason', function (): void {
+    $listing = $this->listing($this->seller());
+
+    expect($listing->hasActiveRemoval())->toBeFalse()
+        ->and($listing->currentRemoval())->toBeNull()
+        ->and($listing->removalReason())->toBeNull();
+
+    ListingRemoval::factory()->create(['listing_id' => $listing->id, 'reason' => 'Under review.']);
+
+    expect($listing->hasActiveRemoval())->toBeTrue()
+        ->and($listing->currentRemoval()?->reason)->toBe('Under review.')
+        ->and($listing->removalReason())->toBe('Under review.');
+});
+
+it('reads only the active removal when it has been removed more than once', function (): void {
+    $listing = $this->listing($this->seller());
+    ListingRemoval::factory()->lifted()->create(['listing_id' => $listing->id, 'reason' => 'First removal.']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id, 'reason' => 'Second removal.']);
+
+    expect($listing->removalReason())->toBe('Second removal.');
+});
+
+it('is on the storefront by status alone, and off it once removed', function (): void {
+    $listing = $this->listing($this->seller());
+
+    expect($listing->isOnStorefront())->toBeTrue();
+
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    expect($listing->isOnStorefront())->toBeFalse();
+});
+
+it('drops for_sale from the transitions it offers while removed', function (): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::Sold]);
+
+    expect($listing->availableTransitions())->toBe([ListingStatus::ForSale]);
+
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    expect($listing->availableTransitions())->toBe([]);
+});
+
+it('narrows the admin list by removal state', function (RemovedFilter $filter, string $expectedTitle): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Visible piece']);
+    $removedListing = $this->listing($seller, ['title' => 'Removed piece']);
+    ListingRemoval::factory()->create(['listing_id' => $removedListing->id]);
+
+    $titles = Listing::query()->ofRemoval($filter)->orderBy('title')->pluck('title')->all();
+
+    expect($titles)->toContain($expectedTitle);
+})->with([
+    'visible only shows the untouched listing' => [RemovedFilter::Visible, 'Visible piece'],
+    'removed only shows the removed listing' => [RemovedFilter::Removed, 'Removed piece'],
+]);
+
+it('shows every listing when the removed filter is any or absent', function (?RemovedFilter $filter): void {
+    $seller = $this->seller();
+    $this->listing($seller);
+    $removedListing = $this->listing($seller);
+    ListingRemoval::factory()->create(['listing_id' => $removedListing->id]);
+
+    expect(Listing::query()->ofRemoval($filter)->count())->toBe(2);
+})->with([
+    'no filter at all' => [null],
+    'the explicit any case' => [RemovedFilter::Any],
+]);
 
 it('takes the rows placement reads for update, in id order', function (): void {
     // SQLite has no row lock and its grammar compiles the clause away, so the

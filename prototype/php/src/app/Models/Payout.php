@@ -8,6 +8,8 @@ use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\PayoutFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -59,5 +61,19 @@ class Payout extends Model
     public function amount(): Money
     {
         return Money::fromCents($this->amount_cents);
+    }
+
+    /**
+     * The admin payouts list, narrowed to one seller. A null filter adds no
+     * clause, which is what the console's "All sellers" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSeller(Builder $query, ?string $sellerId): void
+    {
+        if ($sellerId !== null) {
+            $query->where('seller_id', $sellerId);
+        }
     }
 }

@@ -29,7 +29,14 @@ it('renders the earnings page', function (): void {
 
     $response->assertOk();
     $response->assertSee('Earnings');
-    $response->assertSee('Run weekly payout now');
+});
+
+it('offers no control that runs a payout', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/earnings');
+
+    $response->assertOk();
+    $response->assertDontSee('Run weekly payout');
+    $response->assertDontSee(route('admin.payouts.run'), escape: false);
 });
 
 it('reports the subtotal fee and net of each sale', function () use ($paidFulfillment): void {

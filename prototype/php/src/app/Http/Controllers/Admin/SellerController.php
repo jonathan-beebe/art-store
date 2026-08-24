@@ -27,7 +27,7 @@ final class SellerController extends Controller
         return view('admin.sellers.show', [
             'seller' => $seller,
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
-            'listings' => $seller->listings()->orderByDesc('created_at')->orderByDesc('id')->get(),
+            'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'payouts' => $seller->payouts()->orderByDesc('period_start')->get(),
             'balance' => $seller->escrowBalance(),

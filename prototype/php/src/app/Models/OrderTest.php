@@ -56,6 +56,18 @@ it('plans placement from its items against the listings behind them', function (
         ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
 });
 
+it('blocks a line whose listing carries an active removal, even while for sale', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 2]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $plan = $order->load('items.listing')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
+});
+
 it('counts every status the table holds, in one row each', function (): void {
     $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
     $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));

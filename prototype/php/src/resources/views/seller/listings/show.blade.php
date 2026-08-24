@@ -6,6 +6,13 @@
         <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 px-3 py-2">Edit</a>
     </div>
 
+    @if ($listing->activeRemoval)
+        <div role="alert" class="mt-4 rounded border border-red-300 bg-red-50 p-4 text-red-900">
+            <p class="font-semibold">Removed from the storefront ({{ $listing->activeRemoval->kind->label() }})</p>
+            <p class="mt-1">{{ $listing->activeRemoval->reason }}</p>
+        </div>
+    @endif
+
     <section aria-labelledby="totals-heading" class="mt-6">
         <h2 id="totals-heading" class="font-semibold text-gray-700">Totals</h2>
 

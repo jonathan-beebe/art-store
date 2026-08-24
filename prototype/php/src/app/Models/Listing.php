@@ -8,6 +8,7 @@ use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
+use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Override;
 
@@ -90,6 +92,41 @@ class Listing extends Model
         return $this->hasMany(ListingFaq::class);
     }
 
+    /** @return HasMany<ListingRemoval, $this> */
+    public function removals(): HasMany
+    {
+        return $this->hasMany(ListingRemoval::class);
+    }
+
+    /** @return HasOne<ListingRemoval, $this> */
+    public function activeRemoval(): HasOne
+    {
+        return $this->removals()->one()->whereNull('lifted_at')->latestOfMany('created_at');
+    }
+
+    /**
+     * A fresh read rather than the loaded relation, so a caller that never
+     * eager-loaded `activeRemoval` still gets an answer under strict mode.
+     */
+    public function currentRemoval(): ?ListingRemoval
+    {
+        return $this->activeRemoval()->first();
+    }
+
+    public function hasActiveRemoval(): bool
+    {
+        return $this->currentRemoval() !== null;
+    }
+
+    /**
+     * The admin's own words for why this listing is off the storefront, for
+     * the seller's own page. Null when nothing is removed.
+     */
+    public function removalReason(): ?string
+    {
+        return $this->currentRemoval()?->reason;
+    }
+
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);
@@ -98,6 +135,25 @@ class Listing extends Model
     public function isPurchasable(): bool
     {
         return ListingAvailability::isPurchasable($this->status, $this->quantity);
+    }
+
+    /**
+     * Whether `/art/{slug}` answers this listing or a 404 — a removal
+     * outranks whatever `status` says, the same as browse and search.
+     */
+    public function isOnStorefront(): bool
+    {
+        return ListingAvailability::isOnStorefront($this->status, $this->hasActiveRemoval());
+    }
+
+    /**
+     * The transitions the seller's own page offers right now.
+     *
+     * @return list<ListingStatus>
+     */
+    public function availableTransitions(): array
+    {
+        return ListingAvailability::availableTransitions($this->status, $this->hasActiveRemoval());
     }
 
     /**
@@ -143,11 +199,18 @@ class Listing extends Model
             : Storage::disk('public')->url($this->image_path);
     }
 
-    /** @param Builder<$this> $query */
+    /**
+     * The storefront's own listing set: for sale, and clear of any active
+     * removal — a removed listing stays `for_sale` in the row, so status
+     * alone is not enough to keep it out of browse and search.
+     *
+     * @param  Builder<$this>  $query
+     */
     #[Scope]
     protected function forSale(Builder $query): void
     {
-        $query->where('status', ListingStatus::ForSale);
+        $query->where('status', ListingStatus::ForSale)
+            ->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at'));
     }
 
     /**
@@ -195,6 +258,23 @@ class Listing extends Model
         if ($sellerId !== null) {
             $query->where('seller_id', $sellerId);
         }
+    }
+
+    /**
+     * The same list narrowed by removal state. `null` and `Any` both add no
+     * clause, which is what an absent, empty, or `removed=any` filter asks
+     * for — the same "empty means all" shape `ofStatus` and `ofSeller` hold.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofRemoval(Builder $query, ?RemovedFilter $removed): void
+    {
+        match ($removed) {
+            null, RemovedFilter::Any => null,
+            RemovedFilter::Removed => $query->whereHas('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at')),
+            RemovedFilter::Visible => $query->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at')),
+        };
     }
 
     /**

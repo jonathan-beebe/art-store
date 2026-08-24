@@ -67,8 +67,7 @@ class Cart extends Model
                 status: $item->listing->status,
                 availableQuantity: $item->listing->quantity,
                 quantity: $item->quantity,
-                // FEAT-024 wires an admin listing removal in here.
-                hasActiveRemoval: false,
+                hasActiveRemoval: $item->listing->hasActiveRemoval(),
             ),
         )->all()));
     }

@@ -8,6 +8,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\ListingEvent;
 use App\Models\ListingFaq;
+use App\Models\ListingRemoval;
 use Tests\CapturedStory;
 
 it('shows the listing in full', function (): void {
@@ -93,6 +94,25 @@ it('keeps a draft listing off the storefront', function (): void {
     $this->listing($this->seller(), ['slug' => 'unfinished', 'status' => ListingStatus::Draft]);
 
     $this->get('/art/unfinished')->assertNotFound();
+});
+
+it('answers the same 404 for a removed listing, whatever its status says', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'recalled-print']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $this->get('/art/recalled-print')->assertNotFound();
+});
+
+it('answers the same 404 for an unknown slug as for a removed one', function (): void {
+    $removed = $this->listing($this->seller(), ['slug' => 'recalled-print']);
+    ListingRemoval::factory()->create(['listing_id' => $removed->id]);
+
+    $unknown = $this->get('/art/does-not-exist');
+    $removedResponse = $this->get('/art/recalled-print');
+
+    $unknown->assertNotFound();
+    $removedResponse->assertNotFound();
+    expect($unknown->status())->toBe($removedResponse->status());
 });
 
 it('offers a form to ask the seller a question', function (): void {

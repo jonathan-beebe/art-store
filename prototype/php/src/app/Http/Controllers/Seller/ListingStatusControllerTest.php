@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
+use App\Models\ListingRemoval;
 use Tests\CapturedStory;
 
 it('puts a draft up for sale', function (): void {
@@ -39,6 +40,17 @@ it('renders only the transitions the status allows', function (): void {
     $response->assertSee('value="for_sale"', escape: false);
     $response->assertSee('value="archived"', escape: false);
     $response->assertDontSee('value="sold"', escape: false);
+});
+
+it('offers no button to put a removed listing back on the storefront', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['status' => ListingStatus::Sold, 'title' => 'A removed piece']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertSee('A removed piece');
+    $response->assertDontSee('value="for_sale"', escape: false);
 });
 
 it('refuses to change another sellers listing', function (): void {

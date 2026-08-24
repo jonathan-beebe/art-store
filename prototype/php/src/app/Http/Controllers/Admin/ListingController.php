@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Listings\RemovedFilter;
 use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\OrderItem;
@@ -18,12 +19,14 @@ final class ListingController extends Controller
     {
         $status = $request->enum('status', ListingStatus::class);
         $sellerId = $request->filled('seller') ? $request->string('seller')->toString() : null;
+        $removed = $request->enum('removed', RemovedFilter::class) ?? RemovedFilter::Any;
 
         return view('admin.listings.index', [
             'listings' => Listing::query()
                 ->ofStatus($status)
                 ->ofSeller($sellerId)
-                ->with('seller')
+                ->ofRemoval($removed)
+                ->with(['seller', 'activeRemoval'])
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get(),
@@ -31,13 +34,16 @@ final class ListingController extends Controller
             'status' => $status,
             'statuses' => ListingStatus::cases(),
             'sellerId' => $sellerId,
+            'removed' => $removed,
+            'removedFilters' => RemovedFilter::cases(),
         ]);
     }
 
     public function show(Listing $listing): View
     {
         return view('admin.listings.show', [
-            'listing' => $listing->load('seller')->loadEventCounts()->loadCount('favorites'),
+            'listing' => $listing->load(['seller', 'activeRemoval'])->loadEventCounts()->loadCount('favorites'),
+            'removals' => $listing->removals()->orderByDesc('created_at')->orderByDesc('id')->get(),
             'sales' => OrderItem::query()
                 ->where('listing_id', $listing->id)
                 ->with('order')

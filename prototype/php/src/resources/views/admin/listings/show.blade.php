@@ -39,6 +39,82 @@
         </div>
     </dl>
 
+    <section aria-labelledby="moderation-heading" class="mt-6 max-w-xl">
+        <h2 id="moderation-heading" class="font-semibold text-gray-700">Storefront</h2>
+
+        @if ($listing->activeRemoval)
+            <dl class="mt-2 rounded border border-red-300 bg-red-50 p-4 text-red-900">
+                <dt class="font-semibold">Removed ({{ $listing->activeRemoval->kind->label() }})</dt>
+                <dd class="mt-1">{{ $listing->activeRemoval->reason }}</dd>
+                <dd class="mt-1 text-red-700">Since {{ $listing->activeRemoval->created_at?->format('M j, Y g:ia') }}</dd>
+            </dl>
+
+            @if ($listing->activeRemoval->kind->canLift())
+                <form method="POST" action="{{ route('admin.listings.removals.lift', $listing) }}" class="mt-2">
+                    @csrf
+                    <button type="submit" class="rounded bg-gray-900 px-4 py-2 font-medium text-white">Lift removal</button>
+                </form>
+            @endif
+        @else
+            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">On the storefront.</p>
+
+            <form method="POST" action="{{ route('admin.listings.removals.store', $listing) }}"
+                  class="mt-2 rounded border border-gray-300 bg-white p-4">
+                @csrf
+
+                <label for="kind" class="block font-medium text-gray-700">Kind</label>
+                <select id="kind" name="kind" class="mt-1 block w-full rounded border border-gray-400 px-3 py-2">
+                    <option value="temporary">Temporary</option>
+                    <option value="permanent">Permanent</option>
+                </select>
+                @error('kind')
+                    <p class="mt-1 text-red-700">{{ $message }}</p>
+                @enderror
+
+                <label for="reason" class="mt-3 block font-medium text-gray-700">Reason</label>
+                <input id="reason" name="reason" type="text" required maxlength="500" value="{{ old('reason') }}"
+                       class="mt-1 block w-full rounded border border-gray-400 px-3 py-2">
+                @error('reason')
+                    <p class="mt-1 text-red-700">{{ $message }}</p>
+                @enderror
+
+                <button type="submit" class="mt-4 rounded bg-gray-900 px-4 py-2 font-medium text-white">Remove from storefront</button>
+            </form>
+        @endif
+    </section>
+
+    <section aria-labelledby="removal-history-heading" class="mt-6">
+        <h2 id="removal-history-heading" class="font-semibold text-gray-700">Removal history</h2>
+
+        @if ($removals->isEmpty())
+            <x-admin.nothing>Never removed.</x-admin.nothing>
+        @else
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <table class="w-full text-left">
+                    <caption class="sr-only">Every removal this listing has been under</caption>
+                    <thead class="border-b border-gray-300 bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 font-semibold">Kind</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Reason</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Removed</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Lifted</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($removals as $removal)
+                            <tr>
+                                <th scope="row" class="px-4 py-2 font-normal">{{ $removal->kind->label() }}</th>
+                                <td class="px-4 py-2">{{ $removal->reason }}</td>
+                                <td class="px-4 py-2">{{ $removal->created_at?->format('M j, Y g:ia') }}</td>
+                                <td class="px-4 py-2">{{ $removal->lifted_at?->format('M j, Y g:ia') ?? 'Active' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
     <section aria-labelledby="activity-heading" class="mt-6">
         <h2 id="activity-heading" class="font-semibold text-gray-700">Activity</h2>
 

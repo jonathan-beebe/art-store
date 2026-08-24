@@ -11,11 +11,15 @@ use App\Http\Controllers\Admin\EventsController;
 use App\Http\Controllers\Admin\FulfillmentController;
 use App\Http\Controllers\Admin\LedgerController;
 use App\Http\Controllers\Admin\LiftCustomerBlockController;
+use App\Http\Controllers\Admin\LiftListingRemovalController;
 use App\Http\Controllers\Admin\ListingController;
+use App\Http\Controllers\Admin\ListingRemovalController;
 use App\Http\Controllers\Admin\MessageController;
 use App\Http\Controllers\Admin\OrderCancellationController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\RefundController;
+use App\Http\Controllers\Admin\RunPayoutController;
 use App\Http\Controllers\Admin\SellerController;
 use App\Http\Controllers\Admin\SellerMessageController;
 use App\Http\Controllers\Admin\StatsController;
@@ -37,6 +41,8 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
 
     Route::get('listings', [ListingController::class, 'index'])->name('listings.index');
     Route::get('listings/{listing}', [ListingController::class, 'show'])->name('listings.show');
+    Route::post('listings/{listing}/removals', ListingRemovalController::class)->name('listings.removals.store');
+    Route::post('listings/{listing}/removals/lift', LiftListingRemovalController::class)->name('listings.removals.lift');
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
@@ -48,6 +54,8 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
 
     Route::get('accounting', AccountingController::class)->name('accounting');
     Route::get('ledger', LedgerController::class)->name('ledger');
+    Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
+    Route::post('payouts', RunPayoutController::class)->name('payouts.run');
     Route::get('stats', StatsController::class)->name('stats');
 
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');

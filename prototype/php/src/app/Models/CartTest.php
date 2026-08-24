@@ -47,3 +47,17 @@ it('plans placement from its items against the listings behind them', function (
         ->and($plan->blocked[0]->title)->toBe('Harbour at Dawn')
         ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::OffSale);
 });
+
+it('blocks a line whose listing carries an active removal, even while for sale', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+
+    $plan = $cart->load('items.listing')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
+});

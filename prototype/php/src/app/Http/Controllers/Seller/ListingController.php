@@ -56,7 +56,7 @@ final class ListingController extends SellerController
         $endsOn = $this->now();
 
         return view('seller.listings.show', [
-            'listing' => $listing->loadEventCounts(),
+            'listing' => $listing->loadEventCounts()->load('activeRemoval'),
             'days' => ActivityTimeline::lastDays(
                 $listing->eventCountsByDateSince(ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
                 $endsOn,

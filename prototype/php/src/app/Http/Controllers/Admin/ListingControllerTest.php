@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Cart\AddToCart;
+use App\Actions\Listings\RemoveListing;
+use App\Domain\Listings\ListingRemovalKind;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Favorite;
 
@@ -60,6 +62,22 @@ it('reads an empty filter as every listing, the way the console submits it', fun
     'a status that names nothing' => 'status=nonsense',
 ]);
 
+it('narrows the list by removal state', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Nine Herons']);
+    $removed = $this->listing($seller, ['title' => 'Rye Harvest']);
+    app(RemoveListing::class)($removed, ListingRemovalKind::Temporary, 'Under review.');
+
+    $removedOnly = $this->actingAs($this->admin(), 'admin')->get('/admin/listings?removed=removed');
+    $removedOnly->assertSee('Rye Harvest')->assertDontSee('Nine Herons');
+
+    $visibleOnly = $this->actingAs($this->admin(), 'admin')->get('/admin/listings?removed=visible');
+    $visibleOnly->assertSee('Nine Herons')->assertDontSee('Rye Harvest');
+
+    $any = $this->actingAs($this->admin(), 'admin')->get('/admin/listings?removed=any');
+    $any->assertSee('Nine Herons')->assertSee('Rye Harvest');
+});
+
 it('says so when no listing matches the filters', function (): void {
     $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
 
@@ -84,6 +102,28 @@ it('shows one listing with its activity and sales', function (): void {
     $response->assertSee('Oil on linen');
     $response->assertSee('Blue Kiln Studio');
     $response->assertSee($order->id);
+});
+
+it('shows the active removal and a lift button', function (): void {
+    $listing = $this->listing($this->seller());
+    app(RemoveListing::class)($listing, ListingRemovalKind::Temporary, 'Under review for a copyright claim.');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('Under review for a copyright claim.');
+    $response->assertSee('Lift removal');
+});
+
+it('offers no lift button for a permanent removal', function (): void {
+    $listing = $this->listing($this->seller());
+    app(RemoveListing::class)($listing, ListingRemovalKind::Permanent, 'Counterfeit.');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('Counterfeit.');
+    $response->assertDontSee('Lift removal');
 });
 
 it('says so on a listing nobody has bought', function (): void {

@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:18:45:00 — FEAT-024 — done: listing_removals (temporary/permanent, at most one active), removed listings dropped from browse/search/art/{slug}/checkout, seller-portal payout button removed in favor of /admin/payouts; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:17:30:00 — FEAT-024 — started
 - 2026-08-24:15:10:00 — FEAT-023 — started
 - 2026-08-24:13:40:00 — FEAT-021 — started

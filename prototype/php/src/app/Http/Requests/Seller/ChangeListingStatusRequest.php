@@ -25,7 +25,7 @@ final class ChangeListingStatusRequest extends FormRequest
      */
     public function rules(): array
     {
-        $transitions = $this->listing()->status->transitions();
+        $transitions = $this->listing()->availableTransitions();
 
         // An empty `only` set admits every case, so a status with nowhere left
         // to go refuses the field rather than narrowing it.

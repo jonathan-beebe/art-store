@@ -8,10 +8,6 @@ namespace App\Logging;
  * The event vocabulary of docs/alignment.md §2.3, holding the cases this
  * prototype's features support. `<subject>.<verb>` in the imperative; the
  * phase field carries the tense.
- *
- * The events waiting on features this prototype has yet to grow —
- * `moderation.remove_listing`, `moderation.lift_listing_removal` — join the
- * enum with the work that emits them.
  */
 enum StoryEvent: string
 {
@@ -44,6 +40,8 @@ enum StoryEvent: string
     case FaqUnpublish = 'faq.unpublish';
     case NotificationWrite = 'notification.write';
     case NotificationDeliver = 'notification.deliver';
+    case ModerationRemoveListing = 'moderation.remove_listing';
+    case ModerationLiftListingRemoval = 'moderation.lift_listing_removal';
     case ModerationBlockCustomer = 'moderation.block_customer';
     case ModerationLiftCustomerBlock = 'moderation.lift_customer_block';
     case RateLimitExceed = 'rate_limit.exceed';

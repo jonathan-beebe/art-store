@@ -11,6 +11,7 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Reports\DailyActivity;
 use App\Models\Listing;
+use App\Models\ListingRemoval;
 use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -148,6 +149,28 @@ it('renders the activity page', function (): void {
     $response->assertSee('Harbour at Dusk');
 });
 
+it('reads the removal reason on its own listing page', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id, 'reason' => 'Under review for a copyright claim.']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('Under review for a copyright claim.');
+    $response->assertSee('Removed from the storefront');
+});
+
+it('shows no removal notice on a listing that was never removed', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Removed from the storefront');
+});
+
 it('hides another sellers listing from the activity page', function (): void {
     $listing = $this->listing($this->seller('Other Studio'));
 
@@ -228,8 +251,9 @@ it('renders the activity page on a fixed number of queries however many events t
 
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews).
-        ->expectsDatabaseQueryCount(6)
+        // countable response (RollUpPageViews); +1 for the active-removal
+        // eager load.
+        ->expectsDatabaseQueryCount(7)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();

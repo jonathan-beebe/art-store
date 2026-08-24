@@ -16,7 +16,7 @@ final class ListingController extends ShopController
 {
     public function __invoke(Listing $listing, RecordListingEvent $recordListingEvent): View
     {
-        abort_unless($listing->status->isOnStorefront(), 404);
+        abort_unless($listing->isOnStorefront(), 404);
 
         $visitor = $this->visitor();
         $event = $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());

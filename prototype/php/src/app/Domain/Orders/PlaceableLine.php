@@ -8,10 +8,7 @@ use App\Domain\Listings\ListingStatus;
 
 /**
  * A cart or order line as placement judges it: the quantity asked for,
- * against what the listing behind it allows right now. `hasActiveRemoval`
- * waits on FEAT-024 to wire an admin listing removal in — every caller
- * passes `false` until then, so a removed listing reads as whatever its
- * ordinary status says instead.
+ * against what the listing behind it allows right now.
  */
 final readonly class PlaceableLine
 {

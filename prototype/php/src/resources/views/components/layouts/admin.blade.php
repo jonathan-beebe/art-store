@@ -25,6 +25,7 @@
                     <a href="{{ route('admin.fulfillments.index') }}" class="text-gray-600 hover:text-gray-900">Fulfillments</a>
                     <a href="{{ route('admin.accounting') }}" class="text-gray-600 hover:text-gray-900">Accounting</a>
                     <a href="{{ route('admin.ledger') }}" class="text-gray-600 hover:text-gray-900">Ledger</a>
+                    <a href="{{ route('admin.payouts.index') }}" class="text-gray-600 hover:text-gray-900">Payouts</a>
                     <a href="{{ route('admin.stats') }}" class="text-gray-600 hover:text-gray-900">Site stats</a>
                     <a href="{{ route('admin.messages.index') }}" class="text-gray-600 hover:text-gray-900" data-live-badge="Messages" data-events-url="{{ route('admin.events') }}">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                 </nav>

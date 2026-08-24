@@ -124,11 +124,5 @@
                 </table>
             </div>
         @endif
-
-        <form method="POST" action="{{ route('seller.earnings.payout') }}" class="mt-4">
-            @csrf
-            <button type="submit" class="rounded border border-gray-400 bg-white px-4 py-2 font-medium">Run weekly payout now</button>
-            <span class="ml-2 text-gray-600">Debug control: settles every seller's released escrow for the last completed week.</span>
-        </form>
     </section>
 </x-layouts.seller>

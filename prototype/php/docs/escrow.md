@@ -5,7 +5,17 @@ Code: `app/Domain/Escrow/`, `app/Actions/Orders/FinalizeOrder.php`,
 `app/Actions/Fulfillment/ConfirmDelivered.php`,
 `app/Actions/Escrow/IssueRefund.php`,
 `app/Actions/Escrow/RunWeeklyPayout.php`,
-`app/Console/Commands/RunWeeklyPayouts.php`.
+`app/Console/Commands/RunWeeklyPayouts.php`,
+`app/Http/Controllers/Admin/PayoutController.php`,
+`app/Http/Controllers/Admin/RunPayoutController.php`.
+
+Running a payout is a platform action: the CLI (`payouts:run`) and
+`POST /admin/payouts` are the only two entry points, and both call
+`RunWeeklyPayout` — the admin route for every seller in one run, the same as
+the CLI. The seller portal shows a seller their held / available / paid-out
+balance and their payout history on `/seller/earnings` and offers no control
+that runs one; the "run payouts" debug button this prototype started with is
+gone (docs/alignment.md §5).
 
 ## Ledger entry types through hold → release → payout
 
@@ -83,12 +93,12 @@ both lands with FEAT-023.
 
 ## `payouts:run`
 
-Question: how does the weekly payout command turn released escrow into
-`payouts` rows?
+Question: how does the weekly payout command — or the admin site's own payout
+run — turn released escrow into `payouts` rows?
 
 ```mermaid
 sequenceDiagram
-    participant CLI as payouts:run
+    participant CLI as payouts:run, or<br/>POST /admin/payouts
     participant Run as RunWeeklyPayout
     participant Period as PayoutPeriod
     participant Ledger as ledger_entries
@@ -112,6 +122,13 @@ money is already inside `occurred_at <= period.end` on the next run, so it
 nets to zero and `isPayable()` is false). `payouts` also has
 `unique(seller_id, period_start)`. `PayoutPeriod::endingBefore()` is pure —
 Monday–Sunday, `asOf`'s most recently completed week.
+
+| Way in | Command |
+| --- | --- |
+| CLI, current week | `php artisan payouts:run` — settles the week that just ended |
+| CLI, a named week | `php artisan payouts:run --as-of=2026-08-24` |
+| Make | `make payouts`, or `make payouts AS_OF=2026-08-24` |
+| Admin site | `POST /admin/payouts` with an `as_of` field |
 
 ## Worked example
 

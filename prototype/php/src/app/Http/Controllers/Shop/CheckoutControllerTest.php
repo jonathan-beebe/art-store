@@ -9,6 +9,7 @@ use App\Domain\Orders\OrderStatus;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
+use App\Models\ListingRemoval;
 use App\Models\Order;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
@@ -154,6 +155,21 @@ it('re-renders checkout naming the line archived while it sat there, not a redir
     $response->assertStatus(422);
     $response->assertSee('Harbour at Dawn');
     $response->assertSee('no longer for sale');
+    expect(Order::count())->toBe(0)
+        ->and($listing->refresh()->quantity)->toBe(1);
+});
+
+it('re-renders checkout naming a removed line, even while it is still for sale', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    ListingRemoval::factory()->create(['listing_id' => $listing->id, 'reason' => 'Under review.']);
+
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertStatus(422);
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('no longer available');
     expect(Order::count())->toBe(0)
         ->and($listing->refresh()->quantity)->toBe(1);
 });
