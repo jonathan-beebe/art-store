@@ -5,15 +5,25 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 18
-- IMPRV: 9
-- MAINT: 1
+- FEAT: 21
+- IMPRV: 13
+- MAINT: 3
 - A11Y: 1
 - RFCTR: 5
-- BUG: 7
+- BUG: 8
 
 ## Log
 
+- 2026-08-23:20:33:31 — MAINT-002 — defined: Final validation and docs refresh for the alignment branch
+- 2026-08-23:20:33:31 — IMPRV-012 — defined: Field-level errors on every form
+- 2026-08-23:20:33:31 — IMPRV-011 — defined: Identity hardening: non-revealing admin login, cross-site redirect refusal, CSRF tokens
+- 2026-08-23:20:33:31 — IMPRV-010 — defined: Messaging and merge invariants learned from PHP and Rails
+- 2026-08-23:20:33:31 — BUG-007 — defined: Admin order and fulfillment links lead to 404
+- 2026-08-23:20:33:31 — FEAT-020 — defined: Configurable rate limits on sign-in, posting, checkout, and payment
+- 2026-08-23:20:33:31 — FEAT-019 — defined: Order lifecycle back half: cancel, stale sweep, seller decline, admin refund
+- 2026-08-23:20:33:31 — IMPRV-009 — defined: Logs tell the story with session, actor, and transaction ids
+- 2026-08-23:20:33:31 — FEAT-018 — defined: Prefixed ULID identifiers on every table
+- 2026-08-23:20:33:31 — MAINT-001 — defined: Common make vocabulary, check gate, and CI run the same command
 - 2026-08-23:11:40:12 — FEAT-017 — done: second pass, an independent audit of the rewritten docs against `src/app`. Six more mismatches, all older than this ticket: `formatLabel` (the admin view helper is `statusLabel`), `missingConversationParts` (no such function — `participantColumnsOf`/`subjectColumnOf`), two contradicting package counts (260 lockfile entries vs the 230 `npm ci` reports installing — both now say which), "every string-union column carries a CHECK" (`page_view_counts.site` does not, now stated as the exception rather than adding a migration inside IMPRV-004's territory), `make fresh` described as restarting afterwards when it stops the app first, and `app/sites/auth/` described as having `routes/`+`views/` when it is three flat files. Plus four smaller ones: `changed` skips `OPTIONS` too, the stack table's `node:24-bookworm-slim` vs the pinned `node:24.19.0`, the mail header list missing `Content-Transfer-Encoding: 8bit`, and both layout blocks missing `app/test/log-lines.ts`. `make docs-check` re-run: 21 diagrams, 0 failed.
 - 2026-08-23:11:27:46 — FEAT-017 — done: the docs match the code and a clean tree runs. Follow-ups closed: `.github/workflows/node.yml` runs `typecheck` → `lint` → `test:ci` as three steps instead of `check` then `test:ci`, so the suite runs once (`npm run check` unchanged as the local gate); `create-listing.ts` and `place-order.ts` stopped passing `status` literals for columns whose migrations already default to exactly that, each keeping a one-line comment naming the status a row is born with (`record-page-view.ts` keeps `count: 1` — that column defaults to 0, so the literal is the value). Every doc rewritten where it was wrong: `architecture.md` gained a request-path flowchart through the registered plugins and an outbox sequence diagram, a plugin table, a Readiness/shutdown/logs section, a Logging stack row, and lost the `not-implemented-error.ts` / `mailMagicLinkDelivery` / `NotImplementedError` paragraphs; "Twenty-three tables in nine migrations" → 24 across 10 of 11, everywhere, with the CHECK-constraint `make fresh` note IMPRV-004 needs; coverage thresholds 90/80 → 95/90; `listingDraftErrors`/`faqDraftErrors`/`isCheckoutComplete`/`type Cents = number` replaced by `parseListingDraft`/`parseFaqDraft`/`parseCheckoutForm`/the branded `Cents`; `addPageViewRollup` → the `pageViewRollup` plugin; README's "zero `<script>` tags across all 57 templates" → three tags in 66 templates all loading the same `/app.js`; `better-sqlite3` gone from README and review.md; `outbox_messages` added to the ER diagram, the ontology, and admin.md. `review.md`'s known gaps rewritten 7 → 10, adding the in-process event bus, the signed-out storefront 404, and the unplaced `listing.published` event, and naming the six things this batch closed. `smoke.test.ts` 6 → 8 tests: the outbox walk (request under outbox delivery → row → `/admin/outbox` → drain → `.eml`) and one SSE frame over a real socket. Validated on a clean tree: `up -d --build` healthy in 29s; curl walk over every GET route `npm run routes` prints, 75 checks, 0 failures, zero 5xx in the log, `/health` 200 JSON, `/nope` 404 HTML, duplicated-field `POST /login` 400 HTML, three `/events` streams 200 `text/event-stream`; outbox delivery end to end including `npm run outbox` writing 17 `.eml` files; `npm run check` exit 0 in the container and on the host, 1534 → 1536 pass, 0 fail, coverage 99.57/97.22/99.47; `make smoke` 8/8; `make docs-check` 21 diagrams 0 failed; `docker build --target runtime` 289MB, serving `/health` 200 on 4002, refusing to boot without `COOKIE_SECRET` or with `MAGIC_LINK_DELIVERY=flash`, and draining on `docker stop`.
 - 2026-08-23:10:52:43 — FEAT-017 — started
