@@ -63,6 +63,18 @@ class RefundTest < ActiveSupport::TestCase
     assert_equal Refund::REASON_LIMIT, refund.reason.length
   end
 
+  test "the database refuses a second refund row for the same fulfillment" do
+    Refund.issue(fulfillment, reason: "First issue.", by: fulfillment.seller, at: Time.current)
+
+    # Calling .issue directly a second time, rather than going through
+    # Fulfillment#decline!/#refund!, bypasses the transition guard that
+    # already refuses a second decline or refund — this is the unique index
+    # on refunds.fulfillment_id catching it on its own.
+    assert_raises(ActiveRecord::RecordNotUnique) do
+      Refund.issue(fulfillment, reason: "Second issue.", by: fulfillment.seller, at: Time.current)
+    end
+  end
+
   private
 
   def fulfillment

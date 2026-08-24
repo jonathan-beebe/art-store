@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_000105) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_000106) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -326,7 +326,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000105) do
     t.string "order_id", null: false
     t.string "payment_id", null: false
     t.text "reason", null: false
-    t.index ["fulfillment_id"], name: "index_refunds_on_fulfillment_id"
+    t.index ["fulfillment_id"], name: "index_refunds_on_fulfillment_id", unique: true
     t.index ["issued_by_type", "issued_by_id"], name: "index_refunds_on_issued_by_type_and_issued_by_id"
     t.index ["order_id"], name: "index_refunds_on_order_id"
     t.index ["payment_id"], name: "index_refunds_on_payment_id"
