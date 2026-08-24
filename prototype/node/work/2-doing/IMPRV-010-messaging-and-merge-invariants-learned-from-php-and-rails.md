@@ -188,3 +188,30 @@ is new uncovered branches elsewhere in the file list, still well over the
 95/90 gate). `make smoke` 8/8 green (includes "a question on a listing becomes
 an answer and then a published FAQ"). `make routes` prints cleanly.
 `make docs-check` renders all 21 diagrams, 0 failed.
+
+### Fix-up
+
+Review found two items, both fixed:
+
+1. **`isSameConversationSubject` now IS `subjectKey(a) === subjectKey(b)`**,
+   not a separately written field-by-field `&&` chain that happened to agree
+   with it. `SUBJECT_KEY_COLUMNS`'s `satisfies Record<Exclude<keyof
+   ConversationSubject, 'kind'>, string>` already forces `subjectKey` to visit
+   every column on the type; equality now inherits that same guarantee rather
+   than needing its own. Reworded both functions' comments to remove the
+   circularity this introduced (`subjectKey`'s comment no longer explains
+   itself in terms of `isSameConversationSubject`, since the dependency now
+   runs the other way). `make check` after the change: still 1826 tests, 0
+   failures — every existing equality test passed unchanged, as expected
+   (`subjectKey` omits null columns exactly where the old `&&` chain compared
+   two nulls as equal).
+2. **`docs/identity.md`** — corrected the sentence claiming
+   `customer_merges.anonymous_customer_id` is named by the manifest test. The
+   manifest only scans columns literally named `customer_id`; only
+   `customer_merges.customer_id` is in its scope (left behind, on purpose).
+   `anonymous_customer_id` sits outside the scan entirely, the same position
+   `messages.sender_id` is in — reworded to say that instead.
+
+Coverage before this fix-up: 1826 tests, 99.50/97.28/99.55. After: 1826 tests,
+99.50/97.27/99.55 (branches down 0.01 — `isSameConversationSubject` lost its
+own six-way `&&` to cover; still well over the 90% gate).

@@ -176,10 +176,14 @@ survives a merge the same way it survives two concurrent opens.
 Every statement goes through the typed Kysely builder, so a renamed table or
 column stops compiling. The anonymous row is never deleted — the
 `customer_merges` row (unique on `anonymous_customer_id`) is what lets a stale
-cookie on another device resolve forward; `customer_merges.customer_id` and
-`.anonymous_customer_id` are the one deliberate exception the manifest test
-names — they are the trail record of the merge itself, so re-pointing either
-one on a later merge would erase what it exists to remember.
+cookie on another device resolve forward. `customer_merges.customer_id` is the
+one column the manifest test finds and deliberately leaves untouched, named in
+`LEFT_BEHIND_CUSTOMER_TABLES`: it is the trail record of the merge itself, so
+re-pointing it on a later merge would erase what it exists to remember.
+`customer_merges.anonymous_customer_id` is not a column literally named
+`customer_id`, so it sits outside the manifest's schema scan entirely — the
+same position `messages.sender_id` is in, and left alone for its own reason
+just as `sender_id` is repointed for its own.
 `claimCustomerIdentity` also settles a guest's `email_verified_at` when
 checkout left an address on the row without verifying it, and leaves an
 earlier verification alone.
