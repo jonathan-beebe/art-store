@@ -100,3 +100,16 @@ one answer: all rows. Repeated tables became anonymous Blade components under
   where it used to show `OK`, so the column and the filter say the same words.
 - `PaymentStatus::label()` was added beside the other status enums' labels, for
   the payments table on the order detail page.
+
+### Review fix-ups
+
+A review of `1970839` found no blocking defects and two small gaps, closed here:
+
+- The customer detail page's order table was rewired to `<x-admin.orders-table>`
+  but nothing asserted an order renders there. `CustomerControllerTest`'s
+  order-fixture case now asserts the order's id on the page, so all five
+  sections the ticket names — orders, favorites, cart, block history, merge
+  history — are covered on their positive path.
+- `PaymentStatus::label()` was `ucfirst($this->value)` where every sibling
+  status enum reads `ucfirst(str_replace('_', ' ', $this->value))`. It matches
+  its siblings now.

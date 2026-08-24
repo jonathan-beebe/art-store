@@ -24,12 +24,13 @@ it('lists every customer with their standing', function (): void {
 
 it('shows one customer with their orders and current standing', function (): void {
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);
-    $this->orderFor($customer, $this->listing($this->seller()));
+    $order = $this->orderFor($customer, $this->listing($this->seller()));
 
     $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$customer->id}");
 
     $response->assertOk();
     $response->assertSee('Ada Painter');
+    $response->assertSee($order->id);
     $response->assertSee('Not blocked.');
 });
 
