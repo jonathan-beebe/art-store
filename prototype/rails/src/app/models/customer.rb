@@ -98,9 +98,11 @@ class Customer < ApplicationRecord
 
   # The block standing over this customer right now, if any. Both `block!`
   # and `lift_block!` key off this rather than a block id, so a page that
-  # knows the customer needs nothing else.
+  # knows the customer needs nothing else. Reads over `blocks` rather than
+  # the `active` scope, so a caller that already loaded the association (the
+  # admin customer page) pays no query per call.
   def active_block
-    blocks.active.first
+    blocks.detect(&:active?)
   end
 
   # Whether an admin has taken shopping and messaging away from this customer.

@@ -57,4 +57,28 @@ class Admin::CustomerBlocksControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "[data-flash=alert]", text: "customer #{customer.id} is not blocked"
   end
+
+  test "a blank reason is refused instead of failing" do
+    sign_in_as_admin
+    customer = create_verified_customer
+
+    post admin_customer_blocks_path(customer), params: { reason: " " }
+
+    assert_redirected_to admin_customer_path(customer)
+    refute_predicate customer.reload, :blocked?
+    follow_redirect!
+    assert_select "[data-flash=alert]", text: "Reason can't be blank"
+  end
+
+  test "a reason over 500 characters is refused instead of failing" do
+    sign_in_as_admin
+    customer = create_verified_customer
+
+    post admin_customer_blocks_path(customer), params: { reason: "x" * 501 }
+
+    assert_redirected_to admin_customer_path(customer)
+    refute_predicate customer.reload, :blocked?
+    follow_redirect!
+    assert_select "[data-flash=alert]", text: "Reason is too long (maximum is 500 characters)"
+  end
 end

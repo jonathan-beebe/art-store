@@ -6,6 +6,8 @@ class Admin::ListingRemovalsController < Admin::BaseController
     redirect_to admin_listing_path(@listing), notice: "Listing removed."
   rescue TransitionError => refusal
     redirect_to admin_listing_path(@listing), alert: refusal.message
+  rescue ActiveRecord::RecordInvalid => refusal
+    redirect_to admin_listing_path(@listing), alert: refusal.record.errors.full_messages.first
   end
 
   def lift

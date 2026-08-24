@@ -7,7 +7,7 @@ class ListingRemoval < ApplicationRecord
   belongs_to :listing
   belongs_to :admin
 
-  enum :kind, { temporary: "temporary", permanent: "permanent" }
+  enum :kind, { temporary: "temporary", permanent: "permanent" }, validate: true
 
   validates :reason, presence: true, length: { maximum: 500 }
 

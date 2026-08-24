@@ -77,6 +77,39 @@ module Shop
       assert_select "button", text: "Remove from favorites"
     end
 
+    test "a favorited listing that is later removed drops off the page" do
+      listing = create_listing(title: "Harbour at Dusk")
+      post shop_toggle_favorite_path(slug: listing.slug)
+
+      listing.remove!(kind: "temporary", reason: "Reported as counterfeit.", by: create_admin)
+
+      get shop_favorites_path
+
+      assert_select "h2", text: "Harbour at Dusk", count: 0
+    end
+
+    test "a favorited listing that is archived drops off the page, matching the rest of the storefront" do
+      listing = create_listing(title: "Winter Field")
+      post shop_toggle_favorite_path(slug: listing.slug)
+
+      listing.update!(status: :archived)
+
+      get shop_favorites_path
+
+      assert_select "h2", text: "Winter Field", count: 0
+    end
+
+    test "a favorited listing that sold stays on the page" do
+      listing = create_listing(title: "Sold Piece", quantity: 1)
+      post shop_toggle_favorite_path(slug: listing.slug)
+
+      listing.take_stock!(1)
+
+      get shop_favorites_path
+
+      assert_select "h2", text: "Sold Piece"
+    end
+
     test "favorites saved before signing in survive the merge" do
       listing = create_listing
       create_verified_customer(email: "buyer@example.com")

@@ -6,6 +6,8 @@ class Admin::CustomerBlocksController < Admin::BaseController
     redirect_to admin_customer_path(@customer), notice: "Customer blocked."
   rescue TransitionError => refusal
     redirect_to admin_customer_path(@customer), alert: refusal.message
+  rescue ActiveRecord::RecordInvalid => refusal
+    redirect_to admin_customer_path(@customer), alert: refusal.record.errors.full_messages.first
   end
 
   def lift

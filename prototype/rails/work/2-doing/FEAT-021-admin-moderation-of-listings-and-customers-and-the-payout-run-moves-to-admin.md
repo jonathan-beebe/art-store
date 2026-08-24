@@ -174,3 +174,58 @@ None on §5's paths, filter names, filter values, or the event vocabulary.
 `docs/alignment.md` §5's payout row says `/admin/payouts?seller=` and
 `POST /admin/payouts` — built exactly as named, alongside the two moderation
 POST pairs.
+
+### Fix-up
+
+A review of `325a4c9` found one blocker and two should-fixes.
+
+1. **`Admin::ListingRemovalsController#create` and
+   `Admin::CustomerBlocksController#create` 500'd on an invalid reason.**
+   `ListingRemoval`/`CustomerBlock` validate `reason` (`presence`, `maximum:
+   500`), and `removals.create!`/`blocks.create!` raise
+   `ActiveRecord::RecordInvalid` on a blank or over-long one. `Story` logs the
+   raise as `refused` and re-raises; the controllers only rescued
+   `TransitionError`, so the raise reached Rails as a 500. Both `create`
+   actions now also rescue `ActiveRecord::RecordInvalid`, matching
+   `Admin::RefundsController#create`'s precedent — `refusal.record.errors
+   .full_messages.first` as the flash alert. Same fix on `remove!`'s `kind`:
+   assigning an enum value outside `ListingRemoval::kind`'s two values raised
+   `ArgumentError` on assignment, which the same `RecordInvalid` rescue
+   cannot catch. `Conversation#kind` carries the same "enum on an admin- or
+   caller-supplied string" shape and already opts into `enum ..., validate:
+   true`, which turns an unrecognised value into a validation failure instead
+   of an assignment-time raise; `ListingRemoval#kind` now takes the same
+   option, so a bad `kind` fails validation and reaches the same
+   `RecordInvalid` rescue as a bad `reason`. Added controller tests for a
+   blank reason, a 501-character reason, and an unrecognised `kind` on both
+   controllers (`kind` only applies to listings — `CustomerBlock` has no
+   `kind` column).
+2. **`Shop::FavoritesController#index` showed a removed listing.** It queried
+   `Listing.where(id: ...)` with no storefront filter, unlike every other
+   slug/id → listing path in the app. Matched Node's
+   `find-favorite-listings.ts`: it filters `listings.status IN
+   STOREFRONT_STATUSES` (`['for_sale', 'sold']`) and excludes a listing with
+   an active (unlifted) removal via `NOT EXISTS`. That is exactly Rails'
+   `Listing.on_storefront` scope (`where(status: ON_STOREFRONT).visible`,
+   `ON_STOREFRONT = %w[for_sale sold]`), so `#index` now chains `.on_storefront`
+   ahead of the favorites filter. Added tests: a favourited listing that is
+   later removed drops off `/favorites`; one that is archived drops off too
+   (archived is outside both Node's `STOREFRONT_STATUSES` and Rails'
+   `ON_STOREFRONT`); one that sells out stays (`sold` is in both lists).
+3. **`Customer#active_block` re-queried where `Listing#active_removal`
+   does not.** Changed `blocks.active.first` (a scope call, always a fresh
+   query) to `blocks.detect(&:active?)`, mirroring `active_removal`'s
+   `removals.detect(&:active?)`. `Admin::CustomersController#show` already
+   assigns `@blocks = @customer.blocks` before the view calls
+   `@customer.blocked?` twice, so both calls now share the one association
+   load instead of issuing a query each. Every other caller of `blocked?`/
+   `active_block` (`block!`, `lift_block!`, `Shop::BaseController`,
+   `Conversation`'s `can_shop?` check on the sender) runs without a preloaded
+   association already, the same as `active_removal`'s other callers
+   (`purchasable?`, `on_storefront?`) — `detect` on an unloaded association
+   loads it once and returns the same row `.active.first` would, just without
+   the `LIMIT 1`.
+
+Numbers before the fix-up: 1174 runs, 4175 assertions, 0 failures, 100% line
+coverage (2148/2148). After: 1182 runs, 4214 assertions, 0 failures, 0 errors,
+100% line coverage (2150/2150). `make lint` clean.

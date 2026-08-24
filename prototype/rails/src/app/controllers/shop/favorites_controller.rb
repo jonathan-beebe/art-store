@@ -2,6 +2,7 @@ module Shop
   class FavoritesController < BaseController
     def index
       @listings = Listing
+        .on_storefront
         .where(id: current_customer.favorites.select(:listing_id))
         .includes(:seller)
         .order(created_at: :desc, id: :desc)

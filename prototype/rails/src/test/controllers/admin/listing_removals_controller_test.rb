@@ -70,4 +70,40 @@ class Admin::ListingRemovalsControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "[data-flash=alert]", text: "listing #{listing.id} is not removed"
   end
+
+  test "a blank reason is refused instead of failing" do
+    sign_in_as_admin
+    listing = create_listing
+
+    post admin_listing_removals_path(listing), params: { kind: "temporary", reason: " " }
+
+    assert_redirected_to admin_listing_path(listing)
+    refute_predicate listing.reload, :actively_removed?
+    follow_redirect!
+    assert_select "[data-flash=alert]", text: "Reason can't be blank"
+  end
+
+  test "a reason over 500 characters is refused instead of failing" do
+    sign_in_as_admin
+    listing = create_listing
+
+    post admin_listing_removals_path(listing), params: { kind: "temporary", reason: "x" * 501 }
+
+    assert_redirected_to admin_listing_path(listing)
+    refute_predicate listing.reload, :actively_removed?
+    follow_redirect!
+    assert_select "[data-flash=alert]", text: "Reason is too long (maximum is 500 characters)"
+  end
+
+  test "an unrecognized kind is refused instead of failing" do
+    sign_in_as_admin
+    listing = create_listing
+
+    post admin_listing_removals_path(listing), params: { kind: "bogus", reason: "Reported." }
+
+    assert_redirected_to admin_listing_path(listing)
+    refute_predicate listing.reload, :actively_removed?
+    follow_redirect!
+    assert_select "[data-flash=alert]", text: "Kind is not included in the list"
+  end
 end
