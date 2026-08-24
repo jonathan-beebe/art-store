@@ -151,3 +151,30 @@ PHPStan clean.
   The 16-worker columns were measured on a second container started from the
   same compose service with `-e PHP_CLI_SERVER_WORKERS=16 -p 8001:8000`, and
   removed afterwards.
+
+### Docs
+
+Prose that described the removed behaviour, brought to the code:
+
+- `docs/messaging.md` § "The live badge" — the sequence diagram's
+  `alt the number moved` branch is gone, since every tick emits a frame; the
+  worker count reads `16`; the stale "four concurrent streams … a fifth stream
+  plus a page load both wait" measurement is replaced by the M8 numbers (twelve
+  streams held → 0.11-0.12 s, twelve abandoned → 0.08-0.29 s) and by what now
+  bounds concurrent readers; the `connection_aborted()` paragraph states the
+  current mechanism (a frame per tick, a failed write is how PHP learns the
+  client is gone, a worker back within one `TICK_SECONDS`) and keeps the cost
+  that still holds — a live tab holds its worker for the whole lifetime. The
+  cookieless-crawler sentence now says a worker is held until it disconnects.
+- `docs/review.md` — the "The live badge" comparison against Node keeps its
+  point (PHP polls on a tick and pays a worker per live stream) with the
+  closed-tab clause replaced by one-tick reclamation and the worker count at
+  16. Known gap 5 was "a closed messaging tab does not free its SSE worker at
+  once"; it now names the gap that remains, a worker per open tab bounded by
+  `PHP_CLI_SERVER_WORKERS`.
+- `README.md` — the matching known-gaps bullet.
+
+`docs/architecture.md`'s `UnreadCountStream` entry describes the clock (a
+deadline from the controller, `now()` per tick) and is unaffected.
+`work/3-done/FEAT-016` describes what that ticket built and is left as the
+record it is.

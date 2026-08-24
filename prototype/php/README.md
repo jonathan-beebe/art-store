@@ -273,8 +273,9 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
-- A closed messaging tab holds its SSE worker for a few seconds before it
-  frees. See `docs/messaging.md`.
+- Each open messaging tab holds an SSE worker for as long as it stays open;
+  `PHP_CLI_SERVER_WORKERS=16` is what bounds concurrent readers. A closed
+  tab's worker comes back within one tick. See `docs/messaging.md`.
 - A merged cart keeps a line whose listing carries an active removal, at
   whatever quantity it clamps to; checkout refuses it and names the item
   rather than the merge dropping it.
