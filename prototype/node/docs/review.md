@@ -261,20 +261,22 @@ refinement batch landed.
     every week" is a platform action) but means there is no way to demo a
     single seller's payout in isolation from `/admin`.
 
-11. **A `conversation_open` trip on the listing-question box answers the
-    generic 429 page, not a re-rendered listing page.** IMPRV-012 gave
-    `answerIfRateLimited` the `onTrip` re-render callback `docs/alignment.md`
-    §3 calls for and wired it for every other form-guarded route: `POST
-    /login` on all three sites, `listing_write` (create and update), every
-    site's `message_post` (thread reply and, on the storefront, the ask-a-
-    question box), `payment_attempt`, and `checkout`. The storefront's
-    ask-a-question route sits behind two guards, `conversation_open` then
-    `message_post`; only the second carries an `onTrip`, so a `conversation_open`
-    trip there — 10 attempts/hour, rarer than the 30/hour `message_post` limit
-    it sits in front of — still falls through to the shared `error` page. The
-    same is true of `GET /support`'s own `conversation_open` guard, which
-    guards a link click rather than a form and was never in scope for a
-    re-render.
+11. ~~**A `conversation_open` trip on the listing-question box answers the
+    generic 429 page, not a re-rendered listing page.**~~ Closed by the
+    IMPRV-012 fix-up: `guardConversationOpen` (`app/sites/shop/routes/
+    messages.ts`) split into three. The original, still carrying no `onTrip`,
+    stays on `GET /support`'s two uses — a link click has nowhere of its own
+    to re-render, so a trip there keeps the shared `error` page by design.
+    `guardConversationOpenForQuestion` reuses the same listing-page re-render
+    `guardQuestionMessagePost` already gave `POST /art/:slug/questions`, so
+    either of that route's two guards tripping lands the visitor back on the
+    listing page with the question kept. `guardConversationOpenForFulfillmentMessage`
+    re-renders the order page for `POST /orders/:id/fulfillments/:fulfillmentId/messages`
+    — a second route with the same bug the original gap write-up did not
+    name — through `renderOrderPage` (`app/sites/shop/order-page.ts`),
+    extracted from `GET /orders/:id` so both share it; the order page gained
+    a `form-error.ejs` slot scoped to the fulfillment section that tripped,
+    since one order can hold a "Message the seller" form per seller.
 
 12. **The admin's `POST /sellers/:id/messages` and `POST /customers/:id/messages`
     carry no rate limit.** Both open a conversation with no message body, the
@@ -298,6 +300,21 @@ refinement batch landed.
     needed, so `admin/routes/orders.ts` and `admin/routes/fulfillments.ts`
     read `Object.values(reason.errors)[0]` for that flash rather than
     `reason.error` — the two admin call sites were left otherwise unconverted.
+
+14. **Checkout's implicit magic-link guard answers the generic 429 page even
+    though the order it is protecting is already placed.** `verifyGuestAddress`
+    (`app/sites/shop/routes/checkout.ts`) calls `answerIfRateLimited` for
+    `magic_link_request` after `checkOutCart` has already written the order —
+    and, for an already-verified customer, charged it — inside the same
+    request; a trip there only blocks the verification link the guest still
+    needs, never the order. `docs/alignment.md` §3 fixes the trip response as
+    HTTP 429 with no side effect performed for every guard alike, so
+    redirecting to the order page instead (the way `input.charged !== null`
+    already does above it) would drop that status for this one guard —
+    a change to what §3 promises across all three prototypes, not a
+    same-shape `onTrip` re-render like IMPRV-012's other callbacks. Left
+    answering the generic page rather than special-cased against the
+    contract.
 
 Closed by the refinement batch, and listed here so a reader of an older copy of
 this file is not misled: email had no implementation at all (FEAT-015 added the
@@ -335,9 +352,6 @@ no CI (FEAT-014).
     copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
     demo one seller's payout in isolation. Closes gap 10.
 
-11. Type `guardConversationOpen` by its route's params the way the other
-    guards are and give it an `onTrip` on the listing-question route only
-    (`GET /support` stays on the shared page). Closes gap 11.
 13. Move the admin site's five write forms onto `form-field.ejs`/
     `form-error.ejs`, re-rendering in place instead of flashing and
     redirecting, the same conversion IMPRV-012 gave every seller and

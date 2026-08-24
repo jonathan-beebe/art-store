@@ -10,6 +10,7 @@ import { runInTransaction } from '../../../actions/transaction.ts'
 import type {
   ConversationId,
   FulfillmentId,
+  OrderId,
   SellerId,
 } from '../../../core/ids/entity-ids.ts'
 import { messageBodyError } from '../../../core/messaging/message-body.ts'
@@ -19,10 +20,11 @@ import type { AppDatabase } from '../../../db/database.ts'
 import { idParams, idValue, slugParams, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
-import type { FastifyReply } from 'fastify'
-import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
+import type { FastifyReply, FastifyRequest } from 'fastify'
+import { rateLimitGuard, type RateLimitedFormRender } from '../../../plugins/rate-limit.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { renderListingPage } from '../listing-page.ts'
+import { renderOrderPage } from '../order-page.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
@@ -95,19 +97,56 @@ const guardThreadMessagePost = rateLimitGuard<{ id: ConversationId }>({
   },
 })
 
-const guardQuestionMessagePost = rateLimitGuard<{ slug: string }>({
-  name: 'message_post',
-  key: (request) => storefrontCustomer(request).id,
-  onTrip: (request) => async (reply, message) =>
+/** The listing page's own re-render for a tripped limit on `/art/:slug/questions`
+ * — shared by both limits that guard the route, so either one's trip lands the
+ * visitor back on the same page with the same question kept. */
+function questionPageOnTrip(
+  request: FastifyRequest & { params: { slug: string } },
+): RateLimitedFormRender {
+  return async (reply, message) =>
     renderListingPage(request.server, request, reply, request.params.slug, {
       questionBody: submittedBody(request.body),
       questionFormError: message,
-    }),
+    })
+}
+
+const guardQuestionMessagePost = rateLimitGuard<{ slug: string }>({
+  name: 'message_post',
+  key: (request) => storefrontCustomer(request).id,
+  onTrip: questionPageOnTrip,
 })
 
+/** `conversation_open`'s guard where a trip has nowhere of its own to answer
+ * on — `GET /support` redirects on success and carries no form to re-render,
+ * so a trip here keeps the shared 429 page. */
 const guardConversationOpen = rateLimitGuard({
   name: 'conversation_open',
   key: (request) => storefrontCustomer(request).id,
+})
+
+/** `conversation_open`'s guard for `POST /art/:slug/questions`, whose trip
+ * must land the visitor back on the listing page next to the question form,
+ * the same place `guardQuestionMessagePost`'s own trip on this route does. */
+const guardConversationOpenForQuestion = rateLimitGuard<{ slug: string }>({
+  name: 'conversation_open',
+  key: (request) => storefrontCustomer(request).id,
+  onTrip: questionPageOnTrip,
+})
+
+/** `conversation_open`'s guard for `POST /orders/:id/fulfillments/:fulfillmentId/messages`,
+ * whose trip must land the visitor back on the order page, beside the
+ * "Message the seller" form that tripped it. */
+const guardConversationOpenForFulfillmentMessage = rateLimitGuard<{
+  id: OrderId
+  fulfillmentId: FulfillmentId
+}>({
+  name: 'conversation_open',
+  key: (request) => storefrontCustomer(request).id,
+  onTrip: (request) => async (reply, message) =>
+    renderOrderPage(request.server, request, reply, request.params.id, {
+      formError: message,
+      formErrorFulfillmentId: request.params.fulfillmentId,
+    }),
 })
 
 export const messageRoutes: ZodRoutes = (shop, _options, done) => {
@@ -163,7 +202,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
     '/art/:slug/questions',
     {
       schema: { params: slugParams, body: questionForm },
-      preHandler: [guardConversationOpen, guardQuestionMessagePost],
+      preHandler: [guardConversationOpenForQuestion, guardQuestionMessagePost],
     },
     async (request, reply) => {
       const { slug } = request.params
@@ -235,7 +274,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post(
     '/orders/:id/fulfillments/:fulfillmentId/messages',
-    { schema: { params: fulfillmentParams }, preHandler: guardConversationOpen },
+    { schema: { params: fulfillmentParams }, preHandler: guardConversationOpenForFulfillmentMessage },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
       if (found === null) return renderNotFound(reply)

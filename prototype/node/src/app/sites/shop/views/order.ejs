@@ -93,6 +93,10 @@
         <% }) %>
       </ul>
 
+      <%- include('views/partials/form-error', {
+        formError: typeof formError !== 'undefined' && formErrorFulfillmentId === fulfillment.id ? formError : null,
+      }) %>
+
       <div class="mt-6 flex flex-wrap gap-4">
         <% if (fulfillment.canConfirmDelivery) { %>
         <form

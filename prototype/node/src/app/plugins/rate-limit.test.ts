@@ -531,6 +531,93 @@ test('conversation_open trips per actor', async (t) => {
   assert.doesNotMatch(second.body, /data-form-error/)
 })
 
+test('conversation_open trips the ask-a-question box and re-renders the listing with the kept body', async (t) => {
+  const testApp = await buildTestApp({
+    config: rateLimitedConfig({ conversation_open: { count: 1, windowSeconds: 900 } }),
+  })
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await listArtwork({ db: testApp.db, clock: testApp.clock }, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    cookies: customer.cookies,
+    payload: { body: 'Is this framed?' },
+  })
+  assert.equal(first.statusCode, 302)
+
+  const conversationsBefore = await testApp.db.selectFrom('conversations').selectAll().execute()
+  const messagesBefore = await testApp.db.selectFrom('messages').selectAll().execute()
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    cookies: customer.cookies,
+    payload: { body: 'Also, does it ship internationally?' },
+  })
+  assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="question"[^>]*>Also, does it ship internationally\?/)
+
+  const conversationsAfter = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversationsAfter.length, conversationsBefore.length)
+  const messagesAfter = await testApp.db.selectFrom('messages').selectAll().execute()
+  assert.equal(messagesAfter.length, messagesBefore.length)
+})
+
+test('conversation_open trips posting a fulfillment message and answers the order page with the field-less refusal', async (t) => {
+  const testApp = await buildTestApp({
+    config: rateLimitedConfig({ conversation_open: { count: 1, windowSeconds: 900 } }),
+  })
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const context = { db: testApp.db, clock: testApp.clock }
+  const listing = await listArtwork(context, { sellerId: seller.id })
+  const cartId = await cartWithArtwork(context, { customerId: customer.id, listingId: listing.id })
+  const order = await placeCustomerOrder(context, {
+    cartId,
+    customerId: customer.id,
+    email: 'buyer@example.com',
+    isEmailVerified: true,
+  })
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/fulfillments/${fulfillment.id}/messages`,
+    cookies: customer.cookies,
+  })
+  assert.equal(first.statusCode, 302)
+
+  const conversationsBefore = await testApp.db.selectFrom('conversations').selectAll().execute()
+  const messagesBefore = await testApp.db.selectFrom('messages').selectAll().execute()
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: `/orders/${order.id}/fulfillments/${fulfillment.id}/messages`,
+    cookies: customer.cookies,
+  })
+  assert.equal(second.statusCode, 429)
+  // The order page has no field this form submits, so the field-less refusal
+  // renders on the order page itself rather than the shared `error` page.
+  assert.match(second.body, new RegExp(`Order ${order.id}`))
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+
+  const conversationsAfter = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversationsAfter.length, conversationsBefore.length)
+  const messagesAfter = await testApp.db.selectFrom('messages').selectAll().execute()
+  assert.equal(messagesAfter.length, messagesBefore.length)
+})
+
 test('listing_write trips per seller and creates no further listing once tripped', async (t) => {
   const testApp = await buildTestApp({
     config: rateLimitedConfig({ listing_write: { count: 1, windowSeconds: 900 } }),

@@ -187,3 +187,56 @@ coverage 99.42/95.94/99.49 lines/branches/functions).
 
 Left in `work/2-doing/`, not journaled or closed — that is the lane orchestrator's call after
 review.
+
+### Fix-up (2)
+
+Alignment cross-check against §3's trip paragraph found `guardConversationOpen`
+(`sites/shop/routes/messages.ts`) still carrying no `onTrip` on two of its four
+uses — the two `POST`s, not the two `GET /support`s the previous fix-up left
+it on purpose. A `conversation_open` trip on either POST fell through to the
+generic `error` page instead of the field-less re-render §3 calls for on a
+form:
+
+- `POST /art/:slug/questions` sits behind `[guardConversationOpen,
+  guardQuestionMessagePost]`; only the second carried an `onTrip`, so a
+  `conversation_open` trip (rarer — 10/hour against `message_post`'s 30/hour,
+  so more likely to be the one that actually fires first) never reached it.
+  Fixed by giving the first guard the same `onTrip` as the second — both now
+  call a shared `questionPageOnTrip`, so either one's trip re-renders the
+  listing page with the question kept.
+- `POST /orders/:id/fulfillments/:fulfillmentId/messages` (the order page's
+  "Message the seller" button) had no `onTrip` at all. This route posts no
+  field — it only opens a conversation — so its re-render needed no kept
+  input, just the order page itself with the refusal shown. Extracted
+  `renderOrderPage` into a new `sites/shop/order-page.ts` (both `GET
+  /orders/:id` and this guard's `onTrip` now share it) and added a
+  `formError` / `formErrorFulfillmentId` slot to `order.ejs`, scoped to the
+  fulfillment section whose form tripped — an order can hold one "Message the
+  seller" form per seller, so an unscoped notice would show under the wrong
+  one on a multi-seller order.
+
+`GET /support`'s two uses keep the original guard, no `onTrip` — a link click
+has nowhere of its own to re-render, and `rate-limit.test.ts`'s `conversation_open
+trips per actor` test (asserting the generic page) was left untouched and
+still passes.
+
+Also reviewed, left alone: `checkout.ts`'s implicit guest magic-link guard
+(`verifyGuestAddress`) calls `answerIfRateLimited` with no `onTrip`, after the
+order is already placed. Re-rendering the checkout form would be wrong (the
+order exists, the cart is already emptied); redirecting to the order page
+instead would need an explicit non-429 status, which §3 fixes as HTTP 429 on
+every trip — a contract change, not a same-shape `onTrip`. Recorded as
+`docs/review.md` gap 14 rather than special-cased here.
+
+Tests added to `rate-limit.test.ts`: a `conversation_open` trip on
+`/art/:slug/questions` (429, `data-form-error`, the "Too many requests"
+sentence, the question kept, no new conversation or message row) and one on
+the fulfillment-message route (429, `data-form-error`, the sentence, the
+order page rendered, no new conversation or message row).
+
+`docs/review.md`: gap 11 marked closed (both POST routes now covered, not
+just the listing-question one the original write-up named); gap 14 added for
+the checkout guard above.
+
+`make check` green: 1915 tests (1906 baseline + 9 — 7 of them MAINT-002's,
+this fix-up's own 2), coverage 99.43/95.92/99.50 lines/branches/functions.

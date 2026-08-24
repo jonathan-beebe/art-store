@@ -1,13 +1,11 @@
 import { cancelOrder } from '../../../actions/orders/cancel-order.ts'
-import { isPayable, isUnpaid } from '../../../core/orders/order-payment.ts'
 import { isCancellable } from '../../../core/orders/order-status.ts'
 import { idParams } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
-import { signedInActorId } from '../../../plugins/identity.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
-import { declineNotice } from '../decline-notice.ts'
 import { findCustomerOrders } from '../queries/find-customer-orders.ts'
+import { renderOrderPage } from '../order-page.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
 
@@ -19,23 +17,7 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
   })
 
   shop.get('/orders/:id', { schema: { params: idParams('ord') } }, async (request, reply) => {
-    const found = await loadCustomerOrder(shop, request, request.params.id)
-    if (found === null) return renderNotFound(reply)
-
-    const { order, fulfillments, lastPayment } = found
-
-    return reply.render(
-      'order',
-      shopPage({
-        title: `Order ${order.id}`,
-        order,
-        fulfillments,
-        declineMessage: declineNotice(lastPayment),
-        isUnpaid: isUnpaid(order.status),
-        isPayable: isPayable(order.status, signedInActorId(request, 'customer') !== null),
-        isCancellable: isCancellable(order.status),
-      }),
-    )
+    return await renderOrderPage(shop, request, reply, request.params.id)
   })
 
   shop.post('/orders/:id/cancel', { schema: { params: idParams('ord') } }, async (request, reply) => {
