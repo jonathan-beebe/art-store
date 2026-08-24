@@ -250,7 +250,7 @@ refinement batch landed.
 9. **Migration `down()` bodies are uncovered.** `FileMigrationProvider`
    supplies both `up` and `down` per file, but nothing in the suite runs a
    `down` — `app/db/migrator.test.ts` and `app/db/database.test.ts` only apply
-   forward. Coverage on the eleven migration files under `app/db/migrations/`
+   forward. Coverage on the thirteen migration files under `app/db/migrations/`
    reflects `up` only.
 
 10. **The seller portal has no payout control by design, and the admin payout
