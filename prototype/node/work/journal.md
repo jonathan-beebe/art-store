@@ -15,7 +15,7 @@
 ## Log
 
 - 2026-08-24:09:00:00 — FEAT-020 — started
-- 2026-08-24:08:59:00 — FEAT-019 — done: order `refunded`, fulfillment `declined`/`refunded`, ledger `refunded`, a `refunds` table and `orders.refunded_cents`; seller decline restoring scoped stock, admin refund and admin cancel, `make sweep` cancelling stale `pending_verification` orders; the §4.2 fold keyed by `fulfillment_id` so a refund leaves `held` before release and `available` after; all nine §4.3 sad paths tested; 1631 -> 1745 tests, coverage 99.52/97.31/99.53; reviewer: accept, one affordance defect fixed in 787dd04
+- 2026-08-24:08:59:00 — FEAT-019 — done: order `refunded`, fulfillment `declined`/`refunded`, ledger `refunded`, a `refunds` table and `orders.refunded_cents`; seller decline restoring scoped stock, admin refund and admin cancel, `make sweep` cancelling stale `pending_verification` orders; the §4.2 fold keyed by `fulfillment_id` so a refund leaves `held` before release and `available` after; all nine §4.3 sad paths tested; 1631 -> 1747 tests, coverage 99.52/97.30/99.53; reviewer: accept, one affordance defect fixed in 787dd04
 - 2026-08-24:06:00:00 — FEAT-019 — started
 - 2026-08-24:05:59:00 — BUG-007 — done: `GET /admin/orders/:id` (customer, items, payments, fulfillments) and `GET /admin/fulfillments/:id` (order, seller, status, items, ledger entries) with unscoped admin query modules, list rows linked, wrong-prefix and unknown ids answering the same 404 body; refunds section and action forms left to FEAT-019; 1623 -> 1631 tests, coverage 99.53/97.34/99.51; reviewer found no defects
 - 2026-08-24:05:00:00 — BUG-007 — started
