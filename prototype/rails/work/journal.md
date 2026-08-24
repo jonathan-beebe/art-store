@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:10:05:00 — MAINT-003 — started
+- 2026-08-24:10:04:00 — IMPRV-003 — done: CustomerMergePlan folds the cart and de-dupes favorites move-or-drop, per-actor session keys so three actors share one browser; 1246 runs / 4387 assertions / 100% lines
 - 2026-08-24:08:50:00 — IMPRV-003 — started
 - 2026-08-24:08:49:00 — BUG-005 — done: image uploads capped and byte-sniffed, magic-link consume is one conditional UPDATE checked by row count; 1211 runs / 4287 assertions / 100% lines
 - 2026-08-24:07:20:00 — BUG-005 — started
