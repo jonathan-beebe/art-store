@@ -1,7 +1,7 @@
 ---
 id: FEAT-019
 type: feature
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
