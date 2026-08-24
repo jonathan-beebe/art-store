@@ -2,6 +2,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { cartLineTotal } from '../../../core/cart/cart-line.ts'
 import type { FulfillmentId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
+import { canRefundFulfillment } from '../../../core/orders/refund.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 import type { Fulfillment, LedgerEntry, Order, OrderItem, Refund } from '../../../db/commerce-schema.ts'
 
@@ -16,6 +17,8 @@ export type FulfillmentDetail = {
   ledgerEntries: readonly LedgerEntry[]
   /** The reversal against this fulfillment, or null while it has not been reversed. */
   refund: Refund | null
+  /** Whether the refund form is offered against this fulfillment. */
+  canRefund: boolean
 }
 
 /**
@@ -71,6 +74,15 @@ export async function fulfillmentDetail(
     .where('fulfillmentId', '=', fulfillment.id)
     .executeTakeFirst()
 
+  const approvedPayment = await db
+    .selectFrom('payments')
+    .select('id')
+    .where('orderId', '=', fulfillment.orderId)
+    .where('status', '=', 'approved')
+    .orderBy('processedAt', 'desc')
+    .orderBy('id', 'desc')
+    .executeTakeFirst()
+
   return {
     fulfillment,
     order,
@@ -78,5 +90,6 @@ export async function fulfillmentDetail(
     items,
     ledgerEntries,
     refund: refund ?? null,
+    canRefund: canRefundFulfillment({ status: fulfillment.status, paymentId: approvedPayment?.id ?? null }),
   }
 }

@@ -172,3 +172,29 @@ None. Nothing was cut.
 `make check` green: 1741 tests (from 1631), 99.52% lines / 97.29% branches /
 99.54% functions (from 99.53 / 97.34 / 99.51). `make smoke`, `make routes`,
 `make sweep`, and `make docs-check` all pass.
+
+### Fix-up
+
+FEAT-019 review found `canRefund` computed on both admin pages as
+`canTransitionFulfillment(status, 'refunded')` alone, with no check for an
+approved payment behind the order — an unpaid order's fulfillment (created at
+placement in `awaiting_shipment`) rendered a working-looking Refund form even
+though `issueRefund` would refuse it.
+
+Added `canRefundFulfillment` to `core/orders/refund.ts`, a pure predicate
+mirroring the same two gates `planRefund` enforces for an admin's reversal
+(`paymentId !== null` and `canTransitionFulfillment(status, 'refunded')`), so
+neither query module nor the view restates the rule. `sites/admin/queries/
+order-detail.ts` now reads the order's latest approved payment out of the
+payments it already fetches and passes it through per fulfillment row;
+`sites/admin/queries/fulfillment-detail.ts` runs the same approved-payment
+lookup `issue-refund.ts` uses and adds `canRefund` to `FulfillmentDetail`, so
+`routes/fulfillments.ts` no longer recomputes it. No view changed — both
+already gated on `canRefund`.
+
+Added route tests on both admin pages asserting an unpaid order's fulfillment
+renders no Refund form, one asserting the fulfillment page still offers it for
+a paid order, and unit tests on `canRefundFulfillment` in `refund.test.ts`.
+
+`make check` green: 1747 tests (from 1741), 99.52% lines / 97.30% branches /
+99.53% functions (from 99.52 / 97.29 / 99.53).

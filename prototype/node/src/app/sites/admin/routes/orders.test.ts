@@ -193,6 +193,30 @@ test('the order page offers Cancel while the order is unpaid', async (t) => {
   assert.match(response.body, new RegExp(`action="/admin/orders/${order.id}/cancel"`))
 })
 
+test('the order page offers no Refund form for an unpaid order\'s fulfillment', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await placedOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/orders/${order.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.doesNotMatch(response.body, new RegExp(`action="/admin/fulfillments/${fulfillment.id}/refund"`))
+})
+
 test('the order page drops Cancel once the order is paid and offers Refund instead', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

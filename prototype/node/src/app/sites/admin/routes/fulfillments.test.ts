@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp, signInAsAdmin } from '../../../test/build-test-app.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
-import { createCustomer, createListing, createSeller, paidOrder } from '../../../test/commerce-world.ts'
+import { createCustomer, createListing, createSeller, paidOrder, placedOrder } from '../../../test/commerce-world.ts'
 import { fixtureId } from '../../../test/fixture-ids.ts'
 
 test('GET /admin/fulfillments lists every fulfillment with its money', async (t) => {
@@ -138,6 +138,53 @@ test('GET /admin/fulfillments/:id shows the order, seller, items, ledger entries
   assert.match(response.body, /Harbour at Dusk/)
   assert.match(response.body, /data-fulfillment-status[^]*?Awaiting shipment/)
   assert.match(response.body, /data-cell="entry-type"[^]*?Held/)
+})
+
+test('GET /admin/fulfillments/:id offers no Refund form for an unpaid order', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = await createSeller({ db: testApp.db, clock: testApp.clock })
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+  const listing = await createListing({ db: testApp.db, clock: testApp.clock }, sellerId)
+  const order = await placedOrder({ db: testApp.db, clock: testApp.clock }, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/fulfillments/${fulfillment.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.doesNotMatch(response.body, new RegExp(`action="/admin/fulfillments/${fulfillment.id}/refund"`))
+})
+
+test('GET /admin/fulfillments/:id offers a Refund form for a paid order', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = await createSeller({ db: testApp.db, clock: testApp.clock })
+  const customerId = await createCustomer({ db: testApp.db, clock: testApp.clock })
+  const listing = await createListing({ db: testApp.db, clock: testApp.clock }, sellerId)
+  const order = await paidOrder({ db: testApp.db, clock: testApp.clock }, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/fulfillments/${fulfillment.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, new RegExp(`action="/admin/fulfillments/${fulfillment.id}/refund"`))
 })
 
 test('a fulfillment id that names nobody is 404', async (t) => {

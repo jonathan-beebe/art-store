@@ -46,6 +46,17 @@ export type RefundSubject = {
 export type RefundPlan = { ok: true; intent: RefundIntent } | { ok: false; refusal: string }
 
 /**
+ * Whether an admin's refund would go through, against the same two gates
+ * `planRefund` checks for an admin's reversal: an approved payment behind the
+ * order, and a fulfillment status that still allows the move to `refunded`.
+ * Query modules use this to decide whether the refund form belongs on a page
+ * at all, without restating either gate.
+ */
+export function canRefundFulfillment(subject: { status: FulfillmentStatus; paymentId: PaymentId | null }): boolean {
+  return subject.paymentId !== null && canTransitionFulfillment(subject.status, REVERSALS.admin.status)
+}
+
+/**
  * Whether this reversal happens and what it does. A fulfillment already
  * declined or refunded has no legal move left, which is what refuses the
  * second one; an order that never paid has nothing to refund.

@@ -3,10 +3,8 @@ import { cartLineTotal } from '../../../core/cart/cart-line.ts'
 import type { CustomerId, FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import { customerName } from '../../../core/messaging/participant-name.ts'
 import type { Cents } from '../../../core/money.ts'
-import {
-  canTransitionFulfillment,
-  type FulfillmentStatus,
-} from '../../../core/orders/fulfillment-status.ts'
+import type { FulfillmentStatus } from '../../../core/orders/fulfillment-status.ts'
+import { canRefundFulfillment } from '../../../core/orders/refund.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Order, OrderItem, Payment, Refund } from '../../../db/commerce-schema.ts'
@@ -57,7 +55,8 @@ export async function orderDetail(
 
   const items = await itemsForOrder(db, order.id)
   const payments = await paymentsForOrder(db, order.id)
-  const fulfillments = await fulfillmentsForOrder(db, order.id)
+  const approvedPaymentId = payments.find((payment) => payment.status === 'approved')?.id ?? null
+  const fulfillments = await fulfillmentsForOrder(db, order.id, approvedPaymentId)
   const refunds = await refundsForOrder(db, order.id)
 
   return {
@@ -92,7 +91,11 @@ async function paymentsForOrder(db: AppDatabase, orderId: OrderId): Promise<read
     .execute()
 }
 
-async function fulfillmentsForOrder(db: AppDatabase, orderId: OrderId): Promise<readonly OrderDetailFulfillment[]> {
+async function fulfillmentsForOrder(
+  db: AppDatabase,
+  orderId: OrderId,
+  approvedPaymentId: Payment['id'] | null,
+): Promise<readonly OrderDetailFulfillment[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .innerJoin('sellers', 'sellers.id', 'fulfillments.sellerId')
@@ -119,7 +122,7 @@ async function fulfillmentsForOrder(db: AppDatabase, orderId: OrderId): Promise<
     subtotalCents: row.subtotalCents,
     feeCents: row.feeCents,
     netCents: row.netCents,
-    canRefund: canTransitionFulfillment(row.status, 'refunded'),
+    canRefund: canRefundFulfillment({ status: row.status, paymentId: approvedPaymentId }),
   }))
 }
 

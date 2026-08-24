@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   REFUND_ISSUER_TYPES,
   REFUND_REASON_MAX_LENGTH,
+  canRefundFulfillment,
   parseRefundReason,
   planRefund,
   type RefundSubject,
@@ -117,6 +118,22 @@ test('a blank reason is refused', () => {
 
 test('a reason of exactly the maximum length is accepted', () => {
   assert.equal(parseRefundReason('x'.repeat(REFUND_REASON_MAX_LENGTH)).ok, true)
+})
+
+test('an unpaid fulfillment cannot be refunded, whatever its status', () => {
+  assert.equal(canRefundFulfillment({ status: 'awaiting_shipment', paymentId: null }), false)
+  assert.equal(canRefundFulfillment({ status: 'shipped', paymentId: null }), false)
+})
+
+test('a paid fulfillment can be refunded up through delivered', () => {
+  for (const status of ['awaiting_shipment', 'shipped', 'delivered'] as const) {
+    assert.equal(canRefundFulfillment({ status, paymentId: CHARGE }), true)
+  }
+})
+
+test('a paid fulfillment already declined or refunded cannot be refunded again', () => {
+  assert.equal(canRefundFulfillment({ status: 'declined', paymentId: CHARGE }), false)
+  assert.equal(canRefundFulfillment({ status: 'refunded', paymentId: CHARGE }), false)
 })
 
 test('a reason past the maximum length is refused', () => {

@@ -3,10 +3,7 @@ import { z } from 'zod'
 import { issueRefund } from '../../../actions/refunds/issue-refund.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { AdminId } from '../../../core/ids/entity-ids.ts'
-import {
-  canTransitionFulfillment,
-  FULFILLMENT_STATUSES,
-} from '../../../core/orders/fulfillment-status.ts'
+import { FULFILLMENT_STATUSES } from '../../../core/orders/fulfillment-status.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH } from '../../../core/orders/refund.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
@@ -61,7 +58,6 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
       'fulfillment',
       adminPage(`Fulfillment ${detail.fulfillment.id}`, {
         ...detail,
-        canRefund: canTransitionFulfillment(detail.fulfillment.status, 'refunded'),
         reasonMaxLength: REFUND_REASON_MAX_LENGTH,
       }),
     )
