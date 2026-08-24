@@ -7,22 +7,32 @@ import type {
   ListingId,
 } from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
+import type { Clock } from '../../clock.ts'
 import { newId } from '../../ids.ts'
-import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
+import {
+  buildTestApp,
+  signInAsAdmin,
+  TEST_INSTANT,
+  type TestApp,
+  type TestAppOverrides,
+} from '../../test/build-test-app.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
 import pino from 'pino'
 import { captureLogLines } from '../../test/log-lines.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
+import { openConversation } from '../messaging/open-conversation.ts'
+import { postMessage } from '../messaging/post-message.ts'
+import { markConversationRead } from '../messaging/mark-conversation-read.ts'
 
 const NOW = TEST_INSTANT.toISOString()
 
 /** The two customers a merge folds together, plus the app they live in. */
 type Merging = TestApp & { anonymousCustomerId: CustomerId; verifiedCustomerId: CustomerId }
 
-async function startMerging(): Promise<Merging> {
-  const testApp = await buildTestApp()
+async function startMerging(overrides: TestAppOverrides = {}): Promise<Merging> {
+  const testApp = await buildTestApp(overrides)
   const anonymous = await createAnonymousCustomer(testApp)
   const verified = await createAnonymousCustomer(testApp)
 
@@ -200,26 +210,17 @@ test('it re-points the rows of a table the customer owns', async (t) => {
   )
 })
 
-test('a conversation opened anonymously re-points to the verified customer', async (t) => {
+test('a conversation opened anonymously re-points to the verified customer, when the verified customer holds no thread on the subject', async (t) => {
   const merging = await startMerging()
   t.after(merging.close)
   const { db } = merging
+  const admin = await signInAsAdmin(merging)
 
-  const conversation = await db
-    .insertInto('conversations')
-    .values({
-      id: newId('cnv', new Date()),
-      kind: 'admin_customer',
-      sellerId: null,
-      customerId: merging.anonymousCustomerId,
-      adminId: null,
-      listingId: null,
-      fulfillmentId: null,
-      createdAt: NOW,
-      lastMessageAt: NOW,
-    })
-    .returning('id')
-    .executeTakeFirstOrThrow()
+  const conversation = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: merging.anonymousCustomerId,
+  })
 
   await merge(merging)
 
@@ -230,6 +231,186 @@ test('a conversation opened anonymously re-points to the verified customer', asy
     .executeTakeFirstOrThrow()
 
   assert.equal(repointed.customerId, merging.verifiedCustomerId)
+})
+
+test('a duplicate thread on the same subject folds into the verified customer’s standing thread, preserving each message’s read_at', async (t) => {
+  let now = new Date('2026-08-24T12:00:00.000Z')
+  const clock: Clock = { now: () => new Date(now) }
+  const merging = await startMerging({ clock })
+  t.after(merging.close)
+  const { db } = merging
+  const admin = await signInAsAdmin(merging)
+
+  const standing = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: merging.verifiedCustomerId,
+  })
+  const readMessage = await postMessage(merging, {
+    conversationId: standing.id,
+    sender: { type: 'customer', id: merging.verifiedCustomerId },
+    body: 'From the verified side, already read.',
+  })
+  await markConversationRead(merging, {
+    conversationId: standing.id,
+    reader: { type: 'admin', id: admin.id },
+  })
+
+  now = new Date(now.getTime() + 60_000)
+
+  const moving = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: merging.anonymousCustomerId,
+  })
+  const unreadMessage = await postMessage(merging, {
+    conversationId: moving.id,
+    sender: { type: 'customer', id: merging.anonymousCustomerId },
+    body: 'From the anonymous side, still unread.',
+  })
+  assert.ok(unreadMessage.sentAt > readMessage.sentAt)
+
+  await merge(merging)
+
+  const conversations = await db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('adminId', '=', admin.id)
+    .where('customerId', '=', merging.verifiedCustomerId)
+    .execute()
+  assert.equal(conversations.length, 1, 'the two threads on the same subject fold into one')
+  const survivor = conversations[0]
+  if (survivor === undefined) throw new Error('the folded thread is missing')
+
+  const droppedMoving = await db.selectFrom('conversations').selectAll().where('id', '=', moving.id).executeTakeFirst()
+  assert.equal(droppedMoving, undefined, 'the duplicate thread is gone')
+
+  const messages = await db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', survivor.id)
+    .orderBy('sentAt')
+    .execute()
+  assert.equal(messages.length, 2, 'both threads’ messages land on the survivor')
+
+  const readAfter = messages.find((message) => message.id === readMessage.id)
+  const unreadAfter = messages.find((message) => message.id === unreadMessage.id)
+  assert.notEqual(readAfter?.readAt, null, 'the message already read stays read')
+  assert.equal(unreadAfter?.readAt, null, 'the message never read stays unread')
+
+  assert.equal(survivor.lastMessageAt, unreadMessage.sentAt, 'last_message_at reads the newest message across the fold')
+})
+
+test('an active block on the anonymous customer moves to the verified customer', async (t) => {
+  const merging = await startMerging()
+  t.after(merging.close)
+  const { db } = merging
+  const admin = await signInAsAdmin(merging)
+
+  await db
+    .insertInto('customerBlocks')
+    .values({
+      id: newId('blk', new Date()),
+      customerId: merging.anonymousCustomerId,
+      adminId: admin.id,
+      reason: 'Chargeback fraud.',
+      createdAt: NOW,
+      liftedAt: null,
+    })
+    .execute()
+
+  await merge(merging)
+
+  const block = await db
+    .selectFrom('customerBlocks')
+    .selectAll()
+    .where('adminId', '=', admin.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(block.customerId, merging.verifiedCustomerId)
+})
+
+test('a message the anonymous customer sent re-points to the verified customer, and a bystander’s message does not move', async (t) => {
+  const merging = await startMerging()
+  t.after(merging.close)
+  const { db } = merging
+  const admin = await signInAsAdmin(merging)
+  const bystander = await createAnonymousCustomer(merging)
+
+  const conversation = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: merging.anonymousCustomerId,
+  })
+  const sent = await postMessage(merging, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: merging.anonymousCustomerId },
+    body: 'From the anonymous customer.',
+  })
+  await postMessage(merging, {
+    conversationId: conversation.id,
+    sender: { type: 'admin', id: admin.id },
+    body: 'From the admin, unaffected by the merge.',
+  })
+  const bystanderConversation = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: bystander.id,
+  })
+  const bystanderMessage = await postMessage(merging, {
+    conversationId: bystanderConversation.id,
+    sender: { type: 'customer', id: bystander.id },
+    body: 'From a customer this merge has nothing to do with.',
+  })
+
+  await merge(merging)
+
+  const repointed = await db.selectFrom('messages').selectAll().where('id', '=', sent.id).executeTakeFirstOrThrow()
+  assert.equal(repointed.senderType, 'customer')
+  assert.equal(repointed.senderId, merging.verifiedCustomerId)
+
+  const adminMessage = await db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .where('senderType', '=', 'admin')
+    .executeTakeFirstOrThrow()
+  assert.equal(adminMessage.senderId, admin.id)
+
+  const untouched = await db
+    .selectFrom('messages')
+    .selectAll()
+    .where('id', '=', bystanderMessage.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(untouched.senderId, bystander.id)
+})
+
+test('it does not read the verified customer’s own merged message as unread to them', async (t) => {
+  const merging = await startMerging()
+  t.after(merging.close)
+  const admin = await signInAsAdmin(merging)
+
+  const conversation = await openConversation(merging, {
+    kind: 'admin_customer',
+    adminId: admin.id,
+    customerId: merging.anonymousCustomerId,
+  })
+  await postMessage(merging, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: merging.anonymousCustomerId },
+    body: 'From the anonymous customer.',
+  })
+
+  await merge(merging)
+
+  const thread = await merging.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .execute()
+  const unreadForVerified = thread.filter(
+    (message) => !(message.senderType === 'customer' && message.senderId === merging.verifiedCustomerId) && message.readAt === null,
+  )
+  assert.equal(unreadForVerified.length, 0)
 })
 
 test('favorites de-duplicate rather than doubling up', async (t) => {

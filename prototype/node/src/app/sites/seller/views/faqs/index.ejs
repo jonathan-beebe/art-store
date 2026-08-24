@@ -9,7 +9,7 @@
 <% } else { %>
   <ul class="mt-4 space-y-4">
     <% faqs.forEach(function (faq) { %>
-      <li data-faq="<%= faq.id %>" class="rounded border border-neutral-300 bg-white p-4">
+      <li id="faq-<%= faq.id %>" data-faq="<%= faq.id %>" class="rounded border border-neutral-300 bg-white p-4">
         <form method="post" action="/seller/listings/<%= listing.id %>/faqs/<%= faq.id %>">
           <div>
             <label for="faq-<%= faq.id %>-question" class="block text-sm font-medium text-neutral-700">Question</label>

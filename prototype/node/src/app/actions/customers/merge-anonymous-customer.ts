@@ -3,7 +3,9 @@ import {
   type CartLine,
   type CustomerMergePlan,
 } from '../../core/customers/customer-merge-plan.ts'
-import type { CartId, CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
+import { planConversationFold, type ConversationFoldRow } from '../../core/customers/conversation-fold-plan.ts'
+import { subjectKey } from '../../core/messaging/conversation-subject.ts'
+import type { CartId, ConversationId, CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { newId } from '../../ids.ts'
@@ -68,6 +70,8 @@ export async function mergeAnonymousCustomer(
       })
 
       await repointOwnedRows(trx, sides)
+      await foldConversations(trx, sides)
+      await repointSentMessages(trx, sides)
       await applyFavorites(trx, sides, plan)
       await applyCart(trx, sides, carts, plan)
 
@@ -94,6 +98,102 @@ async function repointOwnedRows(db: AppDatabase, sides: MergeSides): Promise<voi
       .where('customerId', '=', sides.anonymousCustomerId)
       .execute()
   }
+}
+
+/**
+ * Moves the anonymous customer's threads onto the verified one, folding any
+ * that land on a subject the verified customer already has a thread on —
+ * `conversations.subject_key` is unique, so a blind repoint of a second
+ * thread on the same subject would fail the insert this merge is not making,
+ * but would still leave the verified customer with two threads on one
+ * subject if the constraint were not there to catch it.
+ */
+async function foldConversations(db: AppDatabase, sides: MergeSides): Promise<void> {
+  const anonymous = await conversationsOf(db, sides.anonymousCustomerId)
+  if (anonymous.length === 0) return
+
+  const verified = await conversationsOf(db, sides.verifiedCustomerId)
+
+  for (const conversation of anonymous) {
+    const plan = planConversationFold(conversation, sides.verifiedCustomerId, verified)
+
+    if (plan.outcome === 'move') {
+      await db
+        .updateTable('conversations')
+        .set({
+          customerId: sides.verifiedCustomerId,
+          subjectKey: subjectKey({ ...conversation, customerId: sides.verifiedCustomerId }),
+        })
+        .where('id', '=', plan.conversationId)
+        .execute()
+      continue
+    }
+
+    await absorbConversation(db, plan)
+  }
+}
+
+async function conversationsOf(
+  db: AppDatabase,
+  customerId: CustomerId,
+): Promise<readonly ConversationFoldRow[]> {
+  return db
+    .selectFrom('conversations')
+    .select(['id', 'kind', 'sellerId', 'customerId', 'adminId', 'listingId', 'fulfillmentId'])
+    .where('customerId', '=', customerId)
+    .orderBy('createdAt')
+    .orderBy('id')
+    .execute()
+}
+
+/**
+ * Takes over another thread's messages and drops it, preserving each
+ * message's own `readAt` — the fold repoints `conversationId` only, so
+ * whether the seller had already read a message the merge is moving is
+ * unaffected. `lastMessageAt` is read back as the newest `sentAt` across the
+ * standing thread's messages rather than carried over, the same as the
+ * thread it absorbed would have shown it.
+ */
+async function absorbConversation(
+  db: AppDatabase,
+  fold: { movingId: ConversationId; standingId: ConversationId },
+): Promise<void> {
+  await db
+    .updateTable('messages')
+    .set({ conversationId: fold.standingId })
+    .where('conversationId', '=', fold.movingId)
+    .execute()
+
+  await db.deleteFrom('conversations').where('id', '=', fold.movingId).execute()
+
+  const newest = await db
+    .selectFrom('messages')
+    .select(({ fn }) => fn.max('sentAt').as('sentAt'))
+    .where('conversationId', '=', fold.standingId)
+    .executeTakeFirst()
+
+  if (newest !== undefined && newest.sentAt !== null) {
+    await db
+      .updateTable('conversations')
+      .set({ lastMessageAt: newest.sentAt })
+      .where('id', '=', fold.standingId)
+      .execute()
+  }
+}
+
+/**
+ * A message the anonymous customer sent reads as theirs by `senderId`, no
+ * different from `orders.customerId` or any other owned row — `messages` just
+ * has no foreign key to enforce it, since the same column holds a seller's or
+ * an admin's id too depending on `senderType`.
+ */
+async function repointSentMessages(db: AppDatabase, sides: MergeSides): Promise<void> {
+  await db
+    .updateTable('messages')
+    .set({ senderId: sides.verifiedCustomerId })
+    .where('senderType', '=', 'customer')
+    .where('senderId', '=', sides.anonymousCustomerId)
+    .execute()
 }
 
 async function readFavorites(db: AppDatabase, sides: MergeSides): Promise<FavoriteSides> {

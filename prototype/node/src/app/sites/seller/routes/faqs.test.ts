@@ -403,3 +403,51 @@ test('update and unpublish are not found against another seller\'s listing', asy
   const unchanged = await testApp.db.selectFrom('listingFaqs').selectAll().where('id', '=', faq.id).executeTakeFirstOrThrow()
   assert.equal(unchanged.question, 'Is this framed?')
 })
+
+test('publishing the same message twice is refused, and the thread still shows it published once', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+  const answer = await askAndAnswer(testApp, seller.id, listing.id)
+  const conversation = await testApp.db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('id', '=', answer.conversationId)
+    .executeTakeFirstOrThrow()
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.', source_message_id: String(answer.id) },
+  })
+  assert.equal(first.statusCode, 302)
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Answered again.', source_message_id: String(answer.id) },
+  })
+  assert.equal(second.statusCode, 302)
+
+  const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
+  assert.equal(faqs.length, 1)
+  assert.equal(faqs[0]?.answer, 'Yes, in oak.')
+
+  const follow = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: { ...seller.cookies, ...flashCookieOf(second) },
+  })
+  assert.match(follow.body, /already published/)
+
+  const thread = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/messages/${conversation.id}`,
+    cookies: seller.cookies,
+  })
+  assert.match(thread.body, /Published to FAQ/)
+  assert.match(thread.body, new RegExp(`/seller/listings/${listing.id}/faqs#faq-${faqs[0]?.id}`))
+})

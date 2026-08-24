@@ -7,11 +7,20 @@ import { CONVERSATION_KINDS } from '../../core/messaging/conversation-kind.ts'
  * filled and which subject column, if any, names what the thread is about. Four
  * tables would repeat the same message store four times.
  *
+ * `subject_key` is `subjectKey(subject)` (`conversation-subject.ts`) written
+ * back to the row: the app-side equality that decides reuse and the
+ * database-side uniqueness that guards it are one rule. A composite unique
+ * index over the five nullable participant/subject columns below could not
+ * take that job, because SQL counts two nulls as distinct.
+ *
  * A conversation has exactly two participants, so a message needs only one
  * `read_at` — the reader is always the participant who did not send it.
  *
  * A `listing_faqs` row exists only while it is published: unpublishing deletes
- * it, and re-publishing is one click from the thread the answer came from.
+ * it, and re-publishing is one click from the thread the answer came from. Its
+ * `(listing_id, source_message_id)` uniqueness refuses a second publish of the
+ * same message; a row with no source (a FAQ written by hand) carries a null
+ * there, and SQLite does not count two nulls as a collision.
  */
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
@@ -20,6 +29,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('kind', 'text', (column) =>
       column.notNull().check(sql`kind in (${sql.join(CONVERSATION_KINDS.map((kind) => sql.lit(kind)))})`),
     )
+    .addColumn('subject_key', 'text', (column) => column.notNull().unique())
     .addColumn('seller_id', 'text', (column) => column.references('sellers.id'))
     .addColumn('customer_id', 'text', (column) => column.references('customers.id'))
     .addColumn('admin_id', 'text', (column) => column.references('admins.id'))
@@ -90,6 +100,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .createIndex('listing_faqs_listing_id_index')
     .on('listing_faqs')
     .columns(['listing_id', 'published_at'])
+    .execute()
+
+  await db.schema
+    .createIndex('listing_faqs_listing_id_source_message_id_index')
+    .on('listing_faqs')
+    .columns(['listing_id', 'source_message_id'])
+    .unique()
     .execute()
 }
 

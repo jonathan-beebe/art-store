@@ -76,3 +76,36 @@ export function isSameConversationSubject(a: ConversationSubject, b: Conversatio
     a.fulfillmentId === b.fulfillmentId
   )
 }
+
+/** The letter `subjectKey` writes for each column, in the fixed order it walks them. */
+const SUBJECT_KEY_COLUMNS = {
+  sellerId: 's',
+  customerId: 'c',
+  adminId: 'a',
+  listingId: 'l',
+  fulfillmentId: 'f',
+} as const satisfies Record<Exclude<keyof ConversationSubject, 'kind'>, string>
+
+/**
+ * The one string `conversations.subject_key`'s unique index guards:
+ * `kind` followed by a `<letter>:<id>` token for every column this subject
+ * fills, walked in a fixed order and skipping the columns it leaves null.
+ *
+ * Two calls on subjects `isSameConversationSubject` reads as equal always
+ * return the same string, because equal subjects fill the same columns with
+ * the same values. Two calls on subjects it reads as different never
+ * collide: a different `kind` changes the first token, and two subjects of
+ * the same kind fill the same set of columns (`KIND_SHAPES`), so a subject
+ * that differs must differ in the value of one of them — and a prefixed id
+ * never equals another column's id, so that token alone changes the string.
+ */
+export function subjectKey(subject: ConversationSubject): string {
+  const parts: string[] = [subject.kind]
+
+  for (const column of Object.keys(SUBJECT_KEY_COLUMNS) as (keyof typeof SUBJECT_KEY_COLUMNS)[]) {
+    const value = subject[column]
+    if (value !== null) parts.push(`${SUBJECT_KEY_COLUMNS[column]}:${value}`)
+  }
+
+  return parts.join(':')
+}

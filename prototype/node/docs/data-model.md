@@ -262,6 +262,7 @@ erDiagram
     conversations {
         text id PK
         text kind "admin_seller|admin_customer|fulfillment|listing_question"
+        text subject_key UK "kind + every filled participant/subject id"
         text seller_id FK "nullable"
         text customer_id FK "nullable"
         text admin_id FK "nullable"
@@ -284,7 +285,7 @@ erDiagram
         text listing_id FK
         text question
         text answer
-        text source_message_id FK "nullable"
+        text source_message_id FK "nullable, UK with listing_id"
         text published_at "a row exists only while published"
     }
 
@@ -345,8 +346,9 @@ recipient who is outside the system.
   the unique index still holds one address to one customer.
 - **`carts.customer_id` is not unique.** A merge can leave a verified customer
   with two carts; `currentCart` returns whichever holds the most items. The
-  merge folds cart lines rather than re-pointing the row, so this is the
-  exception rather than the rule.
+  merge folds cart lines rather than re-pointing the row — carts, favorites,
+  and conversations all fold rather than blindly re-point on a merge; see
+  `docs/identity.md`.
 - **`customer_merges.anonymous_customer_id` is unique.** An anonymous row folds
   forward exactly once, so a stale cookie has one answer however many times it
   comes back. The anonymous row itself is never deleted.
@@ -375,16 +377,26 @@ recipient who is outside the system.
 - **`messages.sender_id` has no foreign key.** A sender is one of three tables,
   and `sender_type` says which — the one place in the schema where a
   polymorphic reference beat three nullable columns, because a message has
-  exactly one sender and the column is never joined for a merge.
+  exactly one sender. A customer merge still re-points it, filtered on
+  `sender_type = 'customer'`, by name rather than by constraint: it holds a
+  customer id like any other owned row, just with nothing to enforce it.
 - **`conversations` fills two of its three participant columns and at most one
   subject column**, decided by `kind`. `participantColumnsOf(kind)` and
   `subjectColumnOf(kind)` (`app/core/messaging/conversation-kind.ts`) are the
   pure readers of which; the index on `(kind, listing_id, fulfillment_id)` serves the
   find-or-open lookup, and one index per participant column paired with
-  `last_message_at` serves the three inboxes.
+  `last_message_at` serves the three inboxes. **`subject_key` is unique** and is
+  the invariant those other indexes cannot be: `kind` plus a `<letter>:<id>`
+  token for every filled column, computed once by the pure `subjectKey`
+  (`app/core/messaging/conversation-subject.ts`) and written back to the row
+  on open and on every merge fold, so app-side equality and the database's
+  uniqueness are the same rule. See `docs/messaging.md`.
 - **A `listing_faqs` row exists only while it is published.** `published_at` is
   `not null` and unpublishing deletes the row, so the storefront reads the table
-  with no predicate.
+  with no predicate. **`(listing_id, source_message_id)` is unique**, so a
+  second publish of the same message is refused rather than duplicated; a row
+  with no source carries a null there, which the index does not count as a
+  collision.
 - **`listing_removals.lifted_at` and `customer_blocks.lifted_at` null means
   active.** At most one active row per subject; `activeRemoval` and
   `activeBlock` are the pure readers.

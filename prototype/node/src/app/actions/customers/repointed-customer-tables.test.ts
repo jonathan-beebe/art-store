@@ -7,13 +7,14 @@ test('names exactly the four repointed tables, in order', () => {
     'orders',
     'listingEvents',
     'notifications',
-    'conversations',
+    'customerBlocks',
   ])
 })
 
-test('carts and favorites are not repointed', () => {
+test('carts, favorites, and conversations are not blindly repointed', () => {
   const tables: readonly string[] = REPOINTED_CUSTOMER_TABLES
 
   assert.equal(tables.includes('carts'), false)
   assert.equal(tables.includes('favorites'), false)
+  assert.equal(tables.includes('conversations'), false)
 })

@@ -275,6 +275,8 @@ export type RateLimitWindowsTable = {
 export type ConversationsTable = {
   id: ConversationId
   kind: ConversationKind
+  /** `subjectKey(subject)` (`core/messaging/conversation-subject.ts`), unique. */
+  subjectKey: string
   sellerId: SellerId | null
   customerId: CustomerId | null
   adminId: AdminId | null

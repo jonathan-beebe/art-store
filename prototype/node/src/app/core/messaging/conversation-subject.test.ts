@@ -4,6 +4,7 @@ import { fixtureId } from '../../test/fixture-ids.ts'
 import {
   conversationSubject,
   isSameConversationSubject,
+  subjectKey,
   type ConversationSubject,
 } from './conversation-subject.ts'
 
@@ -96,4 +97,42 @@ test('a different id in any column is a different subject', () => {
     isSameConversationSubject(subject({ kind: 'fulfillment', fulfillmentId: fixtureId('ful', 1) }), subject({ kind: 'fulfillment', fulfillmentId: fixtureId('ful', 9) })),
     false,
   )
+})
+
+test('subjectKey writes the kind and every filled column, in a fixed order', () => {
+  const key = subjectKey(
+    subject({
+      kind: 'listing_question',
+      sellerId: fixtureId('sel', 1),
+      customerId: fixtureId('cus', 2),
+      listingId: fixtureId('lst', 3),
+    }),
+  )
+
+  assert.equal(
+    key,
+    'listing_question:s:sel_00000000000000000000000001:c:cus_00000000000000000000000002:l:lst_00000000000000000000000003',
+  )
+})
+
+test('subjectKey is the same string for two calls on the same subject', () => {
+  const a = subject({ kind: 'fulfillment', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 2), fulfillmentId: fixtureId('ful', 3) })
+  const b = subject({ kind: 'fulfillment', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 2), fulfillmentId: fixtureId('ful', 3) })
+
+  assert.equal(subjectKey(a), subjectKey(b))
+})
+
+test('subjectKey never collides for two subjects isSameConversationSubject reads as different', () => {
+  const base = subject({ kind: 'listing_question', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 2), listingId: fixtureId('lst', 3) })
+  const others = [
+    subject({ kind: 'fulfillment', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 2), fulfillmentId: fixtureId('ful', 3) }),
+    subject({ kind: 'listing_question', sellerId: fixtureId('sel', 9), customerId: fixtureId('cus', 2), listingId: fixtureId('lst', 3) }),
+    subject({ kind: 'listing_question', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 9), listingId: fixtureId('lst', 3) }),
+    subject({ kind: 'listing_question', sellerId: fixtureId('sel', 1), customerId: fixtureId('cus', 2), listingId: fixtureId('lst', 9) }),
+    subject({ kind: 'admin_seller', adminId: fixtureId('adm', 1), sellerId: fixtureId('sel', 1) }),
+    subject({ kind: 'admin_customer', adminId: fixtureId('adm', 1), customerId: fixtureId('cus', 1) }),
+  ]
+
+  const keys = new Set([subjectKey(base), ...others.map(subjectKey)])
+  assert.equal(keys.size, others.length + 1)
 })

@@ -7,6 +7,7 @@ import type {
 } from '../../core/ids/entity-ids.ts'
 import { newId } from '../../ids.ts'
 import { openConversation } from './open-conversation.ts'
+import { subjectKey } from '../../core/messaging/conversation-subject.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -247,4 +248,60 @@ test('a different seller opens a second row', async (t) => {
   })
 
   assert.notEqual(a.id, b.id)
+})
+
+test('two concurrent opens of the same subject settle on one thread, and neither call throws', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
+  const opening = {
+    kind: 'listing_question' as const,
+    sellerId: shop.id,
+    customerId: buyer.id,
+    listingId: art.id,
+  }
+
+  const [first, second] = await Promise.all([
+    openConversation(world.context, opening),
+    openConversation(world.context, opening),
+  ])
+
+  assert.equal(first.id, second.id)
+  const rows = await world.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(rows.length, 1)
+})
+
+test('the subject_key a row is opened with matches subjectKey(subject)', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
+
+  const conversation = await openConversation(world.context, {
+    kind: 'listing_question',
+    sellerId: shop.id,
+    customerId: buyer.id,
+    listingId: art.id,
+  })
+
+  const row = await world.db
+    .selectFrom('conversations')
+    .select('subjectKey')
+    .where('id', '=', conversation.id)
+    .executeTakeFirstOrThrow()
+
+  assert.equal(
+    row.subjectKey,
+    subjectKey({
+      kind: 'listing_question',
+      sellerId: shop.id,
+      customerId: buyer.id,
+      adminId: null,
+      listingId: art.id,
+      fulfillmentId: null,
+    }),
+  )
 })

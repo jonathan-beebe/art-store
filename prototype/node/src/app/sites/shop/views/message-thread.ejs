@@ -8,6 +8,11 @@
       <%= message.senderName %> &middot; <%= dayLabel(message.sentAt) %>
     </p>
     <p class="mt-1 whitespace-pre-line text-lg"><%= message.body %></p>
+    <% if (message.publishedFaqId && thread.listing) { %>
+    <p class="mt-1 text-sm text-neutral-500">
+      <a href="/art/<%= thread.listing.slug %>#faq-<%= message.publishedFaqId %>" class="underline">Published to FAQ</a>
+    </p>
+    <% } %>
   </li>
   <% }) %>
 </ul>

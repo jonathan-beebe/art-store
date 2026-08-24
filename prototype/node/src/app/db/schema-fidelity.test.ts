@@ -277,6 +277,7 @@ const rateLimitWindowsSample: Selectable<RateLimitWindowsTable> = {
 const conversationsSample: Conversation = {
   id: fixtureId('cnv', 1),
   kind: 'admin_seller',
+  subjectKey: 'admin_seller:a:adm_00000000000000000000000001:s:sel_00000000000000000000000001',
   // Every participant/subject column is nullable at the schema level; which
   // ones a row fills depends on `kind`.
   sellerId: null,
@@ -437,7 +438,7 @@ async function seedParentRows(db: AppDatabase): Promise<void> {
   await sql`insert into payments (id, order_id, status, amount_cents, card_last_four, processed_at) values (${PAYMENT_ID}, ${ORDER_ID}, 'approved', 100, '4242', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
-  await sql`insert into conversations (id, kind, seller_id, admin_id, created_at, last_message_at) values (${CONVERSATION_ID}, 'admin_seller', ${SELLER_ID}, ${ADMIN_ID}, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
+  await sql`insert into conversations (id, kind, subject_key, seller_id, admin_id, created_at, last_message_at) values (${CONVERSATION_ID}, 'admin_seller', 'admin_seller:key', ${SELLER_ID}, ${ADMIN_ID}, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
 }
@@ -486,7 +487,7 @@ const INVALID_STATUS_INSERTS: ReadonlyArray<readonly [string, RawBuilder<unknown
   ],
   [
     'conversations.kind',
-    sql`insert into conversations (id, kind, created_at, last_message_at) values (${fixtureId('cnv', 2)}, 'not_a_kind', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    sql`insert into conversations (id, kind, subject_key, created_at, last_message_at) values (${fixtureId('cnv', 2)}, 'not_a_kind', 'not_a_kind:key', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'messages.sender_type',

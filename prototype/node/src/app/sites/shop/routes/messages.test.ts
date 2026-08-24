@@ -464,3 +464,47 @@ test('a bodiless reply POST flashes what is missing instead of failing', async (
     .execute()
   assert.equal(messages.length, 1)
 })
+
+test('the customer thread shows a published FAQ answer with a link to the listing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  const { conversationId } = await askAQuestion(testApp, {
+    slug: 'harbour-at-dusk',
+    body: 'Is this framed?',
+    cookies: customer.cookies,
+  })
+  const answer = await postMessage(testApp, {
+    conversationId,
+    sender: { type: 'seller', id: seller.id },
+    body: 'Yes, in oak.',
+  })
+  const listing = await testApp.db
+    .selectFrom('listings')
+    .selectAll()
+    .where('slug', '=', 'harbour-at-dusk')
+    .executeTakeFirstOrThrow()
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.', source_message_id: String(answer.id) },
+  })
+  const faq = await testApp.db
+    .selectFrom('listingFaqs')
+    .selectAll()
+    .where('listingId', '=', listing.id)
+    .executeTakeFirstOrThrow()
+
+  const thread = await testApp.app.inject({
+    method: 'GET',
+    url: `/messages/${conversationId}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(thread.statusCode, 200)
+  assert.match(thread.body, /Published to FAQ/)
+  assert.match(thread.body, new RegExp(`/art/harbour-at-dusk#faq-${faq.id}`))
+})

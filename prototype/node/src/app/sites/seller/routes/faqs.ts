@@ -7,6 +7,7 @@ import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { ListingId } from '../../../core/ids/entity-ids.ts'
 import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
+import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, idValue, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
@@ -73,11 +74,18 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
       const draft = parseFaqDraft(submitted)
       if (!draft.ok) return refuseFaq(reply, destination, draft.errors)
 
-      await publishListingFaq(requestActions(request), {
-        listingId,
-        draft: draft.value,
-        sourceMessageId: submitted.source_message_id,
-      })
+      try {
+        await publishListingFaq(requestActions(request), {
+          listingId,
+          draft: draft.value,
+          sourceMessageId: submitted.source_message_id,
+        })
+      } catch (error) {
+        if (!(error instanceof TransitionError)) throw error
+        reply.setFlash({ alert: error.message })
+
+        return reply.redirect(destination)
+      }
 
       reply.setFlash({ notice: 'Published to the listing.' })
 

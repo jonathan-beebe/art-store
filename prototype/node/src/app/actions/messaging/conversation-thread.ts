@@ -1,6 +1,7 @@
 import type {
   ConversationId,
   FulfillmentId,
+  ListingFaqId,
   ListingId,
   MessageId,
   OrderId,
@@ -26,6 +27,8 @@ export type ThreadMessage = {
   senderName: string
   isMine: boolean
   isUnread: boolean
+  /** The published FAQ entry this message is the answer of, or null if it is not one. */
+  publishedFaqId: ListingFaqId | null
 }
 
 /** What the listing question is about, for the page that offers "Publish as FAQ". */
@@ -74,12 +77,13 @@ export async function conversationThread(
   const names = await participantNames(context, [conversation])
   const listing = await findThreadListing(context.db, conversation.listingId)
   const fulfillment = await findThreadFulfillment(context.db, conversation.fulfillmentId)
+  const publishedFaqIds = await findPublishedFaqIds(context.db, conversation.listingId, messages)
 
   return {
     conversation,
     topic,
     counterpart: counterpartName(conversation, actor, names),
-    messages: messages.map((message) => toThreadMessage(message, actor, names)),
+    messages: messages.map((message) => toThreadMessage(message, actor, names, publishedFaqIds)),
     mayPost: access.mayPost,
     listing,
     fulfillment,
@@ -90,6 +94,7 @@ function toThreadMessage(
   message: Message,
   actor: MessagingActor,
   names: Awaited<ReturnType<typeof participantNames>>,
+  publishedFaqIds: ReadonlyMap<MessageId, ListingFaqId>,
 ): ThreadMessage {
   return {
     id: message.id,
@@ -99,7 +104,32 @@ function toThreadMessage(
     senderName: senderName(message, names),
     isMine: isSentBy(message, actor),
     isUnread: isUnreadBy(message, actor),
+    publishedFaqId: publishedFaqIds.get(message.id) ?? null,
   }
+}
+
+/** The published FAQ entry each message in this thread is the answer of, keyed by message id. */
+async function findPublishedFaqIds(
+  db: AppDatabase,
+  listingId: ListingId | null,
+  messages: readonly Message[],
+): Promise<ReadonlyMap<MessageId, ListingFaqId>> {
+  if (listingId === null || messages.length === 0) return new Map()
+
+  const rows = await db
+    .selectFrom('listingFaqs')
+    .select(['id', 'sourceMessageId'])
+    .where('listingId', '=', listingId)
+    .where(
+      'sourceMessageId',
+      'in',
+      messages.map((message) => message.id),
+    )
+    .execute()
+
+  return new Map(
+    rows.flatMap((row) => (row.sourceMessageId === null ? [] : [[row.sourceMessageId, row.id] as const])),
+  )
 }
 
 async function findThreadListing(

@@ -126,9 +126,12 @@ sequenceDiagram
     else another row owns the address
         Plan-->>Claim: {action:'mergeAnonymousInto', anonymousCustomerId, verifiedCustomerId}
         Claim->>Merge: mergeAnonymousCustomer({anonymousCustomerId, verifiedCustomerId})
+        Merge->>Merge: repoint REPOINTED_CUSTOMER_TABLES (orders, listing_events,<br/>notifications, customer_blocks) and messages.sender_id
+        Merge->>Fold: planConversationFold(each conversation, verified customer's own rows)
+        Fold-->>Merge: {outcome:'move'} or {outcome:'absorb', standingId}
         Merge->>Fold: planCustomerMerge(cart lines, favorites, stockByListing)
         Fold-->>Merge: {cartLines, favoriteListingIds}
-        Merge->>Merge: repoint REPOINTED_CUSTOMER_TABLES, apply the fold, insert customer_merges
+        Merge->>Merge: apply the cart/favorite fold, insert customer_merges
     end
     Claim-->>Auth: the customer that now owns the address
     Auth->>Auth: reply.signIn('customer', id)
@@ -136,20 +139,50 @@ sequenceDiagram
 ```
 
 Caveats: the order was placed by the anonymous row, so the merge is what carries
-it across — `orders` is one of `REPOINTED_CUSTOMER_TABLES` (with
-`listing_events`, `notifications`, and `conversations`). Carts and favorites are
-deliberately **not** in that list: re-pointing a cart would leave the verified
-customer with two, so they are folded instead. `planCustomerMerge` sums cart
-quantities per listing, clamps each to the listing's stock, drops anything that
-lands at zero, and de-duplicates favorites; `mergeAnonymousCustomer` applies the
-result with UPDATEs and DELETEs only, never an INSERT, so it needs no knowledge
-of columns it is not touching. Every statement goes through the typed Kysely
-builder, so a renamed table or column stops compiling. The anonymous row is
-never deleted — the `customer_merges`
-row (unique on `anonymous_customer_id`) is what lets a stale cookie on another
-device resolve forward. `claimCustomerIdentity` also settles a guest's
-`email_verified_at` when checkout left an address on the row without verifying
-it, and leaves an earlier verification alone.
+it across — `orders` is one of `REPOINTED_CUSTOMER_TABLES`, alongside
+`listing_events`, `notifications`, and `customer_blocks` (a block follows the
+person, not the cookie). `messages.sender_id` re-points too, where
+`sender_type = 'customer'` — it holds a customer id with no foreign key to lean
+on, since the same column holds a seller's or an admin's id depending on
+`sender_type`.
+
+Carts, favorites, and conversations are deliberately **not** in
+`REPOINTED_CUSTOMER_TABLES`: a blind repoint would leave the verified customer
+with two of the row a fold instead collapses into one.
+`customer-owned-tables-manifest.test.ts` reads the schema itself — every table
+with a `customer_id` column — and fails if one is not in
+`REPOINTED_CUSTOMER_TABLES`, `FOLDED_CUSTOMER_TABLES`, or
+`LEFT_BEHIND_CUSTOMER_TABLES` (`app/actions/customers/repointed-customer-tables.ts`),
+so a new customer-owned table has to be classified before it can merge silently
+wrong.
+
+`planCustomerMerge` sums cart quantities per listing, clamps each to the
+listing's stock, drops anything that lands at zero, and de-duplicates
+favorites; `mergeAnonymousCustomer` applies the result with UPDATEs and DELETEs
+only, never an INSERT, so it needs no knowledge of columns it is not touching.
+Conversations fold through `planConversationFold`
+(`app/core/customers/conversation-fold-plan.ts`): a thread the verified
+customer holds no match for is re-pointed in place (`customer_id` and
+`subject_key` move together, since the key names the participant); a thread on
+a subject the verified customer already has a thread for is absorbed into that
+standing thread instead — its messages move onto the standing thread by
+`conversation_id` alone, which is what leaves each message's own `read_at`
+untouched, the now-empty duplicate is deleted, and the standing thread's
+`last_message_at` is read back as the newest `sent_at` across the merged
+messages rather than carried over. This is the same shape `docs/messaging.md`'s
+`subject_key` section describes for an ordinary open — one thread per subject
+survives a merge the same way it survives two concurrent opens.
+
+Every statement goes through the typed Kysely builder, so a renamed table or
+column stops compiling. The anonymous row is never deleted — the
+`customer_merges` row (unique on `anonymous_customer_id`) is what lets a stale
+cookie on another device resolve forward; `customer_merges.customer_id` and
+`.anonymous_customer_id` are the one deliberate exception the manifest test
+names — they are the trail record of the merge itself, so re-pointing either
+one on a later merge would erase what it exists to remember.
+`claimCustomerIdentity` also settles a guest's `email_verified_at` when
+checkout left an address on the row without verifying it, and leaves an
+earlier verification alone.
 
 `planCustomerIdentity` is a discriminated union rather than a record of four
 nullable ids, so each branch of the switch reads exactly the ids that case has
