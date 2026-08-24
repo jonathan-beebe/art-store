@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\PostMessageRequest;
 use App\Models\Conversation;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -48,9 +50,12 @@ final class MessageController extends SellerController
         ]);
     }
 
-    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage): RedirectResponse
+    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse
     {
-        $postMessage($conversation, $this->seller(), $request->body(), $this->now());
+        $seller = $this->seller();
+        $rateLimit->check(RateLimitName::MessagePost, (string) $seller->id);
+
+        $postMessage($conversation, $seller, $request->body(), $this->now());
 
         return redirect()->route('seller.messages.show', $conversation);
     }

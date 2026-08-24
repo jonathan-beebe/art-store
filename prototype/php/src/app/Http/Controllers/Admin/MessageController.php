@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\PostMessageRequest;
 use App\Models\Conversation;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -47,9 +49,12 @@ final class MessageController extends AdminController
         ]);
     }
 
-    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage): RedirectResponse
+    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse
     {
-        $postMessage($conversation, $this->admin(), $request->body(), $this->now());
+        $admin = $this->admin();
+        $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
+
+        $postMessage($conversation, $admin, $request->body(), $this->now());
 
         return redirect()->route('admin.messages.show', $conversation);
     }

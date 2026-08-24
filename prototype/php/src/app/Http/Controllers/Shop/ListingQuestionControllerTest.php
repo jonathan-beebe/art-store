@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Listings\ListingStatus;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
@@ -12,6 +13,7 @@ use App\Models\Message;
 use App\Notifications\MessageReceived;
 use App\Support\CustomerIdentity;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Session;
 
@@ -173,4 +175,19 @@ it('carries the question to the seller and the answer back to the visitor', func
     $this->get('/')->assertSee('Messages (1)', escape: false);
     $this->get(route('shop.messages.show', $conversation))->assertSee('Yes, in black wood.');
     $this->get('/')->assertDontSee('Messages (1)', escape: false);
+});
+
+it('trips the conversation-open limit, opening no further thread', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $this->listing($this->seller('Rye Press'), ['slug' => 'winter-elm']);
+    $this->visitor();
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Does this ship framed?']);
+
+    $response = $this->post('/art/winter-elm/questions', ['body' => 'Is this signed?']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect(Conversation::count())->toBe(1);
 });

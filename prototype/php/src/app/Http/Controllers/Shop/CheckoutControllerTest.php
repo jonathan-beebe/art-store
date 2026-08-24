@@ -6,10 +6,12 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Order;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Session;
 use Tests\CapturedStory;
 
@@ -327,4 +329,71 @@ it('keeps the address and the card out of every line the checkout writes', funct
     expect($written)->not->toContain('4242424242424242');
     expect($written)->not->toContain('12 Analytical Way');
     expect($written)->not->toContain('EC1A 1BB');
+});
+
+it('trips the checkout limit, re-rendering the checkout form with no order placed', function () use ($fillCart, $checkoutFields): void {
+    Config::set('rate_limits.checkout', RateLimitValue::parse('1/1m', 'RATE_LIMIT_CHECKOUT'));
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+    $this->listing($this->seller(), ['slug' => 'second-piece', 'price_cents' => 5000]);
+    $this->post('/cart/second-piece');
+
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect(Order::count())->toBe(1);
+});
+
+it('resets the checkout limit once its window passes', function () use ($fillCart, $checkoutFields): void {
+    Config::set('rate_limits.checkout', RateLimitValue::parse('1/1m', 'RATE_LIMIT_CHECKOUT'));
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $this->travel(61)->seconds();
+    $this->listing($this->seller(), ['slug' => 'second-piece', 'price_cents' => 5000]);
+    $this->post('/cart/second-piece');
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $response->assertStatus(302);
+    expect(Order::count())->toBe(2);
+});
+
+it('logs the checkout trip as rate_limit.exceed at warn, keyed by the customer', function () use ($fillCart, $checkoutFields): void {
+    Config::set('rate_limits.checkout', RateLimitValue::parse('1/1m', 'RATE_LIMIT_CHECKOUT'));
+    $shopper = Customer::factory()->create(['email' => 'shopper@example.com']);
+    $this->actingAs($shopper, 'customer');
+    $fillCart();
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+    $this->listing($this->seller(), ['slug' => 'second-piece', 'price_cents' => 5000]);
+    $this->post('/cart/second-piece');
+
+    $log = CapturedStory::capture();
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $line = $log->line('rate_limit.exceed', 'refused');
+
+    /** @var array<string, mixed> $data */
+    $data = $line['data'];
+
+    expect($line['level'])->toBe('warn')
+        ->and($data['limit'])->toBe('checkout')
+        ->and($data['key'])->toBe($shopper->id);
+});
+
+it('trips the magic-link budget on a guest checkout before placing an order, spending it by email and by ip', function () use ($fillCart, $checkoutFields): void {
+    Config::set('rate_limits.magic_link_request', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_REQUEST'));
+    $this->visitor();
+    $fillCart();
+    $this->post('/checkout', $checkoutFields());
+    $this->listing($this->seller(), ['slug' => 'second-piece', 'price_cents' => 5000]);
+    $this->post('/cart/second-piece');
+
+    $response = $this->post('/checkout', $checkoutFields());
+
+    $response->assertStatus(429);
+    expect(Order::count())->toBe(1);
 });

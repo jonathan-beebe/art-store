@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Messaging\ConversationSubject;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Message;
+use Illuminate\Support\Facades\Config;
 
 it('opens the customers admin thread, posts the message, and lands on it', function (): void {
     $admin = $this->admin();
@@ -57,4 +59,19 @@ it('sends a guest to the admin login page', function (): void {
     $response = $this->post("/admin/customers/{$customer->id}/messages", ['body' => 'We looked into your order.']);
 
     $response->assertRedirect(route('auth.admin.login'));
+});
+
+it('trips the message-post limit before opening or posting to a new thread', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $admin = $this->admin();
+    $firstCustomer = $this->verifiedCustomer();
+    $secondCustomer = $this->verifiedCustomer();
+    $this->actingAs($admin, 'admin')->post("/admin/customers/{$firstCustomer->id}/messages", ['body' => 'First message.']);
+
+    $response = $this->actingAs($admin, 'admin')
+        ->post("/admin/customers/{$secondCustomer->id}/messages", ['body' => 'Second message.']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    expect(Conversation::count())->toBe(1);
 });

@@ -11,10 +11,12 @@ use App\Actions\Customers\ResolveCustomerFromCookie;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\LocalRedirect;
 use App\Domain\Auth\MagicLinkStatus;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Logging\StoryEvent;
 use App\Models\MagicLink;
 use App\Support\CustomerIdentity;
+use App\Support\RateLimiting\RateLimitGate;
 use App\Support\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +30,13 @@ final class MagicLinkVerificationController extends Controller
         SignInCustomer $signInCustomer,
         SignInAdmin $signInAdmin,
         ResolveCustomerFromCookie $resolveFromCookie,
+        RateLimitGate $rateLimit,
     ): RedirectResponse {
+        // Ahead of the story: a trip here is refused before any row is read,
+        // so it never becomes a `magic_link.consume` line of its own — the
+        // `rate_limit.exceed` line RateLimitGate writes is the whole story.
+        $rateLimit->check(RateLimitName::MagicLinkConsume, 'ip:'.$request->ip());
+
         // Neither the token nor the address it was issued to reaches a line;
         // the link row's own id is what names it.
         return Story::for(StoryEvent::MagicLinkConsume)->tell('verifying a sign-in link', [], function (Story $story) use (

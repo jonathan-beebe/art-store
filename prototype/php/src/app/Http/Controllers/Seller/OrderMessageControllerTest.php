@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\ConversationSubject;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
+use Illuminate\Support\Facades\Config;
 
 it('opens the thread for the order and the customer and lands on it', function (): void {
     $seller = $this->seller();
@@ -51,4 +53,22 @@ it('refuses to message about another sellers fulfillment', function (): void {
 
     $response->assertNotFound();
     expect(Conversation::count())->toBe(0);
+});
+
+it('trips the conversation-open limit before opening a second fulfillment thread', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $seller = $this->seller();
+    $firstOrder = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    app(FinalizeOrder::class)($firstOrder, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $firstFulfillment = Fulfillment::where('order_id', $firstOrder->id)->sole();
+    $secondOrder = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    app(FinalizeOrder::class)($secondOrder, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $secondFulfillment = Fulfillment::where('order_id', $secondOrder->id)->sole();
+    $this->actingAs($seller, 'seller')->post("/seller/orders/{$firstFulfillment->id}/messages");
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/orders/{$secondFulfillment->id}/messages");
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    expect(Conversation::count())->toBe(1);
 });

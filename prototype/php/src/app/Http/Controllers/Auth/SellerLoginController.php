@@ -6,10 +6,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\SendMagicLink;
 use App\Domain\Auth\ActorType;
+use App\Domain\Auth\EmailNormalizer;
+use App\Domain\RateLimiting\RateLimitExceeded;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendMagicLinkRequest;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 
 final class SellerLoginController extends Controller
@@ -23,8 +28,17 @@ final class SellerLoginController extends Controller
         return view('auth.seller-login');
     }
 
-    public function send(SendMagicLinkRequest $request, SendMagicLink $sendMagicLink): RedirectResponse
+    public function send(SendMagicLinkRequest $request, SendMagicLink $sendMagicLink, RateLimitGate $rateLimit): RedirectResponse|Response
     {
+        try {
+            $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
+                'email:'.hash('sha256', EmailNormalizer::normalize($request->email())),
+                'ip:'.$request->ip(),
+            ]);
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'auth.seller-login');
+        }
+
         $sendMagicLink($request->email(), ActorType::Seller, null, $this->now());
 
         return redirect()->route('auth.seller.login')->with('sent_to', $request->email());

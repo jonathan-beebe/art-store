@@ -6,10 +6,13 @@ namespace App\Http\Controllers\Shop;
 
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\OrderStatus;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Order;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Session;
+use Tests\CapturedStory;
 
 $unpaidOrderFor = function (Customer $customer): Order {
     return test()->orderFor($customer, test()->listing(test()->seller(), ['price_cents' => 24500]));
@@ -137,4 +140,63 @@ it('reports a declined card and pays on retry', function () use ($unpaidOrderFor
 
     $retried->assertRedirect(route('shop.order', $order));
     expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('trips the payment-attempt limit, re-rendering the card form with no payment taken', function () use ($unpaidOrderFor): void {
+    Config::set('rate_limits.payment_attempt', RateLimitValue::parse('1/15m', 'RATE_LIMIT_PAYMENT_ATTEMPT'));
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    $this->post(route('shop.order.pay', $order), ['card_number' => '4000 0000 0000 0002']);
+
+    $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($order->refresh()->status)->toBe(OrderStatus::PaymentFailed)
+        ->and($order->payments()->count())->toBe(1);
+});
+
+it('resets the payment-attempt limit once its window passes', function () use ($unpaidOrderFor): void {
+    Config::set('rate_limits.payment_attempt', RateLimitValue::parse('1/15m', 'RATE_LIMIT_PAYMENT_ATTEMPT'));
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    $this->post(route('shop.order.pay', $order), ['card_number' => '4000 0000 0000 0002']);
+
+    $this->travel(16)->minutes();
+    $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertRedirect(route('shop.order', $order));
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid);
+});
+
+it('keys the payment-attempt trip by the order, so a second order is unaffected', function () use ($unpaidOrderFor): void {
+    Config::set('rate_limits.payment_attempt', RateLimitValue::parse('1/15m', 'RATE_LIMIT_PAYMENT_ATTEMPT'));
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    $otherOrder = $unpaidOrderFor($shopper);
+    $this->post(route('shop.order.pay', $order), ['card_number' => '4000 0000 0000 0002']);
+
+    $response = $this->post(route('shop.order.pay', $otherOrder), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertRedirect(route('shop.order', $otherOrder));
+});
+
+it('logs the payment-attempt trip as rate_limit.exceed at warn, keyed by the order', function () use ($unpaidOrderFor): void {
+    Config::set('rate_limits.payment_attempt', RateLimitValue::parse('1/15m', 'RATE_LIMIT_PAYMENT_ATTEMPT'));
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    $this->post(route('shop.order.pay', $order), ['card_number' => '4000 0000 0000 0002']);
+
+    $log = CapturedStory::capture();
+    $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $line = $log->line('rate_limit.exceed', 'refused');
+
+    /** @var array<string, mixed> $data */
+    $data = $line['data'];
+
+    expect($line['level'])->toBe('warn')
+        ->and($data['limit'])->toBe('payment_attempt')
+        ->and($data['key'])->toBe($order->id);
 });

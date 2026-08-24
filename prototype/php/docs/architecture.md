@@ -231,6 +231,75 @@ the story in order, and `raw()` for the assertions that something appears
 nowhere. `phpunit.xml` points `LOG_CHANNEL` at `null` so the suite's own output
 stays readable.
 
+## Rate limits and security headers
+
+docs/alignment.md §3 fixes seven limits, one env variable each, read at boot:
+`App\Domain\RateLimiting\RateLimitValue::parse()` turns `"<count>/<window>"`
+(or `"off"`) into a budget, and `config/rate_limits.php` calls it once per
+`App\Domain\RateLimiting\RateLimitName` case while the config file loads — a
+malformed value throws there, before the process ever answers a request.
+Both are pure: no `Illuminate`, no clock, no random.
+
+`App\Support\RateLimiting\RateLimitGate` is the one place a limit is checked
+and, if it holds, hit: it wraps `Illuminate\Cache\RateLimiter` over the
+default cache store (`database`, so a count survives a restart the way an
+in-memory one would not), and `checkEach()` looks at every key before
+recording a hit against any of them — `magic_link_request`'s email and ip
+budgets each trip on their own count, independently, and a request refused
+on one key leaves no mark against the other. A trip throws
+`App\Domain\RateLimiting\RateLimitExceeded` after writing the
+`rate_limit.exceed` line itself (`warn`, `data.limit`, `data.key`,
+`data.retry_after_seconds`) — the log line, the throw, and (through the
+key) the redaction all happen in the one place, so no caller can do one
+without the other.
+
+A limit's key never reaches the log as an email address: the caller hashes
+it first (`'email:'.hash('sha256', EmailNormalizer::normalize($email))`)
+before it ever reaches the gate, so the gate has nothing to redact and the
+cache key and the logged key are the same hash. Every other key — a
+prefixed id, an ip — is already safe to log under docs/alignment.md §2.1.
+
+Where each limit is checked runs ahead of the write it guards, inside the
+action that would otherwise perform it, so a trip leaves no side effect:
+
+| Limit | Checked in | Key |
+| --- | --- | --- |
+| `magic_link_request` | the three login `send()` methods; `CheckoutController::place()` for a guest's implicit link | `email:<hash>` and `ip:<ip>`, independently |
+| `magic_link_consume` | `MagicLinkVerificationController` | `ip:<ip>` |
+| `message_post` | every `MessageController::store()`; `Admin\SellerMessageController` and `Admin\CustomerMessageController` | the poster's own id |
+| `conversation_open` | `ListingQuestionController`, `SupportController` (shop and seller), `OrderMessageController` (shop and seller) | the opener's own id |
+| `checkout` | `CheckoutController::place()` | the customer's id |
+| `payment_attempt` | `OrderPaymentController::pay()` | the order's id |
+| `listing_write` | `Seller\ListingController::store()` and `update()` | the seller's id |
+
+On a trip: HTTP 429, `Retry-After: <seconds>`, one `rate_limit.exceed` line,
+no side effect. The response body splits two ways. A route with a classic
+form to give back — the three sign-ins, checkout, pay, and the seller's
+listing create/edit — catches `RateLimitExceeded` itself and re-renders that
+form through `Controller::tooManyRequests()`, which shares a `ViewErrorBag`
+holding the sentence under a synthetic key (`errors->any()` shows it the way
+every other page-level refusal already does, field-less because no real
+form field matches it). Everything else — message posts, conversation
+opens, and the magic-link verification GET, none of which has a form of its
+own — falls through to a matching `$exceptions->render()` in
+`bootstrap/app.php`, which picks the site by path the same way
+`redirectGuestsTo()` does and renders that site's own
+`resources/views/errors/rate-limited-{shop,seller,admin}.blade.php`.
+
+Client ip (`$request->ip()`) is the socket's own unless `TRUSTED_PROXIES` is
+set, in which case `bootstrap/app.php` wires Laravel's `TrustProxies` from
+it (a comma list of IPs/CIDRs, or `*`) and reads the first
+`X-Forwarded-For` value instead.
+
+`App\Http\Middleware\SecurityHeaders` sits in the global middleware stack
+(not the `web` group — a route that matches nothing still needs to answer
+with these, the way `LogRequestStory` is global for the same reason) and
+sets, on every response: `Content-Security-Policy` (`default-src 'self'`,
+`img-src 'self' data:` for a listing's inline SVG placeholder, `form-action
+'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, and, in production only,
+`Strict-Transport-Security`.
+
 ## Sites
 
 | Site | URL prefix | Guard | Theme |

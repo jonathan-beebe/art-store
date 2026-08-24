@@ -10,8 +10,8 @@ namespace App\Logging;
  * phase field carries the tense.
  *
  * The events waiting on features this prototype has yet to grow —
- * `moderation.remove_listing`, `moderation.lift_listing_removal`,
- * `rate_limit.exceed` — join the enum with the work that emits them.
+ * `moderation.remove_listing`, `moderation.lift_listing_removal` — join the
+ * enum with the work that emits them.
  */
 enum StoryEvent: string
 {
@@ -46,6 +46,7 @@ enum StoryEvent: string
     case NotificationDeliver = 'notification.deliver';
     case ModerationBlockCustomer = 'moderation.block_customer';
     case ModerationLiftCustomerBlock = 'moderation.lift_customer_block';
+    case RateLimitExceed = 'rate_limit.exceed';
     case MigrateRun = 'migrate.run';
     case MigrateApply = 'migrate.apply';
     case SeedRun = 'seed.run';
@@ -73,11 +74,17 @@ enum StoryEvent: string
 
     /**
      * A refusal is `info`: a rule held, and the reader is meant to see it.
-     * The one exception is the listing-view collapse, which refuses every
-     * view after the first in an hour and would drown the stream at `info`.
+     * The listing-view collapse refuses every view after the first in an
+     * hour and would drown the stream at `info`, so it is `debug` instead. A
+     * rate-limit trip is the one refusal an operator wants paged on, so it
+     * is `warn`.
      */
     public function refusalLevel(): StoryLevel
     {
-        return $this === self::ListingView ? StoryLevel::Debug : StoryLevel::Info;
+        return match ($this) {
+            self::ListingView => StoryLevel::Debug,
+            self::RateLimitExceed => StoryLevel::Warn,
+            default => StoryLevel::Info,
+        };
     }
 }

@@ -8,8 +8,11 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\BlockedLine;
 use App\Domain\Orders\OrderPayment;
 use App\Domain\Orders\OrderPlacementRefused;
+use App\Domain\RateLimiting\RateLimitExceeded;
+use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\PayOrderRequest;
 use App\Models\Order;
+use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -23,14 +26,18 @@ final class OrderPaymentController extends ShopController
         return $this->elsewhere($order) ?? view('shop.pay', $this->viewData($order));
     }
 
-    public function pay(PayOrderRequest $request, Order $order, FinalizeOrder $finalizeOrder): View|RedirectResponse|Response
+    public function pay(PayOrderRequest $request, Order $order, FinalizeOrder $finalizeOrder, RateLimitGate $rateLimit): View|RedirectResponse|Response
     {
         if ($elsewhere = $this->elsewhere($order)) {
             return $elsewhere;
         }
 
         try {
+            $rateLimit->check(RateLimitName::PaymentAttempt, (string) $order->id);
+
             $finalizeOrder($order, $request->cardNumber(), $this->now());
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'shop.pay', $this->viewData($order));
         } catch (OrderPlacementRefused $refusal) {
             // A card sat declined long enough that a listing this order held
             // went stale in the meantime: the pay page names it the same way

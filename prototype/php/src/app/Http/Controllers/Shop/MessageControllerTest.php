@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Domain\Messaging\ConversationSubject;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\CustomerBlock;
 use App\Models\Message;
+use Illuminate\Support\Facades\Config;
 
 it('lists the visitors threads newest first with who, what, and unread count', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
@@ -121,4 +123,31 @@ it('reads a thread with no reply form while blocked, and refuses a hand-rolled r
 
     $reply->assertForbidden();
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Trying anyway.')->exists())->toBeFalse();
+});
+
+it('trips the message-post limit, posting nothing further', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id]);
+    $this->post("/messages/{$conversation->id}", ['body' => 'First message.']);
+
+    $response = $this->post("/messages/{$conversation->id}", ['body' => 'Second message.']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second message.')->exists())->toBeFalse();
+});
+
+it('resets the message-post limit once its window passes', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id]);
+    $this->post("/messages/{$conversation->id}", ['body' => 'First message.']);
+
+    $this->travel(61)->minutes();
+    $response = $this->post("/messages/{$conversation->id}", ['body' => 'Second message.']);
+
+    $response->assertRedirect(route('shop.messages.show', $conversation));
+    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second message.')->exists())->toBeTrue();
 });
