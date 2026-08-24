@@ -26,9 +26,9 @@ guard — a check on each action would let the next page forget it.
 | `GET /admin/listings?status=&seller=&removed=` | `Listing.with_status(…).for_seller(…).removal_standing(…)` (`removed` is `any` \| `removed` \| `visible`) |
 | `GET /admin/listings/:id` | one listing, its seller, and its removal history |
 | `GET /admin/orders?status=&customer=` | `Order.with_status(…).for_customer(…)` with each order's items and fulfillments |
-| `GET /admin/orders/:id` | the order's items, payments, fulfillments and refunds |
+| `GET /admin/orders/:id` | the order's items, payments, fulfillments and refunds, and its cancel action |
 | `GET /admin/fulfillments?status=&seller=` | `Fulfillment.with_status(…).for_seller(…)` with each fulfillment's seller and order |
-| `GET /admin/fulfillments/:id` | one fulfillment, the lines of the order its seller ships, and its refunds |
+| `GET /admin/fulfillments/:id` | one fulfillment, the lines of the order its seller ships, its refunds, and its refund action |
 | `GET\|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
 
 Both lists reach across owners: `/admin/listings` shows every seller's
@@ -109,23 +109,29 @@ no fold.
 The directory answers reads. Each page already carries the section a write
 will hang from:
 
-| Action | Page and section | Ticket |
+| Action | Page and section | Where |
 | --- | --- | --- |
-| Cancel an unpaid order | `/admin/orders/:id`, beside the status | FEAT-017 |
-| Refund a fulfillment | `/admin/orders/:id` Fulfillments rows, and `/admin/fulfillments/:id` | FEAT-017 |
+| Cancel an unpaid order | `/admin/orders/:id`, beside the status | `POST /admin/orders/:id/cancellation` |
+| Refund a fulfillment | `/admin/fulfillments/:id` Refunds, linked from each `/admin/orders/:id` fulfillment row | `POST /admin/fulfillments/:id/refund` |
 | Remove a listing, lift a removal | `/admin/listings/:id` Removal history | FEAT-021 |
 | Block a customer, lift a block | `/admin/customers/:id` Block history | FEAT-021 |
 | Run the weekly payout | `/admin/payouts` | FEAT-021 |
 | Dashboard tallies, accounting, ledger, stats | `/admin`, `/admin/accounting`, `/admin/ledger`, `/admin/stats` | FEAT-020 |
 
-The `refunds`, `listing_removals` and `customer_blocks` tables do not exist
-yet. Four model methods stand in their place and render an empty section:
-`Order#refunds`, `Fulfillment#refunds`, `Listing#removals` and
-`Customer#blocks` each answer `[]`, and `Customer.blocked` /
-`Listing.removed` are `none`. Each is one line to replace with the
-`has_many` or the `where` once the table lands.
+Cancel and Refund are both `Admin::BaseController` actions
+(`Admin::CancellationsController`, `Admin::RefundsController`) that call
+`Order#cancel!` and `Fulfillment#refund!` and redirect back to the page the
+action hangs off, with the refusal sentence in `flash[:alert]` when the model
+says no. The refund form asks for a reason (1–500 characters) and the button
+only appears where the move is still open — see `docs/orders.md`.
 
-`Listing.visible` (`-> { all }`) is a seventh stand-in, and not a drop-in one:
+The `listing_removals` and `customer_blocks` tables do not exist yet. Two
+model methods stand in their place and render an empty section:
+`Listing#removals` and `Customer#blocks` each answer `[]`, and
+`Customer.blocked` / `Listing.removed` are `none`. Each is one line to
+replace with the `has_many` or the `where` once the table lands.
+
+`Listing.visible` (`-> { all }`) is a third stand-in, and not a drop-in one:
 it is what `admin/listings?removed=visible` reads as "no removal stands over
 this listing," and `-> { all }` only answers that correctly because nothing
 removes a listing yet. Once `listing_removals` is real, `visible` has to

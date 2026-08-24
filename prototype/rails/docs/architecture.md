@@ -220,18 +220,24 @@ stateDiagram-v2
     partially_shipped --> shipped
     shipped --> delivered : all fulfillments delivered
     delivered --> [*]
-    pending_verification --> cancelled
-    awaiting_payment --> cancelled
-    payment_failed --> cancelled
+    pending_verification --> cancelled : customer, admin, or the sweep
+    awaiting_payment --> cancelled : customer or admin
+    payment_failed --> cancelled : customer or admin
+    paid --> refunded : every fulfillment declined or refunded
+    shipped --> refunded
+    delivered --> refunded
 ```
 
-`cancelled` has no route to it from either UI in this prototype — the
-transition exists in `Order::TRANSITIONS`, verified by
-`test/models/order_test.rb`, but nothing calls it.
+`cancelled` is reached by `Order#cancel!` from the storefront, the admin site,
+and `Order.sweep_stale` (`make sweep`); `refunded` is rolled up once every
+fulfillment on a paid order has been declined or refunded. Both are terminal.
+Source of truth: `Order::TRANSITIONS`, verified by `test/models/order_test.rb`.
 
 ### Fulfillment status (per order × seller)
 
-`awaiting_shipment → shipped → delivered`. Seller marks shipped (carrier +
+`awaiting_shipment → shipped → delivered`, with `declined` (the seller pulls
+out) and `refunded` (the platform sends the money back) as terminal branches.
+Seller marks shipped (carrier +
 tracking). Customer confirms delivery from the order page. A seller's order
 **is a fulfillment** — `seller_order` (`/seller/orders/:id`) takes a
 `fulfillments.id`, since that is the slice of a customer's order the seller
@@ -388,6 +394,10 @@ wrote share another. All of them share the request's `request_id`.
 | `conversation.open`, `message.post` | `Conversation.open`, `Conversation#post!` |
 | `faq.publish`, `faq.unpublish` | `ListingFaq.publish`, `ListingFaq#unpublish!` |
 | `notification.write`, `notification.deliver` | `Notification.deliver` and the transport hook |
+| `order.cancel` | `Order#cancel!` |
+| `order.sweep` | `Order.sweep_stale` |
+| `fulfillment.decline` | `Fulfillment#decline!` |
+| `refund.issue` | `Fulfillment#decline!` and `Fulfillment#refund!` |
 | `migrate.run`, `migrate.apply`, `seed.run` | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed` |
 | `app.boot`, `app.shutdown` | `src/config/initializers/logging.rb` |
 
@@ -395,8 +405,6 @@ Deferred, with the ticket that brings the feature and its event:
 
 | Event | Ticket |
 | --- | --- |
-| `order.cancel`, `order.sweep` | FEAT-017 (stale-order sweep and cancel) |
-| `fulfillment.decline`, `refund.issue` | FEAT-017 (order lifecycle back half — cancel, sweep, decline, refund) |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 (admin moderation) |
 | `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
 

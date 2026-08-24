@@ -53,6 +53,12 @@ class Story
     write(Line.new(phase: :will, message: @message, data: data, error: nil))
   end
 
+  # A step inside the unit of work, written as it happens rather than held
+  # until the end: what a run over many rows says about each one.
+  def doing(message, **data)
+    write(Line.new(phase: :doing, message: message, data: data, error: nil))
+  end
+
   # What happened. Held until the story closes, so the line lands after the
   # writing it describes has committed.
   def did(message, **data)

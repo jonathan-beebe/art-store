@@ -11,6 +11,6 @@ class Admin::OrdersController < Admin::BaseController
     @order = Order.includes(:customer, items: :listing).find(params[:id])
     @payments = @order.payments.order(processed_at: :desc, id: :desc)
     @fulfillments = @order.fulfillments.includes(:seller, :order).order(created_at: :asc, id: :asc)
-    @refunds = @order.refunds
+    @refunds = @order.refunds.order(created_at: :desc, id: :desc)
   end
 end

@@ -13,6 +13,9 @@ class CreateOrders < ActiveRecord::Migration[8.1]
       t.string :shipping_country, null: false
       t.integer :subtotal_cents, null: false
       t.integer :total_cents, null: false
+      # The sum of the order's refunds, so a page reads what went back without
+      # folding the refunds table.
+      t.integer :refunded_cents, null: false, default: 0
       t.datetime :placed_at, null: false
       t.datetime :finalized_at
 

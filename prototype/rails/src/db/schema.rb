@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_000101) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -241,6 +241,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.string "email"
     t.datetime "finalized_at"
     t.datetime "placed_at", null: false
+    t.integer "refunded_cents", default: 0, null: false
     t.string "shipping_city", null: false
     t.string "shipping_country", null: false
     t.string "shipping_line1", null: false
@@ -279,6 +280,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.datetime "updated_at", null: false
     t.index ["seller_id", "period_start"], name: "index_payouts_on_seller_id_and_period_start", unique: true
     t.index ["seller_id"], name: "index_payouts_on_seller_id"
+  end
+
+  create_table "refunds", id: :string, force: :cascade do |t|
+    t.integer "amount_cents", null: false
+    t.datetime "created_at", null: false
+    t.string "fulfillment_id", null: false
+    t.string "issued_by_id", null: false
+    t.string "issued_by_type", null: false
+    t.string "order_id", null: false
+    t.string "payment_id", null: false
+    t.text "reason", null: false
+    t.index ["fulfillment_id"], name: "index_refunds_on_fulfillment_id"
+    t.index ["issued_by_type", "issued_by_id"], name: "index_refunds_on_issued_by_type_and_issued_by_id"
+    t.index ["order_id"], name: "index_refunds_on_order_id"
+    t.index ["payment_id"], name: "index_refunds_on_payment_id"
   end
 
   create_table "sellers", id: :string, force: :cascade do |t|
@@ -330,4 +346,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
   add_foreign_key "orders", "customers"
   add_foreign_key "payments", "orders"
   add_foreign_key "payouts", "sellers"
+  add_foreign_key "refunds", "fulfillments"
+  add_foreign_key "refunds", "orders"
+  add_foreign_key "refunds", "payments"
 end

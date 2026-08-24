@@ -159,7 +159,132 @@ class LoggingTest < ActionDispatch::IntegrationTest
     assert_not_includes lines.to_json, "@"
   end
 
+  test "a customer cancelling their order says who cancelled it" do
+    listing = create_listing(status: :for_sale, quantity: 1)
+    sign_in_as_customer(email: BUYER)
+    order = order_for(visiting_customer, listing)
+
+    lines = captured_log_lines { post shop_cancel_order_path(order) }
+
+    cancelling = log_lines_for("order.cancel", lines)
+    assert_equal [ "will", "did" ], cancelling.map { |line| line["phase"] }
+    assert_equal [ "customer" ], cancelling.map { |line| line["actor_type"] }.uniq
+    assert_equal "awaiting_payment", cancelling.first["data"]["status_from"]
+    assert_equal "cancelled", cancelling.last["data"]["status_to"]
+    assert_equal order.id, cancelling.last["data"]["order_id"]
+  end
+
+  test "an admin cancelling an order says an admin did" do
+    order = order_for(create_verified_customer, create_listing)
+    sign_in_as_admin
+
+    lines = captured_log_lines { post admin_order_cancellation_path(order) }
+
+    assert_equal [ "admin" ], log_lines_for("order.cancel", lines).map { |line| line["actor_type"] }.uniq
+  end
+
+  test "the sweep says the system cancelled each order it swept" do
+    order = stale_guest_order
+
+    lines = captured_log_lines { Order.sweep_stale(before: moment("2026-08-22 09:00:00")) }
+
+    assert_equal [
+      "order.sweep will",
+      "order.sweep doing",
+      "order.cancel will",
+      "order.cancel did",
+      "order.sweep did"
+    ], log_story(lines)
+    assert_equal [ "system" ], lines.map { |line| line["actor_type"] }.uniq
+    assert_equal 1, lines.map { |line| line["txn_id"] }.uniq.size
+
+    sweeping = log_lines_for("order.sweep", lines)
+    assert_equal order.id, sweeping[1]["data"]["order_id"]
+    assert_equal 1, sweeping.last["data"]["order_count"]
+    assert_equal "2026-08-22T09:00:00Z", sweeping.last["data"]["before"]
+  end
+
+  test "a seller declining tells the decline and the refund it issued" do
+    fulfillment = create_fulfillment(create_seller)
+
+    lines = captured_log_lines do
+      fulfillment.decline!(reason: "The kiln cracked it.", by: fulfillment.seller)
+    end
+
+    assert_equal [
+      "fulfillment.decline will",
+      "refund.issue will",
+      "ledger.write will",
+      "ledger.write did",
+      "notification.write will",
+      "notification.deliver will",
+      "notification.deliver did",
+      "notification.write did",
+      "refund.issue did",
+      "fulfillment.decline did"
+    ], log_story(lines)
+
+    declining = log_lines_for("fulfillment.decline", lines)
+    assert_equal "awaiting_shipment", declining.first["data"]["status_from"]
+    assert_equal "declined", declining.last["data"]["status_to"]
+    assert_equal "refunded", declining.last["data"]["order_status"]
+
+    issued = log_lines_for("refund.issue", lines).last["data"]
+    assert_equal issued["refund_id"], PrefixedUlid.parse(issued["refund_id"], :rfd)
+    assert_equal fulfillment.id, issued["fulfillment_id"]
+    assert_equal 45_000, issued["amount_cents"]
+    assert_equal "The kiln cracked it.", issued["reason"]
+
+    written = log_lines_for("ledger.write", lines).last["data"]
+    assert_equal "refunded", written["entry_type"]
+    assert_equal(-40_500, written["amount_cents"])
+  end
+
+  test "a refusal to decline twice is told at info, with the world unchanged" do
+    fulfillment = create_fulfillment(create_seller)
+    fulfillment.decline!(reason: "The kiln cracked it.", by: fulfillment.seller)
+
+    lines = captured_log_lines do
+      assert_raises(ActiveRecord::RecordInvalid) do
+        fulfillment.decline!(reason: "Again.", by: fulfillment.seller)
+      end
+    end
+
+    assert_equal [
+      "fulfillment.decline will",
+      "refund.issue will",
+      "refund.issue refused",
+      "fulfillment.decline refused"
+    ], log_story(lines)
+    assert_equal [ "info" ], lines.map { |line| line["level"] }.uniq
+    assert_equal 1, Refund.count
+  end
+
+  test "an admin refund is told as the refund it is" do
+    fulfillment = create_fulfillment(create_seller)
+
+    lines = captured_log_lines do
+      fulfillment.refund!(reason: "Dispute found for the buyer.", by: create_admin)
+    end
+
+    assert_equal [ "refund.issue" ], log_lines_for("refund.issue", lines).map { |line| line["event"] }.uniq
+    assert_empty log_lines_for("fulfillment.decline", lines)
+
+    issued = log_lines_for("refund.issue", lines).last["data"]
+    assert_equal fulfillment.id, issued["fulfillment_id"]
+    assert_equal "Dispute found for the buyer.", issued["reason"]
+  end
+
   private
+
+  def stale_guest_order
+    guest = create_anonymous_customer
+
+    Order.place(
+      cart: cart_holding(guest, create_listing), customer: guest, email: "guest@example.test",
+      shipping: shipping_address, at: moment("2026-08-20 09:00:00")
+    )
+  end
 
   def checkout_params(card_number: TestRecords::APPROVED_CARD)
     { card_number: card_number }.merge(shipping_params)

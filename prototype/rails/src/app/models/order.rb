@@ -16,6 +16,7 @@ class Order < ApplicationRecord
   has_many :items, class_name: "OrderItem", dependent: :destroy, inverse_of: :order
   has_many :fulfillments, dependent: :destroy
   has_many :payments, dependent: :destroy
+  has_many :refunds, dependent: :destroy
 
   enum :status, {
     pending_verification: "pending_verification",
@@ -25,7 +26,8 @@ class Order < ApplicationRecord
     partially_shipped: "partially_shipped",
     shipped: "shipped",
     delivered: "delivered",
-    cancelled: "cancelled"
+    cancelled: "cancelled",
+    refunded: "refunded"
   }
 
   TRANSITIONS = {
@@ -33,16 +35,28 @@ class Order < ApplicationRecord
     "awaiting_payment" => %w[paid payment_failed cancelled].freeze,
     # A retry that is declined again leaves the order where it already was.
     "payment_failed" => %w[paid payment_failed cancelled].freeze,
-    "paid" => %w[partially_shipped shipped].freeze,
-    "partially_shipped" => %w[shipped].freeze,
-    "shipped" => %w[delivered].freeze,
-    "delivered" => [].freeze,
-    "cancelled" => [].freeze
+    # Everything above `paid` is rolled up from the fulfillments rather than
+    # asked for: `refunded` is where an order lands once every one of them has
+    # been declined or refunded.
+    "paid" => %w[partially_shipped shipped refunded].freeze,
+    "partially_shipped" => %w[shipped refunded].freeze,
+    "shipped" => %w[delivered refunded].freeze,
+    "delivered" => %w[refunded].freeze,
+    "cancelled" => [].freeze,
+    "refunded" => [].freeze
   }.freeze
 
   # Placement takes the stock an order claims. These statuses hand it back, so
   # a listing that had sold out returns to the storefront.
   RELEASES_STOCK = %w[payment_failed cancelled].freeze
+
+  # The statuses a customer, an admin, or the sweep may still call off. Past
+  # them the path back is a refund.
+  CANCELLABLE = %w[pending_verification awaiting_payment payment_failed].freeze
+
+  # The statuses an order reaches only through an approved card, which is what
+  # gives a refund something to reverse.
+  CHARGED = %w[paid partially_shipped shipped delivered refunded].freeze
 
   scope :with_status, ->(status) { where(status: status) if status.present? }
   scope :for_customer, ->(customer_id) { where(customer_id: customer_id) if customer_id.present? }
@@ -218,6 +232,57 @@ class Order < ApplicationRecord
     end
   end
 
+  # The order is called off before any money changed hands: the stock it was
+  # holding goes back on the storefront and nothing can charge it afterwards.
+  # The row is locked and judged inside the transaction that writes, so two
+  # cancels racing each other leave one refusal behind.
+  def cancel!(by:)
+    Story.tell("order.cancel", "cancelling the order", order_id: id, status_from: status) do |story|
+      from = status
+
+      transaction do
+        lock!
+        landed = self.class.transition(status, "cancelled")
+        move_stock(status, landed, nil)
+        update!(status: landed)
+      end
+
+      Notification.order_cancelled(self) if by.is_a?(Admin)
+      story.did("cancelled the order", order_id: id, status_from: from, status_to: status)
+
+      self
+    end
+  end
+
+  # Guest orders that were never verified hold their stock off the storefront.
+  # This hands it back for every order left sitting past the cutoff, in one
+  # transaction over rows it locks, and finds nothing to do on a second run.
+  def self.sweep_stale(before:)
+    # Nobody asked for this one: the lines it writes name the system rather
+    # than whoever was last on the page.
+    Current.set(actor_type: "system", actor_id: nil) do
+      Story.tell("order.sweep", "cancelling the orders nobody verified",
+        before: before.utc.iso8601) do |story|
+        cancelled = transaction do
+          pending_verification.where(placed_at: ...before).order(:id).lock.map do |order|
+            story.doing("cancelling a stale order", order_id: order.id, placed_at: order.placed_at.utc.iso8601)
+            order.cancel!(by: :system)
+          end
+        end
+
+        story.did("cancelled the orders nobody verified",
+          before: before.utc.iso8601, order_count: cancelled.size)
+
+        cancelled
+      end
+    end
+  end
+
+  # The cutoff the sweep runs against when nobody names one.
+  def self.stale_before(at: Time.current)
+    at - Rails.configuration.x.orders.stale_hours.hours
+  end
+
   def roll_up_status!
     # Reloaded because the caller reached the order through a fulfillment it
     # has already changed, and the cached collection still holds the old row.
@@ -226,14 +291,26 @@ class Order < ApplicationRecord
     self
   end
 
+  def cancellable?
+    CANCELLABLE.include?(status)
+  end
+
+  def charged?
+    CHARGED.include?(status)
+  end
+
+  # The charge a refund reverses. Only one card attempt is ever approved, so
+  # there is at most one.
+  def approved_payment
+    payments.approved.order(:processed_at, :id).last
+  end
+
   def total
     Money.from_cents(total_cents)
   end
 
-  # The money sent back to the customer against this order, newest first.
-  # Nothing issues a refund, so the history is empty.
-  def refunds
-    []
+  def refunded
+    Money.from_cents(refunded_cents)
   end
 
   private
@@ -300,12 +377,18 @@ class Order < ApplicationRecord
   end
 
   # An order that spans sellers reads from its fulfillments: a delivered one
-  # mixed with an unshipped one is still partially shipped.
+  # mixed with an unshipped one is still partially shipped. A fulfillment
+  # whose money went back is out of the count, so a shipped piece beside a
+  # declined one still reads as shipped — and an order every seller pulled out
+  # of reads as refunded.
   def rolled_up_status(fulfillments)
     raise ArgumentError, "an order rolls up from at least one fulfillment" if fulfillments.empty?
-    return "delivered" if fulfillments.all?(&:delivered?)
-    return "shipped" if fulfillments.all?(&:departed?)
-    return "partially_shipped" if fulfillments.any?(&:departed?)
+
+    live = fulfillments.reject(&:reversed?)
+    return "refunded" if live.empty?
+    return "delivered" if live.all?(&:delivered?)
+    return "shipped" if live.all?(&:departed?)
+    return "partially_shipped" if live.any?(&:departed?)
 
     "paid"
   end

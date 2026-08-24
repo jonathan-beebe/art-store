@@ -466,8 +466,12 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal "partially_shipped", Order.transition("paid", "partially_shipped")
   end
 
-  test "a delivered order goes nowhere" do
-    assert_empty Order::TRANSITIONS.fetch("delivered")
+  test "a delivered order can only be refunded" do
+    assert_equal %w[refunded], Order::TRANSITIONS.fetch("delivered")
+  end
+
+  test "a refunded order goes nowhere" do
+    assert_empty Order::TRANSITIONS.fetch("refunded")
   end
 
   test "a cancelled order goes nowhere" do
@@ -555,7 +559,168 @@ class OrderTest < ActiveSupport::TestCase
     refute order_with_status("delivered").payable_by?(true)
   end
 
+  test "an unpaid order can be cancelled and a settled one cannot" do
+    assert_predicate order_with_status("pending_verification"), :cancellable?
+    assert_predicate order_with_status("awaiting_payment"), :cancellable?
+    assert_predicate order_with_status("payment_failed"), :cancellable?
+    refute_predicate order_with_status("paid"), :cancellable?
+    refute_predicate order_with_status("cancelled"), :cancellable?
+  end
+
+  test "an order that reached paid or beyond has been charged" do
+    assert_predicate order_with_status("paid"), :charged?
+    assert_predicate order_with_status("delivered"), :charged?
+    assert_predicate order_with_status("refunded"), :charged?
+    refute_predicate order_with_status("awaiting_payment"), :charged?
+  end
+
+  test "cancelling an order hands its stock back" do
+    listing = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, listing)
+
+    assert_equal "sold", listing.reload.status
+
+    order.cancel!(by: order.customer)
+
+    assert_predicate order, :cancelled?
+    assert_equal "for_sale", listing.reload.status
+    assert_equal 1, listing.quantity
+  end
+
+  test "cancelling an order whose card was declined restores nothing twice over" do
+    listing = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, listing)
+    pay(order, DECLINED_CARD)
+
+    order.cancel!(by: order.customer)
+
+    assert_predicate order, :cancelled?
+    assert_equal 1, listing.reload.quantity
+  end
+
+  test "a cancelled order cannot be paid" do
+    order = place(create_verified_customer)
+    order.cancel!(by: order.customer)
+
+    error = assert_raises(TransitionError) { pay(order, APPROVED_CARD) }
+
+    assert_equal "An order cannot move from cancelled to paid.", error.message
+  end
+
+  test "a refunded order cannot be paid" do
+    order = paid_order_for(create_verified_customer, create_listing)
+    order.fulfillments.sole.refund!(reason: "Dispute found for the buyer.", by: create_admin)
+
+    error = assert_raises(TransitionError) { pay(order.reload, APPROVED_CARD, at: "2026-08-25 10:00:00") }
+
+    assert_equal "An order cannot move from refunded to paid.", error.message
+  end
+
+  test "a paid order cannot be cancelled" do
+    order = paid_order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(TransitionError) { order.cancel!(by: order.customer) }
+
+    assert_equal "An order cannot move from paid to cancelled.", error.message
+    assert_predicate order.reload, :paid?
+  end
+
+  test "an admin cancelling tells the customer and every seller waiting to ship" do
+    buyer = create_verified_customer
+    order = order_for(buyer, create_listing(create_seller(shop_name: "Blue Kiln Studio")))
+    shop = order.fulfillments.sole.seller
+
+    order.cancel!(by: create_admin)
+
+    assert_equal "Order cancelled", buyer.notifications.sole.subject
+    assert_equal "Order cancelled", shop.notifications.sole.subject
+  end
+
+  test "a customer cancelling their own order tells nobody" do
+    order = place(create_verified_customer)
+
+    order.cancel!(by: order.customer)
+
+    assert_equal 0, Notification.count
+  end
+
+  test "an order every seller pulled out of reads as refunded" do
+    order = paid_order_for(
+      create_verified_customer,
+      create_listing(create_seller(shop_name: "Blue Kiln Studio")),
+      create_listing(create_seller(shop_name: "Rye Press"))
+    )
+
+    order.fulfillments.each { |fulfillment| fulfillment.decline!(reason: "Sold elsewhere.", by: fulfillment.seller) }
+
+    assert_predicate order.reload, :refunded?
+    assert_equal order.total_cents, order.refunded_cents
+  end
+
+  test "an order rolls up from the fulfillments nobody pulled out of" do
+    painter = create_seller(shop_name: "Blue Kiln Studio")
+    printer = create_seller(shop_name: "Rye Press")
+    order = paid_order_for(create_verified_customer, create_listing(painter), create_listing(printer))
+    shipped = order.fulfillments.find_by!(seller: painter)
+    declined = order.fulfillments.find_by!(seller: printer)
+
+    shipped.ship!(carrier: "USPS", tracking_number: "9400111899", at: moment("2026-08-21 11:00:00"))
+    declined.decline!(reason: "Sold elsewhere.", by: printer)
+
+    assert_predicate order.reload, :shipped?
+  end
+
+  test "the sweep cancels the orders left unverified past the cutoff" do
+    stale = guest_order(at: "2026-08-20 09:00:00")
+    fresh = guest_order(at: "2026-08-23 09:00:00")
+
+    cancelled = Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_equal [ stale.id ], cancelled.map(&:id)
+    assert_predicate stale.reload, :cancelled?
+    assert_predicate fresh.reload, :pending_verification?
+  end
+
+  test "the sweep leaves an order that is waiting on a card alone" do
+    order = order_for(create_verified_customer, create_listing)
+
+    assert_empty Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "sweeping twice cancels nothing the second time" do
+    guest_order(at: "2026-08-20 09:00:00")
+
+    Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_empty Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+  end
+
+  test "the sweep hands back the stock the order was holding" do
+    listing = create_listing(quantity: 1)
+    guest_order(at: "2026-08-20 09:00:00", listing: listing)
+
+    Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_equal "for_sale", listing.reload.status
+  end
+
+  test "the cutoff sits STALE_ORDER_HOURS behind the moment it is asked for" do
+    assert_equal moment("2026-08-23 09:00:00"), Order.stale_before(at: moment("2026-08-24 09:00:00"))
+  end
+
   private
+
+  # An order placed by a browser nobody has verified an address for, which is
+  # what the sweep is about.
+  def guest_order(at:, listing: create_listing)
+    guest = create_anonymous_customer
+
+    Order.place(
+      cart: cart_holding(guest, listing), customer: guest, email: "guest@example.test",
+      shipping: shipping_address, at: moment(at)
+    )
+  end
 
   def place(buyer)
     order_for(buyer, create_listing(price_cents: 45_000))

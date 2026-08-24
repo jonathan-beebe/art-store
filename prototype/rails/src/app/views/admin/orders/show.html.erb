@@ -14,7 +14,15 @@
 
   <div>
     <dt class="text-slate-400">Status</dt>
-    <dd data-field="status" class="mt-1"><%= status_label(@order.status) %></dd>
+    <dd data-field="status" class="mt-1">
+      <%= status_label(@order.status) %>
+
+      <% if @order.cancellable? %>
+        <%= button_to "Cancel", admin_order_cancellation_path(@order), method: :post,
+              form_class: "mt-2",
+              class: "rounded border border-slate-600 bg-slate-900 px-3 py-1 font-medium" %>
+      <% end %>
+    </dd>
   </div>
 
   <div>
@@ -25,6 +33,11 @@
   <div>
     <dt class="text-slate-400">Total</dt>
     <dd data-field="total" class="mt-1 tabular-nums"><%= money(@order.total_cents) %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Refunded</dt>
+    <dd data-field="refunded" class="mt-1 tabular-nums"><%= money(@order.refunded_cents) %></dd>
   </div>
 
   <div class="sm:col-span-2">
@@ -70,7 +83,7 @@
   <% else %>
     <%= render "admin/shared/table",
           caption: "One fulfillment per seller in this order",
-          headings: [ "Fulfillment", "Order", "Seller", "Status", "Subtotal", "Fee", "Net" ],
+          headings: [ "Fulfillment", "Order", "Seller", "Status", "Subtotal", "Fee", "Net", "" ],
           rows: render(partial: "admin/fulfillments/fulfillment", collection: @fulfillments) %>
   <% end %>
 </section>
@@ -80,5 +93,10 @@
 
   <% if @refunds.empty? %>
     <%= render "admin/shared/empty", key: "order_refunds", message: "Nothing has been sent back on this order." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Every refund issued against this order, newest first",
+          headings: [ "Refund", "Fulfillment", "Amount", "Issued by", "Reason", "Issued" ],
+          rows: render(partial: "admin/orders/refund", collection: @refunds) %>
   <% end %>
 </section>

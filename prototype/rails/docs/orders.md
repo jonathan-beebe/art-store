@@ -1,9 +1,14 @@
 # Orders
 
-Checkout, payment, and fulfillment. Code: `app/models/order.rb`,
-`app/models/order_placement.rb`, `app/models/fulfillment.rb`,
+Checkout, payment, fulfillment, and the ways an order comes apart again.
+Code: `app/models/order.rb`, `app/models/order_placement.rb`,
+`app/models/fulfillment.rb`, `app/models/refund.rb`,
 `app/controllers/shop/checkouts_controller.rb`,
-`app/controllers/shop/order_payments_controller.rb`.
+`app/controllers/shop/order_payments_controller.rb`,
+`app/controllers/shop/cancellations_controller.rb`,
+`app/controllers/seller/declines_controller.rb`,
+`app/controllers/admin/cancellations_controller.rb`,
+`app/controllers/admin/refunds_controller.rb`, `lib/tasks/orders.rake`.
 
 ## Checkout to a paid, seller-notified order
 
@@ -132,31 +137,100 @@ stateDiagram-v2
     [*] --> pending_verification : guest checkout, email unverified
     [*] --> awaiting_payment : verified customer, order placed
     pending_verification --> awaiting_payment : email verified
-    pending_verification --> cancelled
+    pending_verification --> cancelled : customer, admin, or the sweep
     awaiting_payment --> paid : card approved
     awaiting_payment --> payment_failed : card declined
-    awaiting_payment --> cancelled
+    awaiting_payment --> cancelled : customer or admin
     payment_failed --> paid : retry, card approved
     payment_failed --> payment_failed : retry, card declined again
-    payment_failed --> cancelled
+    payment_failed --> cancelled : customer or admin
     paid --> partially_shipped : one fulfillment shipped, at least one not
     paid --> shipped : every fulfillment shipped
     partially_shipped --> shipped
     shipped --> delivered : every fulfillment delivered
+    paid --> refunded : every fulfillment declined or refunded
+    partially_shipped --> refunded
+    shipped --> refunded
+    delivered --> refunded
     delivered --> [*]
+    cancelled --> [*]
+    refunded --> [*]
 ```
 
 Source of truth: `Order::TRANSITIONS`, verified by
-`test/models/order_test.rb`. `cancelled` has no route to it from the UI in this
-prototype — the transition exists on the model but nothing calls it. A
-guest order cannot jump straight from `pending_verification` to `paid`: the
-table has no such edge, so `Order#pay!` on an unverified order raises
-`TransitionError` — this is the one place the Rails design departs
-from the PHP spike, where `pending_verification -> paid` was legal.
-`Order#roll_up_status!` rolls a multi-seller order up from its
-fulfillments: any fulfillment that has shipped or delivered counts as
-"departed"; a delivered fulfillment mixed with an unshipped one still reads
-`partially_shipped`, not `paid`.
+`test/models/order_test.rb`. A guest order cannot jump straight from
+`pending_verification` to `paid`: the table has no such edge, so `Order#pay!`
+on an unverified order raises `TransitionError` — this is the one place the
+Rails design departs from the PHP spike, where `pending_verification -> paid`
+was legal. A `cancelled` or `refunded` order has no edge out, so a card
+posted at one is refused by the same table.
+
+Everything from `paid` upward is rolled up rather than asked for.
+`Order#roll_up_status!` reads the fulfillments and keeps only the ones nobody
+pulled the money back on (`Fulfillment#reversed?` — `declined` or `refunded`):
+no live fulfillment left is `refunded`; all live delivered is `delivered`; all
+live departed is `shipped`; any live departed is `partially_shipped`;
+otherwise `paid`. So one shipped fulfillment beside one declined one reads
+`shipped`, and a delivered one beside an unshipped one still reads
+`partially_shipped`.
+
+## Cancel, sweep, decline, refund
+
+Question: what are the ways an order comes apart, who may do each, and what
+moves when they do?
+
+```mermaid
+flowchart TD
+    unpaid["order: pending_verification,<br/>awaiting_payment, payment_failed"]
+    unpaid -->|"customer: POST /orders/:id/cancel"| cancel
+    unpaid -->|"admin: POST /admin/orders/:id/cancellation"| cancel
+    unpaid -->|"make sweep: Order.sweep_stale"| cancel
+    cancel["Order#cancel!<br/>status -> cancelled<br/>stock restored"]
+
+    paid["fulfillment: awaiting_shipment"]
+    paid -->|"seller: POST /seller/orders/:id/decline"| decline
+    decline["Fulfillment#decline!<br/>status -> declined<br/>stock restored<br/>Refund.issue"]
+
+    any["fulfillment: awaiting_shipment,<br/>shipped, delivered"]
+    any -->|"admin: POST /admin/fulfillments/:id/refund"| refund
+    refund["Fulfillment#refund!<br/>status -> refunded<br/>stock stays sold<br/>Refund.issue"]
+
+    decline --> issue
+    refund --> issue
+    issue["Refund.issue<br/>refunds row (rfd_)<br/>orders.refunded_cents += amount<br/>LedgerEntry.refund: refunded −net"]
+    issue --> rollup["Order#roll_up_status!"]
+```
+
+- **Cancel** is only for an order nobody has paid for
+  (`Order::CANCELLABLE`). `Order#cancel!` locks the row, asks
+  `Order.transition` for the move — so a paid order is refused with
+  `TransitionError` — and hands the stock back through the same
+  `Order::RELEASES_STOCK` rule a declined card uses. Cancelling a
+  `payment_failed` order restores nothing, because the decline already did.
+  An admin's cancel notifies the customer and every seller who was going to
+  ship; a customer cancelling their own order notifies nobody.
+- **The sweep** (`make sweep`, `orders:sweep`, `Order.sweep_stale(before:)`)
+  cancels every `pending_verification` order placed before the cutoff, in one
+  transaction over rows it locks in id order. The cutoff is
+  `STALE_ORDER_HOURS` (default `24`) behind the moment it is asked for. It
+  names the system as the actor on its lines, and a second run finds nothing
+  because the first moved the orders out of `pending_verification`.
+- **Decline** is the seller's, from `awaiting_shipment` only. It puts that
+  fulfillment's items back on the storefront (`sold -> for_sale` where the
+  listing had sold out) and sends the whole `subtotal_cents` back.
+- **Refund** is the platform's, from `awaiting_shipment`, `shipped`, or
+  `delivered`. It moves no stock: the piece is with the customer, or nobody
+  knows where it is.
+- Both run their guard **inside** the transaction that writes, after
+  `lock!`, so a second decline or refund racing the first is refused rather
+  than paid twice. Both refuse a fulfillment on an order no card was approved
+  for (`Fulfillment::UNCHARGED`), and both need a reason of 1–500 characters
+  (`Refund::REASON_LIMIT`).
+
+Refusals are `ActiveRecord::RecordInvalid` or `TransitionError`, so `Story`
+writes them as `refused` at `info`: the seller portal re-renders its refusal
+page at 422, the admin site redirects with the sentence in `flash[:alert]`,
+and an ownership miss answers 404 like every other one.
 
 ## Fulfillment status (per order × seller)
 
@@ -167,11 +241,19 @@ stateDiagram-v2
     [*] --> awaiting_shipment
     awaiting_shipment --> shipped : seller ships (ship!: carrier + tracking)
     shipped --> delivered : customer confirms (deliver!)
+    awaiting_shipment --> declined : seller pulls out (decline!)
+    awaiting_shipment --> refunded : admin refunds (refund!)
+    shipped --> refunded : admin refunds
+    delivered --> refunded : admin refunds
     delivered --> [*]
+    declined --> [*]
+    refunded --> [*]
 ```
 
 Source of truth: `Fulfillment::TRANSITIONS`, verified by
-`test/models/fulfillment_test.rb`. `Fulfillment#ship!` notifies the customer
+`test/models/fulfillment_test.rb`. `declined` and `refunded` are terminal, so
+shipping after a decline and refunding twice are both refused by the table.
+`Fulfillment#ship!` notifies the customer
 ("Order shipped") and calls `Order#roll_up_status!`; `Fulfillment#deliver!`
 releases the fulfillment's held escrow (see `docs/escrow.md`) and also rolls
 the order status up. Both refuse a move the table has no edge for, and `ship!`

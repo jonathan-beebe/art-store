@@ -12,4 +12,10 @@
   <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.subtotal_cents) %></td>
   <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.fee_cents) %></td>
   <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= money(fulfillment.net_cents) %></td>
+  <td class="px-4 py-2">
+    <% if fulfillment.refundable? %>
+      <%= link_to "Refund", admin_fulfillment_path(fulfillment, anchor: "refund-heading"),
+            data: { cell: "refund" }, class: "underline" %>
+    <% end %>
+  </td>
 </tr>

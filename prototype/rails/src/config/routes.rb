@@ -38,6 +38,8 @@ Rails.application.routes.draw do
     resources :orders, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ful) do
       resource :shipment, only: :create, controller: "shipments",
         constraints: PrefixedUlid.constraints(order_id: :ful)
+      resource :decline, only: :create, controller: "declines",
+        constraints: PrefixedUlid.constraints(order_id: :ful)
       resource :conversation, only: :create, controller: "order_conversations",
         constraints: PrefixedUlid.constraints(order_id: :ful)
     end
@@ -72,8 +74,15 @@ Rails.application.routes.draw do
     end
 
     resources :listings, only: %i[index show], constraints: PrefixedUlid.constraints(id: :lst)
-    resources :orders, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ord)
-    resources :fulfillments, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ful)
+    resources :orders, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ord) do
+      resource :cancellation, only: :create,
+        constraints: PrefixedUlid.constraints(order_id: :ord)
+    end
+
+    resources :fulfillments, only: %i[index show], constraints: PrefixedUlid.constraints(id: :ful) do
+      resource :refund, only: :create,
+        constraints: PrefixedUlid.constraints(fulfillment_id: :ful)
+    end
 
     resources :conversations, path: "messages", only: %i[index show],
       constraints: PrefixedUlid.constraints(id: :cnv) do
@@ -101,6 +110,8 @@ Rails.application.routes.draw do
     get "orders/:id/pay", to: "order_payments#show", as: :order_payment,
       constraints: PrefixedUlid.constraints(id: :ord)
     post "orders/:id/pay", to: "order_payments#create", as: :pay_order,
+      constraints: PrefixedUlid.constraints(id: :ord)
+    post "orders/:id/cancel", to: "cancellations#create", as: :cancel_order,
       constraints: PrefixedUlid.constraints(id: :ord)
     post "orders/:order_id/fulfillments/:id/delivered",
       to: "delivery_confirmations#create", as: :confirm_delivery,

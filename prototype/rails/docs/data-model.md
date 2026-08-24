@@ -88,6 +88,7 @@ erDiagram
         string shipping_country
         integer subtotal_cents
         integer total_cents
+        integer refunded_cents "sum of the order's refunds"
         timestamp placed_at
         timestamp finalized_at "nullable, set on paid"
     }
@@ -113,7 +114,7 @@ erDiagram
         string id PK "ful_<ulid>"
         string order_id FK "UK with seller_id"
         string seller_id FK
-        string status "awaiting_shipment|shipped|delivered"
+        string status "awaiting_shipment|shipped|delivered|declined|refunded"
         string carrier "nullable"
         string tracking_number "nullable"
         integer subtotal_cents
@@ -121,6 +122,17 @@ erDiagram
         integer net_cents
         timestamp shipped_at "nullable"
         timestamp delivered_at "nullable"
+    }
+    refunds {
+        string id PK "rfd_<ulid>"
+        string order_id FK
+        string fulfillment_id FK
+        string payment_id FK "the approved charge it reverses"
+        integer amount_cents "always the whole fulfillment subtotal"
+        text reason "1-500 chars"
+        string issued_by_type "seller|admin"
+        string issued_by_id "no FK, the actor's prefixed id"
+        timestamp created_at
     }
     payouts {
         string id PK "pyt_<ulid>"
@@ -135,7 +147,7 @@ erDiagram
         string seller_id FK
         string fulfillment_id FK "nullable"
         string payout_id FK "nullable"
-        string entry_type "held|released|paid_out"
+        string entry_type "held|released|paid_out|refunded"
         integer amount_cents "signed"
         timestamp occurred_at
     }
@@ -209,6 +221,9 @@ erDiagram
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
     orders ||--o{ fulfillments : split_by_seller
+    orders ||--o{ refunds : sent_back
+    fulfillments ||--o{ refunds : reversed_by
+    payments ||--o{ refunds : reverses
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
     admins ||--o{ conversations : "admin side"
@@ -256,7 +271,14 @@ Caveats:
   rows written in the same millisecond, since ids minted on one clock reading
   count up.
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
-  positive, `paid_out` is negative. See `docs/escrow.md`.
+  positive, `paid_out` and `refunded` are negative. See `docs/escrow.md`.
+- `refunds` carries `issued_by_type` / `issued_by_id` with no foreign key and
+  no polymorphic association: the column holds `seller` or `admin`, the name
+  the log and the alignment contract use, rather than a class name. A refund
+  is always the whole `fulfillment.subtotal_cents` — there are no partial line
+  refunds in this cut — and the row has `created_at` with no `updated_at`,
+  since nothing edits one. `orders.refunded_cents` carries the sum, so a page
+  reads what went back without folding the table.
 - `carts.customer_id` is not unique — `Customer#absorb` can
   re-point a second cart onto a customer that already has one
   (`Customer#current_cart` picks the one with the most items).

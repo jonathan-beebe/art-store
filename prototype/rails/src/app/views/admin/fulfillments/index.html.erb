@@ -14,6 +14,6 @@
 <% else %>
   <%= render "admin/shared/table",
         caption: "Every fulfillment across every seller, newest first",
-        headings: [ "Fulfillment", "Order", "Seller", "Status", "Subtotal", "Fee", "Net" ],
+        headings: [ "Fulfillment", "Order", "Seller", "Status", "Subtotal", "Fee", "Net", "" ],
         rows: render(partial: "admin/fulfillments/fulfillment", collection: @fulfillments) %>
 <% end %>

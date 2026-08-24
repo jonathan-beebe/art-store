@@ -12,6 +12,6 @@ class Admin::FulfillmentsController < Admin::BaseController
   def show
     @fulfillment = Fulfillment.includes(:seller, order: { items: :listing }).find(params[:id])
     @items = @fulfillment.items
-    @refunds = @fulfillment.refunds
+    @refunds = @fulfillment.refunds.order(created_at: :desc, id: :desc)
   end
 end

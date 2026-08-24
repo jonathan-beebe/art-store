@@ -6,7 +6,7 @@ module Shop
 
     def show
       @order = order_of_customer(params[:id])
-      @fulfillments = @order.fulfillments.includes(:seller).order(:created_at, :id)
+      @fulfillments = @order.fulfillments.includes(:seller, :refunds).order(:created_at, :id)
       @items_by_seller = @order.items.group_by(&:seller_id)
       @payment = @order.payments.order(:created_at, :id).last
       @unpaid = @order.unpaid?

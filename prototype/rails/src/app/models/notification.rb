@@ -22,6 +22,49 @@ class Notification < ApplicationRecord
     )
   end
 
+  # The seller pulled out of the sale, so only the customer learns anything
+  # they did not already know.
+  def self.fulfillment_declined(fulfillment, refund)
+    deliver(
+      recipient: fulfillment.order.customer,
+      subject: "Order refunded",
+      body: "#{fulfillment.seller.display_name} could not fulfill part of order ##{fulfillment.order_id}. " \
+            "#{refund.amount.format} is on its way back to you. Reason: #{refund.reason}"
+    )
+  end
+
+  # The platform decided over both their heads, so both sides are told.
+  def self.fulfillment_refunded(fulfillment, refund)
+    deliver(
+      recipient: fulfillment.order.customer,
+      subject: "Order refunded",
+      body: "#{refund.amount.format} of order ##{fulfillment.order_id} has been refunded. Reason: #{refund.reason}"
+    )
+    deliver(
+      recipient: fulfillment.seller,
+      subject: "Sale refunded",
+      body: "The platform refunded #{refund.amount.format} of order ##{fulfillment.order_id}. " \
+            "#{fulfillment.net.format} has been taken back off your balance. Reason: #{refund.reason}"
+    )
+  end
+
+  # An admin called an order off, which is news to the customer waiting on it
+  # and to every seller who was going to ship part of it.
+  def self.order_cancelled(order)
+    deliver(
+      recipient: order.customer,
+      subject: "Order cancelled",
+      body: "Order ##{order.id} has been cancelled. Nothing was charged."
+    )
+    order.fulfillments.includes(:seller).each do |fulfillment|
+      deliver(
+        recipient: fulfillment.seller,
+        subject: "Order cancelled",
+        body: "Order ##{order.id} has been cancelled. Your items are back on the storefront."
+      )
+    end
+  end
+
   # The url is the recipient's own thread page: the three sites carry the same
   # conversation under three paths.
   def self.new_message(message, url:)

@@ -68,5 +68,28 @@
 
   <% if @refunds.empty? %>
     <%= render "admin/shared/empty", key: "fulfillment_refunds", message: "Nothing has been sent back on this fulfillment." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Every refund issued against this fulfillment, newest first",
+          headings: [ "Refund", "Fulfillment", "Amount", "Issued by", "Reason", "Issued" ],
+          rows: render(partial: "admin/orders/refund", collection: @refunds) %>
+  <% end %>
+
+  <% if @fulfillment.refundable? %>
+    <%= form_with url: admin_fulfillment_refund_path(@fulfillment), method: :post,
+          html: { class: "mt-4 max-w-xl rounded border border-slate-700 bg-slate-800 p-4" } do |form| %>
+      <p class="text-slate-400">
+        Refunding sends <%= @fulfillment.subtotal.format %> back to the customer and takes
+        <%= @fulfillment.net.format %> off the seller's balance. The stock stays sold.
+      </p>
+
+      <div class="mt-4">
+        <%= form.label :reason, "Why", class: "block text-slate-400" %>
+        <%= form.text_area :reason, rows: 3, required: true, maxlength: Refund::REASON_LIMIT,
+              class: "mt-1 block w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" %>
+      </div>
+
+      <%= form.submit "Refund", class: "mt-4 rounded bg-slate-100 px-3 py-1 font-medium text-slate-900" %>
+    <% end %>
   <% end %>
 </section>

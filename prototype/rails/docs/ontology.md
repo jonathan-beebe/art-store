@@ -257,7 +257,8 @@ delivery; the parent of the per-seller Fulfillments.
 
 **Lifecycle.** `pending_verification` (guest) or `awaiting_payment`
 (verified) → `paid` or `payment_failed` → `partially_shipped` / `shipped` →
-`delivered`; `cancelled` is a reachable state with no route to it in the UI.
+`delivered`; `cancelled` while nobody has paid, `refunded` once every
+Fulfillment has been declined or refunded.
 A multi-seller order's status rolls up from its Fulfillments
 (`Order#roll_up_status!`). Full diagram: `docs/orders.md`.
 

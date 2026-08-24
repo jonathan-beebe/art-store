@@ -181,8 +181,10 @@ half differs:
    folding it into the account's cart, and `Customer#current_cart` then shops with
    whichever holds more items. Items in the other cart are still in the
    database and no page shows them.
-5. **No order cancellation.** The `cancelled` status and the stock it would
-   release exist on `Order` with no route that reaches them.
+5. **Refunds are whole-fulfillment only.** A `refunds` row is always the
+   fulfillment's entire `subtotal_cents`; there is no partial line refund and
+   no way to refund shipping separately. `docs/alignment.md` §4.1 fixes that
+   for this cut.
 6. **No image variants.** There is no libvips in the image, so
    `Listing#image_url` serves the original blob. Asking for a variant would
    raise.
@@ -235,6 +237,16 @@ half differs:
     The page cost does not grow with the row count in statements — every list
     carries a `count_queries` assertion that pins that — but it does in rows
     rendered. The storefront's `Page` value object is the shape to reuse.
+13. **The refund figures have no accounting page yet.**
+    `Fulfillment.fees_earned_cents` and `Fulfillment.fees_refunded_cents` fold
+    the forgone platform fee, and `LedgerEntry` carries the `refunded` entry
+    type, but `/admin/accounting` and `/admin/ledger` are FEAT-020's. The
+    ledger browser's `refunded` filter value works from the enum the moment
+    that page exists.
+14. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
+    walks placement through delivery and payout; the reversal surfaces are
+    reachable in the app and covered by tests, but the demo data does not
+    exercise them.
 
 ## Suggested next steps
 
@@ -245,8 +257,8 @@ half differs:
    customer has one cart. Closes gap 4.
 3. Scope the payout button to the signed-in seller, or drop it and keep
    `payouts:run` as the single entry point. Closes gap 2.
-4. Add order cancellation for `pending_verification` and `awaiting_payment`
-   orders, returning the stock to the listing. Closes gap 5.
+4. Seed a declined fulfillment and an admin refund in `db/seeds/order_history.rb`
+   so the demo shows the reversal surfaces. Closes gap 14.
 5. Delete or use the model relations no caller reads. Shrinks gap 3.
 6. Attach real images in `db/seeds.rb` and add libvips to the image so the
    storefront can ask for a thumbnail variant. Closes gaps 6 and 8.

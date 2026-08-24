@@ -1,0 +1,7 @@
+<% content_for :title, "Decline refused — Art Store seller" %>
+
+<%= render "seller/shared/refusal",
+      heading: "Decline refused",
+      message: @refusal,
+      back_url: seller_order_path(@fulfillment),
+      back_label: "Back to the order" %>

@@ -4,7 +4,17 @@
 
 <p class="mt-3 text-lg text-neutral-500">
   <span data-order-status><%= status_label(@order.status) %></span> &middot; <%= @order.total.format %>
+  <% if @order.refunded_cents.positive? %>
+    &middot; <span data-order-refunded><%= @order.refunded.format %> refunded</span>
+  <% end %>
 </p>
+
+<% if @order.cancellable? %>
+  <p class="mt-4">
+    <%= button_to "Cancel this order", shop_cancel_order_path(@order), method: :post,
+          class: "rounded-full border border-neutral-300 px-6 py-2 text-base hover:border-neutral-900" %>
+  </p>
+<% end %>
 
 <% if @unpaid && !@payable %>
   <div role="status" data-verification-notice
@@ -45,6 +55,12 @@
         <% if fulfillment.carrier.present? %>
           <p data-tracking class="mt-2 text-base text-neutral-500">
             <%= fulfillment.carrier %> &middot; tracking <%= fulfillment.tracking_number %>
+          </p>
+        <% end %>
+
+        <% fulfillment.refunds.each do |refund| %>
+          <p data-refund="<%= refund.id %>" class="mt-2 text-base text-neutral-500">
+            <%= refund.amount.format %> refunded &middot; <span data-refund-reason><%= refund.reason %></span>
           </p>
         <% end %>
 

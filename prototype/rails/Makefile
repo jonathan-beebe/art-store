@@ -63,8 +63,11 @@ routes:
 payouts:
 	docker compose run --rm app bin/rails "payouts:run[$(AS_OF)]"
 
+# Cancels the orders left unverified past STALE_ORDER_HOURS and hands their
+# stock back. `make sweep AS_OF=2026-08-24` measures the cutoff from that
+# moment instead of now; a second run finds nothing to do.
 sweep:
-	@echo "sweep lands with FEAT-017; there is no stale-order sweep yet."
+	docker compose run --rm app bin/rails "orders:sweep[$(AS_OF)]"
 
 outbox:
 	@echo "Rails has no outbox; notifications and mail are written and delivered in the same request or job."

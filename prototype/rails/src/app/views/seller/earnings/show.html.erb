@@ -52,6 +52,36 @@
   <% end %>
 </section>
 
+<section aria-labelledby="movements-heading" class="mt-6">
+  <h2 id="movements-heading" class="font-semibold text-neutral-700">Movements</h2>
+
+  <% if @movements.empty? %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No movements yet.</p>
+  <% else %>
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <table class="w-full text-left">
+        <caption class="sr-only">Every movement of money on this account, newest first</caption>
+        <thead class="border-b border-neutral-300 bg-neutral-50">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-semibold">Date</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Movement</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-200">
+          <% @movements.each do |movement| %>
+            <tr data-movement="<%= movement.id %>">
+              <th scope="row" class="px-4 py-2 font-normal"><%= movement.occurred_at.strftime("%b %-d, %Y") %></th>
+              <td data-cell="entry_type" class="px-4 py-2"><%= status_label(movement.entry_type) %></td>
+              <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= money(movement.amount_cents) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
+
 <section aria-labelledby="payouts-heading" class="mt-6">
   <h2 id="payouts-heading" class="font-semibold text-neutral-700">Payouts</h2>
 
