@@ -9,6 +9,9 @@
             <directory suffix="Test.php">app</directory>
             <directory suffix="Test.php">routes</directory>
             <directory suffix="Test.php">database</directory>
+            <!-- The layer rules. Named for what it holds rather than with the
+                 `Test.php` suffix the directories match, so it is listed. -->
+            <file>tests/Arch.php</file>
         </testsuite>
         <!-- The one end-to-end walk. Its own suite so `make smoke` can run it
              alone; the default run includes it. -->

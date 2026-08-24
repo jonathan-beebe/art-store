@@ -225,7 +225,7 @@ it('renders the activity page on a fixed number of queries however many events t
     }
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(4)
+        ->expectsDatabaseQueryCount(5)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();

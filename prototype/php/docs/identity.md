@@ -1,9 +1,9 @@
 # Identity
 
-Passwordless sign-in for both sites, plus the anonymous-customer cookie the
-storefront hangs favorites, carts, and guest orders on before anyone verifies
-an address. Code: `app/Actions/Auth/`, `app/Actions/Customers/`,
-`app/Http/Middleware/ResolveCustomerIdentity.php`,
+Passwordless sign-in for all three actors — seller, customer, admin — plus the
+anonymous-customer cookie the storefront hangs favorites, carts, and guest
+orders on before anyone verifies an address. Code: `app/Actions/Auth/`,
+`app/Actions/Customers/`, `app/Http/Middleware/ResolveCustomerIdentity.php`,
 `app/Domain/Customers/CustomerIdentityPlan.php`.
 
 ## Seller magic-link sign-in
@@ -30,7 +30,7 @@ sequenceDiagram
     Seller->>Verify: GET /auth/magic/{token}
     Verify->>MagicLinks: forToken(token)->first()
     Verify->>MagicLinks: consume(now)
-    Verify->>SignIn: __invoke(email)
+    Verify->>SignIn: __invoke(email, now)
     SignIn->>SignIn: Seller::firstOrNew(email), email_verified_at ??= now
     SignIn->>Seller: Auth::guard('seller')->login()
     Verify-->>Seller: redirect to seller.dashboard
@@ -41,6 +41,51 @@ Caveats: the link goes to an address, not to a row —
 first-time email creates the seller row, and there is no separate sign-up
 step. An expired or already-consumed link redirects back to
 `auth.seller.login` with an error instead of reaching `SignInSeller`.
+
+## Admin magic-link sign-in
+
+Question: what happens between an admin submitting an email and landing on
+the dashboard?
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant Login as AdminLoginController
+    participant Admits as SendAdminMagicLinkRequest::admits()
+    participant Send as SendMagicLink
+    participant MagicLinks as magic_links
+    participant Issued as MagicLinkIssued
+    participant Verify as MagicLinkVerificationController
+    participant SignIn as SignInAdmin
+
+    Admin->>Login: POST /admin/login (email)
+    Login->>Admits: an admins row exists for this address?
+    alt admitted
+        Login->>Send: __invoke(email, ActorType::Admin)
+        Send->>MagicLinks: create(token_hash, email, actor_type, expires_at)
+        Send->>Issued: notify the address on the configured channel
+    end
+    Login-->>Admin: identical flash either way — "check your email"
+
+    Admin->>Verify: GET /auth/magic/{token}
+    Verify->>MagicLinks: forToken(token)->first()
+    Verify->>MagicLinks: consume(now)
+    Verify->>SignIn: __invoke(email, now)
+    SignIn->>Admin: Admin::where('email', ...)->firstOrFail()
+    SignIn->>Admin: Auth::guard('admin')->login()
+    Verify-->>Admin: redirect to admin.dashboard
+```
+
+Caveats: unlike the seller and customer flows, **admins are seeded, never
+signed up** — `SendAdminMagicLinkRequest::admits()` checks whether the address
+already has an `admins` row before `AdminLoginController::send()` ever calls
+`SendMagicLink`, and the redirect and flash are identical whether or not it
+does, so `/admin/login` never reveals which addresses are admins. `SignInAdmin`
+answers 404 (`ModelNotFoundException`) rather than creating a row, which only
+matters if an admin row is deleted between a link being sent and being
+followed. `App\Domain\Auth\ActorType::allowsPath()` keeps an admin's link from
+ever being followed to `/seller` or `/`, the same way it keeps a seller's or a
+customer's off `/admin`.
 
 ## Customer guest verification with anonymous merge
 
@@ -72,7 +117,8 @@ sequenceDiagram
         Claim->>Claim: create verified customer
     else address owned by a different customer
         Claim->>Merge: __invoke(anonymous, owner)
-        Merge->>Merge: re-point CustomerOwnedTables rows, insert customer_merges row
+        Merge->>Merge: re-point CustomerOwnedTables rows\n(favorites, carts, orders, listing_events, customer_blocks)
+        Merge->>Merge: re-point sent messages, move conversations\n(Conversation::moveCustomer), insert customer_merges row
     else cookie already points at the address's owner
         Claim->>Claim: mark email_verified_at
     end
@@ -82,9 +128,21 @@ sequenceDiagram
 ```
 
 Caveats: `MergeAnonymousCustomer` walks
-`App\Domain\Customers\CustomerOwnedTables::all()` inside a transaction and
-skips any table/column that does not exist yet (guards schema drift across
-tickets landing in parallel). The anonymous row is never deleted — the
+`App\Domain\Customers\CustomerOwnedTables::all()` (`favorites`, `carts`,
+`orders`, `listing_events`, `customer_blocks`) inside a transaction, writing
+one column per table, and skips any table/column that does not exist yet
+(guards schema drift across tickets landing in parallel). Two things move
+without that table list, because a blind column write would leave part of the
+row behind: **sent messages**, which name their sender by morph type and id
+the way a notification names its recipient, so `sentMessages()->update(...)`
+re-points the relation — the reason a message the verified customer sent must
+not read as unread to them afterwards; and **conversations**, whose
+`subject_key` names the participants as well as the `customer_id` column
+does, so `Conversation::moveCustomer()` writes both together — see
+`docs/messaging.md` § "The merge" for what happens when the verified customer
+already holds the thread for a subject the anonymous row also asked about
+(the moved thread folds into the existing one instead of leaving a duplicate).
+The anonymous row is never deleted — the
 `customer_merges` row lets a stale cookie on a second device resolve forward
 to the verified customer, following as many recorded merges as it takes to
 land on a row nothing else points at. Merging the same anonymous customer

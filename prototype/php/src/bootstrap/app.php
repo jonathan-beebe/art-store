@@ -24,12 +24,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.seller' => Authenticate::using('seller'),
             'auth.customer' => Authenticate::using('customer'),
+            'auth.admin' => Authenticate::using('admin'),
             'customer.identity' => ResolveCustomerIdentity::class,
         ]);
 
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('seller', 'seller/*')
-            ? route('auth.seller.login')
-            : route('auth.customer.login'));
+        $middleware->redirectGuestsTo(fn (Request $request) => match (true) {
+            $request->is('seller', 'seller/*') => route('auth.seller.login'),
+            $request->is('admin', 'admin/*') => route('auth.admin.login'),
+            default => route('auth.customer.login'),
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

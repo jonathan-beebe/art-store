@@ -22,6 +22,18 @@ erDiagram
         string name
         timestamp email_verified_at
     }
+    admins {
+        id id PK
+        string email UK
+        string name "nullable"
+        timestamp email_verified_at "nullable"
+    }
+    customer_blocks {
+        id id PK
+        id customer_id FK "indexed with lifted_at"
+        string reason "shown to the shopper on refusal"
+        timestamp lifted_at "nullable, null while the block is active"
+    }
     customer_merges {
         id id PK
         id anonymous_customer_id FK "UK, -> customers"
@@ -128,11 +140,39 @@ erDiagram
         json data "subject, body, url"
         timestamp read_at "nullable"
     }
+    conversations {
+        id id PK
+        string kind "admin_seller|admin_customer|fulfillment|listing_question"
+        string subject_key UK "kind + participant ids, e.g. listing_question:s3:c9:l24"
+        id seller_id FK "nullable, indexed with last_message_at"
+        id customer_id FK "nullable, indexed with last_message_at"
+        id admin_id FK "nullable, indexed with last_message_at"
+        id listing_id FK "nullable, the listing_question subject"
+        id fulfillment_id FK "nullable, the fulfillment subject"
+        timestamp last_message_at "nullable, the inbox sort"
+    }
+    messages {
+        id id PK
+        id conversation_id FK "cascade on delete"
+        string sender_type "seller|customer|admin morph alias"
+        unsigned sender_id
+        text body "<= 2000 characters"
+        timestamp sent_at
+        timestamp read_at "nullable, indexed with conversation_id"
+    }
+    listing_faqs {
+        id id PK
+        id listing_id FK "cascade on delete"
+        string question "<= 500 characters"
+        text answer "<= 2000 characters"
+        id source_message_id FK "nullable, -> messages, null on delete"
+        timestamp published_at "not null, the row exists only while published"
+    }
     magic_links {
         id id PK
         string token_hash UK
         string email
-        string actor_type "seller|customer"
+        string actor_type "seller|customer|admin"
         string redirect_to "nullable"
         timestamp expires_at
         timestamp consumed_at "nullable"
@@ -147,8 +187,17 @@ erDiagram
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
+    customers ||--o{ customer_blocks : blocked_by
     customers ||--o{ customer_merges : "merged from (anonymous)"
     customers ||--o{ customer_merges : "merged into (verified)"
+    sellers ||--o{ conversations : participates_in
+    customers ||--o{ conversations : participates_in
+    admins ||--o{ conversations : participates_in
+    listings ||--o{ conversations : asked_about
+    fulfillments ||--o{ conversations : asked_about
+    conversations ||--o{ messages : holds
+    listings ||--o{ listing_faqs : publishes
+    messages ||--o{ listing_faqs : lifted_from
     listings ||--o{ listing_events : has
     listings ||--o{ favorites : favorited_in
     listings ||--o{ cart_items : held_in
@@ -171,11 +220,33 @@ Caveats:
   in `app/Notifications` and read back as
   `Illuminate\Notifications\DatabaseNotification`. It names its recipient
   with a morph pair rather than a foreign key, so it is drawn without a
-  relationship line above. `notifiable_type` holds the morph alias `seller` or
-  `customer` — `AppServiceProvider` enforces that map from
-  `App\Domain\Notifications\RecipientType`, so the column reads as words
+  relationship line above. `notifiable_type` holds the morph alias `seller`,
+  `customer`, or `admin` — `AppServiceProvider` enforces that map from
+  `App\Domain\Auth\ActorType`, so the column reads as words
   rather than class names. An anonymous-customer merge re-points the rows
   whose `notifiable_type` is `customer` through the morph relation.
+- `messages.sender_type` holds the same three morph aliases, so a message
+  names its sender the way a notification names its recipient and is drawn
+  without a relationship line above.
+- `conversations.subject_key` is the uniqueness spine of "one thread per
+  subject": SQL treats null as distinct from null, so a composite unique
+  index over the five nullable id columns would let a duplicate row through.
+  The key folds the kind and those ids into one non-null string
+  (`listing_question:s3:c9:l24`). It names the participants, so an
+  anonymous-customer merge moves `customer_id` and `subject_key` together —
+  see `docs/messaging.md` § "The merge".
+- `listing_faqs` rows exist only while published: `published_at` is not null,
+  and unpublishing deletes the row rather than clearing it.
+  `source_message_id` records which answer an entry was lifted from and is
+  `nullOnDelete`.
+- `admins` is seeded, never written by a sign-up: `/admin/login` issues a
+  magic link only for an address that already has a row, and
+  `App\Actions\Auth\SignInAdmin` answers 404 rather than creating one. It
+  holds no foreign key, so it is drawn without a relationship line above.
+- `customer_blocks` keeps every block a customer has ever had; the active one
+  is the row with `lifted_at` null. "At most one active block" is
+  `BlockCustomer`'s rule rather than a partial unique index, which SQLite does
+  not carry.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one (`orderByDesc('id')->first()`).

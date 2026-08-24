@@ -9,6 +9,14 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use DomainException;
 
+it('reads the faqs published on it', function (): void {
+    $listing = $this->listing($this->seller());
+    ListingFaq::factory()->create(['listing_id' => $listing->id]);
+    ListingFaq::factory()->create(['listing_id' => $this->listing($this->seller())->id]);
+
+    expect($listing->faqs()->count())->toBe(1);
+});
+
 it('surfaces only listings for sale on the storefront', function (): void {
     $seller = $this->seller();
     $forSale = $this->listing($seller);

@@ -24,6 +24,18 @@ it('tells the customer who is carrying a shipment', function (): void {
         ->and($message->body)->toContain('9400111899');
 });
 
+it('tells a participant a thread got a new message', function (): void {
+    $message = NotificationMessage::messageReceived('Blue Vase', 'https://example.test/messages/1');
+
+    expect($message->subject)->toBe('New message')
+        ->and($message->body)->toBe('You have a new message about Blue Vase.')
+        ->and($message->url)->toBe('https://example.test/messages/1');
+});
+
+it('leaves the url null when the thread has no route yet', function (): void {
+    expect(NotificationMessage::messageReceived('Blue Vase', null)->url)->toBeNull();
+});
+
 it('hands an inbox row its subject, body, and url', function (): void {
     expect(NotificationMessage::orderShipped(4, 'USPS', '94001')->toArray())->toBe([
         'subject' => 'Order shipped',

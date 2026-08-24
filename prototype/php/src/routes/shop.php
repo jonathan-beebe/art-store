@@ -6,11 +6,16 @@ use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\DeliveryConfirmationController;
+use App\Http\Controllers\Shop\EventsController;
 use App\Http\Controllers\Shop\FavoriteController;
 use App\Http\Controllers\Shop\ListingController;
+use App\Http\Controllers\Shop\ListingQuestionController;
+use App\Http\Controllers\Shop\MessageController;
 use App\Http\Controllers\Shop\OrderController;
+use App\Http\Controllers\Shop\OrderMessageController;
 use App\Http\Controllers\Shop\OrderPaymentController;
 use App\Http\Controllers\Shop\StorefrontController;
+use App\Http\Controllers\Shop\SupportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('customer.identity')->name('shop.')->group(function (): void {
@@ -19,6 +24,7 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
 
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
     Route::post('/art/{listing:slug}/favorite', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
+    Route::post('/art/{listing:slug}/questions', ListingQuestionController::class)->name('listing.questions');
 
     Route::get('/cart', [CartController::class, 'show'])->name('cart');
     Route::post('/cart/{listing:slug}', [CartController::class, 'add'])->name('cart.add');
@@ -34,6 +40,16 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::post('/orders/{order}/fulfillments/{fulfillment}/delivered', DeliveryConfirmationController::class)
         ->scopeBindings()
         ->name('order.delivered');
+    Route::post('/orders/{order}/fulfillments/{fulfillment}/messages', OrderMessageController::class)
+        ->scopeBindings()
+        ->name('order.messages');
+
+    Route::get('/messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('/messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
+    Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::get('/events', EventsController::class)->name('events');
+
+    Route::get('/support', SupportController::class)->name('support');
 
     Route::middleware('auth.customer')->group(function (): void {
         Route::get('/account', [AccountController::class, 'show'])->name('account');

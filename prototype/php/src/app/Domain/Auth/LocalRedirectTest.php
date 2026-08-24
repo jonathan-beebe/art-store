@@ -24,11 +24,28 @@ it('resolves a requested target', function (?string $requested, string $expected
     'a path inside the seller portal falls back for a customer' => ['/seller/orders/1', '/account'],
     'an absolute seller url falls back for a customer' => ['http://localhost:8000/seller/listings', '/account'],
     'a path that only prefixes the seller portal is kept' => ['/sellers-guide', '/sellers-guide'],
+    'the admin site falls back for a customer' => ['/admin', '/account'],
+    'a path inside the admin site falls back for a customer' => ['/admin/customers/1', '/account'],
 ]);
 
 it('keeps a seller on the seller portal', function (): void {
     expect(LocalRedirect::resolve('/seller/orders/1', ActorType::Seller, '/dashboard', 'http://localhost:8000'))
         ->toBe('/seller/orders/1');
+});
+
+it('falls back for a seller sent to the admin site', function (): void {
+    expect(LocalRedirect::resolve('/admin/customers/1', ActorType::Seller, '/dashboard', 'http://localhost:8000'))
+        ->toBe('/dashboard');
+});
+
+it('keeps an admin on the admin site', function (): void {
+    expect(LocalRedirect::resolve('/admin/customers/1', ActorType::Admin, '/admin', 'http://localhost:8000'))
+        ->toBe('/admin/customers/1');
+});
+
+it('falls back for an admin sent to the seller portal', function (): void {
+    expect(LocalRedirect::resolve('/seller/orders/1', ActorType::Admin, '/admin', 'http://localhost:8000'))
+        ->toBe('/admin');
 });
 
 it('keeps a local target on its own', function (): void {

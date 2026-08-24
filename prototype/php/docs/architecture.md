@@ -1,9 +1,12 @@
 # Art Store prototype — system architecture
 
-Prototype of a two-sided art marketplace: a **seller portal** (back office) and a
-**customer storefront**, one Laravel deployable, one SQLite file, no JavaScript
-required. Every agent working in `prototype/php/` reads this doc first and
-follows the conventions in it.
+Prototype of a two-sided art marketplace, served from three sites: a **seller
+portal** (back office), a **customer storefront**, and an **admin site** (the
+platform's own back office, for support and moderation). One Laravel
+deployable, one SQLite file. Every page works with JavaScript off; a single
+~20-line script is a progressive enhancement over the live unread badge (see
+`docs/messaging.md` § "The live badge"). Every agent working in
+`prototype/php/` reads this doc first and follows the conventions in it.
 
 ## Deployables
 
@@ -12,17 +15,20 @@ Question: what runs, and what talks to what?
 ```mermaid
 flowchart LR
     subgraph docker["docker compose: app container"]
-        laravel["Laravel app (PHP 8.3)\n/seller/* portal\n/ storefront"]
+        laravel["Laravel app (PHP 8.3)\n/seller/* portal\n/admin/* site\n/ storefront"]
         sqlite[("SQLite\ndatabase/database.sqlite")]
         laravel --> sqlite
     end
-    seller["Seller (browser)"] -- "HTML forms" --> laravel
-    customer["Customer (browser)"] -- "HTML forms" --> laravel
+    seller["Seller (browser)"] -- "HTML forms + EventSource" --> laravel
+    customer["Customer (browser)"] -- "HTML forms + EventSource" --> laravel
+    admin["Admin (browser)"] -- "HTML forms + EventSource" --> laravel
     mail["Email delivery (future)"] -.-> laravel
 ```
 
 One container (`app`) holds PHP, Composer, Node (for the Tailwind build), and
-the SQLite file. Nothing is installed on the host.
+the SQLite file. Nothing is installed on the host. Each site's browser also
+holds one open `EventSource` per page against its own `/events` route — see
+**The clock** and `docs/messaging.md` § "The live badge".
 
 ## Layers inside the deployable
 
@@ -42,7 +48,7 @@ flowchart TD
 | Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
 | Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
+| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`, `routes/admin.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, `SellerLayoutComposer` to `components.layouts.seller`, and `AdminLayoutComposer` to `components.layouts.admin`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -55,8 +61,8 @@ status transition (`ListingStatus`, `OrderStatus`, `FulfillmentStatus`), a sale
 the stock cannot cover (`ListingStock`), a cart line the listing no longer
 supports (`CartQuantity`), an order with no items (`CartTotals`). Its message
 is written for the person who tripped it. `bootstrap/app.php` maps it once, for
-every route, to `back()->withInput()->withErrors(...)`, and both layouts render
-`$errors`; controllers therefore carry no pre-flight copy of a guard the action
+every route, to `back()->withInput()->withErrors(...)`, and all three layouts
+render `$errors`; controllers therefore carry no pre-flight copy of a guard the action
 already holds. `CheckoutController::place` is the one route that overrides the
 destination: it sends the shopper to the cart, where the line the message names
 is marked unavailable. Ownership stays separate — a row that is not the
@@ -77,11 +83,19 @@ that produces it, and every controller calls it.
   `MagicLink::statusAt($now)`. The exception is the framework's
   `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
   frozen by `travelTo()`, but not handed in.
-- `RunWeeklyPayouts` (the artisan command) is the one other producer: a console
-  run has no controller, so it reads `now()` or parses `--as-of`.
+- `RunWeeklyPayouts` (the artisan command) is a second producer: a console run
+  has no controller, so it reads `now()` or parses `--as-of`.
+- `App\Support\UnreadCountStream` is the third. A held SSE stream outlives the
+  single instant a request is answered at, so the controller computes a
+  deadline from `Controller::now()` and the generator reads `now()` on each
+  tick to compare against it. That read is in the shell, which is why
+  `tests/Arch.php`'s clock rule — scoped to `App\Domain` — still holds.
 
 A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
-because one call per request produces the instant they all read.
+because one call per request produces the instant they all read. A stream is
+the exception a test drives with `Sleep::fake(syncWithCarbon: true)`, which
+advances the frozen clock by each faked sleep so the loop reaches its deadline
+without waiting.
 
 ## Sites
 
@@ -89,11 +103,24 @@ because one call per request produces the instant they all read.
 | --- | --- | --- | --- |
 | Seller portal | `/seller` | `seller` (session, provider `sellers`) | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
 | Storefront | `/` | `customer` (session, provider `customers`) + anonymous customer cookie | Bright, open, white space, large imagery, brand recedes. |
+| Admin site | `/admin` | `admin` (session, provider `admins`) | Stock Tailwind, system font, tables and forms; the platform's back office. |
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
-`<x-layouts.shop>` in `resources/views/components/layouts/`), and its own route
-file. Both layouts render the `<x-debug-alert>` component that shows any magic
-link flashed to the session.
+`<x-layouts.shop>`, `<x-layouts.admin>` in
+`resources/views/components/layouts/`), and its own route file. All three
+layouts render the `<x-debug-alert>` component that shows any magic link
+flashed to the session.
+
+`admins` rows are seeded, never signed up: `/admin/login` issues a link only
+for an address that already has one, and answers a submitted address the same
+way whether or not it does. `App\Domain\Auth\ActorType::allowsPath()` keeps
+each actor on their own site, so a customer's or a seller's link is never
+followed to `/admin` and an admin's is never followed to `/seller`. An admin
+blocks a customer with a reason (`customer_blocks`); `Customer::canShop()` is
+the predicate `AddToCart`, `PlaceOrder`, and `FinalizeOrder` read through
+`App\Domain\Customers\CustomerStanding`, so a blocked shopper lands back on
+the page they submitted from with the reason while browsing, searching, and
+favoriting stay open. See `docs/messaging.md` § "What a block does".
 
 ### Authorization
 
@@ -108,6 +135,7 @@ binds by slug) and then authorizes it. `app/Policies` holds the rules:
 | `FulfillmentPolicy` | `confirmDelivery` | `Customer` |
 | `OrderPolicy` | `view`, `pay` | `Customer` |
 | `NotificationPolicy` | `markRead` | `Seller` or `Customer` |
+| `ConversationPolicy` | `view`, `post` | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -135,22 +163,26 @@ guard, so `ShopController::authorizeVisitor()` names them
 registered in `AppServiceProvider` asks the same policies about the same
 visitor.
 
-`SellerController` and `ShopController` are the two base controllers; each
-exposes the actor behind the request (`seller()`, `visitor()`) as a non-null
-model. Both extend `App\Http\Controllers\Controller`, which holds the clock
+`SellerController`, `ShopController`, and `Admin\AdminController` are the
+three base controllers; each exposes the actor behind the request (`seller()`,
+`visitor()`, `admin()`) as a non-null model. Most admin pages scope nothing by
+the admin who is reading and extend the base controller directly; the
+messaging ones scope reads and writes by the signed-in admin, the way the
+other two sites already do, so they extend `AdminController` instead. All of
+them extend `App\Http\Controllers\Controller`, which holds the clock
 (see **The clock**).
 
 ## Identity
 
 - Passwordless. A `magic_links` row holds a hashed token, an `email`, an
-  `actor_type` (`seller` | `customer`), `expires_at`, `consumed_at`, and an
+  `actor_type` (`seller` | `customer` | `admin`), `expires_at`, `consumed_at`, and an
   optional `redirect_to`.
 - Delivery is a notification: `App\Notifications\MagicLinkIssued`, sent to the
   address rather than to a row (`Notification::route(...)`, an
   `AnonymousNotifiable`) because the person may have no row yet.
   `config/magic_links.php` names the channel: `session` is
   `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
-  both layouts print it in a debug alert; `mail` is the framework's mail
+  all three layouts print it in a debug alert; `mail` is the framework's mail
   channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
 - Customers: every visitor gets a `customers` row with `email = null`, id stored
   in an encrypted cookie `customer_id`. Verifying an email either claims that
@@ -180,6 +212,7 @@ erDiagram
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
+    customers ||--o{ customer_blocks : blocked_by
     listings ||--o{ listing_events : records
     listings ||--o{ cart_items : held_in
     orders ||--o{ order_items : contains
@@ -281,13 +314,14 @@ flowchart LR
   `mail` a comma away; `toArray()` and `toMail()` both come from
   `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
   email say the same thing.
-- `Seller` and `Customer` are `Notifiable`. Rows land in Laravel's
+- `Seller`, `Customer`, and `Admin` are `Notifiable`. Rows land in Laravel's
   `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
   `data` json, `read_at`) and are read back as
   `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
-  morph alias `seller` or `customer`, which is what
-  `App\Domain\Notifications\RecipientType` names; `AppServiceProvider`
-  enforces that map.
+  morph alias `seller`, `customer`, or `admin`, which is what
+  `App\Domain\Auth\ActorType` names; `AppServiceProvider`
+  enforces that one map for both `notifications.notifiable_type` and
+  `messages.sender_type`.
 - Each site renders its own inbox from `$notification->data`, counts
   `unreadNotifications()`, and marks one read with `markAsRead()`.
 
@@ -297,12 +331,15 @@ flowchart LR
   outside `tests/*TestCase.php`. Tests are **sidecars**: `Foo.php` →
   `FooTest.php` in the same directory. `phpunit.xml` scans `app/`, `routes/`,
   and `database/` for `*Test.php` (the last one added for the seeders under
-  `database/seeders/`). `tests/TestCase.php` stays as the Laravel base.
+  `database/seeders/`) and lists `tests/Arch.php` by name, since the layer
+  rules carry no `Test.php` suffix. `tests/TestCase.php` stays as the Laravel base.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
   files need: `Tests\CommerceTestCase` for `app/Actions`,
-  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Seller`,
+  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Admin`,
+  `app/Http/Controllers/Seller`, `app/Http/Requests/Admin`,
   `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
-  `app/Notifications`, and `app/Policies`; `Tests\StorefrontTestCase` for
+  `app/Notifications`, `app/Policies`, `app/Providers`, and `app/Support`;
+  `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
   `app/View/Composers`, and `tests/SmokeTest.php`;
   `Tests\TestCase` alone for `routes/`;
@@ -332,12 +369,13 @@ flowchart LR
   use the `DB` facade; no debug functions anywhere; `env()` only in
   `config/`, never under `App`; every file declares strict types — plus
   Pest's `laravel` and `security` presets. The preset's `ignoring` list names
-  one class at a time rather than a namespace: the nine controllers whose
+  one class at a time rather than a namespace: the ten controllers whose
   route methods are action verbs (`CartController::add`,
   `CheckoutController::place`, `FavoriteController::toggle`,
   `OrderPaymentController::pay`, `AccountController::readNotification`,
-  `NotificationController::markRead`, `SignOutController::seller`/`customer`,
-  and the two `LoginController::send` pairs), `App\Domain` for enums that live
+  `NotificationController::markRead`,
+  `SignOutController::seller`/`customer`/`admin`, and the three
+  `LoginController::send` pairs), `App\Domain` for enums that live
   beside the concept they model, `App\Console\Commands\RunWeeklyPayouts` for
   its artisan command name, `App\Notifications\Channels` for a delivery
   channel, which is not itself a notification, and
@@ -365,7 +403,7 @@ flowchart LR
   enforced tree-wide via the `laravel` preset), then PHPStan/Larastan at
   `level: max` over `app`, `database`, `routes`, and `tests` (model casts and
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
-  then the full Pest suite (733 tests, 1643 assertions). `make analyse` and `make lint` run
+  then the full Pest suite (1107 tests, 2491 assertions). `make analyse` and `make lint` run
   the first two alone, against the file tree only (`--no-deps`, no web
   server).
 - Sidecar tests are analysed at the same level as the code they cover: there

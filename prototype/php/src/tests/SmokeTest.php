@@ -9,9 +9,11 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
+use App\Models\Message;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\Seller;
@@ -120,6 +122,66 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
         $this->assertDatabaseHas('listing_events', ['listing_id' => $listing->id, 'type' => 'view']);
     };
 
+    /**
+     * The visitor asks a question on the listing, unauthenticated. The
+     * question route opens the thread and lands the visitor on it.
+     */
+    $askSellerAQuestion = function (Listing $listing): Conversation {
+        $asked = $this->post("/art/{$listing->slug}/questions", ['body' => 'Does this arrive ready to hang?']);
+
+        $conversation = Conversation::sole();
+        $asked->assertRedirect(route('shop.messages.show', $conversation));
+        expect(Message::sole()->body)->toBe('Does this arrive ready to hang?');
+
+        $this->get(route('shop.messages.show', $conversation))
+            ->assertOk()
+            ->assertSee('Does this arrive ready to hang?');
+
+        return $conversation;
+    };
+
+    /**
+     * The seller reads the question, replies, and publishes the reply as the
+     * listing's FAQ entry — the same "Publish as FAQ" form the thread page
+     * offers, pre-filled from the question and the reply it names.
+     */
+    $sellerRepliesAndPublishesFaq = function (Conversation $conversation, Listing $listing): void {
+        $this->get(route('seller.messages.show', $conversation))
+            ->assertOk()
+            ->assertSee('Does this arrive ready to hang?');
+
+        $this->post(route('seller.messages.store', $conversation), [
+            'body' => 'Yes, it ships ready to hang with the wire already attached.',
+        ])->assertRedirect(route('seller.messages.show', $conversation));
+
+        $answer = Message::where('body', 'Yes, it ships ready to hang with the wire already attached.')->sole();
+
+        $this->post(route('seller.listings.faqs.store', $listing), [
+            'question' => 'Does this arrive ready to hang?',
+            'answer' => 'Yes, it ships ready to hang with the wire already attached.',
+            'source_message_id' => $answer->id,
+        ])->assertRedirect(route('seller.listings.faqs.index', $listing));
+
+        $this->assertDatabaseHas('listing_faqs', ['listing_id' => $listing->id, 'source_message_id' => $answer->id]);
+    };
+
+    /**
+     * The published answer reads on the listing page for a second visitor,
+     * one who asked nothing and holds no thread — the storefront visibility
+     * the feature exists for. The walk's own visitor is pinned again after,
+     * since the identity cookie is what carries them through checkout.
+     */
+    $seeFaqAsAnotherVisitor = function (Listing $listing, Customer $asker): void {
+        $this->arriveAs($this->anonymousCustomer());
+
+        $this->get("/art/{$listing->slug}")
+            ->assertOk()
+            ->assertSee('Does this arrive ready to hang?')
+            ->assertSee('Yes, it ships ready to hang with the wire already attached.');
+
+        $this->arriveAs($asker);
+    };
+
     $favoriteListing = function (Listing $listing): void {
         $this->post("/art/{$listing->slug}/favorite")->assertRedirect();
 
@@ -167,7 +229,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
             ->assertRedirect(route('shop.order.pay', $order, absolute: false));
 
         $this->assertAuthenticated('customer');
-        expect(Customer::sole()->email_verified_at)->not->toBeNull();
+        expect(Customer::findOrFail($order->customer_id)->email_verified_at)->not->toBeNull();
     };
 
     $payWithApprovedCard = function (Order $order) use ($net): void {
@@ -239,6 +301,11 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
 
     $visitor = $arriveAsAnonymousVisitor();
     $viewListing($listing);
+
+    $conversation = $askSellerAQuestion($listing);
+    $sellerRepliesAndPublishesFaq($conversation, $listing);
+    $seeFaqAsAnotherVisitor($listing, $visitor);
+
     $favoriteListing($listing);
     $addListingToCart($listing);
 

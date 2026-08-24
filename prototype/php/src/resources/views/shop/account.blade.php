@@ -6,12 +6,18 @@
         <dd class="mt-1 text-lg">{{ $customer->email }}</dd>
     </dl>
 
-    <form method="POST" action="{{ route('auth.customer.logout') }}" class="mt-8">
-        @csrf
-        <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
-            Sign out
-        </button>
-    </form>
+    <div class="mt-8 flex flex-wrap gap-4">
+        <form method="POST" action="{{ route('auth.customer.logout') }}">
+            @csrf
+            <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
+                Sign out
+            </button>
+        </form>
+
+        <a href="{{ route('shop.support') }}" class="inline-flex items-center rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
+            Contact support
+        </a>
+    </div>
 
     <h2 class="mt-16 text-2xl font-semibold tracking-tight">Notifications</h2>
 

@@ -457,9 +457,9 @@ goes out by email the day `config/notifications.php` names `mail`.
 **In code.** `Illuminate\Notifications\DatabaseNotification` (table
 `notifications`), written by `App\Notifications\ItemSold` and
 `App\Notifications\OrderShipped`; the words a row carries come from
-`App\Domain\Notifications\NotificationMessage`, and the two recipient kinds
-are `App\Domain\Notifications\RecipientType` (enum), whose values are the
-morph aliases stored in `notifiable_type`.
+`App\Domain\Notifications\NotificationMessage`, and the recipient kinds are
+`App\Domain\Auth\ActorType` (enum), whose values are the morph aliases stored
+in `notifiable_type`.
 
 ## Decisions
 

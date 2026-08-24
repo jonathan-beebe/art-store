@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\MagicLink;
 use App\Models\Seller;
@@ -15,6 +16,12 @@ $flashedLink = fn (): string => Arr::string(Session::all(), 'debug_magic_link');
 
 $sellerLinkFor = function (string $email) use ($flashedLink): string {
     test()->post('/seller/login', ['email' => $email]);
+
+    return $flashedLink();
+};
+
+$adminLinkFor = function (string $email) use ($flashedLink): string {
+    test()->post('/admin/login', ['email' => $email]);
 
     return $flashedLink();
 };
@@ -151,4 +158,53 @@ it('keeps a customer link out of the seller portal', function () use ($customerL
     $response = $this->get($customerLinkFor('shopper@example.com', '/seller/dashboard'));
 
     $response->assertRedirect(route('shop.account'));
+});
+
+it('signs an existing admin in and lands them on the admin dashboard', function () use ($adminLinkFor): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+
+    $response = $this->get($adminLinkFor('ops@example.com'));
+
+    $response->assertRedirect(route('admin.dashboard'));
+    $this->assertAuthenticated('admin');
+});
+
+it('answers 404 and creates no admin when the row a link was issued for is gone', function () use ($adminLinkFor): void {
+    $admin = Admin::factory()->create(['email' => 'ops@example.com']);
+    $link = $adminLinkFor('ops@example.com');
+    $admin->delete();
+
+    $response = $this->get($link);
+
+    $response->assertNotFound();
+    expect(Admin::count())->toBe(0);
+    $this->assertGuest('admin');
+});
+
+it('keeps a customer link out of the admin site', function () use ($flashedLink): void {
+    $this->post('/login', ['email' => 'shopper@example.com']);
+    MagicLink::sole()->forceFill(['redirect_to' => '/admin'])->save();
+
+    $response = $this->get($flashedLink());
+
+    $response->assertRedirect(route('shop.account'));
+});
+
+it('keeps a seller link out of the admin site', function () use ($flashedLink): void {
+    $this->post('/seller/login', ['email' => 'artist@example.com']);
+    MagicLink::sole()->forceFill(['redirect_to' => '/admin'])->save();
+
+    $response = $this->get($flashedLink());
+
+    $response->assertRedirect(route('seller.dashboard'));
+});
+
+it('keeps an admin link out of the seller portal', function () use ($flashedLink): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+    $this->post('/admin/login', ['email' => 'ops@example.com']);
+    MagicLink::sole()->forceFill(['redirect_to' => '/seller/dashboard'])->save();
+
+    $response = $this->get($flashedLink());
+
+    $response->assertRedirect(route('admin.dashboard'));
 });

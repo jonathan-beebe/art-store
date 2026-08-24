@@ -59,14 +59,23 @@
                         @endforeach
                     </ul>
 
-                    @visitorCan('confirmDelivery', $fulfillment)
-                        <form method="POST" action="{{ route('shop.order.delivered', [$order, $fulfillment]) }}" class="mt-6">
+                    <div class="mt-6 flex flex-wrap gap-4">
+                        @visitorCan('confirmDelivery', $fulfillment)
+                            <form method="POST" action="{{ route('shop.order.delivered', [$order, $fulfillment]) }}">
+                                @csrf
+                                <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
+                                    Confirm delivery
+                                </button>
+                            </form>
+                        @endvisitorCan
+
+                        <form method="POST" action="{{ route('shop.order.messages', [$order, $fulfillment]) }}">
                             @csrf
                             <button type="submit" class="rounded-full border border-neutral-300 px-6 py-2 text-base font-medium hover:border-neutral-900">
-                                Confirm delivery
+                                Message the seller
                             </button>
                         </form>
-                    @endvisitorCan
+                    </div>
                 </section>
             @endforeach
         </div>

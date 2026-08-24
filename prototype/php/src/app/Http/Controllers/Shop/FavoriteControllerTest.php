@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Listings\ListingEventType;
 use App\Models\Customer;
+use App\Models\CustomerBlock;
 use App\Models\Favorite;
 use App\Models\ListingEvent;
 use Illuminate\Support\Arr;
@@ -22,6 +23,16 @@ it('favorites a listing and records the event', function (): void {
     expect($favorite->listing_id)->toBe($listing->id)
         ->and($favorite->customer_id)->toBe($visitor->id)
         ->and(ListingEvent::sole()->type)->toBe(ListingEventType::Favorite);
+});
+
+it('favorites a listing while blocked', function (): void {
+    $visitor = $this->visitor();
+    CustomerBlock::factory()->create(['customer_id' => $visitor->id]);
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $this->post('/art/harbour-at-dawn/favorite');
+
+    expect(Favorite::sole()->customer_id)->toBe($visitor->id);
 });
 
 it('removes the favorite when favorited twice', function (): void {

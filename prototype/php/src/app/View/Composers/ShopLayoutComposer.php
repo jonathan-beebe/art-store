@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\View\Composers;
 
+use App\Models\Message;
 use App\Support\CustomerIdentity;
 use Illuminate\View\View;
 
 /**
- * The two counts the storefront header carries on every page. Bound to the
+ * The three counts the storefront header carries on every page. Bound to the
  * shop layout, so a page renders them without its controller passing them.
  */
 final readonly class ShopLayoutComposer
@@ -24,6 +25,7 @@ final readonly class ShopLayoutComposer
         $view->with([
             'cartItemCount' => (int) $visitor->currentCart()->items()->sum('quantity'),
             'unreadNotificationCount' => $visitor->unreadNotifications()->count(),
+            'unreadMessageCount' => Message::query()->unreadInInboxOf($visitor)->count(),
         ]);
     }
 }

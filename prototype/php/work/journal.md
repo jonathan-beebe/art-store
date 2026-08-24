@@ -5,15 +5,48 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 10
-- IMPRV: 2
+- FEAT: 18
+- IMPRV: 3
 - MAINT: 3
 - A11Y: 1
 - RFCTR: 9
 - BUG: 3
 
 ## Log
+- 2026-08-23:18:53:14 — IMPRV-002 — done: admin login debug bar now flashes a debug_notice (unadmitted address + AdminSeeder::EMAIL) under session delivery, unchanged under mail; 1111 tests / 2497 assertions, 100.0% coverage
+- 2026-08-23:18:48:22 — IMPRV-002 — started
+- 2026-08-23:17:48:22 — FEAT-017 — done: composer.json test:coverage fixed with -d memory_limit=1G (make coverage now works, 100.0%), curl walk over a fresh seed covered ask-to-FAQ, both support threads answered by admin, non-participant 404s, a blocked customer's read-only thread and refused hand-rolled POST, and the SSE first frame; docs/architecture.md, docs/identity.md (new admin sign-in section), docs/messaging.md (maxlength literal + blocked-ask empty thread), docs/review.md (new admin/messaging requirements table + Node comparison), README.md, and docs/README.md brought current; 1107 tests / 2491 assertions, 100.0% coverage
+- 2026-08-23:17:32:02 — FEAT-017 — started
+- 2026-08-23:17:29:01 — FEAT-016 — reviewed: live path walked over curl (admin signed in, /admin/events held open, message posted from the seller side — the stream moved from data: 2 to data: 3 within one tick), 26s close, three guards, four concurrent streams served alongside sub-50ms page loads; docs/architecture.md "The clock" names UnreadCountStream as the third instant producer and docs/messaging.md records the measured worker capacity, the absent retry: hint, the ~5s a closed tab holds its worker, and the cookieless customer-row mint; 1107 tests / 2491 assertions, 100.0% coverage
+- 2026-08-23:17:16:52 — FEAT-016 — done: UnreadCountStream generator over Sleep::fake-testable deadline loop, seller/shop/admin /events routes behind their own guards, live-badge.js (~20 lines, no dep) wired into all three layouts without touching existing badge markup, PHP_CLI_SERVER_WORKERS+--no-reload in docker-compose.yml, README/docs/review/docs/messaging JavaScript claims rewritten; 1107 tests / 2491 assertions, 100.0% coverage
+- 2026-08-23:17:07:44 — FEAT-016 — started
+- 2026-08-23:17:06:00 — FEAT-015 — reviewed: seeder idempotence probed live (make fresh twice, then both seeders again over the seeded database — counts identical), FAQ source_message_id pinned to Priya's answer, exact per-actor unread counts, smoke walk now asserts the thread page the asker lands on and shows the published answer to a second visitor; 1099 tests / 2467 assertions, 100.0% coverage
+- 2026-08-23:17:05:00 — FEAT-015 — done: AdminSeeder + MessagingSeeder (one conversation per kind, 11 messages with a read/unread spread, one published FAQ), SmokeTest ask→reply→publish→visible walk, README seeded-accounts update; 1099 tests / 2460 assertions
+- 2026-08-23:16:51:43 — FEAT-015 — started
+- 2026-08-23:16:38:45 — FEAT-014 — reviewed: two full support round trips through the admin site (seller and storefront), admin replies to a blocked customer, 404 on a bogus seller/customer id for the two message-X POSTs, admin inbox pinned to six queries across both support kinds; two-admins-two-threads confirmed faithful to the design's participant-pair subject; 1090 tests / 2425 assertions, 100.0% coverage
+- 2026-08-23:16:31:07 — FEAT-014 — done: admin inbox/thread/reply, message-seller and message-customer from detail pages, AdminLayoutComposer nav badge, shared seller+admin messaging Blade components, NotifyOfMessage null-url guard retired; 1083 tests / 2397 assertions, 100.0% coverage
+- 2026-08-23:16:23:17 — FEAT-014 — started
+- 2026-08-23:16:16:04 — FEAT-013 — reviewed: nav total extracted to a Message::unreadInInboxOf scope (both composers) and pinned against another actor's threads, six probe tests (seller notified by an anonymous ask, blocked ask tells nobody and opens one empty thread, that thread renders on both inboxes, identity cookie minted on the POST, favoriting while blocked, a shop→seller→shop walk); 1049 tests / 2322 assertions, 100.0% coverage
+- 2026-08-23:16:06:36 — FEAT-013 — done: storefront ask-a-seller-question, inbox/thread/reply, support/order-message open-or-find, published FAQ list, ShopLayoutComposer nav badge, blocked-customer read-only, anonymous-ask-then-verify merge; 1043 tests / 2302 assertions, 100.0% coverage
+- 2026-08-23:15:53:42 — FEAT-013 — started
+- 2026-08-23:15:47:02 — FEAT-012 — reviewed: per-thread unread count moved to a Conversation::withUnreadCountFor scope with the unread_count property declared, str()->limit in the inbox view, five probe tests (mixed-kind inbox, fixed six-query render, refused reply leaves the thread unread, DELETE of an off-listing faq, the fulfillment subject key FEAT-013 will ask for); 1004 tests / 2208 assertions, 100.0% coverage
+- 2026-08-23:15:35:50 — FEAT-012 — done: seller messaging pages (inbox, thread, reply), support/order-message open-or-find, listing FAQ publish/reword/unpublish, SellerLayoutComposer nav badge; 999 tests / 2196 assertions, 100.0% coverage
+- 2026-08-23:15:12:04 — FEAT-012 — started
+- 2026-08-23:15:08:00 — FEAT-011 — reviewed: fixed a merge leaving conversations.subject_key naming the anonymous customer (duplicate threads after verification); Conversation::moveCustomer re-keys and folds, ConversationSubject::for rebuilds a key from a row; docs carry the messaging tables and drop RecipientType; 941 tests / 2056 assertions, 100.0% coverage
+- 2026-08-23:14:55:11 — FEAT-011 — done: messaging schema, domain (ConversationKind/Subject, MessageBody, FaqDraft), models+factories, ConversationPolicy, six Messaging actions, MessagePosted/NotifyOfMessage/MessageReceived, merge extension; 931 tests / 2041 assertions, 100.0% coverage
+- 2026-08-23:14:38:02 — FEAT-011 — started
+- 2026-08-23:14:29:48 — FEAT-010 — reviewed: arch rules now run in the gate, SignInAdmin refuses an unknown address, unused admin base controller dropped, docs carry the third site; 826 tests / 1887 assertions, 100.0% coverage
+- 2026-08-23:14:14:49 — FEAT-010 — done: admin actor/site + customer blocks landed, 810 tests / 1788 assertions, make check green
+- 2026-08-23:13:59:13 — FEAT-010 — started
 
+- 2026-08-23:13:50:48 — FEAT-017 — defined: Final validation and documentation refresh
+- 2026-08-23:13:50:48 — FEAT-016 — defined: Live unread badge over eventstream sse
+- 2026-08-23:13:50:48 — FEAT-015 — defined: Seed data for messaging and smoke walk
+- 2026-08-23:13:50:48 — FEAT-014 — defined: Admin messaging inbox and threads
+- 2026-08-23:13:50:48 — FEAT-013 — defined: Storefront messaging and listing questions
+- 2026-08-23:13:50:48 — FEAT-012 — defined: Seller portal messaging and listing faqs
+- 2026-08-23:13:50:48 — FEAT-011 — defined: Messaging schema domain policy and notification
+- 2026-08-23:13:50:48 — FEAT-010 — defined: Minimal admin actor and site with customer blocks
 - 2026-08-23:11:58:51 — MAINT-002 — done: PHPStan level max at 0 over app, database, routes, and the Pest sidecars (five Pest stubs, no ignores); make check exits 0 in ~32s; 733 tests at 100% lines; both sites walked on seeded data; README, architecture, review, identity docs current
 - 2026-08-23:11:22:14 — MAINT-002 — started
 - 2026-08-23:11:22:14 — IMPRV-001 — done: Behavior tests for the payout button, customer-link redirect guard, merge idempotency and chains, PayoutPeriod year boundary, upload size, search edges; factories for all 15 models; ListingSeeder and CustomerSeeder through actions; sidecar exception list emptied; 100% line coverage

@@ -1,8 +1,10 @@
 # Art Store prototype (PHP / Laravel)
 
-A two-sided art marketplace prototype: a seller portal at `/seller` and a
-customer storefront at `/`. One Laravel app, one SQLite file, no JavaScript
-required.
+A two-sided art marketplace prototype, served from three sites: a seller
+portal at `/seller`, a customer storefront at `/`, and an admin site at
+`/admin` for support and moderation. One Laravel app, one SQLite file, and
+every page works with JavaScript off — the one script in the tree is a
+progressive enhancement, not a requirement.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -29,6 +31,7 @@ Then open:
 
 - Storefront — <http://localhost:8000/>
 - Seller portal — <http://localhost:8000/seller>
+- Admin — <http://localhost:8000/admin> (sign-in admits only a seeded admin address)
 
 An empty database shows an empty storefront. `make fresh` loads the demo data.
 
@@ -76,11 +79,11 @@ make check                                                   # lint + analyse + 
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-733 tests (1643 assertions), run by Pest — `it()`/`test()` functions, no
+1107 tests (2491 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
-`routes/`, and `database/` for `*Test.php`; there is no `tests/Feature` or
-`tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
+`routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
+there is no `tests/Feature` or `tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
 `Tests\StorefrontTestCase`, and `Tests\TestCase` + `RefreshDatabase` to the
 sidecar directories they serve. Tabulated input/output shapes are Pest
 datasets, declared inline with `->with([...])` or file-local with `dataset()`
@@ -126,12 +129,13 @@ from scratch.
 
 ## Seeded accounts
 
-`make fresh` seeds four sellers, one customer, 29 listings, three orders, and
-one completed payout. Every account signs in through the debug magic link (see
-below).
+`make fresh` seeds one admin, four sellers, one customer, 29 listings, three
+orders, one completed payout, and one conversation of each messaging kind.
+Every account signs in through the debug magic link (see below).
 
 | Role | Shop / name | Email |
 | --- | --- | --- |
+| Admin | Reese Calloway | admin@example.com |
 | Seller | Terra & Glaze Ceramics | maya@example.com |
 | Seller | North Light Editions | noah@example.com |
 | Seller | Priya Anand Textile Studio | priya@example.com |
@@ -141,6 +145,12 @@ below).
 Casey has three favorites and order history with two sellers: a paid order
 awaiting shipment and a delivered, paid-out order with Maya, and a shipped
 order with Noah.
+
+Priya, Casey, and the admin each have an unread message waiting: Casey asked
+Priya about "Woodfired Vase, Tall" on the storefront, Priya answered, and that
+answer is published as the listing's one FAQ entry; Casey and Noah have a
+thread on Casey's shipped order; Priya and the admin have a support thread,
+and so do Casey and the admin.
 
 ## Magic links
 
@@ -199,7 +209,20 @@ make assets
 
 Blade templates reference the build with `@vite(['resources/css/app.css'])`; the
 compiled file lands in `src/public/build/`, which is not committed. There is no
-JavaScript bundle and no `<script>` tag in any view.
+JavaScript bundle.
+
+## JavaScript
+
+One file, `src/public/live-badge.js`, ~20 dependency-free lines served
+directly rather than through Vite. All three layouts load it with
+`<script defer>` and it does one thing: open an `EventSource` against the
+site's `/events` route and update the "Messages" nav link's count when a new
+message arrives while the page is open. It returns immediately when
+`EventSource` is undefined, and every page renders its own correct count from
+the server on every load regardless — sign in, browse, message, checkout, and
+every other action is a form POST plus a redirect, and all of it works with
+JavaScript disabled. See `docs/messaging.md` § "The live badge" for the
+stream's shape and cost.
 
 ## Layout
 
@@ -217,15 +240,18 @@ prototype/php/
     app/Actions/       one job each, sequencing core + models
     app/Models/        Eloquent: relations, casts, scopes, invariant writes
     app/Http/          controllers, form requests and middleware per site:
-                       Shop/, Seller/, Auth/
+                       Shop/, Seller/, Admin/, Auth/
     app/Policies/      ownership and "is this form worth offering"
     app/Events/        past-tense business moments
     app/Listeners/     who hears about an event
     app/Notifications/ what they are told, plus Channels/
-    routes/            web.php requires auth.php, shop.php, seller.php
-    resources/views/   components/layouts/{shop,seller}, components/debug-alert,
-                       components/listing-card, components/form/field, and a
-                       page per route under shop/ and seller/
+    app/View/Composers/ per-site layout data: cart count, notifications, unread messages
+    app/Support/       CustomerIdentity, ActorDisplay, UnreadCountStream, PlaceholderImage
+    routes/            web.php requires auth.php, shop.php, seller.php, admin.php
+    resources/views/   components/layouts/{shop,seller,admin}, components/debug-alert,
+                       components/messaging/{inbox,thread,body-form}, components/listing-card,
+                       components/form/field, and a page per route under shop/, seller/, admin/
+    public/            live-badge.js, served directly rather than through Vite
     phpstan/           stub files that type Pest's traits for the analyser
     tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```
@@ -244,3 +270,6 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
+- A blocked customer's ask still opens an empty thread; a closed messaging tab
+  holds its SSE worker for a few seconds before it frees. See
+  `docs/messaging.md`.

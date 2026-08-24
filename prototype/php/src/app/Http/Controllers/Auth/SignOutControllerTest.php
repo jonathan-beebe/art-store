@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
 use App\Support\CustomerIdentity;
@@ -15,6 +16,15 @@ it('signs a seller out and returns them to the login page', function (): void {
 
     $response->assertRedirect(route('auth.seller.login'));
     $this->assertGuest('seller');
+});
+
+it('signs an admin out and returns them to the login page', function (): void {
+    $this->actingAs(Admin::factory()->create(), 'admin');
+
+    $response = $this->post('/admin/logout');
+
+    $response->assertRedirect(route('auth.admin.login'));
+    $this->assertGuest('admin');
 });
 
 it('signs a customer out and returns them to the storefront', function (): void {

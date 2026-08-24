@@ -101,7 +101,7 @@ it('renders on a fixed number of queries however many entries the ledger holds',
     $this->deliveredFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(5)
+        ->expectsDatabaseQueryCount(6)
         ->get('/seller/earnings');
 
     $response->assertOk();

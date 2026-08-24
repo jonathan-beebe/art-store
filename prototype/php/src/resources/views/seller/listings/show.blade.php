@@ -2,7 +2,8 @@
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
         <p class="text-gray-600">{{ $listing->status->label() }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
-        <a href="{{ route('seller.listings.edit', $listing->id) }}" class="ml-auto rounded border border-gray-400 px-3 py-2">Edit</a>
+        <a href="{{ route('seller.listings.faqs.index', $listing) }}" class="ml-auto text-gray-700 underline">Questions & answers</a>
+        <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 px-3 py-2">Edit</a>
     </div>
 
     <section aria-labelledby="totals-heading" class="mt-6">

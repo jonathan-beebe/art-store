@@ -36,6 +36,41 @@
                     </button>
                 </form>
             </div>
+
+            <section class="mt-14 border-t border-neutral-100 pt-10">
+                <h2 class="text-xl font-semibold tracking-tight">Ask the seller a question</h2>
+
+                <form method="POST" action="{{ route('shop.listing.questions', $listing) }}" class="mt-4">
+                    @csrf
+
+                    <label for="body" class="sr-only">Your question</label>
+                    <textarea id="body" name="body" required rows="3" maxlength="2000"
+                              placeholder="Ask about size, materials, shipping…"
+                              class="block w-full rounded-2xl border border-neutral-300 px-4 py-3 text-base placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none">{{ old('body') }}</textarea>
+                    @error('body')
+                        <p class="mt-2 text-red-700">{{ $message }}</p>
+                    @enderror
+
+                    <button type="submit" class="mt-4 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
+                        Ask a question
+                    </button>
+                </form>
+            </section>
+
+            @if ($listing->faqs->isNotEmpty())
+                <section class="mt-14 border-t border-neutral-100 pt-10">
+                    <h2 class="text-xl font-semibold tracking-tight">Questions &amp; answers</h2>
+
+                    <dl class="mt-6 space-y-6">
+                        @foreach ($listing->faqs as $faq)
+                            <div>
+                                <dt class="font-medium">{{ $faq->question }}</dt>
+                                <dd class="mt-1 text-neutral-700">{{ $faq->answer }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </section>
+            @endif
         </div>
     </article>
 </x-layouts.shop>

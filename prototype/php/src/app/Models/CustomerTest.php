@@ -62,6 +62,23 @@ it('is named by the morph alias its notifications are addressed to', function ()
     expect((new Customer)->getMorphClass())->toBe('customer');
 });
 
+it('reads the conversations it is a participant in', function (): void {
+    $customer = $this->anonymousCustomer();
+    Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
+    Conversation::factory()->listingQuestion()->create();
+
+    expect($customer->conversations()->count())->toBe(1);
+});
+
+it('reads the messages it sent', function (): void {
+    $customer = $this->anonymousCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
+    Message::factory()->from($customer)->create(['conversation_id' => $conversation->id]);
+    Message::factory()->create(['conversation_id' => $conversation->id]);
+
+    expect($customer->sentMessages()->count())->toBe(1);
+});
+
 it('reads the listing events it left', function (): void {
     $customer = $this->anonymousCustomer();
     ListingEvent::factory()->create([
@@ -99,4 +116,36 @@ it('picks the cart holding the items after a merge', function (): void {
     ]);
 
     expect($customer->currentCart()->id)->toBe($filled->id);
+});
+
+it('can shop with no active block', function (): void {
+    $customer = $this->verifiedCustomer();
+
+    expect($customer->canShop())->toBeTrue()
+        ->and($customer->currentBlock())->toBeNull()
+        ->and($customer->blockReason())->toBeNull();
+});
+
+it('cannot shop while a block is active', function (): void {
+    $customer = $this->verifiedCustomer();
+    CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Chargeback fraud.']);
+
+    expect($customer->canShop())->toBeFalse()
+        ->and($customer->currentBlock()?->reason)->toBe('Chargeback fraud.')
+        ->and($customer->blockReason())->toBe('Chargeback fraud.');
+});
+
+it('can shop again once its block is lifted', function (): void {
+    $customer = $this->verifiedCustomer();
+    CustomerBlock::factory()->lifted()->create(['customer_id' => $customer->id]);
+
+    expect($customer->canShop())->toBeTrue();
+});
+
+it('reads only the active block when it has been blocked more than once', function (): void {
+    $customer = $this->verifiedCustomer();
+    CustomerBlock::factory()->lifted()->create(['customer_id' => $customer->id, 'reason' => 'First block.']);
+    CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Second block.']);
+
+    expect($customer->blockReason())->toBe('Second block.');
 });

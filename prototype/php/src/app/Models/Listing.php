@@ -76,6 +76,12 @@ class Listing extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    /** @return HasMany<ListingFaq, $this> */
+    public function faqs(): HasMany
+    {
+        return $this->hasMany(ListingFaq::class);
+    }
+
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);

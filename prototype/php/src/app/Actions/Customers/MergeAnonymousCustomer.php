@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Customers;
 
 use App\Domain\Customers\CustomerOwnedTables;
+use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 use Illuminate\Support\Facades\DB;
@@ -28,9 +29,17 @@ final readonly class MergeAnonymousCustomer
                 DB::table($table)->where($column, $anonymous->id)->update([$column => $verified->id]);
             }
 
-            // A notification names its recipient by morph type and id, so the
-            // relation re-points only the rows addressed to this customer.
+            // A notification names its recipient, and a message names its
+            // sender, by morph type and id, so each relation re-points only
+            // the rows addressed to or sent by this customer — a message the
+            // verified customer sent must not read as unread to them after.
             $anonymous->notifications()->update(['notifiable_id' => $verified->id]);
+            $anonymous->sentMessages()->update(['sender_id' => $verified->id]);
+
+            // A conversation carries its participants in `subject_key` as
+            // well as in a column, so the two move together and the verified
+            // customer keeps one thread per subject.
+            Conversation::moveCustomer($anonymous, $verified);
 
             // The anonymous row survives the merge so a cookie still holding its
             // id resolves forward instead of starting the visitor over.
