@@ -93,6 +93,22 @@ test('GET /admin/fulfillments filters by seller', async (t) => {
   assert.match(response.body, new RegExp(`data-fulfillment="${wanted.id}"`))
 })
 
+test('the filter form remembers the submitted values', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = fixtureId('sel', 3)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/fulfillments?status=shipped&seller=${sellerId}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /<option value="shipped" selected>/)
+  assert.match(response.body, new RegExp(`value="${sellerId}"`))
+})
+
 test('the "all" options submit empty filters, which the table reads as no filter', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

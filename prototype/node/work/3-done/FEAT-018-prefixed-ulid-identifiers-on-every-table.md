@@ -114,3 +114,22 @@ Platform-first: an owned generator over `node:crypto` `randomBytes` (48-bit ms t
   `service "app" has no container to start` when the stack was never up. The
   migrate and seed steps both complete first. Not fixed here — the Makefile
   belongs to the MAINT lane.
+
+### Fix-up
+
+MAINT-002's final validation audit found three admin views still rendering
+the old integer-id assumptions:
+
+- `orders.ejs`'s customer filter and `fulfillments.ejs`'s seller filter were
+  `type="number"`, which refuses a `cus_…`/`sel_…` value in a browser. Same
+  bug found in `listings.ejs`'s seller filter, not named in the audit but
+  matching the same pattern. All three are now `type="text"`, widened from
+  `w-24` to `w-48` to fit a 30-character id, with the `min="1"` attribute
+  dropped.
+- `ledger.ejs` still rendered `#<fulfillmentId>` and `#<payoutId>`; the `#`
+  is dropped, matching every other prefixed id in the app.
+
+Added a "the filter form remembers the submitted values" route test to
+`fulfillments.test.ts` and `listings.test.ts`, matching the one that already
+covered `orders.ejs`. The "filters by seller" tests already covered the
+narrowing half for all three.

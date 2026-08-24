@@ -52,8 +52,8 @@
         <td data-cell="seller" class="px-4 py-2"><%= entry.sellerName %></td>
         <td data-cell="type" class="px-4 py-2"><%= statusLabel(entry.entryType) %></td>
         <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= formatCents(entry.amountCents) %></td>
-        <td data-cell="fulfillment" class="px-4 py-2"><%= entry.fulfillmentId === null ? '—' : `#${entry.fulfillmentId}` %></td>
-        <td data-cell="payout" class="px-4 py-2"><%= entry.payoutId === null ? '—' : `#${entry.payoutId}` %></td>
+        <td data-cell="fulfillment" class="px-4 py-2"><%= entry.fulfillmentId === null ? '—' : entry.fulfillmentId %></td>
+        <td data-cell="payout" class="px-4 py-2"><%= entry.payoutId === null ? '—' : entry.payoutId %></td>
         <td data-cell="occurred-at" class="px-4 py-2"><%= formatMoment(entry.occurredAt) %></td>
       </tr>
       <% }) %>
