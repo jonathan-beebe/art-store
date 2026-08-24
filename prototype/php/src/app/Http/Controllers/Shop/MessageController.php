@@ -37,7 +37,7 @@ final class MessageController extends ShopController
 
         $conversation->load([
             'seller', 'customer', 'admin', 'listing', 'fulfillment',
-            'messages' => fn (Relation $query): Relation => $query->orderBy('id'),
+            'messages' => fn (Relation $query): Relation => $query->orderBy('sent_at')->orderBy('id'),
             'messages.sender',
         ]);
 

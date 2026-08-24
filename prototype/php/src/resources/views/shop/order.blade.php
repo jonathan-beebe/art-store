@@ -1,5 +1,5 @@
-<x-layouts.shop :title="'Order #'.$order->id.' — Art Store'">
-    <h1 class="text-4xl font-semibold tracking-tight">Order #{{ $order->id }}</h1>
+<x-layouts.shop :title="'Order '.$order->id.' — Art Store'">
+    <h1 class="text-4xl font-semibold tracking-tight">Order {{ $order->id }}</h1>
 
     <p class="mt-3 text-lg text-neutral-600">
         {{ $order->status->label() }} · {{ $order->total() }}

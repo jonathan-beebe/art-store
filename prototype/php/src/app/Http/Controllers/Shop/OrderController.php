@@ -15,6 +15,7 @@ final class OrderController extends ShopController
         return view('shop.orders', [
             'orders' => $this->visitor()->orders()
                 ->with('items')
+                ->orderByDesc('placed_at')
                 ->orderByDesc('id')
                 ->get(),
         ]);

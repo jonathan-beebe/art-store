@@ -14,10 +14,10 @@ final readonly class FaqPrefill
     private function __construct(
         public string $question,
         public string $answer,
-        public int $sourceMessageId,
+        public string $sourceMessageId,
     ) {}
 
-    public static function of(string $question, string $answer, int $sourceMessageId): self
+    public static function of(string $question, string $answer, string $sourceMessageId): self
     {
         return new self($question, $answer, $sourceMessageId);
     }

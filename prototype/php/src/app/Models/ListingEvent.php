@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Listings\ListingEventType;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\ListingEventFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,6 +25,13 @@ class ListingEvent extends Model
 {
     /** @use HasFactory<ListingEventFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'lev';
+    }
 
     /**
      * @return array<string, string>

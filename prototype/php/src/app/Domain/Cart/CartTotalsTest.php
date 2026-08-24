@@ -17,8 +17,8 @@ it('totals nothing for an empty cart', function (): void {
 
 it('counts every item across the lines', function (): void {
     $totals = CartTotals::from([
-        CartLine::of(1, Money::fromCents(4500), 2),
-        CartLine::of(2, Money::fromCents(1000), 1),
+        CartLine::of('sel_00000000000000000000000001', Money::fromCents(4500), 2),
+        CartLine::of('sel_00000000000000000000000002', Money::fromCents(1000), 1),
     ]);
 
     expect($totals->itemCount)->toBe(3);
@@ -26,8 +26,8 @@ it('counts every item across the lines', function (): void {
 
 it('adds the line totals into a subtotal', function (): void {
     $totals = CartTotals::from([
-        CartLine::of(1, Money::fromCents(4500), 2),
-        CartLine::of(2, Money::fromCents(1000), 1),
+        CartLine::of('sel_00000000000000000000000001', Money::fromCents(4500), 2),
+        CartLine::of('sel_00000000000000000000000002', Money::fromCents(1000), 1),
     ]);
 
     expect($totals->subtotal->cents)->toBe(10000);
@@ -35,15 +35,15 @@ it('adds the line totals into a subtotal', function (): void {
 
 it('groups the subtotal by seller', function (): void {
     $totals = CartTotals::from([
-        CartLine::of(2, Money::fromCents(1000), 1),
-        CartLine::of(1, Money::fromCents(4500), 2),
-        CartLine::of(2, Money::fromCents(2500), 1),
+        CartLine::of('sel_00000000000000000000000002', Money::fromCents(1000), 1),
+        CartLine::of('sel_00000000000000000000000001', Money::fromCents(4500), 2),
+        CartLine::of('sel_00000000000000000000000002', Money::fromCents(2500), 1),
     ]);
 
     expect(array_map(
         fn (Money $subtotal): int => $subtotal->cents,
         $totals->subtotalsBySeller(),
-    ))->toBe([1 => 9000, 2 => 3500]);
+    ))->toBe(['sel_00000000000000000000000001' => 9000, 'sel_00000000000000000000000002' => 3500]);
 });
 
 it('needs at least one line for checkout', function (): void {
@@ -51,7 +51,7 @@ it('needs at least one line for checkout', function (): void {
 });
 
 it('totals the lines it is given for checkout', function (): void {
-    $totals = CartTotals::forCheckout([CartLine::of(1, Money::fromCents(4500), 2)]);
+    $totals = CartTotals::forCheckout([CartLine::of('sel_00000000000000000000000001', Money::fromCents(4500), 2)]);
 
     expect($totals->subtotal->cents)->toBe(9000);
 });

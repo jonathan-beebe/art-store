@@ -6,18 +6,19 @@ namespace App\Notifications;
 
 use App\Domain\Notifications\NotificationMessage;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
 /**
  * Tells a customer one seller's share of their order is with a carrier.
  */
-final class OrderShipped extends Notification
+final class OrderShipped extends PrefixedUlidNotification
 {
     public function __construct(
-        private readonly int $orderId,
+        private readonly string $orderId,
         private readonly string $carrier,
         private readonly string $trackingNumber,
-    ) {}
+    ) {
+        parent::__construct();
+    }
 
     /**
      * @return array<int, string>

@@ -11,8 +11,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('payments', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('order_id', 30)->constrained()->cascadeOnDelete();
             $table->string('status');
             $table->unsignedInteger('amount_cents');
             $table->string('card_last_four');

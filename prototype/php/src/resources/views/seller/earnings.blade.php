@@ -45,7 +45,7 @@
                             <tr>
                                 <td class="px-4 py-2">{{ $fulfillment->order->placed_at?->format('M j, Y') }}</td>
                                 <th scope="row" class="px-4 py-2 font-normal">
-                                    <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="underline">#{{ $fulfillment->order_id }}</a>
+                                    <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="underline">{{ $fulfillment->order_id }}</a>
                                 </th>
                                 <td class="px-4 py-2">{{ $fulfillment->order->items->pluck('title')->join(', ') }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->subtotal() }}</td>

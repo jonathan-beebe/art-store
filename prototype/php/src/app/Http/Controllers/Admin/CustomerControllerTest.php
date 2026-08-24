@@ -54,3 +54,12 @@ it('sends a guest to the admin login page', function (): void {
 
     $response->assertRedirect(route('auth.admin.login'));
 });
+
+it('answers not found for a value that is not a customer id, the same as an unknown one', function (string $id): void {
+    $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$id}")->assertNotFound();
+})->with([
+    'another table prefix' => 'sel_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'a customer that does not exist' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

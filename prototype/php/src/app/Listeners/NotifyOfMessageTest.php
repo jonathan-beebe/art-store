@@ -79,7 +79,7 @@ it('names the order as the topic of a fulfillment thread', function (): void {
     Notification::assertSentTo(
         $seller,
         MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($seller)['body'] === "You have a new message about Order #{$fulfillment->order_id}.",
+        fn (MessageReceived $notification): bool => $notification->toArray($seller)['body'] === "You have a new message about Order {$fulfillment->order_id}.",
     );
 });
 

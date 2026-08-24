@@ -180,7 +180,7 @@ it('names an order thread and a support thread by their fulfillment counterpart'
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
-    $response->assertDontSee("Order #{$fulfillment->order_id}");
+    $response->assertDontSee("Order {$fulfillment->order_id}");
 });
 
 it('carries a sellers support request to the admin and the answer back', function (): void {

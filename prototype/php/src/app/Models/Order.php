@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Money\Money;
 use App\Domain\Orders\OrderStatus;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,6 +28,13 @@ class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'ord';
+    }
 
     /**
      * @return array<string, string>
@@ -75,7 +83,7 @@ class Order extends Model
      */
     public function latestPayment(): HasOne
     {
-        return $this->payments()->one()->latestOfMany();
+        return $this->payments()->one()->latestOfMany('processed_at');
     }
 
     public function subtotal(): Money

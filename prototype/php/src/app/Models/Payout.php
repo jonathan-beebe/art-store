@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\PayoutFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,13 @@ class Payout extends Model
 {
     /** @use HasFactory<PayoutFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'pyt';
+    }
 
     /**
      * @return array<string, string>

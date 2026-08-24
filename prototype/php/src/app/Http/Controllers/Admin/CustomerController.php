@@ -14,7 +14,7 @@ final class CustomerController extends Controller
     public function index(): View
     {
         return view('admin.customers.index', [
-            'customers' => Customer::query()->with('activeBlock')->latest('id')->get(),
+            'customers' => Customer::query()->with('activeBlock')->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 
@@ -23,7 +23,7 @@ final class CustomerController extends Controller
         return view('admin.customers.show', [
             'customer' => $customer->load([
                 'activeBlock',
-                'orders' => fn (Relation $orders) => $orders->latest('id'),
+                'orders' => fn (Relation $orders) => $orders->orderByDesc('placed_at')->orderByDesc('id'),
             ]),
         ]);
     }

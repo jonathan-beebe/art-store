@@ -14,7 +14,7 @@ final class SellerController extends Controller
     public function index(): View
     {
         return view('admin.sellers.index', [
-            'sellers' => Seller::query()->withCount(['listings', 'fulfillments'])->latest('id')->get(),
+            'sellers' => Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 

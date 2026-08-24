@@ -96,3 +96,14 @@ it('offers a form to message the seller for each fulfillment', function () use (
     $response->assertSee('Message the seller');
     $response->assertSee(route('shop.order.messages', [$order, $fulfillment]), escape: false);
 });
+
+it('answers not found for a value that is not an order id, the same as an unknown one', function (string $id): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $this->get("/orders/{$id}")->assertNotFound();
+})->with([
+    'another table prefix' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'an order that does not exist' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

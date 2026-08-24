@@ -25,12 +25,12 @@ final readonly class RunWeeklyPayout
 
         return DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
             ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
-            ->map(fn (LedgerBalance $balance, int $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
+            ->map(fn (LedgerBalance $balance, string $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
             ->all()));
     }
 
     /**
-     * @return Collection<int, LedgerBalance>
+     * @return Collection<string, LedgerBalance>
      */
     private function balancesBySeller(PayoutPeriod $period): Collection
     {
@@ -44,7 +44,7 @@ final readonly class RunWeeklyPayout
             ));
     }
 
-    private function payOut(int $sellerId, Money $available, PayoutPeriod $period, DateTimeImmutable $asOf): Payout
+    private function payOut(string $sellerId, Money $available, PayoutPeriod $period, DateTimeImmutable $asOf): Payout
     {
         $payout = Payout::create([
             'seller_id' => $sellerId,

@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\FulfillmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,13 @@ class Fulfillment extends Model
 {
     /** @use HasFactory<FulfillmentFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'ful';
+    }
 
     /**
      * @return array<string, string>

@@ -19,7 +19,7 @@
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
                                 <a href="{{ route('admin.customers.show', $customer) }}" class="font-medium underline">
-                                    {{ $customer->name ?? 'Customer #'.$customer->id }}
+                                    {{ $customer->name ?? $customer->id }}
                                 </a>
                             </th>
                             <td class="px-4 py-2">{{ $customer->email ?? '—' }}</td>

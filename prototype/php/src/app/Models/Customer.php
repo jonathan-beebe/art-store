@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -23,7 +24,13 @@ class Customer extends Authenticatable
     /** @use HasFactory<CustomerFactory> */
     use HasFactory;
 
+    use HasPrefixedUlid;
     use Notifiable;
+
+    public static function idPrefix(): string
+    {
+        return 'cus';
+    }
 
     /**
      * @return array<string, string>
@@ -87,7 +94,7 @@ class Customer extends Authenticatable
     /** @return HasOne<CustomerBlock, $this> */
     public function activeBlock(): HasOne
     {
-        return $this->blocks()->one()->whereNull('lifted_at')->latestOfMany();
+        return $this->blocks()->one()->whereNull('lifted_at')->latestOfMany('created_at');
     }
 
     /**
@@ -128,6 +135,7 @@ class Customer extends Authenticatable
         return $this->carts()
             ->withCount('items')
             ->orderByDesc('items_count')
+            ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->first()
             ?? $this->carts()->create();

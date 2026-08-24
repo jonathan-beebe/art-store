@@ -16,7 +16,8 @@ final class EarningsController extends SellerController
         return view('seller.earnings', [
             'fulfillments' => $seller->fulfillments()
                 ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
-                ->latest('id')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
                 ->get(),
             'balance' => $seller->escrowBalance(),
             'payouts' => $seller->payouts()->latest('period_start')->get(),

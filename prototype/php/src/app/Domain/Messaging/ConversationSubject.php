@@ -25,8 +25,8 @@ final readonly class ConversationSubject
     ];
 
     /**
-     * @param  array<string, int>  $participantIds  the two participant columns, in the order the key reads them
-     * @param  array{column: string, id: int}|null  $subject  the column and id of the row this is a subject of, for the two kinds that carry one
+     * @param  array<string, string>  $participantIds  the two participant columns, in the order the key reads them
+     * @param  array{column: string, id: string}|null  $subject  the column and id of the row this is a subject of, for the two kinds that carry one
      */
     private function __construct(
         public ConversationKind $kind,
@@ -34,17 +34,17 @@ final readonly class ConversationSubject
         private ?array $subject,
     ) {}
 
-    public static function adminSeller(int $adminId, int $sellerId): self
+    public static function adminSeller(string $adminId, string $sellerId): self
     {
         return new self(ConversationKind::AdminSeller, ['admin_id' => $adminId, 'seller_id' => $sellerId], null);
     }
 
-    public static function adminCustomer(int $adminId, int $customerId): self
+    public static function adminCustomer(string $adminId, string $customerId): self
     {
         return new self(ConversationKind::AdminCustomer, ['admin_id' => $adminId, 'customer_id' => $customerId], null);
     }
 
-    public static function fulfillment(int $sellerId, int $customerId, int $fulfillmentId): self
+    public static function fulfillment(string $sellerId, string $customerId, string $fulfillmentId): self
     {
         return new self(
             ConversationKind::Fulfillment,
@@ -53,7 +53,7 @@ final readonly class ConversationSubject
         );
     }
 
-    public static function listingQuestion(int $sellerId, int $customerId, int $listingId): self
+    public static function listingQuestion(string $sellerId, string $customerId, string $listingId): self
     {
         return new self(
             ConversationKind::ListingQuestion,
@@ -67,7 +67,7 @@ final readonly class ConversationSubject
      * columns — what a row whose participant ids moved reads to recompute
      * its key.
      *
-     * @param  array<string, int|null>  $ids  the row's id columns, keyed by column name
+     * @param  array<string, string|null>  $ids  the row's id columns, keyed by column name
      */
     public static function for(ConversationKind $kind, array $ids): self
     {
@@ -111,7 +111,7 @@ final readonly class ConversationSubject
      * The `conversations` columns this subject writes: the kind, its two
      * participants, and — for the two kinds that carry one — the subject row.
      *
-     * @return array<string, int|string>
+     * @return array<string, string>
      */
     public function columns(): array
     {
@@ -125,9 +125,9 @@ final readonly class ConversationSubject
     }
 
     /**
-     * @param  array<string, int|null>  $ids
+     * @param  array<string, string|null>  $ids
      */
-    private static function id(ConversationKind $kind, array $ids, string $column): int
+    private static function id(ConversationKind $kind, array $ids, string $column): string
     {
         return $ids[$column] ?? throw new InvalidArgumentException("A {$kind->value} conversation names a {$column}.");
     }

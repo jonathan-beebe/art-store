@@ -51,8 +51,8 @@ it('reads its favorites and the listings behind them', function (): void {
 
 it('reads the notifications addressed to it', function (): void {
     $customer = $this->verifiedCustomer();
-    $customer->notify(new OrderShipped(4, 'USPS', '94001'));
-    $this->seller()->notify(new ItemSold(5, Money::fromCents(9000)));
+    $customer->notify(new OrderShipped('ord_00000000000000000000000004', 'USPS', '94001'));
+    $this->seller()->notify(new ItemSold('ord_00000000000000000000000005', Money::fromCents(9000)));
 
     expect($customer->notifications()->count())->toBe(1)
         ->and($customer->unreadNotifications()->count())->toBe(1);

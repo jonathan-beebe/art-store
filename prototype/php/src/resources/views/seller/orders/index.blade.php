@@ -26,7 +26,7 @@
                             @foreach ($group['fulfillments'] as $fulfillment)
                                 <tr>
                                     <th scope="row" class="px-4 py-2 font-normal">
-                                        <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="font-medium underline">#{{ $fulfillment->order_id }}</a>
+                                        <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="font-medium underline">{{ $fulfillment->order_id }}</a>
                                     </th>
                                     <td class="px-4 py-2">{{ $fulfillment->order->shipping_name }}</td>
                                     <td class="px-4 py-2">{{ $fulfillment->order->items->pluck('title')->join(', ') }}</td>

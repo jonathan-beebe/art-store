@@ -58,7 +58,7 @@ moment — how does one row come back to both?
 ```mermaid
 flowchart TD
     entry["a route asks for a thread\n(ask, support, message the customer)"] --> subject["ConversationSubject::for(kind, ids)\npure: the row's columns + subject_key"]
-    subject --> key["subject_key\n'listing_question:s3:c9:l24'"]
+    subject --> key["subject_key\n'listing_question:ssel_01J…:ccus_01J…:llst_01J…'"]
     key --> find["Conversation::firstOrCreate(\n  ['subject_key' => key],\n  the columns the kind fills\n)"]
     find --> index[("unique index\nconversations_subject_key_unique")]
     index --> row[("one conversations row")]

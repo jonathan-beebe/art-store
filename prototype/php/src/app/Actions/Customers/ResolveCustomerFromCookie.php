@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Domain\Identifiers\PrefixedId;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 
 final readonly class ResolveCustomerFromCookie
 {
     /**
-     * @return Customer|null null when the cookie is absent, unreadable, or
-     *                       points at a customer that no longer exists
+     * @return Customer|null null when the cookie is absent, holds something
+     *                       that is not a customer id, or points at a
+     *                       customer that no longer exists
      */
     public function __invoke(?string $cookieValue): ?Customer
     {
-        $id = filter_var($cookieValue, FILTER_VALIDATE_INT);
-
-        if ($id === false || $id < 1) {
+        if ($cookieValue === null || PrefixedId::parse(Customer::idPrefix(), $cookieValue) === null) {
             return null;
         }
 
-        return Customer::find($this->follow($id));
+        return Customer::find($this->follow($cookieValue));
     }
 
     /**
@@ -30,17 +30,16 @@ final readonly class ResolveCustomerFromCookie
      * through the ordinary merge flow, but a chain reaching further than one
      * hop of stale data should still resolve rather than stop early.
      *
-     * @param  list<int>  $seen
+     * @param  list<string>  $seen
      */
-    private function follow(int $id, array $seen = []): int
+    private function follow(string $id, array $seen = []): string
     {
         if (in_array($id, $seen, true)) {
             return $id;
         }
 
         $mergedInto = CustomerMerge::where('anonymous_customer_id', $id)->value('customer_id');
-        $mergedIntoId = filter_var($mergedInto, FILTER_VALIDATE_INT);
 
-        return $mergedIntoId === false ? $id : $this->follow($mergedIntoId, [...$seen, $id]);
+        return is_string($mergedInto) ? $this->follow($mergedInto, [...$seen, $id]) : $id;
     }
 }

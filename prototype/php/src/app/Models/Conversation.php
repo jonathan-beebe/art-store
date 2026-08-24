@@ -8,6 +8,7 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Messaging\ConversationKind;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\FaqPrefill;
+use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\ActorDisplay;
 use Database\Factories\ConversationFactory;
 use DateTimeImmutable;
@@ -35,6 +36,13 @@ class Conversation extends Model
 {
     /** @use HasFactory<ConversationFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'cnv';
+    }
 
     /**
      * @return array<string, string>
@@ -91,7 +99,7 @@ class Conversation extends Model
      */
     public function latestMessage(): HasOne
     {
-        return $this->hasOne(Message::class)->latestOfMany('id');
+        return $this->hasOne(Message::class)->latestOfMany('sent_at');
     }
 
     /**
@@ -140,13 +148,13 @@ class Conversation extends Model
      * This actor's participant id on the thread, or null when the kind holds
      * no column for that actor type — the read behind every ownership check.
      */
-    public function participantIdFor(ActorType $actor): ?int
+    public function participantIdFor(ActorType $actor): ?string
     {
         if (! $this->kind->admits($actor)) {
             return null;
         }
 
-        /** @var int|null $id */
+        /** @var string|null $id */
         $id = $this->{$actor->participantColumn()};
 
         return $id;
@@ -209,7 +217,7 @@ class Conversation extends Model
             return null;
         }
 
-        $messages = $this->messages->sortBy('id');
+        $messages = $this->messages->sortBy([['sent_at', 'asc'], ['id', 'asc']]);
         $question = $messages->first();
         $answer = $messages->where('sender_type', ActorType::Seller->value)->last();
 
@@ -221,7 +229,7 @@ class Conversation extends Model
     /**
      * The id columns a subject reads, keyed the way it names them.
      *
-     * @return array<string, int|null>
+     * @return array<string, string|null>
      */
     private function idColumns(): array
     {

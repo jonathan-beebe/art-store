@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerBlockFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,6 +21,13 @@ class CustomerBlock extends Model
 {
     /** @use HasFactory<CustomerBlockFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'blk';
+    }
 
     /**
      * @return array<string, string>

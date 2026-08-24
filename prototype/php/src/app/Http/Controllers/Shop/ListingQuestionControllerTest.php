@@ -123,7 +123,7 @@ it('reads the empty thread as an inbox row with no preview on both sites', funct
     $visitorInbox->assertSee('Blue Kiln Studio');
     $visitorInbox->assertSee('Harbour at Dawn');
     $sellerInbox->assertOk();
-    $sellerInbox->assertSee("Customer #{$visitor->id}");
+    $sellerInbox->assertSee("Customer {$visitor->id}");
     $sellerInbox->assertSee('Harbour at Dawn');
     $sellerInbox->assertDontSee('unread');
 });

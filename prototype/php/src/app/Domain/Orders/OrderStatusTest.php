@@ -41,13 +41,13 @@ it('rejects a move outside the table', function (): void {
 });
 
 it('places a verified purchaser order ready to charge', function (): void {
-    $purchaser = Purchaser::onAccount(1, 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
+    $purchaser = Purchaser::onAccount('cus_00000000000000000000000001', 'buyer@example.test', new DateTimeImmutable('2026-08-22 10:00:00'));
 
     expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::AwaitingPayment);
 });
 
 it('places an unverified purchaser order that waits for verification', function (): void {
-    $purchaser = Purchaser::onAccount(1, null, null);
+    $purchaser = Purchaser::onAccount('cus_00000000000000000000000001', null, null);
 
     expect(OrderStatus::forPlacement($purchaser))->toBe(OrderStatus::PendingVerification);
 });

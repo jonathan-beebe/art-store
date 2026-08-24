@@ -97,8 +97,8 @@ it('re-points the notifications addressed to the anonymous customer', function (
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
     $bystander = Customer::factory()->create();
-    $anonymous->notify(new OrderShipped(4, 'USPS', '94001'));
-    $bystander->notify(new OrderShipped(5, 'USPS', '94002'));
+    $anonymous->notify(new OrderShipped('ord_00000000000000000000000004', 'USPS', '94001'));
+    $bystander->notify(new OrderShipped('ord_00000000000000000000000005', 'USPS', '94002'));
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
@@ -110,7 +110,7 @@ it('re-points the notifications addressed to the anonymous customer', function (
 it('leaves a seller notification where it is when a customer merges', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
     $seller = Seller::factory()->create();
-    $seller->notify(new ItemSold(4, Money::fromCents(9000)));
+    $seller->notify(new ItemSold('ord_00000000000000000000000004', Money::fromCents(9000)));
 
     app(MergeAnonymousCustomer::class)($anonymous, Customer::factory()->create());
 

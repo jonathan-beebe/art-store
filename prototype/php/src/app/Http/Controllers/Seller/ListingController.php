@@ -21,7 +21,7 @@ final class ListingController extends SellerController
     public function index(): View
     {
         return view('seller.listings.index', [
-            'listings' => $this->seller()->listings()->withEventCounts()->latest('id')->get(),
+            'listings' => $this->seller()->listings()->withEventCounts()->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 
@@ -93,7 +93,8 @@ final class ListingController extends SellerController
     {
         return $listing->orderItems()
             ->with('order')
-            ->latest('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
     }
 }

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\MagicLinkFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -23,6 +24,13 @@ class MagicLink extends Model
 {
     /** @use HasFactory<MagicLinkFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'mlk';
+    }
 
     /**
      * @return array<string, string>

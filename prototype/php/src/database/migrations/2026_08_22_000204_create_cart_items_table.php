@@ -11,9 +11,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('cart_items', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('cart_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('listing_id')->constrained()->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('cart_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
             $table->unsignedInteger('quantity');
             $table->timestamps();
 

@@ -309,13 +309,15 @@ flowchart LR
   and no delivery runs with the transaction still open.
 - Notifications (`App\Notifications\ItemSold`,
   `App\Notifications\OrderShipped`) extend
-  `Illuminate\Notifications\Notification`. `via()` reads
+  `App\Notifications\PrefixedUlidNotification`, which gives each one a `ntf_`
+  id before it is sent so the row carries the platform's id shape rather than
+  the framework's UUID. `via()` reads
   `config('notifications.channels')` — `database` alone by default, with
   `mail` a comma away; `toArray()` and `toMail()` both come from
   `App\Domain\Notifications\NotificationMessage`, so the inbox row and the
   email say the same thing.
 - `Seller`, `Customer`, and `Admin` are `Notifiable`. Rows land in Laravel's
-  `notifications` table (uuid `id`, `type`, `notifiable_type`/`notifiable_id`,
+  `notifications` table (`ntf_` id, `type`, `notifiable_type`/`notifiable_id`,
   `data` json, `read_at`) and are read back as
   `Illuminate\Notifications\DatabaseNotification`. `notifiable_type` holds the
   morph alias `seller`, `customer`, or `admin`, which is what

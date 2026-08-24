@@ -13,7 +13,7 @@ final readonly class RecordListingEvent
 {
     public function __invoke(
         Listing $listing,
-        ?int $customerId,
+        ?string $customerId,
         ListingEventType $type,
         DateTimeImmutable $now,
     ): ListingEvent {

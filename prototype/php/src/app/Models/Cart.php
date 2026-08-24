@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Cart\CartLine;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CartFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,13 @@ class Cart extends Model
 {
     /** @use HasFactory<CartFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'crt';
+    }
 
     /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo

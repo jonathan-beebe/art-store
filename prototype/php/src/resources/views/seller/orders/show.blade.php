@@ -1,6 +1,6 @@
-<x-layouts.seller :title="'Order #'.$fulfillment->order_id.' — Art Store seller'">
+<x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">Order #{{ $fulfillment->order_id }}</h1>
+        <h1 class="text-xl font-semibold">Order {{ $fulfillment->order_id }}</h1>
         <p class="text-gray-600">{{ $fulfillment->status->label() }}</p>
 
         <form method="POST" action="{{ route('seller.orders.messages', $fulfillment) }}" class="ml-auto">

@@ -9,6 +9,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
 use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
 use Closure;
 use Database\Factories\ListingFactory;
@@ -38,6 +39,13 @@ class Listing extends Model
 {
     /** @use HasFactory<ListingFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'lst';
+    }
 
     /**
      * @return array<string, string>

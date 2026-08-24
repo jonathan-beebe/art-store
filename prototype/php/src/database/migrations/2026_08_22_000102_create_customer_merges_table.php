@@ -11,9 +11,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customer_merges', function (Blueprint $table): void {
-            $table->id();
-            $table->foreignId('anonymous_customer_id')->unique()->constrained('customers')->cascadeOnDelete();
-            $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+            $table->string('id', 30)->primary();
+            $table->foreignUlid('anonymous_customer_id', 30)->unique()->constrained('customers')->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained('customers')->cascadeOnDelete();
             $table->timestamps();
         });
     }

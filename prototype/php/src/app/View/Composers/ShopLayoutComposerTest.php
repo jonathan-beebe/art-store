@@ -27,7 +27,7 @@ it('counts the items the visitor is carrying', function (): void {
 
 it('counts the notifications the visitor has not read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
-    $visitor->notify(new OrderShipped(1, 'Royal Mail', 'RM1'));
+    $visitor->notify(new OrderShipped('ord_00000000000000000000000001', 'Royal Mail', 'RM1'));
 
     $response = $this->actingAs($visitor, 'customer')->get('/');
 

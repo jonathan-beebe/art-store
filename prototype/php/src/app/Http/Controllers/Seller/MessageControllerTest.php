@@ -62,7 +62,7 @@ it('names an order thread and a support thread on the inbox', function (): void 
     $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
 
     $response->assertOk();
-    $response->assertSee("Order #{$fulfillment->order_id}");
+    $response->assertSee("Order {$fulfillment->order_id}");
     $response->assertSee($admin->displayName());
 });
 

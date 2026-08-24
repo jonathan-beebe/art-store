@@ -213,7 +213,7 @@ it('lists the sales of the listing', function (): void {
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
     $response->assertViewHas('sales', fn (Collection $sales): bool => $sales->count() === 1);
-    $response->assertSee("#{$order->id}");
+    $response->assertSee($order->id);
 });
 
 it('renders the activity page on a fixed number of queries however many events the listing recorded', function (): void {

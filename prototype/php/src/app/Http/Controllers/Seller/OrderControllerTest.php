@@ -108,3 +108,12 @@ it('hides another sellers fulfillment', function () use ($paidFulfillment): void
 
     $response->assertNotFound();
 });
+
+it('answers not found for a value that is not a fulfillment id, the same as an unknown one', function (string $id): void {
+    $this->actingAs($this->seller(), 'seller')->get("/seller/orders/{$id}")->assertNotFound();
+})->with([
+    'another table prefix' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'a fulfillment that does not exist' => 'ful_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

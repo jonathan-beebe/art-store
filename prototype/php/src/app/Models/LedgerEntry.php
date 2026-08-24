@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\LedgerEntryFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,6 +26,13 @@ class LedgerEntry extends Model
 {
     /** @use HasFactory<LedgerEntryFactory> */
     use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'led';
+    }
 
     /**
      * @return array<string, string>

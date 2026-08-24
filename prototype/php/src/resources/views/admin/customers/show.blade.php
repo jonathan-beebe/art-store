@@ -1,6 +1,6 @@
-<x-layouts.admin :title="($customer->name ?? 'Customer #'.$customer->id).' — Art Store admin'">
+<x-layouts.admin :title="($customer->name ?? $customer->id).' — Art Store admin'">
     <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">{{ $customer->name ?? 'Customer #'.$customer->id }}</h1>
+        <h1 class="text-xl font-semibold">{{ $customer->name ?? $customer->id }}</h1>
         <a href="{{ route('admin.customers.index') }}" class="ml-auto text-gray-700 underline">All customers</a>
     </div>
 
@@ -74,7 +74,7 @@
                     <tbody class="divide-y divide-gray-200">
                         @foreach ($customer->orders as $order)
                             <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">#{{ $order->id }}</th>
+                                <th scope="row" class="px-4 py-2 font-normal">{{ $order->id }}</th>
                                 <td class="px-4 py-2">{{ $order->status->label() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $order->total()->format() }}</td>
                                 <td class="px-4 py-2">{{ $order->placed_at?->format('M j, Y') }}</td>

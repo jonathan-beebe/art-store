@@ -10,20 +10,20 @@ final readonly class NotificationMessage
 {
     private function __construct(public string $subject, public string $body, public ?string $url) {}
 
-    public static function itemSold(int $orderId, Money $net): self
+    public static function itemSold(string $orderId, Money $net): self
     {
         return new self(
             'Item sold',
-            "Order #{$orderId} is paid. {$net->format()} is held until the customer confirms delivery.",
+            "Order {$orderId} is paid. {$net->format()} is held until the customer confirms delivery.",
             null,
         );
     }
 
-    public static function orderShipped(int $orderId, string $carrier, string $trackingNumber): self
+    public static function orderShipped(string $orderId, string $carrier, string $trackingNumber): self
     {
         return new self(
             'Order shipped',
-            "Order #{$orderId} shipped with {$carrier}. Tracking number {$trackingNumber}.",
+            "Order {$orderId} shipped with {$carrier}. Tracking number {$trackingNumber}.",
             null,
         );
     }

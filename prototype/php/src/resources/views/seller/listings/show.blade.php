@@ -74,7 +74,7 @@
                     <tbody class="divide-y divide-gray-200">
                         @foreach ($sales as $sale)
                             <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">#{{ $sale->order_id }}</th>
+                                <th scope="row" class="px-4 py-2 font-normal">{{ $sale->order_id }}</th>
                                 <td class="px-4 py-2">{{ $sale->order->placed_at?->format('M j, Y') }}</td>
                                 <td class="px-4 py-2">{{ $sale->order->status->label() }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $sale->quantity }}</td>

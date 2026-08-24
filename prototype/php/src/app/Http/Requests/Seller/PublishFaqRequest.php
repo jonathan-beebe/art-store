@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Domain\Identifiers\PrefixedId;
 use App\Domain\Messaging\FaqDraft;
 use App\Models\Listing;
 use App\Models\Message;
@@ -35,7 +36,8 @@ final class PublishFaqRequest extends FormRequest
             // this listing's own threads, so a tampered id names no row.
             'source_message_id' => [
                 'nullable',
-                'integer',
+                'string',
+                'size:'.PrefixedId::LENGTH,
                 Rule::exists('messages', 'id')->where(
                     fn (Builder $query) => $query->whereIn(
                         'conversation_id',
@@ -53,7 +55,7 @@ final class PublishFaqRequest extends FormRequest
 
     public function sourceMessage(): ?Message
     {
-        return $this->filled('source_message_id') ? Message::find($this->integer('source_message_id')) : null;
+        return $this->filled('source_message_id') ? Message::find($this->string('source_message_id')->toString()) : null;
     }
 
     public function listing(): Listing
