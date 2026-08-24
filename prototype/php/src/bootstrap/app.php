@@ -6,11 +6,13 @@ use App\Domain\DomainRuleViolation;
 use App\Http\Middleware\LogRequestStory;
 use App\Http\Middleware\NameRequestVisitor;
 use App\Http\Middleware\ResolveCustomerIdentity;
+use App\Http\Requests\Shop\ShopRequest;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -52,11 +54,17 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
 
+        // A card number reaches the session's old input from nowhere: the
+        // storefront's forms render `old('card_number')` back into the field,
+        // so flashing one would write it into the next response body and hold
+        // it in session storage.
+        $exceptions->dontFlash(ShopRequest::CARD_FIELDS);
+
         // Every rule the core refuses reaches the person who tripped it as a
         // message on the page they submitted from, the way a failed validation
         // rule does.
-        $exceptions->render(fn (DomainRuleViolation $violation) => back()
-            ->withInput()
+        $exceptions->render(fn (DomainRuleViolation $violation, Request $request) => back()
+            ->withInput(Arr::except($request->input(), ShopRequest::CARD_FIELDS))
             ->withErrors($violation->getMessage()));
 
         // The response to a request that threw is built past the middleware

@@ -13,6 +13,7 @@ use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\UnavailableReason;
 use App\Models\CustomerBlock;
+use App\Models\Listing;
 use App\Models\Order;
 use DomainException;
 use RuntimeException;
@@ -159,6 +160,21 @@ it('refuses a listing that left the storefront while it sat in the cart', functi
         ->and($cart->items()->count())->toBe(1)
         ->and($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::Archived);
+});
+
+it('judges the cart against the rows it locked, not what the caller loaded before', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    // What the page the shopper submitted from had read: one left, placeable.
+    $cart->load('items.listing');
+    Listing::whereKey($listing->id)->update(['quantity' => 0, 'status' => ListingStatus::Sold]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Winter Elm” is no longer available to buy.')
+        ->and(Order::count())->toBe(0);
 });
 
 it('refuses a blocked customer', function (): void {

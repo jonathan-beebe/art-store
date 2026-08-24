@@ -69,15 +69,30 @@ testable with no database. `Removed` waits on FEAT-024 to wire an admin
 listing removal in — every caller passes `hasActiveRemoval: false` until
 then, so a removed listing reads as whatever its ordinary status says.
 
-`PlaceOrder` builds the plan **inside its own transaction**, against the cart
-and listing rows as they stand at that moment — reading the cart, deciding,
-and taking the stock stay one transaction, so two shoppers cannot both take
-the last piece. A plan that is not placeable throws
-`App\Domain\Orders\OrderPlacementRefused` with every blocked line, instead of
-stopping at the first one. `FinalizeOrder` asks the same question before a
-retry retakes stock (`OrderStatus::retakesStockOnRetry()`, reached only from
-`payment_failed`): a decline hands a listing's stock back to the storefront,
-so a retry has to find it still available before it claims that stock again.
+`PlaceOrder` builds the plan **inside its own transaction**, from listing rows
+it reads **for update** (`Listing`'s `lockedForPlacement` scope: `order by id`,
+`for update`). `Listing::sell()` computes the new quantity and status in PHP
+from the row it read and writes the pair back, so the row has to be held from
+that read until the commit: a second checkout for the same listing blocks on
+the lock, and reads the quantity the first one committed instead of
+overwriting it with arithmetic from a read taken before. A plan that is not
+placeable throws `App\Domain\Orders\OrderPlacementRefused` with every blocked
+line, instead of stopping at the first one. `FinalizeOrder` asks the same
+question before a retry retakes stock (`OrderStatus::retakesStockOnRetry()`,
+reached only from `payment_failed`): a decline hands a listing's stock back to
+the storefront, so a retry has to find it still available before it claims
+that stock again, and it takes the same rows for update — as does the restock
+a decline writes.
+
+SQLite, the prototype's development and test database, has no row lock: it runs
+one write transaction at a time, so a second checkout is turned away by the
+database rather than losing the update, and its query grammar compiles the
+clause away. The lock is what makes a database that runs write transactions
+concurrently hold the second one until the first commits, so no test here can
+interleave two checkouts to show it. `ListingTest` compiles the scope
+with a grammar that has the clause and asserts on it; `PlaceOrderTest` and
+`FinalizeOrderTest` assert the plan is judged against rows read inside the
+transaction rather than whatever the caller loaded before it.
 
 `OrderPlacementRefused` carries its blocked lines two ways: `getMessage()`
 reads as one sentence, and `refusalData()` (the `App\Domain\CarriesRefusalData`
@@ -88,8 +103,13 @@ of refusal it caught.
 
 `CheckoutController::place` catches `OrderPlacementRefused` separately from
 every other `DomainRuleViolation`: it re-renders the checkout page itself at
-422, naming every blocked line and its reason, with the submitted form
-flashed back so nothing the shopper typed is lost. A refusal that is not
+422, naming every blocked line and its reason, with the submitted form flashed
+back so the shopper retypes nothing — except the card, which nothing flashes
+(`ShopRequest::CARD_FIELDS`, and `bootstrap/app.php` for the two flashes the
+framework does on its own: the validation redirect and a
+`DomainRuleViolation`'s `back()->withInput()`). `<x-card-fields>` renders
+`old('card_number')` back into the field, so a flashed number would be written
+into the response body and held in session storage. A refusal that is not
 about a specific line — a blocked customer — still redirects to the cart, the
 page that already holds every line. `OrderPaymentController::pay` answers a
 stale retry the same way, re-rendering `/orders/{order}/pay` at 422.

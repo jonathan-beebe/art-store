@@ -61,6 +61,7 @@ final class CheckoutController extends ShopController
             // Checkout is where the shopper is already looking at every
             // line: the whole cart re-renders with each blocked one named,
             // rather than a redirect that loses the form to fill in again.
+            // `flash()` leaves the card fields behind (`ShopRequest`).
             $request->flash();
 
             return response()->view(

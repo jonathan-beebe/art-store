@@ -205,6 +205,29 @@ it('folds a violation carrying its own facts into the refused line, after what t
     ]);
 });
 
+it('leaves a fact the unit of work already named alone when a violation carries the same key', function (): void {
+    $log = CapturedStory::capture();
+
+    $violation = new class('That listing is no longer for sale.') extends DomainRuleViolation implements CarriesRefusalData
+    {
+        public function refusalData(): array
+        {
+            return ['cart_id' => 'crt_01J0000000000000000000OTHER', 'blocked' => ['lst_01J00000000000000000000ABC']];
+        }
+    };
+
+    $refused = fn () => Story::for(StoryEvent::OrderPlace)->tell('placing an order from the cart', [
+        'cart_id' => 'crt_01J00000000000000000000ABC',
+    ], fn (): never => throw $violation);
+
+    expect($refused)->toThrow(DomainRuleViolation::class);
+
+    expect($log->line('order.place', 'refused')['data'])->toBe([
+        'cart_id' => 'crt_01J00000000000000000000ABC',
+        'blocked' => ['lst_01J00000000000000000000ABC'],
+    ]);
+});
+
 it('ends the unit of work as failed when something nobody planned for escapes it', function (): void {
     $log = CapturedStory::capture();
 

@@ -90,9 +90,10 @@ class Order extends Model
 
     /**
      * How placement judges this order's items against the listings behind
-     * them, right now. A retry after a decline calls this before it retakes
-     * stock, so an item that went stale while the card sat declined is
-     * refused rather than sold a second time out from under someone else.
+     * them, as the rows stand right now. A retry after a decline calls this
+     * before it retakes stock — against rows it holds for update — so an item
+     * that went stale while the card sat declined is refused rather than sold
+     * a second time out from under someone else.
      */
     public function placementPlan(): OrderPlacementPlan
     {

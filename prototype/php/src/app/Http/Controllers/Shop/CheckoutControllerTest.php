@@ -196,6 +196,26 @@ it('keeps what the shopper typed when checkout is refused', function (): void {
     $response->assertSee('value="12 Analytical Way"', escape: false);
 });
 
+it('keeps the card off the refusal it renders and out of the session', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $response = $this->post('/checkout', $checkoutFields() + [
+        'card_number' => '4242424242424242',
+        'card_expiry' => '04 / 30',
+        'card_cvc' => '123',
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertDontSee('4242424242424242');
+    expect(Session::getOldInput('card_number'))->toBeNull()
+        ->and(Session::getOldInput('card_expiry'))->toBeNull()
+        ->and(Session::getOldInput('card_cvc'))->toBeNull()
+        ->and(Session::getOldInput('shipping_line1'))->toBe('12 Analytical Way');
+});
+
 it('carries every blocked line into the refused log line', function () use ($checkoutFields): void {
     $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);

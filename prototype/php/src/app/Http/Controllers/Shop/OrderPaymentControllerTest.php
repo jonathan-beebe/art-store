@@ -9,6 +9,7 @@ use App\Domain\Orders\OrderStatus;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Order;
+use Illuminate\Support\Facades\Session;
 
 $unpaidOrderFor = function (Customer $customer): Order {
     return test()->orderFor($customer, test()->listing(test()->seller(), ['price_cents' => 24500]));
@@ -76,6 +77,33 @@ it('sends a blocked customer back with the reason instead of charging the card',
     $response->assertSee('Buying is unavailable while your account is blocked: Chargeback fraud.');
     expect($order->refresh()->status)->toBe(OrderStatus::AwaitingPayment)
         ->and($order->payments()->count())->toBe(0);
+});
+
+it('keeps a card the core refused out of the session and off the page it lands on', function () use ($unpaidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    CustomerBlock::factory()->create(['customer_id' => $shopper->id, 'reason' => 'Chargeback fraud.']);
+
+    $response = $this->from(route('shop.order.pay', $order))
+        ->followingRedirects()
+        ->post(route('shop.order.pay', $order), ['card_number' => '4242424242424242']);
+
+    $response->assertDontSee('4242424242424242');
+    expect(Session::getOldInput('card_number'))->toBeNull();
+});
+
+it('keeps a card the validator refused out of the session and off the page it lands on', function () use ($unpaidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    $tooLong = str_repeat('4242', 10);
+
+    $response = $this->from(route('shop.order.pay', $order))
+        ->followingRedirects()
+        ->post(route('shop.order.pay', $order), ['card_number' => $tooLong]);
+
+    $response->assertSee('The card number field must not be greater than 32 characters.');
+    $response->assertDontSee($tooLong);
+    expect(Session::getOldInput('card_number'))->toBeNull();
 });
 
 it('refuses a retry naming the listing that sold to someone else while the card sat declined', function (): void {

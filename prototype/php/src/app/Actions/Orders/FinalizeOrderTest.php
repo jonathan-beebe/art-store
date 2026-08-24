@@ -14,6 +14,7 @@ use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\CustomerBlock;
 use App\Models\LedgerEntry;
+use App\Models\Listing;
 use App\Notifications\ItemSold;
 use DomainException;
 use Illuminate\Support\Facades\Notification;
@@ -124,6 +125,21 @@ it('pays the order and takes the stock again on a retry with a good card', funct
     expect($listing->refresh()->quantity)->toBe(0)
         ->and($listing->status)->toBe(ListingStatus::Sold);
     expect(LedgerEntry::query()->sole()->amount_cents)->toBe(40500);
+});
+
+it('judges the retry against the rows it locked, not what the caller loaded before', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    $finalizeOrder = app(FinalizeOrder::class);
+    $finalizeOrder($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
+    // What the pay page had read after the decline handed the stock back.
+    $order->load('items.listing');
+    Listing::whereKey($listing->id)->update(['quantity' => 0, 'status' => ListingStatus::Sold]);
+
+    $retry = fn () => $finalizeOrder($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:05:00'));
+
+    expect($retry)->toThrow(OrderPlacementRefused::class, '“Winter Elm” is no longer available to buy.')
+        ->and($order->refresh()->payments()->count())->toBe(1);
 });
 
 it('refuses a retry when the listing sold to someone else while the card sat declined', function (): void {

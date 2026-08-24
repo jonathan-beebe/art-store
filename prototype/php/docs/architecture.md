@@ -219,6 +219,10 @@ router has resolved anything, so it matches the magic-link path itself and
 logs `GET /auth/magic/<token>` as `/auth/magic/{token}`. `CheckoutControllerTest` and
 `SendMagicLinkTest` each assert it over the whole captured log.
 
+The same rule covers the session: a card number never reaches the old input a
+re-rendered form reads (`ShopRequest::CARD_FIELDS`, and `bootstrap/app.php` for
+the validation redirect and a `DomainRuleViolation`'s `back()->withInput()`).
+
 ### Reading the log in a test
 
 `Tests\CapturedStory` swaps a Monolog handler carrying the same

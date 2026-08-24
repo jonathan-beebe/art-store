@@ -55,8 +55,8 @@ class Cart extends Model
      * How placement judges this cart's lines against the listings behind
      * them, right now — the cart page's answer for marking a blocked line
      * and disabling checkout. `PlaceOrder` builds the same plan again inside
-     * its own transaction, because what this reads is already stale by the
-     * time a shopper acts on it.
+     * its own transaction, from rows it holds for update, because what this
+     * reads is already stale by the time a shopper acts on it.
      */
     public function placementPlan(): OrderPlacementPlan
     {

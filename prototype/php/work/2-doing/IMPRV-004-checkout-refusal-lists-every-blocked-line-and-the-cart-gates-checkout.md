@@ -120,3 +120,79 @@ line coverage. After: 1275 tests, 3502 assertions, 100.0% line coverage.
 `src/app/Support/Story.php` (the `CarriesRefusalData` merge in `tell()`) are
 shared infrastructure — a narrow, additive change to both, but worth
 checking for conflicts against any other ticket touching refusal handling.
+
+### Review fix-ups
+
+Review of `88d4c7e` found two claims above that the code did not keep, and one
+latent hazard. All three are closed here.
+
+**The race was not closed.** "`PlaceOrder` builds the plan **inside**
+`DB::transaction()` now — closing the race the ticket named" was wrong: a
+transaction alone orders nothing. Nothing took a row lock, and `Listing::sell()`
+computes the new quantity in PHP from the row it read and writes it back with an
+unconditional `UPDATE` (`ListingStock::afterSale` → `applyStock`). Two checkouts
+against `quantity = 1` could each read 1, each pass the plan, and each write 0 —
+a lost update, two orders, one piece.
+
+`Listing`'s new `lockedForPlacement` scope (`order by id`, `for update`) is the
+fix, applied as the eager-load constraint on `items.listing` in `PlaceOrder`'s
+transaction and in `FinalizeOrder`'s `lockListings()` — the stale re-check
+before a retry retakes stock, and the restock a decline writes, both of which
+read a quantity and write the pair back. The plan is built from the rows the
+lock returned, never from a read taken before it.
+
+Row lock over an atomic conditional decrement (`UPDATE … SET quantity =
+quantity - ? WHERE id = ? AND quantity >= ?`): the decrement answers "did it
+apply" after the fact with a row count, while the refusal this ticket exists for
+needs each blocked line's reason, which means reading the rows anyway; and
+`ListingStock` decides the quantity **and** the `Sold` transition together, so a
+SQL-side decrement would either split that decision or duplicate it in the
+grammar. The lock leaves the pure core the one place that decides.
+
+What the tests prove: `ListingTest` compiles the scope's query with a grammar
+that has the clause and asserts the SQL orders by id and ends `for update` —
+SQLite has no row lock and its grammar compiles the clause away, so nothing
+executed against the test database can show it. `PlaceOrderTest` and
+`FinalizeOrderTest` each assert the plan is judged against rows read inside the
+transaction, not against relations the caller loaded before it. What no test
+proves: the interleaving itself. SQLite runs one write transaction at a time, so
+the second checkout is turned away by the database rather than losing the
+update, and the race cannot be staged here. On a database that runs write
+transactions concurrently, the lock is what makes the second one wait and then
+read what the first committed.
+
+**The 422 preserved too much.** "`$request->flash()`, so `old()` … preserves
+what was typed" flashed the card number as well: `<x-card-fields>` renders
+`old('card_number')`, so the number went into the 422 body and into session
+storage. `ShopRequest::CARD_FIELDS` names the three card fields and
+`ShopRequest::flash()` flashes everything else; `bootstrap/app.php` keeps the
+same fields out of the two flashes the framework does on its own — the
+validation redirect (`$exceptions->dontFlash()`) and a `DomainRuleViolation`'s
+`back()->withInput()`, which is how `/orders/{order}/pay` leaked on both a
+blocked customer and a card the validator rejected. Four tests cover the three
+paths; each fails against the old code. No other view echoes a card field. The
+log lines on these paths were already clean — `CheckoutControllerTest` asserts
+the address and the card appear nowhere in the captured log, and
+`OrderPlacementRefused::refusalData()` carries only listing ids, titles, and
+reasons.
+
+**`Story::tell()`'s merge.** Refusal data is now filtered through
+`array_diff_key` against the unit of work's own `data`: a future
+`CarriesRefusalData` implementer naming `order_id` adds nothing rather than
+overwriting the action's fact. The action's facts win, because the line is
+about the action. Key order on the line is unchanged.
+
+`docs/orders.md` now says what the code does — the lock, what SQLite gives,
+and what nothing flashes — and `docs/architecture.md`'s redaction section names
+the session alongside the log.
+
+Numbers after the fix-ups: 1282 tests, 3526 assertions, 100.0 % line coverage,
+`make check` green (baseline for this review was 1275 / 3502).
+
+For the other two lanes: all three prototypes run SQLite, so none of them can
+lose the update today, and the same read-modify-write on a listing row sits in
+Node's `planOrderPlacement` path and Rails' equivalent. Whoever carries either
+lane to a database with concurrent writers takes the rows for update in the
+placing transaction the way this one now does. The card rule is not
+database-dependent and applies to both now: nothing flashes or re-renders a
+submitted card number.

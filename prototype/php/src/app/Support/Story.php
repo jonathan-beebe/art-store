@@ -130,7 +130,7 @@ final class Story
         try {
             return $work($this);
         } catch (DomainRuleViolation $violation) {
-            $this->refused($violation->getMessage(), [...$data, ...self::refusalData($violation)]);
+            $this->refused($violation->getMessage(), [...$data, ...self::refusalData($violation, $data)]);
 
             throw $violation;
         } catch (Throwable $error) {
@@ -242,12 +242,17 @@ final class Story
 
     /**
      * A violation that names nothing beyond its message carries nothing more
-     * onto the line it ends the story with.
+     * onto the line it ends the story with, and one that names a key the unit
+     * of work already named carries only the rest: the action's own facts win,
+     * because the action is what the line is about.
      *
+     * @param  array<string, mixed>  $data  what the unit of work already knows
      * @return array<string, mixed>
      */
-    private static function refusalData(DomainRuleViolation $violation): array
+    private static function refusalData(DomainRuleViolation $violation, array $data): array
     {
-        return $violation instanceof CarriesRefusalData ? $violation->refusalData() : [];
+        return $violation instanceof CarriesRefusalData
+            ? array_diff_key($violation->refusalData(), $data)
+            : [];
     }
 }

@@ -151,6 +151,25 @@ class Listing extends Model
     }
 
     /**
+     * Takes the rows this query selects for update. Placement reads a
+     * listing's quantity and status and writes the pair back from what it
+     * read, so the row has to be held from that read until the transaction
+     * commits — otherwise two shoppers both read `quantity = 1`, both pass the
+     * plan, and the second `UPDATE` overwrites the first with its own stale
+     * arithmetic. In id order, so two carts holding the same listings ask for
+     * them in the same order. SQLite, which the prototype develops and tests
+     * on, has no row lock and serialises writers instead; its grammar compiles
+     * the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForPlacement(Builder $query): void
+    {
+        $query->orderBy('id')->lockForUpdate();
+    }
+
+    /**
      * One row per status the seller's listings hold, carrying how many hold it.
      *
      * @param  Builder<$this>  $query

@@ -15,10 +15,13 @@ use App\Events\OrderPaid;
 use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
+use App\Models\Listing;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Support\Story;
 use DateTimeImmutable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
 final readonly class FinalizeOrder
@@ -47,6 +50,8 @@ final readonly class FinalizeOrder
                     // claims them again — the same shape checkout refuses
                     // with, because the customer sitting on this page is
                     // exactly the shopper a stale cart would have refused.
+                    // The re-check takes those rows for update, and the sale
+                    // that follows writes the rows it read.
                     $this->assertStillAvailable($order);
                     $this->sellItems($order);
                 }
@@ -115,11 +120,35 @@ final readonly class FinalizeOrder
 
     private function assertStillAvailable(Order $order): void
     {
-        $plan = $order->load('items.listing')->placementPlan();
+        $plan = $this->lockListings($order)->placementPlan();
 
         if (! $plan->isPlaceable()) {
             throw new OrderPlacementRefused($plan->blocked);
         }
+    }
+
+    /**
+     * Takes the listing rows behind this order for update and reloads the
+     * items from them. Every stock write in this transaction reads a
+     * quantity and writes the pair back from what it read, so the rows are
+     * held from that read until the commit and a concurrent checkout waits
+     * rather than overwriting the result with its own stale arithmetic.
+     */
+    private function lockListings(Order $order): Order
+    {
+        return $order->load(['items.listing' => $this->takeForUpdate(...)]);
+    }
+
+    /**
+     * The eager load's constraint: the listing behind an order item is read
+     * for update, so the row the re-check judges is the row the sale — or the
+     * restock a decline follows with — writes back.
+     *
+     * @param  BelongsTo<Listing, OrderItem>  $listing
+     */
+    private function takeForUpdate(BelongsTo $listing): void
+    {
+        $listing->getQuery()->lockedForPlacement();
     }
 
     private function sellItems(Order $order): void
@@ -131,7 +160,7 @@ final readonly class FinalizeOrder
 
     private function restockItems(Order $order): void
     {
-        foreach ($order->items as $item) {
+        foreach ($this->lockListings($order)->items as $item) {
             $item->listing->restock($item->quantity);
         }
     }

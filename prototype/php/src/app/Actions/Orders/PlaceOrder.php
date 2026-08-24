@@ -13,11 +13,14 @@ use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
 use App\Logging\StoryEvent;
 use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\Fulfillment;
+use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Support\Story;
 use DateTimeImmutable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
 final readonly class PlaceOrder
@@ -33,13 +36,13 @@ final readonly class PlaceOrder
             CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
 
             $order = DB::transaction(function () use ($cart, $purchaser, $shipping, $now): Order {
-                // Read fresh, inside the transaction: what the cart holds and
-                // what the listings behind it allow right now, so a line
-                // that went stale between the page and this submit is
-                // refused — every blocked line at once — rather than
-                // half-placed, and two shoppers cannot both take the last
-                // piece.
-                $cart->load('items.listing');
+                // Read fresh and for update, inside the transaction: the
+                // listing rows the plan judges are the rows `sell()` writes
+                // back, so holding them from this read to the commit is what
+                // stops two shoppers both taking the last piece. A line that
+                // went stale between the page and this submit is refused —
+                // every blocked line at once — rather than half-placed.
+                $cart->load(['items.listing' => $this->takeForUpdate(...)]);
                 $plan = $cart->placementPlan();
 
                 if (! $plan->isPlaceable()) {
@@ -78,6 +81,17 @@ final readonly class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * The eager load's constraint: the listing behind a cart line is read for
+     * update, so the row the plan judges is the row the sale writes back.
+     *
+     * @param  BelongsTo<Listing, CartItem>  $listing
+     */
+    private function takeForUpdate(BelongsTo $listing): void
+    {
+        $listing->getQuery()->lockedForPlacement();
     }
 
     private function snapshotItems(Order $order, Cart $cart): void

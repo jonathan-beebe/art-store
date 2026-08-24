@@ -8,6 +8,8 @@ use App\Actions\Listings\RecordListingEvent;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use DomainException;
+use Illuminate\Database\Query\Grammars\MySqlGrammar;
+use Illuminate\Support\Facades\DB;
 
 it('reads the faqs published on it', function (): void {
     $listing = $this->listing($this->seller());
@@ -24,6 +26,17 @@ it('surfaces only listings for sale on the storefront', function (): void {
     $this->listing($seller, ['status' => ListingStatus::Sold, 'quantity' => 0]);
 
     expect(Listing::query()->forSale()->pluck('id')->all())->toBe([$forSale->id]);
+});
+
+it('takes the rows placement reads for update, in id order', function (): void {
+    // SQLite has no row lock and its grammar compiles the clause away, so the
+    // query is compiled here with the grammar of a database that does have
+    // one — what the same read asks for in production.
+    $query = Listing::query()->lockedForPlacement()->toBase();
+
+    expect((new MySqlGrammar(DB::connection()))->compileSelect($query))
+        ->toContain('order by `id` asc')
+        ->toEndWith('for update');
 });
 
 it('reads whether it can still be bought', function (): void {
