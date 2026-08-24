@@ -1,4 +1,6 @@
 class Order < ApplicationRecord
+  prefixed_id :ord
+
   include EmailAddress
 
   # What checkout collects, under the column names the form posts.

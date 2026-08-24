@@ -373,6 +373,7 @@ class ListingTest < ActiveSupport::TestCase
     record = create_listing(title: "Blue Heron")
     record.image.attach(io: StringIO.new("<svg/>"), filename: "heron.svg", content_type: "image/svg+xml")
 
+    assert_equal record.id, record.image_attachment.record_id
     assert_match %r{\A/rails/active_storage/blobs/}, record.image_url
   end
 

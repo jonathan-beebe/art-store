@@ -33,13 +33,15 @@ updates need no Redis and no second database.
 ## Layers inside the deployable
 
 The stock Rails tree. `app/` holds `assets controllers helpers javascript
-mailers models views`, `config/application.rb` has no autoloader configuration,
-and `bin/rails zeitwerk:check` passes on the defaults.
+mailers models views`, `config/application.rb` keeps the generated
+`autoload_lib(ignore: %w[assets tasks])` and adds nothing else, and
+`bin/rails zeitwerk:check` passes on the defaults.
 
 ```mermaid
 flowchart TD
     entry["config/routes.rb, config/initializers"] --> controllers
     controllers["app/controllers/&lt;site&gt;/ + concerns, lib/tasks"] --> models
+    entry --> lib["lib/prefixed_ulid.rb"]
     controllers --> views
     views["app/views + app/helpers"] --> models
     controllers --> mailers
@@ -52,11 +54,12 @@ flowchart TD
 
 | Lives in | Holds |
 | --- | --- |
-| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry. |
+| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry, and `app/models/concerns/prefixed_id.rb` names the prefix each table mints its ids under. |
 | `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). `MessagingSite` is the inbox, thread and reply the three sites share, over the assigns `ThreadPage` names; `SellerThreadPage` adds the portal's publish-as-FAQ form to those assigns, which is what lets a refused entry come back on the thread it was lifted from. |
 | `app/mailers/` | `MagicLinkMailer` and its views. |
 | `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). The partials a broadcast renders live here too, one per site: `{shop,seller,admin}/conversations/_message` and `_unread_badge`. |
 | `app/javascript/` | `application.js` — one `import "@hotwired/turbo-rails"` and nothing else. `config/importmap.rb` pins it and the Turbo the gem ships; `javascript_importmap_tags` in the three layouts serves the map. No bundler, no Node, no Stimulus. |
+| `lib/` | `prefixed_ulid.rb` mints and parses the prefixed ULID every table is keyed by, and hands `config/routes.rb` the segment constraints that turn away a path carrying another table's id. `lib/tasks/` holds the rake tasks. |
 | `config/routes.rb`, `config/initializers/*`, `config/cable.yml`, `config/importmap.rb` | Wiring only. |
 
 The gems outside stock Rails 8.1.3.1 on Ruby 3.3.12:

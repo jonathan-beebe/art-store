@@ -1,4 +1,6 @@
 class Cart < ApplicationRecord
+  prefixed_id :crt
+
   belongs_to :customer
   has_many :items, class_name: "CartItem", dependent: :destroy, inverse_of: :cart
 

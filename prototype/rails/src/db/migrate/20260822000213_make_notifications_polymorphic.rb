@@ -1,7 +1,7 @@
 class MakeNotificationsPolymorphic < ActiveRecord::Migration[8.1]
   def up
     add_column :notifications, :recipient_type, :string
-    add_column :notifications, :recipient_id, :integer
+    add_column :notifications, :recipient_id, :string
 
     execute "UPDATE notifications SET recipient_type = 'Seller', recipient_id = seller_id WHERE seller_id IS NOT NULL"
     execute "UPDATE notifications SET recipient_type = 'Customer', recipient_id = customer_id WHERE customer_id IS NOT NULL"
@@ -19,8 +19,8 @@ class MakeNotificationsPolymorphic < ActiveRecord::Migration[8.1]
   end
 
   def down
-    add_reference :notifications, :seller, foreign_key: true
-    add_reference :notifications, :customer, foreign_key: true
+    add_reference :notifications, :seller, foreign_key: true, type: :string
+    add_reference :notifications, :customer, foreign_key: true, type: :string
     add_index :notifications, [ :seller_id, :read_at ]
     add_index :notifications, [ :customer_id, :read_at ]
 

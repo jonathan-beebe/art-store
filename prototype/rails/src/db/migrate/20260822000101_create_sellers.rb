@@ -1,6 +1,6 @@
 class CreateSellers < ActiveRecord::Migration[8.1]
   def change
-    create_table :sellers do |t|
+    create_table :sellers, id: :string do |t|
       t.string :email, null: false
       t.string :name
       t.string :shop_name

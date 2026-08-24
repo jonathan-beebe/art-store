@@ -6,7 +6,7 @@ module Shop
       return redirect_to sign_in_to_pay(order) unless customer_signed_in?
 
       @order = order.mark_awaiting_payment!
-      @payment = @order.payments.order(:id).last
+      @payment = @order.payments.order(:created_at, :id).last
     end
 
     def create

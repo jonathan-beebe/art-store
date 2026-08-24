@@ -1,4 +1,6 @@
 class ListingEvent < ApplicationRecord
+  prefixed_id :lev
+
   # What an event log adds up to. An unfavorite is recorded as its own event
   # and leaves the favorites count where it was.
   Totals = Data.define(:views, :favorites, :cart_adds) do

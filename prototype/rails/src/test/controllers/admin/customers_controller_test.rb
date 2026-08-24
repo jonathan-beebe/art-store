@@ -50,7 +50,7 @@ class Admin::CustomersControllerTest < ActionDispatch::IntegrationTest
   test "a customer id nothing was written for is not found" do
     sign_in_as_admin
 
-    get admin_customer_path(id: 0)
+    get admin_customer_path(id: unused_id(:cus))
 
     assert_response :not_found
   end

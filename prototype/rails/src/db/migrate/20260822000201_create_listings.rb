@@ -1,7 +1,7 @@
 class CreateListings < ActiveRecord::Migration[8.1]
   def change
-    create_table :listings do |t|
-      t.references :seller, null: false, foreign_key: true
+    create_table :listings, id: :string do |t|
+      t.references :seller, null: false, foreign_key: true, type: :string
       t.string :title, null: false
       t.string :slug, null: false
       t.text :description

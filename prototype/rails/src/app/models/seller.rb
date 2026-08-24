@@ -1,4 +1,6 @@
 class Seller < ApplicationRecord
+  prefixed_id :sel
+
   include EmailAddress
   include Messaging
 

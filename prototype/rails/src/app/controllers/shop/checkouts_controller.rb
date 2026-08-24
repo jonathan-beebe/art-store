@@ -62,7 +62,7 @@ module Shop
     end
 
     def load_summary
-      @items = current_cart.items.includes(:listing).order(:id)
+      @items = current_cart.items.includes(:listing).order(:created_at, :id)
       @subtotal = current_cart.subtotal
     end
   end

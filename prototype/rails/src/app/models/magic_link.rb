@@ -1,6 +1,8 @@
 require "digest"
 
 class MagicLink < ApplicationRecord
+  prefixed_id :mlk
+
   include EmailAddress
 
   TOKEN_BYTES = 32

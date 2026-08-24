@@ -2,12 +2,12 @@ class CreateConversations < ActiveRecord::Migration[8.1]
   def change
     # One table serves every pairing: `kind` says which two participant columns
     # are filled and what the subject, if any, points at.
-    create_table :conversations do |t|
+    create_table :conversations, id: :string do |t|
       t.string :kind, null: false
-      t.references :seller, foreign_key: true, index: false
-      t.references :customer, foreign_key: true, index: false
-      t.references :admin, foreign_key: true, index: false
-      t.references :subject, polymorphic: true, index: false
+      t.references :seller, foreign_key: true, index: false, type: :string
+      t.references :customer, foreign_key: true, index: false, type: :string
+      t.references :admin, foreign_key: true, index: false, type: :string
+      t.references :subject, polymorphic: true, index: false, type: :string
       t.datetime :last_message_at, null: false
 
       t.timestamps

@@ -1,4 +1,6 @@
 class Payout < ApplicationRecord
+  prefixed_id :pyt
+
   belongs_to :seller
   has_many :ledger_entries, dependent: :nullify
 

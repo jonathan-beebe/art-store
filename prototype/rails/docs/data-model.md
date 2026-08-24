@@ -1,6 +1,6 @@
 # Data model
 
-Generated from `src/db/schema.rb` (version `2026_08_23_000105`). Active
+Generated from `src/db/schema.rb` (version `2026_08_23_202914`). Active
 Storage's own tables (`active_storage_attachments`, `active_storage_blobs`,
 `active_storage_variant_records`) are omitted — nothing in the domain reads
 or writes them directly; `Listing#image_url` falls back to a generated
@@ -8,32 +8,41 @@ placeholder when no blob is attached. `solid_cable_messages` is omitted the
 same way — Solid Cable owns it, and it holds the broadcast queue rather than
 any part of the domain.
 
+Every primary key below is a prefixed ULID stored as text: three letters
+naming the table, an underscore, and a 26-character Crockford base32 ULID —
+`ord_01J5X3M9A2K8YB7Q4R6T1V0WZE`. The primary key is the public id, so URLs
+and log lines carry it whole, and a foreign key holds the same string.
+`PrefixedUlid` mints them and the `PrefixedId` concern names each table's
+prefix. Framework-owned tables keep the framework's keys; the one text column
+among them is `active_storage_attachments.record_id`, which points at a
+domain row.
+
 Question: what tables exist, what does each row mean, and how do they
 connect?
 
 ```mermaid
 erDiagram
     sellers {
-        id id PK
+        string id PK "sel_<ulid>"
         string email UK
         string name
         string shop_name
         timestamp email_verified_at
     }
     customers {
-        id id PK
+        string id PK "cus_<ulid>"
         string email UK "nullable, anonymous rows have none"
         string name
         timestamp email_verified_at
     }
     customer_merges {
-        id id PK
-        id anonymous_customer_id FK "UK, -> customers"
-        id customer_id FK "-> customers, the verified survivor"
+        string id PK "cmg_<ulid>"
+        string anonymous_customer_id FK "UK, -> customers"
+        string customer_id FK "-> customers, the verified survivor"
     }
     listings {
-        id id PK
-        id seller_id FK
+        string id PK "lst_<ulid>"
+        string seller_id FK
         string title
         string slug UK
         integer price_cents
@@ -44,30 +53,30 @@ erDiagram
         text description
     }
     listing_events {
-        id id PK
-        id listing_id FK
-        id customer_id FK "nullable"
+        string id PK "lev_<ulid>"
+        string listing_id FK
+        string customer_id FK "nullable"
         string event_type "view|favorite|unfavorite|cart_add"
         timestamp occurred_at
     }
     favorites {
-        id id PK
-        id customer_id FK
-        id listing_id FK
+        string id PK "fav_<ulid>"
+        string customer_id FK
+        string listing_id FK
     }
     carts {
-        id id PK
-        id customer_id FK "not unique - a merge can leave two"
+        string id PK "crt_<ulid>"
+        string customer_id FK "not unique - a merge can leave two"
     }
     cart_items {
-        id id PK
-        id cart_id FK
-        id listing_id FK
+        string id PK "cti_<ulid>"
+        string cart_id FK
+        string listing_id FK
         integer quantity
     }
     orders {
-        id id PK
-        id customer_id FK
+        string id PK "ord_<ulid>"
+        string customer_id FK
         string email
         string status
         string shipping_name
@@ -83,17 +92,17 @@ erDiagram
         timestamp finalized_at "nullable, set on paid"
     }
     order_items {
-        id id PK
-        id order_id FK
-        id listing_id FK
-        id seller_id FK
+        string id PK "oit_<ulid>"
+        string order_id FK
+        string listing_id FK
+        string seller_id FK
         string title "snapshot"
         integer unit_price_cents "snapshot"
         integer quantity
     }
     payments {
-        id id PK
-        id order_id FK "one row per attempt"
+        string id PK "pay_<ulid>"
+        string order_id FK "one row per attempt"
         string status "approved|declined"
         integer amount_cents
         string card_last_four
@@ -101,9 +110,9 @@ erDiagram
         timestamp processed_at
     }
     fulfillments {
-        id id PK
-        id order_id FK "UK with seller_id"
-        id seller_id FK
+        string id PK "ful_<ulid>"
+        string order_id FK "UK with seller_id"
+        string seller_id FK
         string status "awaiting_shipment|shipped|delivered"
         string carrier "nullable"
         string tracking_number "nullable"
@@ -114,65 +123,65 @@ erDiagram
         timestamp delivered_at "nullable"
     }
     payouts {
-        id id PK
-        id seller_id FK "UK with period_start"
+        string id PK "pyt_<ulid>"
+        string seller_id FK "UK with period_start"
         date period_start
         date period_end
         integer amount_cents
         timestamp paid_at
     }
     ledger_entries {
-        id id PK
-        id seller_id FK
-        id fulfillment_id FK "nullable"
-        id payout_id FK "nullable"
+        string id PK "led_<ulid>"
+        string seller_id FK
+        string fulfillment_id FK "nullable"
+        string payout_id FK "nullable"
         string entry_type "held|released|paid_out"
         integer amount_cents "signed"
         timestamp occurred_at
     }
     notifications {
-        id id PK
+        string id PK "ntf_<ulid>"
         string recipient_type "Seller|Customer|Admin"
-        id recipient_id "polymorphic, no FK"
+        string recipient_id "polymorphic, no FK"
         string subject
         text body
         string url "nullable"
         timestamp read_at "nullable"
     }
     admins {
-        id id PK
+        string id PK "adm_<ulid>"
         string email UK
         string name
         timestamp email_verified_at
     }
     conversations {
-        id id PK
+        string id PK "cnv_<ulid>"
         string kind "admin_seller|admin_customer|fulfillment|listing_question"
-        id seller_id FK "nullable, filled by the kind"
-        id customer_id FK "nullable, filled by the kind"
-        id admin_id FK "nullable, filled by the kind"
+        string seller_id FK "nullable, filled by the kind"
+        string customer_id FK "nullable, filled by the kind"
+        string admin_id FK "nullable, filled by the kind"
         string subject_type "nullable, Listing|Fulfillment"
-        id subject_id "polymorphic, no FK"
+        string subject_id "polymorphic, no FK"
         timestamp last_message_at
     }
     messages {
-        id id PK
-        id conversation_id FK
+        string id PK "msg_<ulid>"
+        string conversation_id FK
         string sender_type "Seller|Customer|Admin"
-        id sender_id "polymorphic, no FK"
+        string sender_id "polymorphic, no FK"
         text body
         timestamp read_at "nullable, read by the side that did not send it"
     }
     listing_faqs {
-        id id PK
-        id listing_id FK
+        string id PK "faq_<ulid>"
+        string listing_id FK
         text question
         text answer
-        id source_message_id FK "nullable, -> messages"
+        string source_message_id FK "nullable, -> messages"
         timestamp published_at "the row exists only while published"
     }
     magic_links {
-        id id PK
+        string id PK "mlk_<ulid>"
         string token_digest UK
         string email
         string actor_type "seller|customer|admin"
@@ -241,7 +250,11 @@ Caveats:
   from scratch.
 - `payments` is one row per charge attempt, not one row per order — a
   declined card followed by a retry leaves two rows. The order's current
-  payment is the latest one (`order.payments.order(:id).last`).
+  payment is the latest one (`order.payments.order(:created_at, :id).last`).
+- Ordering by creation reads `created_at`, never the id, even though a ULID
+  sorts by the millisecond it was minted. The id breaks a tie between two
+  rows written in the same millisecond, since ids minted on one clock reading
+  count up.
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
   positive, `paid_out` is negative. See `docs/escrow.md`.
 - `carts.customer_id` is not unique — `Customer#absorb` can

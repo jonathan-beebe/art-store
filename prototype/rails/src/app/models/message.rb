@@ -1,4 +1,6 @@
 class Message < ApplicationRecord
+  prefixed_id :msg
+
   BODY_LIMIT = 2_000
 
   belongs_to :conversation

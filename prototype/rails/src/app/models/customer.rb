@@ -1,4 +1,6 @@
 class Customer < ApplicationRecord
+  prefixed_id :cus
+
   include EmailAddress
   include Messaging
 
@@ -33,11 +35,11 @@ class Customer < ApplicationRecord
     anonymous ? owner.absorb(anonymous) : owner
   end
 
-  # Returns nil when the cookie is absent, unreadable, or points at a customer
-  # that no longer exists.
+  # Returns nil when the cookie is absent, carries anything but a customer id,
+  # or points at a customer that no longer exists.
   def self.from_cookie(value)
-    id = Integer(value, exception: false)
-    return nil if id.nil? || id < 1
+    id = PrefixedUlid.parse(value, :cus)
+    return nil if id.nil?
 
     find_by(id: CustomerMerge.where(anonymous_customer_id: id).pick(:customer_id) || id)
   end

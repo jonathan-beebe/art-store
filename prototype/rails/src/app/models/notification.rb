@@ -1,4 +1,6 @@
 class Notification < ApplicationRecord
+  prefixed_id :ntf
+
   belongs_to :recipient, polymorphic: true
 
   scope :unread, -> { where(read_at: nil) }

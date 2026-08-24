@@ -1,4 +1,6 @@
 class Fulfillment < ApplicationRecord
+  prefixed_id :ful
+
   belongs_to :order
   belongs_to :seller
   has_many :ledger_entries, dependent: :destroy

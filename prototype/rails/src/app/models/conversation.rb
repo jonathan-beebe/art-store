@@ -1,4 +1,6 @@
 class Conversation < ApplicationRecord
+  prefixed_id :cnv
+
   # Where an actor of one type sits in a conversation, which site they read one
   # on, and where they read it.
   Side = Data.define(:column, :site, :inbox_path)
@@ -56,7 +58,7 @@ class Conversation < ApplicationRecord
     named = KINDS.fetch(kind.to_s).sides.index_with { |side| participants.fetch(side) }
     shape = { kind: kind, subject: subject, **named }
 
-    where(shape).order(:id).first || create!(**shape, last_message_at: at)
+    where(shape).order(:created_at, :id).first || create!(**shape, last_message_at: at)
   end
 
   # Which side of a conversation this actor sits on, whatever kind it is.
@@ -110,7 +112,7 @@ class Conversation < ApplicationRecord
   # takes this one's messages onto theirs and this row goes, so one thread per
   # kind, participants and subject survives the merge.
   def move_to(customer)
-    standing = self.class.where(shape.merge("customer_id" => customer.id)).order(:id).first
+    standing = self.class.where(shape.merge("customer_id" => customer.id)).order(:created_at, :id).first
     return update!(customer: customer) if standing.nil?
 
     transaction do

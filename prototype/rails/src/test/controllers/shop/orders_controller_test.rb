@@ -70,6 +70,14 @@ module Shop
       assert_response :not_found
     end
 
+    test "an order path carrying another table's id is not found" do
+      paid_order
+
+      get "/orders/#{unused_id(:lst)}"
+
+      assert_response :not_found
+    end
+
     test "an empty order list says so" do
       get shop_orders_path
 

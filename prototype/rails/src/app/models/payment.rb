@@ -1,4 +1,6 @@
 class Payment < ApplicationRecord
+  prefixed_id :pay
+
   belongs_to :order
 
   enum :status, { approved: "approved", declined: "declined" }

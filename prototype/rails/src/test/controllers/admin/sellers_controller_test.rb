@@ -32,10 +32,18 @@ class Admin::SellersControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-field=?]", "listings", text: "2"
   end
 
+  test "a seller path carrying another table's id is not found" do
+    sign_in_as_admin
+
+    get "/admin/sellers/#{unused_id(:cus)}"
+
+    assert_response :not_found
+  end
+
   test "a seller id nothing was written for is not found" do
     sign_in_as_admin
 
-    get admin_seller_path(id: 0)
+    get admin_seller_path(id: unused_id(:sel))
 
     assert_response :not_found
   end

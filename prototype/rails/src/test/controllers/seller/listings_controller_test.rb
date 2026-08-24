@@ -203,6 +203,23 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name=?][value=?]", "listing[quantity]", "3"
   end
 
+  test "a listing path carrying another table's id is not found" do
+    signed_in_seller
+
+    get "/seller/listings/#{unused_id(:ord)}"
+
+    assert_response :not_found
+  end
+
+  test "a listing path carrying a ulid with no prefix is not found" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+
+    get "/seller/listings/#{listing.id.delete_prefix('lst_')}"
+
+    assert_response :not_found
+  end
+
   test "editing another seller's listing is not found" do
     signed_in_seller
     rival = create_listing(other_seller)

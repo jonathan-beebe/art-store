@@ -61,6 +61,14 @@ module Shop
       assert_response :not_found
     end
 
+    test "the storefront addresses a listing by slug, not by its id" do
+      listing = create_listing
+
+      get "/art/#{listing.id}"
+
+      assert_response :not_found
+    end
+
     test "an unknown slug is not on the storefront" do
       get shop_listing_path(slug: "nothing-here")
 

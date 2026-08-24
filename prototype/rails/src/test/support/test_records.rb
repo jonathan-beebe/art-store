@@ -89,6 +89,11 @@ module TestRecords
     Time.zone.parse(text)
   end
 
+  # An id of the shape a table mints, for a row that was never written.
+  def unused_id(prefix)
+    PrefixedUlid.generate(prefix)
+  end
+
   def unique_email(role)
     "#{role}-#{SecureRandom.hex(4)}@example.test"
   end

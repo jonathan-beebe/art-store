@@ -15,7 +15,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
-    t.bigint "record_id", null: false
+    t.string "record_id", null: false
     t.string "record_type", null: false
     t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
     t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
@@ -39,7 +39,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
-  create_table "admins", force: :cascade do |t|
+  create_table "admins", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.datetime "email_verified_at"
@@ -48,10 +48,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["email"], name: "index_admins_on_email", unique: true
   end
 
-  create_table "cart_items", force: :cascade do |t|
-    t.integer "cart_id", null: false
+  create_table "cart_items", id: :string, force: :cascade do |t|
+    t.string "cart_id", null: false
     t.datetime "created_at", null: false
-    t.integer "listing_id", null: false
+    t.string "listing_id", null: false
     t.integer "quantity", null: false
     t.datetime "updated_at", null: false
     t.index ["cart_id", "listing_id"], name: "index_cart_items_on_cart_id_and_listing_id", unique: true
@@ -59,40 +59,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["listing_id"], name: "index_cart_items_on_listing_id"
   end
 
-  create_table "carts", force: :cascade do |t|
+  create_table "carts", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "customer_id", null: false
+    t.string "customer_id", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id"], name: "index_carts_on_customer_id"
   end
 
-  create_table "conversations", force: :cascade do |t|
-    t.integer "admin_id"
+  create_table "conversations", id: :string, force: :cascade do |t|
+    t.string "admin_id"
     t.datetime "created_at", null: false
-    t.integer "customer_id"
+    t.string "customer_id"
     t.string "kind", null: false
     t.datetime "last_message_at", null: false
-    t.integer "seller_id"
-    t.integer "subject_id"
+    t.string "seller_id"
+    t.string "subject_id"
     t.string "subject_type"
     t.datetime "updated_at", null: false
-    t.index "kind, COALESCE(seller_id, 0), COALESCE(customer_id, 0), COALESCE(admin_id, 0), COALESCE(subject_type, ''), COALESCE(subject_id, 0)", name: "index_conversations_on_shape", unique: true
+    t.index "kind, COALESCE(seller_id, ''), COALESCE(customer_id, ''), COALESCE(admin_id, ''), COALESCE(subject_type, ''), COALESCE(subject_id, '')", name: "index_conversations_on_shape", unique: true
     t.index ["admin_id", "last_message_at"], name: "index_conversations_on_admin_id_and_last_message_at"
     t.index ["customer_id", "last_message_at"], name: "index_conversations_on_customer_id_and_last_message_at"
     t.index ["kind", "subject_type", "subject_id"], name: "index_conversations_on_kind_and_subject_type_and_subject_id"
     t.index ["seller_id", "last_message_at"], name: "index_conversations_on_seller_id_and_last_message_at"
   end
 
-  create_table "customer_merges", force: :cascade do |t|
-    t.integer "anonymous_customer_id", null: false
+  create_table "customer_merges", id: :string, force: :cascade do |t|
+    t.string "anonymous_customer_id", null: false
     t.datetime "created_at", null: false
-    t.integer "customer_id", null: false
+    t.string "customer_id", null: false
     t.datetime "updated_at", null: false
     t.index ["anonymous_customer_id"], name: "index_customer_merges_on_anonymous_customer_id", unique: true
     t.index ["customer_id"], name: "index_customer_merges_on_customer_id"
   end
 
-  create_table "customers", force: :cascade do |t|
+  create_table "customers", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email"
     t.datetime "email_verified_at"
@@ -101,24 +101,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["email"], name: "index_customers_on_email", unique: true
   end
 
-  create_table "favorites", force: :cascade do |t|
+  create_table "favorites", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "customer_id", null: false
-    t.integer "listing_id", null: false
+    t.string "customer_id", null: false
+    t.string "listing_id", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id", "listing_id"], name: "index_favorites_on_customer_id_and_listing_id", unique: true
     t.index ["customer_id"], name: "index_favorites_on_customer_id"
     t.index ["listing_id"], name: "index_favorites_on_listing_id"
   end
 
-  create_table "fulfillments", force: :cascade do |t|
+  create_table "fulfillments", id: :string, force: :cascade do |t|
     t.string "carrier"
     t.datetime "created_at", null: false
     t.datetime "delivered_at"
     t.integer "fee_cents", null: false
     t.integer "net_cents", null: false
-    t.integer "order_id", null: false
-    t.integer "seller_id", null: false
+    t.string "order_id", null: false
+    t.string "seller_id", null: false
     t.datetime "shipped_at"
     t.string "status", default: "awaiting_shipment", null: false
     t.integer "subtotal_cents", null: false
@@ -130,14 +130,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["seller_id"], name: "index_fulfillments_on_seller_id"
   end
 
-  create_table "ledger_entries", force: :cascade do |t|
+  create_table "ledger_entries", id: :string, force: :cascade do |t|
     t.integer "amount_cents", null: false
     t.datetime "created_at", null: false
     t.string "entry_type", null: false
-    t.integer "fulfillment_id"
+    t.string "fulfillment_id"
     t.datetime "occurred_at", null: false
-    t.integer "payout_id"
-    t.integer "seller_id", null: false
+    t.string "payout_id"
+    t.string "seller_id", null: false
     t.datetime "updated_at", null: false
     t.index ["fulfillment_id"], name: "index_ledger_entries_on_fulfillment_id"
     t.index ["payout_id"], name: "index_ledger_entries_on_payout_id"
@@ -145,11 +145,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["seller_id"], name: "index_ledger_entries_on_seller_id"
   end
 
-  create_table "listing_events", force: :cascade do |t|
+  create_table "listing_events", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "customer_id"
+    t.string "customer_id"
     t.string "event_type", null: false
-    t.integer "listing_id", null: false
+    t.string "listing_id", null: false
     t.datetime "occurred_at", null: false
     t.datetime "updated_at", null: false
     t.index ["customer_id"], name: "index_listing_events_on_customer_id"
@@ -157,25 +157,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["listing_id"], name: "index_listing_events_on_listing_id"
   end
 
-  create_table "listing_faqs", force: :cascade do |t|
+  create_table "listing_faqs", id: :string, force: :cascade do |t|
     t.text "answer", null: false
     t.datetime "created_at", null: false
-    t.integer "listing_id", null: false
+    t.string "listing_id", null: false
     t.datetime "published_at", null: false
     t.text "question", null: false
-    t.integer "source_message_id"
+    t.string "source_message_id"
     t.datetime "updated_at", null: false
     t.index ["listing_id", "created_at"], name: "index_listing_faqs_on_listing_id_and_created_at"
   end
 
-  create_table "listings", force: :cascade do |t|
+  create_table "listings", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description"
     t.string "dimensions"
     t.string "medium"
     t.integer "price_cents", null: false
     t.integer "quantity", default: 1, null: false
-    t.integer "seller_id", null: false
+    t.string "seller_id", null: false
     t.string "slug", null: false
     t.string "status", default: "draft", null: false
     t.string "title", null: false
@@ -185,7 +185,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["status", "created_at"], name: "index_listings_on_status_and_created_at"
   end
 
-  create_table "magic_links", force: :cascade do |t|
+  create_table "magic_links", id: :string, force: :cascade do |t|
     t.string "actor_type", null: false
     t.datetime "consumed_at"
     t.datetime "created_at", null: false
@@ -197,23 +197,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["token_digest"], name: "index_magic_links_on_token_digest", unique: true
   end
 
-  create_table "messages", force: :cascade do |t|
+  create_table "messages", id: :string, force: :cascade do |t|
     t.text "body", null: false
-    t.integer "conversation_id", null: false
+    t.string "conversation_id", null: false
     t.datetime "created_at", null: false
     t.datetime "read_at"
-    t.integer "sender_id", null: false
+    t.string "sender_id", null: false
     t.string "sender_type", null: false
     t.datetime "updated_at", null: false
     t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
     t.index ["sender_type", "sender_id"], name: "index_messages_on_sender"
   end
 
-  create_table "notifications", force: :cascade do |t|
+  create_table "notifications", id: :string, force: :cascade do |t|
     t.text "body", null: false
     t.datetime "created_at", null: false
     t.datetime "read_at"
-    t.integer "recipient_id", null: false
+    t.string "recipient_id", null: false
     t.string "recipient_type", null: false
     t.string "subject", null: false
     t.datetime "updated_at", null: false
@@ -221,12 +221,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["recipient_type", "recipient_id", "read_at"], name: "idx_on_recipient_type_recipient_id_read_at_50191a301d"
   end
 
-  create_table "order_items", force: :cascade do |t|
+  create_table "order_items", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "listing_id", null: false
-    t.integer "order_id", null: false
+    t.string "listing_id", null: false
+    t.string "order_id", null: false
     t.integer "quantity", null: false
-    t.integer "seller_id", null: false
+    t.string "seller_id", null: false
     t.string "title", null: false
     t.integer "unit_price_cents", null: false
     t.datetime "updated_at", null: false
@@ -235,9 +235,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["seller_id"], name: "index_order_items_on_seller_id"
   end
 
-  create_table "orders", force: :cascade do |t|
+  create_table "orders", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.integer "customer_id", null: false
+    t.string "customer_id", null: false
     t.string "email"
     t.datetime "finalized_at"
     t.datetime "placed_at", null: false
@@ -256,12 +256,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["customer_id"], name: "index_orders_on_customer_id"
   end
 
-  create_table "payments", force: :cascade do |t|
+  create_table "payments", id: :string, force: :cascade do |t|
     t.integer "amount_cents", null: false
     t.string "card_last_four", null: false
     t.datetime "created_at", null: false
     t.string "decline_reason"
-    t.integer "order_id", null: false
+    t.string "order_id", null: false
     t.datetime "processed_at", null: false
     t.string "status", null: false
     t.datetime "updated_at", null: false
@@ -269,19 +269,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_202914) do
     t.index ["order_id"], name: "index_payments_on_order_id"
   end
 
-  create_table "payouts", force: :cascade do |t|
+  create_table "payouts", id: :string, force: :cascade do |t|
     t.integer "amount_cents", null: false
     t.datetime "created_at", null: false
     t.datetime "paid_at", null: false
     t.date "period_end", null: false
     t.date "period_start", null: false
-    t.integer "seller_id", null: false
+    t.string "seller_id", null: false
     t.datetime "updated_at", null: false
     t.index ["seller_id", "period_start"], name: "index_payouts_on_seller_id_and_period_start", unique: true
     t.index ["seller_id"], name: "index_payouts_on_seller_id"
   end
 
-  create_table "sellers", force: :cascade do |t|
+  create_table "sellers", id: :string, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "email", null: false
     t.datetime "email_verified_at"

@@ -1,4 +1,6 @@
 class ListingFaq < ApplicationRecord
+  prefixed_id :faq
+
   QUESTION_LIMIT = 500
   ANSWER_LIMIT = 2_000
 

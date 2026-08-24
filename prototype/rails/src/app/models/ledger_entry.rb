@@ -1,4 +1,6 @@
 class LedgerEntry < ApplicationRecord
+  prefixed_id :led
+
   # What a seller's ledger adds up to: money waiting on delivery, money ready
   # for the next payout, and money already sent.
   Balance = Data.define(:held, :available, :paid_out) do

@@ -5,7 +5,7 @@ class Admin::ConversationsControllerTest < ActionDispatch::IntegrationTest
     get admin_conversations_path
     assert_redirected_to admin_login_path
 
-    get admin_conversation_path(id: 1)
+    get admin_conversation_path(id: unused_id(:cnv))
     assert_redirected_to admin_login_path
   end
 
@@ -106,7 +106,7 @@ class Admin::ConversationsControllerTest < ActionDispatch::IntegrationTest
   test "an id no thread carries is not found" do
     sign_in_as_admin
 
-    get admin_conversation_path(id: "not-a-number")
+    get admin_conversation_path(id: unused_id(:cnv))
 
     assert_response :not_found
   end

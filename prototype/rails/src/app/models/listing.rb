@@ -1,4 +1,6 @@
 class Listing < ApplicationRecord
+  prefixed_id :lst
+
   LINE_LIMIT = 255
   DESCRIPTION_LIMIT = 5_000
   QUANTITY_LIMIT = 999
