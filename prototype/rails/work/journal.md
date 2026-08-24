@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:08:50:00 — IMPRV-003 — started
+- 2026-08-24:08:49:00 — BUG-005 — done: image uploads capped and byte-sniffed, magic-link consume is one conditional UPDATE checked by row count; 1211 runs / 4287 assertions / 100% lines
 - 2026-08-24:07:20:00 — BUG-005 — started
 - 2026-08-24:07:19:00 — FEAT-021 — done: listing removals, customer blocks, payout run moved to admin, seller payout button deleted; 1182 runs / 4214 assertions / 100% lines
 - 2026-08-24:05:50:00 — FEAT-021 — started
