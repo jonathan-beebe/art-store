@@ -2,18 +2,24 @@
 
 ## Next ticket numbers
 
-- RSRCH: 1
+- RSRCH: 2
 - DSGN: 1
 - ARCH: 1
 - FEAT: 25
-- IMPRV: 6
+- IMPRV: 10
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 9
-- BUG: 4
+- BUG: 5
 
 ## Log
 
+- 2026-08-24:21:20:00 — IMPRV-009 — defined: the visitor is resolved from the cookie twice per request (16 queries on /, two of them duplicates)
+- 2026-08-24:21:19:00 — IMPRV-008 — defined: the entrypoint rebuilds the Vite bundle on every container start and every `docker compose run` (three builds per `make check`)
+- 2026-08-24:21:18:00 — IMPRV-007 — defined: pcov instruments every request the dev server answers (24.7 -> 16.6 ms CPU/req with it off)
+- 2026-08-24:21:17:00 — IMPRV-006 — defined: a closed tab keeps holding a serve worker, so a page load stalls 49.4s after twelve streams
+- 2026-08-24:21:16:00 — BUG-004 — defined: `make check` is red on a fresh checkout, RateLimitsConfigTest reads `.env` instead of its own putenv
+- 2026-08-24:21:15:00 — RSRCH-001 — done: performance baseline recorded (startup, idle CPU, latency, CPU/req, query counts, stream occupancy) with the commands to re-run each
 - 2026-08-24:20:30:00 — MAINT-004 — done: every doc refreshed against the branch, validation run complete (make check green, make fresh seeds, 34 GET routes with no 5xx, hook refuses a failing test); 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:19:00:00 — MAINT-004 — started
 - 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines
