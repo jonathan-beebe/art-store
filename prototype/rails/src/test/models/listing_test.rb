@@ -285,22 +285,6 @@ class ListingTest < ActiveSupport::TestCase
     assert_equal 2, record.events.where(event_type: "view").count
   end
 
-  test "a collapsed view logs listing.view refused at debug" do
-    record = create_listing
-    shopper = create_verified_customer
-    record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:03:00"))
-
-    lines = captured_log_lines do
-      record.record_event!("view", customer_id: shopper.id, at: moment("2026-08-20 08:57:00"))
-    end
-
-    line = log_lines_for("listing.view", lines).sole
-    assert_equal "refused", line["phase"]
-    assert_equal "debug", line["level"]
-    assert_equal record.id, line["data"]["listing_id"]
-    assert_equal shopper.id, line["data"]["customer_id"]
-  end
-
   test "favorite, unfavorite and cart_add are recorded every time, with no collapse" do
     record = create_listing
     shopper = create_verified_customer

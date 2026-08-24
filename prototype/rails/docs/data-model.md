@@ -204,7 +204,7 @@ erDiagram
     page_view_counts {
         string id PK "pvc_<ulid>"
         string site "shop|seller|admin, UK with path_pattern, day"
-        string path_pattern "a route pattern, e.g. /art/:slug(.:format), UK with site, day"
+        string path_pattern "a route pattern, e.g. /art/:slug, UK with site, day"
         date day "UK with site, path_pattern"
         integer count
     }

@@ -54,20 +54,20 @@ class PageViewTest < ActiveSupport::TestCase
   end
 
   test "a portal prefix names its own site" do
-    assert_equal "seller", PageView.site_for("/seller(.:format)")
-    assert_equal "seller", PageView.site_for("/seller/listings/:id(.:format)")
-    assert_equal "admin", PageView.site_for("/admin(.:format)")
-    assert_equal "admin", PageView.site_for("/admin/customers/:id(.:format)")
+    assert_equal "seller", PageView.site_for("/seller")
+    assert_equal "seller", PageView.site_for("/seller/listings/:id")
+    assert_equal "admin", PageView.site_for("/admin")
+    assert_equal "admin", PageView.site_for("/admin/customers/:id")
   end
 
   test "everything else is the storefront" do
-    assert_equal "shop", PageView.site_for("/(.:format)")
-    assert_equal "shop", PageView.site_for("/art/:slug(.:format)")
-    assert_equal "shop", PageView.site_for("/auth/magic/:token(.:format)")
+    assert_equal "shop", PageView.site_for("/")
+    assert_equal "shop", PageView.site_for("/art/:slug")
+    assert_equal "shop", PageView.site_for("/auth/magic/:token")
   end
 
   test "a path that merely starts with the letters of a prefix is not that portal" do
-    assert_equal "shop", PageView.site_for("/sellers-guide(.:format)")
-    assert_equal "shop", PageView.site_for("/administration(.:format)")
+    assert_equal "shop", PageView.site_for("/sellers-guide")
+    assert_equal "shop", PageView.site_for("/administration")
   end
 end

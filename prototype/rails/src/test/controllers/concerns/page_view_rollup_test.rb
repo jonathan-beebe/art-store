@@ -25,16 +25,22 @@ class PageViewRollupTest < ActionDispatch::IntegrationTest
 
     get shop_listing_path(slug: listing.slug)
 
-    row = PageViewCount.find_by(path_pattern: "/art/:slug(.:format)")
+    row = PageViewCount.find_by(path_pattern: "/art/:slug")
     refute_nil row
     assert_not_includes PageViewCount.pluck(:path_pattern), "/art/#{listing.slug}"
+  end
+
+  test "the pattern is stored without Rails' own (.:format) suffix" do
+    get shop_listing_path(slug: create_listing.slug)
+
+    assert_not_includes PageViewCount.pluck(:path_pattern), "/art/:slug(.:format)"
   end
 
   test "two different listings share one row for the pattern" do
     get shop_listing_path(slug: create_listing.slug)
     get shop_listing_path(slug: create_listing.slug)
 
-    assert_equal 2, PageViewCount.find_by(path_pattern: "/art/:slug(.:format)").count
+    assert_equal 2, PageViewCount.find_by(path_pattern: "/art/:slug").count
   end
 
   test "an unknown slug answers 404 and is not counted" do
@@ -74,17 +80,24 @@ class PageViewRollupTest < ActionDispatch::IntegrationTest
     assert_equal 0, PageViewCount.count
   end
 
+  test "a HEAD request is not counted, even though Rails answers it with a GET's body" do
+    head root_path
+
+    assert_response :success
+    assert_equal 0, PageViewCount.count
+  end
+
   test "the seller portal's own pages roll up under the seller site" do
     sign_in_as_seller
 
     get seller_root_path
 
-    assert_equal "seller", PageViewCount.find_by(path_pattern: "/seller(.:format)")&.site
+    assert_equal "seller", PageViewCount.find_by(path_pattern: "/seller")&.site
   end
 
   test "the admin sign-in page rolls up under the admin site" do
     get admin_login_path
 
-    assert_equal "admin", PageViewCount.find_by(path_pattern: "/admin/login(.:format)")&.site
+    assert_equal "admin", PageViewCount.find_by(path_pattern: "/admin/login")&.site
   end
 end

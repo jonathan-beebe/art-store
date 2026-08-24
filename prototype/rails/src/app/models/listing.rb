@@ -197,17 +197,10 @@ class Listing < ApplicationRecord
   # A view collapses to at most one row per (listing, customer, UTC hour); an
   # anonymous customer's row still counts as a customer, so two anonymous
   # visitors in the same hour each leave their own view. The collapse
-  # returns nil rather than a row, and is logged at debug rather than
-  # through Story, since nothing here refused a write anyone asked for by
-  # name — a second page load did.
+  # returns nil rather than a row; the caller is the unit of work with a
+  # Story to answer, so it decides how the collapse reads in the log.
   def record_event!(event_type, customer_id: nil, at: Time.current)
-    if ListingEvent.recorded_once_per_hour?(event_type) && collapsed_view?(customer_id, at)
-      Rails.logger.debug(
-        event: "listing.view", phase: "refused", msg: "collapsed a repeat view within the hour",
-        data: { listing_id: id, customer_id: customer_id }
-      )
-      return nil
-    end
+    return nil if ListingEvent.recorded_once_per_hour?(event_type) && collapsed_view?(customer_id, at)
 
     events.create!(event_type: event_type, customer_id: customer_id, occurred_at: at)
   end

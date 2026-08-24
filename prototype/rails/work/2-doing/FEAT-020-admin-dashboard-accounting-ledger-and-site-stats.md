@@ -50,10 +50,10 @@ nothing" without any extra code.
 and `.view_window_start` (UTC hour floor) mirror Node's
 `isRecordedOncePerHour`/`viewWindowStart`. `Listing#record_event!` checks a
 private `collapsed_view?` before writing; on a collapse it returns `nil` and
-logs `listing.view` `refused` at `debug` directly through `Rails.logger`
-(bypassing `Story`, whose `LEVELS` hash hardcodes every `refused` line to
-`:info` — the same reason `RateLimiting#render_rate_limit_trip` already logs
-its `rate_limit.exceed` line directly rather than through a story).
+writes no row. `Shop::ListingsController#show` already opened a `listing.view`
+`Story` for the request, so it answers it: `story.did` on a recorded view,
+`story.refused(..., level: :debug, ...)` on a collapse — see the Fix-up
+subsection below.
 
 **The tallies.** `Tally.over(enum.keys, group(:column).count)` — used for
 listings, orders, fulfillments on `/admin`, and `listing_events` on
@@ -97,17 +97,10 @@ Accounting/Ledger/Stats in the admin layout.
    FEAT-019) for no reason once real directories existed, so the rewrite
    keeps the counts and drops the name lists, matching Node's actual shape
    rather than either extreme.
-2. **A route pattern is stored with Rails' own `(.:format)` suffix**
-   (`/art/:slug(.:format)`, `/admin(.:format)`), not stripped to match
-   Node's bare `/art/:slug`. `request.route_uri_pattern`'s own doc comment
-   says it renders "using the same format as `bin/rails routes`"; stripping
-   the suffix would be inventing a second, app-specific normalization of a
-   string Rails already treats as the pattern's canonical form. `PageView.site_for`
-   accounts for it directly — a prefix match allows `/admin/` or `/admin(`
-   right after the prefix, so `/admin(.:format)` and
-   `/admin/customers/:id(.:format)` both read as `admin` and
-   `/sellers-guide(.:format)` still reads as the storefront. The root path is
-   the one exception Rails itself makes: `GET /` has pattern `/`, no suffix.
+2. **A route pattern is stored with Rails' trailing `(.:format)` stripped**
+   (`/art/:slug`, `/admin`), matching Node's bare `/art/:slug` — see the
+   Fix-up subsection below for why the first cut at this went the other way
+   and what changed.
 3. **The platform's `refunded` figure is `Refund.sum(:amount_cents)`** — the
    total handed back to customers — read beside `fees_refunded_cents` (the
    fee portion of that money the platform forwent) rather than folded into
@@ -187,3 +180,79 @@ with a note that it also means the seeded demo shows `/admin/accounting` and
 Before: 1020 runs, 3679 assertions, 0 failures, 1953/1953 lines (100%).
 After: 1100 runs, 3915 assertions, 0 failures, 2044/2044 lines (100%).
 `make lint`: 271 files inspected, no offenses.
+
+### Fix-up
+
+Review of `801d30d` found one blocker and two should-fixes.
+
+**Blocker: a collapsed listing view logged both `refused` and `did`.**
+`Listing#record_event!` returning `nil` on a collapse and
+`Shop::ListingsController#show` calling `story.did` unconditionally meant a
+collapsed view wrote `will`, then a raw `Rails.logger.debug` `refused` line,
+then `did` — three lines for one `listing.view` story, and a `did` fired
+whether or not a view was actually recorded. Fixed by:
+
+- `Story#refused` now takes a `level:` override (`def refused(message,
+  level: nil, **data)`), stored per-instance and preferred over `LEVELS` in
+  `#write`. `LEVELS` itself is untouched — `refused` still defaults to
+  `:info` for every caller that does not ask for something else.
+- `Shop::ListingsController#show` checks `record_event!`'s return value: a
+  recorded view calls `story.did`, a collapse calls
+  `story.refused("collapsed a repeat view within the hour", level: :debug,
+  listing_id:, slug:, customer_id:)`. One `Story.tell` now ends in exactly
+  one line either way.
+- The raw `Rails.logger.debug` call is deleted from `Listing#record_event!`;
+  it returns `nil` on a collapse and writes nothing itself. The `RateLimiting`
+  bypass is untouched — it fires from a `before_action` with no enclosing
+  `Story`, which is not this situation.
+
+The gap that let three lines through unnoticed: the only existing test
+called `Listing#record_event!` directly from a model unit test, so it never
+went through the controller. That test (`"a collapsed view logs listing.view
+refused at debug"` in `listing_test.rb`) is removed — the model no longer
+logs anything to assert on — and replaced by an integration test in
+`shop/listings_controller_test.rb` (`"a second view within the hour ends the
+story once, refused at debug"`) that hits `GET /art/:slug` twice with
+distinct `X-Request-Id` headers and asserts, from the captured log lines,
+that each request produces exactly one `listing.view` ending (`did` then
+`refused`), that the second is `phase: "refused"` at `level: "debug"`, and
+that it carries `request_id` (the second request's own), `session_id`
+(shared with the first request, same browser), `actor_id`, and `txn_id`.
+
+`docs/admin.md`'s claim that a collapsed view "is not a unit of work that
+failed, so there is no `will` line for it to answer" was wrong — the
+enclosing `Story.tell` in the controller writes a `will` line on every
+request regardless of outcome. Corrected to describe the collapse as one of
+two endings the same story can reach, not a second story with nothing to
+answer.
+
+**Should-fix: `(.:format)` stripped from the stored `path_pattern`.** The
+original decision kept Rails' `route_uri_pattern` verbatim on the grounds
+that it was the pattern's "canonical form" — but the root route renders bare
+`/` while every other route carries `(.:format)`, so that canonical form was
+already inconsistent, and the code already special-cased root to live with
+it. `docs/alignment.md` §5 fixes `page_view_counts` as a shape shared with
+Node, which stores the bare pattern; a constant suffix on every Rails row
+worked against a reader comparing the two tables. Fixed in
+`PageViewRollup#roll_up_page_view` (`pattern.sub(/\(\.:format\)\z/, "")`
+before `PageViewCount.record!`), which let `PageView.site_for` drop its `"("`
+special case back to a plain prefix match. Updated
+`page_view_rollup_test.rb`, `page_view_count_test.rb`, `page_view_test.rb`,
+`docs/admin.md`, and `docs/data-model.md` to the bare pattern.
+
+**Should-fix: a `HEAD` request counted as a page view.** Rails rewrites a
+`HEAD` to a `GET` before the controller runs and `request.request_method`
+returns the rewritten value, so `PageViewRollup` counted a crawler's `HEAD
+/art/:slug`. `ActionDispatch::Request#method` (no args) returns the
+un-rewritten value Rack received (`rack.methodoverride.original_method` when
+Rails set it, else the raw `REQUEST_METHOD`) — `roll_up_page_view` now reads
+`request.method` instead of `request.request_method` for the countability
+check. Added `"a HEAD request is not counted, even though Rails answers it
+with a GET's body"` to `page_view_rollup_test.rb`.
+
+**Nit: compact the data hash.** Moot — removing the raw `Rails.logger.debug`
+call left no hand-built `data:` hash in the new code; `story.refused`'s
+keyword args flow through `Story#write`'s existing `.compact`.
+
+Numbers after the fix-up: 1102 runs, 3924 assertions, 0 failures, 2046/2046
+lines (100%). `make lint`: 271 files inspected, no offenses.

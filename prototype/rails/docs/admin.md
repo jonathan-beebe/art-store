@@ -173,7 +173,8 @@ sequenceDiagram
     Hook->>App: request.route_uri_pattern
     App-->>Hook: "/art/:slug(.:format)"
     Note over Hook: a request no route matched never reaches here —<br/>counted against nothing
-    Hook->>Counts: record!(path_pattern: "/art/:slug(.:format)")
+    Hook->>Hook: strip the trailing "(.:format)"
+    Hook->>Counts: record!(path_pattern: "/art/:slug")
     Counts->>View: site_for(pattern) -> "shop"
     Counts->>Counts: upsert (site, pattern, today, 1)<br/>on conflict do update count = count + 1
 ```
@@ -182,21 +183,22 @@ Caveats: `PageViewRollup` is included once on `ApplicationController`, so
 every site's controllers carry it without asking — a per-route `after_action`
 would let the next route forget it, the same reasoning behind
 `Admin::BaseController`'s single `require_admin!`. The pattern is what is
-stored — `request.route_uri_pattern`, e.g. `/art/:slug(.:format)`, never the
-concrete URL — so a thousand listing pages share one row and the table grows
-with routes and days, not with traffic. `PageViewCount.record!`'s `upsert`
-with `unique_by: %i[site path_pattern day]` and
+stored — `request.route_uri_pattern` with its trailing `(.:format)` stripped,
+e.g. `/art/:slug`, never the concrete URL — so a thousand listing pages share
+one row and the table grows with routes and days, not with traffic. Node's
+`page_view_counts` reads the same bare pattern (`docs/alignment.md` §5), so a
+reader can put the two prototypes' tables side by side. `PageViewCount.record!`'s
+`upsert` with `unique_by: %i[site path_pattern day]` and
 `on_duplicate: Arel.sql("count = count + 1")` is what makes the first hit of a
 day an insert and every later one an increment, in one statement with no read
 first — `PageViewCountTest` pins the statement count at one.
 
 `PageView.site_for` reads the site off the pattern's own prefix — `/seller`
 and `/admin` claim theirs, matched against `pattern == prefix` or
-`pattern.start_with?("#{prefix}/", "#{prefix}(")` so a bare `/admin(.:format)`
-and a nested `/admin/customers/:id(.:format)` both match while
-`/sellers-guide(.:format)` and `/administration(.:format)` do not. Everything
-else is the storefront, which is what keeps a future `/sellers-guide` there
-too.
+`pattern.start_with?("#{prefix}/")` so a bare `/admin` and a nested
+`/admin/customers/:id` both match while `/sellers-guide` and `/administration`
+do not. Everything else is the storefront, which is what keeps a future
+`/sellers-guide` there too.
 
 "This week" on the dashboard is the seven days ending today
 (`PageView.week`), not Monday-to-Sunday: a calendar week reads as almost
@@ -209,11 +211,15 @@ see [`escrow.md`](escrow.md).
 at most one per (listing, customer, UTC hour) by
 `ListingEvent.recorded_once_per_hour?` and `ListingEvent.view_window_start`.
 `Listing#record_event!` checks the window before writing and, on a collapse,
-writes no row and logs `listing.view` `refused` at `debug` directly through
-`Rails.logger` rather than through `Story` — the same way `RateLimiting` logs
-its own `rate_limit.exceed` line, because nothing here is the `will`/`did`
-shape a `Story` tells; a second page load inside the same hour is not a unit
-of work that failed, so there is no `will` line for it to answer.
+writes no row and returns `nil`. `Shop::ListingsController#show` already
+opened a `listing.view` `Story` for the request, so it is the one that
+answers it: a recorded view ends the story with `story.did`, a collapse ends
+it with `story.refused(..., level: :debug, ...)` — `Story#refused` takes a
+`level:` override for exactly this, a refusal ordinary enough that it should
+not read at the `:info` `LEVELS` gives every other refusal. One `will` line
+opens the story on every request regardless of the outcome; a collapse is one
+of the two ways the same story can end, not a second story with nothing to
+answer.
 
 ## Where the write actions attach
 

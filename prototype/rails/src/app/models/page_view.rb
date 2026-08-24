@@ -28,11 +28,10 @@ module PageView
   # Which side of the marketplace a route pattern belongs to. The storefront
   # has no prefix of its own, so it is what a pattern is when no portal
   # claims it — which also keeps a path like /sellers-guide on the storefront
-  # where it belongs. Rails' route patterns carry a trailing optional
-  # "(.:format)", so a prefix match allows a "(" right after it too.
+  # where it belongs.
   def self.site_for(pattern)
     prefix = PORTAL_PREFIXES.keys.find do |candidate|
-      pattern == candidate || pattern.start_with?("#{candidate}/", "#{candidate}(")
+      pattern == candidate || pattern.start_with?("#{candidate}/")
     end
 
     PORTAL_PREFIXES.fetch(prefix, "shop")

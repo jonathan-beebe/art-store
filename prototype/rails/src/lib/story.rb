@@ -43,6 +43,7 @@ class Story
   def initialize(event, message, level)
     @event = event
     @level = level
+    @ending_level = nil
     @started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     @message = message
     @ending = Line.new(phase: :did, message: message, data: {}, error: nil)
@@ -65,8 +66,13 @@ class Story
     @ending = Line.new(phase: :did, message: message, data: data, error: nil)
   end
 
-  # Why the domain would not do it. The world is unchanged.
-  def refused(message, **data)
+  # Why the domain would not do it. The world is unchanged. `level`
+  # overrides the story's own level for this line only — a refusal a caller
+  # expects on every ordinary request (a repeat within a collapse window)
+  # reads at `:debug` while the `LEVELS` default of `:info` still covers a
+  # refusal worth seeing without asking for it.
+  def refused(message, level: nil, **data)
+    @ending_level = level
     @ending = Line.new(phase: :refused, message: message, data: data, error: nil)
   end
 
@@ -84,7 +90,7 @@ class Story
 
   def write(line, duration_ms: nil)
     Rails.logger.public_send(
-      LEVELS.fetch(line.phase, @level),
+      @ending_level || LEVELS.fetch(line.phase, @level),
       {
         event: @event, phase: line.phase, msg: line.message, duration_ms: duration_ms,
         data: line.data.compact.presence, error: error_of(line)

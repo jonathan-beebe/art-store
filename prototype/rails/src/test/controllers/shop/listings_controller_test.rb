@@ -105,6 +105,32 @@ module Shop
       assert_select "h2", text: "Questions and answers", count: 0
     end
 
+    test "a second view within the hour ends the story once, refused at debug" do
+      listing = create_listing
+
+      lines = captured_log_lines do
+        get shop_listing_path(slug: listing.slug), headers: { "X-Request-Id" => "req-first-1" }
+        get shop_listing_path(slug: listing.slug), headers: { "X-Request-Id" => "req-second-1" }
+      end
+
+      viewing = log_lines_for("listing.view", lines)
+      first_ending, second_ending = viewing.reject { |line| line["phase"] == "will" }
+
+      # One "will" and one ending per request: the first view answers "did",
+      # the collapsed second answers "refused" alone, never both.
+      assert_equal 4, viewing.size
+      assert_equal "did", first_ending["phase"]
+      assert_equal "refused", second_ending["phase"]
+      assert_equal "debug", second_ending["level"]
+
+      assert_equal "req-second-1", second_ending["request_id"]
+      assert_equal visiting_customer.id, second_ending["actor_id"]
+      assert_equal first_ending["session_id"], second_ending["session_id"]
+      refute_nil second_ending["txn_id"]
+
+      assert_equal 1, listing.events.where(event_type: "view").count
+    end
+
     test "it offers to favorite a listing the visitor has not saved" do
       listing = create_listing
 

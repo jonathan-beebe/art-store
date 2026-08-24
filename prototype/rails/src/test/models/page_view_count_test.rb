@@ -36,12 +36,12 @@ class PageViewCountTest < ActiveSupport::TestCase
 
   test "the site is derived from the pattern, seller and admin claim their prefixes" do
     PageViewCount.record!(path_pattern: "/art/:slug", at: moment("2026-08-22 10:00:00"))
-    PageViewCount.record!(path_pattern: "/seller/listings/:id(.:format)", at: moment("2026-08-22 10:00:00"))
-    PageViewCount.record!(path_pattern: "/admin(.:format)", at: moment("2026-08-22 10:00:00"))
+    PageViewCount.record!(path_pattern: "/seller/listings/:id", at: moment("2026-08-22 10:00:00"))
+    PageViewCount.record!(path_pattern: "/admin", at: moment("2026-08-22 10:00:00"))
 
     assert_equal "shop", PageViewCount.find_by(path_pattern: "/art/:slug").site
-    assert_equal "seller", PageViewCount.find_by(path_pattern: "/seller/listings/:id(.:format)").site
-    assert_equal "admin", PageViewCount.find_by(path_pattern: "/admin(.:format)").site
+    assert_equal "seller", PageViewCount.find_by(path_pattern: "/seller/listings/:id").site
+    assert_equal "admin", PageViewCount.find_by(path_pattern: "/admin").site
   end
 
   test "one hit costs one statement" do

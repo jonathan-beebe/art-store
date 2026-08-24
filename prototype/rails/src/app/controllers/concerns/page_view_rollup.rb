@@ -14,15 +14,19 @@ module PageViewRollup
 
   private
 
+  # `request.method` reads the method as the client sent it; `request_method`
+  # reads it after Rails has rewritten a `HEAD` to a `GET` to run the `GET`
+  # action, which is right for routing a `HEAD` but wrong for counting one as
+  # a page a person read.
   def roll_up_page_view
     countable = PageView.countable?(
-      method: request.request_method, status: response.status, content_type: response.media_type
+      method: request.method, status: response.status, content_type: response.media_type
     )
     return unless countable
 
     pattern = request.route_uri_pattern
     return if pattern.nil?
 
-    PageViewCount.record!(path_pattern: pattern)
+    PageViewCount.record!(path_pattern: pattern.sub(/\(\.:format\)\z/, ""))
   end
 end
