@@ -312,3 +312,86 @@ test('a quantity over what remains in stock is refused with the field kept as ty
   const cart = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
   assert.doesNotMatch(cart.body, /Harbour at dusk/)
 })
+
+test('a listing an admin removed after it was carted still shows on the cart, marked unavailable', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: {},
+  })
+  await removeListing(testApp, { listingId: listing.id, adminId: admin.id })
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /data-unavailable/)
+  assert.match(response.body, /Harbour at dusk/)
+  assert.match(response.body, /no longer available/)
+  assert.doesNotMatch(response.body, /href="\/art\/harbour-at-dusk"/)
+})
+
+test('the Remove action still works on a line an admin removed', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: {},
+  })
+  await removeListing(testApp, { listingId: listing.id, adminId: admin.id })
+
+  const remove = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk/remove',
+    cookies: customer.cookies,
+  })
+  assert.equal(remove.statusCode, 302)
+  assert.equal(remove.headers.location, '/cart')
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+  assert.match(response.body, /Your cart is empty\./)
+})
+
+test('a line an admin removed after it was carted is left out of the subtotal', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const customer = await browseAsAnonymousCustomer(testApp)
+  const removed = await listArtwork(testApp, {
+    sellerId: seller.id,
+    title: 'Harbour at dusk',
+    priceCents: cents(24_000),
+  })
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Low tide', priceCents: cents(6_000) })
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: {},
+  })
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/low-tide',
+    cookies: customer.cookies,
+    payload: {},
+  })
+  await removeListing(testApp, { listingId: removed.id, adminId: admin.id })
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+
+  assert.match(response.body, /\$60\.00/)
+  assert.doesNotMatch(response.body, /\$300\.00/)
+})

@@ -30,7 +30,8 @@ export type OrderPlacement<Line extends PlaceableLine> =
   | { ok: true; lines: readonly Line[] }
   | { ok: false; unavailable: readonly UnavailableLine[] }
 
-function unavailableReason(line: PlaceableLine): UnavailableReason | null {
+/** Why a line cannot be bought right now, or null when it can. */
+export function unavailableReason(line: PlaceableLine): UnavailableReason | null {
   if (line.hasActiveRemoval) return 'removed'
   if (line.status === 'sold') return 'sold_out'
   if (line.status !== 'for_sale') return 'off_sale'
@@ -63,6 +64,11 @@ const UNAVAILABLE_NOTICES: Readonly<Record<UnavailableReason, string>> = {
   off_sale: 'no longer for sale',
   sold_out: 'sold out',
   short_stock: 'no longer in stock in that quantity',
+}
+
+/** What a page says about a line it cannot buy, given the reason. */
+export function noticeForUnavailableReason(reason: UnavailableReason): string {
+  return UNAVAILABLE_NOTICES[reason]
 }
 
 /** What the checkout page says about each line it cannot buy. */
