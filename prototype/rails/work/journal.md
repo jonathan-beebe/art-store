@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:02:40:00 — FEAT-018 — started
+- 2026-08-24:02:39:00 — FEAT-017 — done: cancel, stale sweep, seller decline, admin refund, refunds table, refunded ledger entry folding in all three timings; 973 runs / 3357 assertions / 100% lines
 - 2026-08-24:01:15:00 — FEAT-017 — started
 - 2026-08-24:01:14:00 — FEAT-019 — done: ten admin directory pages with every §5 filter, folded balances, pinned query counts, docs/admin.md; 882 runs / 2956 assertions / 100% lines
 - 2026-08-24:00:20:00 — FEAT-019 — started
