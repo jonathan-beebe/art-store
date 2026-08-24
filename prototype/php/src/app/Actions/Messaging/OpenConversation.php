@@ -14,19 +14,19 @@ final readonly class OpenConversation
 {
     public function __invoke(ConversationSubject $subject, DateTimeImmutable $now): Conversation
     {
-        $story = Story::for(StoryEvent::ConversationOpen)->will('opening a conversation', [
+        return Story::for(StoryEvent::ConversationOpen)->tell('opening a conversation', [
             'kind' => $subject->kind->value,
-        ]);
+        ], function (Story $story) use ($subject, $now): Conversation {
+            $conversation = Conversation::openFor($subject, $now);
 
-        $conversation = Conversation::openFor($subject, $now);
+            $story->did('opened the conversation', [
+                'conversation_id' => $conversation->id,
+                'kind' => $conversation->kind->value,
+                'listing_id' => $conversation->listing_id,
+                'fulfillment_id' => $conversation->fulfillment_id,
+            ]);
 
-        $story->did('opened the conversation', [
-            'conversation_id' => $conversation->id,
-            'kind' => $conversation->kind->value,
-            'listing_id' => $conversation->listing_id,
-            'fulfillment_id' => $conversation->fulfillment_id,
-        ]);
-
-        return $conversation;
+            return $conversation;
+        });
     }
 }

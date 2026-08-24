@@ -17,16 +17,16 @@ final readonly class UnpublishListingFaq
 {
     public function __invoke(ListingFaq $faq, DateTimeImmutable $now): void
     {
-        $story = Story::for(StoryEvent::FaqUnpublish)->will('taking a listing FAQ down', [
+        Story::for(StoryEvent::FaqUnpublish)->tell('taking a listing FAQ down', [
             'listing_id' => $faq->listing_id,
             'listing_faq_id' => $faq->id,
-        ]);
+        ], function (Story $story) use ($faq): void {
+            $faq->delete();
 
-        $faq->delete();
-
-        $story->did('took the listing FAQ down', [
-            'listing_id' => $faq->listing_id,
-            'listing_faq_id' => $faq->id,
-        ]);
+            $story->did('took the listing FAQ down', [
+                'listing_id' => $faq->listing_id,
+                'listing_faq_id' => $faq->id,
+            ]);
+        });
     }
 }

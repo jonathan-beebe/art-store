@@ -18,31 +18,32 @@ final class ListingStatusController extends SellerController
         $next = $request->status();
         $from = $listing->status;
 
-        // The form request admits only the transitions the current status
-        // allows, so an illegal move is refused before it reaches here.
-        $story = Story::for(StoryEvent::ListingTransition)->will('moving a listing to another status', [
+        return Story::for(StoryEvent::ListingTransition)->tell('moving a listing to another status', [
             'listing_id' => $listing->id,
             'status_from' => $from->value,
             'status_to' => $next->value,
-        ]);
+        ], function (Story $story) use ($listing, $from, $next): RedirectResponse {
+            // The form request admits only the transitions the status held
+            // when it ran. A status that moved between then and here is
+            // refused by the core, and the refusal ends this story.
+            $listing->changeStatusTo($next);
 
-        $listing->changeStatusTo($next);
+            if ($next === ListingStatus::ForSale) {
+                Story::for(StoryEvent::ListingPublish)->did('put the listing on the storefront', [
+                    'listing_id' => $listing->id,
+                    'slug' => $listing->slug,
+                ]);
+            }
 
-        if ($next === ListingStatus::ForSale) {
-            Story::for(StoryEvent::ListingPublish)->did('put the listing on the storefront', [
+            $story->did('moved the listing', [
                 'listing_id' => $listing->id,
-                'slug' => $listing->slug,
+                'status_from' => $from->value,
+                'status_to' => $next->value,
             ]);
-        }
 
-        $story->did('moved the listing', [
-            'listing_id' => $listing->id,
-            'status_from' => $from->value,
-            'status_to' => $next->value,
-        ]);
-
-        return redirect()
-            ->route('seller.listings.index')
-            ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
+            return redirect()
+                ->route('seller.listings.index')
+                ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
+        });
     }
 }

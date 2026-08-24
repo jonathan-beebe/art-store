@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;
-use App\Domain\DomainRuleViolation;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Events\FulfillmentShipped;
 use App\Logging\StoryEvent;
@@ -24,46 +23,40 @@ final readonly class MarkShipped
         string $trackingNumber,
         DateTimeImmutable $now,
     ): Fulfillment {
-        $story = Story::for(StoryEvent::FulfillmentShip)->will('marking a fulfillment shipped', [
+        return Story::for(StoryEvent::FulfillmentShip)->tell('marking a fulfillment shipped', [
             'fulfillment_id' => $fulfillment->id,
             'order_id' => $fulfillment->order_id,
             'status_from' => $fulfillment->status->value,
             'status_to' => FulfillmentStatus::Shipped->value,
-        ]);
-
-        try {
+        ], function (Story $story) use ($fulfillment, $carrier, $trackingNumber, $now): Fulfillment {
             $status = $fulfillment->status->transitionTo(FulfillmentStatus::Shipped);
-        } catch (DomainRuleViolation $violation) {
-            $story->refused($violation->getMessage(), ['fulfillment_id' => $fulfillment->id]);
 
-            throw $violation;
-        }
+            $shipped = DB::transaction(function () use ($fulfillment, $status, $carrier, $trackingNumber, $now): Fulfillment {
+                $fulfillment->update([
+                    'status' => $status,
+                    'carrier' => $carrier,
+                    'tracking_number' => $trackingNumber,
+                    'shipped_at' => $now,
+                ]);
 
-        $shipped = DB::transaction(function () use ($fulfillment, $status, $carrier, $trackingNumber, $now): Fulfillment {
-            $fulfillment->update([
-                'status' => $status,
+                $fulfillment->load('order.fulfillments');
+
+                ($this->rollUpOrderStatus)($fulfillment->order);
+
+                FulfillmentShipped::dispatch($fulfillment, $now);
+
+                return $fulfillment;
+            });
+
+            $story->did('marked the fulfillment shipped', [
+                'fulfillment_id' => $shipped->id,
+                'order_id' => $shipped->order_id,
                 'carrier' => $carrier,
-                'tracking_number' => $trackingNumber,
-                'shipped_at' => $now,
+                'status_to' => $shipped->status->value,
+                'order_status' => $shipped->order->status->value,
             ]);
 
-            $fulfillment->load('order.fulfillments');
-
-            ($this->rollUpOrderStatus)($fulfillment->order);
-
-            FulfillmentShipped::dispatch($fulfillment, $now);
-
-            return $fulfillment;
+            return $shipped;
         });
-
-        $story->did('marked the fulfillment shipped', [
-            'fulfillment_id' => $shipped->id,
-            'order_id' => $shipped->order_id,
-            'carrier' => $carrier,
-            'status_to' => $shipped->status->value,
-            'order_status' => $shipped->order->status->value,
-        ]);
-
-        return $shipped;
     }
 }

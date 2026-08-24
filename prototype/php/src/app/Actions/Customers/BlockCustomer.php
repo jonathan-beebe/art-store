@@ -14,27 +14,25 @@ final readonly class BlockCustomer
 {
     public function __invoke(Customer $customer, string $reason): CustomerBlock
     {
-        $story = Story::for(StoryEvent::ModerationBlockCustomer)->will('blocking a customer', [
+        return Story::for(StoryEvent::ModerationBlockCustomer)->tell('blocking a customer', [
             'customer_id' => $customer->id,
-        ]);
+        ], function (Story $story) use ($customer, $reason): CustomerBlock {
+            if (! $customer->canShop()) {
+                throw new DomainRuleViolation('This customer is already blocked.');
+            }
 
-        if (! $customer->canShop()) {
-            $story->refused('This customer is already blocked.', ['customer_id' => $customer->id]);
+            $block = $customer->blocks()->create([
+                'reason' => $reason,
+                'lifted_at' => null,
+            ]);
 
-            throw new DomainRuleViolation('This customer is already blocked.');
-        }
+            $story->did('blocked the customer', [
+                'customer_id' => $customer->id,
+                'customer_block_id' => $block->id,
+                'reason' => $reason,
+            ]);
 
-        $block = $customer->blocks()->create([
-            'reason' => $reason,
-            'lifted_at' => null,
-        ]);
-
-        $story->did('blocked the customer', [
-            'customer_id' => $customer->id,
-            'customer_block_id' => $block->id,
-            'reason' => $reason,
-        ]);
-
-        return $block;
+            return $block;
+        });
     }
 }

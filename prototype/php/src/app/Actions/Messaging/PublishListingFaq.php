@@ -16,23 +16,23 @@ final readonly class PublishListingFaq
 {
     public function __invoke(Listing $listing, FaqDraft $draft, ?Message $sourceMessage, DateTimeImmutable $now): ListingFaq
     {
-        $story = Story::for(StoryEvent::FaqPublish)->will('publishing a listing FAQ', [
+        return Story::for(StoryEvent::FaqPublish)->tell('publishing a listing FAQ', [
             'listing_id' => $listing->id,
-        ]);
+        ], function (Story $story) use ($listing, $draft, $sourceMessage, $now): ListingFaq {
+            $faq = $listing->faqs()->create([
+                'question' => $draft->question,
+                'answer' => $draft->answer,
+                'source_message_id' => $sourceMessage?->id,
+                'published_at' => $now,
+            ]);
 
-        $faq = $listing->faqs()->create([
-            'question' => $draft->question,
-            'answer' => $draft->answer,
-            'source_message_id' => $sourceMessage?->id,
-            'published_at' => $now,
-        ]);
+            $story->did('published the listing FAQ', [
+                'listing_id' => $listing->id,
+                'listing_faq_id' => $faq->id,
+                'source_message_id' => $sourceMessage?->id,
+            ]);
 
-        $story->did('published the listing FAQ', [
-            'listing_id' => $listing->id,
-            'listing_faq_id' => $faq->id,
-            'source_message_id' => $sourceMessage?->id,
-        ]);
-
-        return $faq;
+            return $faq;
+        });
     }
 }

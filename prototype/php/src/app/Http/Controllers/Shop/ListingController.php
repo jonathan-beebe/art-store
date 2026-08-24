@@ -21,9 +21,8 @@ final class ListingController extends ShopController
         $visitor = $this->visitor();
         $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
 
-        // One line per view. The once-per-hour collapse §2.3 describes, and
-        // the `refused` line that records it, arrive with the roll-up in
-        // FEAT-023.
+        // Every view writes its own line: nothing here collapses the repeat
+        // views one customer makes within an hour into a single one.
         Story::for(StoryEvent::ListingView)->did('viewed a listing', [
             'listing_id' => $listing->id,
             'seller_id' => $listing->seller_id,

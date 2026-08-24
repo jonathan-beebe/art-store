@@ -111,7 +111,8 @@ is the Monolog formatter that spells the payload.
 | `event` | yes | `App\Logging\StoryEvent` — the §2.3 vocabulary |
 | `phase` | yes | `App\Logging\StoryPhase` |
 | `msg` | yes | one sentence, present tense for `will`/`doing`, past for `did` |
-| `request_id`, `session_id` | on requests | `LogRequestStory`, through `Log::withContext()` |
+| `request_id` | on requests | `LogRequestStory`, through `Log::withContext()` |
+| `session_id` | on requests, from the group inward | `NameRequestVisitor`, the same way |
 | `actor_type`, `actor_id` | when known | the same, plus `ResolveCustomerIdentity` for a brand-new visitor |
 | `txn_id` | inside a unit of work | minted by `Story::will()` |
 | `data` | when useful | the small facts the line is about; every id is a prefixed id |
@@ -123,8 +124,15 @@ is the Monolog formatter that spells the payload.
 `App\Support\Story` writes them. A unit of work opens with `will` and ends
 exactly once — `did` when it happened, `refused` when the core turned it down
 and the world is unchanged (`info`, because a rule held), `failed` when
-something nobody planned for reached the middleware (`error`, carrying the
-exception). `doing` marks a long step in between.
+something nobody planned for escaped it (`error`, carrying the exception).
+`doing` marks a long step in between.
+
+`Story::tell($message, $data, $work)` is how an action says all of that at
+once: it writes `will`, runs the work, and ends the unit whichever way the
+work leaves — the work names its own `did`, a `DomainRuleViolation` becomes
+`refused`, anything else becomes `failed`, and both still reach the caller.
+Every path closes the unit, so a `txn_id` cannot outlive the work that minted
+it and name a later line.
 
 ```mermaid
 sequenceDiagram
@@ -135,8 +143,8 @@ sequenceDiagram
     participant L as stdout
 
     B->>M: POST /checkout
-    M->>L: http.request will — request_id, session_id, actor
-    M->>C: next()
+    M->>L: http.request will — request_id
+    M->>C: next() — through NameRequestVisitor, which adds session and actor
     C->>A: place the order
     A->>L: order.place will — txn_id minted
     A->>L: order.place did — txn_id, duration_ms
@@ -145,6 +153,24 @@ sequenceDiagram
     M->>L: http.request did — status, duration_ms
     M-->>B: 302 + X-Request-Id
 ```
+
+### Two middlewares, not one
+
+`LogRequestStory` is the outermost middleware in the application, ahead of
+every group. A request that matches no route and one the forgery guard
+refuses never reach a group, and a 404 is the line an operator goes looking
+for first; both come back through it as an ordinary response, because the
+framework's pipeline renders an exception into one at the stage that raised
+it. Running that early costs the session and the guards, so `session_id`,
+`actor_type`, and `actor_id` are added by `NameRequestVisitor`, appended to
+the `web` group where cookies are decrypted and the session has started.
+Every line from there on carries them; the request's own `will` line, written
+before the group, carries `request_id` alone.
+
+A request that ends in an exception is answered by the exception handler
+rather than by the middleware that opened it, so `bootstrap/app.php` stamps
+`X-Request-Id` on the handler's response from the id the middleware left on
+the request.
 
 ### The three ids
 
@@ -188,9 +214,9 @@ the framework events that already announce them.
 ### Redaction
 
 No cookie value, magic-link token, card number, or email address reaches
-`data`. An actor's id identifies them. `LogRequestStory` substitutes a route
-parameter named `token` out of the path it logs, so `GET /auth/magic/<token>`
-reads as `/auth/magic/{token}`. `CheckoutControllerTest` and
+`data`. An actor's id identifies them. `LogRequestStory` runs before the
+router has resolved anything, so it matches the magic-link path itself and
+logs `GET /auth/magic/<token>` as `/auth/magic/{token}`. `CheckoutControllerTest` and
 `SendMagicLinkTest` each assert it over the whole captured log.
 
 ### Reading the log in a test

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Domain\Auth\ActorType;
+use App\Domain\DomainRuleViolation;
 use App\Logging\StoryEvent;
 use RuntimeException;
 use Tests\CapturedStory;
@@ -149,10 +150,80 @@ it('closes the unit of work whichever way the story ends', function (string $end
     expect($log->line('ledger.write', 'did'))->not->toHaveKey('txn_id');
 })->with(['did', 'refused', 'failed']);
 
+it('tells the whole story of one unit of work, ending it with what the work did', function (): void {
+    $log = CapturedStory::capture();
+
+    $order = Story::for(StoryEvent::OrderPlace)->tell('placing an order from the cart', [
+        'cart_id' => 'crt_01J00000000000000000000ABC',
+    ], function (Story $story): string {
+        $story->did('placed the order', ['order_id' => 'ord_01J00000000000000000000ABC']);
+
+        return 'ord_01J00000000000000000000ABC';
+    });
+
+    expect($order)->toBe('ord_01J00000000000000000000ABC')
+        ->and($log->outline())->toBe(['order.place will', 'order.place did']);
+});
+
+it('ends the unit of work as refused when the core turns the work down, and lets the refusal through', function (): void {
+    $log = CapturedStory::capture();
+
+    $refused = fn () => Story::for(StoryEvent::OrderPlace)->tell('placing an order from the cart', [
+        'cart_id' => 'crt_01J00000000000000000000ABC',
+    ], fn (): never => throw new DomainRuleViolation('That listing is no longer for sale.'));
+
+    expect($refused)->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
+
+    $line = $log->line('order.place', 'refused');
+
+    expect($line['level'])->toBe('info')
+        ->and($line['msg'])->toBe('That listing is no longer for sale.')
+        ->and($line['data'])->toBe(['cart_id' => 'crt_01J00000000000000000000ABC']);
+});
+
+it('ends the unit of work as failed when something nobody planned for escapes it', function (): void {
+    $log = CapturedStory::capture();
+
+    $broke = fn () => Story::for(StoryEvent::OrderPlace)->tell('placing an order from the cart', [
+        'cart_id' => 'crt_01J00000000000000000000ABC',
+    ], fn (): never => throw new RuntimeException('the orders table is gone'));
+
+    expect($broke)->toThrow(RuntimeException::class, 'the orders table is gone');
+
+    $line = $log->line('order.place', 'failed');
+
+    expect($line['level'])->toBe('error')
+        ->and($line['msg'])->toBe('placing an order from the cart broke')
+        ->and($line['error'])->toBe(['type' => RuntimeException::class, 'message' => 'the orders table is gone'])
+        ->and($line['data'])->toBe(['cart_id' => 'crt_01J00000000000000000000ABC'])
+        ->and($line['duration_ms'])->toBeInt();
+});
+
+it('leaves no unit of work open whichever way the work it was told left', function (callable $work): void {
+    $log = CapturedStory::capture();
+
+    try {
+        Story::for(StoryEvent::OrderPlace)->tell('placing an order from the cart', [], $work);
+    } catch (DomainRuleViolation|RuntimeException) {
+        // The ending is the subject here, not what the caller does with the
+        // exception that caused it.
+    }
+
+    Story::for(StoryEvent::LedgerWrite)->did('wrote a ledger entry');
+
+    expect($log->line('ledger.write', 'did'))->not->toHaveKey('txn_id');
+})->with([
+    'did' => [fn (): callable => fn (Story $story) => $story->did('placed the order')],
+    'refused' => [fn (): callable => fn (): never => throw new DomainRuleViolation('An order needs at least one item.')],
+    'failed' => [fn (): callable => fn (): never => throw new RuntimeException('the orders table is gone')],
+    'no ending of its own' => [fn (): callable => fn (): string => 'nothing was written'],
+]);
+
 it('puts the request marks on every line for the rest of the request', function (): void {
     $log = CapturedStory::capture();
 
-    Story::follows('req_01J00000000000000000000ABC', 'ses_01J00000000000000000000ABC');
+    Story::follows('req_01J00000000000000000000ABC');
+    Story::inSession('ses_01J00000000000000000000ABC');
     Story::actorIs(ActorType::Customer, 'cus_01J00000000000000000000ABC');
 
     Story::for(StoryEvent::CartAdd)->did('added the listing to the cart');

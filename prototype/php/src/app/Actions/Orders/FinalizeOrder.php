@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Domain\Customers\CustomerStanding;
-use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\FakeCard;
@@ -27,65 +26,59 @@ final readonly class FinalizeOrder
     {
         // The card number never leaves this method: the payment row keeps the
         // last four, and the story keeps neither.
-        $story = Story::for(StoryEvent::OrderPay)->will('taking payment for an order', [
+        return Story::for(StoryEvent::OrderPay)->tell('taking payment for an order', [
             'order_id' => $order->id,
             'amount_cents' => $order->total_cents,
-        ]);
-
-        try {
+        ], function (Story $story) use ($order, $cardNumber, $now): Order {
             CustomerStanding::assertCanShop($order->loadMissing('customer')->customer->blockReason());
 
             $decision = FakeCard::decide($cardNumber);
             $outcome = PaymentOutcome::fromCardDecision($decision);
             $status = $order->status->transitionTo(OrderStatus::fromCardDecision($outcome));
-        } catch (DomainRuleViolation $violation) {
-            $story->refused($violation->getMessage(), ['order_id' => $order->id]);
 
-            throw $violation;
-        }
+            $retakesStock = $order->status->retakesStockOnRetry();
 
-        $retakesStock = $order->status->retakesStockOnRetry();
+            $paid = DB::transaction(function () use ($order, $decision, $outcome, $retakesStock, $status, $now): Order {
+                if ($retakesStock) {
+                    $this->sellItems($order);
+                }
 
-        $paid = DB::transaction(function () use ($order, $decision, $outcome, $retakesStock, $status, $now): Order {
-            if ($retakesStock) {
-                $this->sellItems($order);
-            }
+                Payment::create([
+                    'order_id' => $order->id,
+                    'status' => PaymentStatus::fromCardDecision($decision),
+                    'amount_cents' => $order->total_cents,
+                    'card_last_four' => $decision->lastFour,
+                    'decline_reason' => $decision->declineReason,
+                    'processed_at' => $now,
+                ]);
 
-            Payment::create([
-                'order_id' => $order->id,
-                'status' => PaymentStatus::fromCardDecision($decision),
-                'amount_cents' => $order->total_cents,
-                'card_last_four' => $decision->lastFour,
-                'decline_reason' => $decision->declineReason,
-                'processed_at' => $now,
-            ]);
+                $order->update(['status' => $status]);
 
-            $order->update(['status' => $status]);
+                match ($outcome) {
+                    PaymentOutcome::Approved => $this->completePayment($order, $now),
+                    PaymentOutcome::Declined => $this->restockItems($order),
+                };
 
+                return $order->refresh();
+            });
+
+            // A decline is the payment processor holding a rule, not the
+            // application breaking, so it reads as a refusal.
             match ($outcome) {
-                PaymentOutcome::Approved => $this->completePayment($order, $now),
-                PaymentOutcome::Declined => $this->restockItems($order),
+                PaymentOutcome::Approved => $story->did('took the payment', [
+                    'order_id' => $paid->id,
+                    'amount_cents' => $paid->total_cents,
+                    'status' => $paid->status->value,
+                ]),
+                PaymentOutcome::Declined => $story->refused('the card was declined', [
+                    'order_id' => $paid->id,
+                    'decline_reason' => $decision->declineReason?->value,
+                    'status' => $paid->status->value,
+                ]),
             };
 
-            return $order->refresh();
+            return $paid;
         });
-
-        // A decline is the payment processor holding a rule, not the
-        // application breaking, so it reads as a refusal.
-        match ($outcome) {
-            PaymentOutcome::Approved => $story->did('took the payment', [
-                'order_id' => $paid->id,
-                'amount_cents' => $paid->total_cents,
-                'status' => $paid->status->value,
-            ]),
-            PaymentOutcome::Declined => $story->refused('the card was declined', [
-                'order_id' => $paid->id,
-                'decline_reason' => $decision->declineReason?->value,
-                'status' => $paid->status->value,
-            ]),
-        };
-
-        return $paid;
     }
 
     private function completePayment(Order $order, DateTimeImmutable $now): void

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use App\Domain\DomainRuleViolation;
 use App\Http\Middleware\LogRequestStory;
+use App\Http\Middleware\NameRequestVisitor;
 use App\Http\Middleware\ResolveCustomerIdentity;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     // Listener discovery reflects over every file under app/Listeners, and the
@@ -22,10 +24,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Appended rather than prepended: the request marks belong on every
-        // line the request writes, and naming the actor from their guard
-        // needs the session the group starts.
-        $middleware->web(append: LogRequestStory::class);
+        // Outermost in the application: a request that matches no route and
+        // one the forgery guard refuses never reach a group, and both are
+        // requests the log has to account for.
+        $middleware->prepend(LogRequestStory::class);
+
+        // Appended to the group instead, because the `sid` cookie is only
+        // readable after the group decrypts cookies and a guard only names
+        // the actor after the group starts the session.
+        $middleware->web(append: NameRequestVisitor::class);
 
         $middleware->alias([
             'auth.seller' => Authenticate::using('seller'),
@@ -51,4 +58,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(fn (DomainRuleViolation $violation) => back()
             ->withInput()
             ->withErrors($violation->getMessage()));
+
+        // The response to a request that threw is built past the middleware
+        // that opened it, so the id that finds the request's log lines is
+        // stamped on it here rather than there.
+        $exceptions->respond(function (Response $response, Throwable $error, Request $request): Response {
+            $requestId = $request->attributes->get(LogRequestStory::REQUEST_ID_ATTRIBUTE);
+
+            if (is_string($requestId)) {
+                $response->headers->set(LogRequestStory::REQUEST_ID_HEADER, $requestId);
+            }
+
+            return $response;
+        });
     })->create();

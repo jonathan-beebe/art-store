@@ -31,58 +31,65 @@ final class MagicLinkVerificationController extends Controller
     ): RedirectResponse {
         // Neither the token nor the address it was issued to reaches a line;
         // the link row's own id is what names it.
-        $story = Story::for(StoryEvent::MagicLinkConsume)->will('verifying a sign-in link');
+        return Story::for(StoryEvent::MagicLinkConsume)->tell('verifying a sign-in link', [], function (Story $story) use (
+            $request,
+            $token,
+            $signInSeller,
+            $signInCustomer,
+            $signInAdmin,
+            $resolveFromCookie,
+        ): RedirectResponse {
+            $link = MagicLink::forToken($token)->first();
 
-        $link = MagicLink::forToken($token)->first();
+            if ($link === null) {
+                $story->refused('that sign-in link names no row');
 
-        if ($link === null) {
-            $story->refused('that sign-in link names no row');
+                return $this->refuse(ActorType::Customer, 'That sign-in link is not valid. Ask for a new one.');
+            }
 
-            return $this->refuse(ActorType::Customer, 'That sign-in link is not valid. Ask for a new one.');
-        }
+            $now = $this->now();
 
-        $now = $this->now();
+            $refusal = match ($link->statusAt($now)) {
+                MagicLinkStatus::Usable => null,
+                MagicLinkStatus::Expired => 'That sign-in link has expired. Ask for a new one.',
+                MagicLinkStatus::Consumed => 'That sign-in link has already been used. Ask for a new one.',
+            };
 
-        $refusal = match ($link->statusAt($now)) {
-            MagicLinkStatus::Usable => null,
-            MagicLinkStatus::Expired => 'That sign-in link has expired. Ask for a new one.',
-            MagicLinkStatus::Consumed => 'That sign-in link has already been used. Ask for a new one.',
-        };
+            if ($refusal !== null) {
+                $story->refused($refusal, [
+                    'magic_link_id' => $link->id,
+                    'actor_type' => $link->actor_type->value,
+                ]);
 
-        if ($refusal !== null) {
-            $story->refused($refusal, [
+                return $this->refuse($link->actor_type, $refusal);
+            }
+
+            $link->consume($now);
+
+            match ($link->actor_type) {
+                ActorType::Seller => $signInSeller($link->email, $now),
+                ActorType::Customer => $signInCustomer(
+                    $link->email,
+                    $resolveFromCookie(CustomerIdentity::cookieValue($request)),
+                    $now,
+                ),
+                ActorType::Admin => $signInAdmin($link->email, $now),
+            };
+
+            $request->session()->regenerate();
+
+            $story->did('signed the actor in from the link', [
                 'magic_link_id' => $link->id,
                 'actor_type' => $link->actor_type->value,
             ]);
 
-            return $this->refuse($link->actor_type, $refusal);
-        }
-
-        $link->consume($now);
-
-        match ($link->actor_type) {
-            ActorType::Seller => $signInSeller($link->email, $now),
-            ActorType::Customer => $signInCustomer(
-                $link->email,
-                $resolveFromCookie(CustomerIdentity::cookieValue($request)),
-                $now,
-            ),
-            ActorType::Admin => $signInAdmin($link->email, $now),
-        };
-
-        $request->session()->regenerate();
-
-        $story->did('signed the actor in from the link', [
-            'magic_link_id' => $link->id,
-            'actor_type' => $link->actor_type->value,
-        ]);
-
-        return redirect()->to(LocalRedirect::resolve(
-            $link->redirect_to,
-            $link->actor_type,
-            route($link->actor_type->homeRouteName()),
-            url('/'),
-        ));
+            return redirect()->to(LocalRedirect::resolve(
+                $link->redirect_to,
+                $link->actor_type,
+                route($link->actor_type->homeRouteName()),
+                url('/'),
+            ));
+        });
     }
 
     private function refuse(ActorType $actorType, string $message): RedirectResponse

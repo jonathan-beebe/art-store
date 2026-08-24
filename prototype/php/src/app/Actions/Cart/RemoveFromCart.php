@@ -13,17 +13,17 @@ final readonly class RemoveFromCart
 {
     public function __invoke(Cart $cart, Listing $listing): void
     {
-        $story = Story::for(StoryEvent::CartRemove)->will('removing a listing from the cart', [
+        Story::for(StoryEvent::CartRemove)->tell('removing a listing from the cart', [
             'cart_id' => $cart->id,
             'listing_id' => $listing->id,
-        ]);
+        ], function (Story $story) use ($cart, $listing): void {
+            $removed = $cart->items()->where('listing_id', $listing->id)->delete();
 
-        $removed = $cart->items()->where('listing_id', $listing->id)->delete();
-
-        $story->did('removed the listing from the cart', [
-            'cart_id' => $cart->id,
-            'listing_id' => $listing->id,
-            'line_count' => $removed,
-        ]);
+            $story->did('removed the listing from the cart', [
+                'cart_id' => $cart->id,
+                'listing_id' => $listing->id,
+                'line_count' => $removed,
+            ]);
+        });
     }
 }

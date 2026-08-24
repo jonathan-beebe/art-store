@@ -21,29 +21,29 @@ final readonly class UpdateListing
      */
     public function __invoke(Listing $listing, ListingDraft $draft, ?UploadedFile $image = null): Listing
     {
-        $story = Story::for(StoryEvent::ListingUpdate)->will('updating a listing', [
+        return Story::for(StoryEvent::ListingUpdate)->tell('updating a listing', [
             'listing_id' => $listing->id,
             'seller_id' => $listing->seller_id,
-        ]);
+        ], function (Story $story) use ($listing, $draft, $image): Listing {
+            $replaced = $listing->image_path;
+            $storedImage = $image === null ? null : ($this->storeListingImage)($image);
 
-        $replaced = $listing->image_path;
-        $storedImage = $image === null ? null : ($this->storeListingImage)($image);
+            $listing->update($draft->attributes() + ($storedImage === null
+                ? []
+                : ['image_path' => $storedImage]));
 
-        $listing->update($draft->attributes() + ($storedImage === null
-            ? []
-            : ['image_path' => $storedImage]));
+            if ($storedImage !== null && $replaced !== null) {
+                Storage::disk('public')->delete($replaced);
+            }
 
-        if ($storedImage !== null && $replaced !== null) {
-            Storage::disk('public')->delete($replaced);
-        }
+            $story->did('updated the listing', [
+                'listing_id' => $listing->id,
+                'seller_id' => $listing->seller_id,
+                'price_cents' => $listing->price_cents,
+                'image_replaced' => $storedImage !== null,
+            ]);
 
-        $story->did('updated the listing', [
-            'listing_id' => $listing->id,
-            'seller_id' => $listing->seller_id,
-            'price_cents' => $listing->price_cents,
-            'image_replaced' => $storedImage !== null,
-        ]);
-
-        return $listing;
+            return $listing;
+        });
     }
 }

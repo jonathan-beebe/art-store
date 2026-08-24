@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Domain\Auth\ActorType;
+use App\Domain\DomainRuleViolation;
 use App\Logging\StoryEvent;
 use App\Logging\StoryLevel;
 use App\Logging\StoryPhase;
@@ -16,15 +17,19 @@ use Throwable;
  * `did`, `refused`, or `failed` on the way out, with `doing` for a long step
  * between them. docs/alignment.md §2.2 is the contract these phases keep.
  *
+ * `tell()` is how work that runs inside one unit says all of that at once,
+ * and the shape the actions use: the caller hands over the work and gets the
+ * refusal and failure endings without writing them.
+ *
  * `will` mints the `txn_id` the unit of work is read by, so every line
  * written before it ends — the action's own, and the ledger entries and
  * notifications that fall out of it — carries the same value. The open ids
  * are a stack because a unit of work can open inside another one; the
  * innermost is the one a line names.
  *
- * The request marks travel differently. `follows()` and `actorIs()` put them
- * in the logger's own context, so every line for the rest of the request
- * carries them without being handed them.
+ * The request marks travel differently. `follows()`, `inSession()`, and
+ * `actorIs()` put them in the logger's own context, so every line for the
+ * rest of the request carries them without being handed them.
  */
 final class Story
 {
@@ -53,9 +58,19 @@ final class Story
     /**
      * The request every line from here on belongs to.
      */
-    public static function follows(string $requestId, string $sessionId): void
+    public static function follows(string $requestId): void
     {
-        Log::withContext(['request_id' => $requestId, 'session_id' => $sessionId]);
+        Log::withContext(['request_id' => $requestId]);
+    }
+
+    /**
+     * The browser every line from here on belongs to. It arrives after the
+     * request id because the cookie holding it is only readable once the
+     * middleware that decrypts cookies has run.
+     */
+    public static function inSession(string $sessionId): void
+    {
+        Log::withContext(['session_id' => $sessionId]);
     }
 
     /**
@@ -89,6 +104,41 @@ final class Story
         $this->openedAt = microtime(true);
 
         return $this->write(StoryPhase::Will, $this->event->level(), $message, $data);
+    }
+
+    /**
+     * The whole story of one unit of work: `will` on the way in, the work
+     * itself, and an ending whichever way the work leaves. The work names its
+     * own `did` — only it knows what came out — while a `DomainRuleViolation`
+     * ends it as `refused` and anything else as `failed`, both of them still
+     * reaching the caller.
+     *
+     * Every path through here closes the unit, so the `txn_id` it minted
+     * cannot outlive the work that opened it and name a later line.
+     *
+     * @template TResult
+     *
+     * @param  array<string, mixed>  $data
+     * @param  callable(self): TResult  $work
+     * @return TResult
+     */
+    public function tell(string $message, array $data, callable $work): mixed
+    {
+        $this->will($message, $data);
+
+        try {
+            return $work($this);
+        } catch (DomainRuleViolation $violation) {
+            $this->refused($violation->getMessage(), $data);
+
+            throw $violation;
+        } catch (Throwable $error) {
+            $this->failed($error, "{$message} broke", $data);
+
+            throw $error;
+        } finally {
+            $this->close();
+        }
     }
 
     /**

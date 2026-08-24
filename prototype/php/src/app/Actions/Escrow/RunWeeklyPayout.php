@@ -25,20 +25,23 @@ final readonly class RunWeeklyPayout
     {
         $period = PayoutPeriod::endingBefore($asOf);
 
-        $story = Story::for(StoryEvent::PayoutRun)->will('settling the weekly payout period', [
+        /** @var list<Payout> $payouts */
+        $payouts = Story::for(StoryEvent::PayoutRun)->tell('settling the weekly payout period', [
             'period' => $period->label(),
-        ]);
+        ], function (Story $story) use ($period, $asOf): array {
+            $payouts = DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
+                ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
+                ->map(fn (LedgerBalance $balance, string $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
+                ->all()));
 
-        $payouts = DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
-            ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
-            ->map(fn (LedgerBalance $balance, string $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
-            ->all()));
+            $story->did('settled the weekly payout period', [
+                'period' => $period->label(),
+                'payout_count' => count($payouts),
+                'amount_cents' => array_sum(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts)),
+            ]);
 
-        $story->did('settled the weekly payout period', [
-            'period' => $period->label(),
-            'payout_count' => count($payouts),
-            'amount_cents' => array_sum(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts)),
-        ]);
+            return $payouts;
+        });
 
         return $payouts;
     }

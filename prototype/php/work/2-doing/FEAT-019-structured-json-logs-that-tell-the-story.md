@@ -172,3 +172,87 @@ The response carried `X-Request-Id: req_01M0RWMMNT28PXC8GYKX82FCNR` and a
 
 `make check` green: 1225 tests, 3293 assertions, 100.0 % of lines. Baseline at
 `935877c` was 1147 tests, 2542 assertions.
+
+### Review fix-ups
+
+A review of `f9a06e4` found two blocking defects, three smaller ones, and
+overturned one of the deviations above. All six are closed here.
+
+**`Story::tell()` is how an action brackets its work.** `failed` had no
+caller: every action caught only `DomainRuleViolation`, so an unexpected
+throwable inside a `DB::transaction` left the unit of work without an ending
+and its `txn_id` on `Story`'s stack, where only `Story::forget()` at the top
+of the next request stopped it naming later lines. `Story::tell($message,
+$data, $work)` now writes `will`, runs the work, and ends the unit whichever
+way the work leaves: the work names its own `did`, a `DomainRuleViolation`
+becomes `refused` at `info` and still reaches the caller, anything else
+becomes `failed` at `error` carrying the exception and still reaches the
+caller, and a `finally` closes the unit on every path — including work that
+writes no ending of its own. Every action, `MagicLinkVerificationController`,
+and `ListingStatusController` are rewritten onto it, which removed the
+hand-written `refused` catch from each of them. `StoryTest` covers the three
+endings and the empty stack after each; `MarkShippedTest` covers an action's
+own `failed` line from a listener that throws inside the transaction.
+
+**Correction to "A refusal the core raises … does get its `refused` line".**
+It did not for `listing.transition`. `ListingStatusController` called
+`$listing->changeStatusTo($next)` bare on the argument that the form request
+had already restricted the field — true for the normal path, but a status
+that moves between validation and the call throws `DomainRuleViolation` from
+the core, and that refusal was logged as neither `refused` nor `failed` and
+leaked the unit. The call now runs inside `tell()`, so the raced refusal ends
+the story; `ListingStatusControllerTest` pins it.
+
+**Correction to "Two gaps in 'every request' … Prepending would cost both".**
+The deviation is overturned and the gap is closed. `LogRequestStory` is now
+the outermost middleware in the application rather than one of the `web`
+group's, and both a 404 and a 419 come back through it as ordinary responses:
+`Illuminate\Routing\Pipeline` renders an exception into a response at the
+stage that raised it, so route resolution's `NotFoundHttpException` and
+`PreventRequestForgery`'s `TokenMismatchException` never escape as
+exceptions. What running that early costs is the session and the guards, so
+`NameRequestVisitor` — appended to the `web` group — now holds the `sid`
+cookie and the actor naming and puts `session_id`, `actor_type`, and
+`actor_id` in the context there. Every line from the group inward carries
+them; the request's own `will` line, written before the group, carries
+`request_id` alone.
+
+**`X-Request-Id` on the failure path.** The header was set after the
+`catch`'s rethrow, and a response the exception handler renders never passes
+back through the middleware at all. The middleware leaves the id on the
+request (`LogRequestStory::REQUEST_ID_ATTRIBUTE`) and `bootstrap/app.php`'s
+`$exceptions->respond()` stamps it on every response the handler builds.
+
+**The request-id bound is anchored.** `GIVEN_REQUEST_ID` was
+`/^[A-Za-z0-9_-]{1,64}$/`; PHP's `$` matches before a trailing newline, so
+`"trace42\n"` passed and was echoed verbatim into the response header. It is
+`/\A[A-Za-z0-9_-]{1,64}\z/` now, and the dataset carries the trailing-newline
+case.
+
+**A comment named a ticket.** `Shop\ListingController` said the collapse
+arrives with FEAT-023. It now says what the code does: every view writes its
+own line, nothing collapses the repeat views one customer makes within an
+hour.
+
+### Verified by hand, after the fix-ups
+
+`docker compose run --rm -p 8100:8000 app php artisan serve`, then an
+unrouted path, a POST with no CSRF token, and a request with the database
+file moved away:
+
+```json
+{"ts":"2026-08-24T04:05:24.694Z","level":"info","event":"http.request","phase":"will","msg":"GET /nothing-is-here","request_id":"req_01M0RZ3JJPW16XMH6SXSFQFP7A","data":{"method":"GET","path":"/nothing-is-here"}}
+{"ts":"2026-08-24T04:05:24.701Z","level":"info","event":"http.request","phase":"did","msg":"GET /nothing-is-here 404","request_id":"req_01M0RZ3JJPW16XMH6SXSFQFP7A","data":{"status":404},"duration_ms":7}
+{"ts":"2026-08-24T04:05:42.263Z","level":"info","event":"http.request","phase":"will","msg":"POST /logout","request_id":"req_01M0RZ43QPSDSYHM38JGDD49V8","data":{"method":"POST","path":"/logout"}}
+{"ts":"2026-08-24T04:05:42.292Z","level":"info","event":"http.request","phase":"did","msg":"POST /logout 419","request_id":"req_01M0RZ43QPSDSYHM38JGDD49V8","data":{"status":419},"duration_ms":29}
+{"ts":"2026-08-24T04:05:52.315Z","level":"info","event":"http.request","phase":"will","msg":"GET /","request_id":"req_01M0RZ4DHVVSH9FR476NXS9N3D","data":{"method":"GET","path":"/"}}
+{"ts":"2026-08-24T04:05:53.854Z","level":"info","event":"http.request","phase":"did","msg":"GET / 500","request_id":"req_01M0RZ4DHVVSH9FR476NXS9N3D","data":{"status":500},"duration_ms":1538}
+```
+
+The 404 response carried `X-Request-Id: req_01M0RZ3JJPW16XMH6SXSFQFP7A` and
+the 500 carried `X-Request-Id: req_01M0RZ4DHVVSH9FR476NXS9N3D`.
+
+### Gate, after the fix-ups
+
+`make check` green: 1247 tests, 3395 assertions, 100.0 % of lines. The
+baseline at `6e88c09` was 1234 tests, 3302 assertions.

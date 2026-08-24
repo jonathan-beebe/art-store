@@ -19,27 +19,27 @@ final readonly class CreateListing
 
     public function __invoke(Seller $seller, ListingDraft $draft, ?UploadedFile $image = null): Listing
     {
-        $story = Story::for(StoryEvent::ListingCreate)->will('creating a listing', [
+        return Story::for(StoryEvent::ListingCreate)->tell('creating a listing', [
             'seller_id' => $seller->id,
-        ]);
+        ], function (Story $story) use ($seller, $draft, $image): Listing {
+            $base = ListingSlug::base($draft->title);
 
-        $base = ListingSlug::base($draft->title);
+            $listing = $seller->listings()->create($draft->attributes() + [
+                'slug' => ListingSlug::firstFree($draft->title, $this->slugsStartingWith($base)),
+                'status' => ListingStatus::Draft,
+                'image_path' => $image === null ? null : ($this->storeListingImage)($image),
+            ]);
 
-        $listing = $seller->listings()->create($draft->attributes() + [
-            'slug' => ListingSlug::firstFree($draft->title, $this->slugsStartingWith($base)),
-            'status' => ListingStatus::Draft,
-            'image_path' => $image === null ? null : ($this->storeListingImage)($image),
-        ]);
+            $story->did('created the listing', [
+                'listing_id' => $listing->id,
+                'seller_id' => $seller->id,
+                'slug' => $listing->slug,
+                'price_cents' => $listing->price_cents,
+                'status' => $listing->status->value,
+            ]);
 
-        $story->did('created the listing', [
-            'listing_id' => $listing->id,
-            'seller_id' => $seller->id,
-            'slug' => $listing->slug,
-            'price_cents' => $listing->price_cents,
-            'status' => $listing->status->value,
-        ]);
-
-        return $listing;
+            return $listing;
+        });
     }
 
     /**

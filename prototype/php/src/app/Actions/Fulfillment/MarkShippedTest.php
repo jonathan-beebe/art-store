@@ -7,13 +7,18 @@ namespace App\Actions\Fulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Events\FulfillmentShipped;
+use App\Logging\StoryEvent;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Notifications\OrderShipped;
+use App\Support\Story;
 use DomainException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
+use Tests\CapturedStory;
 
 $paidOrder = function (Customer $customer): Order {
     return app(FinalizeOrder::class)(
@@ -80,6 +85,32 @@ it('tells nobody when the shipment is rolled back', function () use ($paidOrder)
 
     Notification::assertNothingSent();
     expect($fulfillment)->toHaveStatus(FulfillmentStatus::AwaitingShipment);
+});
+
+it('says the shipment failed when something nobody planned for escapes it', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
+    $fulfillment = $order->fulfillments()->sole();
+    Notification::fake();
+
+    Event::listen(FulfillmentShipped::class, fn () => throw new RuntimeException('the shipment listener broke'));
+
+    $log = CapturedStory::capture();
+
+    $ship = fn () => app(MarkShipped::class)($fulfillment, 'USPS', '9400111899', $this->moment('2026-08-21 11:00:00'));
+
+    expect($ship)->toThrow(RuntimeException::class, 'the shipment listener broke');
+
+    $line = $log->line('fulfillment.ship', 'failed');
+
+    expect($line['level'])->toBe('error')
+        ->and($line['error'])->toBe(['type' => RuntimeException::class, 'message' => 'the shipment listener broke'])
+        ->and($line['data'])->toHaveKey('fulfillment_id', $fulfillment->id);
+
+    // The unit of work the shipment opened is gone, so it cannot name the
+    // lines written after it.
+    Story::for(StoryEvent::LedgerWrite)->did('wrote a ledger entry');
+
+    expect($log->line('ledger.write', 'did'))->not->toHaveKey('txn_id');
 });
 
 it('refuses to ship a fulfillment twice', function () use ($paidOrder): void {
