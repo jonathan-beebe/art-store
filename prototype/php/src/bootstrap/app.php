@@ -98,12 +98,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // docs/alignment.md §3's default 429: the site's own page, in its own
         // layout, named by the path the way `redirectGuestsTo` above already
-        // picks a login route by it. A handful of routes catch this
-        // themselves first to re-render the form the visitor was on instead —
-        // CheckoutController, OrderPaymentController, the three magic-link
-        // senders, and the seller listing form — so this is what is left:
-        // message posts, conversation opens, and the magic-link verification
-        // GET, none of which has a form of its own to give back.
+        // picks a login route by it. Every route the visitor reached by
+        // filling in a field catches this itself first and re-renders the
+        // page that field sits on, so what is left here is the routes with
+        // no field to give back: the support and order-thread buttons on the
+        // shop and seller sites, and the magic-link verification GET.
         $exceptions->render(function (RateLimitExceeded $exceeded, Request $request): Response {
             $view = match (true) {
                 $request->is('admin', 'admin/*') => 'errors.rate-limited-admin',

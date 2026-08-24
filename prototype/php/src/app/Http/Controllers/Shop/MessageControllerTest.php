@@ -125,7 +125,7 @@ it('reads a thread with no reply form while blocked, and refuses a hand-rolled r
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Trying anyway.')->exists())->toBeFalse();
 });
 
-it('trips the message-post limit, posting nothing further', function (): void {
+it('trips the message-post limit, handing the thread back with the reply still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id]);
@@ -136,6 +136,8 @@ it('trips the message-post limit, posting nothing further', function (): void {
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('First message.');
+    $response->assertSee('>Second message.</textarea>', escape: false);
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second message.')->exists())->toBeFalse();
 });
 

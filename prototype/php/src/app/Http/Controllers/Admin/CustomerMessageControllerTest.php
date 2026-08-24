@@ -61,7 +61,7 @@ it('sends a guest to the admin login page', function (): void {
     $response->assertRedirect(route('auth.admin.login'));
 });
 
-it('trips the message-post limit before opening or posting to a new thread', function (): void {
+it('trips the message-post limit, handing the customer page back with the message still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $admin = $this->admin();
     $firstCustomer = $this->verifiedCustomer();
@@ -73,5 +73,8 @@ it('trips the message-post limit before opening or posting to a new thread', fun
 
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('Message customer');
+    $response->assertSee('>Second message.</textarea>', escape: false);
     expect(Conversation::count())->toBe(1);
 });

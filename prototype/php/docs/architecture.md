@@ -273,18 +273,22 @@ action that would otherwise perform it, so a trip leaves no side effect:
 | `listing_write` | `Seller\ListingController::store()` and `update()` | the seller's id |
 
 On a trip: HTTP 429, `Retry-After: <seconds>`, one `rate_limit.exceed` line,
-no side effect. The response body splits two ways. A route with a classic
-form to give back — the three sign-ins, checkout, pay, and the seller's
-listing create/edit — catches `RateLimitExceeded` itself and re-renders that
-form through `Controller::tooManyRequests()`, which shares a `ViewErrorBag`
-holding the sentence under a synthetic key (`errors->any()` shows it the way
-every other page-level refusal already does, field-less because no real
-form field matches it). Everything else — message posts, conversation
-opens, and the magic-link verification GET, none of which has a form of its
-own — falls through to a matching `$exceptions->render()` in
-`bootstrap/app.php`, which picks the site by path the same way
-`redirectGuestsTo()` does and renders that site's own
-`resources/views/errors/rate-limited-{shop,seller,admin}.blade.php`.
+no side effect. The response body splits two ways. A route the visitor
+reached by filling in a field catches `RateLimitExceeded` itself and
+re-renders the page that field sits on — the three sign-ins, checkout, pay,
+the seller's listing create/edit, every message `store()` (shop, seller,
+admin), the admin's two message forms on the seller and customer pages, and
+the storefront's ask-the-seller form. Each flashes the input first, so the
+`body` textarea and every other field come back filled from `old()`, and
+each renders through `Controller::tooManyRequests()`, which shares a
+`ViewErrorBag` holding the sentence under a synthetic key (`errors->any()`
+shows it the way every other page-level refusal already does, field-less
+because no real form field matches it). What is left is a route with no
+field to give back — the shop's and seller's support and order-thread
+buttons, and the magic-link verification GET — and it falls through to a
+matching `$exceptions->render()` in `bootstrap/app.php`, which picks the
+site by path the same way `redirectGuestsTo()` does and renders that site's
+own `resources/views/errors/rate-limited-{shop,seller,admin}.blade.php`.
 
 Client ip (`$request->ip()`) is the socket's own unless `TRUSTED_PROXIES` is
 set, in which case `bootstrap/app.php` wires Laravel's `TrustProxies` from

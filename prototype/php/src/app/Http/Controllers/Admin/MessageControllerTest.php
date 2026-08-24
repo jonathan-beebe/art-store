@@ -280,7 +280,7 @@ it('sends a guest to the admin login page', function (): void {
     $response->assertRedirect(route('auth.admin.login'));
 });
 
-it('trips the message-post limit on the admin site, rendering its own 429 page with nothing posted', function (): void {
+it('trips the message-post limit on the admin site, handing the thread back with the reply still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $admin = $this->admin();
     $conversation = Conversation::factory()->adminSeller()->create(['admin_id' => $admin->id]);
@@ -293,6 +293,8 @@ it('trips the message-post limit on the admin site, rendering its own 429 page w
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
     $response->assertSee('Art Store admin', escape: false);
+    $response->assertSee('First reply.');
+    $response->assertSee('>Second reply.</textarea>', escape: false);
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second reply.')->exists())->toBeFalse();
 
     $line = $log->line('rate_limit.exceed', 'refused');

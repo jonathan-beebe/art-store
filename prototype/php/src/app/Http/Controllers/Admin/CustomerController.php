@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Customers\StandingFilter;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -34,16 +33,6 @@ final class CustomerController extends Controller
 
     public function show(Customer $customer): View
     {
-        return view('admin.customers.show', [
-            'customer' => $customer->load([
-                'activeBlock',
-                'orders' => fn (Relation $orders) => $orders->withCount('items')->orderByDesc('placed_at')->orderByDesc('id'),
-                'blocks' => fn (Relation $blocks) => $blocks->orderByDesc('created_at')->orderByDesc('id'),
-                'favorites.listing',
-                'cartItems.listing',
-                'mergesAsCustomer',
-                'mergesAsAnonymous',
-            ]),
-        ]);
+        return view('admin.customers.show', ['customer' => $customer->loadForConsole()]);
     }
 }

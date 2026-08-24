@@ -177,7 +177,7 @@ it('carries the question to the seller and the answer back to the visitor', func
     $this->get('/')->assertDontSee('Messages (1)', escape: false);
 });
 
-it('trips the conversation-open limit, opening no further thread', function (): void {
+it('trips the conversation-open limit, handing the listing back with the question still in the box', function (): void {
     Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
     $this->listing($this->seller('Rye Press'), ['slug' => 'winter-elm']);
@@ -189,5 +189,7 @@ it('trips the conversation-open limit, opening no further thread', function (): 
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('Ask the seller a question');
+    $response->assertSee('>Is this signed?</textarea>', escape: false);
     expect(Conversation::count())->toBe(1);
 });

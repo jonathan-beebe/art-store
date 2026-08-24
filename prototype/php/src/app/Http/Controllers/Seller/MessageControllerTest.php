@@ -196,7 +196,7 @@ it('moves the thread to the top of the inbox after a reply', function (): void {
     expect($conversation->fresh()?->last_message_at?->greaterThan($this->moment('2026-08-01 09:00:00')))->toBeTrue();
 });
 
-it('trips the message-post limit, re-rendering the sellers own 429 page with nothing posted', function (): void {
+it('trips the message-post limit, handing the thread back with the reply still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
@@ -207,5 +207,7 @@ it('trips the message-post limit, re-rendering the sellers own 429 page with not
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
+    $response->assertSee('First reply.');
+    $response->assertSee('>Second reply.</textarea>', escape: false);
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second reply.')->exists())->toBeFalse();
 });

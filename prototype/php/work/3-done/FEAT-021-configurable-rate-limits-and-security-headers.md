@@ -130,3 +130,37 @@ includeSubDomains` in production only.
 `img-src data:` CSP allowance depends on whether their own placeholder-image
 mechanism is inline (Node's already has it; Rails' is untouched by this
 ticket).
+
+### Review fix-up
+
+Review found the §3 clause "for a form, the form re-renders with that
+sentence as a field-less error" unmet by six guarded actions that carry a
+real `body` textarea: `Shop\MessageController::store`,
+`Seller\MessageController::store`, `Admin\MessageController::store`,
+`Admin\SellerMessageController`, `Admin\CustomerMessageController`, and
+`Shop\ListingQuestionController`. Each let `RateLimitExceeded` reach the
+generic handler, which answered the site's bare 429 page — no thread, no
+textarea, no `old('body')`, and the visitor off the page they were on.
+
+All six now catch it, flash the input, and re-render the page the form sits
+on through `Controller::tooManyRequests()`, the way `CheckoutController`,
+`OrderPaymentController`, the three login controllers, and
+`Seller\ListingController` already did. The thread pages render from a
+private `threadView()` shared with `show()`, minus the read mark, so a trip
+still performs no side effect. `Admin\CustomerMessageController` and
+`Admin\CustomerController::show` both read the customer page's eager loads
+from the new `Customer::loadForConsole()`.
+
+`Shop\SupportController`, `Seller\SupportController`, the two
+`OrderMessageController`s, and `magic_link_consume` keep the generic page:
+a plain button and a GET link have no field to hand back.
+
+The claim corrected: `bootstrap/app.php` and `docs/architecture.md` both
+said message posts and conversation opens have "no form of its own to give
+back". Both now say what the code does. The same sentence does not appear
+in this ticket's own notes.
+
+**What Node and Rails must match:** every rate-limited POST that carries a
+form field answers 429 by re-rendering that page with the field-less
+sentence and the typed input still in the box; only a fieldless button or a
+GET gets the generic page.

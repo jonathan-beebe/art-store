@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Override;
@@ -202,6 +203,25 @@ class Customer extends Authenticatable
     public function displayName(): string
     {
         return $this->name ?? $this->email ?? $this->id;
+    }
+
+    /**
+     * Everything the admin console's customer page reads off this row. Two
+     * routes render that page — the page itself, and the message form on it
+     * handing the page back when the message-post budget is spent — so the
+     * eager loads it needs are named here once.
+     */
+    public function loadForConsole(): static
+    {
+        return $this->load([
+            'activeBlock',
+            'orders' => fn (Relation $orders) => $orders->withCount('items')->orderByDesc('placed_at')->orderByDesc('id'),
+            'blocks' => fn (Relation $blocks) => $blocks->orderByDesc('created_at')->orderByDesc('id'),
+            'favorites.listing',
+            'cartItems.listing',
+            'mergesAsCustomer',
+            'mergesAsAnonymous',
+        ]);
     }
 
     /**

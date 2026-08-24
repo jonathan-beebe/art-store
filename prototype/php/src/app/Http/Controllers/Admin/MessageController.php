@@ -7,12 +7,14 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
+use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\PostMessageRequest;
 use App\Models\Conversation;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 final class MessageController extends AdminController
@@ -37,25 +39,46 @@ final class MessageController extends AdminController
 
         $markRead($conversation, $this->admin(), $this->now());
 
+        return view('admin.messages.show', $this->threadView($conversation));
+    }
+
+    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
+    {
+        $admin = $this->admin();
+
+        try {
+            $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
+        } catch (RateLimitExceeded $exceeded) {
+            // docs/alignment.md §3: a form that trips comes back rather than
+            // being replaced by the site's bare 429 page, so the thread the
+            // admin was reading re-renders with the reply still in the box.
+            $request->flash();
+
+            return $this->tooManyRequests($exceeded, 'admin.messages.show', $this->threadView($conversation));
+        }
+
+        $postMessage($conversation, $admin, $request->body(), $this->now());
+
+        return redirect()->route('admin.messages.show', $conversation);
+    }
+
+    /**
+     * The thread page's data. The read mark is not part of it: a trip leaves
+     * the world alone, and only `show()` marks the thread read.
+     *
+     * @return array<string, mixed>
+     */
+    private function threadView(Conversation $conversation): array
+    {
         $conversation->load([
             'seller', 'customer', 'admin', 'listing', 'fulfillment',
             'messages' => fn (Relation $query): Relation => $query->orderBy('sent_at')->orderBy('id'),
             'messages.sender',
         ]);
 
-        return view('admin.messages.show', [
+        return [
             'conversation' => $conversation,
             'viewer' => ActorType::Admin,
-        ]);
-    }
-
-    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse
-    {
-        $admin = $this->admin();
-        $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
-
-        $postMessage($conversation, $admin, $request->body(), $this->now());
-
-        return redirect()->route('admin.messages.show', $conversation);
+        ];
     }
 }
