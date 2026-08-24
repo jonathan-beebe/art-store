@@ -185,10 +185,33 @@ Working notes:
   598 analysed by PHPStan with 0 errors.
 
 ### Deliberately left out
-- The **validation run was not performed**: `make fresh`, the GET-route walk,
-  and the hook-refusal demonstration the ticket asks for were not run. The
-  suite itself is green at 1827 tests / 4934 assertions / 100 % of lines, and
-  the commit gate has refused work on this branch in practice more than once
-  (a Composer process-timeout failure on `analyse` during IMPRV-005), but the
-  ticket's explicit demonstration is not recorded.
+- Nothing. The validation run is recorded below.
 - No code was refactored, per the ticket's scope discipline.
+
+### Validation run
+
+- **`make check` from a clean tree**: green. Pint clean over **615 files**;
+  PHPStan level max over 598 files, **0 errors**; assets built; **1827 tests
+  passed (4934 assertions)**; **100.0 % of lines**.
+- **`make fresh`**: rebuilds and seeds. All six seeders run; the run closes
+  with its own `seed.run` `did` line carrying `seeder_count: 6`.
+- **GET-route walk**: 90 routes registered, 51 of them GET, 34 without a route
+  parameter. Every one was requested against a served instance on port 8100.
+  **No 5xx.** The public pages answer 200 (`/`, `/cart`, `/favorites`,
+  `/orders`, `/messages`, `/events`, `/support`, `/login`, `/seller/login`,
+  `/admin/login`, `/up`); every guarded page answers 302 to its own sign-in.
+  Parameterised routes were spot-checked with real seeded ids: `/art/{slug}`
+  answers 200 for a listing on the storefront and 404 for an unknown slug, an
+  unrouted path, and a nested path under a real slug.
+- **The commit gate refuses a failing test.** A deliberately failing case was
+  appended to `MoneyTest.php` and staged with the file it covers. The hook ran
+  `make -C prototype/php check`; Pint and PHPStan passed, the suite reported
+  `FAIL App\Domain\Money\MoneyTest > it is a deliberately failing test that
+  the commit gate must refuse`, and the run ended:
+
+  ```
+  make: *** [test] Error 1
+  ```
+
+  `HEAD` was unchanged. The temporary case was reverted and the tree left
+  clean.
