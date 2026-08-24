@@ -83,7 +83,7 @@ Vanilla Rails: a custom `ActiveSupport::Logger` formatter emitting the JSON payl
 | Event | Ticket that brings it |
 | --- | --- |
 | `order.cancel`, `order.sweep` | FEAT-017 |
-| `fulfillment.decline`, `refund.issue` | FEAT-018 |
+| `fulfillment.decline`, `refund.issue` | FEAT-017 |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 |
 | `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
 | `listing.view` `refused` at `debug` (the once-per-(listing, customer, hour) collapse) | FEAT-020 |
@@ -150,3 +150,45 @@ SimpleCov config with a comment saying why; they are still exercised by
 `test/logging_test.rb`, the counter just cannot see them. Everything else
 stays at 100%: **780 runs, 2608 assertions, 0 failures, 1496 / 1496 lines**
 (from 772 / 2428 / 1317 before).
+
+### Fix-up
+
+A review of this commit found three defects, fixed here:
+
+- **The coverage gate had a hole.** The two `skip` entries above were
+  permanent and covered any future untested line in either file, not just
+  the boot-order gap. Fixed by starting SimpleCov before the application
+  boots instead of skipping the two files: `test/coverage_boot.rb` holds the
+  `SimpleCov.start` block (plus the bundle setup a preload this early needs,
+  since `config/boot.rb` hasn't put the bundle's gems on the load path yet)
+  and the per-group `at_exit` printer. `Makefile`'s `test`, `smoke`, and
+  `coverage` targets set `RUBYOPT='-r./test/coverage_boot'` on the
+  `bin/rails test` command only — not on the `db:test:prepare` command that
+  runs before it, so that process never opens its own empty coverage run.
+  `test_helper.rb` requires the same file by relative path; `require` loads
+  a given file once, so whichever entry point reaches it first — the
+  `RUBYOPT` preload for a whole-suite run, or `test_helper.rb`'s own require
+  for a path-filtered run, which skips `test:prepare` and boots the app from
+  inside `test_helper.rb` after that require — is the one that runs, and
+  the other's require is a no-op. Both files are now genuinely measured;
+  line coverage rose to **1510 / 1510 (100%)**, no new tests needed since
+  `test/logging_test.rb` already exercised every line. Verified both
+  invocations directly: `bin/rails test` (whole suite) and
+  `bin/rails test test/logging_test.rb` (path-filtered) both start coverage
+  correctly with no double-start errors.
+- **`fulfillment.decline` and `refund.issue` were attributed to FEAT-018.**
+  Both belong to FEAT-017 (order lifecycle back half — cancel, sweep,
+  decline, refund); FEAT-018 is rate limits and security headers and owns
+  only `rate_limit.exceed`. Corrected in the deferred-events table above and
+  in `docs/architecture.md`'s Logging section.
+- **A failed migration left `migrate.run` with no ending line.** The
+  `Rake::Task#enhance` block that wrote `did` and closed the story only ran
+  after `db:migrate`'s own action succeeded, so a raised migration error
+  skipped it entirely — no `failed` line, unlike every other story in the
+  app. Fixed by wrapping the task's `execute` (which runs only the task's
+  own actions, after the `telling_migrations`/`telling_seeds` prerequisite
+  that opens the story) in a `rescue`/`ensure` that writes `failed` and
+  re-raises on error, alongside the existing `did` on success. Same fix for
+  `db:seed`/`seed.run`. Verified by raising inside a throwaway migration:
+  `migrate.run` now writes `will` then `failed` with the error, and the
+  original exception still propagates and aborts the task.

@@ -1,41 +1,8 @@
-require "simplecov"
-
-# Started before the application is loaded so every app/ and lib/ file is
-# measured.
-SimpleCov.start do
-  skip "/config/"
-  skip "/db/"
-  skip "/test/"
-  skip "/vendor/"
-
-  cover "{app,lib}/**/*.rb"
-
-  # `bin/rails test` boots the application before it reaches this file, so the
-  # two files the logger itself is built from are already loaded by the time
-  # coverage starts counting. They are exercised by the logging tests all the
-  # same; the counter simply cannot see them.
-  skip "app/models/current.rb"
-  skip "lib/json_log_formatter.rb"
-
-  group "Models", "app/models"
-  group "Controllers", "app/controllers"
-  group "Helpers", "app/helpers"
-  group "Mailers", "app/mailers"
-
-  minimum_coverage line: Integer(ENV["COVERAGE_MIN"]) if ENV["COVERAGE_MIN"]
-end
-
-# There is no browser in the container to open coverage/index.html, so the
-# per-group numbers are printed as well.
-SimpleCov.at_exit do
-  SimpleCov.result.format!
-
-  SimpleCov.result.groups.each do |name, files|
-    next if files.empty?
-
-    puts format("%-12s %6.2f%%  %d files", name, files.covered_percent, files.count)
-  end
-end
+# Idempotent: `RUBYOPT` already required this ahead of `bin/rails` for a
+# whole-suite run; for a path-filtered run (`bin/rails test path/to_test.rb`)
+# this is coverage's first chance to start, before the `require_relative`
+# below boots the application. See `coverage_boot.rb`.
+require_relative "coverage_boot"
 
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"

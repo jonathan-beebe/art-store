@@ -30,14 +30,39 @@ task telling_seeds: :environment do
   seeding = Story.start("seed.run", "seeding the database", task: "db:seed")
 end
 
-Rake::Task["db:migrate"].enhance([ :telling_migrations ]) do
-  Current.actor_type = "system"
-  migrating.did("applied pending migrations", task: "db:migrate")
-  migrating.close
-end
+# `execute` runs a task's own actions, after its prerequisites
+# (`telling_migrations`/`telling_seeds`, which open the story) have already
+# run. Wrapping it here brackets exactly the work each story is about: a
+# `did` line when the actions run to completion, a `failed` line — with the
+# raised error re-raised — when a migration or the seed file doesn't.
+Rake::Task["db:migrate"].enhance([ :telling_migrations ])
+Rake::Task["db:migrate"].singleton_class.prepend(Module.new do
+  define_method(:execute) do |*args|
+    result = super(*args)
+    Current.actor_type = "system"
+    migrating.did("applied pending migrations", task: "db:migrate")
+    result
+  rescue StandardError => e
+    Current.actor_type = "system"
+    migrating.failed(e)
+    raise
+  ensure
+    migrating.close
+  end
+end)
 
-Rake::Task["db:seed"].enhance([ :telling_seeds ]) do
-  Current.actor_type = "system"
-  seeding.did("seeded the database", task: "db:seed")
-  seeding.close
-end
+Rake::Task["db:seed"].enhance([ :telling_seeds ])
+Rake::Task["db:seed"].singleton_class.prepend(Module.new do
+  define_method(:execute) do |*args|
+    result = super(*args)
+    Current.actor_type = "system"
+    seeding.did("seeded the database", task: "db:seed")
+    result
+  rescue StandardError => e
+    Current.actor_type = "system"
+    seeding.failed(e)
+    raise
+  ensure
+    seeding.close
+  end
+end)

@@ -396,7 +396,7 @@ Deferred, with the ticket that brings the feature and its event:
 | Event | Ticket |
 | --- | --- |
 | `order.cancel`, `order.sweep` | FEAT-017 (stale-order sweep and cancel) |
-| `fulfillment.decline`, `refund.issue` | FEAT-018 (decline and refund) |
+| `fulfillment.decline`, `refund.issue` | FEAT-017 (order lifecycle back half — cancel, sweep, decline, refund) |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 (admin moderation) |
 | `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
 

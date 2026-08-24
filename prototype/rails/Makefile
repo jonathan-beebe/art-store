@@ -23,14 +23,17 @@ shell:
 
 # db:test:prepare loads the schema fresh before every run, so a run killed
 # mid-way never leaves rows in test.sqlite3 for the next run to trip over.
+# RUBYOPT is scoped to the `bin/rails test` command only — `db:test:prepare`
+# runs as its own process first, and starting coverage on it too would open
+# a second, empty run that clobbers the real one.
 test:
-	docker compose run --rm -e COVERAGE_MIN=100 app sh -c "bin/rails db:test:prepare && bin/rails test"
+	docker compose run --rm -e COVERAGE_MIN=100 app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test"
 
 smoke:
-	docker compose run --rm app sh -c "bin/rails db:test:prepare && bin/rails test test/smoke_test.rb"
+	docker compose run --rm app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test test/smoke_test.rb"
 
 coverage:
-	docker compose run --rm app sh -c "bin/rails db:test:prepare && bin/rails test"
+	docker compose run --rm app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test"
 
 lint:
 	docker compose run --rm app bin/rubocop
