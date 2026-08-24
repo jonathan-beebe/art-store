@@ -24,8 +24,19 @@ use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Seller;
 use Illuminate\Notifications\DatabaseNotification;
+use RuntimeException;
+use Tests\CapturedStory;
 
-beforeEach(function (): void {
+// The seeders run once per test, in the hook, and write rows that only fit an
+// empty schema once. Holding the capture of that one run is what lets a test
+// read the story it told.
+$seedRun = new class
+{
+    public ?CapturedStory $log = null;
+};
+
+beforeEach(function () use ($seedRun): void {
+    $seedRun->log = CapturedStory::capture();
     $this->seed();
 });
 
@@ -124,4 +135,11 @@ it('seeds one conversation of every messaging kind and one published FAQ', funct
     expect(Conversation::count())->toBe(4)
         ->and(Message::count())->toBe(11)
         ->and(ListingFaq::count())->toBe(1);
+});
+
+it('tells the story of the seed run', function () use ($seedRun): void {
+    $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
+
+    expect($log->outline())->toContain('seed.run will', 'seed.run did')
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 6);
 });

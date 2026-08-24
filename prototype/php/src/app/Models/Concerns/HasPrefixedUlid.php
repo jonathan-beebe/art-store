@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Models\Concerns;
 
 use App\Domain\Identifiers\PrefixedId;
+use App\Support\IdMint;
 use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
-use Illuminate\Support\Facades\Date;
-use Illuminate\Support\Str;
 
 /**
  * A text primary key of the form `<prefix>_<ulid>`, minted when the row is
@@ -35,7 +34,7 @@ trait HasPrefixedUlid
 
     public function newUniqueId(): string
     {
-        return (string) PrefixedId::of(static::idPrefix(), (string) Str::ulid(Date::now()));
+        return IdMint::of(static::idPrefix());
     }
 
     protected function isValidUniqueId(mixed $value): bool

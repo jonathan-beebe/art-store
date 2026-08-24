@@ -11,6 +11,7 @@ use App\Models\CustomerBlock;
 use App\Models\Order;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
+use Tests\CapturedStory;
 
 $fillCart = function (): void {
     test()->listing(test()->seller(), ['slug' => 'harbour-at-dawn', 'price_cents' => 24500]);
@@ -166,4 +167,100 @@ it('names the item that sold to someone else and marks it on the cart page', fun
     $response->assertSee('“Winter Elm” is no longer for sale.');
     $response->assertSee('No longer available');
     expect(Order::count())->toBe(1);
+});
+
+it('tells the story of one checkout in order, under one request and one unit of work', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $told = array_values(array_filter(
+        $log->outline(),
+        fn (string $line): bool => str_starts_with($line, 'http.request ') || str_starts_with($line, 'order.place '),
+    ));
+
+    expect($told)->toBe([
+        'http.request will',
+        'order.place will',
+        'order.place did',
+        'http.request did',
+    ]);
+
+    $placed = $log->linesFor('order.place');
+
+    expect(array_unique($log->values('request_id')))->toHaveCount(1)
+        ->and($placed[0]['txn_id'])->toBeString()
+        ->and($placed[1]['txn_id'])->toBe($placed[0]['txn_id'])
+        ->and($log->line('http.request', 'will'))->not->toHaveKey('txn_id');
+});
+
+it('carries the order through the payment story that follows placing it', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $order = Order::sole();
+    $paid = $log->line('order.pay', 'did');
+
+    expect($paid['data'])->toBe([
+        'order_id' => $order->id,
+        'amount_cents' => 24500,
+        'status' => 'paid',
+    ])
+        ->and($log->line('ledger.write', 'did')['txn_id'])->toBe($paid['txn_id']);
+});
+
+it('reads a declined card as a refusal naming why', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4000000000000002']);
+
+    $refused = $log->line('order.pay', 'refused');
+
+    expect($refused['level'])->toBe('info')
+        ->and($refused['data'])->toHaveKey('decline_reason', 'generic_decline');
+});
+
+it('reads a checkout the core turned down as a refusal, not a failure', function () use ($checkoutFields): void {
+    $shopper = Customer::factory()->create(['email' => 'shopper@example.com']);
+    $this->actingAs($shopper, 'customer');
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    CustomerBlock::factory()->create(['customer_id' => $shopper->id, 'reason' => 'Chargeback fraud.']);
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $refused = $log->line('order.place', 'refused');
+
+    expect($refused['level'])->toBe('info')
+        ->and($refused['msg'])->toContain('blocked')
+        ->and($log->linesFor('order.place'))->toHaveCount(2);
+});
+
+it('keeps the address and the card out of every line the checkout writes', function () use ($fillCart, $checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $fillCart();
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $written = $log->raw();
+
+    expect($written)->not->toContain('guest@example.com');
+    expect($written)->not->toContain('shopper@example.com');
+    expect($written)->not->toContain('4242424242424242');
+    expect($written)->not->toContain('12 Analytical Way');
+    expect($written)->not->toContain('EC1A 1BB');
 });

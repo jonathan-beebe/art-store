@@ -6,14 +6,17 @@ namespace App\Actions\Orders;
 
 use App\Domain\Cart\CartTotals;
 use App\Domain\Customers\CustomerStanding;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\Fee;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
+use App\Logging\StoryEvent;
 use App\Models\Cart;
 use App\Models\Fulfillment;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -21,12 +24,25 @@ final readonly class PlaceOrder
 {
     public function __invoke(Cart $cart, Purchaser $purchaser, ShippingAddress $shipping, DateTimeImmutable $now): Order
     {
-        CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
+        // The address the order ships to is on the order, never in a line: an
+        // actor's id is what a log line names them by.
+        $story = Story::for(StoryEvent::OrderPlace)->will('placing an order from the cart', [
+            'cart_id' => $cart->id,
+            'line_count' => $cart->items()->count(),
+        ]);
 
-        $cart->load('items.listing');
-        $totals = CartTotals::forCheckout($cart->lines());
+        try {
+            CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
 
-        return DB::transaction(function () use ($cart, $purchaser, $shipping, $totals, $now): Order {
+            $cart->load('items.listing');
+            $totals = CartTotals::forCheckout($cart->lines());
+        } catch (DomainRuleViolation $violation) {
+            $story->refused($violation->getMessage(), ['cart_id' => $cart->id]);
+
+            throw $violation;
+        }
+
+        $order = DB::transaction(function () use ($cart, $purchaser, $shipping, $totals, $now): Order {
             $order = Order::create($shipping->attributes() + [
                 'customer_id' => $purchaser->customerId,
                 'email' => $purchaser->email,
@@ -47,6 +63,15 @@ final readonly class PlaceOrder
 
             return $order;
         });
+
+        $story->did('placed the order', [
+            'order_id' => $order->id,
+            'total_cents' => $order->total_cents,
+            'status' => $order->status->value,
+            'fulfillment_ids' => $order->fulfillments()->pluck('id')->all(),
+        ]);
+
+        return $order;
     }
 
     private function snapshotItems(Order $order, Cart $cart): void

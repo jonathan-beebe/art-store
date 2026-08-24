@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Customers;
 
 use App\Domain\Customers\CustomerOwnedTables;
+use App\Logging\StoryEvent;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
+use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -18,6 +20,11 @@ final readonly class MergeAnonymousCustomer
      */
     public function __invoke(Customer $anonymous, Customer $verified): Customer
     {
+        $story = Story::for(StoryEvent::CustomerMerge)->will('folding an anonymous customer into a verified one', [
+            'anonymous_customer_id' => $anonymous->id,
+            'customer_id' => $verified->id,
+        ]);
+
         DB::transaction(function () use ($anonymous, $verified): void {
             foreach (CustomerOwnedTables::all() as $table => $column) {
                 // The commerce tables arrive on their own schedule; a merge run
@@ -50,6 +57,11 @@ final readonly class MergeAnonymousCustomer
                 ['customer_id' => $verified->id],
             );
         });
+
+        $story->did('folded the anonymous customer in', [
+            'anonymous_customer_id' => $anonymous->id,
+            'customer_id' => $verified->id,
+        ]);
 
         return $verified;
     }

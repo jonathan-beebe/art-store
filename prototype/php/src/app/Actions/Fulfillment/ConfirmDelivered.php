@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
+use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -18,9 +21,22 @@ final readonly class ConfirmDelivered
 
     public function __invoke(Fulfillment $fulfillment, DateTimeImmutable $now): Fulfillment
     {
-        $status = $fulfillment->status->transitionTo(FulfillmentStatus::Delivered);
+        $story = Story::for(StoryEvent::FulfillmentDeliver)->will('confirming a fulfillment delivered', [
+            'fulfillment_id' => $fulfillment->id,
+            'order_id' => $fulfillment->order_id,
+            'status_from' => $fulfillment->status->value,
+            'status_to' => FulfillmentStatus::Delivered->value,
+        ]);
 
-        return DB::transaction(function () use ($fulfillment, $status, $now): Fulfillment {
+        try {
+            $status = $fulfillment->status->transitionTo(FulfillmentStatus::Delivered);
+        } catch (DomainRuleViolation $violation) {
+            $story->refused($violation->getMessage(), ['fulfillment_id' => $fulfillment->id]);
+
+            throw $violation;
+        }
+
+        $delivered = DB::transaction(function () use ($fulfillment, $status, $now): Fulfillment {
             $fulfillment->update(['status' => $status, 'delivered_at' => $now]);
 
             $movement = LedgerMovement::release($fulfillment->net());
@@ -39,5 +55,15 @@ final readonly class ConfirmDelivered
 
             return $fulfillment;
         });
+
+        $story->did('confirmed the fulfillment delivered', [
+            'fulfillment_id' => $delivered->id,
+            'order_id' => $delivered->order_id,
+            'status_to' => $delivered->status->value,
+            'order_status' => $delivered->order->status->value,
+            'released_cents' => $delivered->net()->cents,
+        ]);
+
+        return $delivered;
     }
 }

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\DomainRuleViolation;
+use App\Http\Middleware\LogRequestStory;
 use App\Http\Middleware\ResolveCustomerIdentity;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Appended rather than prepended: the request marks belong on every
+        // line the request writes, and naming the actor from their guard
+        // needs the session the group starts.
+        $middleware->web(append: LogRequestStory::class);
+
         $middleware->alias([
             'auth.seller' => Authenticate::using('seller'),
             'auth.customer' => Authenticate::using('customer'),

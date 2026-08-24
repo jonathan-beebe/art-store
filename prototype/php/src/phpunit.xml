@@ -36,6 +36,9 @@
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
+        <!-- The suite's own output shares this stream; the tests that read log
+             lines capture them through the formatter instead. -->
+        <env name="LOG_CHANNEL" value="null"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

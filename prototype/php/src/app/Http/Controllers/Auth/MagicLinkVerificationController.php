@@ -12,8 +12,10 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Auth\LocalRedirect;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Http\Controllers\Controller;
+use App\Logging\StoryEvent;
 use App\Models\MagicLink;
 use App\Support\CustomerIdentity;
+use App\Support\Story;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -27,9 +29,15 @@ final class MagicLinkVerificationController extends Controller
         SignInAdmin $signInAdmin,
         ResolveCustomerFromCookie $resolveFromCookie,
     ): RedirectResponse {
+        // Neither the token nor the address it was issued to reaches a line;
+        // the link row's own id is what names it.
+        $story = Story::for(StoryEvent::MagicLinkConsume)->will('verifying a sign-in link');
+
         $link = MagicLink::forToken($token)->first();
 
         if ($link === null) {
+            $story->refused('that sign-in link names no row');
+
             return $this->refuse(ActorType::Customer, 'That sign-in link is not valid. Ask for a new one.');
         }
 
@@ -42,6 +50,11 @@ final class MagicLinkVerificationController extends Controller
         };
 
         if ($refusal !== null) {
+            $story->refused($refusal, [
+                'magic_link_id' => $link->id,
+                'actor_type' => $link->actor_type->value,
+            ]);
+
             return $this->refuse($link->actor_type, $refusal);
         }
 
@@ -58,6 +71,11 @@ final class MagicLinkVerificationController extends Controller
         };
 
         $request->session()->regenerate();
+
+        $story->did('signed the actor in from the link', [
+            'magic_link_id' => $link->id,
+            'actor_type' => $link->actor_type->value,
+        ]);
 
         return redirect()->to(LocalRedirect::resolve(
             $link->redirect_to,

@@ -8,8 +8,10 @@ use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Domain\Money\Money;
+use App\Logging\StoryEvent;
 use App\Models\LedgerEntry;
 use App\Models\Payout;
+use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,10 +25,22 @@ final readonly class RunWeeklyPayout
     {
         $period = PayoutPeriod::endingBefore($asOf);
 
-        return DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
+        $story = Story::for(StoryEvent::PayoutRun)->will('settling the weekly payout period', [
+            'period' => $period->label(),
+        ]);
+
+        $payouts = DB::transaction(fn (): array => array_values($this->balancesBySeller($period)
             ->filter(fn (LedgerBalance $balance): bool => $balance->isPayable())
             ->map(fn (LedgerBalance $balance, string $sellerId): Payout => $this->payOut($sellerId, $balance->available, $period, $asOf))
             ->all()));
+
+        $story->did('settled the weekly payout period', [
+            'period' => $period->label(),
+            'payout_count' => count($payouts),
+            'amount_cents' => array_sum(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts)),
+        ]);
+
+        return $payouts;
     }
 
     /**
@@ -64,6 +78,13 @@ final readonly class RunWeeklyPayout
             // Dated inside the period it settles so a re-run of the same period
             // sees the money as already paid.
             'occurred_at' => $period->end,
+        ]);
+
+        Story::for(StoryEvent::PayoutPay)->did('paid a seller for the period', [
+            'payout_id' => $payout->id,
+            'seller_id' => $sellerId,
+            'amount_cents' => $payout->amount_cents,
+            'period' => $period->label(),
         ]);
 
         return $payout;

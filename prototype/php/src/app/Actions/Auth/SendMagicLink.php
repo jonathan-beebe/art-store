@@ -7,8 +7,10 @@ namespace App\Actions\Auth;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Auth\MagicLinkToken;
+use App\Logging\StoryEvent;
 use App\Models\MagicLink;
 use App\Notifications\MagicLinkIssued;
+use App\Support\Story;
 use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Notification;
@@ -19,11 +21,17 @@ final readonly class SendMagicLink
 
     public function __invoke(string $email, ActorType $actorType, ?string $redirectTo, DateTimeImmutable $now): void
     {
+        // The address and the token are both credentials, so the story names
+        // the row rather than either of them.
+        $story = Story::for(StoryEvent::MagicLinkRequest)->will('issuing a sign-in link', [
+            'actor_type' => $actorType->value,
+        ]);
+
         $token = bin2hex(random_bytes(self::TOKEN_BYTES));
         $address = EmailNormalizer::normalize($email);
         $expiryMinutes = (int) config('magic_links.expiry_minutes');
 
-        MagicLink::create([
+        $link = MagicLink::create([
             'token_hash' => MagicLinkToken::hash($token),
             'email' => $address,
             'actor_type' => $actorType,
@@ -35,5 +43,11 @@ final readonly class SendMagicLink
         // a seller or a customer ever receives.
         Notification::route(MagicLinkIssued::channel(), $address)
             ->notify(new MagicLinkIssued(route('auth.magic.verify', $token)));
+
+        $story->did('issued a sign-in link', [
+            'magic_link_id' => $link->id,
+            'actor_type' => $actorType->value,
+            'expiry_minutes' => $expiryMinutes,
+        ]);
     }
 }

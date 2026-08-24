@@ -8,9 +8,11 @@ use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
+use App\Observers\LedgerEntryObserver;
 use Database\Factories\LedgerEntryFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +24,7 @@ use Override;
  * @property-read Seller $seller
  */
 #[Fillable(['seller_id', 'fulfillment_id', 'payout_id', 'type', 'amount_cents', 'occurred_at'])]
+#[ObservedBy(LedgerEntryObserver::class)]
 class LedgerEntry extends Model
 {
     /** @use HasFactory<LedgerEntryFactory> */
