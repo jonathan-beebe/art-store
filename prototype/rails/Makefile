@@ -7,7 +7,7 @@ export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(C
 
 up:
 	docker compose up -d
-	@echo "http://localhost:3000"
+	@echo "http://localhost:3300"
 
 down:
 	docker compose down

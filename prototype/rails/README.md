@@ -26,9 +26,9 @@ the image builds and gems compile; later runs take seconds.
 
 Then open:
 
-- Storefront — <http://localhost:3000/>
-- Seller portal — <http://localhost:3000/seller>
-- Admin site — <http://localhost:3000/admin>
+- Storefront — <http://localhost:3300/>
+- Seller portal — <http://localhost:3300/seller>
+- Admin site — <http://localhost:3300/admin>
 
 `make down` stops the stack. `make logs` follows the server output.
 
