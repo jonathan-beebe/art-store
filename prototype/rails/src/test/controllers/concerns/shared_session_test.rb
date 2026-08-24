@@ -59,14 +59,14 @@ class SharedSessionTest < ActionDispatch::IntegrationTest
   end
 
   test "each sign-in rotates the session id" do
-    get root_path
-    before_seller = request.session.id.to_s
+    sign_in_as_admin
+    before_seller = settled_session_id
 
     signed_in_seller
-    after_seller = request.session.id.to_s
+    after_seller = settled_session_id
 
     sign_in_as_customer
-    after_customer = request.session.id.to_s
+    after_customer = settled_session_id
 
     assert_not_equal before_seller, after_seller
     assert_not_equal after_seller, after_customer
@@ -74,10 +74,10 @@ class SharedSessionTest < ActionDispatch::IntegrationTest
 
   test "the session id rotates on sign-in without losing what it already held" do
     seller = signed_in_seller
-    id_before = request.session.id.to_s
+    id_before = settled_session_id
 
     sign_in_as_customer
-    id_after = request.session.id.to_s
+    id_after = settled_session_id
 
     assert_not_equal id_before, id_after
     assert_equal seller.id, session[:seller_id]
@@ -112,5 +112,19 @@ class SharedSessionTest < ActionDispatch::IntegrationTest
 
     post admin_logout_path
     assert_equal minted, cookies[:sid]
+  end
+
+  private
+
+  # `request.session.id` reflects the id that was on the incoming cookie when
+  # the request it is read from began. `Rack::Session::Abstract::Persisted
+  # #commit_session` writes a renewed id into the outgoing `Set-Cookie`, but
+  # never back into that request's own session object, so reading it from the
+  # same request a sign-in happened in cannot show whether the sign-in
+  # rotated anything. A following request picks up the cookie the previous
+  # response actually sent, so its freshly loaded id is the settled one.
+  def settled_session_id
+    get root_path
+    request.session.id.to_s
   end
 end

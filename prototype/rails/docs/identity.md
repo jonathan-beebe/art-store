@@ -221,15 +221,23 @@ sequenceDiagram
 Caveats: each of the three `sign_in_<actor>` methods
 (`CustomerIdentity`, `SellerAuthentication`, `AdminAuthentication`) writes
 one session key and sets `request.session_options[:renew] = true` instead of
-calling `reset_session`. `renew` is Rack's session-fixation defense — the
-session id the cookie carries changes on the next response — without
-discarding the hash the other two actors' keys live in, which `reset_session`
-would. Each `sign_out_<actor>` deletes only its own key
-(`session.delete(:seller_id)`, and so on), so signing out of one site leaves
-the other two signed in. `SharedSessionTest` proves all three combinations —
-sign in as any one and the other two survive, sign out of any one and the
-other two survive — and that the session id actually rotates on each sign-in
-rather than merely relying on `renew` being set.
+calling `reset_session`. With `ActionDispatch::Session::CookieStore`, the
+session travels as a whole inside a signed-and-encrypted cookie bound to its
+own content — that is what actually keeps an attacker from riding in on a
+session fixed before sign-in, since there is no server-side session record
+for a stolen id to point at. `renew` rotates the id on top of that as
+defence in depth, without discarding the hash the other two actors' keys
+live in, which `reset_session` would. Each `sign_out_<actor>` deletes only
+its own key (`session.delete(:seller_id)`, and so on), so signing out of one
+site leaves the other two signed in. `SharedSessionTest` proves all three
+combinations — sign in as any one and the other two survive, sign out of any
+one and the other two survive — and that the id `renew` commits into the
+outgoing cookie actually changes on each sign-in, read from the request that
+follows it (`request.session.id`, read from the same request the sign-in
+happened in, only ever reflects the id that request's own incoming cookie
+carried — `Rack::Session::Abstract::Persisted#commit_session` writes a
+renewed id into the outgoing `Set-Cookie` but never back into that request's
+own session object).
 
 CSRF protection is unaffected: Rails' synchronizer token is a value stored in
 the session hash, not derived from the session id, so renewing the id changes
