@@ -2,9 +2,11 @@ import type { Selectable } from 'kysely'
 import { normalizeEmail } from '../../core/auth/email-address.ts'
 import { isAnonymousCustomer } from '../../core/customers/customer-verification.ts'
 import { planCustomerIdentity } from '../../core/customers/identity-plan.ts'
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { CustomerTable } from '../../db/schema.ts'
 import { toTimestamp, type Timestamp } from '../../db/timestamp.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
@@ -12,7 +14,7 @@ import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 export type ClaimCustomerIdentityInput = {
   email: string
   /** The customer the identity cookie points at, if any. */
-  currentCustomerId: number | null
+  currentCustomerId: CustomerId | null
 }
 
 /**
@@ -28,7 +30,8 @@ export async function claimCustomerIdentity(
 
   return runInTransaction(context, async (transacted) => {
     const { db, clock } = transacted
-    const verifiedAt = toTimestamp(clock.now())
+    const now = clock.now()
+    const verifiedAt = toTimestamp(now)
     const owner = await findCustomerByEmail(db, address)
 
     const plan = planCustomerIdentity({
@@ -38,7 +41,7 @@ export async function claimCustomerIdentity(
 
     switch (plan.action) {
       case 'createVerified':
-        return await createVerifiedCustomer(db, address, verifiedAt)
+        return await createVerifiedCustomer(db, address, now)
       case 'claimAnonymous':
         return await claimAddress(db, plan.anonymousCustomerId, address, verifiedAt)
       case 'signInExisting':
@@ -70,8 +73,8 @@ async function findCustomerByEmail(
 
 async function findAnonymousId(
   db: AppDatabase,
-  currentCustomerId: number | null,
-): Promise<number | null> {
+  currentCustomerId: CustomerId | null,
+): Promise<CustomerId | null> {
   if (currentCustomerId === null) return null
 
   const current = await db
@@ -86,18 +89,26 @@ async function findAnonymousId(
 async function createVerifiedCustomer(
   db: AppDatabase,
   address: string,
-  verifiedAt: Timestamp,
+  at: Date,
 ): Promise<Selectable<CustomerTable>> {
+  const verifiedAt = toTimestamp(at)
+
   return await db
     .insertInto('customers')
-    .values({ email: address, name: null, emailVerifiedAt: verifiedAt, createdAt: verifiedAt })
+    .values({
+      id: newId('cus', at),
+      email: address,
+      name: null,
+      emailVerifiedAt: verifiedAt,
+      createdAt: verifiedAt,
+    })
     .returningAll()
     .executeTakeFirstOrThrow()
 }
 
 async function claimAddress(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
   address: string,
   verifiedAt: Timestamp,
 ): Promise<Selectable<CustomerTable>> {
@@ -115,7 +126,7 @@ async function claimAddress(
  */
 async function settleVerification(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
   verifiedAt: Timestamp,
 ): Promise<Selectable<CustomerTable>> {
   await db
@@ -130,7 +141,7 @@ async function settleVerification(
 
 async function readCustomer(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<Selectable<CustomerTable>> {
   return await db
     .selectFrom('customers')

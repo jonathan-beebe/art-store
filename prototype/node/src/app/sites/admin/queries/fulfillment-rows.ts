@@ -1,4 +1,5 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import type { FulfillmentStatus } from '../../../core/orders/fulfillment-status.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
@@ -6,13 +7,13 @@ import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type FulfillmentRowFilters = {
   status?: FulfillmentStatus
-  sellerId?: number
+  sellerId?: SellerId
 }
 
 export type FulfillmentRow = {
-  id: number
-  orderId: number
-  sellerId: number
+  id: FulfillmentId
+  orderId: OrderId
+  sellerId: SellerId
   sellerName: string
   status: FulfillmentStatus
   subtotalCents: Cents
@@ -33,6 +34,7 @@ export async function fulfillmentRows(
     .innerJoin('sellers', 'sellers.id', 'fulfillments.sellerId')
     .selectAll('fulfillments')
     .select(['sellers.shopName as sellerShopName', 'sellers.email as sellerEmail'])
+    .orderBy('fulfillments.createdAt', 'desc')
     .orderBy('fulfillments.id', 'desc')
 
   if (filters.status !== undefined) query = query.where('fulfillments.status', '=', filters.status)

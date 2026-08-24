@@ -1,10 +1,11 @@
 import type { Cents } from '../money.ts'
 import { addCents, ZERO_CENTS } from '../money.ts'
 import { cartLineTotal, type CartLine } from './cart-line.ts'
+import type { SellerId } from '../ids/entity-ids.ts'
 
 /** What a cart is worth, whole and split by the seller each line belongs to. */
 export type SellerSubtotal = {
-  sellerId: number
+  sellerId: SellerId
   subtotalCents: Cents
 }
 
@@ -19,7 +20,7 @@ function totalOf(lines: readonly CartLine[]): Cents {
 }
 
 function subtotalsBySeller(lines: readonly CartLine[]): SellerSubtotal[] {
-  const linesBySeller = new Map<number, CartLine[]>()
+  const linesBySeller = new Map<SellerId, CartLine[]>()
   for (const line of lines) {
     const existing = linesBySeller.get(line.sellerId) ?? []
     existing.push(line)
@@ -27,7 +28,7 @@ function subtotalsBySeller(lines: readonly CartLine[]): SellerSubtotal[] {
   }
 
   return [...linesBySeller.entries()]
-    .sort(([a], [b]) => a - b)
+    .sort(([a], [b]) => a.localeCompare(b))
     .map(([sellerId, sellerLines]) => ({ sellerId, subtotalCents: totalOf(sellerLines) }))
 }
 

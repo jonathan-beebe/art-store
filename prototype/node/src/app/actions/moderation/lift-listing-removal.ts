@@ -1,3 +1,4 @@
+import type { ListingId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -13,7 +14,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
  */
 export async function liftListingRemoval(
   context: ActionContext,
-  { listingId }: { listingId: number },
+  { listingId }: { listingId: ListingId },
 ): Promise<ListingRemoval> {
   return runInTransaction(context, async (transacted) => {
     const { db, clock } = transacted

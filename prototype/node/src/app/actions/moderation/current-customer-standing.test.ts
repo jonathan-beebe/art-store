@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../ids.ts'
 import { currentCustomerStanding } from './current-customer-standing.ts'
 import { canShop } from '../../core/moderation/customer-standing.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -28,6 +29,7 @@ test('an unlifted block blocks them and carries the reason', async (t) => {
   await db
     .insertInto('customerBlocks')
     .values({
+      id: newId('blk', new Date()),
       customerId,
       adminId,
       reason: 'Chargeback abuse',
@@ -53,6 +55,7 @@ test('a lifted block leaves them alone', async (t) => {
   await db
     .insertInto('customerBlocks')
     .values({
+      id: newId('blk', new Date()),
       customerId,
       adminId,
       reason: 'Chargeback abuse',

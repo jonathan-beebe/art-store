@@ -1,3 +1,4 @@
+import type { CustomerId, FulfillmentId, OrderId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Order, OrderItem, Payment } from '../../../db/commerce-schema.ts'
 import {
@@ -7,7 +8,7 @@ import {
 
 /** One seller's half of an order, as the customer follows it. */
 export type OrderFulfillment = {
-  id: number
+  id: FulfillmentId
   status: FulfillmentStatus
   carrier: string | null
   trackingNumber: string | null
@@ -30,7 +31,7 @@ export type CustomerOrder = {
  */
 export async function findCustomerOrder(
   db: AppDatabase,
-  input: { orderId: number; customerId: number },
+  input: { orderId: OrderId; customerId: CustomerId },
 ): Promise<CustomerOrder | null> {
   const order = await db
     .selectFrom('orders')
@@ -45,6 +46,7 @@ export async function findCustomerOrder(
     .selectFrom('orderItems')
     .selectAll()
     .where('orderId', '=', order.id)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 
@@ -61,6 +63,7 @@ export async function findCustomerOrder(
       'sellers.email as sellerEmail',
     ])
     .where('fulfillments.orderId', '=', order.id)
+    .orderBy('fulfillments.createdAt')
     .orderBy('fulfillments.id')
     .execute()
 
@@ -68,6 +71,7 @@ export async function findCustomerOrder(
     .selectFrom('payments')
     .selectAll()
     .where('orderId', '=', order.id)
+    .orderBy('processedAt', 'desc')
     .orderBy('id', 'desc')
     .executeTakeFirst()
 

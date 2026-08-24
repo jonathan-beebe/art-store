@@ -1,5 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationThread } from './conversation-thread.ts'
 import { openConversation } from './open-conversation.ts'
 import { postMessage } from './post-message.ts'
@@ -48,10 +55,15 @@ async function admin(context: ActionContext) {
   return found
 }
 
-async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: number): Promise<number> {
+async function insertFulfillment(
+  db: AppDatabase,
+  sellerId: SellerId,
+  customerId: CustomerId,
+): Promise<FulfillmentId> {
   const order = await db
     .insertInto('orders')
     .values({
+      id: newId('ord', new Date()),
       customerId,
       email: null,
       status: 'paid',
@@ -74,6 +86,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
   const fulfillment = await db
     .insertInto('fulfillments')
     .values({
+      id: newId('ful', new Date()),
       orderId: order.id,
       sellerId,
       status: 'awaiting_shipment',
@@ -82,6 +95,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
       subtotalCents: 45_000,
       feeCents: 4_500,
       netCents: 40_500,
+      createdAt: NOW.toISOString(),
       shippedAt: null,
       deliveredAt: null,
     })
@@ -244,7 +258,7 @@ test('it returns null for an id that names nothing', async (t) => {
   const buyer = await customer(world.context)
 
   const thread = await conversationThread(world.context, {
-    conversationId: 999_999,
+    conversationId: fixtureId('cnv', 999),
     actor: { type: 'customer', id: buyer.id },
   })
 

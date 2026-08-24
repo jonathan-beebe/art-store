@@ -3,6 +3,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { finalizeOrder } from '../../../actions/orders/finalize-order.ts'
 import { markAwaitingPayment } from '../../../actions/orders/mark-awaiting-payment.ts'
 import { runInTransaction } from '../../../actions/transaction.ts'
+import type { OrderId } from '../../../core/ids/entity-ids.ts'
 import { awaitsCard, isUnpaid } from '../../../core/orders/order-payment.ts'
 import type { Order } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
@@ -24,7 +25,7 @@ const cardForm = submittedForm({ card_number: z.string().optional() })
  */
 async function chargeVerifiedOrder(
   context: ActionContext,
-  input: { orderId: number; cardNumber: string },
+  input: { orderId: OrderId; cardNumber: string },
 ): Promise<Order | null> {
   return runInTransaction(context, async (transacted) => {
     const order = await markAwaitingPayment(transacted, input.orderId)
@@ -44,7 +45,7 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.get(
     '/orders/:id/pay',
-    { schema: { params: idParams }, preHandler: requireVerifiedCustomer },
+    { schema: { params: idParams('ord') }, preHandler: requireVerifiedCustomer },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
       if (found === null) return renderNotFound(reply)
@@ -55,7 +56,7 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
       return reply.render(
         'pay',
         shopPage({
-          title: `Pay for order #${order.id}`,
+          title: `Pay for order ${order.id}`,
           order,
           declineMessage: declineNotice(found.lastPayment),
         }),
@@ -66,7 +67,7 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
   shop.post(
     '/orders/:id/pay',
     {
-      schema: { params: idParams, body: cardForm },
+      schema: { params: idParams('ord'), body: cardForm },
       preHandler: [requireVerifiedCustomer, refuseBlockedCustomer(customerOrderPath)],
     },
     async (request, reply) => {

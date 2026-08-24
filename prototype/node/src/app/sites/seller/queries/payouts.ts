@@ -1,7 +1,8 @@
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Payout } from '../../../db/commerce-schema.ts'
 
-export async function payoutsForSeller(db: AppDatabase, sellerId: number): Promise<readonly Payout[]> {
+export async function payoutsForSeller(db: AppDatabase, sellerId: SellerId): Promise<readonly Payout[]> {
   return db
     .selectFrom('payouts')
     .selectAll()

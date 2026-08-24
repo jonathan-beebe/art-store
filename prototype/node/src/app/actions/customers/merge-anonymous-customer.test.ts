@@ -1,8 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { sql } from 'kysely'
+import type {
+  CartId,
+  CustomerId,
+  ListingId,
+} from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
+import { newId } from '../../ids.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -10,7 +17,7 @@ import { runInTransaction } from '../transaction.ts'
 const NOW = TEST_INSTANT.toISOString()
 
 /** The two customers a merge folds together, plus the app they live in. */
-type Merging = TestApp & { anonymousCustomerId: number; verifiedCustomerId: number }
+type Merging = TestApp & { anonymousCustomerId: CustomerId; verifiedCustomerId: CustomerId }
 
 async function startMerging(): Promise<Merging> {
   const testApp = await buildTestApp()
@@ -33,30 +40,42 @@ async function merge(merging: Merging): Promise<void> {
   })
 }
 
-async function createListing(db: AppDatabase, title: string, quantity: number): Promise<number> {
+async function createListing(
+  db: AppDatabase,
+  title: string,
+  quantity: number,
+): Promise<ListingId> {
   const seller = await db
     .insertInto('sellers')
-    .values({ email: `${title}@example.com`, name: null, shopName: null, emailVerifiedAt: NOW, createdAt: NOW })
+    .values({
+      id: newId('sel', new Date()),
+      email: `${title}@example.com`,
+      name: null,
+      shopName: null,
+      emailVerifiedAt: NOW,
+      createdAt: NOW,
+    })
     .returning('id')
     .executeTakeFirstOrThrow()
 
-  const listing = await sql<{ id: number }>`
-    insert into listings (seller_id, title, slug, price_cents, quantity, status, created_at, updated_at)
-    values (${seller.id}, ${title}, ${title}, 1000, ${quantity}, 'for_sale', ${NOW}, ${NOW})
+  const listing = await sql<{ id: ListingId }>`
+    insert into listings (id, seller_id, title, slug, price_cents, quantity, status, created_at, updated_at)
+    values (${newId('lst', new Date())}, ${seller.id}, ${title}, ${title}, 1000, ${quantity}, 'for_sale', ${NOW}, ${NOW})
     returning id
   `.execute(db)
 
-  return listing.rows[0]?.id ?? 0
+  return listing.rows[0]?.id ?? fixtureId('lst', 0)
 }
 
-async function favorite(db: AppDatabase, customerId: number, listingId: number): Promise<void> {
+async function favorite(db: AppDatabase, customerId: CustomerId, listingId: ListingId): Promise<void> {
   await sql`
-    insert into favorites (customer_id, listing_id, created_at) values (${customerId}, ${listingId}, ${NOW})
+    insert into favorites (id, customer_id, listing_id, created_at)
+    values (${newId('fav', new Date())}, ${customerId}, ${listingId}, ${NOW})
   `.execute(db)
 }
 
-async function readFavoriteListingIds(db: AppDatabase, customerId: number): Promise<number[]> {
-  const rows = await sql<{ listingId: number }>`
+async function readFavoriteListingIds(db: AppDatabase, customerId: CustomerId): Promise<ListingId[]> {
+  const rows = await sql<{ listingId: ListingId }>`
     select listing_id from favorites where customer_id = ${customerId} order by listing_id
   `.execute(db)
 
@@ -65,27 +84,29 @@ async function readFavoriteListingIds(db: AppDatabase, customerId: number): Prom
 
 async function fillCart(
   db: AppDatabase,
-  customerId: number,
-  lines: readonly { listingId: number; quantity: number }[],
+  customerId: CustomerId,
+  lines: readonly { listingId: ListingId; quantity: number }[],
 ): Promise<void> {
-  const cart = await sql<{ id: number }>`
-    insert into carts (customer_id, created_at) values (${customerId}, ${NOW}) returning id
+  const cart = await sql<{ id: CartId }>`
+    insert into carts (id, customer_id, created_at)
+    values (${newId('crt', new Date())}, ${customerId}, ${NOW})
+    returning id
   `.execute(db)
-  const cartId = cart.rows[0]?.id ?? 0
+  const cartId = cart.rows[0]?.id ?? fixtureId('crt', 0)
 
   for (const line of lines) {
     await sql`
-      insert into cart_items (cart_id, listing_id, quantity)
-      values (${cartId}, ${line.listingId}, ${line.quantity})
+      insert into cart_items (id, cart_id, listing_id, quantity, created_at)
+      values (${newId('cti', new Date())}, ${cartId}, ${line.listingId}, ${line.quantity}, ${NOW})
     `.execute(db)
   }
 }
 
 async function readCart(
   db: AppDatabase,
-  customerId: number,
-): Promise<{ listingId: number; quantity: number }[]> {
-  const rows = await sql<{ listingId: number; quantity: number }>`
+  customerId: CustomerId,
+): Promise<{ listingId: ListingId; quantity: number }[]> {
+  const rows = await sql<{ listingId: ListingId; quantity: number }>`
     select cart_items.listing_id, cart_items.quantity
     from cart_items join carts on carts.id = cart_items.cart_id
     where carts.customer_id = ${customerId}
@@ -95,7 +116,7 @@ async function readCart(
   return rows.rows.map((row) => ({ listingId: row.listingId, quantity: row.quantity }))
 }
 
-async function countCarts(db: AppDatabase, customerId: number): Promise<number> {
+async function countCarts(db: AppDatabase, customerId: CustomerId): Promise<number> {
   const rows = await sql<{ total: number }>`
     select count(*) as total from carts where customer_id = ${customerId}
   `.execute(db)
@@ -140,15 +161,15 @@ test('it re-points the rows of a table the customer owns', async (t) => {
 
   for (const customerId of [merging.anonymousCustomerId, bystander.id]) {
     await sql`
-      insert into listing_events (listing_id, customer_id, event_type, occurred_at)
-      values (${listingId}, ${customerId}, 'view', ${NOW})
+      insert into listing_events (id, listing_id, customer_id, event_type, occurred_at)
+      values (${newId('lev', new Date())}, ${listingId}, ${customerId}, 'view', ${NOW})
     `.execute(db)
   }
 
   await merge(merging)
 
-  const events = await sql<{ customerId: number }>`
-    select customer_id from listing_events order by id
+  const events = await sql<{ customerId: CustomerId }>`
+    select customer_id from listing_events order by occurred_at, id
   `.execute(db)
 
   assert.deepEqual(
@@ -165,6 +186,7 @@ test('a conversation opened anonymously re-points to the verified customer', asy
   const conversation = await db
     .insertInto('conversations')
     .values({
+      id: newId('cnv', new Date()),
       kind: 'admin_customer',
       sellerId: null,
       customerId: merging.anonymousCustomerId,

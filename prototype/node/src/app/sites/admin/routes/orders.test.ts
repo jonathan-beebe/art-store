@@ -2,6 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp, signInAsAdmin } from '../../../test/build-test-app.ts'
 import { createCustomer, createListing, createSeller, paidOrder, placedOrder } from '../../../test/commerce-world.ts'
+import { fixtureId } from '../../../test/fixture-ids.ts'
+
+const CUSTOMER_ID = fixtureId('cus', 3)
 
 test('GET /admin/orders lists every order with its rollups', async (t) => {
   const testApp = await buildTestApp()
@@ -69,12 +72,12 @@ test('the filter form remembers the submitted values', async (t) => {
 
   const response = await testApp.app.inject({
     method: 'GET',
-    url: '/admin/orders?status=paid&customer=3',
+    url: `/admin/orders?status=paid&customer=${CUSTOMER_ID}`,
     cookies: admin.cookies,
   })
 
   assert.match(response.body, /<option value="paid" selected>/)
-  assert.match(response.body, /value="3"/)
+  assert.match(response.body, new RegExp(`value="${CUSTOMER_ID}"`))
 })
 
 test('the "all" options submit empty filters, which the table reads as no filter', async (t) => {

@@ -7,6 +7,13 @@ import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { drainOutbox } from '../actions/outbox/drain-outbox.ts'
 import { fixedClock } from '../clock.ts'
+import type {
+  ActorId,
+  AdminId,
+  FulfillmentId,
+  OrderId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import { cents, formatCents, subtractCents } from '../core/money.ts'
 import type { Listing } from '../db/commerce-schema.ts'
 import { outboxMagicLinkDelivery } from '../delivery/outbox-magic-link-delivery.ts'
@@ -101,7 +108,7 @@ const CUSTOMER_EMAIL = 'smoke-buyer@example.test'
 const FROZEN_NOW = new Date('2026-08-19T09:00:00.000Z')
 const PAYOUT_AS_OF = '2026-08-24'
 
-type Actor = { id: number; cookies: Record<string, string> }
+type Actor<Id extends ActorId = ActorId> = { id: Id; cookies: Record<string, string> }
 type Visitor = { cookies: Record<string, string> }
 
 function multipartHeaders(boundary = '----smoketest'): Record<string, string> {
@@ -120,7 +127,9 @@ function multipartPayload(fields: Record<string, string>, boundary = '----smoket
   return Buffer.from(parts.join('\r\n'))
 }
 
-async function signSellerIn(testApp: Awaited<ReturnType<typeof buildTestApp>>): Promise<Actor> {
+async function signSellerIn(
+  testApp: Awaited<ReturnType<typeof buildTestApp>>,
+): Promise<Actor<SellerId>> {
   const asked = await testApp.app.inject({
     method: 'POST',
     url: '/seller/login',
@@ -142,7 +151,7 @@ async function signSellerIn(testApp: Awaited<ReturnType<typeof buildTestApp>>): 
   return { id: seller.id, cookies: cookiesFrom(followed) }
 }
 
-async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor): Promise<Listing> {
+async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor<SellerId>): Promise<Listing> {
   const created = await testApp.app.inject({
     method: 'POST',
     url: '/seller/listings',
@@ -174,7 +183,7 @@ async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, s
 
 async function putUpForSale(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
+  seller: Actor<SellerId>,
   listing: Listing,
 ): Promise<Listing> {
   const changed = await testApp.app.inject({
@@ -267,7 +276,7 @@ async function cartThePiece(
   )
 }
 
-type GuestCheckout = { orderId: number; verificationLink: string }
+type GuestCheckout = { orderId: OrderId; verificationLink: string }
 
 async function guestChecksOut(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
@@ -398,12 +407,12 @@ async function payWithTheApprovedCard(
 
 async function sellerReadsTheSale(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
+  seller: Actor<SellerId>,
   checkout: GuestCheckout,
-): Promise<{ id: number }> {
+): Promise<{ id: FulfillmentId }> {
   const notifications = await testApp.app.inject({ method: 'GET', url: '/seller/notifications', cookies: seller.cookies })
   assert.match(notifications.body, /Item sold/)
-  assert.match(notifications.body, new RegExp(`Order #${checkout.orderId} is paid`))
+  assert.match(notifications.body, new RegExp(`Order ${checkout.orderId} is paid`))
 
   const orders = await testApp.app.inject({ method: 'GET', url: '/seller/orders', cookies: seller.cookies })
   assert.match(orders.body, new RegExp(`data-group="awaiting_shipment"[\\s\\S]*?${PIECE_TITLE}`))
@@ -420,8 +429,8 @@ async function sellerReadsTheSale(
 
 async function sellerShipsIt(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
-  fulfillment: { id: number },
+  seller: Actor<SellerId>,
+  fulfillment: { id: FulfillmentId },
 ): Promise<void> {
   const shipped = await testApp.app.inject({
     method: 'POST',
@@ -442,7 +451,7 @@ async function customerConfirmsDelivery(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
   shopper: Visitor,
   checkout: GuestCheckout,
-  fulfillment: { id: number },
+  fulfillment: { id: FulfillmentId },
 ): Promise<void> {
   const confirmed = await testApp.app.inject({
     method: 'POST',
@@ -465,7 +474,7 @@ async function customerConfirmsDelivery(
   assert.equal(released.amountCents, SELLER_NET_CENTS)
 }
 
-async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof buildTestApp>>, admin: Actor): Promise<void> {
+async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof buildTestApp>>, admin: Actor<AdminId>): Promise<void> {
   const run = await testApp.app.inject({
     method: 'POST',
     url: '/admin/payouts',
@@ -479,7 +488,7 @@ async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof build
   assert.equal(payouts[0]?.amountCents, SELLER_NET_CENTS)
 }
 
-async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor): Promise<void> {
+async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor<SellerId>): Promise<void> {
   const earnings = await testApp.app.inject({ method: 'GET', url: '/seller/earnings', cookies: seller.cookies })
   assert.equal(earnings.statusCode, 200)
 
@@ -537,7 +546,7 @@ test('a question on a listing becomes an answer and then a published FAQ', async
 
   assert.equal(asked.statusCode, 302)
   const threadPath = destinationOf(asked)
-  assert.match(threadPath, /^\/messages\/\d+$/)
+  assert.match(threadPath, /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const sellerInbox = await app.inject({ url: '/seller/messages', cookies: seller.cookies })
   assert.equal(sellerInbox.statusCode, 200)

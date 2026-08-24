@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { FastifyPluginCallback, FastifyRequest } from 'fastify'
+import type { MessagingActor } from '../actions/messaging/conversation-actor.ts'
 import { unreadMessageCount } from '../actions/messaging/conversation-inbox.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
 import { rootPlugin } from './root-plugin.ts'
@@ -135,10 +136,15 @@ export function unreadEventStream(source: UnreadStreamSource): ReadableStream<Ui
   })
 }
 
-const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => number | null>> = {
-  seller: (request) => request.currentSeller?.id ?? null,
-  customer: (request) => request.currentCustomer?.id ?? null,
-  admin: (request) => request.currentAdmin?.id ?? null,
+const SITE_ACTORS: Readonly<
+  Record<ActorType, (request: FastifyRequest) => MessagingActor | null>
+> = {
+  seller: ({ currentSeller }) =>
+    currentSeller === null ? null : { type: 'seller', id: currentSeller.id },
+  customer: ({ currentCustomer }) =>
+    currentCustomer === null ? null : { type: 'customer', id: currentCustomer.id },
+  admin: ({ currentAdmin }) =>
+    currentAdmin === null ? null : { type: 'admin', id: currentAdmin.id },
 }
 
 /**
@@ -148,14 +154,14 @@ const ACTOR_IDS: Readonly<Record<ActorType, (request: FastifyRequest) => number 
 export function unreadEventsRoute(actorType: ActorType): FastifyPluginCallback {
   const unreadEvents: FastifyPluginCallback = (site, _options, done) => {
     site.get('/events', async (request, reply) => {
-      const actorId = ACTOR_IDS[actorType](request)
-      if (actorId === null) return reply.code(204).send()
+      const actor = SITE_ACTORS[actorType](request)
+      if (actor === null) return reply.code(204).send()
 
       const disconnected = new AbortController()
       request.raw.on('close', () => disconnected.abort())
 
       const stream = unreadEventStream({
-        countUnread: () => unreadMessageCount({ db: site.db }, { type: actorType, id: actorId }),
+        countUnread: () => unreadMessageCount({ db: site.db }, actor),
         events: site.events,
         disconnected: disconnected.signal,
       })

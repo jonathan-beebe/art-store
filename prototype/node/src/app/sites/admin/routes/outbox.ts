@@ -24,13 +24,13 @@ export const outboxRoutes: ZodRoutes = (admin, _options, done) => {
     return reply.redirect('/admin/outbox')
   })
 
-  admin.get('/outbox/:id', { schema: { params: idParams } }, async (request, reply) => {
+  admin.get('/outbox/:id', { schema: { params: idParams('obx') } }, async (request, reply) => {
     const message = await outboxRow({ db: admin.db }, request.params.id)
     if (message === null) return reply.code(404).type('text/plain').send('Not found')
 
     return reply.render(
       'outbox-message',
-      adminPage(`Outbox message #${message.id}`, {
+      adminPage(`Outbox message ${message.id}`, {
         message,
         rendered: renderOutboxMessage(message),
       }),

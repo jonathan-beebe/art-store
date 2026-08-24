@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
 import { toggleFavorite } from './toggle-favorite.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { createCustomer, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
@@ -74,7 +75,7 @@ test("one visitor saving leaves another visitor's favorites alone", async (t) =>
   assert.ok(await isFavorited(world.db, shopperId, art.id))
 })
 
-async function isFavorited(db: AppDatabase, customerId: number, listingId: number): Promise<boolean> {
+async function isFavorited(db: AppDatabase, customerId: CustomerId, listingId: ListingId): Promise<boolean> {
   const row = await db
     .selectFrom('favorites')
     .select('id')
@@ -85,7 +86,7 @@ async function isFavorited(db: AppDatabase, customerId: number, listingId: numbe
   return row !== undefined
 }
 
-async function eventTypes(db: AppDatabase, listingId: number): Promise<string[]> {
+async function eventTypes(db: AppDatabase, listingId: ListingId): Promise<string[]> {
   const rows = await db
     .selectFrom('listingEvents')
     .select('eventType')

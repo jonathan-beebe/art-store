@@ -1,3 +1,4 @@
+import type { NotificationId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { Notification } from '../../db/commerce-schema.ts'
@@ -6,7 +7,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
 /** Stamps a notification read. A second read keeps the first moment. */
 export async function markNotificationRead(
   context: ActionContext,
-  notificationId: number,
+  notificationId: NotificationId,
 ): Promise<Notification> {
   return runInTransaction(context, async ({ db, clock }) => {
     await db

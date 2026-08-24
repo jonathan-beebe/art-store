@@ -7,6 +7,10 @@ import { openConversation } from '../../../actions/messaging/open-conversation.t
 import { openSupportConversation } from '../../../actions/messaging/open-support-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import { runInTransaction } from '../../../actions/transaction.ts'
+import type {
+  FulfillmentId,
+  SellerId,
+} from '../../../core/ids/entity-ids.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import type { Conversation } from '../../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../../db/database.ts'
@@ -17,7 +21,7 @@ import { findListingOnStorefront } from '../queries/find-listing-on-storefront.t
 import { renderNotFound, shopPage } from '../shop-page.ts'
 import { storefrontCustomer } from '../storefront-customer.ts'
 
-const fulfillmentParams = z.object({ id: idValue, fulfillmentId: idValue })
+const fulfillmentParams = z.object({ id: idValue('ord'), fulfillmentId: idValue('ful') })
 const replyForm = submittedForm({ body: z.string().optional() })
 // The question box is the first thing a visitor writes to a seller, and an
 // empty one is refused by the same rule that refuses an empty reply.
@@ -27,7 +31,10 @@ const questionForm = submittedForm({ body: z.string().catch('') })
  * The seller behind one fulfillment. `loadCustomerOrder`'s own view of a
  * fulfillment leaves this column out, so opening its thread reads it directly.
  */
-async function fulfillmentSellerId(db: AppDatabase, fulfillmentId: number): Promise<number | null> {
+async function fulfillmentSellerId(
+  db: AppDatabase,
+  fulfillmentId: FulfillmentId,
+): Promise<SellerId | null> {
   const row = await db
     .selectFrom('fulfillments')
     .select('sellerId')
@@ -47,7 +54,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
     return reply.render('messages', shopPage({ title: 'Messages', conversations }))
   })
 
-  shop.get('/messages/:id', { schema: { params: idParams } }, async (request, reply) => {
+  shop.get('/messages/:id', { schema: { params: idParams('cnv') } }, async (request, reply) => {
     const conversationId = request.params.id
     const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
     const thread = await conversationThread(context, { conversationId, actor })
@@ -60,7 +67,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post(
     '/messages/:id',
-    { schema: { params: idParams, body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm } },
     async (request, reply) => {
       const conversationId = request.params.id
       const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }

@@ -35,12 +35,13 @@ test('main logs one structured line per drained message and says where they land
 
   await main(['node', 'drain-outbox.ts', `--dir=${outboxDir}`], { DATABASE_FILE: databaseFile }, logger)
 
-  assert.deepEqual(await readdir(outboxDir), ['1.eml'])
+  const [written] = await readdir(outboxDir)
 
   const lines = stream.lines()
   const drainedLine = lines.find((line) => line.event === 'outbox.drained')
   assert.equal(drainedLine?.recipient, 'artist@example.com')
-  assert.equal(drainedLine?.file, path.join(outboxDir, '1.eml'))
+  assert.equal(drainedLine?.file, path.join(outboxDir, written ?? ''))
+  assert.match(written ?? '', /^obx_[0-9A-HJKMNP-TV-Z]{26}\.eml$/)
 
   const summaryLine = lines.find((line) => line.event === 'outbox.drain_run')
   assert.equal(summaryLine?.count, 1)

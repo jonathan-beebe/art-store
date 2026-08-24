@@ -1,3 +1,4 @@
+import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { SellerLedgerMovement } from '../../core/escrow/ledger-balance.ts'
 import type { Timestamp } from '../../db/timestamp.ts'
@@ -12,13 +13,13 @@ export type { SellerLedgerMovement }
 export async function ledgerMovements(
   { db }: Pick<ActionContext, 'db'>,
   occurredBy?: Timestamp,
-  sellerId?: number,
+  sellerId?: SellerId,
 ): Promise<readonly SellerLedgerMovement[]> {
   let query = db
     .selectFrom('ledgerEntries')
     .select(['sellerId', 'entryType', 'amountCents'])
     .orderBy('sellerId')
-    .orderBy('id')
+    .orderBy('occurredAt').orderBy('id')
 
   if (occurredBy !== undefined) query = query.where('occurredAt', '<=', occurredBy)
   if (sellerId !== undefined) query = query.where('sellerId', '=', sellerId)

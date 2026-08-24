@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import { payoutRows } from './payout-rows.ts'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
@@ -14,7 +15,7 @@ import {
 
 async function deliverAndPay(
   world: Awaited<ReturnType<typeof openCommerceWorld>>,
-  sellerId: number,
+  sellerId: SellerId,
   priceCents: number,
 ): Promise<void> {
   const customerId = await createCustomer(world.context)

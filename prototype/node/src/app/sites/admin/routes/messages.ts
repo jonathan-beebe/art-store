@@ -6,6 +6,7 @@ import { inboxConversations } from '../../../actions/messaging/conversation-inbo
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import type { AdminId } from '../../../core/ids/entity-ids.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -20,7 +21,7 @@ function actionContext(request: FastifyRequest): ActionContext {
 }
 
 /** `requireAdmin` guards this whole plugin, so this only narrows the type. */
-function currentAdminId(request: FastifyRequest): number {
+function currentAdminId(request: FastifyRequest): AdminId {
   const { currentAdmin } = request
 
   if (currentAdmin === null) throw new Error('a messages route needs a signed-in admin')
@@ -28,7 +29,7 @@ function currentAdminId(request: FastifyRequest): number {
   return currentAdmin.id
 }
 
-function adminActor(request: FastifyRequest): { type: 'admin'; id: number } {
+function adminActor(request: FastifyRequest): { type: 'admin'; id: AdminId } {
   return { type: 'admin', id: currentAdminId(request) }
 }
 
@@ -39,7 +40,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
     return reply.render('messages', adminPage('Messages', { conversations }))
   })
 
-  admin.get('/messages/:id', { schema: { params: idParams } }, async (request, reply) => {
+  admin.get('/messages/:id', { schema: { params: idParams('cnv') } }, async (request, reply) => {
     const conversationId = request.params.id
     const context = actionContext(request)
     const actor = adminActor(request)
@@ -53,7 +54,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
 
   admin.post(
     '/messages/:id',
-    { schema: { params: idParams, body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm } },
     async (request, reply) => {
       const conversationId = request.params.id
       const context = actionContext(request)
@@ -81,7 +82,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
     },
   )
 
-  admin.post('/sellers/:id/messages', { schema: { params: idParams } }, async (request, reply) => {
+  admin.post('/sellers/:id/messages', { schema: { params: idParams('sel') } }, async (request, reply) => {
     const sellerId = request.params.id
     const context = actionContext(request)
     const detail = await sellerDetail(context, sellerId)
@@ -96,7 +97,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
     return reply.redirect(`/admin/messages/${conversation.id}`)
   })
 
-  admin.post('/customers/:id/messages', { schema: { params: idParams } }, async (request, reply) => {
+  admin.post('/customers/:id/messages', { schema: { params: idParams('cus') } }, async (request, reply) => {
     const customerId = request.params.id
     const context = actionContext(request)
     const detail = await customerDetail(context, customerId)

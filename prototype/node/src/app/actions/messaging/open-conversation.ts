@@ -1,3 +1,4 @@
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { participantColumnsOf, subjectColumnOf } from '../../core/messaging/conversation-kind.ts'
@@ -31,7 +32,12 @@ export async function openConversation(
 
     return db
       .insertInto('conversations')
-      .values({ ...plan.subject, createdAt: openedAt, lastMessageAt: openedAt })
+      .values({
+        id: newId('cnv', clock.now()),
+        ...plan.subject,
+        createdAt: openedAt,
+        lastMessageAt: openedAt,
+      })
       .returningAll()
       .executeTakeFirstOrThrow()
   })
@@ -57,5 +63,5 @@ async function conversationsOnSubject(
     query = value === null ? query.where(column, 'is', null) : query.where(column, '=', value)
   }
 
-  return query.orderBy('id').execute()
+  return query.orderBy('createdAt').orderBy('id').execute()
 }

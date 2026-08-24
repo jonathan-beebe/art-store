@@ -1,3 +1,5 @@
+import type { OrderId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { moveOrderStock } from './move-order-stock.ts'
@@ -10,7 +12,7 @@ import type { Fulfillment, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type FinalizeOrderInput = {
-  orderId: number
+  orderId: OrderId
   cardNumber: string
 }
 
@@ -74,6 +76,7 @@ async function recordPayment(
   await db
     .insertInto('payments')
     .values({
+      id: newId('pay', clock.now()),
       orderId: order.id,
       status: attempt.paymentStatus,
       amountCents: order.totalCents,
@@ -95,6 +98,7 @@ async function settle(
   await context.db
     .insertInto('ledgerEntries')
     .values({
+      id: newId('led', now),
       sellerId: fulfillment.sellerId,
       fulfillmentId: fulfillment.id,
       payoutId: null,

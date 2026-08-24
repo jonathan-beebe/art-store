@@ -4,6 +4,8 @@ import { resolveCurrentCustomer } from '../actions/customers/resolve-current-cus
 import { resolveCustomerFromCookie } from '../actions/customers/resolve-customer-from-cookie.ts'
 import { ACTOR_SITES, type ActorType } from '../core/auth/actor-type.ts'
 import { isVerifiedCustomer } from '../core/customers/customer-verification.ts'
+import type { IdPrefix } from '../core/ids/entity-ids.ts'
+import { parsePrefixedId, type PrefixedId } from '../core/ids/prefixed-id.ts'
 import type { AdminTable, CustomerTable, SellerTable } from '../db/schema.ts'
 import { rootPlugin } from './root-plugin.ts'
 
@@ -20,7 +22,17 @@ const IDENTITY_COOKIES = {
 // A browsing history is worth more than a session, so the cookie outlives one.
 const COOKIE_LIFETIME_SECONDS = 365 * 24 * 60 * 60
 
-const ACTOR_ID = /^[0-9]+$/
+/** The table each side of the marketplace keeps its actors in. */
+const ACTOR_PREFIXES = {
+  seller: 'sel',
+  customer: 'cus',
+  admin: 'adm',
+} as const satisfies Record<ActorType, IdPrefix>
+
+type ActorPrefix<Type extends ActorType> = (typeof ACTOR_PREFIXES)[Type]
+
+/** The id type one side of the marketplace names its actors by. */
+export type ActorIdOf = { [Type in ActorType]: PrefixedId<ActorPrefix<Type>> }
 
 /** Who a request is, for the layouts and for anything that renders a header. */
 export type Identity = {
@@ -38,7 +50,7 @@ declare module 'fastify' {
   }
 
   interface FastifyReply {
-    signIn(actorType: ActorType, actorId: number): void
+    signIn<Type extends ActorType>(actorType: Type, actorId: ActorIdOf[Type]): void
     signOut(actorType: ActorType): void
   }
 }
@@ -66,8 +78,12 @@ export const identityCookies = rootPlugin(
 
     app.decorateReply(
       'signIn',
-      function (this: FastifyReply, actorType: ActorType, actorId: number): void {
-        this.setCookie(IDENTITY_COOKIES[actorType], String(actorId), {
+      function <Type extends ActorType>(
+        this: FastifyReply,
+        actorType: Type,
+        actorId: ActorIdOf[Type],
+      ): void {
+        this.setCookie(IDENTITY_COOKIES[actorType], actorId, {
           path: '/',
           httpOnly: true,
           sameSite: 'lax',
@@ -104,18 +120,28 @@ export function identityCookieValue(request: FastifyRequest, actorType: ActorTyp
   return unsigned.valid ? unsigned.value : null
 }
 
-/** The id a cookie value names, or null when it names nothing an actor can be. */
-export function parseActorId(value: string | null | undefined): number | null {
-  if (typeof value !== 'string' || !ACTOR_ID.test(value)) return null
+/**
+ * The id a cookie value names on one side of the marketplace, or null when it
+ * names nothing that side can be — an id belonging to another table, an old
+ * integer id, or anything else a stale or forged cookie carries.
+ */
+export function parseActorId<Type extends ActorType>(
+  actorType: Type,
+  value: string | null | undefined,
+): PrefixedId<ActorPrefix<Type>> | null {
+  if (typeof value !== 'string') return null
 
-  const id = Number(value)
+  const parsed = parsePrefixedId(ACTOR_PREFIXES[actorType], value)
 
-  return id >= 1 ? id : null
+  return parsed.outcome === 'id' ? parsed.id : null
 }
 
 /** The id this request's cookie for one side of the marketplace names. */
-export function identityId(request: FastifyRequest, actorType: ActorType): number | null {
-  return parseActorId(identityCookieValue(request, actorType))
+export function identityId<Type extends ActorType>(
+  request: FastifyRequest,
+  actorType: Type,
+): PrefixedId<ActorPrefix<Type>> | null {
+  return parseActorId(actorType, identityCookieValue(request, actorType))
 }
 
 async function findSeller(request: FastifyRequest): Promise<Selectable<SellerTable> | null> {
@@ -165,7 +191,11 @@ export const rememberCustomerIdentity: preHandlerAsyncHookHandler = async (reque
   )
 }
 
-const SIGNED_IN_ACTOR: Readonly<Record<ActorType, (identity: Identity) => number | null>> = {
+type SignedInActor = {
+  [Type in ActorType]: (identity: Identity) => ActorIdOf[Type] | null
+}
+
+const SIGNED_IN_ACTOR: Readonly<SignedInActor> = {
   seller: (identity) => identity.seller?.id ?? null,
   admin: (identity) => identity.admin?.id ?? null,
   // The cookie alone is a browsing history. Only a verified address is an
@@ -175,7 +205,10 @@ const SIGNED_IN_ACTOR: Readonly<Record<ActorType, (identity: Identity) => number
 }
 
 /** The id this request is signed in as on one side of the marketplace, or null. */
-export function signedInActorId(request: FastifyRequest, actorType: ActorType): number | null {
+export function signedInActorId<Type extends ActorType>(
+  request: FastifyRequest,
+  actorType: Type,
+): ActorIdOf[Type] | null {
   return SIGNED_IN_ACTOR[actorType](request.identity)
 }
 

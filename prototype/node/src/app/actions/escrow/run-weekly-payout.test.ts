@@ -1,5 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  FulfillmentId,
+  OrderId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { runWeeklyPayout } from './run-weekly-payout.ts'
 import { confirmDelivered } from '../fulfillments/confirm-delivered.ts'
 import { markShipped } from '../fulfillments/mark-shipped.ts'
@@ -143,7 +149,7 @@ const SHIPPED_AT = new Date('2026-08-20T11:00:00.000Z')
 /** A sale delivered inside the week ending 2026-08-23, ready for the payout run. */
 async function deliverASale(
   world: { context: ActionContext; db: AppDatabase; travelTo(instant: Date): void },
-  sellerId: number,
+  sellerId: SellerId,
   options: { priceCents?: number; deliveredAt?: Date } = {},
 ): Promise<void> {
   const { context } = world
@@ -154,13 +160,13 @@ async function deliverASale(
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
   world.travelTo(SHIPPED_AT)
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? 0, carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
 
   world.travelTo(options.deliveredAt ?? new Date('2026-08-21T11:00:00.000Z'))
-  await confirmDelivered(context, fulfillmentId ?? 0)
+  await confirmDelivered(context, fulfillmentId ?? fixtureId('ful', 0))
 }
 
-async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[]> {
+async function fulfillmentIds(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .select('id')

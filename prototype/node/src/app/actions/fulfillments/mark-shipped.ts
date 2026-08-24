@@ -1,3 +1,4 @@
+import type { FulfillmentId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { notify } from '../notifications/notify.ts'
@@ -8,7 +9,7 @@ import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type MarkShippedInput = {
-  fulfillmentId: number
+  fulfillmentId: FulfillmentId
   carrier: string
   trackingNumber: string
 }

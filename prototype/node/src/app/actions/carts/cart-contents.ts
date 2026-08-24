@@ -1,3 +1,4 @@
+import type { CartId, CartItemId, ListingId, SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { cartLineTotal, createCartLine, type CartLine } from '../../core/cart/cart-line.ts'
 import { cartTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
@@ -6,9 +7,9 @@ import type { Cents } from '../../core/money.ts'
 
 /** One line of a cart, with the listing details the page and the order need. */
 export type CartLineView = {
-  cartItemId: number
-  listingId: number
-  sellerId: number
+  cartItemId: CartItemId
+  listingId: ListingId
+  sellerId: SellerId
   title: string
   slug: string
   imagePath: string | null
@@ -21,7 +22,7 @@ export type CartLineView = {
 }
 
 export type CartContents = {
-  cartId: number
+  cartId: CartId
   lines: readonly CartLineView[]
   totals: CartTotals
 }
@@ -29,7 +30,7 @@ export type CartContents = {
 /** What is in a cart right now, priced from the listings behind it. */
 export async function cartContents(
   { db }: Pick<ActionContext, 'db'>,
-  cartId: number,
+  cartId: CartId,
 ): Promise<CartContents> {
   const rows = await db
     .selectFrom('cartItems')
@@ -47,6 +48,7 @@ export async function cartContents(
       'listings.priceCents as unitPriceCents',
     ])
     .where('cartItems.cartId', '=', cartId)
+    .orderBy('cartItems.createdAt')
     .orderBy('cartItems.id')
     .execute()
 

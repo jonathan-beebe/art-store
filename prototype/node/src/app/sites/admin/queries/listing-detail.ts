@@ -1,5 +1,6 @@
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { ListingId, ListingRemovalId, SellerId } from '../../../core/ids/entity-ids.ts'
 import { isOnStorefront } from '../../../core/listings/listing-availability.ts'
 import { canLiftRemoval, type RemovalKind } from '../../../core/moderation/listing-removal.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
@@ -7,7 +8,7 @@ import type { Listing } from '../../../db/commerce-schema.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type ListingDetailRemoval = {
-  id: number
+  id: ListingRemovalId
   kind: RemovalKind
   reason: string
   createdAt: Timestamp
@@ -17,7 +18,7 @@ export type ListingDetailRemoval = {
 
 export type ListingDetail = {
   listing: Listing
-  seller: { id: number; name: string }
+  seller: { id: SellerId; name: string }
   isOnStorefront: boolean
   activeRemoval: ListingDetailRemoval | null
   removals: ListingDetailRemoval[]
@@ -30,7 +31,7 @@ export type ListingDetail = {
  */
 export async function listingDetail(
   context: Pick<ActionContext, 'db'>,
-  listingId: number,
+  listingId: ListingId,
 ): Promise<ListingDetail | null> {
   const { db } = context
   const listing = await db
@@ -60,12 +61,13 @@ export async function listingDetail(
 
 async function removalHistory(
   db: ActionContext['db'],
-  listingId: number,
+  listingId: ListingId,
 ): Promise<ListingDetailRemoval[]> {
   const rows = await db
     .selectFrom('listingRemovals')
     .select(['id', 'kind', 'reason', 'createdAt', 'liftedAt'])
     .where('listingId', '=', listingId)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 

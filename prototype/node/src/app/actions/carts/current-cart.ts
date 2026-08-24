@@ -1,3 +1,5 @@
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { Cart } from '../../db/commerce-schema.ts'
@@ -8,7 +10,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
  * verified customer whatever cart the anonymous visitor was filling, so one
  * customer can own two; the one holding the most items is theirs.
  */
-export async function currentCart(context: ActionContext, customerId: number): Promise<Cart> {
+export async function currentCart(context: ActionContext, customerId: CustomerId): Promise<Cart> {
   return runInTransaction(context, async ({ db, clock }) => {
     const existing = await db
       .selectFrom('carts')
@@ -17,6 +19,7 @@ export async function currentCart(context: ActionContext, customerId: number): P
       .where('carts.customerId', '=', customerId)
       .groupBy('carts.id')
       .orderBy('itemCount', 'desc')
+      .orderBy('carts.createdAt', 'desc')
       .orderBy('carts.id', 'desc')
       .executeTakeFirst()
 
@@ -26,7 +29,7 @@ export async function currentCart(context: ActionContext, customerId: number): P
 
     return db
       .insertInto('carts')
-      .values({ customerId, createdAt: toTimestamp(clock.now()) })
+      .values({ id: newId('crt', clock.now()), customerId, createdAt: toTimestamp(clock.now()) })
       .returningAll()
       .executeTakeFirstOrThrow()
   })

@@ -1,13 +1,14 @@
 import type { ConversationKind } from './conversation-kind.ts'
+import type { AdminId, CustomerId, FulfillmentId, ListingId, SellerId } from '../ids/entity-ids.ts'
 
 /** The participant and subject columns of a conversation, as any row carries them. */
 export type ConversationSubject = {
   kind: ConversationKind
-  sellerId: number | null
-  customerId: number | null
-  adminId: number | null
-  listingId: number | null
-  fulfillmentId: number | null
+  sellerId: SellerId | null
+  customerId: CustomerId | null
+  adminId: AdminId | null
+  listingId: ListingId | null
+  fulfillmentId: FulfillmentId | null
 }
 
 /**
@@ -17,10 +18,10 @@ export type ConversationSubject = {
  * the table.
  */
 export type ConversationOpening =
-  | { kind: 'admin_seller'; adminId: number; sellerId: number }
-  | { kind: 'admin_customer'; adminId: number; customerId: number }
-  | { kind: 'fulfillment'; sellerId: number; customerId: number; fulfillmentId: number }
-  | { kind: 'listing_question'; sellerId: number; customerId: number; listingId: number }
+  | { kind: 'admin_seller'; adminId: AdminId; sellerId: SellerId }
+  | { kind: 'admin_customer'; adminId: AdminId; customerId: CustomerId }
+  | { kind: 'fulfillment'; sellerId: SellerId; customerId: CustomerId; fulfillmentId: FulfillmentId }
+  | { kind: 'listing_question'; sellerId: SellerId; customerId: CustomerId; listingId: ListingId }
 
 /** Flattens an opening into the row shape, filling the columns this kind leaves out with null. */
 export function conversationSubject(opening: ConversationOpening): ConversationSubject {

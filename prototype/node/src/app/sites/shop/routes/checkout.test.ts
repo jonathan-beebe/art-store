@@ -3,6 +3,10 @@ import assert from 'node:assert/strict'
 import { addToCart } from '../../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../../actions/carts/current-cart.ts'
 import { changeListingStatus } from '../../../actions/listings/change-listing-status.ts'
+import type {
+  CustomerId,
+  ListingId,
+} from '../../../core/ids/entity-ids.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -23,15 +27,18 @@ const DECLINED_CARD = '4000 0000 0000 0002'
 
 async function putInCart(
   testApp: TestApp,
-  customerId: number,
-  listingId: number,
+  customerId: CustomerId,
+  listingId: ListingId,
   quantity = 1,
 ): Promise<void> {
   const cart = await currentCart({ db: testApp.db, clock: testApp.clock }, customerId)
   await addToCart({ db: testApp.db, clock: testApp.clock }, { cartId: cart.id, listingId, quantity })
 }
 
-async function readyCart(testApp: TestApp, customer: SignedInActor): Promise<number> {
+async function readyCart(
+  testApp: TestApp,
+  customer: SignedInActor<CustomerId>,
+): Promise<ListingId> {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
   const listing = await listArtwork(testApp, {
     sellerId: seller.id,
@@ -267,7 +274,7 @@ async function checkOut(
   return { statusCode: response.statusCode, body: response.body }
 }
 
-async function countRows(testApp: TestApp, customerId: number): Promise<{ orders: number; payments: number }> {
+async function countRows(testApp: TestApp, customerId: CustomerId): Promise<{ orders: number; payments: number }> {
   const orders = await testApp.db
     .selectFrom('orders')
     .select('id')

@@ -1,3 +1,4 @@
+import type { ConversationId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { MessagingActor } from './conversation-actor.ts'
@@ -5,7 +6,7 @@ import { isUnreadBy } from '../../core/messaging/unread-messages.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type MarkConversationReadInput = {
-  conversationId: number
+  conversationId: ConversationId
   reader: MessagingActor
 }
 

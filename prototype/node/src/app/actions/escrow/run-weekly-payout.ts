@@ -1,3 +1,5 @@
+import type { SellerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { ledgerMovements } from './ledger-movements.ts'
@@ -35,7 +37,7 @@ export async function runWeeklyPayout(context: ActionContext, asOf: Date): Promi
 async function sellersSettledFor(
   { db }: ActionContext,
   period: PayoutPeriod,
-): Promise<ReadonlySet<number>> {
+): Promise<ReadonlySet<SellerId>> {
   const rows = await db
     .selectFrom('payouts')
     .select('sellerId')
@@ -54,6 +56,7 @@ async function payOut(
   const payout = await db
     .insertInto('payouts')
     .values({
+      id: newId('pyt', asOf),
       sellerId: intent.sellerId,
       periodStart: intent.periodStart,
       periodEnd: intent.periodEnd,
@@ -68,6 +71,7 @@ async function payOut(
   await db
     .insertInto('ledgerEntries')
     .values({
+      id: newId('led', asOf),
       sellerId: intent.sellerId,
       fulfillmentId: null,
       payoutId: payout.id,

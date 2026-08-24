@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../ids.ts'
 import { buildTestApp } from '../test/build-test-app.ts'
 import { runInTransaction } from './transaction.ts'
 
@@ -33,6 +34,7 @@ test('a throw inside rolls back every write the work made', async (t) => {
       await db
         .insertInto('sellers')
         .values({
+          id: newId('sel', new Date()),
           email: 'artist@example.com',
           name: null,
           shopName: null,

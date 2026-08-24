@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import type { OutboxMessageId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { OutboxMessage } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -11,7 +12,7 @@ export type DrainOutboxOptions = {
 }
 
 export type DrainedMessage = {
-  id: number
+  id: OutboxMessageId
   recipient: string
   subject: string
   file: string
@@ -31,6 +32,7 @@ export async function drainOutbox(
     .selectFrom('outboxMessages')
     .selectAll()
     .where('deliveredAt', 'is', null)
+    .orderBy('createdAt', 'asc')
     .orderBy('id', 'asc')
     .execute()
 

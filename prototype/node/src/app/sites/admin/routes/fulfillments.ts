@@ -7,7 +7,7 @@ import { fulfillmentRows } from '../queries/fulfillment-rows.ts'
 
 const fulfillmentsQuery = z.object({
   status: optionalFilter(z.enum(FULFILLMENT_STATUSES)),
-  seller: optionalFilter(idValue),
+  seller: optionalFilter(idValue('sel')),
 })
 
 export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {

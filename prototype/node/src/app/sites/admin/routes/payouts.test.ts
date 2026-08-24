@@ -4,6 +4,7 @@ import type { LightMyRequestResponse } from 'fastify'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import type { Clock } from '../../../clock.ts'
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -33,7 +34,7 @@ function travellingClock(instant: Date): TravellingClock {
 
 async function deliverASale(
   context: { db: Awaited<ReturnType<typeof buildTestApp>>['db']; clock: TravellingClock },
-  sellerId: number,
+  sellerId: SellerId,
   priceCents: number,
 ): Promise<void> {
   const customerId = await createCustomer(context)

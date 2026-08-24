@@ -16,7 +16,7 @@ import { adminPage } from '../page.ts'
 import { payoutRows } from '../queries/payout-rows.ts'
 import { sellerOptions } from '../queries/seller-accounts.ts'
 
-const payoutsQuery = z.object({ seller: optionalFilter(idValue) })
+const payoutsQuery = z.object({ seller: optionalFilter(idValue('sel')) })
 const runForm = submittedForm({ as_of: z.string().optional() })
 
 export const payoutRoutes: ZodRoutes = (admin, _options, done) => {

@@ -40,7 +40,7 @@
       <tbody class="divide-y divide-neutral-200">
         <% orders.forEach(function (order) { %>
           <tr data-order="<%= order.id %>">
-            <th scope="row" class="px-4 py-2 font-normal">#<%= order.id %></th>
+            <th scope="row" class="px-4 py-2 font-normal"><%= order.id %></th>
             <td data-cell="customer" class="px-4 py-2"><%= order.customerEmail ?? 'Anonymous' %></td>
             <td data-cell="status" class="px-4 py-2"><%= statusLabel(order.status) %></td>
             <td data-cell="item-count" class="px-4 py-2 text-right tabular-nums"><%= order.itemCount %></td>

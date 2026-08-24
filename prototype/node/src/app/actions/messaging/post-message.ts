@@ -1,5 +1,8 @@
+import type { ConversationId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
+import { notificationRecipient } from '../../core/notifications/recipient-type.ts'
 import { notify } from '../notifications/notify.ts'
 import { conversationActor, type MessagingActor } from './conversation-actor.ts'
 import { conversationTopicOf } from './conversation-topics.ts'
@@ -12,7 +15,7 @@ import type { Conversation, Message } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type PostMessageInput = {
-  conversationId: number
+  conversationId: ConversationId
   sender: MessagingActor
   body: string
 }
@@ -43,6 +46,7 @@ export async function postMessage(
     const message = await db
       .insertInto('messages')
       .values({
+        id: newId('msg', clock.now()),
         conversationId: conversation.id,
         senderType: input.sender.type,
         senderId: input.sender.id,
@@ -87,8 +91,7 @@ async function notifyOtherSide(
 
   for (const recipient of otherParticipants(conversation, sender)) {
     await notify(context, {
-      recipientType: recipient.type,
-      recipientId: recipient.id,
+      ...notificationRecipient(recipient),
       message: newMessageMessage(topic, conversationPath(recipient.type, conversation.id)),
     })
   }

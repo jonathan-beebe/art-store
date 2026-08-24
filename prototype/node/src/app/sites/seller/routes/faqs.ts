@@ -5,6 +5,7 @@ import { publishListingFaq } from '../../../actions/messaging/publish-listing-fa
 import { unpublishListingFaq } from '../../../actions/messaging/unpublish-listing-faq.ts'
 import { updateListingFaq } from '../../../actions/messaging/update-listing-faq.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
+import type { ListingId } from '../../../core/ids/entity-ids.ts'
 import { parseFaqDraft, type FaqDraftErrors } from '../../../core/messaging/faq-draft.ts'
 import { idParams, idValue, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -13,12 +14,12 @@ import { currentSellerId } from '../current-seller.ts'
 import { sellerNotFound } from '../not-found.ts'
 import { ownedListing } from '../queries/listings.ts'
 
-const faqParams = z.object({ id: idValue, faqId: idValue })
+const faqParams = z.object({ id: idValue('lst'), faqId: idValue('faq') })
 
 const faqForm = submittedForm({
   question: z.string().optional(),
   answer: z.string().optional(),
-  source_message_id: idValue.optional(),
+  source_message_id: idValue('msg').optional(),
   redirect_to: z.string().optional(),
 })
 
@@ -31,7 +32,7 @@ function refuseFaq(reply: FastifyReply, destination: string, errors: FaqDraftErr
 
 function faqsDestination(
   request: FastifyRequest,
-  listingId: number,
+  listingId: ListingId,
   redirectTo: string | undefined,
 ): string {
   return resolveLocalRedirect(redirectTo, {
@@ -41,7 +42,7 @@ function faqsDestination(
 }
 
 export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
-  portal.get('/listings/:id/faqs', { schema: { params: idParams } }, async (request, reply) => {
+  portal.get('/listings/:id/faqs', { schema: { params: idParams('lst') } }, async (request, reply) => {
     const listingId = request.params.id
     const { db } = request.server
     const listing = await ownedListing(db, currentSellerId(request), listingId)
@@ -58,7 +59,7 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings/:id/faqs',
-    { schema: { params: idParams, body: faqForm } },
+    { schema: { params: idParams('lst'), body: faqForm } },
     async (request, reply) => {
       const listingId = request.params.id
       const { db, clock } = request.server

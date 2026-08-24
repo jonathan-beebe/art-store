@@ -2,17 +2,19 @@ import {
   parseNotificationRow,
   type ParsedNotification,
 } from '../../../actions/notifications/notification-recipient.ts'
+import type { CustomerId, NotificationId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 
 /** A customer's own notifications, most recent first. */
 export async function findCustomerNotifications(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<readonly ParsedNotification[]> {
   const rows = await db
     .selectFrom('notifications')
     .selectAll()
     .where('customerId', '=', customerId)
+    .orderBy('createdAt', 'desc')
     .orderBy('id', 'desc')
     .execute()
 
@@ -23,7 +25,7 @@ export async function findCustomerNotifications(
  * null and the page that asked answers "not found". */
 export async function findCustomerNotification(
   db: AppDatabase,
-  input: { id: number; customerId: number },
+  input: { id: NotificationId; customerId: CustomerId },
 ): Promise<ParsedNotification | null> {
   const notification = await db
     .selectFrom('notifications')

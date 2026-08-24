@@ -3,22 +3,24 @@ import {
   type CartLine,
   type CustomerMergePlan,
 } from '../../core/customers/customer-merge-plan.ts'
+import type { CartId, CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { REPOINTED_CUSTOMER_TABLES } from './repointed-customer-tables.ts'
 
 export type MergeSides = {
-  anonymousCustomerId: number
-  verifiedCustomerId: number
+  anonymousCustomerId: CustomerId
+  verifiedCustomerId: CustomerId
 }
 
-type Cart = { cartId: number | null; lines: readonly CartLine[] }
+type Cart = { cartId: CartId | null; lines: readonly CartLine[] }
 
 type CartSides = { anonymous: Cart; verified: Cart }
 
-type FavoriteSides = { anonymous: readonly number[]; verified: readonly number[] }
+type FavoriteSides = { anonymous: readonly ListingId[]; verified: readonly ListingId[] }
 
 const EMPTY_CART: Cart = { cartId: null, lines: [] }
 
@@ -50,6 +52,7 @@ export async function mergeAnonymousCustomer(
     await trx
       .insertInto('customerMerges')
       .values({
+        id: newId('cmg', clock.now()),
         anonymousCustomerId: sides.anonymousCustomerId,
         customerId: sides.verifiedCustomerId,
         createdAt: toTimestamp(clock.now()),
@@ -77,12 +80,13 @@ async function readFavorites(db: AppDatabase, sides: MergeSides): Promise<Favori
 
 async function readFavoriteListingIds(
   db: AppDatabase,
-  customerId: number,
-): Promise<readonly number[]> {
+  customerId: CustomerId,
+): Promise<readonly ListingId[]> {
   const rows = await db
     .selectFrom('favorites')
     .select('listingId')
     .where('customerId', '=', customerId)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 
@@ -116,11 +120,12 @@ async function readCarts(db: AppDatabase, sides: MergeSides): Promise<CartSides>
   }
 }
 
-async function readCart(db: AppDatabase, customerId: number): Promise<Cart> {
+async function readCart(db: AppDatabase, customerId: CustomerId): Promise<Cart> {
   const cart = await db
     .selectFrom('carts')
     .select('id')
     .where('customerId', '=', customerId)
+    .orderBy('createdAt')
     .orderBy('id')
     .limit(1)
     .executeTakeFirst()
@@ -131,6 +136,7 @@ async function readCart(db: AppDatabase, customerId: number): Promise<Cart> {
     .selectFrom('cartItems')
     .select(['listingId', 'quantity'])
     .where('cartId', '=', cart.id)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 
@@ -140,7 +146,7 @@ async function readCart(db: AppDatabase, customerId: number): Promise<Cart> {
 async function readStock(
   db: AppDatabase,
   carts: CartSides,
-): Promise<ReadonlyMap<number, number>> {
+): Promise<ReadonlyMap<ListingId, number>> {
   const listingIds = [...carts.verified.lines, ...carts.anonymous.lines].map(
     (line) => line.listingId,
   )
@@ -201,7 +207,7 @@ async function applyCart(
 
 async function writeCartLine(
   db: AppDatabase,
-  move: { targetCartId: number; sourceCartId: number; line: CartLine; isInTarget: boolean },
+  move: { targetCartId: CartId; sourceCartId: CartId; line: CartLine; isInTarget: boolean },
 ): Promise<void> {
   const { targetCartId, sourceCartId, line, isInTarget } = move
 
@@ -225,7 +231,7 @@ async function writeCartLine(
 
 async function deleteCartItemsOutside(
   db: AppDatabase,
-  cartId: number,
+  cartId: CartId,
   keptLines: readonly CartLine[],
 ): Promise<void> {
   const query = db.deleteFrom('cartItems').where('cartId', '=', cartId)

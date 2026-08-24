@@ -1,8 +1,11 @@
+import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { openConversation } from './open-conversation.ts'
 import type { Conversation } from '../../db/commerce-schema.ts'
 
-export type SupportRequester = { actorType: 'seller' | 'customer'; actorId: number }
+export type SupportRequester =
+  | { actorType: 'seller'; actorId: SellerId }
+  | { actorType: 'customer'; actorId: CustomerId }
 
 export type OpenSupportConversationResult =
   | { outcome: 'opened'; conversation: Conversation }
@@ -15,16 +18,22 @@ export type OpenSupportConversationResult =
  */
 export async function openSupportConversation(
   context: ActionContext,
-  { actorType, actorId }: SupportRequester,
+  requester: SupportRequester,
 ): Promise<OpenSupportConversationResult> {
-  const admin = await context.db.selectFrom('admins').select('id').orderBy('id').limit(1).executeTakeFirst()
+  const admin = await context.db
+    .selectFrom('admins')
+    .select('id')
+    .orderBy('createdAt')
+    .orderBy('id')
+    .limit(1)
+    .executeTakeFirst()
   if (admin === undefined) return { outcome: 'no-admin' }
 
   const conversation = await openConversation(
     context,
-    actorType === 'seller'
-      ? { kind: 'admin_seller', sellerId: actorId, adminId: admin.id }
-      : { kind: 'admin_customer', customerId: actorId, adminId: admin.id },
+    requester.actorType === 'seller'
+      ? { kind: 'admin_seller', sellerId: requester.actorId, adminId: admin.id }
+      : { kind: 'admin_customer', customerId: requester.actorId, adminId: admin.id },
   )
 
   return { outcome: 'opened', conversation }

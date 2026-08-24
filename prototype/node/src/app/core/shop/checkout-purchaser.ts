@@ -1,8 +1,9 @@
 import { normalizeEmail } from '../auth/email-address.ts'
 import type { Purchaser } from '../orders/purchaser.ts'
+import type { CustomerId } from '../ids/entity-ids.ts'
 
 export type CheckoutIdentity = {
-  customerId: number
+  customerId: CustomerId
   accountEmail: string | null
   isAccountVerified: boolean
   submittedEmail: string

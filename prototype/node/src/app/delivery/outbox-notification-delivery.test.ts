@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../test/fixture-ids.ts'
 import { outboxNotificationDelivery } from './outbox-notification-delivery.ts'
 import { createAdmin, createCustomer, createSeller, openCommerceWorld } from '../test/commerce-world.ts'
 
@@ -86,7 +87,7 @@ test('a recipient id naming nobody queues nothing', async (t) => {
 
   await outboxNotificationDelivery.deliver(world.context, {
     recipientType: 'seller',
-    recipientId: 9_999,
+    recipientId: fixtureId('sel', 9_999),
     ...SOLD,
   })
 

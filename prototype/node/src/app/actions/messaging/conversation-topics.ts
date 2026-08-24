@@ -1,3 +1,4 @@
+import type { ConversationId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { conversationTopic } from '../../core/messaging/conversation-topic.ts'
 import type { Conversation } from '../../db/commerce-schema.ts'
@@ -13,7 +14,7 @@ export type TopicColumns = Pick<Conversation, 'id' | 'kind' | 'listingId' | 'ful
 export async function conversationTopics(
   { db }: Pick<ActionContext, 'db'>,
   conversations: readonly TopicColumns[],
-): Promise<ReadonlyMap<number, string>> {
+): Promise<ReadonlyMap<ConversationId, string>> {
   const listingIds = idsOf(conversations, (conversation) => conversation.listingId)
   const fulfillmentIds = idsOf(conversations, (conversation) => conversation.fulfillmentId)
 
@@ -38,8 +39,8 @@ export async function conversationTopics(
     conversations.map((conversation) => [
       conversation.id,
       conversationTopic(conversation.kind, {
-        listingTitle: titlesById.get(conversation.listingId ?? 0) ?? null,
-        orderId: orderIdsById.get(conversation.fulfillmentId ?? 0) ?? null,
+        listingTitle: lookup(titlesById, conversation.listingId),
+        orderId: lookup(orderIdsById, conversation.fulfillmentId),
       }),
     ]),
   )
@@ -55,9 +56,14 @@ export async function conversationTopicOf(
   return topics.get(conversation.id) ?? conversationTopic(conversation.kind)
 }
 
-function idsOf(
+/** What one nullable id maps to, or null when the id or its row is absent. */
+function lookup<Id extends string, Value>(byId: ReadonlyMap<Id, Value>, id: Id | null): Value | null {
+  return id === null ? null : (byId.get(id) ?? null)
+}
+
+function idsOf<Id extends string>(
   conversations: readonly TopicColumns[],
-  column: (conversation: TopicColumns) => number | null,
-): readonly number[] {
+  column: (conversation: TopicColumns) => Id | null,
+): readonly Id[] {
   return [...new Set(conversations.map(column).filter((id) => id !== null))]
 }

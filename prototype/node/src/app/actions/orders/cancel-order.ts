@@ -1,3 +1,4 @@
+import type { OrderId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { moveOrderStock } from './move-order-stock.ts'
@@ -10,7 +11,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
  * Cancels an order that has not been paid, handing back the stock placement
  * took. A paid order has no route here — the transition table refuses it.
  */
-export async function cancelOrder(context: ActionContext, orderId: number): Promise<Order> {
+export async function cancelOrder(context: ActionContext, orderId: OrderId): Promise<Order> {
   return runInTransaction(context, async (transacted) => {
     const { db, clock } = transacted
     const order = await db

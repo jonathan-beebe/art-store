@@ -10,8 +10,8 @@ import { LEDGER_ENTRY_TYPES } from '../../core/escrow/ledger-entry-type.ts'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('payouts')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('seller_id', 'text', (column) => column.notNull().references('sellers.id'))
     .addColumn('period_start', 'text', (column) => column.notNull())
     .addColumn('period_end', 'text', (column) => column.notNull())
     .addColumn('amount_cents', 'integer', (column) => column.notNull())
@@ -27,10 +27,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('ledger_entries')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
-    .addColumn('fulfillment_id', 'integer', (column) => column.references('fulfillments.id'))
-    .addColumn('payout_id', 'integer', (column) => column.references('payouts.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('seller_id', 'text', (column) => column.notNull().references('sellers.id'))
+    .addColumn('fulfillment_id', 'text', (column) => column.references('fulfillments.id'))
+    .addColumn('payout_id', 'text', (column) => column.references('payouts.id'))
     .addColumn('entry_type', 'text', (column) =>
       column
         .notNull()

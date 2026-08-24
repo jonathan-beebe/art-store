@@ -1,4 +1,5 @@
 import type { ActorType } from '../auth/actor-type.ts'
+import type { ConversationId } from '../ids/entity-ids.ts'
 
 type ActorMessagingPaths = { conversation: string; inbox: string }
 
@@ -9,6 +10,6 @@ const MESSAGING_PATHS = {
 } as const satisfies Record<ActorType, ActorMessagingPaths>
 
 /** Where an actor of this type reads one conversation, on their own site. */
-export function conversationPath(actorType: ActorType, conversationId: number): string {
+export function conversationPath(actorType: ActorType, conversationId: ConversationId): string {
   return MESSAGING_PATHS[actorType].conversation.replace(':id', String(conversationId))
 }

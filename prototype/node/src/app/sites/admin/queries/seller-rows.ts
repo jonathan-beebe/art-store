@@ -1,13 +1,14 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import { ZERO_CENTS } from '../../../core/money.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 /** A seller as the sellers table shows it, one row per seller. */
 export type SellerRow = LedgerBalance & {
-  id: number
+  id: SellerId
   email: string
   shopName: string | null
   createdAt: Timestamp
@@ -31,7 +32,7 @@ export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<re
   const sellers = await db
     .selectFrom('sellers')
     .select(['id', 'email', 'shopName', 'createdAt'])
-    .orderBy('id')
+    .orderBy('createdAt').orderBy('id')
     .execute()
   const listingCounts = await countBySeller(db, 'listings')
   const fulfillmentCounts = await countBySeller(db, 'fulfillments')
@@ -51,7 +52,7 @@ export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<re
 async function countBySeller(
   db: AppDatabase,
   table: 'listings' | 'fulfillments',
-): Promise<Map<number, number>> {
+): Promise<Map<SellerId, number>> {
   const rows = await db
     .selectFrom(table)
     .select(['sellerId', (eb) => eb.fn.countAll().as('count')])
@@ -62,7 +63,7 @@ async function countBySeller(
 }
 
 /** A listing carries at most one unlifted removal, so counting rows counts listings. */
-async function removedListingCountsBySeller(db: AppDatabase): Promise<Map<number, number>> {
+async function removedListingCountsBySeller(db: AppDatabase): Promise<Map<SellerId, number>> {
   const rows = await db
     .selectFrom('listingRemovals')
     .innerJoin('listings', 'listings.id', 'listingRemovals.listingId')

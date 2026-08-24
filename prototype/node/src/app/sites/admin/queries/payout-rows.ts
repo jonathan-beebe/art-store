@@ -1,12 +1,13 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { PayoutId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 import type { Day } from '../../../db/commerce-schema.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type PayoutRow = {
-  id: number
-  sellerId: number
+  id: PayoutId
+  sellerId: SellerId
   sellerName: string
   periodStart: Day
   periodEnd: Day
@@ -14,7 +15,7 @@ export type PayoutRow = {
   paidAt: Timestamp
 }
 
-export type PayoutRowsFilter = { sellerId?: number }
+export type PayoutRowsFilter = { sellerId?: SellerId }
 
 /** Every payout, newest first, optionally narrowed to one seller. */
 export async function payoutRows(
@@ -34,6 +35,7 @@ export async function payoutRows(
       'payouts.amountCents',
       'payouts.paidAt',
     ])
+    .orderBy('payouts.paidAt', 'desc')
     .orderBy('payouts.paidAt', 'desc')
     .orderBy('payouts.id', 'desc')
 

@@ -1,3 +1,4 @@
+import type { FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Fulfillment, Order, OrderItem } from '../../../db/commerce-schema.ts'
 
@@ -5,7 +6,7 @@ export type FulfillmentWithOrder = Fulfillment & { shippingName: string; placedA
 
 export async function fulfillmentsForSeller(
   db: AppDatabase,
-  sellerId: number,
+  sellerId: SellerId,
 ): Promise<readonly FulfillmentWithOrder[]> {
   return db
     .selectFrom('fulfillments')
@@ -13,11 +14,12 @@ export async function fulfillmentsForSeller(
     .selectAll('fulfillments')
     .select(['orders.shippingName as shippingName', 'orders.placedAt as placedAt'])
     .where('fulfillments.sellerId', '=', sellerId)
+    .orderBy('fulfillments.createdAt', 'desc')
     .orderBy('fulfillments.id', 'desc')
     .execute()
 }
 
-export async function awaitingShipmentCount(db: AppDatabase, sellerId: number): Promise<number> {
+export async function awaitingShipmentCount(db: AppDatabase, sellerId: SellerId): Promise<number> {
   const row = await db
     .selectFrom('fulfillments')
     .select((eb) => eb.fn.countAll().as('count'))
@@ -30,8 +32,8 @@ export async function awaitingShipmentCount(db: AppDatabase, sellerId: number): 
 
 export async function ownedFulfillment(
   db: AppDatabase,
-  sellerId: number,
-  fulfillmentId: number,
+  sellerId: SellerId,
+  fulfillmentId: FulfillmentId,
 ): Promise<{ fulfillment: Fulfillment; order: Order } | null> {
   const fulfillment = await db
     .selectFrom('fulfillments')
@@ -54,8 +56,8 @@ export async function ownedFulfillment(
  * one fulfillment, and only these items ship under it. */
 export async function orderItemsForSeller(
   db: AppDatabase,
-  orderId: number,
-  sellerId: number,
+  orderId: OrderId,
+  sellerId: SellerId,
 ): Promise<readonly OrderItem[]> {
   return db
     .selectFrom('orderItems')
@@ -69,10 +71,10 @@ export async function orderItemsForSeller(
  * order id — what the earnings and orders tables show in the "items" column. */
 export async function itemTitlesByOrder(
   db: AppDatabase,
-  orderIds: readonly number[],
-  sellerId: number,
-): Promise<ReadonlyMap<number, readonly string[]>> {
-  const byOrder = new Map<number, string[]>()
+  orderIds: readonly OrderId[],
+  sellerId: SellerId,
+): Promise<ReadonlyMap<OrderId, readonly string[]>> {
+  const byOrder = new Map<OrderId, string[]>()
   if (orderIds.length === 0) return byOrder
 
   const rows = await db

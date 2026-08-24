@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../../ids.ts'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 import { customerDetail } from './customer-detail.ts'
 import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import { mergeAnonymousCustomer } from '../../../actions/customers/merge-anonymous-customer.ts'
@@ -18,7 +20,7 @@ test('an id that names no customer reads null', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
 
-  assert.equal(await customerDetail(world.context, 999), null)
+  assert.equal(await customerDetail(world.context, fixtureId('cus', 999)), null)
 })
 
 test('a fresh customer reads empty lists and no block', async (t) => {
@@ -51,7 +53,7 @@ test('orders, favorites, and cart lines all read back', async (t) => {
   await cartHolding(world.context, customerId, [cartedListing.id])
   await world.db
     .insertInto('favorites')
-    .values({ customerId, listingId: favoritedListing.id, createdAt: toTimestamp(new Date()) })
+    .values({ id: newId('fav', new Date()), customerId, listingId: favoritedListing.id, createdAt: toTimestamp(new Date()) })
     .execute()
 
   const detail = await customerDetail(world.context, customerId)

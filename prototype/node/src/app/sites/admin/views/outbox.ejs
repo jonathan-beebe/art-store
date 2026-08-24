@@ -26,7 +26,7 @@
       <% rows.forEach((row) => { %>
       <tr data-outbox-message="<%= row.id %>">
         <th scope="row" class="px-4 py-2 font-normal">
-          <a href="/admin/outbox/<%= row.id %>" class="font-medium underline">#<%= row.id %></a>
+          <a href="/admin/outbox/<%= row.id %>" class="font-medium underline"><%= row.id %></a>
         </th>
         <td data-cell="recipient" class="px-4 py-2"><%= row.recipient %></td>
         <td data-cell="subject" class="px-4 py-2"><%= row.subject %></td>

@@ -41,8 +41,8 @@
       <tbody class="divide-y divide-neutral-200">
         <% fulfillments.forEach(function (fulfillment) { %>
           <tr data-fulfillment="<%= fulfillment.id %>">
-            <th scope="row" class="px-4 py-2 font-normal">#<%= fulfillment.id %></th>
-            <td class="px-4 py-2">#<%= fulfillment.orderId %></td>
+            <th scope="row" class="px-4 py-2 font-normal"><%= fulfillment.id %></th>
+            <td class="px-4 py-2"><%= fulfillment.orderId %></td>
             <td data-cell="seller" class="px-4 py-2"><%= fulfillment.sellerName %></td>
             <td data-cell="status" class="px-4 py-2"><%= statusLabel(fulfillment.status) %></td>
             <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>

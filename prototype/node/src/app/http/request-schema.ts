@@ -1,10 +1,27 @@
 import { z } from 'zod'
+import type { IdPrefix } from '../core/ids/entity-ids.ts'
+import { isPrefixedId, type PrefixedId } from '../core/ids/prefixed-id.ts'
 
-/** A positive integer id, wherever a url segment or a query string names one. */
-export const idValue = z.coerce.number().int().positive()
+/**
+ * The prefixed id of one table, wherever a url segment or a query string names
+ * one. The prefix is the table's, so an id belonging to another table is
+ * refused here rather than looked up and missed.
+ */
+export function idValue<Prefix extends IdPrefix>(prefix: Prefix) {
+  return z.custom<PrefixedId<Prefix>>(
+    (value) => typeof value === 'string' && isPrefixedId(prefix, value),
+    { message: `not a ${prefix} id` },
+  )
+}
 
-/** The `:id` segment a route names its subject by. */
-export const idParams = z.object({ id: idValue })
+/**
+ * The `:id` segment a route names its subject by. A segment that is not this
+ * table's id fails params validation, which `isRefusedRouteParams` turns into
+ * the site's own 404 — the same page an id nobody owns answers with.
+ */
+export function idParams<Prefix extends IdPrefix>(prefix: Prefix) {
+  return z.object({ id: idValue(prefix) })
+}
 
 /** The `:slug` segment a storefront route names a listing by. */
 export const slugParams = z.object({ slug: z.string() })

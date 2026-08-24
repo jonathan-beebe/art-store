@@ -1,3 +1,5 @@
+import type { CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { ListingEventType } from '../../core/listings/listing-event-type.ts'
@@ -7,8 +9,8 @@ import { toTimestamp } from '../../db/timestamp.ts'
 import type { AppDatabase } from '../../db/database.ts'
 
 export type RecordListingEventInput = {
-  listingId: number
-  customerId: number | null
+  listingId: ListingId
+  customerId: CustomerId | null
   eventType: ListingEventType
 }
 
@@ -29,7 +31,7 @@ export async function recordListingEvent(
 
     return db
       .insertInto('listingEvents')
-      .values({ ...input, occurredAt: toTimestamp(now) })
+      .values({ id: newId('lev', now), ...input, occurredAt: toTimestamp(now) })
       .returningAll()
       .executeTakeFirstOrThrow()
   })

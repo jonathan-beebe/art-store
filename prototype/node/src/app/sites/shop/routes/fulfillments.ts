@@ -6,7 +6,7 @@ import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { renderNotFound } from '../shop-page.ts'
 
-const fulfillmentParams = z.object({ id: idValue, fulfillmentId: idValue })
+const fulfillmentParams = z.object({ id: idValue('ord'), fulfillmentId: idValue('ful') })
 
 /**
  * The customer confirming a piece arrived, which is the step that releases the

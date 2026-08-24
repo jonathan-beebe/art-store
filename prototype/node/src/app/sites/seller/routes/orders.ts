@@ -2,6 +2,7 @@ import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
+import type { FulfillmentId } from '../../../core/ids/entity-ids.ts'
 import {
   canTransitionFulfillment,
   FULFILLMENT_STATUSES,
@@ -38,7 +39,7 @@ function groupByStatus(
   }))
 }
 
-function refuseShipment(reply: FastifyReply, fulfillmentId: number, message: string): FastifyReply {
+function refuseShipment(reply: FastifyReply, fulfillmentId: FulfillmentId, message: string): FastifyReply {
   reply.setFlash({ alert: message })
 
   return reply.redirect(`/seller/orders/${fulfillmentId}`)
@@ -65,7 +66,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
     })
   })
 
-  portal.get('/orders/:id', { schema: { params: idParams } }, async (request, reply) => {
+  portal.get('/orders/:id', { schema: { params: idParams('ful') } }, async (request, reply) => {
     const { db } = request.server
     const sellerId = currentSellerId(request)
     const owned = await ownedFulfillment(db, sellerId, request.params.id)
@@ -74,7 +75,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
     const items = await orderItemsForSeller(db, owned.order.id, sellerId)
 
     return reply.render('orders/show', {
-      title: `Order #${owned.order.id}`,
+      title: `Order ${owned.order.id}`,
       fulfillment: owned.fulfillment,
       order: owned.order,
       items,
@@ -87,7 +88,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/orders/:id/ship',
-    { schema: { params: idParams, body: shipmentForm } },
+    { schema: { params: idParams('ful'), body: shipmentForm } },
     async (request, reply) => {
       const fulfillmentId = request.params.id
       const { db, clock } = request.server
@@ -133,7 +134,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
     },
   )
 
-  portal.post('/orders/:id/messages', { schema: { params: idParams } }, async (request, reply) => {
+  portal.post('/orders/:id/messages', { schema: { params: idParams('ful') } }, async (request, reply) => {
     const { db, clock } = request.server
     const sellerId = currentSellerId(request)
     const owned = await ownedFulfillment(db, sellerId, request.params.id)

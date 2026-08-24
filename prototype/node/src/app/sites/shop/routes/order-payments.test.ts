@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
+import type { CustomerId, OrderId } from '../../../core/ids/entity-ids.ts'
+import { parsePrefixedId } from '../../../core/ids/prefixed-id.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -31,7 +33,7 @@ const CHECKOUT_FORM = {
   shipping_country: 'GB',
 }
 
-async function cartOneArtwork(testApp: TestApp, customerId: number) {
+async function cartOneArtwork(testApp: TestApp, customerId: CustomerId) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
   const listing = await listArtwork(testApp, {
     sellerId: seller.id,
@@ -43,7 +45,7 @@ async function cartOneArtwork(testApp: TestApp, customerId: number) {
   return { seller, listing, cartId }
 }
 
-async function orderStatus(testApp: TestApp, orderId: number): Promise<string> {
+async function orderStatus(testApp: TestApp, orderId: OrderId): Promise<string> {
   const order = await testApp.db
     .selectFrom('orders')
     .select('status')
@@ -51,6 +53,14 @@ async function orderStatus(testApp: TestApp, orderId: number): Promise<string> {
     .executeTakeFirstOrThrow()
 
   return order.status
+}
+
+/** The order a checkout redirect names. */
+function orderIdFrom(location: string | undefined): OrderId {
+  const parsed = parsePrefixedId('ord', location?.replace('/orders/', '') ?? '')
+  if (parsed.outcome !== 'id') throw new Error(`no order id in redirect "${location}"`)
+
+  return parsed.id
 }
 
 test('a guest checks out, verifies by the emailed link, and pays on the order page', async (t) => {
@@ -67,7 +77,7 @@ test('a guest checks out, verifies by the emailed link, and pays on the order pa
   })
 
   assert.equal(placed.statusCode, 302)
-  const orderId = Number(placed.headers.location?.replace('/orders/', ''))
+  const orderId = orderIdFrom(placed.headers.location)
   assert.equal(await orderStatus(testApp, orderId), 'pending_verification')
 
   // The card is asked for only after the address is verified, so the link the

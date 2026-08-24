@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationTopic } from './conversation-topic.ts'
 
 test('both admin kinds are about the support desk rather than a subject row', () => {
@@ -8,7 +9,9 @@ test('both admin kinds are about the support desk rather than a subject row', ()
 })
 
 test('a fulfillment thread is about the order it splits', () => {
-  assert.equal(conversationTopic('fulfillment', { orderId: 12 }), 'order #12')
+  const orderId = fixtureId('ord', 12)
+
+  assert.equal(conversationTopic('fulfillment', { orderId }), `order ${orderId}`)
 })
 
 test('a listing question is about the piece, quoted', () => {

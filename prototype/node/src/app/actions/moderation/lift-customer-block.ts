@@ -1,3 +1,4 @@
+import type { CustomerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeCustomerBlock } from './active-customer-block.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -8,7 +9,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
 /** Hands a blocked customer their cart, checkout, and messages back. */
 export async function liftCustomerBlock(
   context: ActionContext,
-  { customerId }: { customerId: number },
+  { customerId }: { customerId: CustomerId },
 ): Promise<CustomerBlock> {
   return runInTransaction(context, async (transacted) => {
     const { db, clock } = transacted

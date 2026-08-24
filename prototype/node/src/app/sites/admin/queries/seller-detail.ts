@@ -3,6 +3,7 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import type { ActiveListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
 import { sellerBalance } from '../../../actions/escrow/seller-balance.ts'
 import type { LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Fulfillment, Listing, Payout } from '../../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { SellerTable } from '../../../db/schema.ts'
@@ -22,7 +23,7 @@ export type SellerDetail = {
 /** The seller page's whole read: null when the id names nobody. */
 export async function sellerDetail(
   context: Pick<ActionContext, 'db'>,
-  sellerId: number,
+  sellerId: SellerId,
 ): Promise<SellerDetail | null> {
   const { db } = context
   const seller = await db.selectFrom('sellers').selectAll().where('id', '=', sellerId).executeTakeFirst()
@@ -33,6 +34,7 @@ export async function sellerDetail(
     .selectFrom('fulfillments')
     .selectAll()
     .where('sellerId', '=', sellerId)
+    .orderBy('createdAt', 'desc')
     .orderBy('id', 'desc')
     .execute()
   const balance = await sellerBalance(context, sellerId)
@@ -46,11 +48,12 @@ export async function sellerDetail(
   return { seller, listings, fulfillments, balance, payouts }
 }
 
-async function listingsWithRemoval(db: AppDatabase, sellerId: number): Promise<readonly SellerListingRow[]> {
+async function listingsWithRemoval(db: AppDatabase, sellerId: SellerId): Promise<readonly SellerListingRow[]> {
   const listings = await db
     .selectFrom('listings')
     .selectAll()
     .where('sellerId', '=', sellerId)
+    .orderBy('createdAt', 'desc')
     .orderBy('id', 'desc')
     .execute()
 
@@ -61,8 +64,8 @@ async function listingsWithRemoval(db: AppDatabase, sellerId: number): Promise<r
 
 async function activeRemovalsByListing(
   db: AppDatabase,
-  listingIds: readonly number[],
-): Promise<Map<number, ActiveListingRemoval>> {
+  listingIds: readonly ListingId[],
+): Promise<Map<ListingId, ActiveListingRemoval>> {
   if (listingIds.length === 0) return new Map()
 
   const rows = await db

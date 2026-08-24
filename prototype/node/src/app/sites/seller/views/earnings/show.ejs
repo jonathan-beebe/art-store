@@ -44,7 +44,7 @@
             <tr data-fulfillment="<%= fulfillment.id %>">
               <td class="px-4 py-2"><%= formatDate(fulfillment.placedAt) %></td>
               <th scope="row" class="px-4 py-2 font-normal">
-                <a href="/seller/orders/<%= fulfillment.id %>" class="underline">#<%= fulfillment.orderId %></a>
+                <a href="/seller/orders/<%= fulfillment.id %>" class="underline"><%= fulfillment.orderId %></a>
               </th>
               <td class="px-4 py-2"><%= (itemTitles.get(fulfillment.orderId) || []).join(', ') %></td>
               <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>

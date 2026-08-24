@@ -1,3 +1,4 @@
+import type { ListingId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -7,7 +8,7 @@ import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type ChangeListingStatusInput = {
-  listingId: number
+  listingId: ListingId
   status: ListingStatus
 }
 

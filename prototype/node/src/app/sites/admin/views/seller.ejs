@@ -79,7 +79,7 @@
         <% fulfillments.forEach((fulfillment) => { %>
         <tr data-fulfillment="<%= fulfillment.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
-            <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
+            <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline"><%= fulfillment.orderId %></a>
           </th>
           <td data-cell="status" class="px-4 py-3"><%= statusLabel(fulfillment.status) %></td>
           <td data-cell="subtotal" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>

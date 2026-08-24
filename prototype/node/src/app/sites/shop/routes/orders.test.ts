@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
+import type { CustomerId } from '../../../core/ids/entity-ids.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -18,7 +19,7 @@ import {
 
 async function orderOneArtwork(
   testApp: TestApp,
-  input: { customerId: number; sellerEmail?: string; title?: string; isEmailVerified?: boolean },
+  input: { customerId: CustomerId; sellerEmail?: string; title?: string; isEmailVerified?: boolean },
 ) {
   const seller = await signInAsSeller(testApp, input.sellerEmail ?? 'ada@example.test')
   const listing = await listArtwork(testApp, {
@@ -53,15 +54,15 @@ test('the orders page lists what a customer has bought, newest first', async (t)
   })
 
   assert.equal(response.statusCode, 200)
-  assert.match(response.body, new RegExp(`Order #${second.order.id}`))
-  assert.match(response.body, new RegExp(`Order #${first.order.id}`))
+  assert.match(response.body, new RegExp(`Order ${second.order.id}`))
+  assert.match(response.body, new RegExp(`Order ${first.order.id}`))
   assert.match(response.body, /Harbour at dusk/)
   assert.match(response.body, /Kiln study/)
   assert.match(response.body, /\$240\.00/)
   assert.match(response.body, /24 August 2026/)
   assert.ok(
-    response.body.indexOf(`Order #${second.order.id}`) <
-      response.body.indexOf(`Order #${first.order.id}`),
+    response.body.indexOf(`Order ${second.order.id}`) <
+      response.body.indexOf(`Order ${first.order.id}`),
   )
 })
 
@@ -93,7 +94,7 @@ test('an order page shows the shipping address and one section per seller', asyn
   })
 
   assert.equal(response.statusCode, 200)
-  assert.match(response.body, new RegExp(`Order #${order.id}`))
+  assert.match(response.body, new RegExp(`Order ${order.id}`))
   assert.match(response.body, /data-order-status[^>]*>\s*Paid/)
   assert.match(response.body, /ada/)
   assert.match(response.body, /Awaiting shipment/)

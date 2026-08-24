@@ -7,7 +7,7 @@ import { orderRows } from '../queries/order-rows.ts'
 
 const ordersQuery = z.object({
   status: optionalFilter(z.enum(ORDER_STATUSES)),
-  customer: optionalFilter(idValue),
+  customer: optionalFilter(idValue('cus')),
 })
 
 export const orderRoutes: ZodRoutes = (admin, _options, done) => {

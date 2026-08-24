@@ -1,12 +1,15 @@
+import type { CartId, CartItemId, ListingId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { recordListingEvent } from '../listings/record-listing-event.ts'
 import { quantityWithinStock } from '../../core/cart/cart-quantity.ts'
 import type { CartItem } from '../../db/commerce-schema.ts'
+import { toTimestamp } from '../../db/timestamp.ts'
 
 export type AddToCartInput = {
-  cartId: number
-  listingId: number
+  cartId: CartId
+  listingId: ListingId
   quantity: number
 }
 
@@ -54,10 +57,10 @@ export async function addToCart(context: ActionContext, input: AddToCartInput): 
 }
 
 async function writeCartItem(
-  { db }: ActionContext,
+  { db, clock }: ActionContext,
   input: AddToCartInput,
   quantity: number,
-  heldItemId: number | undefined,
+  heldItemId: CartItemId | undefined,
 ): Promise<CartItem> {
   if (heldItemId !== undefined) {
     return db
@@ -70,7 +73,13 @@ async function writeCartItem(
 
   return db
     .insertInto('cartItems')
-    .values({ cartId: input.cartId, listingId: input.listingId, quantity })
+    .values({
+      id: newId('cti', clock.now()),
+      cartId: input.cartId,
+      listingId: input.listingId,
+      quantity,
+      createdAt: toTimestamp(clock.now()),
+    })
     .returningAll()
     .executeTakeFirstOrThrow()
 }

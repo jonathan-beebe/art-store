@@ -1,4 +1,5 @@
 import type { ListingStatus } from '../listings/listing-status.ts'
+import type { ListingId } from '../ids/entity-ids.ts'
 
 export const UNAVAILABLE_REASONS = ['removed', 'off_sale', 'sold_out', 'short_stock'] as const
 export type UnavailableReason = (typeof UNAVAILABLE_REASONS)[number]
@@ -6,7 +7,7 @@ export type UnavailableReason = (typeof UNAVAILABLE_REASONS)[number]
 /** A cart line as placement judges it: what the cart holds, against what the
  * listing is now. */
 export type PlaceableLine = {
-  listingId: number
+  listingId: ListingId
   title: string
   status: ListingStatus
   availableQuantity: number
@@ -15,7 +16,7 @@ export type PlaceableLine = {
 }
 
 export type UnavailableLine = {
-  listingId: number
+  listingId: ListingId
   title: string
   reason: UnavailableReason
 }

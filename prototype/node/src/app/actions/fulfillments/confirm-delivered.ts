@@ -1,3 +1,5 @@
+import type { FulfillmentId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
@@ -12,7 +14,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
  */
 export async function confirmDelivered(
   context: ActionContext,
-  fulfillmentId: number,
+  fulfillmentId: FulfillmentId,
 ): Promise<Fulfillment> {
   return runInTransaction(context, async (transacted) => {
     const { db, clock } = transacted
@@ -38,6 +40,7 @@ export async function confirmDelivered(
     await db
       .insertInto('ledgerEntries')
       .values({
+        id: newId('led', clock.now()),
         sellerId: fulfillment.sellerId,
         fulfillmentId: fulfillment.id,
         payoutId: null,

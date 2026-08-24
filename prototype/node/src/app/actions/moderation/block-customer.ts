@@ -1,3 +1,5 @@
+import type { AdminId, CustomerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeCustomerBlock } from './active-customer-block.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -6,8 +8,8 @@ import type { CustomerBlock } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type BlockCustomerInput = {
-  customerId: number
-  adminId: number
+  customerId: CustomerId
+  adminId: AdminId
   reason: string
 }
 
@@ -31,6 +33,7 @@ export async function blockCustomer(
     return db
       .insertInto('customerBlocks')
       .values({
+        id: newId('blk', clock.now()),
         customerId: input.customerId,
         adminId: input.adminId,
         reason: input.reason,

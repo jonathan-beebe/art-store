@@ -5,6 +5,7 @@ import { magicLinkExpiresAt } from '../../core/auth/magic-link-status.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import type { MagicLinkDelivery } from '../../delivery/magic-link-delivery.ts'
+import { newId } from '../../ids.ts'
 import type { Flash } from '../../plugins/flash.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -41,6 +42,7 @@ export async function sendMagicLink(
     await transacted.db
       .insertInto('magicLinks')
       .values({
+        id: newId('mlk', issuedAt),
         tokenDigest: digestMagicLinkToken(token),
         email: address,
         actorType,

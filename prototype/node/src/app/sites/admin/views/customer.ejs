@@ -62,7 +62,7 @@
         <% orders.forEach((order) => { %>
         <tr data-order="<%= order.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
-            <a href="/admin/orders/<%= order.id %>" class="font-medium underline">#<%= order.id %></a>
+            <a href="/admin/orders/<%= order.id %>" class="font-medium underline"><%= order.id %></a>
           </th>
           <td data-cell="status" class="px-4 py-3"><%= statusLabel(order.status) %></td>
           <td data-cell="total" class="px-4 py-3 text-right tabular-nums"><%= formatCents(order.totalCents) %></td>
@@ -132,7 +132,7 @@
       <% } else { %>
       Folded into customer
       <% } %>
-      <a href="/admin/customers/<%= merge.otherCustomerId %>" class="underline">#<%= merge.otherCustomerId %></a>
+      <a href="/admin/customers/<%= merge.otherCustomerId %>" class="underline"><%= merge.otherCustomerId %></a>
       on <%= formatMoment(merge.createdAt) %>
     </li>
     <% }) %>

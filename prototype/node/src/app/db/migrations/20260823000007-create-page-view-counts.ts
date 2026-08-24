@@ -8,7 +8,7 @@ import type { Kysely } from 'kysely'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('page_view_counts')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
     .addColumn('site', 'text', (column) => column.notNull())
     .addColumn('path_pattern', 'text', (column) => column.notNull())
     .addColumn('day', 'text', (column) => column.notNull())

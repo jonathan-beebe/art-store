@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
 import { postMessage } from '../actions/messaging/post-message.ts'
+import type { AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import {
   buildTestApp,
   browseAsAnonymousCustomer,
@@ -14,8 +15,8 @@ import {
 /** The operator writing to one side of the marketplace, so that side has something waiting. */
 async function messageFromAdmin(
   testApp: TestApp,
-  adminId: number,
-  opening: { kind: 'admin_seller'; sellerId: number } | { kind: 'admin_customer'; customerId: number },
+  adminId: AdminId,
+  opening: { kind: 'admin_seller'; sellerId: SellerId } | { kind: 'admin_customer'; customerId: CustomerId },
 ): Promise<void> {
   const context = { db: testApp.db, clock: testApp.clock }
   const conversation = await openConversation(context, { ...opening, adminId })

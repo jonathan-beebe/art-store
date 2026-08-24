@@ -2,6 +2,7 @@ import type { NotificationMessage } from '../core/notifications/notification-mes
 import { renderMailMessage } from '../core/notifications/mail-message.ts'
 import type { OutboxMessage } from '../db/commerce-schema.ts'
 import { fromTimestamp, toTimestamp } from '../db/timestamp.ts'
+import { newId } from '../ids.ts'
 import type { DeliveryContext } from './delivery-context.ts'
 
 /** The domain every message this prototype writes is addressed from. */
@@ -23,6 +24,7 @@ export async function enqueueOutboxMessage(
   await db
     .insertInto('outboxMessages')
     .values({
+      id: newId('obx', clock.now()),
       recipient,
       subject: message.subject,
       body: message.body,

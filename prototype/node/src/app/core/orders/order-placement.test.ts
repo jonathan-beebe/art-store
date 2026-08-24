@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import {
   planOrderPlacement,
   unavailableNotices,
@@ -8,7 +9,7 @@ import {
 
 function line(overrides: Partial<PlaceableLine> = {}): PlaceableLine {
   return {
-    listingId: 1,
+    listingId: fixtureId('lst', 1),
     title: 'Harbour at dusk',
     status: 'for_sale',
     availableQuantity: 1,
@@ -19,7 +20,7 @@ function line(overrides: Partial<PlaceableLine> = {}): PlaceableLine {
 }
 
 test('a cart of listings still for sale is placeable', () => {
-  const lines = [line(), line({ listingId: 2, title: 'Low tide' })]
+  const lines = [line(), line({ listingId: fixtureId('lst', 2), title: 'Low tide' })]
 
   assert.deepEqual(planOrderPlacement(lines), { ok: true, lines })
 })
@@ -33,7 +34,7 @@ test('a listing an admin removed is unavailable', () => {
 
   assert.deepEqual(plan, {
     ok: false,
-    unavailable: [{ listingId: 1, title: 'Harbour at dusk', reason: 'removed' }],
+    unavailable: [{ listingId: fixtureId('lst', 1), title: 'Harbour at dusk', reason: 'removed' }],
   })
 })
 
@@ -42,7 +43,7 @@ test('a listing another buyer took is sold out', () => {
 
   assert.deepEqual(plan, {
     ok: false,
-    unavailable: [{ listingId: 1, title: 'Harbour at dusk', reason: 'sold_out' }],
+    unavailable: [{ listingId: fixtureId('lst', 1), title: 'Harbour at dusk', reason: 'sold_out' }],
   })
 })
 
@@ -51,7 +52,7 @@ test('a listing the seller archived is off sale', () => {
 
   assert.deepEqual(plan, {
     ok: false,
-    unavailable: [{ listingId: 1, title: 'Harbour at dusk', reason: 'off_sale' }],
+    unavailable: [{ listingId: fixtureId('lst', 1), title: 'Harbour at dusk', reason: 'off_sale' }],
   })
 })
 
@@ -67,7 +68,7 @@ test('a cart asking for more than is left is short of stock', () => {
 
   assert.deepEqual(plan, {
     ok: false,
-    unavailable: [{ listingId: 1, title: 'Harbour at dusk', reason: 'short_stock' }],
+    unavailable: [{ listingId: fixtureId('lst', 1), title: 'Harbour at dusk', reason: 'short_stock' }],
   })
 })
 
@@ -85,20 +86,20 @@ test('a removal outranks whatever the listing status says', () => {
 
 test('every line standing in the way is named, not just the first', () => {
   const plan = planOrderPlacement([
-    line({ listingId: 7, title: 'Low tide', status: 'sold' }),
-    line({ listingId: 8, title: 'Harbour at dusk' }),
-    line({ listingId: 9, title: 'Long shore', hasActiveRemoval: true }),
+    line({ listingId: fixtureId('lst', 7), title: 'Low tide', status: 'sold' }),
+    line({ listingId: fixtureId('lst', 8), title: 'Harbour at dusk' }),
+    line({ listingId: fixtureId('lst', 9), title: 'Long shore', hasActiveRemoval: true }),
   ])
 
-  assert.deepEqual(plan.ok === false ? plan.unavailable.map((entry) => entry.listingId) : [], [7, 9])
+  assert.deepEqual(plan.ok === false ? plan.unavailable.map((entry) => entry.listingId) : [], [fixtureId('lst', 7), fixtureId('lst', 9)])
 })
 
 test('each reason reads as a sentence beside the piece it is about', () => {
   const notices = unavailableNotices([
-    { listingId: 1, title: 'Harbour at dusk', reason: 'removed' },
-    { listingId: 2, title: 'Low tide', reason: 'sold_out' },
-    { listingId: 3, title: 'Long shore', reason: 'off_sale' },
-    { listingId: 4, title: 'First light', reason: 'short_stock' },
+    { listingId: fixtureId('lst', 1), title: 'Harbour at dusk', reason: 'removed' },
+    { listingId: fixtureId('lst', 2), title: 'Low tide', reason: 'sold_out' },
+    { listingId: fixtureId('lst', 3), title: 'Long shore', reason: 'off_sale' },
+    { listingId: fixtureId('lst', 4), title: 'First light', reason: 'short_stock' },
   ])
 
   assert.deepEqual(notices, [

@@ -25,7 +25,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
     return reply.render('messages/index', { title: 'Messages', conversations })
   })
 
-  portal.get('/messages/:id', { schema: { params: idParams } }, async (request, reply) => {
+  portal.get('/messages/:id', { schema: { params: idParams('cnv') } }, async (request, reply) => {
     const conversationId = request.params.id
     const { db, clock } = request.server
     const actor = { type: 'seller' as const, id: currentSellerId(request) }
@@ -44,7 +44,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/messages/:id',
-    { schema: { params: idParams, body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm } },
     async (request, reply) => {
       const conversationId = request.params.id
       const { db, clock } = request.server

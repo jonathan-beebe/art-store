@@ -1,6 +1,7 @@
 import type { Selectable } from 'kysely'
 import type { CustomerTable } from '../../db/schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 
 /**
@@ -13,7 +14,13 @@ export async function createAnonymousCustomer({
 }: ActionContext): Promise<Selectable<CustomerTable>> {
   return await db
     .insertInto('customers')
-    .values({ email: null, name: null, emailVerifiedAt: null, createdAt: toTimestamp(clock.now()) })
+    .values({
+      id: newId('cus', clock.now()),
+      email: null,
+      name: null,
+      emailVerifiedAt: null,
+      createdAt: toTimestamp(clock.now()),
+    })
     .returningAll()
     .executeTakeFirstOrThrow()
 }

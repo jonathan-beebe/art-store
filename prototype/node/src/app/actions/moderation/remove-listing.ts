@@ -1,3 +1,5 @@
+import type { AdminId, ListingId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -7,8 +9,8 @@ import type { ListingRemoval } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type RemoveListingInput = {
-  listingId: number
-  adminId: number
+  listingId: ListingId
+  adminId: AdminId
   kind: RemovalKind
   reason: string
 }
@@ -34,6 +36,7 @@ export async function removeListing(
     return db
       .insertInto('listingRemovals')
       .values({
+        id: newId('rmv', clock.now()),
         listingId: input.listingId,
         adminId: input.adminId,
         kind: input.kind,

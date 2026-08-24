@@ -1,3 +1,4 @@
+import type { ActorId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { ConversationParticipants } from '../../core/messaging/conversation-access.ts'
 import { customerName, type ParticipantNames } from '../../core/messaging/participant-name.ts'
@@ -47,9 +48,9 @@ export async function participantNames(
   }
 }
 
-function idsOf(
+function idsOf<Id extends ActorId>(
   conversations: readonly ConversationParticipants[],
-  column: (conversation: ConversationParticipants) => number | null,
-): readonly number[] {
+  column: (conversation: ConversationParticipants) => Id | null,
+): readonly Id[] {
   return [...new Set(conversations.map(column).filter((id) => id !== null))]
 }

@@ -1,3 +1,4 @@
+import type { ActorId } from '../core/ids/entity-ids.ts'
 import type { RecipientType } from '../core/notifications/recipient-type.ts'
 import type { AppDatabase } from '../db/database.ts'
 import type { DeliveryContext } from './delivery-context.ts'
@@ -41,7 +42,7 @@ export const outboxNotificationDelivery: NotificationDelivery = {
 async function recipientAddress(
   db: AppDatabase,
   recipientType: RecipientType,
-  recipientId: number,
+  recipientId: ActorId,
 ): Promise<string | null> {
   const row = await db
     .selectFrom(RECIPIENT_TABLES[recipientType])

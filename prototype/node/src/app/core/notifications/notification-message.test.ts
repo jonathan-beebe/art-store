@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { cents } from '../money.ts'
 import {
   itemSoldMessage,
@@ -8,31 +9,33 @@ import {
   signInLinkMessage,
 } from './notification-message.ts'
 
+const ORDER_ID = fixtureId('ord', 7)
+
 test('a sale tells the seller what is held and why', () => {
-  const message = itemSoldMessage(7, cents(40_500))
+  const message = itemSoldMessage(ORDER_ID, cents(40_500))
 
   assert.equal(message.subject, 'Item sold')
-  assert.equal(message.body, 'Order #7 is paid. $405.00 is held until the customer confirms delivery.')
+  assert.equal(message.body, `Order ${ORDER_ID} is paid. $405.00 is held until the customer confirms delivery.`)
   assert.equal(message.url, null)
 })
 
 test('a sale message takes a url to the page it is about', () => {
-  const message = itemSoldMessage(7, cents(40_500), '/seller/orders/7')
+  const message = itemSoldMessage(ORDER_ID, cents(40_500), '/seller/orders/7')
 
   assert.equal(message.url, '/seller/orders/7')
   assert.equal(message.subject, 'Item sold')
 })
 
 test('a shipment tells the customer how to track it', () => {
-  const message = orderShippedMessage(7, 'USPS', '9400111899')
+  const message = orderShippedMessage(ORDER_ID, 'USPS', '9400111899')
 
   assert.equal(message.subject, 'Order shipped')
-  assert.equal(message.body, 'Order #7 shipped with USPS. Tracking number 9400111899.')
+  assert.equal(message.body, `Order ${ORDER_ID} shipped with USPS. Tracking number 9400111899.`)
   assert.equal(message.url, null)
 })
 
 test('a shipment message takes a url to the page it is about', () => {
-  const message = orderShippedMessage(7, 'USPS', '9400111899', '/orders/7')
+  const message = orderShippedMessage(ORDER_ID, 'USPS', '9400111899', '/orders/7')
 
   assert.equal(message.url, '/orders/7')
 })

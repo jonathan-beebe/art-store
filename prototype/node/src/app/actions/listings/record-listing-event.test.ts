@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { ListingId } from '../../core/ids/entity-ids.ts'
 import { recordListingEvent } from './record-listing-event.ts'
 import type { ListingEventType } from '../../core/listings/listing-event-type.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -130,7 +131,7 @@ test('a non-view event type is never deduped', async (t) => {
   assert.equal(await countEvents(world.db, art.id, 'cart_add'), 2)
 })
 
-async function countEvents(db: AppDatabase, listingId: number, eventType: ListingEventType): Promise<number> {
+async function countEvents(db: AppDatabase, listingId: ListingId, eventType: ListingEventType): Promise<number> {
   const rows = await db
     .selectFrom('listingEvents')
     .select('id')

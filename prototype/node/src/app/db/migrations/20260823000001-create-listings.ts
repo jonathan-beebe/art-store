@@ -15,8 +15,8 @@ import { REMOVAL_KINDS } from '../../core/moderation/listing-removal.ts'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('listings')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('seller_id', 'integer', (column) => column.notNull().references('sellers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('seller_id', 'text', (column) => column.notNull().references('sellers.id'))
     .addColumn('title', 'text', (column) => column.notNull())
     .addColumn('slug', 'text', (column) => column.notNull().unique())
     .addColumn('description', 'text')
@@ -51,9 +51,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('listing_events')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
-    .addColumn('customer_id', 'integer', (column) => column.references('customers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
+    .addColumn('customer_id', 'text', (column) => column.references('customers.id'))
     .addColumn('event_type', 'text', (column) =>
       column
         .notNull()
@@ -70,9 +70,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('favorites')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('customer_id', 'integer', (column) => column.notNull().references('customers.id'))
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('customer_id', 'text', (column) => column.notNull().references('customers.id'))
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
     .addColumn('created_at', 'text', (column) => column.notNull())
     .execute()
 
@@ -85,9 +85,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('listing_removals')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
-    .addColumn('admin_id', 'integer', (column) => column.notNull().references('admins.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
+    .addColumn('admin_id', 'text', (column) => column.notNull().references('admins.id'))
     .addColumn('kind', 'text', (column) =>
       column.notNull().check(sql`kind in (${sql.join(REMOVAL_KINDS.map((kind) => sql.lit(kind)))})`),
     )

@@ -4,6 +4,7 @@ import { changeListingStatus } from '../../../actions/listings/change-listing-st
 import { createListing } from '../../../actions/listings/create-listing.ts'
 import { updateListing } from '../../../actions/listings/update-listing.ts'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
+import type { ListingId } from '../../../core/ids/entity-ids.ts'
 import { sniffImageFormat, type ImageFormat } from '../../../core/listings/image-format.ts'
 import {
   parseListingDraft,
@@ -126,7 +127,7 @@ export async function renderOversizedImageForm(
   reply: FastifyReply,
 ): Promise<FastifyReply> {
   const errors: ListingDraftErrors = { image: OVERSIZED_IMAGE_MESSAGE }
-  const asked = idParams.safeParse(request.params)
+  const asked = idParams('lst').safeParse(request.params)
   const sellerId = identityId(request, 'seller')
   const listing =
     asked.success && sellerId !== null
@@ -155,7 +156,7 @@ export async function renderOversizedImageForm(
 async function findOwnedListing(
   request: FastifyRequest,
   reply: FastifyReply,
-  listingId: number,
+  listingId: ListingId,
 ): Promise<Listing | null> {
   const listing = await ownedListing(request.server.db, currentSellerId(request), listingId)
   if (listing === null) await sellerNotFound(reply)
@@ -228,7 +229,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
     return reply.redirect('/seller/listings')
   })
 
-  portal.get('/listings/:id', { schema: { params: idParams } }, async (request, reply) => {
+  portal.get('/listings/:id', { schema: { params: idParams('lst') } }, async (request, reply) => {
     const listing = await findOwnedListing(request, reply, request.params.id)
     if (listing === null) return reply
 
@@ -257,7 +258,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
     })
   })
 
-  portal.get('/listings/:id/edit', { schema: { params: idParams } }, async (request, reply) => {
+  portal.get('/listings/:id/edit', { schema: { params: idParams('lst') } }, async (request, reply) => {
     const listing = await findOwnedListing(request, reply, request.params.id)
     if (listing === null) return reply
 
@@ -272,7 +273,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings/:id',
-    { schema: { params: idParams, body: listingFormBody } },
+    { schema: { params: idParams('lst'), body: listingFormBody } },
     async (request, reply) => {
       const listing = await findOwnedListing(request, reply, request.params.id)
       if (listing === null) return reply
@@ -308,7 +309,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings/:id/status',
-    { schema: { params: idParams, body: statusChangeForm } },
+    { schema: { params: idParams('lst'), body: statusChangeForm } },
     async (request, reply) => {
       const listing = await findOwnedListing(request, reply, request.params.id)
       if (listing === null) return reply

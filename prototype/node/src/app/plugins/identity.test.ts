@@ -9,6 +9,11 @@ import {
   signInAsCustomer,
   signInAsSeller,
 } from '../test/build-test-app.ts'
+import { fixtureId } from '../test/fixture-ids.ts'
+
+const SELLER_ID = fixtureId('sel', 1)
+const CUSTOMER_ID = fixtureId('cus', 1)
+const ADMIN_ID = fixtureId('adm', 1)
 
 test('one browser can be a seller, a customer, and an admin at once', async (t) => {
   const testApp = await buildTestApp()
@@ -39,6 +44,24 @@ test('an identity cookie signed with another secret reaches nothing', async (t) 
   })
 
   assert.equal(response.statusCode, 302)
+})
+
+test('a cookie carrying anything but this side\'s id is signed out, not an error', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+
+  // An id from another table, the integer ids this prototype used to mint, and
+  // a path traversal: every one of them is a stranger, and none is a crash.
+  for (const value of [CUSTOMER_ID, '1', '../../etc/passwd', '']) {
+    const response = await testApp.app.inject({
+      method: 'GET',
+      url: '/seller/account',
+      cookies: { seller_id: testApp.app.signCookie(value) },
+    })
+
+    assert.equal(response.statusCode, 302, value)
+    assert.equal(response.headers.location?.startsWith('/seller/login'), true, value)
+  }
 })
 
 test('a cookie naming a seller that is gone reaches nothing', async (t) => {
@@ -97,13 +120,20 @@ test('a seller reaching the storefront is handed a customer identity of their ow
   assert.equal((await testApp.db.selectFrom('customers').selectAll().execute()).length, 1)
 })
 
-test('a cookie value that is not a positive whole number names no actor', () => {
-  for (const value of ['../../etc/passwd', '12abc', '', '0', '-1', '1.5', null, undefined]) {
-    assert.equal(parseActorId(value), null, String(value))
+test('a cookie value that is not a prefixed id names no actor', () => {
+  for (const value of ['../../etc/passwd', '12abc', '', '0', '-1', '1', '42', null, undefined]) {
+    assert.equal(parseActorId('seller', value), null, String(value))
   }
 })
 
-test('a cookie value holding an id names that actor', () => {
-  assert.equal(parseActorId('1'), 1)
-  assert.equal(parseActorId('42'), 42)
+test("a cookie holding another side's id names no actor", () => {
+  assert.equal(parseActorId('seller', CUSTOMER_ID), null)
+  assert.equal(parseActorId('customer', ADMIN_ID), null)
+  assert.equal(parseActorId('admin', SELLER_ID), null)
+})
+
+test('a cookie value holding this side\'s id names that actor', () => {
+  assert.equal(parseActorId('seller', SELLER_ID), SELLER_ID)
+  assert.equal(parseActorId('customer', CUSTOMER_ID), CUSTOMER_ID)
+  assert.equal(parseActorId('admin', ADMIN_ID), ADMIN_ID)
 })

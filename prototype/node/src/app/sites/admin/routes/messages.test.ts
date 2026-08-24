@@ -245,7 +245,7 @@ test('POST /admin/sellers/:id/messages opens a thread and a second post reuses i
     payload: {},
   })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location as string, /^\/admin\/messages\/\d+$/)
+  assert.match(first.headers.location as string, /^\/admin\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({
     method: 'POST',
@@ -284,7 +284,7 @@ test('POST /admin/customers/:id/messages opens a thread and a second post reuses
     payload: {},
   })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location as string, /^\/admin\/messages\/\d+$/)
+  assert.match(first.headers.location as string, /^\/admin\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({
     method: 'POST',

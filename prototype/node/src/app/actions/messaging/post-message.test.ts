@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
 import { postMessage } from './post-message.ts'
 import { openConversation } from './open-conversation.ts'
 import { blockCustomer } from '../moderation/block-customer.ts'
@@ -50,7 +51,7 @@ async function admin(context: ActionContext) {
   return found
 }
 
-async function listingConversation(context: ActionContext, sellerId: number, customerId: number) {
+async function listingConversation(context: ActionContext, sellerId: SellerId, customerId: CustomerId) {
   const listing = await createListing(context, { sellerId, draft: DEFAULT_DRAFT })
   return openConversation(context, {
     kind: 'listing_question',

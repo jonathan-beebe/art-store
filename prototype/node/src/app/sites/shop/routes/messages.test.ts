@@ -1,7 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import type {
+  ConversationId,
+  CustomerId,
+} from '../../../core/ids/entity-ids.ts'
 import { flashSchema } from '../../../plugins/flash.ts'
+import { parsePrefixedId } from '../../../core/ids/prefixed-id.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -19,15 +24,16 @@ import {
   placeCustomerOrder,
 } from '../storefront-fixtures.ts'
 
-function conversationIdFrom(location: string | undefined): number {
-  const id = Number(location?.split('/').pop())
-  if (!Number.isInteger(id)) throw new Error(`no conversation id in redirect "${location}"`)
-  return id
+function conversationIdFrom(location: string | undefined): ConversationId {
+  const parsed = parsePrefixedId('cnv', location?.split('/').pop() ?? '')
+  if (parsed.outcome !== 'id') throw new Error(`no conversation id in redirect "${location}"`)
+
+  return parsed.id
 }
 
 async function orderWithFulfillment(
   testApp: TestApp,
-  customerId: number,
+  customerId: CustomerId,
   title = 'Harbour at dusk',
 ) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
@@ -347,7 +353,7 @@ test('/support opens the admin thread and reuses the same one on a second visit'
     cookies: customer.cookies,
   })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location ?? '', /^\/messages\/\d+$/)
+  assert.match(first.headers.location ?? '', /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({
     method: 'GET',
@@ -399,7 +405,7 @@ test('posting a fulfillment message opens the thread, and 404s for another custo
     cookies: customer.cookies,
   })
   assert.equal(response.statusCode, 302)
-  assert.match(response.headers.location ?? '', /^\/messages\/\d+$/)
+  assert.match(response.headers.location ?? '', /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const conversation = await testApp.db
     .selectFrom('conversations')

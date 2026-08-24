@@ -1,15 +1,16 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
 import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import { addCents, centsFromColumn, ZERO_CENTS, type Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
-export type SellerOption = { id: number; name: string }
+export type SellerOption = { id: SellerId; name: string }
 
 /** A seller's escrow balance reconciled against what payouts actually sent, plus lifetime sales. */
 export type SellerAccount = LedgerBalance & {
-  sellerId: number
+  sellerId: SellerId
   sellerName: string
   payoutTotalCents: Cents
   reconciles: boolean
@@ -51,6 +52,7 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
   const sellers = await db
     .selectFrom('sellers')
     .select(['id', 'shopName', 'email'])
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 
@@ -59,9 +61,9 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
 
 function toAccount(
   seller: SellerOption,
-  balances: ReadonlyMap<number, LedgerBalance>,
-  payoutTotals: Map<number, Cents>,
-  lifetimeSales: Map<number, LifetimeSales>,
+  balances: ReadonlyMap<SellerId, LedgerBalance>,
+  payoutTotals: Map<SellerId, Cents>,
+  lifetimeSales: Map<SellerId, LifetimeSales>,
 ): SellerAccount {
   const balance = balances.get(seller.id) ?? ZERO_BALANCE
   const payoutTotalCents = payoutTotals.get(seller.id) ?? ZERO_CENTS
@@ -79,7 +81,7 @@ function toAccount(
   }
 }
 
-async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<number, Cents>> {
+async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<SellerId, Cents>> {
   const rows = await db
     .selectFrom('payouts')
     .select(['sellerId', (eb) => eb.fn.sum<string | number | bigint>('amountCents').as('total')])
@@ -93,7 +95,7 @@ async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<
  * A fee is earned when the order pays, which is when the net is held, so
  * lifetime sales fold every fulfillment that has a `held` ledger entry.
  */
-async function lifetimeSalesBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<number, LifetimeSales>> {
+async function lifetimeSalesBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<SellerId, LifetimeSales>> {
   const rows = await db
     .selectFrom('fulfillments')
     .innerJoin('ledgerEntries', 'ledgerEntries.fulfillmentId', 'fulfillments.id')
@@ -106,7 +108,7 @@ async function lifetimeSalesBySeller({ db }: Pick<ActionContext, 'db'>): Promise
     ])
     .execute()
 
-  const bySeller = new Map<number, LifetimeSales>()
+  const bySeller = new Map<SellerId, LifetimeSales>()
   for (const row of rows) {
     const current = bySeller.get(row.sellerId) ?? ZERO_LIFETIME
     bySeller.set(row.sellerId, {

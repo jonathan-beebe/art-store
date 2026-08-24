@@ -276,7 +276,7 @@ test('POST /orders/:id/messages opens the fulfillment thread with the order cust
   })
 
   assert.equal(response.statusCode, 302)
-  assert.match(response.headers.location ?? '', /^\/seller\/messages\/\d+$/)
+  assert.match(response.headers.location ?? '', /^\/seller\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const conversation = await testApp.db
     .selectFrom('conversations')

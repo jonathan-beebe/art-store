@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -16,7 +17,7 @@ function flashCookieOf(response: { cookies: { name: string; value: string }[] })
   return flash ? { flash: String(flash.value) } : {}
 }
 
-async function openListingQuestion(testApp: TestApp, sellerId: number, listingId: number) {
+async function openListingQuestion(testApp: TestApp, sellerId: SellerId, listingId: ListingId) {
   const { db, clock } = testApp
   const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
   const conversation = await openConversation(
@@ -202,7 +203,7 @@ test('/seller/support opens the admin thread and reuses it on a second visit', a
 
   const first = await testApp.app.inject({ method: 'GET', url: '/seller/support', cookies: seller.cookies })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location ?? '', /^\/seller\/messages\/\d+$/)
+  assert.match(first.headers.location ?? '', /^\/seller\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({ method: 'GET', url: '/seller/support', cookies: seller.cookies })
   assert.equal(second.headers.location, first.headers.location)

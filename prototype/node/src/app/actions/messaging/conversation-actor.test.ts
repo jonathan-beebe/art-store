@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationActor } from './conversation-actor.ts'
 import { blockCustomer } from '../moderation/block-customer.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
@@ -33,18 +34,18 @@ test('a seller carries no isBlocked flag and needs no row for that id', async (t
   const world = await openWorld()
   t.after(world.close)
 
-  const actor = await conversationActor(world.context, { type: 'seller', id: 999 })
+  const actor = await conversationActor(world.context, { type: 'seller', id: fixtureId('sel', 999) })
 
-  assert.deepEqual(actor, { type: 'seller', id: 999 })
+  assert.deepEqual(actor, { type: 'seller', id: fixtureId('sel', 999) })
 })
 
 test('an admin carries no isBlocked flag and needs no row for that id', async (t) => {
   const world = await openWorld()
   t.after(world.close)
 
-  const actor = await conversationActor(world.context, { type: 'admin', id: 999 })
+  const actor = await conversationActor(world.context, { type: 'admin', id: fixtureId('adm', 999) })
 
-  assert.deepEqual(actor, { type: 'admin', id: 999 })
+  assert.deepEqual(actor, { type: 'admin', id: fixtureId('adm', 999) })
 })
 
 test('a blocked customer carries isBlocked true', async (t) => {

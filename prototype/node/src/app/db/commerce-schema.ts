@@ -2,6 +2,31 @@ import type { ColumnType, Generated, Selectable } from 'kysely'
 import type { PageViewSite } from '../core/analytics/page-view-site.ts'
 import type { ActorType } from '../core/auth/actor-type.ts'
 import type { LedgerEntryType } from '../core/escrow/ledger-entry-type.ts'
+import type {
+  ActorId,
+  AdminId,
+  CartId,
+  CartItemId,
+  ConversationId,
+  CustomerBlockId,
+  CustomerId,
+  FavoriteId,
+  FulfillmentId,
+  LedgerEntryId,
+  ListingEventId,
+  ListingFaqId,
+  ListingId,
+  ListingRemovalId,
+  MessageId,
+  NotificationId,
+  OrderId,
+  OrderItemId,
+  OutboxMessageId,
+  PageViewCountId,
+  PaymentId,
+  PayoutId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import type { ListingEventType } from '../core/listings/listing-event-type.ts'
 import type { ListingStatus } from '../core/listings/listing-status.ts'
 import type { ConversationKind } from '../core/messaging/conversation-kind.ts'
@@ -21,8 +46,8 @@ export type Day = string
 type MoneyColumn = ColumnType<Cents, number, number>
 
 export type ListingsTable = {
-  id: Generated<number>
-  sellerId: number
+  id: ListingId
+  sellerId: SellerId
   title: string
   slug: string
   description: string | null
@@ -40,24 +65,24 @@ export type ListingsTable = {
 }
 
 export type ListingEventsTable = {
-  id: Generated<number>
-  listingId: number
-  customerId: number | null
+  id: ListingEventId
+  listingId: ListingId
+  customerId: CustomerId | null
   eventType: ListingEventType
   occurredAt: Timestamp
 }
 
 export type FavoritesTable = {
-  id: Generated<number>
-  customerId: number
-  listingId: number
+  id: FavoriteId
+  customerId: CustomerId
+  listingId: ListingId
   createdAt: Timestamp
 }
 
 export type ListingRemovalsTable = {
-  id: Generated<number>
-  listingId: number
-  adminId: number
+  id: ListingRemovalId
+  listingId: ListingId
+  adminId: AdminId
   kind: RemovalKind
   reason: string
   createdAt: Timestamp
@@ -65,30 +90,31 @@ export type ListingRemovalsTable = {
 }
 
 export type CustomerBlocksTable = {
-  id: Generated<number>
-  customerId: number
-  adminId: number
+  id: CustomerBlockId
+  customerId: CustomerId
+  adminId: AdminId
   reason: string
   createdAt: Timestamp
   liftedAt: Timestamp | null
 }
 
 export type CartsTable = {
-  id: Generated<number>
-  customerId: number
+  id: CartId
+  customerId: CustomerId
   createdAt: Timestamp
 }
 
 export type CartItemsTable = {
-  id: Generated<number>
-  cartId: number
-  listingId: number
+  id: CartItemId
+  cartId: CartId
+  listingId: ListingId
   quantity: number
+  createdAt: Timestamp
 }
 
 export type OrdersTable = {
-  id: Generated<number>
-  customerId: number
+  id: OrderId
+  customerId: CustomerId
   email: string | null
   status: OrderStatus
   shippingName: string
@@ -106,19 +132,20 @@ export type OrdersTable = {
 }
 
 export type OrderItemsTable = {
-  id: Generated<number>
-  orderId: number
-  listingId: number
-  sellerId: number
+  id: OrderItemId
+  orderId: OrderId
+  listingId: ListingId
+  sellerId: SellerId
   /** Title and price as they were at checkout, so an edited listing cannot rewrite an order. */
   title: string
   unitPriceCents: MoneyColumn
   quantity: number
+  createdAt: Timestamp
 }
 
 export type PaymentsTable = {
-  id: Generated<number>
-  orderId: number
+  id: PaymentId
+  orderId: OrderId
   status: PaymentStatus
   amountCents: MoneyColumn
   cardLastFour: string
@@ -127,9 +154,9 @@ export type PaymentsTable = {
 }
 
 export type FulfillmentsTable = {
-  id: Generated<number>
-  orderId: number
-  sellerId: number
+  id: FulfillmentId
+  orderId: OrderId
+  sellerId: SellerId
   /** Defaults to `'awaiting_shipment'` in the migration. */
   status: Generated<FulfillmentStatus>
   carrier: string | null
@@ -138,13 +165,14 @@ export type FulfillmentsTable = {
   /** Priced once at placement; every later step moves the stored `netCents`. */
   feeCents: MoneyColumn
   netCents: MoneyColumn
+  createdAt: Timestamp
   shippedAt: Timestamp | null
   deliveredAt: Timestamp | null
 }
 
 export type PayoutsTable = {
-  id: Generated<number>
-  sellerId: number
+  id: PayoutId
+  sellerId: SellerId
   periodStart: Day
   periodEnd: Day
   amountCents: MoneyColumn
@@ -152,10 +180,10 @@ export type PayoutsTable = {
 }
 
 export type LedgerEntriesTable = {
-  id: Generated<number>
-  sellerId: number
-  fulfillmentId: number | null
-  payoutId: number | null
+  id: LedgerEntryId
+  sellerId: SellerId
+  fulfillmentId: FulfillmentId | null
+  payoutId: PayoutId | null
   entryType: LedgerEntryType
   /** Signed: `held` and `released` are positive, `paid_out` is negative. */
   amountCents: MoneyColumn
@@ -163,10 +191,10 @@ export type LedgerEntriesTable = {
 }
 
 export type NotificationsTable = {
-  id: Generated<number>
-  sellerId: number | null
-  customerId: number | null
-  adminId: number | null
+  id: NotificationId
+  sellerId: SellerId | null
+  customerId: CustomerId | null
+  adminId: AdminId | null
   subject: string
   body: string
   url: string | null
@@ -180,7 +208,7 @@ export type NotificationsTable = {
  * and the drain stamps it once the message has been written out.
  */
 export type OutboxMessagesTable = {
-  id: Generated<number>
+  id: OutboxMessageId
   /** The email address the message is addressed to. */
   recipient: string
   subject: string
@@ -191,7 +219,7 @@ export type OutboxMessagesTable = {
 }
 
 export type PageViewCountsTable = {
-  id: Generated<number>
+  id: PageViewCountId
   site: PageViewSite
   /** The route's pattern (`/art/:slug`), not the concrete URL. */
   pathPattern: string
@@ -205,23 +233,23 @@ export type PageViewCountsTable = {
  * column, if any, names what the thread is about.
  */
 export type ConversationsTable = {
-  id: Generated<number>
+  id: ConversationId
   kind: ConversationKind
-  sellerId: number | null
-  customerId: number | null
-  adminId: number | null
-  listingId: number | null
-  fulfillmentId: number | null
+  sellerId: SellerId | null
+  customerId: CustomerId | null
+  adminId: AdminId | null
+  listingId: ListingId | null
+  fulfillmentId: FulfillmentId | null
   createdAt: Timestamp
   lastMessageAt: Timestamp
 }
 
 /** `readAt` is the other participant's marker: a thread has exactly two sides. */
 export type MessagesTable = {
-  id: Generated<number>
-  conversationId: number
+  id: MessageId
+  conversationId: ConversationId
   senderType: ActorType
-  senderId: number
+  senderId: ActorId
   body: string
   sentAt: Timestamp
   readAt: Timestamp | null
@@ -229,11 +257,11 @@ export type MessagesTable = {
 
 /** A row exists only while the entry is published; unpublishing deletes it. */
 export type ListingFaqsTable = {
-  id: Generated<number>
-  listingId: number
+  id: ListingFaqId
+  listingId: ListingId
   question: string
   answer: string
-  sourceMessageId: number | null
+  sourceMessageId: MessageId | null
   publishedAt: Timestamp
 }
 

@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { ListingId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import { changeListingStatus } from './change-listing-status.ts'
 import { TransitionError } from '../../core/transition-error.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -59,6 +61,7 @@ test('a removed listing refuses to go back on sale, even through a transition th
   await world.db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: art.id,
       adminId,
       kind: 'permanent',
@@ -78,7 +81,7 @@ test('a removed listing refuses to go back on sale, even through a transition th
   assert.equal(await readStatus(world.db, art.id), 'sold')
 })
 
-async function readStatus(db: AppDatabase, listingId: number): Promise<string> {
+async function readStatus(db: AppDatabase, listingId: ListingId): Promise<string> {
   const row = await db
     .selectFrom('listings')
     .select('status')

@@ -1,9 +1,10 @@
 import type { ConversationKind } from './conversation-kind.ts'
+import type { OrderId } from '../ids/entity-ids.ts'
 
 /** What the subject row of a conversation is called, for the kinds that have one. */
 export type ConversationSubjectNames = {
   listingTitle?: string | null
-  orderId?: number | null
+  orderId?: OrderId | null
 }
 
 const SUPPORT_TOPIC = 'Art Store support'
@@ -11,7 +12,7 @@ const SUPPORT_TOPIC = 'Art Store support'
 const TOPICS: Readonly<Record<ConversationKind, (names: ConversationSubjectNames) => string>> = {
   admin_seller: () => SUPPORT_TOPIC,
   admin_customer: () => SUPPORT_TOPIC,
-  fulfillment: ({ orderId }) => (orderId === null || orderId === undefined ? 'an order' : `order #${orderId}`),
+  fulfillment: ({ orderId }) => (orderId === null || orderId === undefined ? 'an order' : `order ${orderId}`),
   listing_question: ({ listingTitle }) =>
     listingTitle === null || listingTitle === undefined ? 'a listing' : `“${listingTitle}”`,
 }

@@ -1,3 +1,5 @@
+import type { CartId, OrderId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { cartContents, toCartLine, type CartLineView } from '../carts/cart-contents.ts'
@@ -13,7 +15,7 @@ import type { Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type PlaceOrderInput = {
-  cartId: number
+  cartId: CartId
   purchaser: Purchaser
   shipping: ShippingAddress
 }
@@ -96,6 +98,7 @@ async function openOrder(
   return db
     .insertInto('orders')
     .values({
+      id: newId('ord', clock.now()),
       customerId: input.purchaser.id,
       email: input.purchaser.email,
       status: orderStatusForPlacement(input.purchaser.isEmailVerified),
@@ -117,20 +120,22 @@ async function openOrder(
 }
 
 async function snapshotItems(
-  { db }: ActionContext,
-  orderId: number,
+  { db, clock }: ActionContext,
+  orderId: OrderId,
   lines: readonly CartLineView[],
 ): Promise<void> {
   await db
     .insertInto('orderItems')
     .values(
       lines.map((line) => ({
+        id: newId('oit', clock.now()),
         orderId,
         listingId: line.listingId,
         sellerId: line.sellerId,
         title: line.title,
         unitPriceCents: line.unitPriceCents,
         quantity: line.quantity,
+        createdAt: toTimestamp(clock.now()),
       })),
     )
     .execute()
@@ -139,14 +144,15 @@ async function snapshotItems(
 /** One fulfillment per seller on the order, each born `awaiting_shipment` —
  * the status the column defaults to. */
 async function splitBySeller(
-  { db }: ActionContext,
-  orderId: number,
+  { db, clock }: ActionContext,
+  orderId: OrderId,
   totals: CartTotals,
 ): Promise<void> {
   await db
     .insertInto('fulfillments')
     .values(
       totals.subtotalsBySeller.map((seller) => ({
+        id: newId('ful', clock.now()),
         orderId,
         sellerId: seller.sellerId,
         carrier: null,
@@ -154,6 +160,7 @@ async function splitBySeller(
         subtotalCents: seller.subtotalCents,
         feeCents: platformFee(seller.subtotalCents),
         netCents: sellerNet(seller.subtotalCents),
+        createdAt: toTimestamp(clock.now()),
         shippedAt: null,
         deliveredAt: null,
       })),

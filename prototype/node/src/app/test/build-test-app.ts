@@ -9,6 +9,7 @@ import { createAnonymousCustomer } from '../actions/customers/create-anonymous-c
 import { buildApp, type AppDependencies } from '../app.ts'
 import { fixedClock, type Clock } from '../clock.ts'
 import type { AppConfig } from '../config.ts'
+import type { ActorId, AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
@@ -87,8 +88,8 @@ export async function buildTestApp(overrides: Partial<AppDependencies> = {}): Pr
 }
 
 /** An identity plus the cookie jar `app.inject` needs to present it. */
-export type SignedInActor = {
-  id: number
+export type SignedInActor<Id extends ActorId = ActorId> = {
+  id: Id
   cookies: Record<string, string>
 }
 
@@ -99,19 +100,19 @@ export type SignedInActor = {
 export async function signInAsSeller(
   { app, db, clock }: TestApp,
   email = 'artist@example.com',
-): Promise<SignedInActor> {
+): Promise<SignedInActor<SellerId>> {
   const seller = await claimSellerIdentity({ db, clock }, email)
 
-  return { id: seller.id, cookies: { seller_id: app.signCookie(String(seller.id)) } }
+  return { id: seller.id, cookies: { seller_id: app.signCookie(seller.id) } }
 }
 
 export async function signInAsCustomer(
   { app, db, clock }: TestApp,
   email = 'buyer@example.com',
-): Promise<SignedInActor> {
+): Promise<SignedInActor<CustomerId>> {
   const customer = await claimCustomerIdentity({ db, clock }, { email, currentCustomerId: null })
 
-  return { id: customer.id, cookies: { customer_id: app.signCookie(String(customer.id)) } }
+  return { id: customer.id, cookies: { customer_id: app.signCookie(customer.id) } }
 }
 
 /** A storefront visitor who has given no address, as the identity hook creates one. */
@@ -119,22 +120,22 @@ export async function browseAsAnonymousCustomer({
   app,
   db,
   clock,
-}: TestApp): Promise<SignedInActor> {
+}: TestApp): Promise<SignedInActor<CustomerId>> {
   const customer = await createAnonymousCustomer({ db, clock })
 
-  return { id: customer.id, cookies: { customer_id: app.signCookie(String(customer.id)) } }
+  return { id: customer.id, cookies: { customer_id: app.signCookie(customer.id) } }
 }
 
 export async function signInAsAdmin(
   { app, db, clock }: TestApp,
   email = 'jonathan-beebe@outlook.com',
-): Promise<SignedInActor> {
+): Promise<SignedInActor<AdminId>> {
   await seedAdmins({ db, clock })
   const admin = await findAdminByEmail({ db }, email)
 
   if (admin === null) throw new Error(`no seeded admin for ${email}`)
 
-  return { id: admin.id, cookies: { admin_id: app.signCookie(String(admin.id)) } }
+  return { id: admin.id, cookies: { admin_id: app.signCookie(admin.id) } }
 }
 
 /** The sign-in URL a response flashed for the debug alert to print. */

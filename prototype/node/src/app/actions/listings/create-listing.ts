@@ -1,3 +1,5 @@
+import type { SellerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
@@ -6,7 +8,7 @@ import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type CreateListingInput = {
-  sellerId: number
+  sellerId: SellerId
   draft: ListingDraft
   /** Where the uploaded file landed under `public/`; null shows a generated placeholder. */
   imagePath?: string | null
@@ -31,6 +33,7 @@ export async function createListing(
     return db
       .insertInto('listings')
       .values({
+        id: newId('lst', clock.now()),
         ...input.draft,
         sellerId: input.sellerId,
         slug: firstFreeSlug(

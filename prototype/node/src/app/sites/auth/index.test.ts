@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
+import { newId } from '../../ids.ts'
 import {
   buildTestApp,
   TEST_CONFIG,
@@ -23,13 +24,13 @@ function pathOf(url: string): string {
 }
 
 /** Reads the id a signed identity cookie carries, the way the app does. */
-function identityId({ app }: TestApp, cookies: Cookies, name: string): number | null {
+function identityId({ app }: TestApp, cookies: Cookies, name: string): string | null {
   const cookie = cookies[name]
   if (cookie === undefined) return null
 
   const unsigned = app.unsignCookie(cookie)
 
-  return unsigned.valid && unsigned.value !== null ? Number(unsigned.value) : null
+  return unsigned.valid ? unsigned.value : null
 }
 
 async function askForLink(
@@ -119,6 +120,7 @@ test('verifying an address that already has an account folds the anonymous one i
   const existing = await testApp.db
     .insertInto('customers')
     .values({
+      id: newId('cus', new Date()),
       email: 'buyer@example.com',
       name: null,
       emailVerifiedAt: TEST_INSTANT.toISOString(),
@@ -149,6 +151,7 @@ test('a cookie left holding a merged id resolves forward on the next visit', asy
   await testApp.db
     .insertInto('customers')
     .values({
+      id: newId('cus', new Date()),
       email: 'buyer@example.com',
       name: null,
       emailVerifiedAt: TEST_INSTANT.toISOString(),
@@ -222,6 +225,7 @@ test('a link past its expiry signs nobody in and says so', async (t) => {
   await testApp.db
     .insertInto('magicLinks')
     .values({
+      id: newId('mlk', new Date()),
       tokenDigest: digestMagicLinkToken(token),
       email: 'artist@example.com',
       actorType: 'seller',
@@ -321,6 +325,7 @@ test('a link past its expiry logs a magic_link.refused event naming why', async 
   await testApp.db
     .insertInto('magicLinks')
     .values({
+      id: newId('mlk', new Date()),
       tokenDigest: digestMagicLinkToken(token),
       email: 'artist@example.com',
       actorType: 'seller',

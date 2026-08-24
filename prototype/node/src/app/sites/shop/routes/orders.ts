@@ -17,7 +17,7 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
     return reply.render('orders', shopPage({ title: 'Orders', orders }))
   })
 
-  shop.get('/orders/:id', { schema: { params: idParams } }, async (request, reply) => {
+  shop.get('/orders/:id', { schema: { params: idParams('ord') } }, async (request, reply) => {
     const found = await loadCustomerOrder(shop, request, request.params.id)
     if (found === null) return renderNotFound(reply)
 
@@ -26,7 +26,7 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
     return reply.render(
       'order',
       shopPage({
-        title: `Order #${order.id}`,
+        title: `Order ${order.id}`,
         order,
         fulfillments,
         declineMessage: declineNotice(lastPayment),
@@ -37,7 +37,7 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
     )
   })
 
-  shop.post('/orders/:id/cancel', { schema: { params: idParams } }, async (request, reply) => {
+  shop.post('/orders/:id/cancel', { schema: { params: idParams('ord') } }, async (request, reply) => {
     const found = await loadCustomerOrder(shop, request, request.params.id)
     // Fast 404 for a status cancelOrder would refuse anyway — transitionOrder is the authority.
     if (found === null || !isCancellable(found.order.status)) return renderNotFound(reply)

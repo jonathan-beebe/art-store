@@ -31,7 +31,7 @@
     <tbody class="divide-y divide-neutral-200">
       <% rows.forEach((payout) => { %>
       <tr data-payout="<%= payout.id %>">
-        <th scope="row" class="px-4 py-2 font-normal">#<%= payout.id %></th>
+        <th scope="row" class="px-4 py-2 font-normal"><%= payout.id %></th>
         <td data-cell="seller" class="px-4 py-2"><%= payout.sellerName %></td>
         <td data-cell="period" class="px-4 py-2"><%= payout.periodStart %> to <%= payout.periodEnd %></td>
         <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= formatCents(payout.amountCents) %></td>

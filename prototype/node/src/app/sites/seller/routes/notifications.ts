@@ -19,7 +19,7 @@ export const notificationsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/notifications/:id/read',
-    { schema: { params: idParams } },
+    { schema: { params: idParams('ntf') } },
     async (request, reply) => {
       const notificationId = request.params.id
       const { db, clock } = request.server

@@ -1,6 +1,7 @@
 import { addCents, negateCents, subtractCents, ZERO_CENTS, type Cents } from '../money.ts'
 import type { LedgerEntryType } from './ledger-entry-type.ts'
 import type { LedgerMovement } from './ledger-movement.ts'
+import type { SellerId } from '../ids/entity-ids.ts'
 
 /**
  * What a seller's ledger adds up to: money waiting on delivery, money ready
@@ -9,7 +10,7 @@ import type { LedgerMovement } from './ledger-movement.ts'
 export type LedgerBalance = { heldCents: Cents; availableCents: Cents; paidOutCents: Cents }
 
 /** A ledger movement as read alongside the seller it belongs to. */
-export type SellerLedgerMovement = LedgerMovement & { sellerId: number }
+export type SellerLedgerMovement = LedgerMovement & { sellerId: SellerId }
 
 export function ledgerBalance(movements: readonly LedgerMovement[]): LedgerBalance {
   const totals: Record<LedgerEntryType, Cents> = { held: ZERO_CENTS, released: ZERO_CENTS, paid_out: ZERO_CENTS }
@@ -36,8 +37,8 @@ export function isPayable(balance: LedgerBalance): boolean {
  */
 export function ledgerBalancesBySeller(
   movements: readonly SellerLedgerMovement[],
-): ReadonlyMap<number, LedgerBalance> {
-  const bySeller = new Map<number, SellerLedgerMovement[]>()
+): ReadonlyMap<SellerId, LedgerBalance> {
+  const bySeller = new Map<SellerId, SellerLedgerMovement[]>()
   for (const movement of movements) {
     bySeller.set(movement.sellerId, [...(bySeller.get(movement.sellerId) ?? []), movement])
   }

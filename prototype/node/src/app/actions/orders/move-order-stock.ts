@@ -1,3 +1,4 @@
+import type { OrderId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { stockAfter } from '../../core/listings/listing-stock.ts'
 import type { StockChange } from '../../core/listings/stock-change.ts'
@@ -10,7 +11,7 @@ import { toTimestamp } from '../../db/timestamp.ts'
  */
 export async function moveOrderStock(
   context: ActionContext,
-  orderId: number,
+  orderId: OrderId,
   change: StockChange,
 ): Promise<void> {
   const { db, clock } = context
@@ -24,6 +25,7 @@ export async function moveOrderStock(
       'orderItems.quantity as quantity',
     ])
     .where('orderItems.orderId', '=', orderId)
+    .orderBy('orderItems.createdAt')
     .orderBy('orderItems.id')
     .execute()
 

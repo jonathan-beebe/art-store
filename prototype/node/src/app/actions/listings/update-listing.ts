@@ -1,3 +1,4 @@
+import type { ListingId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
@@ -5,7 +6,7 @@ import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type UpdateListingInput = {
-  listingId: number
+  listingId: ListingId
   draft: ListingDraft
   /** Left out, the listing keeps the image it has. */
   imagePath?: string | null

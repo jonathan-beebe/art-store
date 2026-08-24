@@ -1,4 +1,5 @@
 import type { Clock } from '../clock.ts'
+import { newId } from '../ids.ts'
 import type { AppDatabase } from './database.ts'
 import { toTimestamp } from './timestamp.ts'
 
@@ -23,7 +24,7 @@ export async function seedAdmins({
 
   const result = await db
     .insertInto('admins')
-    .values(SEEDED_ADMINS.map((admin) => ({ ...admin, createdAt })))
+    .values(SEEDED_ADMINS.map((admin) => ({ id: newId('adm', clock.now()), ...admin, createdAt })))
     .onConflict((conflict) => conflict.column('email').doNothing())
     .executeTakeFirst()
 

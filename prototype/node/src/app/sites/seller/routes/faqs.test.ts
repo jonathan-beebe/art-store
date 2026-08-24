@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
+import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Message } from '../../../db/commerce-schema.ts'
 import { buildTestApp, signInAsCustomer, signInAsSeller, type TestApp } from '../../../test/build-test-app.ts'
 import { createForSaleListing } from '../test-fixtures.ts'
@@ -11,7 +12,7 @@ function flashCookieOf(response: { cookies: { name: string; value: string }[] })
   return flash ? { flash: String(flash.value) } : {}
 }
 
-async function askAndAnswer(testApp: TestApp, sellerId: number, listingId: number): Promise<Message> {
+async function askAndAnswer(testApp: TestApp, sellerId: SellerId, listingId: ListingId): Promise<Message> {
   const { db, clock } = testApp
   const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
   const conversation = await openConversation(
@@ -50,7 +51,7 @@ test('the FAQ page lists published entries with an edit form and a blank publish
 
   assert.equal(response.statusCode, 200)
   assert.match(response.body, /Harbour at Dusk/)
-  assert.match(response.body, /data-faq="\d+"/)
+  assert.match(response.body, /data-faq="faq_[0-9A-HJKMNP-TV-Z]{26}"/)
   assert.match(response.body, new RegExp(`action="/seller/listings/${listing.id}/faqs"`))
 })
 

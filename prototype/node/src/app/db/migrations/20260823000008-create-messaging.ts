@@ -16,15 +16,15 @@ import { CONVERSATION_KINDS } from '../../core/messaging/conversation-kind.ts'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('conversations')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
     .addColumn('kind', 'text', (column) =>
       column.notNull().check(sql`kind in (${sql.join(CONVERSATION_KINDS.map((kind) => sql.lit(kind)))})`),
     )
-    .addColumn('seller_id', 'integer', (column) => column.references('sellers.id'))
-    .addColumn('customer_id', 'integer', (column) => column.references('customers.id'))
-    .addColumn('admin_id', 'integer', (column) => column.references('admins.id'))
-    .addColumn('listing_id', 'integer', (column) => column.references('listings.id'))
-    .addColumn('fulfillment_id', 'integer', (column) => column.references('fulfillments.id'))
+    .addColumn('seller_id', 'text', (column) => column.references('sellers.id'))
+    .addColumn('customer_id', 'text', (column) => column.references('customers.id'))
+    .addColumn('admin_id', 'text', (column) => column.references('admins.id'))
+    .addColumn('listing_id', 'text', (column) => column.references('listings.id'))
+    .addColumn('fulfillment_id', 'text', (column) => column.references('fulfillments.id'))
     .addColumn('created_at', 'text', (column) => column.notNull())
     .addColumn('last_message_at', 'text', (column) => column.notNull())
     .execute()
@@ -55,8 +55,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('messages')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('conversation_id', 'integer', (column) =>
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('conversation_id', 'text', (column) =>
       column.notNull().references('conversations.id'),
     )
     .addColumn('sender_type', 'text', (column) =>
@@ -64,7 +64,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
         .notNull()
         .check(sql`sender_type in (${sql.join(ACTOR_TYPES.map((type) => sql.lit(type)))})`),
     )
-    .addColumn('sender_id', 'integer', (column) => column.notNull())
+    .addColumn('sender_id', 'text', (column) => column.notNull())
     .addColumn('body', 'text', (column) => column.notNull())
     .addColumn('sent_at', 'text', (column) => column.notNull())
     .addColumn('read_at', 'text')
@@ -73,23 +73,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createIndex('messages_conversation_id_index')
     .on('messages')
-    .columns(['conversation_id', 'id'])
+    .columns(['conversation_id', 'sent_at'])
     .execute()
 
   await db.schema
     .createTable('listing_faqs')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
     .addColumn('question', 'text', (column) => column.notNull())
     .addColumn('answer', 'text', (column) => column.notNull())
-    .addColumn('source_message_id', 'integer', (column) => column.references('messages.id'))
+    .addColumn('source_message_id', 'text', (column) => column.references('messages.id'))
     .addColumn('published_at', 'text', (column) => column.notNull())
     .execute()
 
   await db.schema
     .createIndex('listing_faqs_listing_id_index')
     .on('listing_faqs')
-    .columns(['listing_id', 'id'])
+    .columns(['listing_id', 'published_at'])
     .execute()
 }
 

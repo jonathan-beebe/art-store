@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../ids.ts'
 import { buildTestApp, TEST_INSTANT } from '../../test/build-test-app.ts'
 import { claimSellerIdentity } from './claim-seller-identity.ts'
 import { fixedClock } from '../../clock.ts'
@@ -67,6 +68,7 @@ test('settling an unverified address returns the row the database holds', async 
   await testApp.db
     .insertInto('sellers')
     .values({
+      id: newId('sel', new Date()),
       email: 'artist@example.com',
       name: 'Ada',
       shopName: null,
