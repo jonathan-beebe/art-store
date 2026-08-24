@@ -1,12 +1,13 @@
 # Data model
 
-Generated from `src/db/schema.rb` (version `2026_08_24_000105`). Active
+Generated from `src/db/schema.rb` (version `2026_08_24_000106`). Active
 Storage's own tables (`active_storage_attachments`, `active_storage_blobs`,
 `active_storage_variant_records`) are omitted — nothing in the domain reads
 or writes them directly; `Listing#image_url` falls back to a generated
-placeholder when no blob is attached. `solid_cable_messages` is omitted the
-same way — Solid Cable owns it, and it holds the broadcast queue rather than
-any part of the domain.
+placeholder when no blob is attached. `solid_cable_messages` and
+`solid_cache_entries` are omitted the same way — Solid Cable and Solid Cache
+own them, holding the broadcast queue and the rate-limit counters
+respectively, rather than any part of the domain.
 
 Every primary key below is a prefixed ULID stored as text: three letters
 naming the table, an underscore, and a 26-character Crockford base32 ULID —
@@ -312,9 +313,16 @@ Caveats:
   refunds in this cut — and the row has `created_at` with no `updated_at`,
   since nothing edits one. `orders.refunded_cents` carries the sum, so a page
   reads what went back without folding the table.
-- `carts.customer_id` is not unique — `Customer#absorb` can
-  re-point a second cart onto a customer that already has one
-  (`Customer#current_cart` picks the one with the most items).
+- `carts.customer_id` is not unique. `Customer#absorb` folds the anonymous
+  customer's cart lines into the verified customer's own rather than
+  re-pointing a second cart onto them, but the column carries no uniqueness
+  constraint of its own, so `Customer#current_cart` still picks the row with
+  the most items if a customer ends up with more than one by some other path.
+- `refunds.fulfillment_id` is unique — at most one refund per fulfillment,
+  matching the transition guard that already refuses a second decline or
+  refund. The diagram above draws `fulfillments ||--o{ refunds` as
+  one-to-many for consistency with the other edges; the unique index makes it
+  one-to-zero-or-one in practice.
 - `listing_removals.listing_id` and `customer_blocks.customer_id` are each
   unique only over the rows where `lifted_at IS NULL` (a partial index), which
   is what "at most one active removal / block" means at the schema level —

@@ -54,10 +54,10 @@ flowchart TD
 
 | Lives in | Holds |
 | --- | --- |
-| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`, `Listing#record_event!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`, `PageViewCount.record!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, `PlatformMoney`, `SellerAccount`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. A value object takes time and ids as arguments and touches no database. Two modules of plain class methods sit beside them rather than inside any one record: `Tally` folds a `group by` over an enum's full, declared-order key list so a status with no rows still shows as zero, and `PageView` answers what counts as traffic, which day and which of the three sites a route pattern belongs to — kept pure (plain strings and numbers in, an answer out) so `PageViewRollup` and its tests ask it the same three questions. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry, and `app/models/concerns/prefixed_id.rb` names the prefix each table mints its ids under. |
+| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Order#cancel!`, `Order.sweep_stale`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Fulfillment#decline!`, `Fulfillment#refund!`, `Refund.issue`, `Listing#remove!`, `Listing#lift_removal!`, `Customer#block!`, `Customer#lift_block!`, `Payout.run_weekly`, `Listing#take_stock!`, `Listing#record_event!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`, `PageViewCount.record!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, `PlatformMoney`, `SellerAccount`, `OrderPlacement`, `CustomerMergePlan`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. `Refund`, `ListingRemoval` and `CustomerBlock` are ordinary Active Record records alongside the rest. A value object takes time and ids as arguments and touches no database. Two modules of plain class methods sit beside them rather than inside any one record: `Tally` folds a `group by` over an enum's full, declared-order key list so a status with no rows still shows as zero, and `PageView` answers what counts as traffic, which day and which of the three sites a route pattern belongs to — kept pure (plain strings and numbers in, an answer out) so `PageViewRollup` and its tests ask it the same three questions. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry, and `app/models/concerns/prefixed_id.rb` names the prefix each table mints its ids under. |
 | `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). `MessagingSite` is the inbox, thread and reply the three sites share, over the assigns `ThreadPage` names; `SellerThreadPage` adds the portal's publish-as-FAQ form to those assigns, which is what lets a refused entry come back on the thread it was lifted from. `PageViewRollup`, included once on `ApplicationController`, rolls one hit into `page_view_counts` after every response — see [`admin.md`](admin.md). |
 | `app/mailers/` | `MagicLinkMailer` and its views. |
-| `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). The partials a broadcast renders live here too, one per site: `{shop,seller,admin}/conversations/_message` and `_unread_badge`. |
+| `app/views/`, `app/helpers/` | ERB templates and the view helpers: `ApplicationHelper` (`status_label`, `money`, `customer_standing`) and `ShopHelper` (the storefront header's cart and notification counts). The partials a broadcast renders live here too, one per site: `{shop,seller,admin}/conversations/_message` and `_unread_badge`. |
 | `app/javascript/` | `application.js` — one `import "@hotwired/turbo-rails"` and nothing else. `config/importmap.rb` pins it and the Turbo the gem ships; `javascript_importmap_tags` in the three layouts serves the map. No bundler, no Node, no Stimulus. |
 | `lib/` | `prefixed_ulid.rb` mints and parses the prefixed ULID every table is keyed by, and hands `config/routes.rb` the segment constraints that turn away a path carrying another table's id. `lib/tasks/` holds the rake tasks. |
 | `config/routes.rb`, `config/initializers/*`, `config/cable.yml`, `config/importmap.rb` | Wiring only. |
@@ -168,6 +168,12 @@ erDiagram
     sellers ||--o{ notifications : notifies
     customers ||--o{ notifications : notifies
     admins ||--o{ notifications : notifies
+    orders ||--o{ refunds : sent_back
+    fulfillments ||--o{ refunds : reversed_by
+    listings ||--o{ listing_removals : has
+    admins ||--o{ listing_removals : removes
+    customers ||--o{ customer_blocks : has
+    admins ||--o{ customer_blocks : blocks
 ```
 
 Messaging hangs off the same actors, one table for all four kinds of thread:
@@ -257,14 +263,15 @@ owns.
 - `ledger_entries.entry_type` (not `type` — that column is reserved for Active
   Record's single-table inheritance, same reason `listing_events.event_type`
   isn't `type`) is `held` (+net, written when the order pays), `released`
-  (+net, written when the fulfillment is delivered), or `paid_out` (−amount,
-  written when included in a payout). `LedgerEntry.balance` (through
-  `Seller#escrow_balance`) folds a seller's entries: `held = held_total −
-  released_total`; `available = released_total + paid_out_total` (the
-  `paid_out` entries are already negative, so this nets down as money leaves);
-  `paid_out = −paid_out_total` (a positive lifetime figure). The three writers
-  `LedgerEntry.hold` / `.release` / `.pay_out` are the only code that picks a
-  sign.
+  (+net, written when the fulfillment is delivered), `paid_out` (−amount,
+  written when included in a payout), or `refunded` (−net, written when a
+  fulfillment is declined or refunded). `LedgerEntry.balance` (through
+  `Seller#escrow_balance`) folds **per fulfillment**, not per entry type — a
+  refund's timing (before release, after release, after payout) changes what
+  it means to the balance in a way no single formula over entry-type totals
+  can express; see `docs/escrow.md` for the fold and why. The four writers
+  `LedgerEntry.hold` / `.release` / `.pay_out` / `.refund` are the only code
+  that picks a sign.
 - Platform fee: 10% of the fulfillment subtotal
   (`Fulfillment::PLATFORM_FEE_PERCENT`, `Fulfillment.fee_for` /
   `Fulfillment.net_for`), computed once at order placement (`Order.place`) and
@@ -274,8 +281,16 @@ owns.
 - Payout period = Monday–Sunday. `bin/rails payouts:run[AS_OF]` calls
   `Payout.run_weekly(as_of:)`, which creates one `payouts` row per seller for
   released-not-paid amounts as of the most recently completed week. Period math
-  is pure (`PayoutPeriod`, a `Data` value object with no table). The seller
-  portal exposes a debug "Run weekly payout now" button.
+  is pure (`PayoutPeriod`, a `Data` value object with no table). Payouts are a
+  platform action: `POST /admin/payouts` (`Admin::PayoutsController#create`)
+  calls the same class method; the seller portal shows a seller their
+  balances and payout history and runs no payout of its own.
+- Refunds reverse a fulfillment: `Fulfillment#decline!` (the seller, from
+  `awaiting_shipment` only, restoring stock) and `Fulfillment#refund!` (the
+  platform, from `awaiting_shipment`/`shipped`/`delivered`, moving no stock)
+  both write a `refunds` row through `Refund.issue`, add to
+  `orders.refunded_cents`, and write the `refunded` ledger entry above. See
+  `docs/orders.md` and `docs/escrow.md`.
 
 ### Fake payment
 
@@ -503,16 +518,12 @@ wrote share another. All of them share the request's `request_id`.
 | `migrate.run`, `migrate.apply`, `seed.run` | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed` |
 | `app.boot`, `app.shutdown` | `src/config/initializers/logging.rb` |
 | `rate_limit.exceed` | `RateLimiting#render_rate_limit_trip`, at `warn`; see Rate limits above |
+| `moderation.remove_listing`, `moderation.lift_listing_removal` | `Listing#remove!`, `Listing#lift_removal!` |
+| `moderation.block_customer`, `moderation.lift_customer_block` | `Customer#block!`, `Customer#lift_block!` |
 
-Deferred, with the ticket that brings the feature and its event:
-
-| Event | Ticket |
-| --- | --- |
-| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 (admin moderation) |
-
-`listing.view` writes its `did` on every storefront view. The once per
-(listing, customer, hour) collapse, logged as `refused` at `debug`, lands with
-FEAT-020.
+`listing.view` writes its `did` on every storefront view; the once per
+(listing, customer, hour) collapse ends the same story with `story.refused`
+at `debug` instead, rather than opening a second story.
 
 ## Testing
 

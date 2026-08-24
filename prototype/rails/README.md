@@ -86,7 +86,7 @@ Every target runs through `docker compose`; nothing here touches the host.
 | `make seed` | `docker compose run --rm app bin/rails db:seed` |
 | `make routes` | `docker compose run --rm app bin/rails routes` |
 | `make payouts` | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date |
-| `make sweep` | prints that the stale-order sweep lands with FEAT-017 — nothing to run yet |
+| `make sweep` | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep AS_OF=2026-08-24` measures the cutoff from that moment instead of now |
 | `make outbox` | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job |
 | `make console` | `docker compose run --rm app bin/rails console` |
 
@@ -156,7 +156,8 @@ line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make test` sets it to 100 and
 is the coverage gate, so `make check` fails under 100% line coverage. `make
 coverage` runs the same suite without the gate, for reading the report. The
-suite stands at 748 runs and 100% line coverage.
+suite stands at 1247 runs, 4388 assertions, and 100% line coverage
+(2218/2218).
 
 ## Linting
 
@@ -229,7 +230,8 @@ prototype/rails/
   docker/entrypoint.sh bundle, database, Tailwind, then the container command
   Makefile             host-side wrappers over docker compose
   docs/                architecture, feature docs (messaging, identity,
-                       orders, escrow, data model, ontology), and review.md
+                       orders, escrow, data model, ontology, admin), and
+                       review.md
   work/                tickets and journal
   src/                 the Rails application
     app/models/        the records, the value objects, and their behaviour
@@ -319,6 +321,15 @@ RATE_LIMIT_LISTING_WRITE=60/1h
 TRUSTED_PROXIES=                # unset: client ip is the socket's own peer
 ```
 
+## Stale orders
+
+`make sweep` cancels every guest order still `pending_verification` past the
+cutoff, restoring the stock it held.
+
+```sh
+STALE_ORDER_HOURS=24
+```
+
 ## Known gaps
 
 The full list, with the next steps for each, is in
@@ -329,11 +340,13 @@ The full list, with the next steps for each, is in
   `ActionMailer::Base.deliveries`; production needs the SMTP settings that are
   commented out in `config/environments/production.rb`.
   `Notification#deliver_by_email` is still empty.
-- "Run weekly payout now" on the earnings page pays every seller, not the
-  signed-in one. It is a debug control; `payouts:run` is the real entry point.
-- A merge can leave a customer holding two carts, and the storefront shops with
-  whichever holds more items.
-- There is no order cancellation route.
 - There is no libvips in the image, so Active Storage serves original blobs and
   a variant would raise. Seeded listings carry a generated SVG rather than a
   photograph.
+- No site renders its own 400 or 404 — an unknown id or an unrecognised admin
+  filter value falls through to Rails' static `public/400.html` /
+  `public/404.html`, with no site's own nav or layout.
+- A customer merge deliberately leaves an active block behind on the
+  anonymous row it absorbs, so a blocked visitor can evade the block by
+  verifying into a different, unblocked account. Shared with the Node and PHP
+  prototypes; a product decision, not a Rails bug.

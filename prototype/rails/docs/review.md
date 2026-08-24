@@ -124,7 +124,7 @@ half differs:
 | `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets |
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
-| Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
+| Measure coverage, keep it high | done | `make test`/`make check` — 100% line coverage, `COVERAGE_MIN=100` enforced; `make coverage` runs the same suite for the HTML report with no minimum of its own |
 | Functional core / imperative shell | done | The value objects in `app/models` (`Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`) are pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
 | `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `messaging.md`, `data-model.md`, `ontology.md` |
 
@@ -175,61 +175,56 @@ half differs:
    `ApplicationRecord`, the `EmailAddress` and `Messaging` model concerns,
    `TransitionError`, and `CustomerMerge`, `Favorite` and `OrderItem`. Every
    one is at 100% line coverage through the tests of its callers.
-3. **A merge can leave a customer holding two carts.**
-   `Customer#absorb` re-points the anonymous cart rather than
-   folding it into the account's cart, and `Customer#current_cart` then shops with
-   whichever holds more items. Items in the other cart are still in the
-   database and no page shows them.
-4. **Refunds are whole-fulfillment only.** A `refunds` row is always the
+3. **Refunds are whole-fulfillment only.** A `refunds` row is always the
    fulfillment's entire `subtotal_cents`; there is no partial line refund and
    no way to refund shipping separately. `docs/alignment.md` §4.1 fixes that
    for this cut.
-5. **No image variants.** There is no libvips in the image, so
+4. **No image variants.** There is no libvips in the image, so
    `Listing#image_url` serves the original blob. Asking for a variant would
    raise.
-6. **Shipment tracking is two text fields.** No carrier integration; the
+5. **Shipment tracking is two text fields.** No carrier integration; the
    customer confirms delivery from the order page.
-7. **Seeded listings carry no image files.** `PlaceholderImage` renders a
+6. **Seeded listings carry no image files.** `PlaceholderImage` renders a
    generated SVG from the title, so the storefront demo shows shapes rather
    than artwork. An uploaded image is served for listings created through the
    portal.
-8. **`allow_browser versions: :modern`** answers 406 to old browsers, which is
+7. **`allow_browser versions: :modern`** answers 406 to old browsers, which is
    stock Rails and the one place the prototype needs a modern browser it does
    not otherwise need.
-9. **An intermittent `RecordNotFound` was seen once in
-    `Shop::ConversationsControllerTest`** on a single full-suite run; it passed
-    on reruns and in isolation, and 24 further full-suite runs (5 with fixed
-    seeds, 19 with randomized ones) reproduced nothing. Two candidate causes
-    were investigated: `Message#broadcast_arrival` and `Conversation#read_by!`
-    writing Turbo Stream broadcasts to `solid_cable_messages` outside a test's
-    rollback is ruled out — `config/cable.yml` sets `adapter: test` for the
-    test environment, and `solid_cable_messages` holds zero rows both before
-    and after a full suite run. `PrefixedUlid`'s module-level `@clock`/`@value`
-    persisting across tests, combined with a clock that jumps backward (a
-    `travel_to`/`freeze_time` block, or `unused_id`'s un-frozen `Time.current`
-    landing behind an earlier frozen mint), does not look like a real
-    duplicate-id vector on inspection: every change in the millisecond
-    `next_value` sees — earlier or later than the last one — draws a fresh
-    80-bit random value, so only ids minted back-to-back on one unchanged
-    millisecond share a lineage, and those are unique by construction (a
-    monotonic counter that never resets). A "clock never goes backward" clamp
-    was tried and reverted: it broke two tests that deliberately rely on an
-    explicit past `at:` being embedded in the id exactly as given
-    (`PrefixedUlidTest#test_the_leading_digits_are_the_millisecond_the_caller's_clock_reads`,
-    `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
-    which is deliberate, tested behaviour, not a drift bug. The flake stands
-    unreproduced.
-10. **No site renders its own 400 or 404.** `Admin::BaseController#filter_from`
-    / `#id_filter` raise `ActionController::BadRequest` for a filter value a
-    page does not offer, and `ActiveRecord::RecordNotFound` answers an unknown
-    id everywhere. Neither is rescued anywhere in the controller tree, and
-    there is no `config.exceptions_app`, so both fall through to Rails'
-    static, un-themed `public/400.html` and `public/404.html` — shared by the
-    storefront, seller portal, and admin site, with no site's own layout or
-    nav. Node's `plugins/error-pages.ts` renders both statuses inside the
-    site's own layout. Building that for all three sites is out of scope for
-    any one ticket that touches a single site.
-11. **The admin directory lists are unpaginated.** `/admin/sellers`,
+8. **An intermittent `RecordNotFound` was seen once in
+   `Shop::ConversationsControllerTest`** on a single full-suite run; it passed
+   on reruns and in isolation, and 24 further full-suite runs (5 with fixed
+   seeds, 19 with randomized ones) reproduced nothing. Two candidate causes
+   were investigated: `Message#broadcast_arrival` and `Conversation#read_by!`
+   writing Turbo Stream broadcasts to `solid_cable_messages` outside a test's
+   rollback is ruled out — `config/cable.yml` sets `adapter: test` for the
+   test environment, and `solid_cable_messages` holds zero rows both before
+   and after a full suite run. `PrefixedUlid`'s module-level `@clock`/`@value`
+   persisting across tests, combined with a clock that jumps backward (a
+   `travel_to`/`freeze_time` block, or `unused_id`'s un-frozen `Time.current`
+   landing behind an earlier frozen mint), does not look like a real
+   duplicate-id vector on inspection: every change in the millisecond
+   `next_value` sees — earlier or later than the last one — draws a fresh
+   80-bit random value, so only ids minted back-to-back on one unchanged
+   millisecond share a lineage, and those are unique by construction (a
+   monotonic counter that never resets). A "clock never goes backward" clamp
+   was tried and reverted: it broke two tests that deliberately rely on an
+   explicit past `at:` being embedded in the id exactly as given
+   (`PrefixedUlidTest#test_the_leading_digits_are_the_millisecond_the_caller's_clock_reads`,
+   `PrefixedIdTest#test_a_row_built_under_a_frozen_clock_mints_an_id_stamped_with_that_instant`),
+   which is deliberate, tested behaviour, not a drift bug. The flake stands
+   unreproduced.
+9. **No site renders its own 400 or 404.** `Admin::BaseController#filter_from`
+   / `#id_filter` raise `ActionController::BadRequest` for a filter value a
+   page does not offer, and `ActiveRecord::RecordNotFound` answers an unknown
+   id everywhere. Neither is rescued anywhere in the controller tree, and
+   there is no `config.exceptions_app`, so both fall through to Rails'
+   static, un-themed `public/400.html` and `public/404.html` — shared by the
+   storefront, seller portal, and admin site, with no site's own layout or
+   nav. Node's `plugins/error-pages.ts` renders both statuses inside the
+   site's own layout. Building that for all three sites is out of scope for
+   any one ticket that touches a single site.
+10. **The admin directory lists are unpaginated.** `/admin/sellers`,
     `/admin/customers`, `/admin/listings`, `/admin/orders`,
     `/admin/fulfillments`, `/admin/ledger` and `/admin/payouts` render every
     matching row, and the seller selects in their filter forms hold every row
@@ -237,30 +232,54 @@ half differs:
     statements — every list carries a `count_queries` assertion that pins
     that — but it does in rows rendered. The storefront's `Page` value object
     is the shape to reuse.
-12. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
+11. **Nothing seeded shows a decline or a refund.** `db/seeds/order_history.rb`
     walks placement through delivery and payout; the reversal surfaces are
     reachable in the app and covered by tests, but the demo data does not
-    exercise them. `/admin/accounting` and `/admin/ledger` (FEAT-020) render
-    correctly for it either way — a page with nothing declined or refunded is
-    the zero case their tests already cover — but a reviewer clicking through
-    the seeded demo never sees `fees_refunded_cents` or a `refunded` ledger
-    row without triggering one by hand.
-13. **Nothing seeded is removed or blocked.** `db/seeds.rb` writes no
+    exercise them. `/admin/accounting` and `/admin/ledger` render correctly
+    for it either way — a page with nothing declined or refunded is the zero
+    case their tests already cover — but a reviewer clicking through the
+    seeded demo never sees `fees_refunded_cents` or a `refunded` ledger row
+    without triggering one by hand.
+12. **Nothing seeded is removed or blocked.** `db/seeds.rb` writes no
     `listing_removals` or `customer_blocks` row, so a reviewer clicking
     through the seeded demo never sees a removed listing's storefront 404 or
     a blocked customer's notice without triggering one by hand.
+13. **A blocked customer can evade the block by merging into a different,
+    unblocked account.** `customer_blocks` is deliberately left behind by a
+    customer merge (`IMPRV-003`, matching `FEAT-021`'s decision and the Node
+    and PHP prototypes) — see `docs/identity.md`'s "The merge is a fold, not
+    a re-point" section. Consequence, confirmed reproducible: a blocked
+    anonymous customer who verifies with an email address that belongs to an
+    existing, unblocked verified account resolves forward to that account —
+    the block stays on the abandoned anonymous row, and
+    `Customer.from_cookie` follows `customer_merges` to the unblocked
+    survivor, whose own `blocked?` reads false. This is shared behaviour
+    across all three prototypes, not a Rails-specific bug; it is a product
+    decision (which block should win when a merge's two sides disagree, or
+    whether re-pointing should happen after all) that needs an owner.
+14. **The session-fixation code comments were imprecise until this ticket.**
+    `CustomerIdentity#sign_in_customer`, `SellerAuthentication#sign_in_seller`,
+    and `AdminAuthentication#sign_in_admin` described
+    `request.session_options[:renew] = true` as "Rack's session-fixation
+    defense." With `ActionDispatch::Session::CookieStore` the session travels
+    as a whole inside a signed-and-encrypted, content-bound cookie an
+    attacker never receives — that is what actually defeats fixation here.
+    `renew` rotates the session id on top of that as defence in depth; it is
+    not the primary defense the old comments claimed. The three comments and
+    `docs/identity.md`'s "Three actors, one browser" section now say this.
 
 ## Suggested next steps
 
 1. Configure SMTP for production and give `Notification#deliver_by_email` its
    own mailer. Closes gap 1 and lets `MAGIC_LINK_DEBUG_ALERT=false` take the
    debug alert off the demo path.
-2. Fold the anonymous cart into the account's cart during the merge, so one
-   customer has one cart. Closes gap 3.
-3. Seed a declined fulfillment and an admin refund in `db/seeds/order_history.rb`
-   so the demo shows the reversal surfaces. Closes gap 12.
-4. Delete or use the model relations no caller reads. Shrinks gap 2.
-5. Attach real images in `db/seeds.rb` and add libvips to the image so the
-   storefront can ask for a thumbnail variant. Closes gaps 5 and 7.
-6. Seed a removed listing and a blocked customer in `db/seeds.rb` so the demo
-   shows both without triggering one by hand. Closes gap 13.
+2. Seed a declined fulfillment and an admin refund in `db/seeds/order_history.rb`
+   so the demo shows the reversal surfaces. Closes gap 11.
+3. Delete or use the model relations no caller reads. Shrinks gap 2.
+4. Attach real images in `db/seeds.rb` and add libvips to the image so the
+   storefront can ask for a thumbnail variant. Closes gaps 4 and 6.
+5. Seed a removed listing and a blocked customer in `db/seeds.rb` so the demo
+   shows both without triggering one by hand. Closes gap 12.
+6. Decide, as a product call, whether a merge should re-point an active
+   `customer_blocks` row and how to resolve the case where both sides of a
+   merge are blocked. Closes gap 13.

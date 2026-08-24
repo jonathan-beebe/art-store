@@ -167,8 +167,12 @@ comes back on.
 participant. Controllers reach it through the scope, so the raise is the
 model refusing what no route can ask for.
 
-This prototype has no moderation feature, so reading and posting are one
-predicate: being named in your side's column.
+Reading is one predicate: being named in your side's column. Posting adds
+one more, for a customer: `post!` raises `TransitionError` — refused at
+`info`, not a 404 — when the sender is a blocked `Customer`
+(`sender.is_a?(Customer) && !sender.can_shop?`), whether the reply is a
+thread post or a listing question's opening message. Browsing, favorites,
+and reading threads carry no such check; only writing a message does.
 
 ## Unread counts
 

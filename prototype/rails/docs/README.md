@@ -5,7 +5,7 @@
 | [`architecture.md`](architecture.md) | System shape: deployables, layers, sites, repository layout. Start here. |
 | [`identity.md`](identity.md) | Magic-link sign-in for sellers and customers, anonymous-customer merge, `CustomerIdentity#current_customer`. |
 | [`orders.md`](orders.md) | Checkout → payment → seller notification; order and fulfillment status diagrams. |
-| [`escrow.md`](escrow.md) | Ledger entry types (`held` / `released` / `paid_out`), `payouts:run`, a worked dollar example. |
+| [`escrow.md`](escrow.md) | Ledger entry types (`held` / `released` / `paid_out` / `refunded`), how a refund folds, `payouts:run`, a worked dollar example. |
 | [`data-model.md`](data-model.md) | ER diagram generated from `src/db/schema.rb`. |
 | [`ontology.md`](ontology.md) | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One concept-level diagram. |
 | [`admin.md`](admin.md) | The admin site: the directory pages, the filter rule, the folded-balance rule, the dashboard tallies, accounting, the ledger browser, the page-view roll-up, and where the write actions attach. |

@@ -9,7 +9,7 @@ sides reach for support.
 Question: what are the entities in the product, and how does value move
 between them at the concept level? (Table-level shape: `docs/data-model.md`.
 Sequence and state detail: `docs/orders.md`, `docs/escrow.md`,
-`docs/identity.md`, `docs/messaging.md`.)
+`docs/identity.md`, `docs/messaging.md`, `docs/admin.md`.)
 
 ```mermaid
 flowchart LR
@@ -42,13 +42,17 @@ flowchart LR
     platform -->|"takes fee from"| fulfillment
     ledger -->|"settles into"| payout
     payout -->|"pays"| seller
+    fulfillment -->|"reversed by"| refund["Refund"]
+    refund -->|"sends back to"| customer
 ```
 
 Smaller catalog, identity and messaging concepts (listing event, favorite,
 cart item, order item, magic link, customer merge, notification, conversation,
 message, listing FAQ) sit off this diagram —
-they support the entities shown rather than carrying their own flow. Each
-gets its own section below.
+they support the entities shown rather than carrying their own flow. So do two
+moderation concepts, Listing removal and Customer block, which a platform
+Admin raises against the Catalog and Roles sides rather than money moving
+through them. Each gets its own section below.
 
 ## Roles
 
@@ -91,8 +95,37 @@ conditions: anonymous (`email` null) → guest with an unverified address
 - receives Notifications
 - is the customer side of Conversations
 - may be the source or the target of a Customer merge
+- may carry an active Customer block, which stops them shopping and messaging
 
 **In code.** `Customer` (table `customers`).
+
+### Customer block
+
+**Who/what.** An admin's record that a customer may not shop or message,
+independent of anything else about their account.
+
+**Why it exists.** Moderation has to be able to stop a bad actor from
+buying or sending messages without deleting their history.
+
+**Lifecycle.** Raised with a reason; lifted (`lifted_at` set) restores
+standing. At most one active block per customer — a partial unique index
+(`WHERE lifted_at IS NULL`) enforces it at the row level, the same shape as a
+Listing removal.
+
+**Relates to.**
+- belongs to one Customer and the Admin who raised it
+- while active: `Customer#can_shop?` is false, which stops adding to a cart,
+  checking out, paying, and posting a message (as either side of a thread or
+  a listing question) — browsing, favorites, and reading threads are
+  unaffected
+- **left behind by a Customer merge** — a block stays on the row an admin
+  named even when that row is later merged into a verified account; see
+  "Customer merge" below and `docs/review.md`'s known gaps
+
+**In code.** `CustomerBlock` (table `customer_blocks`), written by
+`Customer#block!(reason:, by:)` and read through `Customer#active_block` /
+`Customer#blocked?` / `Customer#can_shop?`. See
+[`admin.md`](admin.md#what-a-removal-or-a-block-actually-does).
 
 ### Anonymous visitor
 
@@ -129,6 +162,10 @@ creates none, so an address with no `admins` row reaches no session.
 - reads Sellers and Customers on the admin dashboard and their account pages
 - is the admin side of `admin_seller` and `admin_customer` Conversations
 - receives Notifications
+- raises Listing removals and Customer blocks, and lifts them
+- runs the weekly Payout for every seller (§ Platform, below)
+- reconciles every Seller's balance and cancels an order or refunds a
+  Fulfillment on either side's behalf
 
 **In code.** `Admin` (table `admins`), with `Admin.claim`, `Admin.on_duty`
 (the first admin by id — who a support thread opens against) and
@@ -173,10 +210,40 @@ its own page. See "sold" in Vocabulary notes.
 - favorited by Customers via Favorite
 - held in Cart items, sold as Order items
 - the subject of `listing_question` Conversations, and publishes Listing FAQs
+- may carry an active Listing removal, which takes it off the storefront
+  independent of its own status
 
 **In code.** `Listing` (table `listings`), which carries the `status` enum,
 `TRANSITIONS`, `on_storefront`, `purchasable?`, `take_stock!` /
 `restore_stock!` and the field validations.
+
+### Listing removal
+
+**Who/what.** An admin's record that a listing is off the storefront,
+independent of its own `draft`/`for_sale`/`sold`/`archived` status.
+
+**Why it exists.** Moderation has to be able to pull a piece down (a
+complaint, a policy issue) without the seller's own status controls fighting
+it, and without losing the reason once it is lifted.
+
+**Lifecycle.** Raised with a `kind` (`temporary` | `permanent`) and a reason;
+`temporary` can be lifted (`lifted_at` set), `permanent` cannot. At most one
+active removal per listing — a partial unique index (`WHERE lifted_at IS
+NULL`) enforces it at the row level. Raising a new removal over an already
+active one is refused; the way to change a removal's terms is to lift it and
+raise a fresh one.
+
+**Relates to.**
+- belongs to one Listing and the Admin who raised it
+- while active: takes the listing off `Listing.on_storefront` (browse,
+  search, and its own `/art/:slug` page all 404), drops it from a cart or a
+  retried charge as the `removed` `OrderPlacement` reason, and hides the
+  `for_sale` button on the seller's own listing page
+
+**In code.** `ListingRemoval` (table `listing_removals`), written by
+`Listing#remove!(kind:, reason:, by:)` and read through
+`Listing#active_removal` / `Listing#actively_removed?`. See
+[`admin.md`](admin.md#what-a-removal-or-a-block-actually-does).
 
 ### Listing event
 
@@ -223,8 +290,11 @@ the matching listing event.
 before placing one order.
 
 **Lifecycle.** None as a status; exists per customer, spawns an Order on
-checkout. A merge can leave a customer with two cart rows (`carts.customer_id`
-is not unique); `Customer#current_cart` picks the one with the most items.
+checkout. `carts.customer_id` is not unique — a Customer merge folds the two
+sides into one cart rather than leaving a second row, but the column itself
+carries no constraint, so `Customer#current_cart` still picks whichever row
+holds the most items if a customer ever ends up with more than one by some
+other path.
 
 **Relates to.**
 - belongs to one Customer
@@ -271,7 +341,7 @@ A multi-seller order's status rolls up from its Fulfillments
 
 **In code.** `Order` (table `orders`), which carries the `status` enum,
 `TRANSITIONS`, the shipping fields it validates, `place`, `pay!`,
-`mark_awaiting_payment!` and `roll_up_status!`.
+`mark_awaiting_payment!`, `roll_up_status!`, `cancel!` and `sweep_stale`.
 
 ### Order item
 
@@ -315,19 +385,25 @@ and what they're owed once it's delivered.
 **Why it exists.** An order can span sellers; escrow and shipping status are
 tracked per (order, seller) pair rather than per order.
 
-**Lifecycle.** `awaiting_shipment → shipped → delivered`. Full diagram:
-`docs/orders.md`.
+**Lifecycle.** `awaiting_shipment → shipped → delivered`, plus two terminal
+branches that reverse it: `declined` (the seller pulls out, before shipping)
+and `refunded` (the platform sends the money back, from any of the three
+live statuses). Full diagram: `docs/orders.md`.
 
 **Relates to.**
 - belongs to one Order and one Seller
 - produces Ledger entries when the order is paid (`held`), when delivered
-  (`released`), and when included in a Payout (`paid_out`)
-- carries the Platform fee taken from its subtotal
+  (`released`), when included in a Payout (`paid_out`), and when declined or
+  refunded (`refunded`)
+- carries the Platform fee taken from its subtotal, forgone on a declined or
+  refunded fulfillment
 - the subject of the `fulfillment` Conversation its two sides keep
+- may be reversed by a Refund, which it produces when declined or refunded
 
 **In code.** `Fulfillment` (table `fulfillments`), transitioned by
-`Fulfillment#ship!` / `Fulfillment#deliver!`. See "Vocabulary notes" for the
-seller portal's name for this entity.
+`Fulfillment#ship!` / `Fulfillment#deliver!` / `Fulfillment#decline!` /
+`Fulfillment#refund!`. See "Vocabulary notes" for the seller portal's name
+for this entity.
 
 ## Money
 
@@ -375,18 +451,50 @@ rather than a single mutable balance column.
 
 **Lifecycle.** Written once per movement: `held` (order paid), `released`
 (fulfillment delivered), `paid_out` (included in a payout run — negative
-amount). A seller's balance is the fold of all their entries
-(`LedgerEntry.balance`, through `Seller#escrow_balance`). Flowchart:
-`docs/escrow.md`.
+amount), `refunded` (a fulfillment declined or refunded — negative amount).
+A seller's balance is folded per fulfillment, not per entry type: a refund's
+timing (before release, after release, after payout) changes what it does to
+the balance in a way one formula over a seller's entry-type totals cannot
+express, so `LedgerEntry.balance` (through `Seller#escrow_balance`) sums one
+fulfillment at a time and adds the parts together. Flowchart and the fold's
+formula: `docs/escrow.md`.
 
 **Relates to.**
 - belongs to one Seller
-- produced by one Fulfillment (`held`/`released`) or one Payout (`paid_out`)
+- produced by one Fulfillment (`held`/`released`/`refunded`) or one Payout
+  (`paid_out`)
 
 **In code.** `LedgerEntry` (table `ledger_entries`), written by
-`LedgerEntry.hold` / `.release` / `.pay_out` and folded by
+`LedgerEntry.hold` / `.release` / `.pay_out` / `.refund` and folded by
 `LedgerEntry::Balance`. Column is `entry_type`, not `type` — see "Vocabulary
 notes."
+
+### Refund
+
+**Who/what.** One movement of money back to a customer, reversing one
+fulfillment.
+
+**Why it exists.** A seller pulling out or the platform settling a dispute
+both have to hand the money back and say why, in a way the order, the
+seller's earnings page, and the platform's accounting all read the same row
+for.
+
+**Lifecycle.** Written once, by `Fulfillment#decline!` (the seller, only from
+`awaiting_shipment`) or `Fulfillment#refund!` (the platform, from
+`awaiting_shipment`, `shipped`, or `delivered`) — never edited afterward. At
+most one refund per fulfillment, enforced by a unique index as well as by
+both fulfillment transitions being terminal.
+
+**Relates to.**
+- belongs to one Order, one Fulfillment, and the Payment it reverses
+- issued by a Seller (decline) or an Admin (refund) — `issued_by_type` /
+  `issued_by_id` name which, with no foreign key
+- always the whole Fulfillment's `subtotal_cents` — no partial line refunds
+  in this cut
+- adds to `orders.refunded_cents` and writes the `refunded` Ledger entry
+
+**In code.** `Refund` (table `refunds`), written by `Refund.issue`. See
+`docs/orders.md` and `docs/escrow.md`.
 
 ### Payout
 
@@ -459,12 +567,23 @@ stale cookie on the first device keep resolving to the right account.
 
 **Relates to.**
 - points one anonymous Customer at the verified Customer it merged into
-- triggers re-pointing of that customer's Favorites, Cart, Orders, Listing
-  events, and Notifications (`Customer::MERGED_ASSOCIATIONS`)
+- **folds** the anonymous customer's Cart (lines summed and clamped to
+  stock), Favorites (a union — move a favorite the verified customer lacks,
+  drop one they already hold), and Conversations (a duplicate thread's
+  messages move onto the verified customer's own, the emptied thread is
+  destroyed) into the verified customer's own
+- **re-points** the anonymous customer's Orders, Listing events,
+  Notifications, and Messages sent onto the verified customer
+  (`Customer::REPOINTED_ASSOCIATIONS`)
+- **leaves behind** the anonymous customer's Customer blocks — an active
+  block does not follow the merge onto the verified account
+  (`Customer::LEFT_BEHIND_ASSOCIATIONS`; see "Customer block" above and
+  `docs/review.md`'s known gaps for the evasion this allows)
 
 **In code.** `CustomerMerge` (table `customer_merges`), written by
 `Customer#absorb` when `Customer.claim` finds both an anonymous row and an
-account holding the address.
+account holding the address. `CustomerMergePlan` is the pure fold/partition
+logic `#absorb` calls for the cart and favorites.
 
 ### Notification
 
@@ -478,14 +597,18 @@ email.
 
 **Relates to.**
 - belongs to exactly one Seller, Customer or Admin
-- raised by an Order reaching `paid` (seller), a Fulfillment reaching
-  `shipped` (customer), or a Conversation gaining a message (the counterpart)
+- raised by an Order reaching `paid` (seller) or being cancelled by an admin
+  (customer and every seller on it), a Fulfillment reaching `shipped`
+  (customer) or being declined or refunded (customer, and the seller on an
+  admin refund), or a Conversation gaining a message (the counterpart)
 - carries the recipient's own path: the three sites read the same
   conversation under three URLs
 
 **In code.** `Notification` (table `notifications`), addressed to a polymorphic
 `recipient` and written by `Notification.item_sold`,
-`Notification.order_shipped` and `Notification.new_message`.
+`Notification.order_shipped`, `Notification.order_cancelled`,
+`Notification.fulfillment_declined`, `Notification.fulfillment_refunded` and
+`Notification.new_message`.
 
 ### Conversation
 

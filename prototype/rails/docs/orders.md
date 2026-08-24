@@ -119,10 +119,11 @@ takes the stock the earlier decline had restored. `Order#pay!` builds the same
 plan from the order's own items before that retry, and a listing sold out
 from under the order while it sat unpaid refuses the charge the same way —
 `Shop::OrderPaymentsController#create` re-renders the pay page at 422 with the
-blocked line, and no payment row is written. `removed` is implemented but
-unreachable today: no admin removal exists in this prototype, so
-`Listing#actively_removed?` always answers `false`. FEAT-021 backs it with a
-`listing_removals` row.
+blocked line, and no payment row is written. `removed` is reached through
+`Listing#actively_removed?`, which reads whether a `listing_removals` row
+stands over the listing (`active_removal.present?`) — an admin's removal
+(`POST /admin/listings/:id/removals`) takes a listing out of a cart or a
+retried charge the same way it takes it off the storefront.
 
 Both refusals log through `Story`: `order.place` and `order.pay` write a
 `refused` line at `info`, carrying `blocked_lines` (listing id, title, reason)
