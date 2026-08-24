@@ -9,6 +9,8 @@ use App\Domain\Customers\StandingFilter;
 use App\Domain\Money\Money;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
+use Illuminate\Database\Query\Grammars\MySqlGrammar;
+use Illuminate\Support\Facades\DB;
 
 it('is anonymous when it has no email', function (): void {
     expect((new Customer)->isAnonymous())->toBeTrue();
@@ -192,4 +194,20 @@ it('narrows to one standing', function (): void {
         ->and(Customer::query()->inStanding(StandingFilter::Verified)->count())->toBe(2)
         ->and(Customer::query()->inStanding(StandingFilter::Anonymous)->pluck('id')->all())->toBe([$anonymous->id])
         ->and(Customer::query()->inStanding(StandingFilter::Blocked)->pluck('id')->all())->toBe([$blocked->id]);
+});
+
+it('takes the row a moderation decision is judged against for update', function (): void {
+    // SQLite has no row lock and its grammar compiles the clause away, so the
+    // query is compiled here with the grammar of a database that does have
+    // one — what the same read asks for in production.
+    $query = Customer::query()->lockedForModeration()->toBase();
+
+    expect((new MySqlGrammar(DB::connection()))->compileSelect($query))->toEndWith('for update');
+});
+
+it('re-reads the locked row rather than trusting the instance it was handed', function (): void {
+    $customer = $this->verifiedCustomer();
+    Customer::whereKey($customer->id)->update(['name' => 'Rey Alvarez']);
+
+    expect($customer->takeForModeration()->name)->toBe('Rey Alvarez');
 });

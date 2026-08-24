@@ -106,6 +106,52 @@ it('shows every listing when the removed filter is any or absent', function (?Re
     'the explicit any case' => [RemovedFilter::Any],
 ]);
 
+it('keeps for sale and sold on the storefront and leaves draft and archived off it', function (): void {
+    $seller = $this->seller();
+    $forSale = $this->listing($seller);
+    $sold = $this->listing($seller, ['status' => ListingStatus::Sold, 'quantity' => 0]);
+    $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $this->listing($seller, ['status' => ListingStatus::Archived]);
+
+    $reachable = Listing::query()->onStorefront()->pluck('id')->all();
+
+    expect($reachable)->toHaveCount(2)
+        ->toContain($forSale->id)
+        ->toContain($sold->id);
+});
+
+it('drops a removed listing from the storefront set even while its status still says for_sale', function (): void {
+    $seller = $this->seller();
+    $visible = $this->listing($seller);
+    $removed = $this->listing($seller);
+    ListingRemoval::factory()->create(['listing_id' => $removed->id]);
+
+    expect(Listing::query()->onStorefront()->pluck('id')->all())->toBe([$visible->id]);
+});
+
+it('puts a listing back on the storefront set once its removal is lifted', function (): void {
+    $listing = $this->listing($this->seller());
+    ListingRemoval::factory()->lifted()->create(['listing_id' => $listing->id]);
+
+    expect(Listing::query()->onStorefront()->pluck('id')->all())->toBe([$listing->id]);
+});
+
+it('takes the row a moderation decision is judged against for update', function (): void {
+    // SQLite has no row lock and its grammar compiles the clause away, so the
+    // query is compiled here with the grammar of a database that does have
+    // one — what the same read asks for in production.
+    $query = Listing::query()->lockedForModeration()->toBase();
+
+    expect((new MySqlGrammar(DB::connection()))->compileSelect($query))->toEndWith('for update');
+});
+
+it('re-reads the locked row rather than trusting the instance it was handed', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn']);
+    Listing::whereKey($listing->id)->update(['title' => 'Harbour at Dusk']);
+
+    expect($listing->takeForModeration()->title)->toBe('Harbour at Dusk');
+});
+
 it('takes the rows placement reads for update, in id order', function (): void {
     // SQLite has no row lock and its grammar compiles the clause away, so the
     // query is compiled here with the grammar of a database that does have

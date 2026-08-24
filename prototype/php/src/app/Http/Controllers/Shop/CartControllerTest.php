@@ -10,6 +10,7 @@ use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\ListingEvent;
+use App\Models\ListingRemoval;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 
@@ -38,6 +39,18 @@ it('sends a blocked customer back with the reason instead of adding to the cart'
 
     $response->assertOk();
     $response->assertSee('Buying is unavailable while your account is blocked: Chargeback fraud.');
+    expect(CartItem::count())->toBe(0);
+});
+
+it('refuses a stale slug for a listing an admin has removed', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->from(route('shop.home'))->post('/cart/harbour-at-dawn');
+
+    $response->assertRedirect(route('shop.home'));
+    $response->assertSessionHasErrors();
     expect(CartItem::count())->toBe(0);
 });
 

@@ -38,7 +38,12 @@ final readonly class AddToCart
             function (Story $story) use ($cart, $listing, $item, $held, $quantity, $raises, $now): CartItem {
                 CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
 
-                $item->quantity = CartQuantity::withinStock($held + $quantity, $listing->quantity, $listing->status);
+                $item->quantity = CartQuantity::withinStock(
+                    $held + $quantity,
+                    $listing->quantity,
+                    $listing->status,
+                    $listing->hasActiveRemoval(),
+                );
                 $item->save();
 
                 ($this->recordListingEvent)($listing, $cart->customer_id, ListingEventType::CartAdd, $now);

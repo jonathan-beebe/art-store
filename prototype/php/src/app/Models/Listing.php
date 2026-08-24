@@ -209,8 +209,36 @@ class Listing extends Model
     #[Scope]
     protected function forSale(Builder $query): void
     {
-        $query->where('status', ListingStatus::ForSale)
-            ->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at'));
+        $query->where($query->qualifyColumn('status'), ListingStatus::ForSale)->notRemoved();
+    }
+
+    /**
+     * Everything a customer can still reach through the storefront: on it by
+     * status, and clear of any active removal. `isOnStorefront` answers this
+     * for one row in hand; the pages that turn a set of rows into listings —
+     * the favorites page among them — ask it here, so a removal takes a
+     * listing off all of them at once.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function onStorefront(Builder $query): void
+    {
+        $query->whereIn($query->qualifyColumn('status'), ListingAvailability::storefrontStatuses())->notRemoved();
+    }
+
+    /**
+     * The removal half of `isOnStorefront`, in the only dialect a `where`
+     * clause speaks. Every query that keeps removed listings out spells the
+     * rule through this one, so lifting a removal puts the listing back
+     * everywhere at once.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function notRemoved(Builder $query): void
+    {
+        $query->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at'));
     }
 
     /**
@@ -230,6 +258,36 @@ class Listing extends Model
     protected function lockedForPlacement(Builder $query): void
     {
         $query->orderBy('id')->lockForUpdate();
+    }
+
+    /**
+     * Takes the rows a moderation decision is judged against for update. A
+     * removal is refused when one already stands, and that check reads the
+     * `listing_removals` table rather than this row, so nothing there keeps
+     * two admins apart: both read no active removal and both insert one. The
+     * listing row they each have to take first is what serialises them.
+     * SQLite, which the prototype develops and tests on, has no row lock and
+     * serialises writers instead; its grammar compiles the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForModeration(Builder $query): void
+    {
+        $query->lockForUpdate();
+    }
+
+    /**
+     * Re-reads this row for update inside the caller's transaction, the way
+     * `Fulfillment::takeForTransition` re-reads the row a transition is
+     * judged against.
+     */
+    public function takeForModeration(): static
+    {
+        /** @var static $locked */
+        $locked = $this->newQuery()->whereKey($this->getKey())->lockedForModeration()->sole();
+
+        return $this->setRawAttributes($locked->getAttributes(), sync: true);
     }
 
     /**
@@ -273,7 +331,7 @@ class Listing extends Model
         match ($removed) {
             null, RemovedFilter::Any => null,
             RemovedFilter::Removed => $query->whereHas('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at')),
-            RemovedFilter::Visible => $query->whereDoesntHave('removals', fn (Builder $removals): Builder => $removals->whereNull('lifted_at')),
+            RemovedFilter::Visible => $query->notRemoved(),
         };
     }
 

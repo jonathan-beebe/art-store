@@ -6,6 +6,7 @@ namespace App\Actions\Listings;
 
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingRemovalKind;
+use App\Models\Listing;
 use App\Models\ListingRemoval;
 
 it('removes a listing with a kind and a reason', function (): void {
@@ -46,4 +47,15 @@ it('removes a listing again once an earlier removal was lifted', function (): vo
 
     expect($removal->reason)->toBe('Repeat offense.')
         ->and(ListingRemoval::count())->toBe(2);
+});
+
+it('judges the removal against the row it locks, not the instance it was handed', function (): void {
+    $listing = $this->listing($this->seller());
+    $stale = Listing::query()->findOrFail($listing->id);
+    app(RemoveListing::class)($listing, ListingRemovalKind::Temporary, 'Under review.');
+
+    $remove = fn () => app(RemoveListing::class)($stale, ListingRemovalKind::Temporary, 'Second reason.');
+
+    expect($remove)->toThrow(DomainRuleViolation::class, 'This listing already has an active removal.')
+        ->and(ListingRemoval::count())->toBe(1);
 });

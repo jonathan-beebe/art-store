@@ -26,6 +26,10 @@ it('is on the storefront only when the status allows it and no removal stands', 
     'draft, removed' => [ListingStatus::Draft, true, false],
 ]);
 
+it('names the statuses a storefront query keeps', function (): void {
+    expect(ListingAvailability::storefrontStatuses())->toBe([ListingStatus::ForSale, ListingStatus::Sold]);
+});
+
 it('drops for_sale from the available transitions while a removal stands', function (): void {
     expect(ListingAvailability::availableTransitions(ListingStatus::Sold, true))->toBe([])
         ->and(ListingAvailability::availableTransitions(ListingStatus::Sold, false))->toBe([ListingStatus::ForSale])

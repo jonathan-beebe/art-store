@@ -119,3 +119,57 @@ Built in the order the ticket lays out, running `make test` after each step.
 
 `make check` green throughout — Pint, PHPStan, asset build, Pest at
 `--min=100`.
+
+### Review fix-up
+
+A review of the removal machinery found three paths that bypassed it. All
+three are closed.
+
+- `/favorites` rendered every favorited listing whatever its status and
+  whatever removal stood over it. `Customer::favoriteListings()` is a plain
+  `belongsToMany` with no filter, and `FavoriteController::index` fed it
+  straight into `listing-card.blade.php`. The page now asks
+  `Listing::onStorefront()` — a new scope spelling `isOnStorefront`'s two
+  halves as `where` clauses: `whereIn('status',
+  ListingAvailability::storefrontStatuses())` and the shared `notRemoved`
+  scope (`whereDoesntHave` an unlifted removal). One query, no per-row read.
+  `forSale` and `ofRemoval`'s `Visible` branch were rewritten onto
+  `notRemoved` so the removal predicate has one spelling.
+
+  The favorite row stays. Node leaves it and hides the card, and this matches:
+  the save outlives the removal, so lifting one puts the card back with
+  nothing to re-favorite. A test asserts both — the card gone, `Favorite`
+  still there — and another walks removal → lift → card back.
+
+- `POST /cart/{slug}` never checked removal. `CartQuantity::withinStock` now
+  takes `hasActiveRemoval` alongside the status and the stock, and refuses
+  with the same `DomainRuleViolation` and the same sentence ("That listing is
+  no longer for sale.") the sold-out and off-sale refusals already carry.
+  `AddToCart` reads it off the listing. Checkout already refused a removed
+  line; a stale slug no longer writes one into a cart in the first place.
+
+- `RemoveListing` was a check-then-create with no transaction and no lock, so
+  two concurrent removals could both see nothing active and both insert.
+  `Listing::lockedForModeration()` / `takeForModeration()` follow
+  `Fulfillment::lockedForTransition()` / `takeForTransition()`: the check now
+  runs inside the transaction that writes, against the listing row held for
+  update. The migration still carries no partial unique index (SQLite has
+  none), so the action's rule remains the only thing holding a listing to one
+  active removal — it now holds under contention.
+
+  `BlockCustomer` had the identical window and is fixed the same way, with
+  `Customer::lockedForModeration()` / `takeForModeration()`.
+
+  The lock is asserted the way `FulfillmentTest` and `ListingTest` already
+  assert it: the scope's query compiled against `MySqlGrammar` ends with `for
+  update`. No fake concurrency test — SQLite serialises writers.
+
+| Gate | Before | After |
+| --- | --- | --- |
+| Pest | 1775 tests, 4829 assertions | 1793 tests, 4865 assertions |
+| Coverage | 100.0% lines | 100.0% lines |
+
+Node and Rails carry the same three gaps if their favorites page, cart add,
+and moderation actions were built from the same shapes; Node's favorites
+query and cart route are already the reference here, so only the two
+moderation actions are open questions there.

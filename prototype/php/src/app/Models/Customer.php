@@ -225,6 +225,36 @@ class Customer extends Authenticatable
     }
 
     /**
+     * Takes the rows a moderation decision is judged against for update. A
+     * block is refused when one already stands, and that check reads the
+     * `customer_blocks` table rather than this row, so nothing there keeps
+     * two admins apart: both read no active block and both insert one. The
+     * customer row they each have to take first is what serialises them.
+     * SQLite, which the prototype develops and tests on, has no row lock and
+     * serialises writers instead; its grammar compiles the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForModeration(Builder $query): void
+    {
+        $query->lockForUpdate();
+    }
+
+    /**
+     * Re-reads this row for update inside the caller's transaction, the way
+     * `Fulfillment::takeForTransition` re-reads the row a transition is
+     * judged against.
+     */
+    public function takeForModeration(): static
+    {
+        /** @var static $locked */
+        $locked = $this->newQuery()->whereKey($this->getKey())->lockedForModeration()->sole();
+
+        return $this->setRawAttributes($locked->getAttributes(), sync: true);
+    }
+
+    /**
      * The admin customers list, narrowed to one standing. `All` adds no
      * clause at all, which is what an empty filter asks for.
      *
