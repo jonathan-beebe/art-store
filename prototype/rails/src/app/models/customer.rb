@@ -5,12 +5,31 @@ class Customer < ApplicationRecord
   include Messaging
 
   # The rows that move with a customer when an anonymous identity is absorbed
-  # into a verified one, each by re-pointing the column it hangs from.
-  # Conversations move through `Conversation#move_to`, since two threads of the
-  # same shape have to fold into one.
+  # into a verified one. Orders, listing events, notifications and sent
+  # messages move with a plain re-pointing UPDATE. Carts and favorites fold
+  # instead (`#fold_cart`, `#fold_favorites`), so the verified customer never
+  # ends up with two carts or a duplicate favorite. Conversations fold through
+  # `Conversation#move_to`, since two threads of the same shape have to become
+  # one. `CustomerMergedAssociationsTest` checks every `customer_id` column in
+  # the schema against this list or `LEFT_BEHIND_ASSOCIATIONS`.
   MERGED_ASSOCIATIONS = %i[
-    favorites carts orders listing_events notifications sent_messages
+    favorites carts orders listing_events notifications sent_messages conversations
   ].freeze
+
+  # Re-pointed with a plain UPDATE — no fold, no de-duplication.
+  REPOINTED_ASSOCIATIONS = (MERGED_ASSOCIATIONS - %i[carts favorites conversations]).freeze
+
+  # Tables holding a `customer_id` column a merge deliberately does not touch,
+  # and why. Table name to reason, since the association name a `belongs_to`
+  # chooses (`CustomerBlock#customer`, reached from `Customer#blocks`) need not
+  # match the table it points at.
+  LEFT_BEHIND_ASSOCIATIONS = {
+    "customer_blocks" => "an admin's decision about the specific row it names; the block does not " \
+      "follow an anonymous identity into the account it merges into, matching Node's " \
+      "REPOINTED_CUSTOMER_TABLES (which excludes customer_blocks too)",
+    "customer_merges" => "the merge ledger's own column; a row already names the correct verified " \
+      "customer the moment it is inserted, so a merge never rewrites one"
+  }.freeze
 
   # The standings the admin directory narrows the table to. `all` is the
   # filter a page carries when nobody has chosen one.
@@ -171,9 +190,8 @@ class Customer < ApplicationRecord
     name.to_s.strip.presence || email.to_s.split("@").first.presence || "Visitor ##{id}"
   end
 
-  # A merge hands the verified customer whatever cart the anonymous visitor was
-  # filling, so one customer can own two. The one holding the most items is the
-  # one they were shopping with.
+  # The cart a customer shops from: the one holding the most items, if more
+  # than one row exists, created fresh the first time there is none.
   def current_cart
     carts.includes(:items).max_by { |cart| [ cart.items.size, cart.id ] } || carts.create!
   end
@@ -233,7 +251,10 @@ class Customer < ApplicationRecord
 
   def fold(anonymous)
     transaction do
-      MERGED_ASSOCIATIONS.each do |association|
+      fold_cart(anonymous)
+      fold_favorites(anonymous)
+
+      REPOINTED_ASSOCIATIONS.each do |association|
         # Each association names the column it points back through: notifications
         # arrive at a polymorphic `recipient_id`, the rest at `customer_id`.
         foreign_key = self.class.reflect_on_association(association).foreign_key
@@ -243,5 +264,53 @@ class Customer < ApplicationRecord
       anonymous.conversations.each { |conversation| conversation.move_to(self) }
       merges_absorbed.create!(anonymous_customer: anonymous)
     end
+  end
+
+  # Sums the two customers' cart lines per listing, clamps each to the
+  # listing's remaining stock, and drops anything that clamps to zero. The
+  # verified customer ends up with exactly one cart; the anonymous customer's
+  # cart rows are gone, not re-pointed, so a merge never leaves two.
+  def fold_cart(anonymous)
+    source_carts = anonymous.carts.includes(:items).to_a
+    return if source_carts.empty?
+
+    target = current_cart
+    source_items = source_carts.flat_map(&:items)
+
+    lines = CustomerMergePlan.fold_cart_lines(
+      quantities_by_listing(target.items),
+      quantities_by_listing(source_items),
+      stock_by_listing(target.items + source_items)
+    )
+
+    apply_cart_lines(target, lines)
+    source_carts.each(&:destroy!)
+  end
+
+  def quantities_by_listing(items)
+    items.each_with_object(Hash.new(0)) { |item, totals| totals[item.listing_id] += item.quantity }
+  end
+
+  def stock_by_listing(items)
+    Listing.where(id: items.map(&:listing_id).uniq).pluck(:id, :quantity).to_h
+  end
+
+  def apply_cart_lines(cart, lines)
+    kept_listing_ids = lines.map(&:listing_id)
+
+    cart.items.where.not(listing_id: kept_listing_ids).destroy_all
+    lines.each { |line| cart.items.find_or_initialize_by(listing_id: line.listing_id).update!(quantity: line.quantity) }
+  end
+
+  # Moves the anonymous customer's favorites the verified customer does not
+  # already hold; drops the ones that would duplicate one the verified
+  # customer already holds, rather than colliding with the unique index.
+  def fold_favorites(anonymous)
+    plan = CustomerMergePlan.partition_favorites(
+      favorites.pluck(:listing_id), anonymous.favorites.pluck(:listing_id)
+    )
+
+    anonymous.favorites.where(listing_id: plan[:drop]).destroy_all
+    anonymous.favorites.where(listing_id: plan[:move]).update_all(customer_id: id)
   end
 end

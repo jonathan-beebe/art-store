@@ -41,8 +41,11 @@ module CustomerIdentity
     Customer.from_cookie(cookies.signed[COOKIE])
   end
 
+  # Rotates the session id (session-fixation protection) without discarding
+  # whatever the seller or admin session keys already hold, so all three
+  # actors can be signed in on the one browser at once.
   def sign_in_customer(customer)
-    reset_session
+    request.session_options[:renew] = true
     session[:customer_id] = customer.id
     @signed_in_customer = customer
     @current_customer = remember_customer(customer)
@@ -52,9 +55,10 @@ module CustomerIdentity
   end
 
   # Dropping the cookie hands the browser a clean anonymous identity on its
-  # next storefront request rather than the account it just left.
+  # next storefront request rather than the account it just left. Deleting
+  # only this key leaves a seller or admin signed in on the same session.
   def sign_out_customer
-    reset_session
+    session.delete(:customer_id)
     cookies.delete(COOKIE)
     @signed_in_customer = nil
     @current_customer = nil

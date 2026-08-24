@@ -117,9 +117,9 @@ class CustomerTest < ActiveSupport::TestCase
   test "absorb moves the history of the anonymous customer" do
     anonymous = create_anonymous_customer
     verified = create_verified_customer
-    listing = create_listing
+    listing = create_listing(quantity: 2)
     favorite = Favorite.create!(customer: anonymous, listing: listing)
-    cart = Cart.create!(customer: anonymous)
+    cart = cart_holding(anonymous, listing)
     order = order_for(anonymous, listing)
     event = listing.events.create!(
       customer: anonymous, event_type: "view", occurred_at: Time.current
@@ -133,7 +133,11 @@ class CustomerTest < ActiveSupport::TestCase
     verified.absorb(anonymous)
 
     assert_equal verified, favorite.reload.customer
-    assert_equal verified, cart.reload.customer
+    assert_equal verified, verified.current_cart.customer
+    assert_equal listing, verified.current_cart.items.sole.listing
+    refute Cart.exists?(cart.id)
+    assert_equal 0, anonymous.carts.count
+    assert_equal 1, verified.carts.count
     assert_equal verified, order.reload.customer
     assert_equal verified, event.reload.customer
     assert_equal verified, notification.reload.recipient

@@ -21,8 +21,11 @@ module SellerAuthentication
     redirect_to seller_login_path, alert: "Sign in to reach the seller portal."
   end
 
+  # Rotates the session id (session-fixation protection) without discarding
+  # whatever the customer or admin session keys already hold, so all three
+  # actors can be signed in on the one browser at once.
   def sign_in_seller(seller)
-    reset_session
+    request.session_options[:renew] = true
     session[:seller_id] = seller.id
     @current_seller = seller
     Current.acting_as(seller)
@@ -30,8 +33,10 @@ module SellerAuthentication
     seller
   end
 
+  # Deleting only this key leaves a customer or admin signed in on the same
+  # session.
   def sign_out_seller
-    reset_session
+    session.delete(:seller_id)
     @current_seller = nil
     Current.acting_as(nil)
   end
