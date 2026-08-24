@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:23:00:00 — IMPRV-009 — started
+- 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines
 - 2026-08-24:22:35:00 — IMPRV-008 — started
 - 2026-08-24:22:30:00 — IMPRV-007 — done: `docker/pcov.ini` disables pcov in the image and the two coverage composer scripts turn it back on with `-d`; `GET /` 24.7 -> 17.4 ms CPU/req measured independently; 1827 tests, 4946 assertions, 100% lines
 - 2026-08-24:22:15:00 — IMPRV-007 — started
