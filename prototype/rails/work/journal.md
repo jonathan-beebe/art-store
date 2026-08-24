@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:12:30:00 — MAINT-003 — done: docs and README refreshed against the code, route walk with no 5xx, hook demonstrated refusing a failing commit, Node-lane alignment fixes; 1262 runs / 4506 assertions / 100% lines
 - 2026-08-24:10:05:00 — MAINT-003 — started
 - 2026-08-24:10:04:00 — IMPRV-003 — done: CustomerMergePlan folds the cart and de-dupes favorites move-or-drop, per-actor session keys so three actors share one browser; 1246 runs / 4387 assertions / 100% lines
 - 2026-08-24:08:50:00 — IMPRV-003 — started

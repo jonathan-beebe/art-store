@@ -1,7 +1,7 @@
 ---
 id: MAINT-003
 type: maintenance
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
