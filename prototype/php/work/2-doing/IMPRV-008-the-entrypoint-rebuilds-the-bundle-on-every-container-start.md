@@ -73,3 +73,111 @@ reasoning and is part of the change.
 - FEAT-001 (dockerized Laravel foundation)
 - MAINT-003 (common make vocabulary, check gate, CI)
 - RSRCH-001 (M2, M3)
+
+## Working
+
+### What changed
+
+`docker/entrypoint.sh` computes a content hash over the bundle's inputs and
+compares it with the hash recorded beside the bundle. It builds when the
+manifest is missing, when the hash file is missing, or when the two hashes
+disagree, and writes the hash only after `npm run build` returns. Everything
+else in the entrypoint is untouched: `migrate --force` and
+`storage:link --force` still run on every start.
+
+The hash:
+
+```
+find resources app bootstrap config routes \
+    vite.config.js package.json package-lock.json composer.lock \
+    -type f -exec sha256sum {} + | LC_ALL=C sort | sha256sum | cut -d' ' -f1
+```
+
+It covers contents and paths, `sort` makes it independent of the order `find`
+walks the tree, and nothing in it reads an mtime. `sha256sum`, `find` and
+`sort` are coreutils, already in `php:8.3-cli` (verified: GNU coreutils 9.7).
+It costs 0.10–0.18 s in the container.
+
+`make assets` is unchanged and still runs `npm run build` unconditionally.
+
+### The hash file lives at `public/.vite-inputs-hash`, not in `public/build/`
+
+`vite build` empties its output directory. Verified in the container: a
+`public/build/.probe-file` written before a build is gone after it. A hash
+file inside `public/build` would therefore be deleted by `make assets`, and
+the next `docker compose run` would rebuild — the gate would keep paying two
+builds. Beside the directory it survives, so a `make check` that changes
+nothing pays exactly one build (the one `make assets` is there to run).
+`/public/.vite-inputs-hash` is added to `src/.gitignore`.
+
+### What counts as an input, and why
+
+| input | why |
+|---|---|
+| `resources/` | the CSS entry point and every Blade template |
+| `app/`, `bootstrap/`, `config/`, `routes/` | Tailwind v4 auto-detects sources across the project, so a class name in a PHP string is an input; none is there today, and the hash is what makes that safe to add |
+| `vite.config.js` | decides what Vite produces |
+| `package.json`, `package-lock.json` | pin the toolchain that produces it |
+| `composer.lock` | pins the vendor pagination views `resources/css/app.css` names with `@source` |
+
+Deliberately left out: `storage/framework/views`, the other `@source` target.
+It is a cache compiled from `resources/views`, so its classes are already
+covered by hashing the Blade sources, and which pages happen to have been
+rendered would churn the hash without changing the output. Also out:
+`vendor/` and `node_modules/` themselves — `composer.lock` and
+`package-lock.json` pin both, at a fraction of the hashing cost.
+
+### Numbers
+
+M2 warm restart to the first `200 /up`, three samples each side:
+
+| | samples | median |
+|---|---|---|
+| before | 6.19 s, 4.73 s, 4.14 s | 4.73 s |
+| after | 1.77 s, 1.87 s, 1.76 s | 1.77 s |
+
+`make check` wall time (`/usr/bin/time -p`), nothing edited between runs:
+
+| run | wall |
+|---|---|
+| before | 104.42 s |
+| after, first | 98.44 s |
+| after, second | 91.39 s |
+
+Both entrypoint invocations in each post-change run logged
+`bundle inputs unchanged, skipping build`: three Vite builds per gate run
+became one, the one `make assets` runs as its own command.
+
+`make check` green: 1827 tests passed, 4946 assertions, 100.0 % lines.
+
+### Rebuild-when-changed proof
+
+```
+touch src/resources/views/components/layouts/shop.blade.php
+  -> entrypoint: bundle inputs unchanged, skipping build
+printf '\n' >> .../shop.blade.php
+  -> entrypoint: bundle inputs changed, building
+git checkout -- .../shop.blade.php
+  -> entrypoint: bundle inputs changed, building
+  -> (next run) entrypoint: bundle inputs unchanged, skipping build
+
+package.json edited      -> entrypoint: bundle inputs changed, building
+package.json reverted    -> entrypoint: bundle inputs changed, building
+  -> (next run) entrypoint: bundle inputs unchanged, skipping build
+```
+
+An mtime-only touch does not rebuild; a one-character content change does,
+and so does reverting it.
+
+`rm -rf src/public/build` with the hash file still present rebuilds (the
+manifest is gone). Removing both and starting from nothing rebuilds, and the
+page renders styled: `curl -s http://localhost:8000/` links
+`build/assets/app-CdKlGM09.css`, which serves 200 with 46 020 bytes of
+Tailwind 4.3.3 output.
+
+### Left alone
+
+- `make assets` still builds unconditionally. It runs behind the entrypoint,
+  which writes the hash before the build command runs, so the hash is current
+  after it either way.
+- `migrate --force` and `storage:link --force`, per the ticket.
