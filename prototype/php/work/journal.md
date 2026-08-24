@@ -2,18 +2,34 @@
 
 ## Next ticket numbers
 
-- RSRCH: 1
+- RSRCH: 2
 - DSGN: 1
 - ARCH: 1
 - FEAT: 25
-- IMPRV: 6
+- IMPRV: 10
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 9
-- BUG: 4
+- BUG: 5
 
 ## Log
 
+- 2026-08-24:23:20:00 — IMPRV-009 — done: `CustomerIdentity::fromCookie()` resolves once per request and both middlewares read that answer; on identical seeded data `/` 16 -> 14 queries, `/cart` 13 -> 11, `/art/{slug}` 18 -> 16, `/favorites` 13 -> 11; 1831 tests, 4955 assertions, 100% lines
+- 2026-08-24:23:00:00 — IMPRV-009 — started
+- 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines
+- 2026-08-24:22:35:00 — IMPRV-008 — started
+- 2026-08-24:22:30:00 — IMPRV-007 — done: `docker/pcov.ini` disables pcov in the image and the two coverage composer scripts turn it back on with `-d`; `GET /` 24.7 -> 17.4 ms CPU/req measured independently; 1827 tests, 4946 assertions, 100% lines
+- 2026-08-24:22:15:00 — IMPRV-007 — started
+- 2026-08-24:22:10:00 — IMPRV-006 — done: the stream yields a frame per tick so a failed write reaches `connection_aborted()`, and the worker pool goes 5 -> 16; twelve abandoned streams then `GET /` 49.4s -> 0.25s, twelve held 50.8s -> 0.11s, three live streams 5.6% -> 0.99% of one core; 1827 tests, 100% lines
+- 2026-08-24:21:50:00 — IMPRV-006 — started
+- 2026-08-24:21:45:00 — BUG-004 — done: RateLimitsConfigTest writes and reads through Dotenv's repository and restores what `.env` gave it, so the gate is green whatever `.env` holds; 1827 tests, 4934 assertions, 100% lines
+- 2026-08-24:21:25:00 — BUG-004 — started
+- 2026-08-24:21:20:00 — IMPRV-009 — defined: the visitor is resolved from the cookie twice per request (16 queries on /, two of them duplicates)
+- 2026-08-24:21:19:00 — IMPRV-008 — defined: the entrypoint rebuilds the Vite bundle on every container start and every `docker compose run` (three builds per `make check`)
+- 2026-08-24:21:18:00 — IMPRV-007 — defined: pcov instruments every request the dev server answers (24.7 -> 16.6 ms CPU/req with it off)
+- 2026-08-24:21:17:00 — IMPRV-006 — defined: a closed tab keeps holding a serve worker, so a page load stalls 49.4s after twelve streams
+- 2026-08-24:21:16:00 — BUG-004 — defined: `make check` is red on a fresh checkout, RateLimitsConfigTest reads `.env` instead of its own putenv
+- 2026-08-24:21:15:00 — RSRCH-001 — done: performance baseline recorded (startup, idle CPU, latency, CPU/req, query counts, stream occupancy) with the commands to re-run each
 - 2026-08-24:20:30:00 — MAINT-004 — done: every doc refreshed against the branch, validation run complete (make check green, make fresh seeds, 34 GET routes with no 5xx, hook refuses a failing test); 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:19:00:00 — MAINT-004 — started
 - 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines

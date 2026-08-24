@@ -20,7 +20,11 @@ RUN apt-get update \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" gd intl pdo_sqlite zip
 
+# pcov defaults to instrumenting every request, so it is disabled here and
+# turned back on with -d only for the composer scripts that collect coverage
+# — see docker/pcov.ini.
 RUN pecl install pcov && docker-php-ext-enable pcov
+COPY docker/pcov.ini /usr/local/etc/php/conf.d/zz-pcov.ini
 
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \

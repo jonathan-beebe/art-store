@@ -22,12 +22,17 @@ final readonly class ResolveCustomerIdentity
      * Every storefront request has a customer behind it, so favorites, carts,
      * and orders have somewhere to hang before anyone signs in.
      *
+     * This is an aliased middleware, so the route it guards decides what ran
+     * ahead of it. On the storefront `NameRequestVisitor` has already asked
+     * the cookie who the visitor is and this reads that answer off the
+     * request; on a route outside the `web` group this is the first to ask.
+     *
      * @param  Closure(Request): Response  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
         $customer = Auth::guard('customer')->user()
-            ?? ($this->resolveFromCookie)(CustomerIdentity::cookieValue($request))
+            ?? CustomerIdentity::fromCookie($request, $this->resolveFromCookie)
             ?? Customer::create([]);
 
         CustomerIdentity::attachTo($request, $customer);

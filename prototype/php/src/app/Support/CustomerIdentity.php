@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Customers\ResolveCustomerFromCookie;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -19,6 +20,8 @@ final class CustomerIdentity
 
     private const REQUEST_ATTRIBUTE = 'customer';
 
+    private const RESOLVED_ATTRIBUTE = 'customer.from_cookie';
+
     // A browsing history is worth more than a session, so the cookie outlives one.
     private const COOKIE_LIFETIME_MINUTES = 60 * 24 * 365;
 
@@ -29,6 +32,27 @@ final class CustomerIdentity
         $value = $request->cookie(self::COOKIE);
 
         return is_string($value) ? $value : null;
+    }
+
+    /**
+     * The customer the cookie names, read from the database the first time a
+     * request asks and off the request itself after that. Two middlewares ask
+     * — one to name the request's actor, one to bind the visitor the
+     * controllers read — and the cookie cannot answer them differently.
+     *
+     * The attribute is written even when the cookie names nobody, so a cookie
+     * pointing at a customer that no longer exists is looked up once for the
+     * request rather than once per asker.
+     */
+    public static function fromCookie(Request $request, ResolveCustomerFromCookie $resolve): ?Customer
+    {
+        if (! $request->attributes->has(self::RESOLVED_ATTRIBUTE)) {
+            $request->attributes->set(self::RESOLVED_ATTRIBUTE, $resolve(self::cookieValue($request)));
+        }
+
+        $resolved = $request->attributes->get(self::RESOLVED_ATTRIBUTE);
+
+        return $resolved instanceof Customer ? $resolved : null;
     }
 
     public static function rememberInCookie(Customer $customer): void

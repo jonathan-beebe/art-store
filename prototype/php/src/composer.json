@@ -52,11 +52,11 @@
         ],
         "test": [
             "Composer\\Config::disableProcessTimeout",
-            "@php -d memory_limit=1G vendor/bin/pest --coverage --min=100"
+            "@php -d memory_limit=1G -d pcov.enabled=1 vendor/bin/pest --coverage --min=100"
         ],
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",
-            "@php -d memory_limit=1G vendor/bin/pest --coverage --coverage-html coverage"
+            "@php -d memory_limit=1G -d pcov.enabled=1 vendor/bin/pest --coverage --coverage-html coverage"
         ],
         "analyse": [
             "Composer\\Config::disableProcessTimeout",

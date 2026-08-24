@@ -179,10 +179,11 @@ unread badge — on the four points where the two designs actually differ.
 - **The live badge.** This design polls: `UnreadCountStream` re-reads the
   actor's count on a fixed tick for a fixed lifetime (`TICK_SECONDS = 2`,
   `LIFETIME_SECONDS = 25`), bounded because `artisan serve`'s one-worker-per-request
-  model means an open stream holds a worker for its whole life regardless of
-  whether anything changed — the reason `PHP_CLI_SERVER_WORKERS` had to be
-  raised at all, and still the reason a closed tab holds its worker for a few
-  seconds after disconnecting (see `docs/messaging.md` § "The live badge").
+  model means an open tab holds a worker for as long as it stays open — the
+  reason `PHP_CLI_SERVER_WORKERS` is raised to 16. An abandoned stream is
+  reclaimed within one tick: the generator yields a frame every tick, and a
+  failed write is how PHP learns the client is gone (see `docs/messaging.md`
+  § "The live badge").
   Node's stream is push-driven: an in-process `EventEmitter` fires `changed`
   once after any request that wrote something, every open stream re-reads its
   own count on that event, and the stream ends only on client disconnect or
@@ -219,11 +220,11 @@ unread badge — on the four points where the two designs actually differ.
    silently.** The create path flashes the failure; the update path does not.
 4. **Seeded listings carry a generated placeholder SVG**, not artwork, and the
    seeder writes no `refunds` row — seed data shows the happy path only.
-5. **A closed messaging tab does not free its SSE worker at once.** The
-   generator yields only on a change, so `connection_aborted()` is checked
-   less often than a keepalive would allow; measured, an abandoned stream
-   holds its worker for about five seconds. See `docs/messaging.md` § "The
-   live badge".
+5. **Every open messaging tab holds an SSE worker for its whole lifetime.**
+   `PHP_CLI_SERVER_WORKERS = 16` is what bounds concurrent readers, and a
+   deployment that wants more needs a server that is not `artisan serve`. An
+   abandoned stream frees its worker within one tick. See `docs/messaging.md`
+   § "The live badge".
 6. **A cookieless client of `/events` mints a `customers` row per request**,
    the same as any other storefront route with no `customer_id` cookie — a
    crawler that ignores cookies holds one worker per reconnect. Bounded, not a
