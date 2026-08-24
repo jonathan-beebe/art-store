@@ -79,7 +79,7 @@ module Shop
     private
 
     def paid_order(*listings)
-      listings = [create_listing(title: "Harbour at Dusk")] if listings.empty?
+      listings = [ create_listing(title: "Harbour at Dusk") ] if listings.empty?
       sign_in_as_customer(email: "buyer@example.com")
       listings.each { |listing| post shop_add_to_cart_path(slug: listing.slug) }
       post shop_place_order_path,

@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-23:21:05:00 — MAINT-002 — started (absorbs BUG-003, MAINT-001)
 - 2026-08-23:20:38:04 — MAINT-003 — defined: Final validation and docs refresh for the alignment branch
 - 2026-08-23:20:38:04 — IMPRV-003 — defined: Merge folds the cart and de-duplicates favorites, and three actors share one browser
 - 2026-08-23:20:38:04 — BUG-005 — defined: Uploads trust the browser's content type with no size cap, and a magic link can be consumed twice

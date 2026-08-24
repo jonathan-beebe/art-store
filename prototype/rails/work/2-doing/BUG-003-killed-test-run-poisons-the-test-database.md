@@ -25,3 +25,12 @@ Options observed in the wild: reset the schema/data before the suite in `test_he
 ## Related work
 - FEAT-014 (extended the seeds and smoke tests)
 - IMPRV-001 (where the failure was observed and diagnosed)
+
+## Working
+
+Closed as part of MAINT-002. Fixed by wiring `bin/rails db:test:prepare`
+ahead of every `bin/rails test` invocation in the Makefile's `test`, `smoke`,
+and `coverage` targets (the third of the three options this ticket listed) —
+nothing in the normal workflow needs to know `db:test:prepare` exists.
+Proof (kill mid-run, then a poisoned-state reproduction, then recovery) is in
+MAINT-002's Working note. Run count and 100% line coverage unchanged.

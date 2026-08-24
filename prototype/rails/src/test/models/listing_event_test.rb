@@ -48,7 +48,7 @@ class ListingEventTest < ActiveSupport::TestCase
     watched.record_event!("favorite")
     ignored.record_event!("view")
 
-    totals = ListingEvent.totals_by_listing([watched, ignored])
+    totals = ListingEvent.totals_by_listing([ watched, ignored ])
 
     assert_equal 1, totals[watched].views
     assert_equal 1, totals[watched].favorites
@@ -58,6 +58,6 @@ class ListingEventTest < ActiveSupport::TestCase
   test "a listing with no events totals zero" do
     listing = create_listing
 
-    assert_equal 0, ListingEvent.totals_by_listing([listing])[listing].total
+    assert_equal 0, ListingEvent.totals_by_listing([ listing ])[listing].total
   end
 end

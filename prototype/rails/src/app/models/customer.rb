@@ -56,7 +56,7 @@ class Customer < ApplicationRecord
   # filling, so one customer can own two. The one holding the most items is the
   # one they were shopping with.
   def current_cart
-    carts.includes(:items).max_by { |cart| [cart.items.size, cart.id] } || carts.create!
+    carts.includes(:items).max_by { |cart| [ cart.items.size, cart.id ] } || carts.create!
   end
 
   # One button favorites and unfavorites, so what it does follows from what the

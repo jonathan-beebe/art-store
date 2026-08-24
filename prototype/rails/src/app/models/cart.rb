@@ -46,7 +46,7 @@ class Cart < ApplicationRecord
     raise ArgumentError, "a cart holds at least one of a listing, got #{requested}" if requested < 1
     raise ArgumentError, "that listing is sold out" if listing.quantity < 1
 
-    [requested, listing.quantity].min
+    [ requested, listing.quantity ].min
   end
 
   def total_of(items)

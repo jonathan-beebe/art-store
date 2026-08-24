@@ -7,7 +7,7 @@ class MessageTest < ActiveSupport::TestCase
 
     message = conversation.post!(shop, "My payout is late.")
 
-    assert_equal [message], shop.sent_messages.to_a
+    assert_equal [ message ], shop.sent_messages.to_a
   end
 
   test "surrounding whitespace is trimmed on the way in" do
@@ -52,14 +52,14 @@ class MessageTest < ActiveSupport::TestCase
     asked = conversation.post!(shop, "My payout is late.")
     answered = conversation.post!(conversation.admin, "It runs on Monday.")
 
-    assert_equal [asked, answered], conversation.messages.oldest_first.to_a
+    assert_equal [ asked, answered ], conversation.messages.oldest_first.to_a
   end
 
   test "an arriving message reaches both sides' open thread pages" do
     shop = create_seller
     conversation = support_thread(shop)
 
-    appended = capture_turbo_stream_broadcasts([conversation, shop]) do
+    appended = capture_turbo_stream_broadcasts([ conversation, shop ]) do
       conversation.post!(shop, "My payout is late.")
     end
 
@@ -75,8 +75,8 @@ class MessageTest < ActiveSupport::TestCase
     admin = conversation.admin
 
     to_admin = nil
-    to_seller = capture_turbo_stream_broadcasts([conversation, shop]) do
-      to_admin = capture_turbo_stream_broadcasts([conversation, admin]) do
+    to_seller = capture_turbo_stream_broadcasts([ conversation, shop ]) do
+      to_admin = capture_turbo_stream_broadcasts([ conversation, admin ]) do
         conversation.post!(shop, "My payout is late.")
       end
     end
@@ -90,7 +90,7 @@ class MessageTest < ActiveSupport::TestCase
     conversation = support_thread(shop)
     admin = conversation.admin
 
-    replaced = capture_turbo_stream_broadcasts([admin, :unread_messages]) do
+    replaced = capture_turbo_stream_broadcasts([ admin, :unread_messages ]) do
       conversation.post!(shop, "My payout is late.")
     end
 
@@ -103,7 +103,7 @@ class MessageTest < ActiveSupport::TestCase
     shop = create_seller
     conversation = support_thread(shop)
 
-    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+    assert_turbo_stream_broadcasts([ shop, :unread_messages ], count: 0) do
       conversation.post!(shop, "My payout is late.")
     end
   end
@@ -113,8 +113,8 @@ class MessageTest < ActiveSupport::TestCase
     conversation = support_thread(shop)
     admin = conversation.admin
 
-    assert_turbo_stream_broadcasts([conversation, admin], count: 0) do
-      assert_turbo_stream_broadcasts([admin, :unread_messages], count: 0) do
+    assert_turbo_stream_broadcasts([ conversation, admin ], count: 0) do
+      assert_turbo_stream_broadcasts([ admin, :unread_messages ], count: 0) do
         conversation.transaction do
           conversation.post!(shop, "My payout is late.")
           raise ActiveRecord::Rollback

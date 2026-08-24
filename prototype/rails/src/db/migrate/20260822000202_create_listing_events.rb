@@ -9,6 +9,6 @@ class CreateListingEvents < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :listing_events, [:listing_id, :event_type]
+    add_index :listing_events, [ :listing_id, :event_type ]
   end
 end

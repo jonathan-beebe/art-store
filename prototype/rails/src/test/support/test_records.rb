@@ -49,7 +49,7 @@ module TestRecords
       **attributes
     )
 
-    [token, link]
+    [ token, link ]
   end
 
   def shipping_address(**overrides)

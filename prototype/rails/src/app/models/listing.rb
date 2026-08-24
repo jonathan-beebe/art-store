@@ -92,7 +92,7 @@ class Listing < ApplicationRecord
   # The media the storefront filter offers, which are the ones something is
   # currently on sale in.
   def self.media_for_sale
-    for_sale.where.not(medium: [nil, ""]).distinct.order(:medium).pluck(:medium)
+    for_sale.where.not(medium: [ nil, "" ]).distinct.order(:medium).pluck(:medium)
   end
 
   # The form edits dollars; the column stores cents. What the seller typed is

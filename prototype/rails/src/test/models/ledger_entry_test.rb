@@ -86,7 +86,7 @@ class LedgerEntryTest < ActiveSupport::TestCase
 
     balances = LedgerEntry.balances_by_seller
 
-    assert_equal [fulfillment.seller_id, second_fulfillment.seller_id].sort, balances.keys
+    assert_equal [ fulfillment.seller_id, second_fulfillment.seller_id ].sort, balances.keys
     assert_equal 40_500, balances.fetch(fulfillment.seller_id).held.cents
     assert_equal 9000, balances.fetch(second_fulfillment.seller_id).held.cents
   end

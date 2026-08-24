@@ -108,7 +108,7 @@ module IntegrationHelpers
   def count_queries
     counted = 0
     counter = ->(_name, _started, _finished, _id, payload) {
-      counted += 1 unless payload[:cached] || ["SCHEMA", "TRANSACTION"].include?(payload[:name])
+      counted += 1 unless payload[:cached] || [ "SCHEMA", "TRANSACTION" ].include?(payload[:name])
     }
 
     ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }

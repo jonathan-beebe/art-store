@@ -4,7 +4,7 @@ class Seller::OrdersController < Seller::BaseController
   def index
     by_status = current_seller.fulfillments.includes(order: :items).order(id: :desc).group_by(&:status)
 
-    @groups = Fulfillment.statuses.keys.map { |status| [status, by_status.fetch(status, [])] }
+    @groups = Fulfillment.statuses.keys.map { |status| [ status, by_status.fetch(status, []) ] }
   end
 
   def show

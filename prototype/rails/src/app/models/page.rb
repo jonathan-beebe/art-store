@@ -15,7 +15,7 @@ Page = Data.define(:number, :size, :total_count) do
   # An empty collection still has a first page, which is where "no art
   # matches that" is written.
   def self.last_number(size:, total_count:)
-    [(total_count + size - 1) / size, 1].max
+    [ (total_count + size - 1) / size, 1 ].max
   end
 
   def offset

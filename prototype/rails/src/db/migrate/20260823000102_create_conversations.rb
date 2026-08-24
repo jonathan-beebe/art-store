@@ -14,11 +14,11 @@ class CreateConversations < ActiveRecord::Migration[8.1]
     end
 
     # An inbox reads one participant column newest first.
-    add_index :conversations, [:seller_id, :last_message_at]
-    add_index :conversations, [:customer_id, :last_message_at]
-    add_index :conversations, [:admin_id, :last_message_at]
+    add_index :conversations, [ :seller_id, :last_message_at ]
+    add_index :conversations, [ :customer_id, :last_message_at ]
+    add_index :conversations, [ :admin_id, :last_message_at ]
 
     # Find-or-open reads the thread on a subject.
-    add_index :conversations, [:kind, :subject_type, :subject_id]
+    add_index :conversations, [ :kind, :subject_type, :subject_id ]
   end
 end

@@ -13,6 +13,6 @@ class CreatePayments < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :payments, [:order_id, :processed_at]
+    add_index :payments, [ :order_id, :processed_at ]
   end
 end

@@ -15,6 +15,6 @@ class CreateListings < ActiveRecord::Migration[8.1]
     end
 
     add_index :listings, :slug, unique: true
-    add_index :listings, [:status, :created_at]
+    add_index :listings, [ :status, :created_at ]
   end
 end

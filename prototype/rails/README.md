@@ -64,22 +64,31 @@ so an address with no `admins` row is refused at `/admin/login`.
 
 ## Commands
 
-Every target is a thin `docker compose` wrapper, so either form works.
+Every target runs through `docker compose`; nothing here touches the host.
+`sweep` and `outbox` print a line and exit — see below.
 
-| Make | Docker Compose |
+| Make | Runs |
 | --- | --- |
 | `make up` | `docker compose up -d` |
 | `make down` | `docker compose down` |
 | `make build` | `docker compose build` |
-| `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
+| `make logs` | `docker compose logs -f` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test` |
-| `make smoke` | `docker compose run --rm app bin/rails test test/smoke_test.rb` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test` |
+| `make test` | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`) |
+| `make smoke` | `bin/rails db:test:prepare`, then `bin/rails test test/smoke_test.rb` |
+| `make coverage` | `bin/rails db:test:prepare`, then `bin/rails test`, writing the HTML report with no gate |
+| `make lint` | `bin/rubocop`, read-only |
+| `make lint-fix` | `bin/rubocop -a`, the auto-fixable subset |
+| `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
+| `make check` | `lint` → `assets` → `test`; the commit gate and the CI job |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
+| `make seed` | `docker compose run --rm app bin/rails db:seed` |
+| `make routes` | `docker compose run --rm app bin/rails routes` |
+| `make payouts` | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date |
+| `make sweep` | prints that the stale-order sweep lands with FEAT-017 — nothing to run yet |
+| `make outbox` | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job |
 | `make console` | `docker compose run --rm app bin/rails console` |
-| `make logs` | `docker compose logs -f` |
 
 Run any other command the same way:
 
@@ -103,6 +112,12 @@ make test                                                                    # w
 docker compose run --rm app bin/rails test test/models/money_test.rb         # one file
 docker compose run --rm app bin/rails test test/models/money_test.rb -n /percent/   # one test
 ```
+
+`make test` runs `bin/rails db:test:prepare` first, so a run killed mid-way
+never leaves rows behind for the next run to trip over: `test/seeds_test.rb`
+and `test/smoke_test.rb` are the only tests that write outside the
+transactional-fixture rollback, and the prepare step resets the schema ahead
+of every run regardless of what a prior run left in `storage/test.sqlite3`.
 
 Every test requires `test_helper` and subclasses `ActiveSupport::TestCase`,
 `ActionDispatch::IntegrationTest` or `ActionView::TestCase`. A value object
@@ -138,8 +153,22 @@ make coverage
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
-overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 750 runs and 100% line coverage.
+overall line minimum and fails the run below it; `make test` sets it to 100 and
+is the coverage gate, so `make check` fails under 100% line coverage. `make
+coverage` runs the same suite without the gate, for reading the report. The
+suite stands at 748 runs and 100% line coverage.
+
+## Linting
+
+```sh
+make lint       # rubocop, read-only
+make lint-fix   # rubocop -a, the auto-fixable subset
+```
+
+RuboCop runs `rubocop-rails-omakase` (`src/.rubocop.yml`), the Rails 8 default
+styling — omakase enables cops department by department rather than starting
+from the community defaults, and it does not enable `Layout/LineLength`, so
+this repository does not either. `make check` runs `lint` before `test`.
 
 ## Database
 

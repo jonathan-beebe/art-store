@@ -6,8 +6,8 @@ class SeedsTest < ActiveSupport::TestCase
   test "it seeds two verified admins with Jonathan on duty" do
     admins = Admin.order(:id)
 
-    assert_equal ["jonathan-beebe@outlook.com", "annaschmunk@pm.me"], admins.map(&:email)
-    assert_equal ["Jonathan Beebe", "Anna Schmunk"], admins.map(&:name)
+    assert_equal [ "jonathan-beebe@outlook.com", "annaschmunk@pm.me" ], admins.map(&:email)
+    assert_equal [ "Jonathan Beebe", "Anna Schmunk" ], admins.map(&:name)
     assert_equal "jonathan-beebe@outlook.com", Admin.on_duty.email
     assert admins.all? { |admin| admin.email_verified_at.present? }
   end

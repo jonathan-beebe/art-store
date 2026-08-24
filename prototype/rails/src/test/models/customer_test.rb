@@ -30,7 +30,7 @@ class CustomerTest < ActiveSupport::TestCase
     verified = create_verified_customer
     create_anonymous_customer
 
-    assert_equal [verified], Customer.verified.to_a
+    assert_equal [ verified ], Customer.verified.to_a
   end
 
   test "a visitor with no cookie and no account gets a new verified customer" do
@@ -158,7 +158,7 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal standing, Conversation.involving(verified.reload).sole
     assert_equal standing, Conversation.involving(seller).sole
     assert_equal(
-      ["Is the frame included?", "It is.", "And does it ship rolled?"],
+      [ "Is the frame included?", "It is.", "And does it ship rolled?" ],
       standing.messages.oldest_first.pluck(:body)
     )
     assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
@@ -259,7 +259,7 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal :added, shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
     assert shopper.favorited?(listing)
-    assert_equal ["favorite"], listing.events.pluck(:event_type)
+    assert_equal [ "favorite" ], listing.events.pluck(:event_type)
   end
 
   test "toggling twice drops the favorite and records the event" do

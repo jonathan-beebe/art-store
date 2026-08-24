@@ -19,7 +19,7 @@ class OrderLifecycleTest < ActiveSupport::TestCase
 
     assert_predicate order, :paid?
     assert_equal 2, Notification.where(subject: "Item sold").count
-    assert_equal [40_500, 10_800], held_per_seller(painter, printer)
+    assert_equal [ 40_500, 10_800 ], held_per_seller(painter, printer)
 
     painting_shipment = order.fulfillments.find_by(seller: painter)
     print_shipment = order.fulfillments.find_by(seller: printer)
@@ -36,15 +36,15 @@ class OrderLifecycleTest < ActiveSupport::TestCase
 
     deliver(print_shipment, "2026-08-22 10:00:00")
     assert_predicate order.reload, :delivered?
-    assert_equal [40_500, 10_800], available_per_seller(painter, printer)
+    assert_equal [ 40_500, 10_800 ], available_per_seller(painter, printer)
 
     payouts = Payout.run_weekly(as_of: moment("2026-08-24 09:00:00"))
 
     assert_equal 2, payouts.size
     assert_equal({ painter.id => 40_500, printer.id => 10_800 }, Payout.order(:seller_id).pluck(:seller_id, :amount_cents).to_h)
-    assert_equal [0, 0], available_per_seller(painter, printer)
-    assert_equal [0, 0], held_per_seller(painter, printer)
-    assert_equal [40_500, 10_800], paid_out_per_seller(painter, printer)
+    assert_equal [ 0, 0 ], available_per_seller(painter, printer)
+    assert_equal [ 0, 0 ], held_per_seller(painter, printer)
+    assert_equal [ 40_500, 10_800 ], paid_out_per_seller(painter, printer)
   end
 
   test "a declined card returns the stock and a retry completes the order" do
@@ -65,15 +65,15 @@ class OrderLifecycleTest < ActiveSupport::TestCase
     assert_equal "sold", art.reload.status
     assert_equal 0, art.quantity
     assert_equal %w[declined approved], order.payments.order(:id).pluck(:status)
-    assert_equal [40_500], held_per_seller(shop)
+    assert_equal [ 40_500 ], held_per_seller(shop)
 
     fulfillment = ship(order.fulfillments.sole, "USPS", "9400111899", "2026-08-21 11:00:00")
     deliver(fulfillment, "2026-08-22 09:00:00")
 
     payouts = Payout.run_weekly(as_of: moment("2026-08-24 09:00:00"))
 
-    assert_equal [40_500], payouts.map(&:amount_cents)
-    assert_equal [40_500], paid_out_per_seller(shop)
+    assert_equal [ 40_500 ], payouts.map(&:amount_cents)
+    assert_equal [ 40_500 ], paid_out_per_seller(shop)
   end
 
   private

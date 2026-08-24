@@ -6,7 +6,7 @@ class ListingFaqTest < ActiveSupport::TestCase
 
     faq = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
 
-    assert_equal [faq], listing.faqs.to_a
+    assert_equal [ faq ], listing.faqs.to_a
     assert_equal "Is the frame included?", faq.question
     assert_equal "It is.", faq.answer
   end
@@ -84,7 +84,7 @@ class ListingFaqTest < ActiveSupport::TestCase
     first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
     second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
 
-    assert_equal [first, second], listing.faqs.oldest_first.to_a
+    assert_equal [ first, second ], listing.faqs.oldest_first.to_a
   end
 
   test "a draft from a thread pairs the last question with the last answer" do

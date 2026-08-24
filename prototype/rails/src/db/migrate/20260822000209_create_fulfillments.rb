@@ -16,7 +16,7 @@ class CreateFulfillments < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :fulfillments, [:order_id, :seller_id], unique: true
-    add_index :fulfillments, [:seller_id, :status]
+    add_index :fulfillments, [ :order_id, :seller_id ], unique: true
+    add_index :fulfillments, [ :seller_id, :status ]
   end
 end

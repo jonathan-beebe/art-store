@@ -8,7 +8,7 @@ class CartTest < ActiveSupport::TestCase
     item = cart.add(art, quantity: 2, at: moment("2026-08-20 08:00:00"))
 
     assert_equal 2, item.quantity
-    assert_equal [art], cart.reload.items.map(&:listing)
+    assert_equal [ art ], cart.reload.items.map(&:listing)
   end
 
   test "adding the same listing again adds to the line" do
@@ -57,7 +57,7 @@ class CartTest < ActiveSupport::TestCase
 
     cart.remove(dropped)
 
-    assert_equal [kept], cart.reload.items.map(&:listing)
+    assert_equal [ kept ], cart.reload.items.map(&:listing)
   end
 
   test "removing a listing the cart never held changes nothing" do
@@ -103,7 +103,7 @@ class CartTest < ActiveSupport::TestCase
     cart.add(create_listing(second))
     cart.add(create_listing(first))
 
-    assert_equal [first.id, second.id], cart.subtotals_by_seller.keys
+    assert_equal [ first.id, second.id ], cart.subtotals_by_seller.keys
   end
 
   test "an empty cart totals nothing" do

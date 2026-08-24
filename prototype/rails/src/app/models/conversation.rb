@@ -41,7 +41,7 @@ class Conversation < ApplicationRecord
   belongs_to :subject, polymorphic: true, optional: true
   has_many :messages, dependent: :destroy
 
-  enum :kind, KINDS.keys.to_h { |kind| [kind.to_sym, kind] }, validate: true
+  enum :kind, KINDS.keys.to_h { |kind| [ kind.to_sym, kind ] }, validate: true
 
   validate :sides_match_the_kind
   validate :subject_matches_the_kind
@@ -115,7 +115,7 @@ class Conversation < ApplicationRecord
 
     transaction do
       messages.update_all(conversation_id: standing.id)
-      standing.update!(last_message_at: [standing.last_message_at, last_message_at].max)
+      standing.update!(last_message_at: [ standing.last_message_at, last_message_at ].max)
       destroy!
     end
   end
@@ -151,7 +151,7 @@ class Conversation < ApplicationRecord
   end
 
   def unread_count_for(actor)
-    self.class.unread_counts_for(actor, [self])[id]
+    self.class.unread_counts_for(actor, [ self ])[id]
   end
 
   # Opening a thread reads what the other side sent. Returns how many messages

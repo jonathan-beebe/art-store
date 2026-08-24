@@ -57,7 +57,7 @@ class AdminTest < ActiveSupport::TestCase
     admin = create_admin
     notification = Notification.create!(recipient: admin, subject: "Support", body: "A seller wrote in.")
 
-    assert_equal [notification], admin.notifications.to_a
+    assert_equal [ notification ], admin.notifications.to_a
   end
 
   test "an admin counts the unread messages across their own threads" do

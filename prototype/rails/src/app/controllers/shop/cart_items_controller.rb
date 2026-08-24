@@ -27,7 +27,7 @@ module Shop
     # The form offers a number field only for listings with more than one in
     # stock, so a request with nothing in it asks for one.
     def requested_quantity
-      [params[:quantity].to_i, 1].max
+      [ params[:quantity].to_i, 1 ].max
     end
   end
 end

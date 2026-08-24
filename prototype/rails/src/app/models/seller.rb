@@ -33,6 +33,6 @@ class Seller < ApplicationRecord
   def listing_status_counts
     counts = listings.group(:status).count
 
-    Listing.statuses.keys.map { |status| [status, counts.fetch(status, 0)] }
+    Listing.statuses.keys.map { |status| [ status, counts.fetch(status, 0) ] }
   end
 end

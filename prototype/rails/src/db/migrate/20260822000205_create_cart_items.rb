@@ -8,6 +8,6 @@ class CreateCartItems < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :cart_items, [:cart_id, :listing_id], unique: true
+    add_index :cart_items, [ :cart_id, :listing_id ], unique: true
   end
 end

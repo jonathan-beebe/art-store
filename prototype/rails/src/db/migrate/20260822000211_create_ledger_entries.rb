@@ -13,6 +13,6 @@ class CreateLedgerEntries < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :ledger_entries, [:seller_id, :entry_type, :occurred_at]
+    add_index :ledger_entries, [ :seller_id, :entry_type, :occurred_at ]
   end
 end

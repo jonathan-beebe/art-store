@@ -29,7 +29,7 @@ class ListingTest < ActiveSupport::TestCase
   test "the price is an amount in dollars" do
     message = "The price is an amount in dollars, like 249.00."
 
-    ["free", "$249", "249.005", ""].each do |typed|
+    [ "free", "$249", "249.005", "" ].each do |typed|
       record = draft(price: typed)
 
       refute_predicate record, :valid?
@@ -44,7 +44,7 @@ class ListingTest < ActiveSupport::TestCase
   test "the quantity is a whole number within range" do
     message = "The quantity is a whole number from 0 to 999."
 
-    ["-1", "1.5", "1000"].each do |typed|
+    [ "-1", "1.5", "1000" ].each do |typed|
       record = draft(quantity: typed)
 
       refute_predicate record, :valid?
@@ -232,7 +232,7 @@ class ListingTest < ActiveSupport::TestCase
     create_listing(status: :draft)
     create_listing(status: :archived)
 
-    assert_equal [for_sale, sold].map(&:id).sort, Listing.on_storefront.pluck(:id).sort
+    assert_equal [ for_sale, sold ].map(&:id).sort, Listing.on_storefront.pluck(:id).sort
   end
 
   test "it records what happened and when" do
@@ -255,7 +255,7 @@ class ListingTest < ActiveSupport::TestCase
     for_sale = create_listing(status: :for_sale)
     create_listing(status: :draft)
 
-    assert_equal [for_sale.id], Listing.search.pluck(:id)
+    assert_equal [ for_sale.id ], Listing.search.pluck(:id)
   end
 
   test "a search matches the title, the description, and the medium" do
@@ -264,7 +264,7 @@ class ListingTest < ActiveSupport::TestCase
     in_medium = create_listing(title: "Winter Field", description: "Snow", medium: "Dusk pastel")
     create_listing(title: "Morning Light", description: "Sun", medium: "Watercolour")
 
-    assert_equal [titled, described, in_medium].map(&:id).sort, Listing.search(term: "dusk").pluck(:id).sort
+    assert_equal [ titled, described, in_medium ].map(&:id).sort, Listing.search(term: "dusk").pluck(:id).sort
   end
 
   test "a search drops the wildcards a visitor typed" do
@@ -277,7 +277,7 @@ class ListingTest < ActiveSupport::TestCase
     ceramic = create_listing(title: "Kiln Fired", medium: "Ceramic")
     create_listing(title: "Harbour at Dusk", medium: "Oil on canvas")
 
-    assert_equal [ceramic.id], Listing.search(medium: "Ceramic").pluck(:id)
+    assert_equal [ ceramic.id ], Listing.search(medium: "Ceramic").pluck(:id)
   end
 
   test "a term and a medium narrow together" do
@@ -285,7 +285,7 @@ class ListingTest < ActiveSupport::TestCase
     create_listing(title: "Harbour at Dusk", description: "Boats", medium: "Oil on canvas")
     create_listing(title: "Winter Field", description: "Snow", medium: "Ceramic")
 
-    assert_equal [both.id], Listing.search(term: "harbour", medium: "Ceramic").pluck(:id)
+    assert_equal [ both.id ], Listing.search(term: "harbour", medium: "Ceramic").pluck(:id)
   end
 
   test "the media offered are the ones something is for sale in" do
@@ -295,7 +295,7 @@ class ListingTest < ActiveSupport::TestCase
     create_listing(artist, medium: "Watercolour", status: :draft)
     create_listing(artist, medium: nil)
 
-    assert_equal ["Ceramic"], Listing.media_for_sale
+    assert_equal [ "Ceramic" ], Listing.media_for_sale
   end
 
   test "its totals add up its own events" do
@@ -318,7 +318,7 @@ class ListingTest < ActiveSupport::TestCase
 
     days = record.activity_by_day(days: 3, ends_on: moment("2026-08-22 17:30:00"))
 
-    assert_equal [Date.new(2026, 8, 20), Date.new(2026, 8, 21), Date.new(2026, 8, 22)], days.map(&:date)
+    assert_equal [ Date.new(2026, 8, 20), Date.new(2026, 8, 21), Date.new(2026, 8, 22) ], days.map(&:date)
     assert_equal 0, days[0].totals.total
     assert_equal 1, days[1].totals.views
   end

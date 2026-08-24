@@ -34,7 +34,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser = open_session
 
     seller = sign_in_seller
-    listing = create_listing
+    listing = submit_new_listing
     put_up_for_sale(listing)
 
     visitor = arrive_at_the_storefront(listing)
@@ -78,7 +78,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     end
   end
 
-  def create_listing
+  def submit_new_listing
     @seller_browser.post seller_listings_path, params: {
       listing: {
         title: LISTING_TITLE,

@@ -49,8 +49,8 @@ class OrderTest < ActiveSupport::TestCase
 
     assert_equal 55_000, order.subtotal_cents
     assert_equal(
-      [[painting.seller_id, 45_000, 4500, 40_500], [print.seller_id, 10_000, 1000, 9000]],
-      order.fulfillments.order(:seller_id).map { |f| [f.seller_id, f.subtotal_cents, f.fee_cents, f.net_cents] }
+      [ [ painting.seller_id, 45_000, 4500, 40_500 ], [ print.seller_id, 10_000, 1000, 9000 ] ],
+      order.fulfillments.order(:seller_id).map { |f| [ f.seller_id, f.subtotal_cents, f.fee_cents, f.net_cents ] }
     )
   end
 
@@ -150,7 +150,7 @@ class OrderTest < ActiveSupport::TestCase
 
     pay(order, APPROVED_CARD)
 
-    assert_equal [9000, 40_500], LedgerEntry.order(:amount_cents).pluck(:amount_cents)
+    assert_equal [ 9000, 40_500 ], LedgerEntry.order(:amount_cents).pluck(:amount_cents)
   end
 
   test "a paid order tells each seller their item sold" do

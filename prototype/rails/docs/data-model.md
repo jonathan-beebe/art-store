@@ -186,12 +186,10 @@ erDiagram
     sellers ||--o{ fulfillments : ships
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
-    sellers ||--o{ notifications : receives
     customers ||--o{ listing_events : records
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
-    customers ||--o{ notifications : receives
     customers ||--o{ customer_merges : "merged from (anonymous)"
     customers ||--o{ customer_merges : "merged into (verified)"
     listings ||--o{ listing_events : has
@@ -204,7 +202,6 @@ erDiagram
     orders ||--o{ fulfillments : split_by_seller
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
-    admins ||--o{ notifications : receives
     admins ||--o{ conversations : "admin side"
     sellers ||--o{ conversations : "seller side"
     customers ||--o{ conversations : "customer side"

@@ -27,3 +27,23 @@ Each is a minute of work alone; together they are the difference between convent
 - RFCTR-002
 - RFCTR-009
 - RFCTR-010
+
+## Working
+
+Closed as part of MAINT-002:
+
+- `test/smoke_test.rb`'s private `create_listing` renamed to
+  `submit_new_listing` (it posts a listing over HTTP); it no longer shadows
+  `TestRecords#create_listing`.
+- `PayoutPeriod#covers?` had no caller outside its own test — deleted, along
+  with its two tests in `payout_period_test.rb`.
+- `docs/data-model.md` no longer draws `sellers`/`customers`/`admins` →
+  `notifications` lines — dropped all three, not only sellers/customers, so
+  the diagram matches its own caveat that `notifications` carries no foreign
+  key to any of the three (polymorphic `recipient`).
+- The RuboCop config: `rubocop-rails-omakase` added and `make lint` runs
+  clean. The over-120-character lines this ticket named were left as they
+  are — a deliberate decision, not an oversight; see MAINT-002's Working
+  note for the reasoning (omakase doesn't enable `Layout/LineLength`, and
+  enabling it ourselves would be configuring past the doctrine's chosen
+  style guide).

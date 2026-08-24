@@ -30,7 +30,7 @@ class Message < ApplicationRecord
   def broadcast_arrival
     conversation.participants.each do |participant|
       broadcast_append_to(
-        [conversation, participant],
+        [ conversation, participant ],
         target: conversation.messages_dom_id,
         partial: "#{Conversation.site_of(participant)}/conversations/message",
         locals: { message: self }

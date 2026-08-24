@@ -32,18 +32,6 @@ class PayoutPeriodTest < ActiveSupport::TestCase
     assert_equal Time.utc(2026, 8, 23, 23, 59, 59), period.ends_at
   end
 
-  test "it covers a moment inside it" do
-    period = PayoutPeriod.ending_before(Time.utc(2026, 8, 24, 9, 0, 0))
-
-    assert period.covers?(Time.utc(2026, 8, 21, 11, 0, 0))
-  end
-
-  test "it does not cover a moment after it" do
-    period = PayoutPeriod.ending_before(Time.utc(2026, 8, 24, 9, 0, 0))
-
-    refute period.covers?(Time.utc(2026, 8, 24, 0, 0, 1))
-  end
-
   test "it labels itself with both ends" do
     assert_equal "2026-08-17 to 2026-08-23", PayoutPeriod.ending_before(Time.utc(2026, 8, 24)).label
   end

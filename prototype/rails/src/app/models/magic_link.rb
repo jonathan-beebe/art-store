@@ -23,7 +23,7 @@ class MagicLink < ApplicationRecord
     )
     link.save
 
-    [link, token]
+    [ link, token ]
   end
 
   def self.find_by_token(token)

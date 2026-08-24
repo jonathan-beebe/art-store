@@ -83,7 +83,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment) }
 
-    assert_equal ["A fulfillment cannot move from shipped to shipped."], refusal.record.errors.full_messages
+    assert_equal [ "A fulfillment cannot move from shipped to shipped." ], refusal.record.errors.full_messages
   end
 
   test "it refuses a shipment with no carrier" do
@@ -91,7 +91,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment, carrier: " ") }
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
     assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
@@ -100,7 +100,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment, tracking_number: "") }
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
     assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
@@ -109,7 +109,7 @@ class FulfillmentTest < ActiveSupport::TestCase
       awaiting_shipment.ship!(carrier: nil, tracking_number: nil)
     end
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
   end
 
   test "delivery records when the order arrived" do
@@ -150,7 +150,7 @@ class FulfillmentTest < ActiveSupport::TestCase
   test "it refuses to deliver a fulfillment that has not shipped" do
     refusal = assert_raises(ActiveRecord::RecordInvalid) { deliver(awaiting_shipment) }
 
-    assert_equal ["A fulfillment cannot move from awaiting_shipment to delivered."],
+    assert_equal [ "A fulfillment cannot move from awaiting_shipment to delivered." ],
                  refusal.record.errors.full_messages
   end
 

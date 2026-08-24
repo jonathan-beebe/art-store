@@ -23,7 +23,7 @@ module Messaging
   # a stream nobody else is handed a signed name for.
   def broadcast_unread_message_count
     Turbo::StreamsChannel.broadcast_replace_to(
-      [self, :unread_messages],
+      [ self, :unread_messages ],
       target: unread_badge_dom_id,
       partial: "#{Conversation.site_of(self)}/conversations/unread_badge",
       locals: { actor: self }

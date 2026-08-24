@@ -193,8 +193,8 @@ class ConversationTest < ActiveSupport::TestCase
     older = listing_question(shop, buyer, at: moment("2026-08-20 09:00:00"))
     newer = listing_question(shop, buyer, at: moment("2026-08-21 09:00:00"))
 
-    assert_equal [newer, older], Conversation.involving(shop).to_a
-    assert_equal [newer, older], Conversation.involving(buyer).to_a
+    assert_equal [ newer, older ], Conversation.involving(shop).to_a
+    assert_equal [ newer, older ], Conversation.involving(buyer).to_a
   end
 
   test "the threads an actor is in leave out the ones they are not" do
@@ -213,7 +213,7 @@ class ConversationTest < ActiveSupport::TestCase
 
     message = conversation.post!(buyer, "Is the frame included?")
 
-    assert_equal [message], conversation.messages.oldest_first.to_a
+    assert_equal [ message ], conversation.messages.oldest_first.to_a
     assert_equal buyer, message.sender
     assert_equal "Is the frame included?", message.body
   end
@@ -258,7 +258,7 @@ class ConversationTest < ActiveSupport::TestCase
     support_thread.post!(admin, "Welcome.")
 
     assert_equal(
-      ["/seller/messages/#{seller_thread.id}", "/messages/#{seller_thread.id}", "/messages/#{support_thread.id}"],
+      [ "/seller/messages/#{seller_thread.id}", "/messages/#{seller_thread.id}", "/messages/#{support_thread.id}" ],
       Notification.order(:id).pluck(:url)
     )
   end
@@ -311,7 +311,7 @@ class ConversationTest < ActiveSupport::TestCase
     asked.post!(buyer, "And does it ship rolled?")
     quiet = listing_question(shop, buyer, title: "Meadow at Low Tide")
 
-    counts = Conversation.unread_counts_for(shop, [asked, quiet])
+    counts = Conversation.unread_counts_for(shop, [ asked, quiet ])
 
     assert_equal 2, counts[asked.id]
     assert_equal 0, counts[quiet.id]
@@ -339,7 +339,7 @@ class ConversationTest < ActiveSupport::TestCase
     conversation.post!(buyer, "Is the frame included?")
     listing_question(shop, buyer, title: "Meadow at Low Tide").post!(buyer, "And this one?")
 
-    replaced = capture_turbo_stream_broadcasts([shop, :unread_messages]) do
+    replaced = capture_turbo_stream_broadcasts([ shop, :unread_messages ]) do
       conversation.read_by!(shop)
     end
 
@@ -352,7 +352,7 @@ class ConversationTest < ActiveSupport::TestCase
     shop = create_seller
     conversation = listing_question(shop, create_verified_customer)
 
-    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+    assert_turbo_stream_broadcasts([ shop, :unread_messages ], count: 0) do
       conversation.read_by!(shop)
     end
   end
@@ -363,7 +363,7 @@ class ConversationTest < ActiveSupport::TestCase
     conversation = listing_question(shop, buyer)
     conversation.post!(buyer, "Is the frame included?")
 
-    assert_turbo_stream_broadcasts([shop, :unread_messages], count: 0) do
+    assert_turbo_stream_broadcasts([ shop, :unread_messages ], count: 0) do
       conversation.transaction do
         conversation.read_by!(shop)
         raise ActiveRecord::Rollback
@@ -444,7 +444,7 @@ class ConversationTest < ActiveSupport::TestCase
 
     assert_equal standing, Conversation.involving(verified).sole
     assert_equal standing, asked.reload.conversation
-    assert_equal ["Is the frame included?", "And does it ship rolled?"], standing.messages.oldest_first.pluck(:body)
+    assert_equal [ "Is the frame included?", "And does it ship rolled?" ], standing.messages.oldest_first.pluck(:body)
     assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
   end
 
