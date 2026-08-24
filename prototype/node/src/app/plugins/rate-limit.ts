@@ -51,12 +51,23 @@ function rendersPages(reply: FastifyReply): boolean {
  * (`undefined`), not the reply itself, and a caller checking that value for
  * "did this trip" would never see a trip at all.
  */
+/**
+ * A tripped form's own re-render: the site's `error` page has nowhere to
+ * put the sentence beside a field, so a route that is a form supplies this
+ * instead — the same shape `views/partials/form-error.ejs` shows a domain
+ * refusal in, applied to the page the form lives on with the fields the
+ * visitor typed still in it. Fastify's `429` status is set before this runs;
+ * the callback only has to render.
+ */
+export type RateLimitedFormRender = (reply: FastifyReply, message: string) => FastifyReply | Promise<FastifyReply>
+
 export async function answerIfRateLimited(
   request: FastifyRequest,
   reply: FastifyReply,
   name: RateLimitName,
   key: string,
   decision: RateLimitDecision,
+  onTrip?: RateLimitedFormRender,
 ): Promise<boolean> {
   if (!decision.tripped) return false
 
@@ -79,7 +90,9 @@ export async function answerIfRateLimited(
 
   const message = tooManyRequestsMessage(decision.retryAfterSeconds)
 
-  if (rendersPages(reply)) {
+  if (onTrip !== undefined) {
+    await onTrip(reply.code(TOO_MANY_REQUESTS), message)
+  } else if (rendersPages(reply)) {
     reply.code(TOO_MANY_REQUESTS).render('error', { title: TOO_MANY_REQUESTS_TITLE, message })
   } else {
     reply.code(TOO_MANY_REQUESTS).type('text/plain; charset=utf-8').send(message)
@@ -99,6 +112,10 @@ export type RateLimitGuardOptions<Params> = {
   /** What the counter is keyed by for this request — an email address, a
    * client ip, or an actor id, per `docs/alignment.md` §3's table. */
   key: (request: RateLimitKeyRequest<Params>) => string
+  /** How a trip answers when the route it guards is a form — see
+   * `RateLimitedFormRender`. Omitted for a route that is not a form's POST,
+   * which keeps the shared `error` page. */
+  onTrip?: (request: RateLimitKeyRequest<Params>) => RateLimitedFormRender
 }
 
 /** One limit's `preHandler`, applied to the route(s) `docs/alignment.md` §3
@@ -115,7 +132,14 @@ export function rateLimitGuard<Params = unknown>(
     const key = options.key(request)
 
     const decision = await checkRateLimit({ db, clock }, limit, { name: options.name, key })
-    const tripped = await answerIfRateLimited(request, reply, options.name, key, decision)
+    const tripped = await answerIfRateLimited(
+      request,
+      reply,
+      options.name,
+      key,
+      decision,
+      options.onTrip?.(request),
+    )
 
     return tripped ? reply : undefined
   }
@@ -150,10 +174,18 @@ export async function magicLinkRequestDecision(
  * route's own parsed body type, the way `rateLimitGuard`'s `Params` is. */
 export function magicLinkRequestGuard<Body>(
   email: (request: FastifyRequest & { body: Body }) => string,
+  onTrip?: (request: FastifyRequest & { body: Body }) => RateLimitedFormRender,
 ): (request: FastifyRequest & { body: Body }, reply: FastifyReply) => Promise<FastifyReply | undefined> {
   return async (request, reply) => {
     const { decision, key } = await magicLinkRequestDecision(request, email(request))
-    const tripped = await answerIfRateLimited(request, reply, 'magic_link_request', key, decision)
+    const tripped = await answerIfRateLimited(
+      request,
+      reply,
+      'magic_link_request',
+      key,
+      decision,
+      onTrip?.(request),
+    )
 
     return tripped ? reply : undefined
   }

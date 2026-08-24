@@ -10,7 +10,7 @@ import { requestActions } from '../../http/request-actions.ts'
 import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { logLine } from '../../log-story.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
-import { magicLinkRequestGuard } from '../../plugins/rate-limit.ts'
+import { magicLinkRequestGuard, type RateLimitedFormRender } from '../../plugins/rate-limit.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
 const NO_ADDRESS = 'Enter an email address to sign in.'
@@ -48,15 +48,24 @@ export type SignInRoutesOptions = {
 export function signInRoutes({ actorType, admits, accountView }: SignInRoutesOptions): ZodRoutes {
   const site = ACTOR_SITES[actorType]
 
-  const refuseLink = async (
+  /** The sign-in page, blank or re-rendered with what was typed: a field error
+   * for an address that does not parse, a form-level one for a tripped
+   * `magic_link_request`. The `admits` refusal never reaches here — it answers
+   * exactly like success (see the call site), so nothing about this page may
+   * tell the two apart. */
+  const renderLogin = (
     reply: FastifyReply,
-    alert: string,
-    redirectTo: string | null,
-  ): Promise<FastifyReply> => {
-    reply.setFlash({ alert })
-
-    return await reply.redirect(loginPath(site.loginPath, redirectTo))
-  }
+    view: { redirectTo: string | null; email?: string; error?: string; formError?: string },
+    status?: number,
+  ): FastifyReply =>
+    (status === undefined ? reply : reply.code(status)).render('login', {
+      title: 'Sign in',
+      loginPath: site.loginPath,
+      redirectTo: view.redirectTo,
+      email: view.email ?? '',
+      error: view.error,
+      formError: view.formError,
+    })
 
   const signInPages: ZodRoutes = (routes, _options, done) => {
     if (actorType === 'customer') routes.addHook('preHandler', rememberCustomerIdentity)
@@ -64,24 +73,35 @@ export function signInRoutes({ actorType, admits, accountView }: SignInRoutesOpt
     routes.get('/login', { schema: { querystring: signInQuery } }, async (request, reply) => {
       if (signedInActorId(request, actorType) !== null) return await reply.redirect(site.homePath)
 
-      return reply.render('login', {
-        title: 'Sign in',
-        loginPath: site.loginPath,
+      return renderLogin(reply, {
         redirectTo: keepLocalRedirect(request.query.redirect_to, actorType, requestOrigin(request)),
       })
     })
+
+    // `reply` already carries the 429 `answerIfRateLimited` set before handing
+    // it here, so `renderLogin` is left to render without touching the status.
+    const onLoginRateLimited = (
+      request: FastifyRequest & { body: SignInForm },
+    ): RateLimitedFormRender => (reply, message) =>
+      renderLogin(reply, {
+        redirectTo: keepLocalRedirect(request.body.redirect_to, actorType, requestOrigin(request)),
+        email: request.body.email ?? '',
+        formError: message,
+      })
 
     routes.post(
       '/login',
       {
         schema: { body: signInForm },
-        preHandler: magicLinkRequestGuard<SignInForm>((request) => request.body.email ?? ''),
+        preHandler: magicLinkRequestGuard<SignInForm>((request) => request.body.email ?? '', onLoginRateLimited),
       },
       async (request, reply) => {
         const submitted = request.body
         const redirectTo = keepLocalRedirect(submitted.redirect_to, actorType, requestOrigin(request))
 
-        if (!isEmailAddress(submitted.email)) return await refuseLink(reply, NO_ADDRESS, redirectTo)
+        if (!isEmailAddress(submitted.email)) {
+          return renderLogin(reply, { redirectTo, email: submitted.email ?? '', error: NO_ADDRESS }, 422)
+        }
 
         const email = normalizeEmail(submitted.email)
 

@@ -97,8 +97,11 @@ test('magic_link_request trips per email address, and sends no further link once
   assert.equal(second.statusCode, 302)
   assert.equal(third.statusCode, 429)
   assert.match(String(third.headers['retry-after']), /^\d+$/)
-  assert.match(third.body, /Too many requests — try again in \d+ minutes\./)
-  assert.match(third.body, /— Art Store<\/title>/)
+  // The sign-in form re-renders with the trip as a field-less error, kept
+  // email and all, rather than the shared error page: §3's "for a form" case.
+  assert.match(third.body, /Sign in — Art Store<\/title>/)
+  assert.match(third.body, /data-form-error[^>]*>\s*Too many requests — try again in \d+ minutes\./)
+  assert.match(third.body, /id="email"[^>]*value="ada@example\.com"/)
 
   const links = await testApp.db.selectFrom('magicLinks').selectAll().execute()
   assert.equal(links.length, 2)
@@ -373,6 +376,11 @@ test('conversation_open trips per actor', async (t) => {
 
   const second = await testApp.app.inject({ method: 'GET', url: '/support', cookies: customer.cookies })
   assert.equal(second.statusCode, 429)
+  // `/support` opens a conversation rather than posting a form, so it carries
+  // no `onTrip` and answers the shared `error` page, not a re-rendered form.
+  assert.match(second.body, /Too many requests — Art Store<\/title>/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.doesNotMatch(second.body, /data-form-error/)
 })
 
 test('listing_write trips per seller and creates no further listing once tripped', async (t) => {

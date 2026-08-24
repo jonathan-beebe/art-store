@@ -147,7 +147,9 @@ for (const site of SITES) {
       payload: { email: 'not-an-address' },
     })
 
-    assert.equal(response.statusCode, 302)
+    assert.equal(response.statusCode, 422)
+    assert.match(response.body, /data-field-error="email"[^>]*>Enter an email address to sign in\./)
+    assert.match(response.body, /id="email"[^>]*value="not-an-address"/)
     assert.equal((await testApp.db.selectFrom('magicLinks').selectAll().execute()).length, 0)
   })
 
@@ -224,8 +226,8 @@ test('a bodiless POST to /login is refused instead of failing', async (t) => {
 
   const response = await testApp.app.inject({ method: 'POST', url: '/login' })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, '/login')
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="email"[^>]*>Enter an email address to sign in\./)
   assert.equal((await testApp.db.selectFrom('magicLinks').selectAll().execute()).length, 0)
 })
 

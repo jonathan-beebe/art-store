@@ -1,0 +1,61 @@
+<%
+/*
+ * One labelled control: the input (or textarea), its label, and its error
+ * beside it, wired for `aria-describedby`/`aria-invalid` the way every text
+ * control in the app now shows a field error. Locals:
+ *   name        - the submitted field name (required)
+ *   label       - the visible label text (required)
+ *   value       - what the control shows (required; '' for none)
+ *   error       - the field's error message, or a falsy value for none
+ *   type        - 'text' (default), 'email', 'password', 'number', or 'textarea'
+ *   id          - the control's DOM id (default: name)
+ *   hint        - helper text shown under the control, before the error
+ *   required, autofocus, maxlength, autocomplete, rows, min, max, step, inputmode - passed through when set
+ *   wrapperClass, labelClass, inputClass, hintClass - class overrides; each has a default
+ */
+var fieldId = typeof id !== 'undefined' ? id : name
+var fieldType = typeof type !== 'undefined' ? type : 'text'
+var hintId = typeof hint !== 'undefined' && hint ? fieldId + '-hint' : null
+var errorId = error ? fieldId + '-error' : null
+var describedBy = [hintId, errorId].filter(Boolean).join(' ')
+
+var wrapperClass_ = typeof wrapperClass !== 'undefined' ? wrapperClass : 'mt-4'
+var labelClass_ = typeof labelClass !== 'undefined' ? labelClass : 'block text-sm font-medium text-neutral-700'
+var inputClass_ = typeof inputClass !== 'undefined' ? inputClass : 'mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm'
+var hintClass_ = typeof hintClass !== 'undefined' ? hintClass : 'mt-1 text-sm text-neutral-600'
+%>
+<div class="<%= wrapperClass_ %>">
+  <label for="<%= fieldId %>" class="<%= labelClass_ %>"><%= label %></label>
+  <% if (fieldType === 'textarea') { %>
+  <textarea
+    name="<%= name %>"
+    id="<%= fieldId %>"
+    <% if (typeof rows !== 'undefined') { %>rows="<%= rows %>"<% } %>
+    <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+    <% if (typeof maxlength !== 'undefined') { %>maxlength="<%= maxlength %>"<% } %>
+    <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
+    <% if (error) { %>aria-invalid="true"<% } %>
+    class="<%= inputClass_ %>"
+  ><%= value %></textarea>
+  <% } else { %>
+  <input
+    type="<%= fieldType %>"
+    name="<%= name %>"
+    id="<%= fieldId %>"
+    value="<%= value %>"
+    <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+    <% if (typeof autofocus !== 'undefined' && autofocus) { %>autofocus<% } %>
+    <% if (typeof maxlength !== 'undefined') { %>maxlength="<%= maxlength %>"<% } %>
+    <% if (typeof autocomplete !== 'undefined') { %>autocomplete="<%= autocomplete %>"<% } %>
+    <% if (typeof inputmode !== 'undefined') { %>inputmode="<%= inputmode %>"<% } %>
+    <% if (typeof min !== 'undefined') { %>min="<%= min %>"<% } %>
+    <% if (typeof max !== 'undefined') { %>max="<%= max %>"<% } %>
+    <% if (typeof step !== 'undefined') { %>step="<%= step %>"<% } %>
+    <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
+    <% if (error) { %>aria-invalid="true"<% } %>
+    class="<%= inputClass_ %>"
+  />
+  <% } %>
+  <% if (typeof hint !== 'undefined' && hint) { %><p id="<%= hintId %>" class="<%= hintClass_ %>"><%= hint %></p><% } %>
+  <%- include('field-error', { field: fieldId, message: error }) %>
+</div>
