@@ -67,6 +67,7 @@ sets `HOST` and `PORT` for the container.
 | `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
 | `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
+| `STALE_ORDER_HOURS` | `24` | How long an order left unverified holds its stock before `make sweep` cancels it. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds the `listing.view` and `ledger.write` lines. |
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
@@ -252,7 +253,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make lint` | `docker compose run --rm app npm run lint` |
 | `make lint-fix` | `docker compose run --rm app npm run lint:fix` |
 | `make check` | `docker compose run --rm app npm run check` |
-| `make sweep` | prints that the command lands with FEAT-019; no CLI yet |
+| `make sweep` | `docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))` |
 | `make docs-check` | `./docker/docs-check.sh` |
 | `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
@@ -579,6 +580,24 @@ it settles, so running the same period again pays nothing. The admin site
 also exposes the run at `POST /admin/payouts`; the seller portal has no
 payout control.
 
+A refund can leave a seller's available balance negative. Nothing clamps it:
+`isPayable` is false while it stands, so the run writes no payout row for that
+seller and the negative nets against their later sales until it clears.
+
+## The stale-order sweep
+
+An order a visitor places and never verifies holds its stock. The sweep hands
+it back:
+
+```sh
+make sweep                      # cancels orders unverified for STALE_ORDER_HOURS (24)
+make sweep AS_OF=2026-08-24     # sweeps as though the run happened then
+```
+
+It touches `pending_verification` orders only — an order that reached
+`awaiting_payment` has a verified customer behind it — and it is idempotent,
+because cancelling moves the order out of the status the query reads.
+
 ## No build step
 
 Node 24 strips TypeScript types natively: `node app/server.ts` runs the
@@ -650,7 +669,7 @@ prototype/node/
       views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
                            unread-badge.ejs
       cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
-                           parse-as-of.ts
+                           sweep-stale-orders.ts, parse-as-of.ts
       test/                build-test-app.ts, commerce-world.ts, log-lines.ts,
                            smoke.test.ts
       assets/app.css       Tailwind source

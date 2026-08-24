@@ -1,6 +1,6 @@
 # Data model
 
-Twenty-four tables, created across ten of the eleven migrations in
+Twenty-five tables, created across eleven of the twelve migrations in
 `src/app/db/migrations/` (the first turns on write-ahead logging and creates
 nothing). Row types live beside them in `src/app/db/schema.ts` (identity) and
 `src/app/db/commerce-schema.ts` (everything else); Kysely's `CamelCasePlugin`
@@ -158,6 +158,7 @@ erDiagram
         text shipping_country
         integer subtotal_cents
         integer total_cents
+        integer refunded_cents "sum of this order's refunds"
         text placed_at
         text finalized_at "nullable — set when paid"
         text cancelled_at "nullable"
@@ -185,7 +186,7 @@ erDiagram
         text id PK
         text order_id FK "UK with seller_id"
         text seller_id FK
-        text status "awaiting_shipment|shipped|delivered"
+        text status "awaiting_shipment|shipped|delivered|declined|refunded"
         text carrier "nullable"
         text tracking_number "nullable"
         integer subtotal_cents
@@ -194,6 +195,17 @@ erDiagram
         text created_at
         text shipped_at "nullable"
         text delivered_at "nullable"
+    }
+    refunds {
+        text id PK
+        text order_id FK
+        text fulfillment_id FK "UK — one reversal per fulfillment"
+        text payment_id FK "the approved charge it goes back against"
+        integer amount_cents "the whole fulfillment subtotal"
+        text reason "1-500 chars"
+        text issued_by_type "seller|admin"
+        text issued_by_id "sel_ or adm_"
+        text created_at
     }
     payouts {
         text id PK
@@ -307,6 +319,9 @@ erDiagram
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
     orders ||--o{ fulfillments : split_by_seller
+    orders ||--o{ refunds : reversed_by
+    payments ||--o{ refunds : charged_on
+    fulfillments ||--o| refunds : reversed_by
     fulfillments ||--o{ ledger_entries : produces
     fulfillments ||--o{ conversations : discussed_in
     payouts ||--o{ ledger_entries : settles
@@ -341,9 +356,19 @@ recipient who is outside the system.
 - **`fulfillments` is unique on `(order_id, seller_id)`** — one per seller in
   an order. `fee_cents` and `net_cents` are written once by `placeOrder` and
   never recomputed.
+- **`refunds` is unique on `fulfillment_id`.** One reversal per fulfillment.
+  The state machine refuses the second one and this index is the same rule
+  where two writers could race it. `issued_by_id` holds a `sel_` id when the
+  seller declined and an `adm_` id when the platform refunded, which is what
+  `issued_by_type` says; it carries no foreign key for the same reason
+  `messages.sender_id` does not.
+- **`orders.refunded_cents` is derived**, rewritten from the order's `refunds`
+  rows after each reversal rather than incremented.
 - **`ledger_entries.amount_cents` is signed.** `held` and `released` are
-  positive, `paid_out` is negative, which is what lets a balance fold the ledger
-  by adding. See [`escrow.md`](escrow.md).
+  positive, `paid_out` and `refunded` are negative, which is what lets a balance
+  fold the ledger by adding. A `refunded` entry names its fulfillment, and the
+  fold reads that to decide whether the reversal comes out of held or out of
+  available. See [`escrow.md`](escrow.md).
 - **`notifications` has three real foreign keys, not a polymorphic pair**, with
   a check constraint that exactly one is set. That keeps every key real and lets
   a customer merge re-point rows by `customer_id` the way it re-points `orders`.

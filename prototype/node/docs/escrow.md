@@ -10,7 +10,8 @@ Code: `app/core/escrow/`, `app/core/money.ts`,
 `app/actions/fulfillments/confirm-delivered.ts`,
 `app/actions/escrow/run-weekly-payout.ts`,
 `app/actions/escrow/ledger-movements.ts`,
-`app/actions/escrow/seller-balance.ts`, `app/cli/run-payouts.ts`.
+`app/actions/escrow/seller-balance.ts`, `app/actions/refunds/issue-refund.ts`,
+`app/cli/run-payouts.ts`.
 
 Money is integer cents everywhere (`Cents`). `percentOfCents` is the only place
 anything divides, and it rounds half away from zero so a fee and its reversal
@@ -29,21 +30,48 @@ flowchart LR
     confirm -->|"releaseMovement: +net"| released(("released"))
     released --> run["runWeeklyPayout<br/>(npm run payouts)"]
     run -->|"payoutMovement: −available"| paidout(("paid_out"))
+    held -.->|"refundMovement: −net"| refunded(("refunded"))
+    released -.->|"refundMovement: −net"| refunded
+    paidout -.->|"refundMovement: −net"| refunded
 ```
 
 Caveats: `amount_cents` is signed. `held` and `released` are positive;
-`paid_out` is negative, because `payoutMovement` negates the amount — which is
-what lets `ledgerBalance` fold the whole ledger by adding. The fold is:
+`paid_out` and `refunded` are negative, because `payoutMovement` and
+`refundMovement` negate the amount — which is what lets `ledgerBalance` fold
+the whole ledger by adding.
 
-```
-heldCents      = totals.held − totals.released
-availableCents = totals.released + totals.paid_out   (adding a negative nets it down)
-paidOutCents   = −totals.paid_out
-```
+`ledgerBalance` walks the movements once. `held` adds to held; `released` moves
+its amount from held to available; `paid_out` nets available down and adds to
+paid out. A `refunded` entry reverses whichever bucket the money is actually
+sitting in, which is why the fold reads `fulfillment_id`: a fulfillment that has
+a `released` entry has already moved to available, so its refund comes out of
+available; one that has not comes out of held.
 
-Only a seller with `available > 0` (`isPayable`) gets a payout row. A `held`
-entry names the fulfillment that produced it; a `paid_out` entry names the
-payout that settled it, and no fulfillment.
+Only a seller with `available > 0` (`isPayable`) gets a payout row. A `held`,
+`released`, or `refunded` entry names the fulfillment that produced it; a
+`paid_out` entry names the payout that settled it, and no fulfillment.
+
+## The three refund timings
+
+Question: where does a `refunded` entry land, and what happens when it lands
+after the money is already gone?
+
+| Timing | Entries for that fulfillment | Held | Available | Paid out |
+| --- | --- | --- | --- | --- |
+| Refund before release | `held +net`, `refunded −net` | 0 | 0 | 0 |
+| Refund after release | `held +net`, `released +net`, `refunded −net` | 0 | 0 | 0 |
+| Refund after payout | `held +net`, `released +net`, `paid_out −net`, `refunded −net` | 0 | −net | +net |
+
+A negative `available` is carried rather than clamped. `isPayable` is false
+while it stands, so `planWeeklyPayout` writes no `paid_out` row for that seller
+and no negative payout is ever sent — the next weeks' released sales net against
+it until it comes back above zero, and only then does the seller get paid again.
+
+The platform's fee on a reversed fulfillment is forgone, not clawed back:
+`feeTotals` (`app/core/escrow/fee-totals.ts`) splits the fee on every settled
+fulfillment into `earnedCents` for the live ones and `refundedCents` for the
+declined and refunded ones, which `/admin` and `/admin/accounting` show side by
+side.
 
 The fee itself is never recomputed. `placeOrder` writes `fee_cents` and
 `net_cents` onto each `fulfillments` row from `platformFee(subtotal)` and
@@ -126,6 +154,8 @@ One $100.00 listing, one unit, one seller, no other activity that period.
 | Delivery confirmed | `confirmDelivered` → `releaseMovement(9000)` | `released +9000` | held $0.00, available $90.00, paid out $0.00 |
 | Payout run, period closed | `runWeeklyPayout` → `payoutMovement(9000)` | `paid_out −9000` | held $0.00, available $0.00, paid out $90.00 |
 | Same period run again | `runWeeklyPayout` | none | unchanged |
+| Dispute upheld | `issueRefund` → `refundMovement(9000)` | `refunded −9000` | held $0.00, available −$90.00, paid out $90.00 |
+| Next period run | `runWeeklyPayout` | none — `isPayable` is false | unchanged; the −$90.00 carries |
 
 Reading the third row through `ledgerBalance`: the per-type totals are `held`
 9000, `released` 9000, `paid_out` −9000, so `heldCents = 9000 − 9000 = 0`,
@@ -133,7 +163,9 @@ Reading the third row through `ledgerBalance`: the per-type totals are `held`
 The platform keeps the $10.00 difference, which `platformMoney` on
 `/admin/accounting` sums from `fulfillments.fee_cents` over fulfillments that
 have a `held` entry — so an unpaid order's fee is not counted and the figure
-reconciles with the ledger.
+reconciles with the ledger. The last two rows give the $10.00 back: the
+fulfillment is `refunded`, so its fee moves out of `feesEarnedCents` and into
+`feesRefundedCents`.
 
 A multi-seller order behaves as several of these side by side: one fulfillment,
 one fee, and one `held` entry per seller, each releasing when that seller's own

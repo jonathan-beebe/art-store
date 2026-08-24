@@ -279,16 +279,18 @@ with a shipping address and a snapshot of what was bought.
 
 **Why it exists.** The commitment. Everything after checkout keys off it.
 
-**Lifecycle.** Eight states — see [`orders.md`](orders.md). A guest's order
+**Lifecycle.** Nine states — see [`orders.md`](orders.md). A guest's order
 starts `pending_verification`; a verified customer's starts
-`awaiting_payment`. Above `paid`, the status is rolled up from fulfillments and
-never set directly.
+`awaiting_payment`. Above `paid`, the status is rolled up from the fulfillments
+that are neither declined nor refunded, and never set directly; an order with
+none of those left is `refunded`.
 
 **Relates to.** Placed by a Customer. Contains Order items. Attempts Payments.
-Splits into Fulfillments.
+Splits into Fulfillments. Reversed by Refunds.
 
 **In code.** `Order` (`orders`), `ORDER_STATUSES`, `placeOrder`,
-`finalizeOrder`, `cancelOrder`, `rollUpOrderStatus`.
+`finalizeOrder`, `cancelOrder`, `cancelOrderAsAdmin`, `sweepStaleOrders`,
+`rollUpOrderStatus`.
 
 ### Order item
 
@@ -329,14 +331,35 @@ seller's whole view of the sale are per seller. A seller's "order" **is** a
 fulfillment.
 
 **Lifecycle.** `awaiting_shipment → shipped → delivered`
-(`FULFILLMENT_STATUS_TRANSITIONS`). Created by `placeOrder`, unique per (order,
-seller).
+(`FULFILLMENT_STATUS_TRANSITIONS`), or out sideways to `declined` (the seller,
+before shipping) or `refunded` (the platform, from any live state). Created by
+`placeOrder`, unique per (order, seller).
 
 **Relates to.** Belongs to an Order and a Seller. Produces Ledger entries.
-Carries the Platform fee. Subject of `fulfillment` Conversations.
+Carries the Platform fee. Subject of `fulfillment` Conversations. Reversed by
+at most one Refund.
 
 **In code.** `Fulfillment` (`fulfillments`), `markShipped`, `confirmDelivered`,
-`hasDeparted`.
+`declineFulfillment`, `hasDeparted`, `isReversed`.
+
+### Refund
+
+**Who/what.** One reversal of one fulfillment: the whole subtotal handed back
+to the customer, the reason, and who issued it — the seller who declined or the
+admin who refunded.
+
+**Why it exists.** A sale that goes wrong has to be recorded, not undone. The
+row is the audit trail behind the customer's money, the seller's negative
+ledger entry, and the platform's forgone fee.
+
+**Lifecycle.** Written once by `issueRefund`, never changed. At most one per
+fulfillment; the state machine refuses the second and a unique index backs it.
+
+**Relates to.** Belongs to an Order and a Fulfillment. Names the approved
+Payment it goes back against. Produces the `refunded` Ledger entry.
+
+**In code.** `Refund` (`refunds`), `issueRefund`, `planRefund`,
+`refundMovement`, `REFUND_ISSUER_TYPES`.
 
 ## Identifiers
 
@@ -622,11 +645,12 @@ where it has a lifecycle, plus `canTransition<Thing>` and a throwing
 | Type | Values | Where |
 | --- | --- | --- |
 | `ListingStatus` | `draft`, `for_sale`, `sold`, `archived` | `core/listings/listing-status.ts` |
-| `OrderStatus` | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`, `partially_shipped`, `shipped`, `delivered`, `cancelled` | `core/orders/order-status.ts` |
-| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered` | `core/orders/fulfillment-status.ts` |
+| `OrderStatus` | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`, `partially_shipped`, `shipped`, `delivered`, `cancelled`, `refunded` | `core/orders/order-status.ts` |
+| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered`, `declined`, `refunded` | `core/orders/fulfillment-status.ts` |
 | `PaymentStatus` | `approved`, `declined` | `core/payments/payment-status.ts` |
 | `DeclineReason` | `generic_decline`, `insufficient_funds`, `invalid_card_number` | `core/payments/decline-reason.ts` |
-| `LedgerEntryType` | `held`, `released`, `paid_out` | `core/escrow/ledger-entry-type.ts` |
+| `LedgerEntryType` | `held`, `released`, `paid_out`, `refunded` | `core/escrow/ledger-entry-type.ts` |
+| `RefundIssuerType` | `seller`, `admin` | `core/orders/refund.ts` |
 | `StockChange` | `take`, `restore`, `keep` | `core/listings/stock-change.ts` |
 | `ListingEventType` | `view`, `favorite`, `unfavorite`, `cart_add` | `core/listings/listing-event-type.ts` |
 | `RemovalKind` | `temporary`, `permanent` | `core/moderation/listing-removal.ts` |

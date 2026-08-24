@@ -420,9 +420,12 @@ See [`escrow.md`](escrow.md).
   never re-price.
 - `ledger_entries.entry_type`: `held` (+net, when the order pays), `released`
   (+net, when the fulfillment is delivered), `paid_out` (−amount, when included
-  in a payout). `ledgerBalance` folds a seller's entries:
-  `held = heldTotal − releasedTotal`, `available = releasedTotal + paidOutTotal`
-  (adding a negative nets it down), `paidOut = −paidOutTotal`.
+  in a payout), `refunded` (−net, when the fulfillment is declined or refunded).
+  `ledgerBalance` walks a seller's entries once: a hold adds to held, a release
+  moves its amount from held to available, a payout nets available down and adds
+  to paid out, and a refund reverses whichever bucket the money is in — held
+  when the fulfillment never released, available when it did. A negative
+  available is carried, and `isPayable` keeps it out of the next payout.
 - Payout period = Monday–Sunday, the most recently completed one
   (`payoutPeriodEndingBefore`). `npm run payouts -- --as-of=DATE`
   (`app/cli/run-payouts.ts`, wrapped as `make payouts AS_OF=…`) calls
@@ -458,8 +461,10 @@ four digits are stored, one `payments` row per attempt.
 `customer_id`, or `admin_id`, held by a check constraint): `subject`, `body`,
 `url`, `read_at`. `notify` is the one write point —
 `itemSoldMessage` to the seller when the order pays, `orderShippedMessage` to
-the customer when a fulfillment ships, `newMessageMessage` to the other side of
-a conversation. `NotificationDelivery` (`app/delivery/notification-delivery.ts`)
+the customer when a fulfillment ships, `fulfillmentDeclinedMessage` to the
+customer when a seller declines, `refundIssuedMessage` to both sides when the
+platform refunds, `orderCancelledMessage` to both sides when an operator
+cancels, and `newMessageMessage` to the other side of a conversation. `NotificationDelivery` (`app/delivery/notification-delivery.ts`)
 is the port for carrying one out of the application; it takes a
 `DeliveryContext` of `{ db, clock }` rather than nothing, which is why it lives
 in `app/delivery/` and not in `app/core/`.
@@ -664,8 +669,11 @@ address does not appear. The magic-link route logs its path as the pattern
 | `cart.remove` | `removeFromCart` |
 | `order.place` | `placeOrder`; `refused` carries the lines that stopped it |
 | `order.pay` | `finalizeOrder`; `refused` on a decline, with `decline_reason` |
-| `order.cancel` | `cancelOrder` |
+| `order.cancel` | `cancelOrder` — from the customer, from `cancelOrderAsAdmin`, and from the sweep; `actor_type` says which |
+| `order.sweep` | `sweepStaleOrders` — `doing` per order, `did` with the count |
 | `fulfillment.ship`, `fulfillment.deliver` | `markShipped`, `confirmDelivered` |
+| `fulfillment.decline` | `declineFulfillment`, wrapping the `refund.issue` it causes |
+| `refund.issue` | `issueRefund`; `data` names `refund_id`, `fulfillment_id`, `amount_cents`, `reason` |
 | `ledger.write` | `writeLedgerEntry`, at `debug` |
 | `payout.run`, `payout.pay` | `runWeeklyPayout` — one `run` around the week, one `pay` per seller inside it |
 | `conversation.open`, `message.post` | `openConversation`, `postMessage` |
@@ -676,10 +684,8 @@ address does not appear. The magic-link route logs its path as the pattern
 | `migrate.run`, `migrate.apply`, `seed.run` | `app/db/migrate.ts`, `app/db/seed.ts` |
 | `app.boot`, `app.shutdown` | `app/server.ts` |
 
-`order.sweep` and the sweep's own `order.cancel`, `fulfillment.decline`,
-`refund.issue`, and `rate_limit.exceed` are in the vocabulary
-(`core/logging/log-event.ts`) and unemitted: the features they belong to are not
-built yet.
+`rate_limit.exceed` is in the vocabulary (`core/logging/log-event.ts`) and
+unemitted: the feature it belongs to is not built yet.
 
 The CLIs build their logger with `createCliLogger`, which binds
 `actor_type: "system"` — nobody asked for a CLI run.

@@ -1,10 +1,13 @@
 # Admin site
 
 What a platform operator does: read every seller, customer, listing, order,
-fulfillment, payout and ledger entry; moderate listings and customers; run the
-weekly payout; and read site traffic.
+fulfillment, refund, payout and ledger entry; moderate listings and customers;
+cancel an unpaid order and refund a fulfillment; run the weekly payout; and read
+site traffic.
 
 Code: `app/sites/admin/`, `app/actions/moderation/`, `app/core/moderation/`,
+`app/actions/refunds/issue-refund.ts`,
+`app/actions/orders/cancel-order-as-admin.ts`,
 `app/plugins/page-views.ts`, `app/actions/analytics/record-page-view.ts`,
 `app/core/analytics/`.
 
@@ -22,7 +25,7 @@ each route would let the next page forget it.
 | `GET /admin/sellers`, `/admin/sellers/:id` | `sellerRows`, `sellerDetail` |
 | `GET /admin/customers?standing=`, `/admin/customers/:id` | `customerRows` (`all` \| `verified` \| `anonymous` \| `blocked`), `customerDetail` |
 | `GET /admin/listings?status=&seller=&removed=`, `/admin/listings/:id` | `listingRows` (`removed` is `any` \| `removed` \| `visible`), `listingDetail` |
-| `GET /admin/orders?status=&customer=`, `/admin/orders/:id` | `orderRows`, `orderDetail` |
+| `GET /admin/orders?status=&customer=`, `/admin/orders/:id` | `orderRows`, `orderDetail` (items, payments, fulfillments, refunds) |
 | `GET /admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id` | `fulfillmentRows`, `fulfillmentDetail` |
 | `GET /admin/accounting` | `sellerAccounts`, `platformMoney` |
 | `GET /admin/payouts?seller=`, `POST /admin/payouts` | `payoutRows`, `runWeeklyPayout` |
@@ -33,6 +36,8 @@ each route would let the next page forget it.
 | `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
 | `POST /admin/listings/:id/removals`, `.../removals/lift` | `removeListing`, `liftListingRemoval` |
 | `POST /admin/customers/:id/blocks`, `.../blocks/lift` | `blockCustomer`, `liftCustomerBlock` |
+| `POST /admin/orders/:id/cancel` | `cancelOrderAsAdmin` — unpaid orders only, with a reason |
+| `POST /admin/fulfillments/:id/refund` | `issueRefund` — any live fulfillment, with a reason |
 
 Every filter is optional and an empty value means "all": the console submits
 `seller=` for "All sellers", which `optionalFilter`
@@ -43,9 +48,17 @@ each taking `Pick<ActionContext, 'db'>` and returning cents and ISO strings;
 `adminPage(title, data)` hands the templates `formatCents`, `formatMoment`, and
 `statusLabel`, so no route builds a display string.
 
+The `status` filters on `/admin/orders` and `/admin/fulfillments` and the
+`type` filter on `/admin/ledger` are built from `ORDER_STATUSES`,
+`FULFILLMENT_STATUSES`, and `LEDGER_ENTRY_TYPES`, so `refunded` (and
+`declined`) appear as filter values without a second list to keep in step.
+
 Balances are folded, never queried per seller: the sellers list, the accounting
 page, and the ledger page each read `ledgerMovements` once and fold with
-`ledgerBalance` rather than calling `sellerBalance` N times.
+`ledgerBalance` rather than calling `sellerBalance` N times. `/admin` and
+`/admin/accounting` show `feesEarnedCents` beside `feesRefundedCents` —
+`feeTotals` splits the fee on every settled fulfillment by whether it was
+reversed, so the platform's forgone fees are a figure rather than an absence.
 `tallyOver(keys, counted)` puts states nobody has reached back on the dashboard,
 because a `group by` answers only for the states that have rows and a dashboard
 that hides `payment_failed` is lying about the state machine.
@@ -58,6 +71,13 @@ its `body` schema (400 if it does not hold together), resolve a local
 `redirect_to` through `resolveLocalRedirect`, call the action, and turn a
 `TransitionError` into a flashed alert. The route never asks whether the move
 is allowed — that answer is the action's.
+
+The two lifecycle writes follow the same shape without sharing the factory:
+each reads its subject (404 if the id names nothing), parses the reason through
+`parseRefundReason` (1–500 characters), calls the action, and turns a
+`TransitionError` — a paid order, a fulfillment already reversed — into a
+flashed alert. The refund form carries `redirect_to`, because the order page
+offers one per fulfillment and the fulfillment page offers its own.
 
 ## What a removal or a block actually does
 

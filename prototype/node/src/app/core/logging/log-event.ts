@@ -7,10 +7,9 @@
  * Tense lives in `phase`, which says whether the line is the intent, a step, or
  * the outcome.
  *
- * Five names below belong to features this prototype does not have yet:
- * `order.sweep` and the sweep's own `order.cancel`, `fulfillment.decline`,
- * `refund.issue`, and `rate_limit.exceed`. They stay in the vocabulary so the
- * table reads whole; the code that emits them arrives with the features.
+ * One name below belongs to a feature this prototype does not have yet:
+ * `rate_limit.exceed`. It stays in the vocabulary so the table reads whole; the
+ * code that emits it arrives with the feature.
  */
 
 export const LOG_EVENTS = [
