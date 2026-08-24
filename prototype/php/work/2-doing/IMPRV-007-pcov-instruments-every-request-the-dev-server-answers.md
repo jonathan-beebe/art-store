@@ -64,3 +64,40 @@ for, in the same voice as the `gd` comment above it.
 - MAINT-001 (static analysis and lint gate)
 - MAINT-003 (make vocabulary, the check gate)
 - RSRCH-001 (M5)
+
+## Working
+
+Added `docker/pcov.ini` (`pcov.enabled=0`), copied into
+`/usr/local/etc/php/conf.d/zz-pcov.ini` by the Dockerfile right after
+`docker-php-ext-enable pcov`, with a comment on that line pointing at the
+file. `composer.json`'s `test` and `test:coverage` scripts now carry
+`-d pcov.enabled=1` alongside the `-d memory_limit=1G` they already had.
+OPcache untouched.
+
+**M5, four alternating rounds, minimum taken (host was loaded, so absolute
+values run higher than RSRCH-001's; the drop is what matters):**
+
+| ini | ms CPU/req on `/` (four rounds) | min |
+|---|---|---|
+| as shipped | 35.0 / 29.6 / 31.6 / 28.0 | 28.0 |
+| `pcov.enabled=0` | 23.8 / 25.9 / 17.3 / 16.8 | **16.8** |
+
+At or below the 18 ms CPU/req target.
+
+**Coverage still on for `composer test`:**
+
+```
+Tests:    1827 passed (4946 assertions)
+Total: 100.0 %
+```
+
+**Verified the ini reaches the process answering requests**, not just a
+one-off CLI invocation: `docker compose exec app php -i | grep -iE '^pcov'`
+shows `PCOV support => Disabled` after the rebuild, and the M5 drop above
+confirms it holds for the `php -S` workers specifically, since M5 measures
+those workers' own cgroup CPU accounting.
+
+`make check` green (lint, assets, 1827 tests at 100.0% coverage).
+
+Left out: nothing scoped to this ticket. OPcache stays off per the
+ticket's instruction.
