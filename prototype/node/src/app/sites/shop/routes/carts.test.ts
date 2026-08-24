@@ -99,7 +99,7 @@ test('removing a piece empties the cart', async (t) => {
   assert.doesNotMatch(response.body, /Harbour at dusk/)
 })
 
-test('adding a sold-out listing redirects with the alert instead of adding it', async (t) => {
+test('adding a sold-out listing re-renders the listing with a field-less refusal instead of adding it', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -113,8 +113,9 @@ test('adding a sold-out listing redirects with the alert instead of adding it', 
     payload: {},
   })
 
-  assert.equal(add.statusCode, 302)
-  assert.equal(add.headers.location, '/art/last-copy')
+  assert.equal(add.statusCode, 422)
+  assert.match(add.body, /data-form-error/)
+  assert.match(add.body, /That listing is no longer for sale\./)
 
   const response = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
   assert.match(response.body, /Your cart is empty\./)
@@ -285,7 +286,29 @@ test('a quantity that is not a quantity is refused rather than silently read as 
     payload: { quantity: 'lots' },
   })
 
-  assert.equal(add.statusCode, 400)
+  assert.equal(add.statusCode, 422)
+  assert.match(add.body, /data-field-error="quantity"[^>]*>Choose a quantity from 1 to 3\./)
+  const cart = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
+  assert.doesNotMatch(cart.body, /Harbour at dusk/)
+})
+
+test('a quantity over what remains in stock is refused with the field kept as typed', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await browseAsAnonymousCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk', quantity: 3 })
+
+  const add = await testApp.app.inject({
+    method: 'POST',
+    url: '/cart/harbour-at-dusk',
+    cookies: customer.cookies,
+    payload: { quantity: '9' },
+  })
+
+  assert.equal(add.statusCode, 422)
+  assert.match(add.body, /data-field-error="quantity"[^>]*>Choose a quantity from 1 to 3\./)
+  assert.match(add.body, /id="quantity"[^>]*value="9"/)
   const cart = await testApp.app.inject({ method: 'GET', url: '/cart', cookies: customer.cookies })
   assert.doesNotMatch(cart.body, /Harbour at dusk/)
 })

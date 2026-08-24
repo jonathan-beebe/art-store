@@ -7,11 +7,6 @@ import type { Message } from '../../../db/commerce-schema.ts'
 import { buildTestApp, signInAsCustomer, signInAsSeller, type TestApp } from '../../../test/build-test-app.ts'
 import { createForSaleListing } from '../test-fixtures.ts'
 
-function flashCookieOf(response: { cookies: { name: string; value: string }[] }): Record<string, string> {
-  const flash = response.cookies.find((cookie) => cookie.name === 'flash')
-  return flash ? { flash: String(flash.value) } : {}
-}
-
 async function askAndAnswer(testApp: TestApp, sellerId: SellerId, listingId: ListingId): Promise<Message> {
   const { db, clock } = testApp
   const buyer = await signInAsCustomer(testApp, 'buyer@example.com')
@@ -177,7 +172,7 @@ test('publishing an FAQ from a listing-question thread adds it to the listing', 
   assert.equal(faq.sourceMessageId, answer.id)
 })
 
-test('publishing with a blank answer flashes and publishes nothing', async (t) => {
+test('publishing with a blank answer re-renders the publish form with a field error beside it, and publishes nothing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -190,19 +185,14 @@ test('publishing with a blank answer flashes and publishes nothing', async (t) =
     payload: { question: 'Is this framed?', answer: '   ' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="new-faq-answer"[^>]*>Enter the answer\./)
+  assert.match(response.body, /id="new-faq-question"[^>]*>Is this framed\?/)
   const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
   assert.equal(faqs.length, 0)
-
-  const follow = await testApp.app.inject({
-    method: 'GET',
-    url: `/seller/listings/${listing.id}/faqs`,
-    cookies: { ...seller.cookies, ...flashCookieOf(response) },
-  })
-  assert.match(follow.body, /Enter the answer\./)
 })
 
-test('a bodiless publish redirects and flashes what is missing, instead of failing', async (t) => {
+test('a bodiless publish re-renders the publish form with what is missing beside each field, instead of failing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -214,16 +204,11 @@ test('a bodiless publish redirects and flashes what is missing, instead of faili
     cookies: seller.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="new-faq-question"[^>]*>Enter the question\./)
+  assert.match(response.body, /data-field-error="new-faq-answer"[^>]*>Enter the answer\./)
   const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
   assert.equal(faqs.length, 0)
-
-  const follow = await testApp.app.inject({
-    method: 'GET',
-    url: `/seller/listings/${listing.id}/faqs`,
-    cookies: { ...seller.cookies, ...flashCookieOf(response) },
-  })
-  assert.match(follow.body, /Enter the question\./)
 })
 
 test('editing a published FAQ updates its wording', async (t) => {
@@ -261,7 +246,7 @@ test('editing a published FAQ updates its wording', async (t) => {
   assert.equal(updated.answer, 'Yes, in oiled oak.')
 })
 
-test('updating with a blank answer flashes and leaves the FAQ unchanged', async (t) => {
+test('updating with a blank answer re-renders that row with a field error and leaves the FAQ unchanged', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -285,20 +270,14 @@ test('updating with a blank answer flashes and leaves the FAQ unchanged', async 
     payload: { question: 'Is this framed?', answer: '   ' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, new RegExp(`data-field-error="faq-${faq.id}-answer"[^>]*>Enter the answer\\.`))
   const unchanged = await testApp.db
     .selectFrom('listingFaqs')
     .selectAll()
     .where('id', '=', faq.id)
     .executeTakeFirstOrThrow()
   assert.equal(unchanged.answer, 'Yes, in oak.')
-
-  const follow = await testApp.app.inject({
-    method: 'GET',
-    url: `/seller/listings/${listing.id}/faqs`,
-    cookies: { ...seller.cookies, ...flashCookieOf(response) },
-  })
-  assert.match(follow.body, /Enter the answer\./)
 })
 
 test('unpublishing removes the FAQ', async (t) => {
@@ -430,18 +409,13 @@ test('publishing the same message twice is refused, and the thread still shows i
     cookies: seller.cookies,
     payload: { question: 'Is this framed?', answer: 'Answered again.', source_message_id: String(answer.id) },
   })
-  assert.equal(second.statusCode, 302)
+  assert.equal(second.statusCode, 422)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /already published/)
 
   const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
   assert.equal(faqs.length, 1)
   assert.equal(faqs[0]?.answer, 'Yes, in oak.')
-
-  const follow = await testApp.app.inject({
-    method: 'GET',
-    url: `/seller/listings/${listing.id}/faqs`,
-    cookies: { ...seller.cookies, ...flashCookieOf(second) },
-  })
-  assert.match(follow.body, /already published/)
 
   const thread = await testApp.app.inject({
     method: 'GET',
@@ -450,4 +424,37 @@ test('publishing the same message twice is refused, and the thread still shows i
   })
   assert.match(thread.body, /Published to FAQ/)
   assert.match(thread.body, new RegExp(`/seller/listings/${listing.id}/faqs#faq-${faqs[0]?.id}`))
+})
+
+test('a blank "Publish as FAQ" submission from the message thread re-renders that thread, not the FAQ index', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id)
+  const answer = await askAndAnswer(testApp, seller.id, listing.id)
+  const conversation = await testApp.db
+    .selectFrom('conversations')
+    .selectAll()
+    .where('id', '=', answer.conversationId)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: {
+      question: 'Is this framed?',
+      answer: '   ',
+      source_message_id: String(answer.id),
+      conversation_id: conversation.id,
+      redirect_to: `/seller/messages/${conversation.id}`,
+    },
+  })
+
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, new RegExp(`action="/seller/messages/${conversation.id}"`))
+  assert.match(response.body, /data-field-error="faq-answer"[^>]*>Enter the answer\./)
+  assert.match(response.body, /id="faq-question"[^>]*>Is this framed\?/)
+  const faqs = await testApp.db.selectFrom('listingFaqs').selectAll().where('listingId', '=', listing.id).execute()
+  assert.equal(faqs.length, 0)
 })

@@ -10,7 +10,7 @@
  *   type        - 'text' (default), 'email', 'password', 'number', or 'textarea'
  *   id          - the control's DOM id (default: name)
  *   hint        - helper text shown under the control, before the error
- *   required, autofocus, maxlength, autocomplete, rows, min, max, step, inputmode - passed through when set
+ *   required, autofocus, readonly, placeholder, maxlength, autocomplete, rows, min, max, step, inputmode - passed through when set
  *   wrapperClass, labelClass, inputClass, hintClass - class overrides; each has a default
  */
 var fieldId = typeof id !== 'undefined' ? id : name
@@ -32,6 +32,8 @@ var hintClass_ = typeof hintClass !== 'undefined' ? hintClass : 'mt-1 text-sm te
     id="<%= fieldId %>"
     <% if (typeof rows !== 'undefined') { %>rows="<%= rows %>"<% } %>
     <% if (typeof required !== 'undefined' && required) { %>required<% } %>
+    <% if (typeof readonly !== 'undefined' && readonly) { %>readonly<% } %>
+    <% if (typeof placeholder !== 'undefined') { %>placeholder="<%= placeholder %>"<% } %>
     <% if (typeof maxlength !== 'undefined') { %>maxlength="<%= maxlength %>"<% } %>
     <% if (describedBy) { %>aria-describedby="<%= describedBy %>"<% } %>
     <% if (error) { %>aria-invalid="true"<% } %>
@@ -45,6 +47,8 @@ var hintClass_ = typeof hintClass !== 'undefined' ? hintClass : 'mt-1 text-sm te
     value="<%= value %>"
     <% if (typeof required !== 'undefined' && required) { %>required<% } %>
     <% if (typeof autofocus !== 'undefined' && autofocus) { %>autofocus<% } %>
+    <% if (typeof readonly !== 'undefined' && readonly) { %>readonly<% } %>
+    <% if (typeof placeholder !== 'undefined') { %>placeholder="<%= placeholder %>"<% } %>
     <% if (typeof maxlength !== 'undefined') { %>maxlength="<%= maxlength %>"<% } %>
     <% if (typeof autocomplete !== 'undefined') { %>autocomplete="<%= autocomplete %>"<% } %>
     <% if (typeof inputmode !== 'undefined') { %>inputmode="<%= inputmode %>"<% } %>
