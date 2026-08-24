@@ -10,10 +10,10 @@ a stated gap; **missing** — not built.
 
 | Measure | Where it is set | Result |
 | --- | --- | --- |
-| Formatting | `src/pint.json` — `laravel` preset plus `strict_comparison`, `strict_param`, `void_return` | `make lint` clean over 448 files |
+| Formatting | `src/pint.json` — `laravel` preset plus `strict_comparison`, `strict_param`, `void_return` | `make lint` clean over 610 files |
 | Static analysis | `src/phpstan.neon` — PHPStan/Larastan, `level: max` over `app`, `database`, `routes`, `tests` | 0 errors, no `excludePaths`, no `ignoreErrors`, no baseline |
 | Strict types | Pint's `declare_strict_types`, re-asserted by `tests/Arch.php` | every PHP file |
-| Tests | Pest, sidecars beside the file they cover | 1107 tests, 2491 assertions |
+| Tests | Pest, sidecars beside the file they cover | 1827 tests, 4934 assertions |
 | Coverage | `make coverage` (pcov) | 100.0% of lines |
 | Architecture rules | `tests/Arch.php` | 8 layer rules plus Pest's `laravel` and `security` presets |
 | Sidecar rule | `tests/SidecarsTest.php` | every non-abstract class under `app/` has one; the exception list is empty |
@@ -62,14 +62,23 @@ with no component library and no font download; `Dockerfile` and
 | Notify customers of shipment | done | `shop.account` inbox | `Shop\AccountControllerTest`, `Listeners\NotifyCustomerOfShipmentTest`, `Notifications\OrderShippedTest` |
 | Escrow held on payment, released on delivery | done | `shop.order.delivered` | `Actions\Fulfillment\ConfirmDeliveredTest`, `Domain\Escrow\LedgerBalanceTest`, `Policies\FulfillmentPolicyTest` |
 | Report of sold goods and funds due | done | `seller.earnings` | `Seller\EarningsControllerTest` |
-| Pay out at the end of every week | done | `payouts:run`, `seller.earnings.payout` | `Console\Commands\RunWeeklyPayoutsTest`, `Domain\Escrow\PayoutPeriodTest` |
+| Pay out at the end of every week | done | `payouts:run`, `admin.payouts.run` | `Console\Commands\RunWeeklyPayoutsTest`, `Domain\Escrow\PayoutPeriodTest`, `Admin\RunPayoutControllerTest` |
+| Customer cancels an unpaid order | done | `shop.order.cancel` | `Actions\Orders\CancelOrderTest`, `Shop\OrderCancellationControllerTest` |
+| Stale unverified orders are swept | done | `orders:sweep` (`make sweep`, hourly on the scheduler) | `Actions\Orders\SweepStaleOrdersTest` |
+| Seller declines a parcel, stock returns | done | `seller.orders.decline` | `Actions\Fulfillment\DeclineFulfillmentTest` |
+| Admin cancels an unpaid order, refunds a fulfillment | done | `admin.orders.cancel`, `admin.fulfillments.refund` | `Actions\Fulfillment\RefundFulfillmentTest`, `Actions\Escrow\IssueRefundTest` |
+| Refund folds through the ledger in all three timings | done | — (domain) | `Domain\Escrow\LedgerBalanceTest`, `Actions\Escrow\RunWeeklyPayoutTest` |
 
 ## Admin site and messaging
 
 | Requirement | Status | Route | Test |
 | --- | --- | --- | --- |
 | Admin actor, seeded not signed up, own guard | done | `auth.admin.login`, `auth.admin.send`, `auth.magic.verify` | `Auth\AdminLoginControllerTest`, `Requests\Auth\SendAdminMagicLinkRequestTest`, `Actions\Auth\SignInAdminTest` |
-| Admin dashboard, sellers and customers lists/detail | done | `admin.dashboard`, `admin.sellers.index`/`.show`, `admin.customers.index`/`.show` | `Admin\DashboardControllerTest`, `Admin\SellerControllerTest`, `Admin\CustomerControllerTest` |
+| Admin dashboard with a tally for every status, including empty ones | done | `admin.dashboard` | `Admin\DashboardControllerTest`, `Domain\Reports\*TallyTest` |
+| Directory: sellers, customers, listings, orders, fulfillments | done | `admin.sellers.*`, `admin.customers.*`, `admin.listings.*`, `admin.orders.*`, `admin.fulfillments.*` | `Admin\SellerControllerTest`, `Admin\CustomerControllerTest`, `Admin\ListingControllerTest`, `Admin\OrderControllerTest`, `Admin\FulfillmentControllerTest` |
+| Accounting, ledger browser, site stats | done | `admin.accounting`, `admin.ledger`, `admin.stats` | `Admin\AccountingControllerTest`, `Admin\LedgerControllerTest`, `Admin\StatsControllerTest` |
+| Listing removals, temporary and permanent | done | `admin.listings.removals.store`/`.lift` | `Actions\Listings\RemoveListingTest`, `Actions\Listings\LiftListingRemovalTest` |
+| Page views rolled up, listing views collapsed per hour | done | — (middleware) | `Http\Middleware\RollUpPageViewsTest`, `Actions\Analytics\RecordPageViewTest`, `Actions\Listings\RecordListingEventTest` |
 | Block a customer from buying; browsing and messaging stay open except posting | done | `admin.customers.blocks.store`, `.blocks.lift` | `Admin\CustomerBlockControllerTest`, `Admin\LiftCustomerBlockControllerTest`, `Actions\Customers\BlockCustomerTest`, `Actions\Customers\LiftCustomerBlockTest`, `Domain\Customers\CustomerStandingTest` |
 | One conversation model for four kinds, one thread per subject under contention | done | — (domain) | `Domain\Messaging\ConversationKindTest`, `Domain\Messaging\ConversationSubjectTest`, `Models\ConversationTest` |
 | Read is ownership-only and denies as not found; post adds standing | done | — (policy) | `Policies\ConversationPolicyTest` |
@@ -121,6 +130,23 @@ with no component library and no font download; `Dockerfile` and
 | Guest checkout requiring verification before the order finalizes | done | `Shop\CheckoutController::place` |
 | Work queued and delivered by agents | done | `work/journal.md` — every ticket in `work/3-done/` |
 | Delivered in `./prototype/php/` with a complete README and a docs folder | done | `README.md`, `docs/` |
+
+## Against the alignment contract
+
+`docs/alignment.md` fixes the shapes the three prototypes share. What this one
+implements, section by section.
+
+| Contract | Status | Where |
+| --- | --- | --- |
+| §1 Prefixed ULID identifiers | done | `App\Domain\Identifiers\PrefixedId`, `App\Models\Concerns\HasPrefixedUlid`; every domain table plus `notifications`. Two recorded deviations — the minting clock and the ordering tiebreak (gaps 9 and 13) |
+| §2 Structured JSON logs | done | `App\Logging\StoryFormatter`, `App\Support\Story`, `App\Http\Middleware\LogRequestStory`; one `stdout` channel in every environment. 32 of the §2.3 events; one recorded deviation (gap 10) |
+| §3 Rate limits and security headers | done | `App\Domain\RateLimiting\*`, `App\Support\RateLimiting\RateLimitGate`, `App\Http\Middleware\SecurityHeaders`; all seven limits, 429 with `Retry-After`, CSP and nosniff and Referrer-Policy on every response, HSTS in production |
+| §4 Transaction lifecycle | done | `App\Actions\Orders\CancelOrder`, `SweepStaleOrders`, `App\Actions\Fulfillment\DeclineFulfillment`, `RefundFulfillment`, `App\Actions\Escrow\IssueRefund`; the `refunds` table and the `refunded` ledger entry across all three timings. One amendment proposed — the fold groups by fulfillment |
+| §5 Admin feature set | done | `App\Http\Controllers\Admin\*` — directory, dashboard, accounting, ledger, stats, moderation, payouts. See `docs/admin.md` |
+| §6 Workflows | done | the `Makefile`'s target vocabulary, `make check` as the commit gate, `.github/workflows/php.yml` running the same command |
+
+The full amendment list this prototype proposes against the contract is in the
+alignment tickets' `## Working` sections under `work/3-done/`.
 
 ## Compared to the Node prototype
 
@@ -187,42 +213,60 @@ unread badge — on the four points where the two designs actually differ.
    `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS` turn
    the channel on, but no mailer is configured beyond `MAIL_MAILER=log`, so
    nothing has been sent to a real inbox.
-2. **The payout button pays every seller**, not the signed-in one. It is
-   labelled a debug control on `seller.earnings` and the flash says so, and
-   `Seller\PayoutControllerTest` pins the behavior ("pays out every seller with
-   released escrow, not only the signed-in seller") so a change to it fails a
-   test rather than passing unnoticed.
-3. **Shipment tracking is a text field.** No carrier integration; the customer
+2. **Shipment tracking is a text field.** No carrier integration; the customer
    confirms delivery from the order page.
-4. **The cart's Checkout button stays live on an unavailable line.** The
-   shopper is refused at the write, with the item named, rather than at the
-   button.
-5. **Replacing a listing image that fails to store keeps the old one
+3. **Replacing a listing image that fails to store keeps the old one
    silently.** The create path flashes the failure; the update path does not.
-6. **Seeded listings carry a generated placeholder SVG**, not artwork.
-7. **A closed messaging tab does not free its SSE worker at once.** The
+4. **Seeded listings carry a generated placeholder SVG**, not artwork, and the
+   seeder writes no `refunds` row — seed data shows the happy path only.
+5. **A closed messaging tab does not free its SSE worker at once.** The
    generator yields only on a change, so `connection_aborted()` is checked
    less often than a keepalive would allow; measured, an abandoned stream
    holds its worker for about five seconds. See `docs/messaging.md` § "The
    live badge".
-8. **A cookieless client of `/events` mints a `customers` row per request**,
+6. **A cookieless client of `/events` mints a `customers` row per request**,
    the same as any other storefront route with no `customer_id` cookie — a
    crawler that ignores cookies holds one worker per reconnect. Bounded, not a
-   new hole. See `docs/messaging.md` § "The live badge".
-9. **A blocked customer's ask leaves an empty thread.** `OpenConversation`
-   runs before the `post` policy check on `shop.listing.questions`, so a
-   blocked visitor's submission opens (or finds) the thread and only the
-   message is refused. See `docs/messaging.md` § "What a block does".
-10. **The reply forms' `maxlength` attributes are literals**, not reads of
-    `MessageBody::MAX_LENGTH` / `FaqDraft::*_MAX_LENGTH`. The form request
-    still enforces the real limit either way. See `docs/messaging.md` §
-    "A question becomes a published FAQ".
+   new hole.
+7. **The reply forms' `maxlength` attributes are literals**, not reads of
+   `MessageBody::MAX_LENGTH` / `FaqDraft::*_MAX_LENGTH`. The form request
+   still enforces the real limit either way.
+8. **The seller's listing index carries an N+1 on the active removal.**
+   `Listing::currentRemoval()` always issues a fresh query, and the index
+   view asks `availableTransitions()` per row. Bounded to one seller's own
+   catalogue. The admin listings list does not have it — it eager-loads
+   `activeRemoval`.
+9. **Ids are minted from the application clock, not the action's moment.**
+   `docs/alignment.md` §1 says the id is minted from the clock the action
+   already receives; `HasPrefixedUlid` mints from Laravel's freezable
+   `Date::now()`. Relative creation order holds; the ULID's time bits do not
+   track a seeded row's domain date.
+10. **The opening `http.request` line carries `request_id` alone.**
+    `session_id` and the actor marks join inside the `web` group, so they
+    appear on the `did` line and on every domain line between, but not on the
+    `will` line. §2.1 marks `session_id` as present on requests.
+11. **An unrecognised admin filter value reads as absent.** `?status=nonsense`
+    lists everything rather than answering 400; Laravel's `$request->enum()`
+    treats absent, empty, and unrecognised alike. The Node prototype answers
+    400 for the same input.
+12. **A merged cart keeps a line whose listing carries an active removal.**
+    The fold clamps to stock rather than dropping the line, on the grounds
+    that a removal may be lifted; checkout refuses the line with the
+    `removed` reason.
+13. **Ordering falls back to the id.** Every list orders by a timestamp with
+    the id as tiebreak, because Laravel stores timestamps at second
+    resolution and rows written inside one second would otherwise tie.
+    `docs/alignment.md` §1 says ordering uses `created_at` and never the id.
+14. **Concurrency is judged, not exercised.** Row locks (`for update`) are
+    asserted by compiling the query against a grammar that supports them.
+    SQLite serialises writers, so no test demonstrates two transactions
+    interleaving.
 
 ## Suggested next steps
 
 1. Point `MAIL_MAILER` at a real transport and turn on the `mail` channel,
    which closes gap 1 and removes the debug alert from the demo path.
-2. Scope the payout button to the signed-in seller, or move it behind an
-   artisan-only path and keep `payouts:run` as the single entry point.
-3. Replace the placeholder SVG images with real uploads in the seeder so the
-   storefront demo shows artwork.
+2. Replace the placeholder SVG images with real uploads in the seeder so the
+   storefront demo shows artwork, and seed one declined fulfillment so the
+   refund path shows in the demo data.
+3. Eager-load the active removal on the seller's listing index (gap 8).
