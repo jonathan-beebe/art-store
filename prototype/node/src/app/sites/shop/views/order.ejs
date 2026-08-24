@@ -69,6 +69,19 @@
       </p>
       <% } %>
 
+      <% if (fulfillment.refund) { %>
+      <div
+        role="status"
+        data-refund
+        class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900"
+      >
+        <p class="text-base">
+          <span data-cell="amount"><%= formatCents(fulfillment.refund.amountCents) %></span> refunded
+        </p>
+        <p data-cell="reason" class="mt-2 text-base"><%= fulfillment.refund.reason %></p>
+      </div>
+      <% } %>
+
       <ul class="mt-4 space-y-2">
         <% fulfillment.items.forEach(function (item) { %>
         <li class="flex items-baseline justify-between gap-6 text-base">

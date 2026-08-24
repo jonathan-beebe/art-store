@@ -185,3 +185,161 @@ test('a visitor with no admin cookie is sent to sign in from the fulfillment det
 
   assert.equal(response.statusCode, 302)
 })
+
+test('POST /admin/fulfillments/:id/refund reverses the sale without restoring stock', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+  await markShipped(context, {
+    fulfillmentId: fulfillment.id,
+    carrier: 'Royal Mail',
+    trackingNumber: 'RM123456789GB',
+  })
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/fulfillments/${fulfillment.id}/refund`,
+    cookies: admin.cookies,
+    payload: { reason: 'The customer never received it.' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const refunded = await testApp.db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(refunded.status, 'refunded')
+
+  const refund = await testApp.db
+    .selectFrom('refunds')
+    .selectAll()
+    .where('fulfillmentId', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(refund.issuedByType, 'admin')
+  assert.equal(refund.issuedById, admin.id)
+  assert.equal(refund.amountCents, 45_000)
+
+  const stock = await testApp.db
+    .selectFrom('listings')
+    .select(['quantity', 'status'])
+    .where('id', '=', listing.id)
+    .executeTakeFirstOrThrow()
+  assert.deepEqual(stock, { quantity: 0, status: 'sold' })
+})
+
+test('POST /admin/fulfillments/:id/refund refuses a second refund', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const url = `/admin/fulfillments/${fulfillment.id}/refund`
+  await testApp.app.inject({ method: 'POST', url, cookies: admin.cookies, payload: { reason: 'First.' } })
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url,
+    cookies: admin.cookies,
+    payload: { reason: 'Second.' },
+  })
+
+  assert.equal(second.statusCode, 302)
+  const refunds = await testApp.db
+    .selectFrom('refunds')
+    .selectAll()
+    .where('fulfillmentId', '=', fulfillment.id)
+    .execute()
+  assert.equal(refunds.length, 1)
+})
+
+test('POST /admin/fulfillments/:id/refund refuses an empty reason', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/fulfillments/${fulfillment.id}/refund`,
+    cookies: admin.cookies,
+    payload: { reason: '  ' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  assert.deepEqual(await testApp.db.selectFrom('refunds').selectAll().execute(), [])
+})
+
+test('POST /admin/fulfillments/:id/refund on an id that names nothing is not found', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/fulfillments/${fixtureId('ful', 404)}/refund`,
+    cookies: admin.cookies,
+    payload: { reason: 'Nobody home.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('the fulfillment page shows the refund once it has been issued', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/fulfillments/${fulfillment.id}/refund`,
+    cookies: admin.cookies,
+    payload: { reason: 'The customer never received it.' },
+  })
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/fulfillments/${fulfillment.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /data-cell="reason"[\s\S]*The customer never received it\./)
+  assert.match(response.body, /data-cell="issued-by"[^>]*>\s*Admin\s*</)
+  assert.match(response.body, /data-ledger-entry[\s\S]*Refunded/)
+})

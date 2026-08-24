@@ -27,6 +27,7 @@ test('a seller with no activity shows a zeroed, reconciled row', async (t) => {
       availableCents: 0,
       paidOutCents: 0,
       payoutTotalCents: 0,
+      refundedCents: 0,
       reconciles: true,
       lifetimeSubtotalCents: 0,
       lifetimeFeeCents: 0,

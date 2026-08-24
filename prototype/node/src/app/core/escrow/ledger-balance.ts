@@ -1,28 +1,67 @@
-import { addCents, negateCents, subtractCents, ZERO_CENTS, type Cents } from '../money.ts'
-import type { LedgerEntryType } from './ledger-entry-type.ts'
+import { addCents, subtractCents, ZERO_CENTS, type Cents } from '../money.ts'
 import type { LedgerMovement } from './ledger-movement.ts'
-import type { SellerId } from '../ids/entity-ids.ts'
+import type { FulfillmentId, SellerId } from '../ids/entity-ids.ts'
 
 /**
  * What a seller's ledger adds up to: money waiting on delivery, money ready
- * for the next payout, and money already sent.
+ * for the next payout, and money already sent. `availableCents` goes negative
+ * when a refund lands after the money was released, and stays negative until a
+ * later week's sales cover it.
  */
 export type LedgerBalance = { heldCents: Cents; availableCents: Cents; paidOutCents: Cents }
 
+/**
+ * A movement as the fold reads it. The fulfillment is what tells a refund
+ * which bucket it reverses: money still in escrow comes out of held, money
+ * already released comes out of available.
+ */
+export type BalanceMovement = LedgerMovement & { fulfillmentId: FulfillmentId | null }
+
 /** A ledger movement as read alongside the seller it belongs to. */
-export type SellerLedgerMovement = LedgerMovement & { sellerId: SellerId }
+export type SellerLedgerMovement = BalanceMovement & { sellerId: SellerId }
 
-export function ledgerBalance(movements: readonly LedgerMovement[]): LedgerBalance {
-  const totals: Record<LedgerEntryType, Cents> = { held: ZERO_CENTS, released: ZERO_CENTS, paid_out: ZERO_CENTS }
+/** Every fulfillment whose escrow has already moved to available. */
+function releasedFulfillmentIds(movements: readonly BalanceMovement[]): ReadonlySet<FulfillmentId> {
+  const released = new Set<FulfillmentId>()
   for (const movement of movements) {
-    totals[movement.entryType] = addCents(totals[movement.entryType], movement.amountCents)
+    if (movement.entryType === 'released' && movement.fulfillmentId !== null) {
+      released.add(movement.fulfillmentId)
+    }
   }
 
-  return {
-    heldCents: subtractCents(totals.held, totals.released),
-    availableCents: addCents(totals.released, totals.paid_out),
-    paidOutCents: negateCents(totals.paid_out),
+  return released
+}
+
+export function ledgerBalance(movements: readonly BalanceMovement[]): LedgerBalance {
+  const released = releasedFulfillmentIds(movements)
+  let heldCents = ZERO_CENTS
+  let availableCents = ZERO_CENTS
+  let paidOutCents = ZERO_CENTS
+
+  for (const movement of movements) {
+    switch (movement.entryType) {
+      case 'held':
+        heldCents = addCents(heldCents, movement.amountCents)
+        break
+      case 'released':
+        heldCents = subtractCents(heldCents, movement.amountCents)
+        availableCents = addCents(availableCents, movement.amountCents)
+        break
+      case 'paid_out':
+        availableCents = addCents(availableCents, movement.amountCents)
+        paidOutCents = subtractCents(paidOutCents, movement.amountCents)
+        break
+      case 'refunded':
+        if (movement.fulfillmentId !== null && released.has(movement.fulfillmentId)) {
+          availableCents = addCents(availableCents, movement.amountCents)
+        } else {
+          heldCents = addCents(heldCents, movement.amountCents)
+        }
+        break
+    }
   }
+
+  return { heldCents, availableCents, paidOutCents }
 }
 
 export function isPayable(balance: LedgerBalance): boolean {

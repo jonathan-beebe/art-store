@@ -3,10 +3,13 @@ import { cartLineTotal } from '../../../core/cart/cart-line.ts'
 import type { CustomerId, FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import { customerName } from '../../../core/messaging/participant-name.ts'
 import type { Cents } from '../../../core/money.ts'
-import type { FulfillmentStatus } from '../../../core/orders/fulfillment-status.ts'
+import {
+  canTransitionFulfillment,
+  type FulfillmentStatus,
+} from '../../../core/orders/fulfillment-status.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 import type { AppDatabase } from '../../../db/database.ts'
-import type { Order, OrderItem, Payment } from '../../../db/commerce-schema.ts'
+import type { Order, OrderItem, Payment, Refund } from '../../../db/commerce-schema.ts'
 
 /** One seller's half of the order, as the admin sees every seller's. */
 export type OrderDetailFulfillment = {
@@ -17,6 +20,8 @@ export type OrderDetailFulfillment = {
   subtotalCents: Cents
   feeCents: Cents
   netCents: Cents
+  /** Whether the refund form is offered against this half of the order. */
+  canRefund: boolean
 }
 
 /** An order item priced for display: what the line comes to at its quantity. */
@@ -28,6 +33,7 @@ export type OrderDetail = {
   items: readonly OrderDetailItem[]
   payments: readonly Payment[]
   fulfillments: readonly OrderDetailFulfillment[]
+  refunds: readonly Refund[]
 }
 
 /**
@@ -52,6 +58,7 @@ export async function orderDetail(
   const items = await itemsForOrder(db, order.id)
   const payments = await paymentsForOrder(db, order.id)
   const fulfillments = await fulfillmentsForOrder(db, order.id)
+  const refunds = await refundsForOrder(db, order.id)
 
   return {
     order,
@@ -59,6 +66,7 @@ export async function orderDetail(
     items,
     payments,
     fulfillments,
+    refunds,
   }
 }
 
@@ -111,5 +119,16 @@ async function fulfillmentsForOrder(db: AppDatabase, orderId: OrderId): Promise<
     subtotalCents: row.subtotalCents,
     feeCents: row.feeCents,
     netCents: row.netCents,
+    canRefund: canTransitionFulfillment(row.status, 'refunded'),
   }))
+}
+
+async function refundsForOrder(db: AppDatabase, orderId: OrderId): Promise<readonly Refund[]> {
+  return db
+    .selectFrom('refunds')
+    .selectAll()
+    .where('orderId', '=', orderId)
+    .orderBy('createdAt')
+    .orderBy('id')
+    .execute()
 }

@@ -25,6 +25,7 @@ import type {
   PageViewCountId,
   PaymentId,
   PayoutId,
+  RefundId,
   SellerId,
 } from '../core/ids/entity-ids.ts'
 import type { ListingEventType } from '../core/listings/listing-event-type.ts'
@@ -33,6 +34,7 @@ import type { ConversationKind } from '../core/messaging/conversation-kind.ts'
 import type { RemovalKind } from '../core/moderation/listing-removal.ts'
 import type { FulfillmentStatus } from '../core/orders/fulfillment-status.ts'
 import type { OrderStatus } from '../core/orders/order-status.ts'
+import type { RefundIssuerType } from '../core/orders/refund.ts'
 import type { DeclineReason } from '../core/payments/decline-reason.ts'
 import type { PaymentStatus } from '../core/payments/payment-status.ts'
 import type { Cents } from '../core/money.ts'
@@ -126,6 +128,8 @@ export type OrdersTable = {
   shippingCountry: string
   subtotalCents: MoneyColumn
   totalCents: MoneyColumn
+  /** The `refunds` rows against this order, summed. Defaults to 0 in the migration. */
+  refundedCents: Generated<Cents>
   placedAt: Timestamp
   finalizedAt: Timestamp | null
   cancelledAt: Timestamp | null
@@ -151,6 +155,24 @@ export type PaymentsTable = {
   cardLastFour: string
   declineReason: DeclineReason | null
   processedAt: Timestamp
+}
+
+/**
+ * One reversal: the whole subtotal of one fulfillment, handed back to the
+ * customer by the seller who declined it or the admin who refunded it.
+ */
+export type RefundsTable = {
+  id: RefundId
+  orderId: OrderId
+  fulfillmentId: FulfillmentId
+  /** The approved charge the money came in on. */
+  paymentId: PaymentId
+  amountCents: MoneyColumn
+  reason: string
+  issuedByType: RefundIssuerType
+  /** A `sel_` id when the seller declined, an `adm_` id when the platform refunded. */
+  issuedById: SellerId | AdminId
+  createdAt: Timestamp
 }
 
 export type FulfillmentsTable = {
@@ -185,7 +207,7 @@ export type LedgerEntriesTable = {
   fulfillmentId: FulfillmentId | null
   payoutId: PayoutId | null
   entryType: LedgerEntryType
-  /** Signed: `held` and `released` are positive, `paid_out` is negative. */
+  /** Signed: `held` and `released` are positive, `paid_out` and `refunded` are negative. */
   amountCents: MoneyColumn
   occurredAt: Timestamp
 }
@@ -277,6 +299,7 @@ export type CommerceTables = {
   orders: OrdersTable
   orderItems: OrderItemsTable
   payments: PaymentsTable
+  refunds: RefundsTable
   fulfillments: FulfillmentsTable
   payouts: PayoutsTable
   ledgerEntries: LedgerEntriesTable
@@ -298,6 +321,7 @@ export type CartItem = Selectable<CartItemsTable>
 export type Order = Selectable<OrdersTable>
 export type OrderItem = Selectable<OrderItemsTable>
 export type Payment = Selectable<PaymentsTable>
+export type Refund = Selectable<RefundsTable>
 export type Fulfillment = Selectable<FulfillmentsTable>
 export type Payout = Selectable<PayoutsTable>
 export type LedgerEntry = Selectable<LedgerEntriesTable>

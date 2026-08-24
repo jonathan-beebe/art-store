@@ -28,6 +28,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('shipping_country', 'text', (column) => column.notNull())
     .addColumn('subtotal_cents', 'integer', (column) => column.notNull())
     .addColumn('total_cents', 'integer', (column) => column.notNull())
+    .addColumn('refunded_cents', 'integer', (column) => column.notNull().defaultTo(0))
     .addColumn('placed_at', 'text', (column) => column.notNull())
     .addColumn('finalized_at', 'text')
     .addColumn('cancelled_at', 'text')

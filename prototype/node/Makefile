@@ -94,10 +94,11 @@ payouts:
 outbox:
 	docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))
 
-# The stale-order sweep has no CLI yet; FEAT-019 adds one. Exits 0 so a
-# scripted `make sweep` does not fail while the command doesn't exist.
+# Cancels every order left unverified longer than STALE_ORDER_HOURS (24 by
+# default), handing its stock back to the storefront. `make sweep AS_OF=2026-08-24`
+# sweeps as though the run happened then; running it twice cancels nothing new.
 sweep:
-	@echo "make sweep: lands with FEAT-019, no CLI yet"
+	docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))
 
 logs:
 	docker compose logs -f

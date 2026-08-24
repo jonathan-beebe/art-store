@@ -17,7 +17,7 @@ export async function ledgerMovements(
 ): Promise<readonly SellerLedgerMovement[]> {
   let query = db
     .selectFrom('ledgerEntries')
-    .select(['sellerId', 'entryType', 'amountCents'])
+    .select(['sellerId', 'entryType', 'amountCents', 'fulfillmentId'])
     .orderBy('sellerId')
     .orderBy('occurredAt').orderBy('id')
 

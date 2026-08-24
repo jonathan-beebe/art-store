@@ -26,8 +26,8 @@ test('an empty platform counts nobody and still names every state', async (t) =>
     tallies.listings.every((tally) => tally.count === 0),
     true,
   )
-  assert.equal(tallies.orders.length, 8)
-  assert.equal(tallies.fulfillments.length, 3)
+  assert.equal(tallies.orders.length, 9)
+  assert.equal(tallies.fulfillments.length, 5)
 })
 
 test('customers are split by whether they have given an address', async (t) => {

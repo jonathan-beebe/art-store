@@ -1,6 +1,6 @@
 import type { FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
-import type { Fulfillment, Order, OrderItem } from '../../../db/commerce-schema.ts'
+import type { Fulfillment, Order, OrderItem, Refund } from '../../../db/commerce-schema.ts'
 
 export type FulfillmentWithOrder = Fulfillment & { shippingName: string; placedAt: Order['placedAt'] }
 
@@ -50,6 +50,20 @@ export async function ownedFulfillment(
     .executeTakeFirstOrThrow()
 
   return { fulfillment, order }
+}
+
+/** The reversal against one fulfillment, or null while it has not been reversed. */
+export async function refundForFulfillment(
+  db: AppDatabase,
+  fulfillmentId: FulfillmentId,
+): Promise<Refund | null> {
+  const refund = await db
+    .selectFrom('refunds')
+    .selectAll()
+    .where('fulfillmentId', '=', fulfillmentId)
+    .executeTakeFirst()
+
+  return refund ?? null
 }
 
 /** The lines of an order that belong to this seller — a seller's "order" is

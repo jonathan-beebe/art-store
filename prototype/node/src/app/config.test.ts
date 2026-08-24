@@ -27,6 +27,7 @@ test('an empty environment yields the development defaults', () => {
     magicLinkDelivery: 'flash',
     uploadsDir: DEFAULT_UPLOADS_DIR,
     outboxDir: 'storage/outbox',
+    staleOrderHours: 24,
     publicUrl: null,
     trustProxy: false,
     secureCookies: false,

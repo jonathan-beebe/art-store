@@ -32,6 +32,7 @@ export const TEST_CONFIG: AppConfig = {
   magicLinkDelivery: 'flash',
   uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
   outboxDir: path.join(tmpdir(), 'art-store-test-outbox-unused'),
+  staleOrderHours: 24,
   publicUrl: null,
   trustProxy: false,
   secureCookies: false,

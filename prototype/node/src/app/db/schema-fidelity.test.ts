@@ -32,6 +32,7 @@ import type {
   PageViewCountsTable,
   Payment,
   Payout,
+  Refund,
 } from './commerce-schema.ts'
 
 /**
@@ -159,6 +160,7 @@ const ordersSample: Order = {
   shippingCountry: 'US',
   subtotalCents: cents(100),
   totalCents: cents(100),
+  refundedCents: cents(0),
   placedAt: '2026-01-01T00:00:00.000Z',
   finalizedAt: null,
   cancelledAt: null,
@@ -183,6 +185,18 @@ const paymentsSample: Payment = {
   cardLastFour: '4242',
   declineReason: null,
   processedAt: '2026-01-01T00:00:00.000Z',
+}
+
+const refundsSample: Refund = {
+  id: fixtureId('rfd', 1),
+  orderId: fixtureId('ord', 1),
+  fulfillmentId: fixtureId('ful', 1),
+  paymentId: fixtureId('pay', 1),
+  amountCents: cents(100),
+  reason: 'Damaged in the kiln',
+  issuedByType: 'seller',
+  issuedById: fixtureId('sel', 1),
+  createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 const fulfillmentsSample: Fulfillment = {
@@ -302,6 +316,7 @@ const TABLE_SAMPLES: ReadonlyArray<readonly [string, Record<string, unknown>]> =
   ['order_items', orderItemsSample],
   ['payments', paymentsSample],
   ['fulfillments', fulfillmentsSample],
+  ['refunds', refundsSample],
   ['payouts', payoutsSample],
   ['ledger_entries', ledgerEntriesSample],
   ['notifications', notificationsSample],
@@ -383,6 +398,7 @@ const ADMIN_ID = fixtureId('adm', 1)
 const LISTING_ID = fixtureId('lst', 1)
 const ORDER_ID = fixtureId('ord', 1)
 const FULFILLMENT_ID = fixtureId('ful', 1)
+const PAYMENT_ID = fixtureId('pay', 9)
 const CONVERSATION_ID = fixtureId('cnv', 1)
 
 /**
@@ -406,6 +422,9 @@ async function seedParentRows(db: AppDatabase): Promise<void> {
     db,
   )
   await sql`insert into fulfillments (id, order_id, seller_id, subtotal_cents, fee_cents, net_cents, created_at) values (${FULFILLMENT_ID}, ${ORDER_ID}, ${SELLER_ID}, 100, 10, 90, '2026-01-01T00:00:00.000Z')`.execute(
+    db,
+  )
+  await sql`insert into payments (id, order_id, status, amount_cents, card_last_four, processed_at) values (${PAYMENT_ID}, ${ORDER_ID}, 'approved', 100, '4242', '2026-01-01T00:00:00.000Z')`.execute(
     db,
   )
   await sql`insert into conversations (id, kind, seller_id, admin_id, created_at, last_message_at) values (${CONVERSATION_ID}, 'admin_seller', ${SELLER_ID}, ${ADMIN_ID}, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`.execute(
@@ -446,6 +465,10 @@ const INVALID_STATUS_INSERTS: ReadonlyArray<readonly [string, RawBuilder<unknown
   [
     'fulfillments.status',
     sql`insert into fulfillments (id, order_id, seller_id, status, subtotal_cents, fee_cents, net_cents, created_at) values (${fixtureId('ful', 2)}, ${ORDER_ID}, ${SELLER_ID}, 'not_a_status', 100, 10, 90, '2026-01-01T00:00:00.000Z')`,
+  ],
+  [
+    'refunds.issued_by_type',
+    sql`insert into refunds (id, order_id, fulfillment_id, payment_id, amount_cents, reason, issued_by_type, issued_by_id, created_at) values (${fixtureId('rfd', 1)}, ${ORDER_ID}, ${FULFILLMENT_ID}, ${PAYMENT_ID}, 100, 'Reason', 'not_an_issuer', ${SELLER_ID}, '2026-01-01T00:00:00.000Z')`,
   ],
   [
     'ledger_entries.entry_type',

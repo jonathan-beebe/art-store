@@ -3,7 +3,7 @@ import { cartLineTotal } from '../../../core/cart/cart-line.ts'
 import type { FulfillmentId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
-import type { Fulfillment, LedgerEntry, Order, OrderItem } from '../../../db/commerce-schema.ts'
+import type { Fulfillment, LedgerEntry, Order, OrderItem, Refund } from '../../../db/commerce-schema.ts'
 
 /** An order item priced for display: what the line comes to at its quantity. */
 export type FulfillmentDetailItem = OrderItem & { lineTotalCents: Cents }
@@ -14,6 +14,8 @@ export type FulfillmentDetail = {
   seller: { id: SellerId; name: string; email: string }
   items: readonly FulfillmentDetailItem[]
   ledgerEntries: readonly LedgerEntry[]
+  /** The reversal against this fulfillment, or null while it has not been reversed. */
+  refund: Refund | null
 }
 
 /**
@@ -63,11 +65,18 @@ export async function fulfillmentDetail(
     .orderBy('id')
     .execute()
 
+  const refund = await db
+    .selectFrom('refunds')
+    .selectAll()
+    .where('fulfillmentId', '=', fulfillment.id)
+    .executeTakeFirst()
+
   return {
     fulfillment,
     order,
     seller: { id: sellerRow.id, name: shopName(sellerRow), email: sellerRow.email },
     items,
     ledgerEntries,
+    refund: refund ?? null,
   }
 }

@@ -1,5 +1,6 @@
 import type { FastifyReply } from 'fastify'
 import { z } from 'zod'
+import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import type { FulfillmentId } from '../../../core/ids/entity-ids.ts'
@@ -9,6 +10,7 @@ import {
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
 import { formatCents } from '../../../core/money.ts'
+import { parseRefundReason, REFUND_REASON_MAX_LENGTH } from '../../../core/orders/refund.ts'
 import { parseShipmentDetails } from '../../../core/orders/shipment-details.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { TransitionError } from '../../../core/transition-error.ts'
@@ -23,6 +25,7 @@ import {
   itemTitlesByOrder,
   orderItemsForSeller,
   ownedFulfillment,
+  refundForFulfillment,
   type FulfillmentWithOrder,
 } from '../queries/fulfillments.ts'
 
@@ -30,6 +33,8 @@ const shipmentForm = submittedForm({
   carrier: z.string().optional(),
   tracking_number: z.string().optional(),
 })
+
+const declineForm = submittedForm({ reason: z.string().optional() })
 
 function groupByStatus(
   fulfillments: readonly FulfillmentWithOrder[],
@@ -40,7 +45,8 @@ function groupByStatus(
   }))
 }
 
-function refuseShipment(reply: FastifyReply, fulfillmentId: FulfillmentId, message: string): FastifyReply {
+/** Every refusal on this page says why and sends the seller back to it. */
+function refuse(reply: FastifyReply, fulfillmentId: FulfillmentId, message: string): FastifyReply {
   reply.setFlash({ alert: message })
 
   return reply.redirect(`/seller/orders/${fulfillmentId}`)
@@ -81,6 +87,9 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
       order: owned.order,
       items,
       canShip: canTransitionFulfillment(owned.fulfillment.status, 'shipped'),
+      canDecline: canTransitionFulfillment(owned.fulfillment.status, 'declined'),
+      reasonMaxLength: REFUND_REASON_MAX_LENGTH,
+      refund: await refundForFulfillment(db, owned.fulfillment.id),
       statusLabel,
       formatCents,
       formatDateTime,
@@ -102,7 +111,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
         trackingNumber: submitted.tracking_number,
       })
       if (!details.ok) {
-        return refuseShipment(reply, fulfillmentId, Object.values(details.errors).join(' '))
+        return refuse(reply, fulfillmentId, Object.values(details.errors).join(' '))
       }
 
       try {
@@ -112,11 +121,40 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
           trackingNumber: details.value.trackingNumber,
         })
       } catch (error) {
-        if (error instanceof TransitionError) return refuseShipment(reply, fulfillmentId, error.message)
+        if (error instanceof TransitionError) return refuse(reply, fulfillmentId, error.message)
         throw error
       }
 
       reply.setFlash({ notice: 'Marked shipped.' })
+
+      return reply.redirect(`/seller/orders/${fulfillmentId}`)
+    },
+  )
+
+  portal.post(
+    '/orders/:id/decline',
+    { schema: { params: idParams('ful'), body: declineForm } },
+    async (request, reply) => {
+      const fulfillmentId = request.params.id
+      const sellerId = currentSellerId(request)
+      const owned = await ownedFulfillment(request.server.db, sellerId, fulfillmentId)
+      if (owned === null) return sellerNotFound(reply)
+
+      const reason = parseRefundReason(request.body.reason)
+      if (!reason.ok) return refuse(reply, fulfillmentId, reason.error)
+
+      try {
+        await declineFulfillment(requestActions(request), {
+          fulfillmentId,
+          sellerId,
+          reason: reason.value,
+        })
+      } catch (error) {
+        if (error instanceof TransitionError) return refuse(reply, fulfillmentId, error.message)
+        throw error
+      }
+
+      reply.setFlash({ notice: 'Declined. The customer has been refunded.' })
 
       return reply.redirect(`/seller/orders/${fulfillmentId}`)
     },

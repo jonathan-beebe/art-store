@@ -27,6 +27,7 @@ const environmentVariables = z.object({
   MAGIC_LINK_DELIVERY: z.enum(MAGIC_LINK_DELIVERIES).default('flash'),
   UPLOADS_DIR: z.string().min(1).default(DEFAULT_UPLOADS_DIR),
   OUTBOX_DIR: z.string().min(1).default('storage/outbox'),
+  STALE_ORDER_HOURS: z.coerce.number().int().positive().default(24),
   // Reduced to an origin: every route is served from the root, so a path or
   // query on the way in is noise every link built from it would carry.
   PUBLIC_URL: z
@@ -77,6 +78,8 @@ function toAppConfig(parsed: ParsedEnvironment) {
     uploadsDir: parsed.UPLOADS_DIR,
     // Where the drain writes `.eml` files.
     outboxDir: parsed.OUTBOX_DIR,
+    // How long an unverified order holds its stock before `make sweep` cancels it.
+    staleOrderHours: parsed.STALE_ORDER_HOURS,
     publicUrl,
     trustProxy: parsed.TRUST_PROXY,
     secureCookies: isProduction || publicUrl?.startsWith('https:') === true,

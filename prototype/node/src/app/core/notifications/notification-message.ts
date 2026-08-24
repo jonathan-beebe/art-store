@@ -36,6 +36,45 @@ export function orderShippedMessage(
   }
 }
 
+/** What the customer reads when the seller will not ship their half of an order. */
+export function fulfillmentDeclinedMessage(
+  orderId: OrderId,
+  amountCents: Cents,
+  reason: string,
+  url?: string,
+): NotificationMessage {
+  return {
+    subject: 'Order declined',
+    body:
+      `The seller declined their part of order ${orderId}: ${reason}. ` +
+      `${formatCents(amountCents)} is refunded.`,
+    url: url ?? null,
+  }
+}
+
+/** What both sides read when the platform reverses a sale over their heads. */
+export function refundIssuedMessage(
+  orderId: OrderId,
+  amountCents: Cents,
+  reason: string,
+  url?: string,
+): NotificationMessage {
+  return {
+    subject: 'Order refunded',
+    body: `Art Store refunded ${formatCents(amountCents)} on order ${orderId}: ${reason}.`,
+    url: url ?? null,
+  }
+}
+
+/** What the seller reads when an order they had a share of is cancelled for them. */
+export function orderCancelledMessage(orderId: OrderId, reason: string, url?: string): NotificationMessage {
+  return {
+    subject: 'Order cancelled',
+    body: `Order ${orderId} was cancelled: ${reason}.`,
+    url: url ?? null,
+  }
+}
+
 export function newMessageMessage(conversationSubject: string, url?: string): NotificationMessage {
   return {
     subject: 'New message',

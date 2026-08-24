@@ -25,6 +25,7 @@ export const ID_PREFIXES = {
   orders: 'ord',
   order_items: 'oit',
   payments: 'pay',
+  refunds: 'rfd',
   fulfillments: 'ful',
   ledger_entries: 'led',
   payouts: 'pyt',
@@ -56,6 +57,7 @@ export type FavoriteId = PrefixedId<typeof ID_PREFIXES.favorites>
 export type OrderId = PrefixedId<typeof ID_PREFIXES.orders>
 export type OrderItemId = PrefixedId<typeof ID_PREFIXES.order_items>
 export type PaymentId = PrefixedId<typeof ID_PREFIXES.payments>
+export type RefundId = PrefixedId<typeof ID_PREFIXES.refunds>
 export type FulfillmentId = PrefixedId<typeof ID_PREFIXES.fulfillments>
 export type LedgerEntryId = PrefixedId<typeof ID_PREFIXES.ledger_entries>
 export type PayoutId = PrefixedId<typeof ID_PREFIXES.payouts>

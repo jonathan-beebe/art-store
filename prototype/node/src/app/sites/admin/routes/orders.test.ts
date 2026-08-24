@@ -173,3 +173,180 @@ test('a visitor with no admin cookie is sent to sign in from the order detail pa
 
   assert.equal(response.statusCode, 302)
 })
+
+test('the order page offers Cancel while the order is unpaid', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await placedOrder(context, customerId, [listing.id])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/orders/${order.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, new RegExp(`action="/admin/orders/${order.id}/cancel"`))
+})
+
+test('the order page drops Cancel once the order is paid and offers Refund instead', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/orders/${order.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.doesNotMatch(response.body, new RegExp(`action="/admin/orders/${order.id}/cancel"`))
+  assert.match(response.body, new RegExp(`action="/admin/fulfillments/${fulfillment.id}/refund"`))
+})
+
+test('POST /admin/orders/:id/cancel cancels an unpaid order and tells both sides', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await placedOrder(context, customerId, [listing.id])
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/orders/${order.id}/cancel`,
+    cookies: admin.cookies,
+    payload: { reason: 'The buyer asked us to.' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const cancelled = await testApp.db
+    .selectFrom('orders')
+    .select('status')
+    .where('id', '=', order.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(cancelled.status, 'cancelled')
+
+  const told = await testApp.db.selectFrom('notifications').selectAll().execute()
+  assert.equal(told.filter((row) => row.customerId === customerId).length, 1)
+  assert.equal(told.filter((row) => row.sellerId === sellerId).length, 1)
+})
+
+test('POST /admin/orders/:id/cancel refuses a paid order', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await paidOrder(context, customerId, [listing.id])
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/orders/${order.id}/cancel`,
+    cookies: admin.cookies,
+    payload: { reason: 'Too late.' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db
+    .selectFrom('orders')
+    .select('status')
+    .where('id', '=', order.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'paid')
+})
+
+test('POST /admin/orders/:id/cancel refuses an empty reason', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId)
+  const order = await placedOrder(context, customerId, [listing.id])
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/orders/${order.id}/cancel`,
+    cookies: admin.cookies,
+    payload: { reason: '' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db
+    .selectFrom('orders')
+    .select('status')
+    .where('id', '=', order.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'awaiting_payment')
+})
+
+test('POST /admin/orders/:id/cancel on an id that names nothing is not found', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/orders/${fixtureId('ord', 404)}/cancel`,
+    cookies: admin.cookies,
+    payload: { reason: 'Nobody home.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+})
+
+test('refunding from the order page lands back on the order and lists the refund', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+  const listing = await createListing(context, sellerId, { priceCents: 45_000 })
+  const order = await paidOrder(context, customerId, [listing.id])
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+
+  const refunded = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/fulfillments/${fulfillment.id}/refund`,
+    cookies: admin.cookies,
+    payload: { reason: 'The seller went silent.', redirect_to: `/admin/orders/${order.id}` },
+  })
+
+  assert.equal(refunded.headers.location, `/admin/orders/${order.id}`)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/orders/${order.id}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /data-refund=/)
+  assert.match(response.body, /data-cell="reason"[\s\S]*The seller went silent\./)
+  assert.match(response.body, /data-order-refunded[^>]*>\s*\$450\.00\s*</)
+  assert.match(response.body, /data-order-status[^>]*>\s*Refunded\s*</)
+})

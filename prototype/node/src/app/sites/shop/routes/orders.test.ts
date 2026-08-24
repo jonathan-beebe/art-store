@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import type { CustomerId } from '../../../core/ids/entity-ids.ts'
@@ -289,4 +290,34 @@ test('an order id that names nothing is not found', async (t) => {
 
   assert.equal(missing.statusCode, 404)
   assert.equal(nonsense.statusCode, 404)
+})
+
+test('a declined fulfillment shows the reason and what came back', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const customer = await signInAsCustomer(testApp)
+  const { seller, order } = await orderOneArtwork(testApp, { customerId: customer.id })
+  await payForOrder(testApp, { orderId: order.id })
+  const fulfillment = await testApp.db
+    .selectFrom('fulfillments')
+    .selectAll()
+    .where('orderId', '=', order.id)
+    .executeTakeFirstOrThrow()
+  await declineFulfillment(
+    { db: testApp.db, clock: testApp.clock },
+    { fulfillmentId: fulfillment.id, sellerId: seller.id, reason: 'The piece cracked in the kiln.' },
+  )
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/orders/${order.id}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /data-fulfillment-status[\s\S]*Declined/)
+  assert.match(response.body, /data-refund[\s\S]*data-cell="amount">\$240\.00<\/span> refunded/)
+  assert.match(response.body, /data-cell="reason"[^>]*>The piece cracked in the kiln\.</)
+  assert.match(response.body, /data-order-status[^>]*>Refunded</)
+  assert.doesNotMatch(response.body, /Confirm delivery/)
 })

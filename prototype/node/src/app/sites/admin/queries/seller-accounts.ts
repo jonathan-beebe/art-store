@@ -13,6 +13,8 @@ export type SellerAccount = LedgerBalance & {
   sellerId: SellerId
   sellerName: string
   payoutTotalCents: Cents
+  /** Everything handed back to customers out of this seller's sales. */
+  refundedCents: Cents
   reconciles: boolean
   lifetimeSubtotalCents: Cents
   lifetimeFeeCents: Cents
@@ -44,8 +46,9 @@ export async function sellerAccounts(
   const balances = ledgerBalancesBySeller(await ledgerMovements(context))
   const payoutTotals = await payoutTotalsBySeller(context)
   const lifetimeSales = await lifetimeSalesBySeller(context)
+  const refunded = await refundTotalsBySeller(context)
 
-  return sellers.map((seller) => toAccount(seller, balances, payoutTotals, lifetimeSales))
+  return sellers.map((seller) => toAccount(seller, { balances, payoutTotals, lifetimeSales, refunded }))
 }
 
 export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<readonly SellerOption[]> {
@@ -59,21 +62,25 @@ export async function sellerOptions({ db }: Pick<ActionContext, 'db'>): Promise<
   return sellers.map((seller) => ({ id: seller.id, name: shopName(seller) }))
 }
 
-function toAccount(
-  seller: SellerOption,
-  balances: ReadonlyMap<SellerId, LedgerBalance>,
-  payoutTotals: Map<SellerId, Cents>,
-  lifetimeSales: Map<SellerId, LifetimeSales>,
-): SellerAccount {
-  const balance = balances.get(seller.id) ?? ZERO_BALANCE
-  const payoutTotalCents = payoutTotals.get(seller.id) ?? ZERO_CENTS
-  const lifetime = lifetimeSales.get(seller.id) ?? ZERO_LIFETIME
+/** Everything the whole-platform reads folded once, indexed by seller. */
+type SellerLedgers = {
+  balances: ReadonlyMap<SellerId, LedgerBalance>
+  payoutTotals: Map<SellerId, Cents>
+  lifetimeSales: Map<SellerId, LifetimeSales>
+  refunded: Map<SellerId, Cents>
+}
+
+function toAccount(seller: SellerOption, ledgers: SellerLedgers): SellerAccount {
+  const balance = ledgers.balances.get(seller.id) ?? ZERO_BALANCE
+  const payoutTotalCents = ledgers.payoutTotals.get(seller.id) ?? ZERO_CENTS
+  const lifetime = ledgers.lifetimeSales.get(seller.id) ?? ZERO_LIFETIME
 
   return {
     sellerId: seller.id,
     sellerName: seller.name,
     ...balance,
     payoutTotalCents,
+    refundedCents: ledgers.refunded.get(seller.id) ?? ZERO_CENTS,
     reconciles: payoutTotalCents === balance.paidOutCents,
     lifetimeSubtotalCents: lifetime.subtotalCents,
     lifetimeFeeCents: lifetime.feeCents,
@@ -89,6 +96,22 @@ async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<
     .execute()
 
   return new Map(rows.map((row) => [row.sellerId, centsFromColumn(row.total)]))
+}
+
+/** What each seller's sales handed back to customers, folded from the refunds themselves. */
+async function refundTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<SellerId, Cents>> {
+  const rows = await db
+    .selectFrom('refunds')
+    .innerJoin('fulfillments', 'fulfillments.id', 'refunds.fulfillmentId')
+    .select(['fulfillments.sellerId as sellerId', 'refunds.amountCents as amountCents'])
+    .execute()
+
+  const bySeller = new Map<SellerId, Cents>()
+  for (const row of rows) {
+    bySeller.set(row.sellerId, addCents(bySeller.get(row.sellerId) ?? ZERO_CENTS, row.amountCents))
+  }
+
+  return bySeller
 }
 
 /**

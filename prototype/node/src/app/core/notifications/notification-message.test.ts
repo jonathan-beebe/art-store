@@ -3,9 +3,12 @@ import assert from 'node:assert/strict'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { cents } from '../money.ts'
 import {
+  fulfillmentDeclinedMessage,
   itemSoldMessage,
-  orderShippedMessage,
   newMessageMessage,
+  orderCancelledMessage,
+  orderShippedMessage,
+  refundIssuedMessage,
   signInLinkMessage,
 } from './notification-message.ts'
 
@@ -60,4 +63,43 @@ test('a sign-in message carries the link and says how long it lasts', () => {
   assert.equal(message.subject, 'Your Art Store sign-in link')
   assert.equal(message.body, 'Open the link below to sign in. It expires in 15 minutes and works once.')
   assert.equal(message.url, 'http://localhost:4000/auth/magic/abc')
+})
+
+test('a decline tells the customer why and what comes back', () => {
+  const message = fulfillmentDeclinedMessage(ORDER_ID, cents(45_000), 'Damaged in the kiln')
+
+  assert.equal(message.subject, 'Order declined')
+  assert.equal(
+    message.body,
+    `The seller declined their part of order ${ORDER_ID}: Damaged in the kiln. $450.00 is refunded.`,
+  )
+  assert.equal(message.url, null)
+})
+
+test('a decline notice takes a url to the order it is about', () => {
+  assert.equal(fulfillmentDeclinedMessage(ORDER_ID, cents(45_000), 'Damaged', '/orders/7').url, '/orders/7')
+})
+
+test('a refund names the platform as the one who issued it', () => {
+  const message = refundIssuedMessage(ORDER_ID, cents(45_000), 'Never arrived')
+
+  assert.equal(message.subject, 'Order refunded')
+  assert.equal(message.body, `Art Store refunded $450.00 on order ${ORDER_ID}: Never arrived.`)
+  assert.equal(message.url, null)
+})
+
+test('a refund notice takes a url to the order it is about', () => {
+  assert.equal(refundIssuedMessage(ORDER_ID, cents(45_000), 'Never arrived', '/orders/7').url, '/orders/7')
+})
+
+test('a cancellation carries the reason it was cancelled for', () => {
+  const message = orderCancelledMessage(ORDER_ID, 'Customer changed their mind')
+
+  assert.equal(message.subject, 'Order cancelled')
+  assert.equal(message.body, `Order ${ORDER_ID} was cancelled: Customer changed their mind.`)
+  assert.equal(message.url, null)
+})
+
+test('a cancellation notice takes a url to the order it is about', () => {
+  assert.equal(orderCancelledMessage(ORDER_ID, 'Stale', '/admin/orders/7').url, '/admin/orders/7')
 })

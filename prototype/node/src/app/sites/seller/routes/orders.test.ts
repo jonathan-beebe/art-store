@@ -355,3 +355,183 @@ test('marking a fulfillment shipped tells fulfillment.ship naming the order', as
   assert.equal(did.status_to, 'shipped')
   assert.equal(log.line('fulfillment.ship', 'did').actor_id, seller.id)
 })
+
+test('the order page offers the decline form while the piece has not shipped', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/orders/${fulfillment.id}`,
+    cookies: seller.cookies,
+  })
+
+  assert.match(response.body, new RegExp(`action="/seller/orders/${fulfillment.id}/decline"`))
+})
+
+test('the order page drops the decline form once the piece has shipped', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createDeliveredFulfillment(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/orders/${fulfillment.id}`,
+    cookies: seller.cookies,
+  })
+
+  assert.doesNotMatch(response.body, /\/decline"/)
+})
+
+test('declining refunds the customer and puts the piece back on the storefront', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const listing = await createForSaleListing(testApp, seller.id, { quantity: 1 })
+  const fulfillment = await createFulfillment(testApp, seller.id, listing)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: 'The piece cracked in the kiln.' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const declined = await testApp.db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(declined.status, 'declined')
+
+  const restocked = await testApp.db
+    .selectFrom('listings')
+    .select(['quantity', 'status'])
+    .where('id', '=', listing.id)
+    .executeTakeFirstOrThrow()
+  assert.deepEqual(restocked, { quantity: 1, status: 'for_sale' })
+})
+
+test('the declined page shows the reason and what went back', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: 'The piece cracked in the kiln.' },
+  })
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/seller/orders/${fulfillment.id}`,
+    cookies: seller.cookies,
+  })
+
+  assert.match(response.body, /data-cell="reason"[\s\S]*The piece cracked in the kiln\./)
+  assert.match(response.body, /data-cell="amount"[^>]*>\s*\$450\.00\s*</)
+})
+
+test('a decline with no reason is refused and changes nothing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: '   ' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'awaiting_shipment')
+})
+
+test('declining after shipping is refused rather than applied', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createDeliveredFulfillment(testApp, seller.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: 'Changed my mind.' },
+  })
+
+  assert.equal(response.statusCode, 302)
+  const unchanged = await testApp.db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'delivered')
+})
+
+test("declining another seller's order is not found", async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const rival = await signInAsSeller(testApp, 'rival@example.com')
+  const rivalFulfillment = await createFulfillment(testApp, rival.id)
+
+  const response = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${rivalFulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: 'Not mine to decline.' },
+  })
+
+  assert.equal(response.statusCode, 404)
+  const unchanged = await testApp.db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', rivalFulfillment.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(unchanged.status, 'awaiting_shipment')
+})
+
+test('declining tells fulfillment.decline and refund.issue under one transaction', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  const log = testApp.logLines
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillment = await createFulfillment(testApp, seller.id)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/orders/${fulfillment.id}/decline`,
+    cookies: seller.cookies,
+    payload: { reason: 'The piece cracked in the kiln.' },
+  })
+
+  const declined = log.data('fulfillment.decline', 'did')
+  assert.equal(declined.fulfillment_id, fulfillment.id)
+  assert.equal(declined.status_to, 'declined')
+
+  const issued = log.data('refund.issue', 'did')
+  assert.equal(issued.fulfillment_id, fulfillment.id)
+  assert.equal(issued.amount_cents, 45_000)
+  assert.equal(issued.reason, 'The piece cracked in the kiln.')
+  assert.equal(typeof issued.refund_id, 'string')
+  assert.equal(
+    log.line('refund.issue', 'did').txn_id,
+    log.line('fulfillment.decline', 'did').txn_id,
+  )
+  assert.equal(log.line('fulfillment.decline', 'did').actor_type, 'seller')
+})
