@@ -164,19 +164,14 @@ class Customer extends Authenticatable
     }
 
     /**
-     * A merge hands the verified customer whatever cart the anonymous visitor
-     * was filling, so they can own two. The one holding items is the one the
-     * visitor was shopping with.
+     * A customer holds at most one cart — `MergeAnonymousCustomer` folds an
+     * anonymous visitor's cart into the verified customer's own rather than
+     * re-pointing it alongside, so there is never a second one to choose
+     * between.
      */
-    public function currentCart(): Cart
+    public function cart(): Cart
     {
-        return $this->carts()
-            ->withCount('items')
-            ->orderByDesc('items_count')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->first()
-            ?? $this->carts()->create();
+        return $this->carts()->first() ?? $this->carts()->create();
     }
 
     /**

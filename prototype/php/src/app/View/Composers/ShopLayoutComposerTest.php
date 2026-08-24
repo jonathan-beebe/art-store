@@ -14,7 +14,7 @@ use App\Notifications\OrderShipped;
 it('counts the items the visitor is carrying', function (): void {
     $visitor = $this->visitor();
     app(AddToCart::class)(
-        $visitor->currentCart(),
+        $visitor->cart(),
         $this->listing($this->seller(), ['quantity' => 3]),
         2,
         $this->moment('2026-08-20 08:00:00'),

@@ -29,7 +29,7 @@ final class CheckoutController extends ShopController
     public function show(): View|RedirectResponse
     {
         $visitor = $this->visitor();
-        $cart = $visitor->currentCart()->load('items.listing.seller');
+        $cart = $visitor->cart()->load('items.listing.seller');
 
         if ($cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
@@ -51,7 +51,7 @@ final class CheckoutController extends ShopController
         RateLimitGate $rateLimit,
     ): View|RedirectResponse|Response {
         $visitor = $this->visitor();
-        $cart = $visitor->currentCart();
+        $cart = $visitor->cart();
 
         if ($cart->items()->doesntExist()) {
             return redirect()->route('shop.cart');
@@ -81,7 +81,7 @@ final class CheckoutController extends ShopController
             return $this->tooManyRequests(
                 $exceeded,
                 'shop.checkout',
-                $this->viewData($visitor->currentCart()->load('items.listing.seller'), $visitor),
+                $this->viewData($visitor->cart()->load('items.listing.seller'), $visitor),
             );
         } catch (OrderPlacementRefused $refusal) {
             // Checkout is where the shopper is already looking at every
@@ -92,7 +92,7 @@ final class CheckoutController extends ShopController
 
             return response()->view(
                 'shop.checkout',
-                $this->viewData($visitor->currentCart()->load('items.listing.seller'), $visitor, $refusal->blocked),
+                $this->viewData($visitor->cart()->load('items.listing.seller'), $visitor, $refusal->blocked),
                 422,
             );
         } catch (DomainRuleViolation $violation) {

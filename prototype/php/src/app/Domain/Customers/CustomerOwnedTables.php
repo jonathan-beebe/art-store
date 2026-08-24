@@ -11,21 +11,35 @@ final class CustomerOwnedTables
     /**
      * Tables whose rows move with the customer when an anonymous identity is
      * merged into a verified one by writing one column and nothing else.
-     * Notifications, sent messages, and conversations move too, but each
-     * carries something a blind column write would leave behind — a morph
-     * type beside the id, a `subject_key` naming the participant — so
-     * `MergeAnonymousCustomer` re-points those through their models instead.
+     * Every other table carrying a `customer_id` column needs more than that
+     * — `leftBehind()` names each one and why, and the manifest test in
+     * `CustomerOwnedTablesTest` checks that the two lists together cover the
+     * schema, so a new `customer_id` column cannot go unhandled by accident.
      *
      * @return array<string, string> table name => column holding the customer id
      */
     public static function all(): array
     {
         return [
-            'favorites' => 'customer_id',
-            'carts' => 'customer_id',
             'orders' => 'customer_id',
             'listing_events' => 'customer_id',
             'customer_blocks' => 'customer_id',
+        ];
+    }
+
+    /**
+     * Tables carrying a `customer_id` column that a blind write would get
+     * wrong, and what handles each one instead.
+     *
+     * @return array<string, string> table name => why it is not in `all()`
+     */
+    public static function leftBehind(): array
+    {
+        return [
+            'favorites' => 'folded by CustomerMergePlan — the union of both customers\' favorites, de-duplicated, applied with updates and deletes',
+            'carts' => 'folded by CustomerMergePlan — quantities summed per listing and clamped to stock, applied to the one cart that survives the merge',
+            'conversations' => 'moved by Conversation::moveCustomer(), which carries subject_key along with customer_id',
+            'customer_merges' => 'the merge record itself — anonymous_customer_id names the row being merged, customer_id the survivor, and a merge does not rewrite its own trail',
         ];
     }
 }

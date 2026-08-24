@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:23:50:00 — IMPRV-005 — done: CustomerMergePlan folds cart quantities and unions favorites, currentCart heuristic gone, schema manifest test added
 - 2026-08-24:22:35:00 — IMPRV-005 — started
 - 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
 - 2026-08-24:22:05:00 — FEAT-024 — fixed up: favorites page reads the storefront set, cart add refuses a removed listing, moderation checks judged against a locked row; 1793 tests, 4865 assertions, 100% lines

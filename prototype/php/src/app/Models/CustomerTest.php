@@ -97,7 +97,7 @@ it('reads the listing events it left', function (): void {
 it('gives a customer without a cart one', function (): void {
     $customer = $this->anonymousCustomer();
 
-    $cart = $customer->currentCart();
+    $cart = $customer->cart();
 
     expect($cart->customer_id)->toBe($customer->id)
         ->and(Cart::count())->toBe(1);
@@ -106,20 +106,15 @@ it('gives a customer without a cart one', function (): void {
 it('returns the same cart twice', function (): void {
     $customer = $this->anonymousCustomer();
 
-    expect($customer->currentCart()->id)->toBe($customer->currentCart()->id);
+    expect($customer->cart()->id)->toBe($customer->cart()->id);
 });
 
-it('picks the cart holding the items after a merge', function (): void {
+it('reads the customer\'s existing cart rather than creating another', function (): void {
     $customer = $this->verifiedCustomer();
-    $this->cartFor($customer);
-    $filled = $this->cartFor($customer);
-    CartItem::factory()->create([
-        'cart_id' => $filled->id,
-        'listing_id' => $this->listing($this->seller())->id,
-        'quantity' => 1,
-    ]);
+    $existing = $this->cartFor($customer);
 
-    expect($customer->currentCart()->id)->toBe($filled->id);
+    expect($customer->cart()->id)->toBe($existing->id)
+        ->and(Cart::count())->toBe(1);
 });
 
 it('can shop with no active block', function (): void {

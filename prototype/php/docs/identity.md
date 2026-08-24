@@ -127,8 +127,9 @@ sequenceDiagram
         Claim->>Claim: create verified customer
     else address owned by a different customer
         Claim->>Merge: __invoke(anonymous, owner)
-        Merge->>Merge: re-point CustomerOwnedTables rows\n(favorites, carts, orders, listing_events, customer_blocks)
-        Merge->>Merge: re-point sent messages, move conversations\n(Conversation::moveCustomer), insert customer_merges row
+        Merge->>Merge: re-point CustomerOwnedTables rows\n(orders, listing_events, customer_blocks)
+        Merge->>Merge: re-point sent messages, move conversations\n(Conversation::moveCustomer)
+        Merge->>Merge: fold cart and favorites\n(CustomerMergePlan), insert customer_merges row
     else cookie already points at the address's owner
         Claim->>Claim: mark email_verified_at
     end
@@ -138,20 +139,48 @@ sequenceDiagram
 ```
 
 Caveats: `MergeAnonymousCustomer` walks
-`App\Domain\Customers\CustomerOwnedTables::all()` (`favorites`, `carts`,
-`orders`, `listing_events`, `customer_blocks`) inside a transaction, writing
-one column per table, and skips any table/column that does not exist yet
-(guards schema drift across tickets landing in parallel). Two things move
-without that table list, because a blind column write would leave part of the
-row behind: **sent messages**, which name their sender by morph type and id
-the way a notification names its recipient, so `sentMessages()->update(...)`
-re-points the relation — the reason a message the verified customer sent must
-not read as unread to them afterwards; and **conversations**, whose
-`subject_key` names the participants as well as the `customer_id` column
-does, so `Conversation::moveCustomer()` writes both together — see
-`docs/messaging.md` § "The merge" for what happens when the verified customer
-already holds the thread for a subject the anonymous row also asked about
-(the moved thread folds into the existing one instead of leaving a duplicate).
+`App\Domain\Customers\CustomerOwnedTables::all()` (`orders`, `listing_events`,
+`customer_blocks`) inside a transaction, writing one column per table, and
+skips any table/column that does not exist yet (guards schema drift across
+tickets landing in parallel). Everything else carrying a `customer_id` column
+is named in `CustomerOwnedTables::leftBehind()`, with the reason a blind write
+would get it wrong, and a schema-manifest test
+(`App\Actions\Customers\CustomerOwnedTablesManifestTest`) checks that the two
+lists together cover every such column — a table added later with one cannot
+go unhandled by accident. **Sent messages** name their sender by morph type
+and id the way a notification names its recipient, so
+`sentMessages()->update(...)` re-points the relation — the reason a message
+the verified customer sent must not read as unread to them afterwards.
+**Conversations**' `subject_key` names the participants as well as the
+`customer_id` column does, so `Conversation::moveCustomer()` writes both
+together — see `docs/messaging.md` § "The merge" for what happens when the
+verified customer already holds the thread for a subject the anonymous row
+also asked about (the moved thread folds into the existing one instead of
+leaving a duplicate).
+
+**The cart and favorites are folded, not re-pointed** — writing
+`carts.customer_id` the way `CustomerOwnedTables` does for a simple table
+would leave the verified customer with two carts, and a unique index is what
+used to swallow a duplicated favorite rather than a decision the merge made
+itself. `App\Domain\Customers\CustomerMergePlan` (pure — no database, no
+Eloquent, tested with its own Pest dataset) takes both customers' cart lines,
+their favorites, and the stock behind whatever listings either cart names,
+and works out: cart quantities summed per listing, clamped to stock, with
+anything that lands at zero dropped; and favorites as the union, with a
+listing already favorited by the verified customer dropped from the
+anonymous side rather than duplicated. `MergeAnonymousCustomer` applies the
+plan to the one cart that survives the merge — the verified customer's own if
+they had one, otherwise the anonymous customer's cart re-pointed, otherwise a
+new one — and to the favorites rows with updates and deletes only, never an
+insert. A removed listing is not special-cased by the fold: its row still
+carries the stock it held before removal, so a line for it survives at that
+quantity, the same as it would sitting untouched in a single cart across a
+removal, and `OrderPlacementPlan` is what blocks it when checkout is
+attempted. `Customer::cart()` reads the one cart a customer now ever holds —
+before this fold, a merged customer could hold two, and `currentCart()`
+picked between them by which held more items; that heuristic no longer has
+anything to pick between.
+
 The anonymous row is never deleted — the
 `customer_merges` row lets a stale cookie on a second device resolve forward
 to the verified customer, following as many recorded merges as it takes to
