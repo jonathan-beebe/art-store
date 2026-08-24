@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:07:20:00 — BUG-005 — started
+- 2026-08-24:07:19:00 — FEAT-021 — done: listing removals, customer blocks, payout run moved to admin, seller payout button deleted; 1182 runs / 4214 assertions / 100% lines
 - 2026-08-24:05:50:00 — FEAT-021 — started
 - 2026-08-24:05:49:00 — FEAT-020 — done: dashboard tallies with zero rows, accounting, ledger browser, stats, page_view_counts roll-up, listing view collapse; 1102 runs / 3924 assertions / 100% lines
 - 2026-08-24:04:10:00 — FEAT-020 — started
