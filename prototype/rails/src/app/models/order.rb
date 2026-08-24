@@ -56,20 +56,37 @@ class Order < ApplicationRecord
   def self.place(cart:, customer:, email:, shipping:, email_verified: false, at: Time.current)
     raise ArgumentError, "an order needs at least one item" if cart.empty?
 
-    order = new(
-      **shipping,
-      customer: customer, email: email, placed_at: at,
-      status: email_verified ? :awaiting_payment : :pending_verification,
-      subtotal_cents: cart.subtotal.cents, total_cents: cart.subtotal.cents
-    )
-    return order unless order.valid?
+    Story.tell("order.place", "placing an order from the cart",
+      cart_id: cart.id, line_count: cart.items.size) do |story|
+      order = new(
+        **shipping,
+        customer: customer, email: email, placed_at: at,
+        status: email_verified ? :awaiting_payment : :pending_verification,
+        subtotal_cents: cart.subtotal.cents, total_cents: cart.subtotal.cents
+      )
+      next refuse(story, cart, order) unless order.valid?
 
-    transaction do
-      order.save!
-      snapshot(order, cart.items.includes(:listing).to_a)
-      split_by_seller(order, cart.subtotals_by_seller)
-      cart.items.destroy_all
+      fulfillments = nil
+
+      transaction do
+        order.save!
+        snapshot(order, cart.items.includes(:listing).to_a)
+        fulfillments = split_by_seller(order, cart.subtotals_by_seller)
+        cart.items.destroy_all
+      end
+
+      story.did("placed the order",
+        order_id: order.id, total_cents: order.total_cents, status: order.status,
+        fulfillment_ids: fulfillments.map(&:id))
+
+      order
     end
+  end
+
+  # A checkout that cannot be placed leaves the cart where it was. The lines
+  # that stopped it are named so the story says what to fix.
+  private_class_method def self.refuse(story, cart, order)
+    story.refused("the order is incomplete", cart_id: cart.id, blocked_lines: [])
 
     order
   end
@@ -87,7 +104,7 @@ class Order < ApplicationRecord
   end
 
   private_class_method def self.split_by_seller(order, subtotals)
-    subtotals.each do |seller_id, subtotal|
+    subtotals.map do |seller_id, subtotal|
       order.fulfillments.create!(
         seller_id: seller_id,
         subtotal_cents: subtotal.cents,
@@ -141,17 +158,23 @@ class Order < ApplicationRecord
   # keeps what was tried, and the stock follows the status. A paid order holds
   # each seller's net in escrow and tells them their item sold.
   def pay!(card_number, at: Time.current)
-    card = FakeCard.new(card_number)
-    landed = self.class.transition(status, card.approved? ? "paid" : "payment_failed")
+    Story.tell("order.pay", "charging the card for the order",
+      order_id: id, amount_cents: total_cents) do |story|
+      card = FakeCard.new(card_number)
+      landed = self.class.transition(status, card.approved? ? "paid" : "payment_failed")
+      payment = nil
 
-    transaction do
-      move_stock(status, landed)
-      record_attempt(card, at)
-      update!(status: landed, finalized_at: (at if landed == "paid"))
-      hold_in_escrow(at) if paid?
+      transaction do
+        move_stock(status, landed)
+        payment = record_attempt(card, at)
+        update!(status: landed, finalized_at: (at if landed == "paid"))
+        hold_in_escrow(at) if paid?
+      end
+
+      tell_the_charge(story, card, payment)
+
+      self
     end
-
-    self
   end
 
   def roll_up_status!
@@ -167,6 +190,15 @@ class Order < ApplicationRecord
   end
 
   private
+
+  # An approved card moves the order on; a declined one leaves it where it was
+  # and says which card table row turned it down.
+  def tell_the_charge(story, card, payment)
+    return story.did("the card was approved", order_id: id, payment_id: payment.id, status: status) if card.approved?
+
+    story.refused("the card was declined",
+      order_id: id, payment_id: payment.id, status: status, decline_reason: card.decline_reason)
+  end
 
   def record_attempt(card, at)
     payments.create!(

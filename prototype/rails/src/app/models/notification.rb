@@ -36,10 +36,18 @@ class Notification < ApplicationRecord
   end
 
   private_class_method def self.deliver(attributes)
-    notification = create!(attributes)
-    notification.deliver_by_email
+    Story.tell("notification.write", "writing a notification to the inbox",
+      recipient_type: attributes[:recipient].model_name.singular, subject: attributes[:subject]) do |story|
+      notification = create!(attributes)
 
-    notification
+      story.did("wrote the notification to the inbox",
+        notification_id: notification.id, recipient_type: notification.recipient_type.downcase,
+        recipient_id: notification.recipient_id, subject: notification.subject)
+
+      notification.deliver_by_email
+
+      notification
+    end
   end
 
   def read!(at: Time.current)
@@ -49,5 +57,9 @@ class Notification < ApplicationRecord
   # The prototype delivers to the in-app inbox only. Mail hangs off this hook,
   # the way sign-in links hang off MagicLinkMailer.
   def deliver_by_email
+    Story.tell("notification.deliver", "handing the notification to a transport",
+      notification_id: id, transport: "inbox") do |story|
+      story.did("the inbox is the only transport", notification_id: id, transport: "inbox")
+    end
   end
 end

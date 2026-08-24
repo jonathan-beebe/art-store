@@ -8,6 +8,11 @@ module Shop
 
     private
 
+    # The storefront's visitor is always somebody, address or not.
+    def logged_actor
+      current_customer
+    end
+
     # The account behind the request once the visitor has proved the address in
     # this session. A cookie alone leaves them a guest at checkout.
     def verified_account

@@ -296,6 +296,114 @@ broadcasts are in [`messaging.md`](messaging.md), beside
 [`identity.md`](identity.md), [`orders.md`](orders.md) and
 [`escrow.md`](escrow.md).
 
+## Logging
+
+Every log line is one JSON object on stdout, in every environment. The payload
+is fixed by [`docs/alignment.md`](../../../docs/alignment.md) §2, so a line
+from this prototype and a line from the Node or PHP one read the same.
+
+### Payload
+
+| Field | Type | Always | Meaning |
+| --- | --- | --- | --- |
+| `ts` | string | yes | ISO-8601 UTC with milliseconds, `Z` suffix |
+| `level` | string | yes | `debug` \| `info` \| `warn` \| `error` |
+| `event` | string | yes | dotted name from the vocabulary below |
+| `phase` | string | yes | `will` \| `doing` \| `did` \| `refused` \| `failed` |
+| `msg` | string | yes | one human sentence, present tense for `will`, past for `did` |
+| `request_id` | string | on requests | one per HTTP request, echoed as `X-Request-Id` |
+| `session_id` | string | on requests | value of the `sid` cookie, `ses_<ulid>` |
+| `actor_type` | string | when known | `seller` \| `customer` \| `admin` \| `system` |
+| `actor_id` | string | when known | the actor's prefixed id |
+| `txn_id` | string | inside a unit of work | `txn_<ulid>`, shared by every line of one action |
+| `data` | object | when useful | entity ids and the small facts the line is about |
+| `error` | object | on `failed` | `type`, `message`, and `stack` in development |
+| `duration_ms` | number | on the ending line | wall time since the `will` line |
+
+Redaction: no cookie values, tokens, card numbers, or email addresses reach
+`data`. An actor's id identifies them. A path segment holding a parameter
+Rails already filters (`token` among them) is logged as `[FILTERED]`, so the
+sign-in URL never appears whole.
+
+### The pieces
+
+| Piece | File | What it does |
+| --- | --- | --- |
+| Formatter | `src/lib/json_log_formatter.rb` | Turns every record into one JSON line and fills in the fields from `Current`. Framework prose arrives as a string and is filed under `app.log`. |
+| Context | `src/app/models/current.rb` | `ActiveSupport::CurrentAttributes` holding `request_id`, `session_id`, `actor_type`, `actor_id`, `txn_id`. |
+| Story | `src/lib/story.rb` | `Story.tell(event, message, **data) { |story| … }` writes the `will` line, mints the `txn_id` if none is open, and writes the ending. `story.did` / `story.refused` say how it ended; a `TransitionError` or a failed validation becomes `refused` at info, anything else `failed` at error. |
+| Request | `src/app/controllers/concerns/request_story.rb` | An `around_action` on `ApplicationController`: resolves the three ids, names the actor, and writes `http.request` `will`/`did`. |
+| Silencing | `src/config/initializers/logging.rb` | Points every framework logger at `File::NULL`; `Rails::Rack::Logger` comes out of the middleware stack in `config/application.rb`. |
+
+`request_id` is taken from an incoming `X-Request-Id` only when it matches
+`^[A-Za-z0-9_-]{1,64}$`; otherwise a `req_<ulid>` is minted. `session_id` is
+the `sid` cookie, minted on the first response a browser is handed and kept
+for a year — signing in and out leave it alone.
+
+### One request's story
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant C as ApplicationController
+    participant M as Model
+    participant L as stdout
+
+    B->>C: POST /checkout
+    C->>C: Current.request_id / session_id / actor
+    C->>L: http.request will {method, path}
+    C->>M: Order.place
+    M->>L: order.place will {cart_id, line_count}
+    M->>M: transaction — items, fulfillments, stock
+    M->>L: order.place did {order_id, total_cents, status}
+    C->>M: Order#pay!
+    M->>L: order.pay will {order_id, amount_cents}
+    M->>L: ledger.write will/did (debug)
+    M->>L: notification.write will/did
+    M->>L: order.pay did {payment_id, status}
+    C->>L: http.request did {status} + duration_ms
+    C-->>B: 303 with X-Request-Id
+```
+
+The two `order.place` lines share one `txn_id`; the charge and everything it
+wrote share another. All of them share the request's `request_id`.
+
+### Event vocabulary
+
+| Event | Emitted by |
+| --- | --- |
+| `http.request` | every request (`will` on entry, `did` on response) |
+| `magic_link.request` | `MagicLinkSender#send_magic_link`; `refused` when the address is not an address |
+| `magic_link.consume` | `Auth::MagicLinksController#show`; `refused` on unknown, expired, used, or non-admin |
+| `customer.merge` | `Customer#absorb` |
+| `listing.create`, `listing.update` | `Seller::ListingsController` |
+| `listing.publish`, `listing.transition` | `Listing#transition_to!`; `publish` when the move is to `for_sale`, both carrying `status_from`/`status_to` |
+| `listing.view` | `Shop::ListingsController#show` |
+| `cart.add`, `cart.update`, `cart.remove` | `Cart#add` (`update` when the line is already in the cart) and `Cart#remove` |
+| `order.place` | `Order.place`; `refused` carries `blocked_lines` |
+| `order.pay` | `Order#pay!`; `refused` on a decline with `decline_reason` |
+| `fulfillment.ship`, `fulfillment.deliver` | `Fulfillment#ship!`, `#deliver!` |
+| `ledger.write` | every `LedgerEntry`, at `debug` |
+| `payout.run`, `payout.pay` | `Payout.run_weekly` and one `pay` per seller settled |
+| `conversation.open`, `message.post` | `Conversation.open`, `Conversation#post!` |
+| `faq.publish`, `faq.unpublish` | `ListingFaq.publish`, `ListingFaq#unpublish!` |
+| `notification.write`, `notification.deliver` | `Notification.deliver` and the transport hook |
+| `migrate.run`, `migrate.apply`, `seed.run` | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed` |
+| `app.boot`, `app.shutdown` | `src/config/initializers/logging.rb` |
+
+Deferred, with the ticket that brings the feature and its event:
+
+| Event | Ticket |
+| --- | --- |
+| `order.cancel`, `order.sweep` | FEAT-017 (stale-order sweep and cancel) |
+| `fulfillment.decline`, `refund.issue` | FEAT-018 (decline and refund) |
+| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 (admin moderation) |
+| `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
+
+`listing.view` writes its `did` on every storefront view. The once per
+(listing, customer, hour) collapse, logged as `refused` at `debug`, lands with
+FEAT-020.
+
 ## Testing
 
 - Minitest (stock Rails). Every test lives under `test/`, mirroring the tree it

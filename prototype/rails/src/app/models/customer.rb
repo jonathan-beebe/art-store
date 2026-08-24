@@ -101,6 +101,20 @@ class Customer < ApplicationRecord
   # anonymous row survives so a cookie still holding its id resolves forward
   # instead of starting the visitor over.
   def absorb(anonymous)
+    Story.tell("customer.merge", "folding an anonymous visitor into the account",
+      customer_id: id, anonymous_customer_id: anonymous.id) do |story|
+      fold(anonymous)
+
+      story.did("folded the anonymous visitor into the account",
+        customer_id: id, anonymous_customer_id: anonymous.id)
+
+      self
+    end
+  end
+
+  private
+
+  def fold(anonymous)
     transaction do
       MERGED_ASSOCIATIONS.each do |association|
         # Each association names the column it points back through: notifications
@@ -112,7 +126,5 @@ class Customer < ApplicationRecord
       anonymous.conversations.each { |conversation| conversation.move_to(self) }
       merges_absorbed.create!(anonymous_customer: anonymous)
     end
-
-    self
   end
 end

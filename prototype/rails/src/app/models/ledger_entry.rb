@@ -32,24 +32,39 @@ class LedgerEntry < ApplicationRecord
   # amount_cents is signed: a hold and a release are positive and a payout is
   # negative, which is what lets a balance fold the whole ledger by adding.
   def self.hold(fulfillment, at:)
-    create!(
+    write(
       fulfillment: fulfillment, seller_id: fulfillment.seller_id,
       entry_type: :held, amount_cents: fulfillment.net_cents, occurred_at: at
     )
   end
 
   def self.release(fulfillment, at:)
-    create!(
+    write(
       fulfillment: fulfillment, seller_id: fulfillment.seller_id,
       entry_type: :released, amount_cents: fulfillment.net_cents, occurred_at: at
     )
   end
 
   def self.pay_out(payout, at:)
-    create!(
+    write(
       payout: payout, seller_id: payout.seller_id,
       entry_type: :paid_out, amount_cents: -payout.amount_cents, occurred_at: at
     )
+  end
+
+  # Every movement of money leaves a line behind it, at debug: a ledger read
+  # back from the log is the same fold the balance is.
+  private_class_method def self.write(attributes)
+    Story.tell("ledger.write", "writing a #{attributes[:entry_type]} entry", level: :debug,
+      seller_id: attributes[:seller_id], entry_type: attributes[:entry_type].to_s,
+      amount_cents: attributes[:amount_cents]) do |story|
+      entry = create!(attributes)
+
+      story.did("wrote a #{entry.entry_type} entry", ledger_entry_id: entry.id,
+        seller_id: entry.seller_id, entry_type: entry.entry_type, amount_cents: entry.amount_cents)
+
+      entry
+    end
   end
 
   def self.balance

@@ -11,6 +11,10 @@ class Seller::BaseController < ApplicationController
 
   private
 
+  def logged_actor
+    current_seller
+  end
+
   def unread_notification_count
     @unread_notification_count ||= current_seller.notifications.unread.count
   end

@@ -46,6 +46,9 @@ module CustomerIdentity
     session[:customer_id] = customer.id
     @signed_in_customer = customer
     @current_customer = remember_customer(customer)
+    Current.acting_as(customer)
+
+    @current_customer
   end
 
   # Dropping the cookie hands the browser a clean anonymous identity on its
@@ -55,6 +58,7 @@ module CustomerIdentity
     cookies.delete(COOKIE)
     @signed_in_customer = nil
     @current_customer = nil
+    Current.acting_as(nil)
   end
 
   def remember_customer(customer)

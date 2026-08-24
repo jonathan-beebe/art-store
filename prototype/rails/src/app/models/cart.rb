@@ -8,17 +8,30 @@ class Cart < ApplicationRecord
   # same listing twice adds to the line it already has.
   def add(listing, quantity: 1, at: Time.current)
     item = items.find_or_initialize_by(listing: listing)
-    item.update!(quantity: within_stock(item.quantity.to_i + quantity, listing))
+    event = item.persisted? ? "cart.update" : "cart.add"
 
-    listing.record_event!("cart_add", customer_id: customer_id, at: at)
+    Story.tell(event, "putting #{quantity} of a listing in the cart",
+      cart_id: id, listing_id: listing.id, quantity: quantity) do |story|
+      item.update!(quantity: within_stock(item.quantity.to_i + quantity, listing))
+      listing.record_event!("cart_add", customer_id: customer_id, at: at)
 
-    item
+      story.did("the cart holds #{item.quantity} of the listing",
+        cart_id: id, listing_id: listing.id, quantity: item.quantity)
+
+      item
+    end
   end
 
   def remove(listing)
-    items.where(listing: listing).destroy_all
+    Story.tell("cart.remove", "taking a listing out of the cart",
+      cart_id: id, listing_id: listing.id) do |story|
+      removed = items.where(listing: listing).destroy_all
 
-    self
+      story.did("took the listing out of the cart",
+        cart_id: id, listing_id: listing.id, line_count: removed.size)
+
+      self
+    end
   end
 
   def empty?

@@ -9,6 +9,10 @@ class Admin::BaseController < ApplicationController
 
   private
 
+  def logged_actor
+    current_admin
+  end
+
   # Which side of a conversation the admin site's visitor sits on.
   def current_participant
     current_admin

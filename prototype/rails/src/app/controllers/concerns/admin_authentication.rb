@@ -25,10 +25,14 @@ module AdminAuthentication
     reset_session
     session[:admin_id] = admin.id
     @current_admin = admin
+    Current.acting_as(admin)
+
+    admin
   end
 
   def sign_out_admin
     reset_session
     @current_admin = nil
+    Current.acting_as(nil)
   end
 end

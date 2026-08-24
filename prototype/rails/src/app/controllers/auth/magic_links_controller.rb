@@ -14,17 +14,29 @@ module Auth
     }.freeze
 
     def show
-      link = MagicLink.find_by_token(params[:token])
-      return refuse("customer", UNKNOWN_LINK) if link.nil?
-      return refuse(link.actor_type, refusal_for(link)) unless link.usable?
+      Story.tell("magic_link.consume", "following a sign-in link") do |story|
+        link = MagicLink.find_by_token(params[:token])
+        next turn_away(story, "customer", UNKNOWN_LINK) if link.nil?
+        next turn_away(story, link.actor_type, refusal_for(link), link) unless link.usable?
 
-      link.consume!
-      return refuse(link.actor_type, UNKNOWN_ADMIN) if sign_in(link).nil?
+        link.consume!
+        next turn_away(story, link.actor_type, UNKNOWN_ADMIN, link) if sign_in(link).nil?
 
-      redirect_to url_from(link.redirect_to) || path_for(HOME_PATHS, link.actor_type)
+        story.did("signed in from the link", actor_type: link.actor_type, magic_link_id: link.id)
+
+        redirect_to url_from(link.redirect_to) || path_for(HOME_PATHS, link.actor_type)
+      end
     end
 
     private
+
+    # A link that cannot sign anyone in leaves the visitor at the sign-in form
+    # with the sentence saying why.
+    def turn_away(story, actor_type, message, link = nil)
+      story.refused(message, actor_type: actor_type, magic_link_id: link&.id)
+
+      refuse(actor_type, message)
+    end
 
     # Returns the actor now in the session. Sellers and customers sign up by
     # following their first link; admins are seeded, so an address no admin row

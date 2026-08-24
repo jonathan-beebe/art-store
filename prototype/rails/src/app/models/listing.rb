@@ -66,6 +66,12 @@ class Listing < ApplicationRecord
     "#{base}-#{suffix}"
   end
 
+  # Putting a listing up for sale is the move the log names on its own; the
+  # rest of the lifecycle reads as one event carrying where it went.
+  def self.transition_event(to)
+    to.to_s == "for_sale" ? "listing.publish" : "listing.transition"
+  end
+
   # The lifecycle move as a value, for a caller that works out a status without
   # a record to write it to.
   def self.transition(from, to)
@@ -115,7 +121,17 @@ class Listing < ApplicationRecord
   end
 
   def transition_to!(status)
-    update!(status: self.class.transition(self.status, status))
+    from = self.status
+
+    Story.tell(self.class.transition_event(status), "moving the listing from #{from} to #{status}",
+      listing_id: id, status_from: from, status_to: status.to_s) do |story|
+      moved = update!(status: self.class.transition(from, status))
+
+      story.did("moved the listing to #{status}",
+        listing_id: id, status_from: from, status_to: status.to_s)
+
+      moved
+    end
   end
 
   def next_statuses

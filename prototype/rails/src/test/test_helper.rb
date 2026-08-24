@@ -10,6 +10,13 @@ SimpleCov.start do
 
   cover "{app,lib}/**/*.rb"
 
+  # `bin/rails test` boots the application before it reaches this file, so the
+  # two files the logger itself is built from are already loaded by the time
+  # coverage starts counting. They are exercised by the logging tests all the
+  # same; the counter simply cannot see them.
+  skip "app/models/current.rb"
+  skip "lib/json_log_formatter.rb"
+
   group "Models", "app/models"
   group "Controllers", "app/controllers"
   group "Helpers", "app/helpers"
@@ -50,6 +57,7 @@ module ActiveSupport
     include ActiveJob::TestHelper
     include ActionMailer::TestHelper
     include TestRecords
+    include LogCapture
   end
 end
 

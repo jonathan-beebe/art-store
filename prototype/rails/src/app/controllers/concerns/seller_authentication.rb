@@ -25,10 +25,14 @@ module SellerAuthentication
     reset_session
     session[:seller_id] = seller.id
     @current_seller = seller
+    Current.acting_as(seller)
+
+    seller
   end
 
   def sign_out_seller
     reset_session
     @current_seller = nil
+    Current.acting_as(nil)
   end
 end

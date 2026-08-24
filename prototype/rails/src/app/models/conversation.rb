@@ -58,7 +58,15 @@ class Conversation < ApplicationRecord
     named = KINDS.fetch(kind.to_s).sides.index_with { |side| participants.fetch(side) }
     shape = { kind: kind, subject: subject, **named }
 
-    where(shape).order(:created_at, :id).first || create!(**shape, last_message_at: at)
+    Story.tell("conversation.open", "opening the #{kind} thread", kind: kind.to_s) do |story|
+      standing = where(shape).order(:created_at, :id).first
+      conversation = standing || create!(**shape, last_message_at: at)
+
+      story.did(standing ? "the #{kind} thread was already open" : "opened the #{kind} thread",
+        kind: kind.to_s, conversation_id: conversation.id, opened: standing.nil?)
+
+      conversation
+    end
   end
 
   # Which side of a conversation this actor sits on, whatever kind it is.
@@ -127,11 +135,17 @@ class Conversation < ApplicationRecord
   def post!(sender, body, at: Time.current)
     raise ArgumentError, "a conversation takes messages from its participants only" unless participant?(sender)
 
-    transaction do
-      message = messages.create!(sender: sender, body: body)
-      update!(last_message_at: at)
-      recipient = counterpart_of(sender)
-      Notification.new_message(message, url: thread_path_for(recipient))
+    Story.tell("message.post", "posting a message to the thread",
+      conversation_id: id, kind: kind) do |story|
+      message = transaction do
+        posted = messages.create!(sender: sender, body: body)
+        update!(last_message_at: at)
+        Notification.new_message(posted, url: thread_path_for(counterpart_of(sender)))
+
+        posted
+      end
+
+      story.did("posted the message", conversation_id: id, message_id: message.id, kind: kind)
 
       message
     end

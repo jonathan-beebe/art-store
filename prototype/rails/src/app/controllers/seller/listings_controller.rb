@@ -21,21 +21,37 @@ class Seller::ListingsController < Seller::BaseController
   def create
     @listing = current_seller.listings.new(listing_params)
 
-    return render :new, status: :unprocessable_content unless @listing.save
+    Story.tell("listing.create", "writing a new listing", seller_id: current_seller.id) do |story|
+      next refuse(story, "the listing is incomplete", :new) unless @listing.save
 
-    redirect_to seller_listings_path, notice: %("#{@listing.title}" is saved as a draft.)
+      story.did("wrote the listing", seller_id: current_seller.id, listing_id: @listing.id, status: @listing.status)
+
+      redirect_to seller_listings_path, notice: %("#{@listing.title}" is saved as a draft.)
+    end
   end
 
   def edit
   end
 
   def update
-    return render :edit, status: :unprocessable_content unless @listing.update(listing_params)
+    Story.tell("listing.update", "editing a listing",
+      seller_id: current_seller.id, listing_id: @listing.id) do |story|
+      next refuse(story, "the edit is incomplete", :edit) unless @listing.update(listing_params)
 
-    redirect_to seller_listings_path, notice: %("#{@listing.title}" is updated.), status: :see_other
+      story.did("edited the listing", seller_id: current_seller.id, listing_id: @listing.id)
+
+      redirect_to seller_listings_path, notice: %("#{@listing.title}" is updated.), status: :see_other
+    end
   end
 
   private
+
+  # A form the model would not take comes back holding the seller's own text.
+  def refuse(story, message, template)
+    story.refused(message, seller_id: current_seller.id, fields: @listing.errors.attribute_names.map(&:to_s))
+
+    render template, status: :unprocessable_content
+  end
 
   def set_listing
     @listing = current_seller.listings.find(params[:id])

@@ -33,7 +33,7 @@ class Seller::FaqsController < Seller::BaseController
   end
 
   def destroy
-    @listing.faqs.find(params[:id]).destroy!
+    @listing.faqs.find(params[:id]).unpublish!
 
     redirect_to seller_listing_faqs_path(@listing), notice: "Unpublished from the listing.", status: :see_other
   end

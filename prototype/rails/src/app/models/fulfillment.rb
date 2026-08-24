@@ -46,30 +46,42 @@ class Fulfillment < ApplicationRecord
   # The seller hands the package over: the fulfillment records how to follow
   # it, the order catches up, and the customer is told where to look.
   def ship!(carrier:, tracking_number:, at: Time.current)
-    assign_attributes(carrier: carrier, tracking_number: tracking_number)
-    validate!(:ship)
+    Story.tell("fulfillment.ship", "handing the package to the carrier",
+      fulfillment_id: id, order_id: order_id, status_from: status) do |story|
+      assign_attributes(carrier: carrier, tracking_number: tracking_number)
+      validate!(:ship)
 
-    transaction do
-      update!(status: :shipped, shipped_at: at)
-      order.roll_up_status!
-      Notification.order_shipped(self)
+      transaction do
+        update!(status: :shipped, shipped_at: at)
+        order.roll_up_status!
+        Notification.order_shipped(self)
+      end
+
+      story.did("the package is with the carrier",
+        fulfillment_id: id, order_id: order_id, status_to: status, order_status: order.status)
+
+      self
     end
-
-    self
   end
 
   # The customer confirms the package arrived, which is what releases the money
   # the sale has been holding for the seller.
   def deliver!(at: Time.current)
-    validate!(:deliver)
+    Story.tell("fulfillment.deliver", "confirming the package arrived",
+      fulfillment_id: id, order_id: order_id, status_from: status) do |story|
+      validate!(:deliver)
 
-    transaction do
-      update!(status: :delivered, delivered_at: at)
-      LedgerEntry.release(self, at: at)
-      order.roll_up_status!
+      transaction do
+        update!(status: :delivered, delivered_at: at)
+        LedgerEntry.release(self, at: at)
+        order.roll_up_status!
+      end
+
+      story.did("the package arrived",
+        fulfillment_id: id, order_id: order_id, status_to: status, order_status: order.status)
+
+      self
     end
-
-    self
   end
 
   def can_transition_to?(status)

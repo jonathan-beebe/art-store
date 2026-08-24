@@ -37,9 +37,29 @@ class ListingFaq < ApplicationRecord
   # only while the entry is published, so the storefront reads the table with
   # no predicate of its own and unpublishing is a destroy.
   def self.publish(listing, question:, answer:, source_message: nil, at: Time.current)
-    create!(
-      listing: listing, question: question, answer: answer,
-      source_message: source_message, published_at: at
-    )
+    Story.tell("faq.publish", "publishing an answered question to the listing",
+      listing_id: listing.id) do |story|
+      entry = create!(
+        listing: listing, question: question, answer: answer,
+        source_message: source_message, published_at: at
+      )
+
+      story.did("published the answered question", listing_id: listing.id, faq_id: entry.id)
+
+      entry
+    end
+  end
+
+  # Taking an entry down is what unpublishing is: a row exists only while the
+  # entry is on the listing.
+  def unpublish!
+    Story.tell("faq.unpublish", "taking an answered question off the listing",
+      listing_id: listing_id, faq_id: id) do |story|
+      removed = destroy!
+
+      story.did("took the answered question off the listing", listing_id: listing_id, faq_id: id)
+
+      removed
+    end
   end
 end
