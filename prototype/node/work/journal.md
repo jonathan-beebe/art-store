@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:23:20:00 — IMPRV-009 — started
+- 2026-08-23:23:19:00 — FEAT-018 — done: every table keyed by a prefixed ULID text id (`core/ids/prefixed-id.ts` pure, `app/ids.ts` mints from the action clock), prefix-aware `idParams(prefix)` 404ing a wrong prefix, identity cookie parsed per actor prefix, `#` sigil dropped, ordering moved to creation timestamps with `created_at` added to cart_items/order_items/fulfillments; 1536 -> 1575 tests, coverage 99.59/97.25/99.47; reviewer found no defects
 - 2026-08-23:21:30:00 — FEAT-018 — started
 - 2026-08-23:21:29:00 — MAINT-001 — done: make vocabulary (up/down/build/logs/shell/test/smoke/coverage/lint/lint-fix/assets/check/migrate/fresh/seed/routes/payouts/sweep/outbox) with `make check` = lint -> assets -> coverage as one npm script CI runs too; hook proved refusing a failing commit; 1536 tests, 99.57/97.22/99.47 unchanged
 - 2026-08-23:21:00:00 — MAINT-001 — started
