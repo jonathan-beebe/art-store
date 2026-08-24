@@ -18,7 +18,7 @@ else
   Seeds::OrderHistory.create_all
   Seeds::Messaging.create_all
 
-  puts "Seeded #{Admin.count} admin, #{Seller.count} sellers, #{Listing.count} listings, " \
+  puts "Seeded #{Admin.count} admins, #{Seller.count} sellers, #{Listing.count} listings, " \
        "#{Customer.count} customers, #{Order.count} orders, #{Conversation.count} conversations, " \
        "#{Message.count} messages, #{ListingFaq.count} published FAQ."
 end

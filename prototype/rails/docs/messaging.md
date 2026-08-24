@@ -49,9 +49,10 @@ prototype has no assignment model; with no admin row the controller redirects
 back with "Nobody is on the support desk yet."
 
 The admin site's own Message buttons open against `current_admin` instead, so
-the operator writing is the one named on the thread. With one seeded admin the
-two doors reach one thread. With a second `admins` row, a seller who presses
-Support and is then messaged by that second operator holds two `admin_seller`
+the operator writing is the one named on the thread. Two admins are seeded
+(Jonathan Beebe on duty, Anna Schmunk beside him), so the two doors reach one
+thread only while the operator writing is the one on duty. A seller who presses
+Support and is then messaged by the other operator holds two `admin_seller`
 threads: `topic` for the support kinds is the desk rather than the operator, so
 both inbox rows read "Art Store support" and the counterpart's name is what
 tells them apart. Assignment is what would settle which operator a thread

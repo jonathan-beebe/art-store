@@ -35,7 +35,7 @@ Then open:
 ## Seeded accounts
 
 `bin/rails db:seed` (part of `make fresh`, and run once automatically by the
-entrypoint against a fresh database) creates one admin, four verified sellers,
+entrypoint against a fresh database) creates two admins, four verified sellers,
 29 listings, one verified customer, order history built through the FEAT-003
 actions (a paid order awaiting shipment, a shipped order, and a delivered
 order whose escrow is released and paid out), and messaging: one thread of
@@ -48,7 +48,8 @@ two for casey on the storefront.
 
 | Email | Role | Shop |
 | --- | --- | --- |
-| `ops@example.com` | Admin | — (the platform operator, 2 support threads) |
+| `jonathan-beebe@outlook.com` | Admin | — (on duty: 2 support threads) |
+| `annaschmunk@pm.me` | Admin | — |
 | `maya@example.com` | Seller | Terra & Glaze Ceramics |
 | `noah@example.com` | Seller | North Light Editions |
 | `priya@example.com` | Seller | Priya Anand Textile Studio |
@@ -138,7 +139,7 @@ make coverage
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 737 runs and 100% line coverage.
+suite stands at 750 runs and 100% line coverage.
 
 ## Database
 
