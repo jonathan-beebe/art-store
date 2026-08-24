@@ -111,7 +111,7 @@ test('a reason is trimmed', () => {
 })
 
 test('a blank reason is refused', () => {
-  assert.deepEqual(parseRefundReason('   '), { ok: false, error: 'Enter a reason.' })
+  assert.deepEqual(parseRefundReason('   '), { ok: false, errors: { reason: 'Enter a reason.' } })
   assert.equal(parseRefundReason(null).ok, false)
   assert.equal(parseRefundReason(undefined).ok, false)
 })
@@ -139,5 +139,5 @@ test('a paid fulfillment already declined or refunded cannot be refunded again',
 test('a reason past the maximum length is refused', () => {
   const parsed = parseRefundReason('x'.repeat(REFUND_REASON_MAX_LENGTH + 1))
 
-  assert.deepEqual(parsed, { ok: false, error: 'Keep the reason under 500 characters.' })
+  assert.deepEqual(parsed, { ok: false, errors: { reason: 'Keep the reason under 500 characters.' } })
 })

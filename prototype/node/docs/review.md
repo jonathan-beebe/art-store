@@ -261,12 +261,20 @@ refinement batch landed.
     every week" is a platform action) but means there is no way to demo a
     single seller's payout in isolation from `/admin`.
 
-11. **Every rate-limit trip answers the generic 429 page, not a re-rendered
-    form.** `docs/alignment.md` §3 says a form re-renders the "too many
-    requests" sentence as a field-less error; every guarded route instead
-    answers `plugins/rate-limit.ts`'s shared `error` page. Lowest priority in
-    FEAT-020's own cut order, cut to land the seven limits, the parser, the
-    counter table, and the seven routes' wiring with full test coverage.
+11. **A `conversation_open` trip on the listing-question box answers the
+    generic 429 page, not a re-rendered listing page.** IMPRV-012 gave
+    `answerIfRateLimited` the `onTrip` re-render callback `docs/alignment.md`
+    §3 calls for and wired it for every other form-guarded route: `POST
+    /login` on all three sites, `listing_write` (create and update), every
+    site's `message_post` (thread reply and, on the storefront, the ask-a-
+    question box), `payment_attempt`, and `checkout`. The storefront's
+    ask-a-question route sits behind two guards, `conversation_open` then
+    `message_post`; only the second carries an `onTrip`, so a `conversation_open`
+    trip there — 10 attempts/hour, rarer than the 30/hour `message_post` limit
+    it sits in front of — still falls through to the shared `error` page. The
+    same is true of `GET /support`'s own `conversation_open` guard, which
+    guards a link click rather than a form and was never in scope for a
+    re-render.
 
 12. **The admin's `POST /sellers/:id/messages` and `POST /customers/:id/messages`
     carry no rate limit.** Both open a conversation with no message body, the
@@ -275,6 +283,21 @@ refinement batch landed.
     question, support, fulfillment thread opens" — these two admin routes are
     not among them, and an admin is already authenticated. Left unguarded
     rather than stretching the contract's list past what it says (FEAT-020).
+
+13. **The admin site's five write forms still flash a single sentence instead
+    of a field-level error.** IMPRV-012 moved every seller and storefront form
+    onto the shared `form-field.ejs`/`form-error.ejs` partials — the listing
+    form, the FAQ forms, the ship and decline forms, checkout, the cart and
+    ask-a-question forms, and all three sites' message replies — but cut its
+    own explicit fallback line at the admin site: `views/customer.ejs` (block
+    reason), `views/listing.ejs` (removal kind and reason), `views/order.ejs`
+    (cancel reason, inline refund amount), `views/fulfillment.ejs` (refund
+    reason), and `views/payouts.ejs` (threshold) still call `reply.setFlash({
+    alert })` and redirect. `parseRefundReason` was still brought onto the
+    shared `Partial<Record<Field, string>>` shape its seller-side call site
+    needed, so `admin/routes/orders.ts` and `admin/routes/fulfillments.ts`
+    read `Object.values(reason.errors)[0]` for that flash rather than
+    `reason.error` — the two admin call sites were left otherwise unconverted.
 
 Closed by the refinement batch, and listed here so a reader of an older copy of
 this file is not misled: email had no implementation at all (FEAT-015 added the
@@ -312,8 +335,13 @@ no CI (FEAT-014).
     copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
     demo one seller's payout in isolation. Closes gap 10.
 
-11. Give `answerIfRateLimited` an optional per-route `onTrip` re-render
-    callback and wire it for `POST /login` first. Closes gap 11.
+11. Type `guardConversationOpen` by its route's params the way the other
+    guards are and give it an `onTrip` on the listing-question route only
+    (`GET /support` stays on the shared page). Closes gap 11.
+13. Move the admin site's five write forms onto `form-field.ejs`/
+    `form-error.ejs`, re-rendering in place instead of flashing and
+    redirecting, the same conversion IMPRV-012 gave every seller and
+    storefront form. Closes gap 13.
 
 ## Stack notes
 

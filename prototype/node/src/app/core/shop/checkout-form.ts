@@ -21,9 +21,26 @@ export type CheckoutEntry = {
   shipping: Partial<Record<keyof ShippingAddress, string | null>>
 }
 
+/** What checkout shows beside a bad field: the shipping parts by the same
+ * key `ShippingAddress` uses, `email` by its own. */
+export type CheckoutFormErrors = Partial<Record<'email' | keyof ShippingAddress, string>>
+
 export type CheckoutFormResult =
   | { ok: true; value: CheckoutForm }
-  | { ok: false; entered: CheckoutEntry; errors: readonly string[] }
+  | { ok: false; entered: CheckoutEntry; errors: CheckoutFormErrors }
+
+const EMAIL_ERROR = 'Enter a valid email address.'
+
+/** The sentence a required shipping part shows when it is missing — every
+ * part but `line2`, which is never required. */
+const REQUIRED_SHIPPING_ERRORS: Record<Exclude<keyof ShippingAddress, 'line2'>, string> = {
+  name: 'Enter the full name.',
+  line1: 'Enter the address.',
+  city: 'Enter the city.',
+  region: 'Enter the region.',
+  postalCode: 'Enter the postal code.',
+  country: 'Enter the country.',
+}
 
 function written(value: string | null | undefined): string {
   return (value ?? '').trim()
@@ -48,18 +65,23 @@ function trimmedForm(fields: CheckoutFormFields): CheckoutForm {
   }
 }
 
-/** The parts checkout still needs, in the order the form asks for them. */
-function missingCheckoutParts(form: CheckoutForm): readonly string[] {
-  const email = isEmailAddress(form.email) ? [] : ['email']
+/** Every field checkout refuses, each with the sentence that belongs beside it. */
+function checkoutErrors(form: CheckoutForm): CheckoutFormErrors {
+  const errors: CheckoutFormErrors = {}
+  if (!isEmailAddress(form.email)) errors.email = EMAIL_ERROR
 
-  return [...email, ...missingAddressParts(form.shipping)]
+  for (const part of missingAddressParts(form.shipping)) {
+    errors[part] = REQUIRED_SHIPPING_ERRORS[part]
+  }
+
+  return errors
 }
 
 export function parseCheckoutForm(fields: CheckoutFormFields): CheckoutFormResult {
   const trimmed = trimmedForm(fields)
-  const missing = missingCheckoutParts(trimmed)
+  const errors = checkoutErrors(trimmed)
 
-  return missing.length === 0
+  return Object.keys(errors).length === 0
     ? { ok: true, value: trimmed }
-    : { ok: false, entered: trimmed, errors: missing }
+    : { ok: false, entered: trimmed, errors }
 }

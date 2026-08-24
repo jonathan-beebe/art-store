@@ -11,7 +11,9 @@ export type ShippingAddress = {
 export const SHIPPING_ADDRESS_PARTS = ['name', 'line1', 'line2', 'city', 'region', 'postalCode', 'country'] as const
 type ShippingAddressPart = (typeof SHIPPING_ADDRESS_PARTS)[number]
 
-const REQUIRED_PARTS: readonly Exclude<ShippingAddressPart, 'line2'>[] = [
+type RequiredShippingAddressPart = Exclude<ShippingAddressPart, 'line2'>
+
+const REQUIRED_PARTS: readonly RequiredShippingAddressPart[] = [
   'name',
   'line1',
   'city',
@@ -22,6 +24,6 @@ const REQUIRED_PARTS: readonly Exclude<ShippingAddressPart, 'line2'>[] = [
 
 /** The required parts (everything but line2) that are blank. Checkout uses it
  * to refuse an incomplete address. */
-export function missingAddressParts(address: ShippingAddress): readonly string[] {
+export function missingAddressParts(address: ShippingAddress): readonly RequiredShippingAddressPart[] {
   return REQUIRED_PARTS.filter((part) => address[part].trim() === '')
 }

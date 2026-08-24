@@ -8,6 +8,7 @@
 
 <form method="post" action="/orders/<%= order.id %>/pay" class="mt-8 max-w-xl">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
+  <%- include('views/partials/form-error', { formError: typeof formError !== 'undefined' ? formError : null }) %>
   <%- include('sites/shop/views/partials/card-fields') %>
 
   <button

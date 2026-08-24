@@ -8,4 +8,10 @@
   class="mt-4 h-40 w-40 rounded border border-neutral-300 object-cover"
 />
 
-<%- include('form', { action: `/seller/listings/${listing.id}`, submitLabel: 'Save changes', fields, errors }) %>
+<%- include('form', {
+  action: `/seller/listings/${listing.id}`,
+  submitLabel: 'Save changes',
+  fields,
+  errors,
+  formError: typeof formError !== 'undefined' ? formError : null,
+}) %>

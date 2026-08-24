@@ -166,8 +166,7 @@ test('an incomplete form is rejected, names what is missing, and places no order
     .execute()
 
   assert.equal(response.statusCode, 422)
-  assert.match(response.body, /role="alert"/)
-  assert.match(response.body, /City/)
+  assert.match(response.body, /data-field-error="shipping_city"[^>]*>Enter the city\./)
   assert.equal(orders.length, 0)
 })
 
@@ -191,7 +190,7 @@ test('an address that is not an email address is rejected', async (t) => {
     .execute()
 
   assert.equal(response.statusCode, 422)
-  assert.match(response.body, /Email address/)
+  assert.match(response.body, /data-field-error="email"[^>]*>Enter a valid email address\./)
   assert.equal(orders.length, 0)
 })
 
@@ -208,7 +207,8 @@ test('a bodiless POST with a non-empty cart renders the form again instead of fa
   })
 
   assert.equal(response.statusCode, 422)
-  assert.match(response.body, /role="alert"/)
+  assert.match(response.body, /data-field-error="email"[^>]*>Enter a valid email address\./)
+  assert.match(response.body, /data-field-error="shipping_name"[^>]*>Enter the full name\./)
 })
 
 test('an empty cart is sent back to the cart instead of checkout', async (t) => {

@@ -61,7 +61,7 @@ export const orderRoutes: ZodRoutes = (admin, _options, done) => {
 
       const reason = parseRefundReason(request.body.reason)
       if (!reason.ok) {
-        reply.setFlash({ alert: reason.error })
+        reply.setFlash({ alert: Object.values(reason.errors)[0] })
 
         return reply.redirect(destination)
       }

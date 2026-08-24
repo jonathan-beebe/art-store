@@ -84,17 +84,19 @@ export function planRefund(subject: RefundSubject): RefundPlan {
   }
 }
 
-export type RefundReasonResult = { ok: true; value: string } | { ok: false; error: string }
+export type RefundReasonErrors = Partial<Record<'reason', string>>
+
+export type RefundReasonResult = { ok: true; value: string } | { ok: false; errors: RefundReasonErrors }
 
 /** What a decline or refund form's reason field has to be for the write to run. */
 export function parseRefundReason(input: string | null | undefined): RefundReasonResult {
   const reason = (input ?? '').trim()
 
   if (reason === '') {
-    return { ok: false, error: 'Enter a reason.' }
+    return { ok: false, errors: { reason: 'Enter a reason.' } }
   }
   if (reason.length > REFUND_REASON_MAX_LENGTH) {
-    return { ok: false, error: `Keep the reason under ${REFUND_REASON_MAX_LENGTH} characters.` }
+    return { ok: false, errors: { reason: `Keep the reason under ${REFUND_REASON_MAX_LENGTH} characters.` } }
   }
 
   return { ok: true, value: reason }

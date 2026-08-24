@@ -32,7 +32,7 @@ test('the second address line is optional', () => {
   assert.equal(parsed.value.shipping.line2, null)
 })
 
-test('a blank shipping part is an error, not a value', () => {
+test('a blank shipping part is an error beside that field, not a value', () => {
   const parsed = parseCheckoutForm({
     email: 'ada@example.test',
     shipping: shipping({ city: '   ', country: null }),
@@ -40,23 +40,30 @@ test('a blank shipping part is an error, not a value', () => {
 
   assert.equal(parsed.ok, false)
   if (parsed.ok) return
-  assert.deepEqual(parsed.errors, ['city', 'country'])
+  assert.deepEqual(parsed.errors, { city: 'Enter the city.', country: 'Enter the country.' })
 })
 
-test('an address that is not an email is an error', () => {
+test('an address that is not an email is an error beside the email field', () => {
   const parsed = parseCheckoutForm({ email: 'ada', shipping: shipping() })
 
   assert.equal(parsed.ok, false)
   if (parsed.ok) return
-  assert.deepEqual(parsed.errors, ['email'])
+  assert.deepEqual(parsed.errors, { email: 'Enter a valid email address.' })
 })
 
-test('an absent shipping part is an error', () => {
+test('an absent shipping part is an error beside every required field', () => {
   const parsed = parseCheckoutForm({ email: 'ada@example.test', shipping: {} })
 
   assert.equal(parsed.ok, false)
   if (parsed.ok) return
-  assert.deepEqual(parsed.errors, ['name', 'line1', 'city', 'region', 'postalCode', 'country'])
+  assert.deepEqual(parsed.errors, {
+    name: 'Enter the full name.',
+    line1: 'Enter the address.',
+    city: 'Enter the city.',
+    region: 'Enter the region.',
+    postalCode: 'Enter the postal code.',
+    country: 'Enter the country.',
+  })
 })
 
 test('a refused form hands back what was entered, trimmed, for the page to show again', () => {

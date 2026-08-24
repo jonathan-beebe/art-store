@@ -171,7 +171,44 @@ function refuseStatusChange(reply: FastifyReply, message: string): FastifyReply 
   return reply.redirect('/seller/listings')
 }
 
-const guardListingWrite = rateLimitGuard({ name: 'listing_write', key: currentSellerId })
+/** The listing form's text fields as a tripped `listing_write` submitted, read
+ * the same way the route's own schema would — the image part is left alone,
+ * so a trip never re-sniffs or re-saves the upload it did not get to. */
+function submittedListingFields(body: unknown): ListingDraftFields {
+  const parsed = listingFormBody.safeParse(body)
+
+  return parsed.success ? listingDraftFieldsFrom(parsed.data, null) : emptyDraftFields()
+}
+
+const guardCreateListingWrite = rateLimitGuard({
+  name: 'listing_write',
+  key: currentSellerId,
+  onTrip: (request) => async (reply, message) =>
+    reply.render('listings/new', {
+      title: 'New listing',
+      fields: submittedListingFields(request.body),
+      errors: NO_ERRORS,
+      formError: message,
+    }),
+})
+
+const guardUpdateListingWrite = rateLimitGuard<{ id: ListingId }>({
+  name: 'listing_write',
+  key: currentSellerId,
+  onTrip: (request) => async (reply, message) => {
+    const listing = await ownedListing(request.server.db, currentSellerId(request), request.params.id)
+    if (listing === null) return sellerNotFound(reply)
+
+    return reply.render('listings/edit', {
+      title: `Edit ${listing.title}`,
+      listing,
+      fields: submittedListingFields(request.body),
+      errors: NO_ERRORS,
+      formError: message,
+      imageSrc: listingImageSource(listing.imagePath, listing.title),
+    })
+  },
+})
 
 export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
   portal.get('/listings', async (request, reply) => {
@@ -207,7 +244,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings',
-    { schema: { body: listingFormBody }, preHandler: guardListingWrite },
+    { schema: { body: listingFormBody }, preHandler: guardCreateListingWrite },
     async (request, reply) => {
       const uploadedImage = await readUploadedImage(request.body)
       const fields = listingDraftFieldsFrom(request.body, uploadedImage?.format ?? null)
@@ -280,7 +317,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings/:id',
-    { schema: { params: idParams('lst'), body: listingFormBody }, preHandler: guardListingWrite },
+    { schema: { params: idParams('lst'), body: listingFormBody }, preHandler: guardUpdateListingWrite },
     async (request, reply) => {
       const listing = await findOwnedListing(request, reply, request.params.id)
       if (listing === null) return reply

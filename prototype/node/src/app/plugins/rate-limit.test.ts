@@ -224,6 +224,11 @@ test('checkout trips per customer and places no further order once tripped', asy
     payload: { ...shippingPayload('buyer@example.com'), card_number: APPROVED_CARD },
   })
   assert.equal(second.statusCode, 429)
+  // Checkout is a form: the trip re-renders it, kept values and all, instead
+  // of the shared `error` page.
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="shipping_city"[^>]*value="London"/)
 
   const orders = await testApp.db
     .selectFrom('orders')
@@ -312,6 +317,8 @@ test('payment_attempt trips per order and attempts no further charge once trippe
     payload: { card_number: APPROVED_CARD },
   })
   assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
 
   const after = await testApp.db.selectFrom('payments').selectAll().where('orderId', '=', order.id).execute()
   assert.equal(after.length, before.length)
@@ -354,6 +361,9 @@ test('message_post trips per actor and appends no further message once tripped',
     payload: { body: 'Also, does it ship internationally?' },
   })
   assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="body"[^>]*>Also, does it ship internationally\?/)
 
   const after = await testApp.db
     .selectFrom('messages')
@@ -409,6 +419,9 @@ test('listing_write trips per seller and creates no further listing once tripped
     payload: multipartPayload(listingFields({ title: 'A Second Piece' })),
   })
   assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="listing_title"[^>]*value="A Second Piece"/)
 
   const after = await testApp.db.selectFrom('listings').selectAll().where('sellerId', '=', seller.id).execute()
   assert.equal(after.length, before.length)
@@ -439,4 +452,5 @@ test('listing_write also trips the update route, keyed by the same seller', asyn
     payload: multipartPayload(listingFields({ title: 'A Second Piece' })),
   })
   assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
 })

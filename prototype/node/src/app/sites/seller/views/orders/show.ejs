@@ -62,35 +62,34 @@
 <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
   <h2 id="shipment-heading" class="font-semibold text-neutral-700">Shipment</h2>
 
+  <%- include('views/partials/form-error', { formError: shipFormError }) %>
+
   <% if (canShip) { %>
     <form method="post" action="/seller/orders/<%= fulfillment.id %>/ship" class="mt-2 rounded border border-neutral-300 bg-white p-4">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
       <fieldset>
         <legend class="text-sm font-medium text-neutral-700">Mark shipped</legend>
 
-        <div class="mt-2">
-          <label for="carrier" class="block text-sm font-medium text-neutral-700">Carrier</label>
-          <input
-            type="text"
-            name="carrier"
-            id="carrier"
-            required
-            maxlength="255"
-            class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-          />
-        </div>
+        <%- include('views/partials/form-field', {
+          name: 'carrier',
+          id: 'carrier',
+          label: 'Carrier',
+          value: shipCarrier,
+          error: shipErrors.carrier,
+          required: true,
+          maxlength: 255,
+          wrapperClass: 'mt-2',
+        }) %>
 
-        <div class="mt-4">
-          <label for="tracking_number" class="block text-sm font-medium text-neutral-700">Tracking number</label>
-          <input
-            type="text"
-            name="tracking_number"
-            id="tracking_number"
-            required
-            maxlength="255"
-            class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-          />
-        </div>
+        <%- include('views/partials/form-field', {
+          name: 'tracking_number',
+          id: 'tracking_number',
+          label: 'Tracking number',
+          value: shipTrackingNumber,
+          error: shipErrors.trackingNumber,
+          required: true,
+          maxlength: 255,
+        }) %>
       </fieldset>
 
       <button type="submit" class="mt-4 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white">Mark shipped</button>
@@ -120,10 +119,13 @@
   <% } %>
 </section>
 
-<% if (canDecline) { %>
+<% if (canDecline || declineFormError) { %>
 <section aria-labelledby="decline-heading" class="mt-6 max-w-xl">
   <h2 id="decline-heading" class="font-semibold text-neutral-700">Decline</h2>
 
+  <%- include('views/partials/form-error', { formError: declineFormError }) %>
+
+  <% if (canDecline) { %>
   <form method="post" action="/seller/orders/<%= fulfillment.id %>/decline" class="mt-2 rounded border border-neutral-300 bg-white p-4">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
     <p class="text-sm text-neutral-600">
@@ -131,19 +133,20 @@
       your pieces back on the storefront.
     </p>
 
-    <div class="mt-4">
-      <label for="decline_reason" class="block text-sm font-medium text-neutral-700">Reason</label>
-      <textarea
-        name="reason"
-        id="decline_reason"
-        rows="3"
-        required
-        maxlength="<%= reasonMaxLength %>"
-        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-      ></textarea>
-    </div>
+    <%- include('views/partials/form-field', {
+      name: 'reason',
+      id: 'decline_reason',
+      label: 'Reason',
+      type: 'textarea',
+      rows: 3,
+      value: declineReason,
+      error: declineErrors.reason,
+      required: true,
+      maxlength: reasonMaxLength,
+    }) %>
 
     <button type="submit" class="mt-4 rounded border border-red-700 px-4 py-2 text-sm font-medium text-red-700">Decline this order</button>
   </form>
+  <% } %>
 </section>
 <% } %>

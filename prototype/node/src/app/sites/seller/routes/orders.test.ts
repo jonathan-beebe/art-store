@@ -198,8 +198,9 @@ test('a bodiless ship POST is refused instead of failing', async (t) => {
     cookies: seller.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, `/seller/orders/${fulfillment.id}`)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="carrier"[^>]*>Enter the carrier\./)
+  assert.match(response.body, /data-field-error="tracking_number"[^>]*>Enter the tracking number\./)
   const unchanged = await testApp.db
     .selectFrom('fulfillments')
     .selectAll()
@@ -221,7 +222,9 @@ test('a shipment with no carrier is refused', async (t) => {
     payload: { carrier: ' ', tracking_number: 'RM123456789GB' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="carrier"[^>]*>Enter the carrier\./)
+  assert.match(response.body, /id="tracking_number"[^>]*value="RM123456789GB"/)
   const unchanged = await testApp.db
     .selectFrom('fulfillments')
     .selectAll()
@@ -249,7 +252,8 @@ test('shipping an order that already shipped is refused', async (t) => {
     payload: { carrier: 'Royal Mail', tracking_number: 'RM987654321GB' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-form-error/)
   const unchanged = await testApp.db
     .selectFrom('fulfillments')
     .selectAll()
@@ -452,7 +456,8 @@ test('a decline with no reason is refused and changes nothing', async (t) => {
     payload: { reason: '   ' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="decline_reason"[^>]*>Enter a reason\./)
   const unchanged = await testApp.db
     .selectFrom('fulfillments')
     .select('status')
@@ -474,7 +479,8 @@ test('declining after shipping is refused rather than applied', async (t) => {
     payload: { reason: 'Changed my mind.' },
   })
 
-  assert.equal(response.statusCode, 302)
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-form-error/)
   const unchanged = await testApp.db
     .selectFrom('fulfillments')
     .select('status')

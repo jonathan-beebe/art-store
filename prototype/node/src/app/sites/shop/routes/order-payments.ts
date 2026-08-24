@@ -65,15 +65,30 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
     },
   )
 
+  const guardPaymentAttempt = rateLimitGuard<{ id: OrderId }>({
+    name: 'payment_attempt',
+    key: (request) => request.params.id,
+    onTrip: (request) => async (reply, message) => {
+      const found = await loadCustomerOrder(shop, request, request.params.id)
+      if (found === null) return renderNotFound(reply)
+
+      return reply.render(
+        'pay',
+        shopPage({
+          title: `Pay for order ${found.order.id}`,
+          order: found.order,
+          declineMessage: declineNotice(found.lastPayment),
+          formError: message,
+        }),
+      )
+    },
+  })
+
   shop.post(
     '/orders/:id/pay',
     {
       schema: { params: idParams('ord'), body: cardForm },
-      preHandler: [
-        requireVerifiedCustomer,
-        refuseBlockedCustomer(customerOrderPath),
-        rateLimitGuard<{ id: OrderId }>({ name: 'payment_attempt', key: (request) => request.params.id }),
-      ],
+      preHandler: [requireVerifiedCustomer, refuseBlockedCustomer(customerOrderPath), guardPaymentAttempt],
     },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
