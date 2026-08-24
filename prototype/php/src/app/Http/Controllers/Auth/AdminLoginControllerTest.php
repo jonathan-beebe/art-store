@@ -74,14 +74,14 @@ it('flashes a debug notice naming the seeded admin address for an address with n
 
     expect(Arr::string(Session::all(), 'debug_notice'))
         ->toContain('nobody@example.com')
-        ->toContain(AdminSeeder::EMAIL);
+        ->toContain(AdminSeeder::ADMINS[0]['email']);
 });
 
 it('shows the debug notice on the redirected page for an address with no admin row', function (): void {
     $response = $this->followingRedirects()->post('/admin/login', ['email' => 'nobody@example.com']);
 
     $response->assertSee('nobody@example.com')
-        ->assertSee(AdminSeeder::EMAIL);
+        ->assertSee(AdminSeeder::ADMINS[0]['email']);
 });
 
 it('flashes no debug notice for an address with an admin row', function (): void {

@@ -43,7 +43,7 @@ final class AdminLoginController extends Controller
         if (config('magic_links.delivery') === 'session') {
             $redirect->with(
                 'debug_notice',
-                "No admin account exists for {$request->email()}. The seeded admin address is ".AdminSeeder::EMAIL.'.',
+                "No admin account exists for {$request->email()}. The seeded admin address is ".AdminSeeder::ADMINS[0]['email'].'.',
             );
         }
 
