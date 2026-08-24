@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-24:04:10:00 — FEAT-018 — done: prefixed ULID ids on all 20 domain tables plus notifications, PrefixedId value object refuses wrong prefixes at the route boundary; 1234 tests, 3302 assertions, 100% lines
 - 2026-08-23:21:55:00 — FEAT-019 — started
 - 2026-08-23:21:11:00 — FEAT-018 — started
 - 2026-08-23:21:10:00 — MAINT-003 — done: make vocabulary complete, check = lint -> assets -> test, test gated at 100% coverage, .github/workflows/php.yml runs make check; 1111 tests, 2503 assertions
