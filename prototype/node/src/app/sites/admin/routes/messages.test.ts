@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type { Clock } from '../../../clock.ts'
-import { buildTestApp, signInAsAdmin, TEST_INSTANT, type TestApp } from '../../../test/build-test-app.ts'
+import { buildTestApp, signInAsAdmin, TEST_INSTANT } from '../../../test/build-test-app.ts'
 import { createCustomer, createSeller } from '../../../test/commerce-world.ts'
 
 type TravellingClock = Clock & { travelTo(instant: Date): void }
@@ -17,18 +17,6 @@ function travellingClock(instant: Date): TravellingClock {
       current = next
     },
   }
-}
-
-function flashFrom(
-  testApp: TestApp,
-  response: { cookies: { name: string; value: string }[] },
-): Record<string, string> {
-  const cookie = response.cookies.find((candidate) => candidate.name === 'flash')
-  if (cookie === undefined) return {}
-
-  const unsigned = testApp.app.unsignCookie(cookie.value)
-
-  return JSON.parse(unsigned.value ?? '{}') as Record<string, string>
 }
 
 test('the inbox lists this admin threads newest first with the unread count, and hides another admin thread', async (t) => {
@@ -125,7 +113,7 @@ test('the thread page renders the messages and clears the unread count on the ne
   assert.doesNotMatch(after.body, /data-unread-messages/)
 })
 
-test('posting a reply appends the message and redirects; an empty body flashes and appends nothing', async (t) => {
+test('posting a reply appends the message and redirects; an empty body re-renders with a field error and appends nothing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const admin = await signInAsAdmin(testApp)
@@ -161,8 +149,8 @@ test('posting a reply appends the message and redirects; an empty body flashes a
     cookies: admin.cookies,
     payload: { body: '   ' },
   })
-  assert.equal(blank.statusCode, 302)
-  assert.match(flashFrom(testApp, blank).alert ?? '', /Write a message before sending\./)
+  assert.equal(blank.statusCode, 422)
+  assert.match(blank.body, /data-field-error="body"[^>]*>Write a message before sending\./)
 
   const missing = await testApp.app.inject({
     method: 'POST',
@@ -170,8 +158,8 @@ test('posting a reply appends the message and redirects; an empty body flashes a
     cookies: admin.cookies,
     payload: {},
   })
-  assert.equal(missing.statusCode, 302)
-  assert.match(flashFrom(testApp, missing).alert ?? '', /Write a message before sending\./)
+  assert.equal(missing.statusCode, 422)
+  assert.match(missing.body, /data-field-error="body"[^>]*>Write a message before sending\./)
 
   const afterBlanks = await testApp.db
     .selectFrom('messages')
