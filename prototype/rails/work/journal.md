@@ -5,15 +5,27 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 15
-- IMPRV: 3
-- MAINT: 2
+- FEAT: 22
+- IMPRV: 4
+- MAINT: 4
 - A11Y: 1
 - RFCTR: 16
-- BUG: 4
+- BUG: 6
 
 ## Log
 
+- 2026-08-23:20:38:04 — MAINT-003 — defined: Final validation and docs refresh for the alignment branch
+- 2026-08-23:20:38:04 — IMPRV-003 — defined: Merge folds the cart and de-duplicates favorites, and three actors share one browser
+- 2026-08-23:20:38:04 — BUG-005 — defined: Uploads trust the browser's content type with no size cap, and a magic link can be consumed twice
+- 2026-08-23:20:38:04 — FEAT-021 — defined: Admin moderation of listings and customers, and the payout run moves to admin
+- 2026-08-23:20:38:04 — FEAT-020 — defined: Admin dashboard, accounting, ledger browser, and site stats
+- 2026-08-23:20:38:04 — FEAT-019 — defined: Admin directory: sellers, customers, listings, orders, fulfillments
+- 2026-08-23:20:38:04 — FEAT-018 — defined: Configurable rate limits and security headers
+- 2026-08-23:20:38:04 — FEAT-017 — defined: Order lifecycle back half: cancel, stale sweep, seller decline, admin refund
+- 2026-08-23:20:38:04 — BUG-004 — defined: Checkout 500s on a stale cart line instead of listing what is wrong
+- 2026-08-23:20:38:04 — FEAT-016 — defined: Structured JSON logs that tell the story
+- 2026-08-23:20:38:04 — FEAT-015 — defined: Prefixed ULID identifiers on every table
+- 2026-08-23:20:38:04 — MAINT-002 — defined: Common make vocabulary, RuboCop gate, CI, and a test database that resets
 - 2026-08-23:18:56:07 — IMPRV-002 — defined: Two operators produce twin support threads and the support button reaches only one
 - 2026-08-23:18:55:39 — BUG-003 — defined: A killed test run poisons the test database and the next run fails without naming why
 
