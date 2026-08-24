@@ -116,8 +116,16 @@ module RateLimiting
   # `docs/alignment.md` §2.1 keeps addresses out of `data` the same way it
   # keeps out cookie values, tokens, and card numbers. Every other limit
   # keys on an id or an ip, neither of which reads as one.
+  #
+  # An email key is rendered as a truncated SHA-256 digest rather than a
+  # constant redaction sentinel: `docs/alignment.md` §2.3 puts `key` in
+  # `data` so an operator can join the `rate_limit.exceed` lines one
+  # abusive address produced, and a constant would make every such line
+  # identical. The digest keeps that join possible while the address itself
+  # never appears in the line; the `sha256:` prefix marks it as a digest
+  # rather than a raw key, so a reader does not mistake it for one.
   def redacted_rate_limit_key(key)
-    key.include?("@") ? ActiveSupport::ParameterFilter::FILTERED : key
+    key.include?("@") ? "sha256:#{Digest::SHA256.hexdigest(key)[0, 16]}" : key
   end
 
   def rate_limit_message(trip)

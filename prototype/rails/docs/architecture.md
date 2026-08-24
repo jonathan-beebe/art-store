@@ -322,6 +322,16 @@ variable and the value.
 | `payment_attempt` | `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | order id | `Shop::OrderPaymentsController#create` |
 | `listing_write` | `RATE_LIMIT_LISTING_WRITE` | `60/1h` | seller id | `Seller::ListingsController#create`/`#update` |
 
+`conversation_open` guards the five routes that open a thread from the
+customer or seller side: `Shop::ListingQuestionsController#create`,
+`Shop::SupportsController#create`, `Shop::FulfillmentConversationsController#
+create`, `Seller::SupportsController#create`, `Seller::
+OrderConversationsController#create`. It does not guard
+`Admin::CustomerConversationsController#create` or `Admin::
+SellerConversationsController#create` — an admin opening a thread is neither
+a listing question, a support request, nor a fulfillment thread open, the
+three categories the table's Guards column names.
+
 `TRUSTED_PROXIES` (a comma-separated list of addresses or CIDR ranges) names
 the proxy a deployment sits behind. Unset, `rate_limit_client_ip` reads the
 socket's own peer (`request.remote_addr`); set, it reads

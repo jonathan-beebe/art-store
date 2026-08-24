@@ -345,15 +345,17 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_operator line["data"]["retry_after_seconds"], :<=, limit.window_seconds
   end
 
-  test "an email-keyed trip's log line does not carry the address" do
+  test "an email-keyed trip's log line carries a digest, not the address" do
     limit = RateLimits.fetch(:magic_link_request)
+    email = "secret@example.com"
 
     lines = captured_log_lines do
-      trip_seller_magic_link_request(limit.count, ip: "10.0.5.1", email: "secret@example.com")
+      trip_seller_magic_link_request(limit.count, ip: "10.0.5.1", email: email)
     end
 
     line = log_lines_for("rate_limit.exceed", lines).sole
-    assert_equal "[FILTERED]", line["data"]["key"]
+    assert_match(/\Asha256:[0-9a-f]{16}\z/, line["data"]["key"])
+    refute_includes line.to_json, email
   end
 
   test "an id-keyed trip's log line carries the raw key" do
@@ -370,33 +372,36 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_equal customer_id, line["data"]["key"]
   end
 
-  test "the client ip is the socket's, ignoring a forwarded-for header, unless TRUSTED_PROXIES is set" do
+  # REMOTE_ADDR is pinned to 127.0.0.1 (the default an integration request
+  # already carries when none is given) on purpose: that address sits inside
+  # Rails' own built-in `ActionDispatch::RemoteIp::TRUSTED_PROXIES`, so
+  # `request.remote_ip` would honour the `X-Forwarded-For` header below
+  # regardless of this app's own `TRUSTED_PROXIES` wiring. Each request
+  # carries a different forwarded value; only a key built from the raw
+  # socket address (constant across all of them) accumulates to a trip. If
+  # `rate_limit_client_ip` read `request.remote_ip` here, every request
+  # would count as a different key and the last one would still redirect —
+  # this test would then fail on the final assertion rather than passing
+  # for the wrong reason.
+  #
+  # `TRUSTED_PROXIES` set — the first trusted proxy header decides the ip
+  # instead — is not provable at this level: `Rails::Engine#app` memoizes
+  # the middleware stack, and `ActionDispatch::RemoteIp#initialize` captures
+  # its trusted-proxy list once when that stack is first built, so mutating
+  # `config.action_dispatch.trusted_proxies` mid-suite does not move
+  # `request.remote_ip`. That branch is proven directly, at the unit level,
+  # in `test/controllers/concerns/rate_limiting_test.rb`.
+  test "TRUSTED_PROXIES unset, the client ip is the socket's, ignoring a forwarded-for header" do
     limit = RateLimits.fetch(:magic_link_consume)
 
     limit.count.times do |i|
-      get verify_magic_link_path("0" * 64), headers: { "X-Forwarded-For" => "203.0.113.#{i}" }
+      get verify_magic_link_path("0" * 64),
+        headers: { "X-Forwarded-For" => "203.0.113.#{i}" }, env: { "REMOTE_ADDR" => "127.0.0.1" }
     end
-    get verify_magic_link_path("0" * 64), headers: { "X-Forwarded-For" => "203.0.113.99" }
+    get verify_magic_link_path("0" * 64),
+      headers: { "X-Forwarded-For" => "203.0.113.99" }, env: { "REMOTE_ADDR" => "127.0.0.1" }
 
     assert_response :too_many_requests
-  end
-
-  test "TRUSTED_PROXIES set, the first trusted proxy header decides the ip instead" do
-    limit = RateLimits.fetch(:magic_link_consume)
-    original = ENV["TRUSTED_PROXIES"]
-    ENV["TRUSTED_PROXIES"] = "127.0.0.1/32"
-    Rails.application.config.action_dispatch.trusted_proxies =
-      [ IPAddr.new("127.0.0.1/32") ]
-
-    limit.count.times do |i|
-      get verify_magic_link_path("0" * 64), headers: { "X-Forwarded-For" => "203.0.113.#{i}" }
-      assert_response :redirect
-    end
-    get verify_magic_link_path("0" * 64), headers: { "X-Forwarded-For" => "203.0.113.new" }
-
-    assert_response :redirect
-  ensure
-    ENV["TRUSTED_PROXIES"] = original
   end
 
   private
