@@ -36,6 +36,8 @@ final class Story
 {
     private const string UNIT_PREFIX = 'txn';
 
+    private const string SYSTEM_ACTOR = 'system';
+
     private const int MILLISECONDS = 1000;
 
     /**
@@ -81,6 +83,16 @@ final class Story
     public static function actorIs(ActorType $actorType, string $actorId): void
     {
         Log::withContext(['actor_type' => $actorType->value, 'actor_id' => $actorId]);
+    }
+
+    /**
+     * The application itself is the actor: a scheduled sweep answers to
+     * nobody, so its lines carry `actor_type: system` and no actor id
+     * (docs/alignment.md §2.1).
+     */
+    public static function asSystem(): void
+    {
+        Log::withContext(['actor_type' => self::SYSTEM_ACTOR]);
     }
 
     /**

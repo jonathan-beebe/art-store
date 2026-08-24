@@ -28,6 +28,42 @@ final readonly class NotificationMessage
         );
     }
 
+    public static function purchaseCancelled(string $orderId): self
+    {
+        return new self(
+            'Order cancelled',
+            "Order {$orderId} was cancelled before it was paid. Nothing has been charged.",
+            null,
+        );
+    }
+
+    public static function saleCancelled(string $orderId): self
+    {
+        return new self(
+            'Order cancelled',
+            "Order {$orderId} was cancelled before it was paid. Your pieces are back on the storefront.",
+            null,
+        );
+    }
+
+    public static function purchaseRefunded(string $orderId, Money $amount, string $reason): self
+    {
+        return new self(
+            'Refund issued',
+            "{$amount->format()} of order {$orderId} was refunded. Reason: {$reason}",
+            null,
+        );
+    }
+
+    public static function saleRefunded(string $orderId, Money $amount, string $reason): self
+    {
+        return new self(
+            'Refund issued',
+            "A refund of {$amount->format()} was issued on order {$orderId}. Reason: {$reason}",
+            null,
+        );
+    }
+
     /**
      * $url names the recipient's thread on their own site. Nullable for the
      * same reason every factory here is: an inbox row can carry no link.

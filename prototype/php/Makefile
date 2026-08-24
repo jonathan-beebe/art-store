@@ -69,8 +69,11 @@ routes:
 payouts:
 	docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))
 
+# Cancels the orders a guest never verified once they are older than
+# STALE_ORDER_HOURS (default 24) and hands their stock back. Idempotent: a
+# second run finds nothing.
 sweep:
-	@echo "sweep: stale-order sweep lands with FEAT-020"
+	docker compose run --rm app php artisan orders:sweep
 
 # The PHP prototype has no outbox: notifications are in-app, rendered from
 # the database channel (app/Notifications/, config/notifications.php).

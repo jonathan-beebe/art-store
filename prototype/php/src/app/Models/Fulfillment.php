@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Override;
 
 /**
@@ -72,6 +73,18 @@ class Fulfillment extends Model
     }
 
     /**
+     * The refund that settled this fulfillment. There is at most one: a
+     * refund is always the whole subtotal, so a second would send the money
+     * twice.
+     *
+     * @return HasOne<Refund, $this>
+     */
+    public function refund(): HasOne
+    {
+        return $this->hasOne(Refund::class);
+    }
+
+    /**
      * The admin fulfillments list, narrowed to one status. A null filter adds
      * no clause, which is what the console's "All statuses" submits.
      *
@@ -111,5 +124,33 @@ class Fulfillment extends Model
     public function net(): Money
     {
         return Money::fromCents($this->net_cents);
+    }
+
+    /**
+     * Whether the seller can still turn this parcel down. The order behind it
+     * has to have been paid, because a decline sends money back.
+     */
+    public function isDeclinable(): bool
+    {
+        return $this->status->canTransitionTo(FulfillmentStatus::Declined) && $this->orderHasBeenPaid();
+    }
+
+    /**
+     * Whether an admin can still refund this parcel — from awaiting shipment
+     * for a seller who never answered, and from shipped or delivered as a
+     * dispute outcome.
+     */
+    public function isRefundable(): bool
+    {
+        return $this->status->canTransitionTo(FulfillmentStatus::Refunded) && $this->orderHasBeenPaid();
+    }
+
+    /**
+     * Reads the order through `loadMissing` so a policy or a view asking
+     * about a route-bound fulfillment does not trip the lazy-load guard.
+     */
+    private function orderHasBeenPaid(): bool
+    {
+        return $this->loadMissing('order')->order->status->hasBeenPaid();
     }
 }

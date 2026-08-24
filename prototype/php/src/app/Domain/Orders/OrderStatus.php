@@ -18,6 +18,7 @@ enum OrderStatus: string
     case Shipped = 'shipped';
     case Delivered = 'delivered';
     case Cancelled = 'cancelled';
+    case Refunded = 'refunded';
 
     /**
      * @return list<self>
@@ -27,10 +28,11 @@ enum OrderStatus: string
         return match ($this) {
             self::PendingVerification, self::AwaitingPayment => [self::Paid, self::PaymentFailed, self::Cancelled],
             self::PaymentFailed => [self::Paid, self::Cancelled],
-            self::Paid => [self::PartiallyShipped, self::Shipped],
-            self::PartiallyShipped => [self::Shipped],
-            self::Shipped => [self::Delivered],
-            self::Delivered, self::Cancelled => [],
+            self::Paid => [self::PartiallyShipped, self::Shipped, self::Refunded],
+            self::PartiallyShipped => [self::Shipped, self::Refunded],
+            self::Shipped => [self::Delivered, self::Refunded],
+            self::Delivered => [self::Refunded],
+            self::Cancelled, self::Refunded => [],
         };
     }
 
@@ -64,6 +66,28 @@ enum OrderStatus: string
         return $this === self::PaymentFailed;
     }
 
+    /**
+     * Cancelling from here hands stock back to the storefront. A declined
+     * card already returned what placement took, so only an order still
+     * waiting on a card is holding any.
+     */
+    public function releasesStockOnCancel(): bool
+    {
+        return $this === self::PendingVerification || $this === self::AwaitingPayment;
+    }
+
+    /**
+     * A card cleared on this order, so there is money to send back. It is
+     * what a decline and a refund both ask before they issue one.
+     */
+    public function hasBeenPaid(): bool
+    {
+        return match ($this) {
+            self::Paid, self::PartiallyShipped, self::Shipped, self::Delivered, self::Refunded => true,
+            self::PendingVerification, self::AwaitingPayment, self::PaymentFailed, self::Cancelled => false,
+        };
+    }
+
     public function label(): string
     {
         return ucfirst(str_replace('_', ' ', $this->value));
@@ -83,6 +107,11 @@ enum OrderStatus: string
     }
 
     /**
+     * Where a paid order stands, read from its fulfillments. Only the live
+     * ones speak: a declined or refunded fulfillment has been settled in
+     * money and no longer holds the order back. An order whose fulfillments
+     * are all settled is itself refunded.
+     *
      * @param  list<FulfillmentStatus>  $statuses
      */
     public static function fromFulfillments(array $statuses): self
@@ -91,9 +120,15 @@ enum OrderStatus: string
             throw new InvalidArgumentException('An order rolls up from at least one fulfillment.');
         }
 
-        $total = count($statuses);
-        $delivered = count(array_filter($statuses, fn (FulfillmentStatus $status): bool => $status === FulfillmentStatus::Delivered));
-        $departed = count(array_filter($statuses, fn (FulfillmentStatus $status): bool => $status->hasLeftTheStudio()));
+        $live = array_values(array_filter($statuses, fn (FulfillmentStatus $status): bool => $status->isLive()));
+
+        if ($live === []) {
+            return self::Refunded;
+        }
+
+        $total = count($live);
+        $delivered = count(array_filter($live, fn (FulfillmentStatus $status): bool => $status === FulfillmentStatus::Delivered));
+        $departed = count(array_filter($live, fn (FulfillmentStatus $status): bool => $status->hasLeftTheStudio()));
 
         return match (true) {
             $delivered === $total => self::Delivered,

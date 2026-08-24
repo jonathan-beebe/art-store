@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Fulfillment\ConfirmDelivered;
+use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Fulfillment;
@@ -117,3 +118,35 @@ it('answers not found for a value that is not a fulfillment id, the same as an u
     'a value of no shape at all' => 'nonsense',
     'a fulfillment that does not exist' => 'ful_01J5X3M9A2K8YB7Q4R6T1V0WZE',
 ]);
+
+it('offers the decline form on a parcel that has not shipped', function () use ($paidFulfillment): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('Decline and refund');
+});
+
+it('withdraws the decline form once the parcel shipped', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->shippedFulfillmentFor($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Decline and refund');
+});
+
+it('shows the refund behind a declined parcel', function () use ($paidFulfillment): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+    app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('The kiln cracked the glaze.');
+    $response->assertSee('Seller');
+});

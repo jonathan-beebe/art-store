@@ -60,7 +60,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make seed` | `docker compose run --rm app php artisan db:seed` |
 | `make routes` | `docker compose run --rm app php artisan route:list` |
 | `make payouts` | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))` |
-| `make sweep` | prints a note — lands with FEAT-020 |
+| `make sweep` | `docker compose run --rm app php artisan orders:sweep` |
 | `make outbox` | prints a note — this prototype has no outbox; notifications are in-app |
 | `make logs` | `docker compose logs -f` |
 
@@ -270,8 +270,6 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Email delivery is a hook, not an implementation. Every notification has a
   `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS=database,mail`
   switch the channel, but `MAIL_MAILER` points at `log`.
-- No order cancellation route; `OrderStatus::Cancelled` exists in the domain
-  with no way to reach it over HTTP.
 - A cart holding a line the listing can no longer supply still shows a live
   Checkout button. The write refuses and names the item.
 - Shipment tracking is a free-text carrier and number. The customer confirms

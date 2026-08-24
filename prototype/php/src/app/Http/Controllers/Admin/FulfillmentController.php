@@ -45,6 +45,7 @@ final class FulfillmentController extends Controller
                 // place.
                 'order.items' => fn (Relation $items) => $items->where('seller_id', $fulfillment->seller_id),
                 'ledgerEntries',
+                'refund',
             ]),
         ]);
     }

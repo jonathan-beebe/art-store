@@ -108,6 +108,25 @@ abstract class CommerceTestCase extends TestCase
     }
 
     /**
+     * Carries one listing through checkout and payment for the given seller,
+     * and hands back the fulfillment waiting to be shipped.
+     */
+    public function paidFulfillmentFor(
+        Seller $seller,
+        ?Customer $customer = null,
+        int $priceCents = 10000,
+        ?DateTimeImmutable $paidAt = null,
+    ): Fulfillment {
+        $order = $this->orderFor(
+            $customer ?? $this->verifiedCustomer(),
+            $this->listing($seller, ['price_cents' => $priceCents]),
+        );
+        app(FinalizeOrder::class)($order, '4242424242424242', $paidAt ?? $this->moment('2026-08-20 10:00:00'));
+
+        return $order->fulfillments()->sole();
+    }
+
+    /**
      * A paid order split across two sellers, one fulfillment each.
      */
     public function paidOrderWithTwoSellers(): Order

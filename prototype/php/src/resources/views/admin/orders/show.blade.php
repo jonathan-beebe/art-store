@@ -4,6 +4,14 @@
         <a href="{{ route('admin.orders.index') }}" class="ml-auto text-gray-700 underline">All orders</a>
     </div>
 
+    @if ($order->isCancellable())
+        <form method="POST" action="{{ route('admin.orders.cancel', $order) }}" class="mt-4">
+            @csrf
+            <button type="submit" class="rounded border border-gray-400 bg-white px-4 py-2 font-medium">Cancel this order</button>
+            <span class="ml-2 text-gray-600">Nothing has been charged yet; the stock goes back on the storefront.</span>
+        </form>
+    @endif
+
     <dl class="mt-4 grid gap-3 rounded border border-gray-300 bg-white p-4 sm:grid-cols-2">
         <div>
             <dt class="text-gray-600">Customer</dt>
@@ -20,6 +28,10 @@
         <div>
             <dt class="text-gray-600">Total</dt>
             <dd class="mt-1 tabular-nums">{{ $order->total()->format() }}</dd>
+        </div>
+        <div>
+            <dt class="text-gray-600">Refunded</dt>
+            <dd class="mt-1 tabular-nums">{{ $order->refunded()->format() }}</dd>
         </div>
         <div>
             <dt class="text-gray-600">Email</dt>
@@ -108,5 +120,20 @@
         <h2 id="fulfillments-heading" class="font-semibold text-gray-700">Fulfillments</h2>
 
         <x-admin.fulfillments-table :fulfillments="$order->fulfillments" :show-order="false" caption="Every seller's shipment on this order" />
+    </section>
+
+    <section aria-labelledby="refunds-heading" class="mt-6">
+        <h2 id="refunds-heading" class="font-semibold text-gray-700">Refunds</h2>
+
+        <x-admin.refunds-table :refunds="$order->refunds" caption="Every refund issued on this order" />
+    </section>
+
+    <section aria-labelledby="refund-actions-heading" class="mt-6">
+        <h2 id="refund-actions-heading" class="font-semibold text-gray-700">Refund a fulfillment</h2>
+
+        @foreach ($order->fulfillments as $fulfillment)
+            <h3 class="mt-4 font-medium text-gray-700">{{ $fulfillment->seller->displayName() }}</h3>
+            <x-admin.refund-form :fulfillment="$fulfillment" />
+        @endforeach
     </section>
 </x-layouts.admin>

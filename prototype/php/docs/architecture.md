@@ -192,17 +192,16 @@ the request.
 `http.request`, `magic_link.request`, `magic_link.consume`, `customer.merge`,
 `listing.create`, `listing.update`, `listing.publish`, `listing.transition`,
 `listing.view`, `cart.add`, `cart.update`, `cart.remove`, `order.place`,
-`order.pay`, `fulfillment.ship`, `fulfillment.deliver`, `ledger.write`,
+`order.pay`, `order.cancel`, `order.sweep`, `fulfillment.ship`,
+`fulfillment.deliver`, `fulfillment.decline`, `refund.issue`, `ledger.write`,
 `payout.run`, `payout.pay`, `conversation.open`, `message.post`,
 `faq.publish`, `faq.unpublish`, `notification.write`, `notification.deliver`,
 `moderation.block_customer`, `moderation.lift_customer_block`, `migrate.run`,
 `migrate.apply`, `seed.run`, `app.boot`, `app.shutdown`.
 
-The rest of §2.3 waits on the features that emit it: `order.cancel`,
-`order.sweep`, `fulfillment.decline`, and `refund.issue` with the back half of
-the order lifecycle, `rate_limit.exceed` with configurable rate limits, and
-`moderation.remove_listing` and `moderation.lift_listing_removal` with admin
-moderation of listings.
+The rest of §2.3 waits on the features that emit it: `rate_limit.exceed` with
+configurable rate limits, and `moderation.remove_listing` and
+`moderation.lift_listing_removal` with admin moderation of listings.
 
 Domain events are emitted by the action that does the work. Three are not:
 `ledger.write` comes from `LedgerEntryObserver`, so all three writers of a

@@ -194,28 +194,26 @@ unread badge — on the four points where the two designs actually differ.
    test rather than passing unnoticed.
 3. **Shipment tracking is a text field.** No carrier integration; the customer
    confirms delivery from the order page.
-4. **No order cancellation route.** `OrderStatus::Cancelled` exists in the
-   domain with no way to reach it over HTTP.
-5. **The cart's Checkout button stays live on an unavailable line.** The
+4. **The cart's Checkout button stays live on an unavailable line.** The
    shopper is refused at the write, with the item named, rather than at the
    button.
-6. **Replacing a listing image that fails to store keeps the old one
+5. **Replacing a listing image that fails to store keeps the old one
    silently.** The create path flashes the failure; the update path does not.
-7. **Seeded listings carry a generated placeholder SVG**, not artwork.
-8. **A closed messaging tab does not free its SSE worker at once.** The
+6. **Seeded listings carry a generated placeholder SVG**, not artwork.
+7. **A closed messaging tab does not free its SSE worker at once.** The
    generator yields only on a change, so `connection_aborted()` is checked
    less often than a keepalive would allow; measured, an abandoned stream
    holds its worker for about five seconds. See `docs/messaging.md` § "The
    live badge".
-9. **A cookieless client of `/events` mints a `customers` row per request**,
+8. **A cookieless client of `/events` mints a `customers` row per request**,
    the same as any other storefront route with no `customer_id` cookie — a
    crawler that ignores cookies holds one worker per reconnect. Bounded, not a
    new hole. See `docs/messaging.md` § "The live badge".
-10. **A blocked customer's ask leaves an empty thread.** `OpenConversation`
-    runs before the `post` policy check on `shop.listing.questions`, so a
-    blocked visitor's submission opens (or finds) the thread and only the
-    message is refused. See `docs/messaging.md` § "What a block does".
-11. **The reply forms' `maxlength` attributes are literals**, not reads of
+9. **A blocked customer's ask leaves an empty thread.** `OpenConversation`
+   runs before the `post` policy check on `shop.listing.questions`, so a
+   blocked visitor's submission opens (or finds) the thread and only the
+   message is refused. See `docs/messaging.md` § "What a block does".
+10. **The reply forms' `maxlength` attributes are literals**, not reads of
     `MessageBody::MAX_LENGTH` / `FaqDraft::*_MAX_LENGTH`. The form request
     still enforces the real limit either way. See `docs/messaging.md` §
     "A question becomes a published FAQ".
@@ -226,7 +224,5 @@ unread badge — on the four points where the two designs actually differ.
    which closes gap 1 and removes the debug alert from the demo path.
 2. Scope the payout button to the signed-in seller, or move it behind an
    artisan-only path and keep `payouts:run` as the single entry point.
-3. Add order cancellation for `pending_verification` orders, with the stock
-   returned to the listing.
-4. Replace the placeholder SVG images with real uploads in the seeder so the
+3. Replace the placeholder SVG images with real uploads in the seeder so the
    storefront demo shows artwork.

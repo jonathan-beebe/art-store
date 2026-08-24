@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Seller\DashboardController;
+use App\Http\Controllers\Seller\DeclineController;
 use App\Http\Controllers\Seller\EarningsController;
 use App\Http\Controllers\Seller\EventsController;
 use App\Http\Controllers\Seller\ListingController;
@@ -29,6 +30,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{fulfillment}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('orders/{fulfillment}/shipment', ShipmentController::class)->name('orders.ship');
+    Route::post('orders/{fulfillment}/decline', DeclineController::class)->name('orders.decline');
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');
 
     Route::get('earnings', EarningsController::class)->name('earnings');

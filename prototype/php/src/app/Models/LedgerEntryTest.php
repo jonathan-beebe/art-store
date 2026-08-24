@@ -42,16 +42,18 @@ it('reads the payout a paid-out entry settled through', function (): void {
         ->and($paidOut->fulfillment)->toBeNull();
 });
 
-it('sums the entries of each seller and type into one row apiece', function (): void {
+it('sums the entries of each seller, fulfillment and type into one row apiece', function (): void {
     $seller = $this->seller();
-    $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
+    $first = $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
     $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
 
     $rows = LedgerEntry::query()->totalledByType()->get();
+    $ofFirst = $rows->where('fulfillment_id', $first->id);
 
-    expect($rows)->toHaveCount(2)
-        ->and($rows->firstWhere('type', LedgerEntryType::Held)?->amount())->toBeMoney(27000)
-        ->and($rows->firstWhere('type', LedgerEntryType::Released)?->amount())->toBeMoney(27000);
+    expect($rows)->toHaveCount(4)
+        ->and($ofFirst->firstWhere('type', LedgerEntryType::Held)?->amount())->toBeMoney(9000)
+        ->and($ofFirst->firstWhere('type', LedgerEntryType::Released)?->amount())->toBeMoney(9000)
+        ->and($rows->sum(fn (LedgerEntry $row): int => $row->amount_cents))->toBe(54000);
 });
 
 it('folds every seller\'s balance out of one read of the ledger', function (): void {

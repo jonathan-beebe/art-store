@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Models\Customer;
 
 it('lists every fulfillment with its order and seller', function (): void {
@@ -77,8 +78,8 @@ it('shows one fulfillment with its items, money and ledger', function (): void {
     $response->assertSee('Royal Mail');
     $response->assertSee('RM123');
     $response->assertSee('$90.00');
-    $response->assertSee('held');
-    $response->assertSee('released');
+    $response->assertSee('Held');
+    $response->assertSee('Released');
 });
 
 it('says so on a fulfillment with nothing in escrow yet', function (): void {
@@ -103,3 +104,45 @@ it('answers not found for a value that is not a fulfillment id, the same as an u
     'a value of no shape at all' => 'nonsense',
     'a fulfillment that does not exist' => 'ful_01J5X3M9A2K8YB7Q4R6T1V0WZE',
 ]);
+
+it('offers the refund form on a fulfillment that has not been refunded', function (): void {
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/fulfillments/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('Refund this fulfillment');
+});
+
+it('shows the refund instead of the form once one is issued', function (): void {
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute settled.', $this->moment('2026-08-23 09:00:00'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/fulfillments/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('Dispute settled.');
+    $response->assertSee('Admin');
+    $response->assertDontSee('Refund this fulfillment');
+    $response->assertSee('Refunded');
+});
+
+it('says nothing is left to refund on a fulfillment nobody paid for', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->get("/admin/fulfillments/{$order->fulfillments()->sole()->id}");
+
+    $response->assertOk();
+    $response->assertSee('Nothing left to refund on this fulfillment.');
+});
+
+it('filters the list down to the refunded fulfillments', function (): void {
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute settled.', $this->moment('2026-08-23 09:00:00'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/fulfillments?status=refunded');
+
+    $response->assertOk();
+    $response->assertSee($fulfillment->id);
+});

@@ -8,6 +8,7 @@ use App\Domain\Money\Money;
 use App\Domain\Orders\OrderPlacementPlan;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\PlaceableLine;
+use App\Domain\Payments\PaymentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -26,7 +27,7 @@ use Override;
 #[Fillable([
     'customer_id', 'email', 'status', 'shipping_name', 'shipping_line1', 'shipping_line2',
     'shipping_city', 'shipping_region', 'shipping_postal_code', 'shipping_country',
-    'subtotal_cents', 'total_cents', 'placed_at', 'finalized_at',
+    'subtotal_cents', 'total_cents', 'refunded_cents', 'placed_at', 'finalized_at',
 ])]
 class Order extends Model
 {
@@ -50,6 +51,7 @@ class Order extends Model
             'status' => OrderStatus::class,
             'subtotal_cents' => 'integer',
             'total_cents' => 'integer',
+            'refunded_cents' => 'integer',
             'placed_at' => 'datetime',
             'finalized_at' => 'datetime',
         ];
@@ -79,6 +81,12 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    /** @return HasMany<Refund, $this> */
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
     /**
      * The attempt a page reports on: after a decline and a retry, the latest
      * one is what the shopper is looking at.
@@ -88,6 +96,17 @@ class Order extends Model
     public function latestPayment(): HasOne
     {
         return $this->payments()->one()->latestOfMany('processed_at');
+    }
+
+    /**
+     * The attempt that put money on this order, which is what a refund names
+     * as the charge it reverses.
+     *
+     * @return HasOne<Payment, $this>
+     */
+    public function approvedPayment(): HasOne
+    {
+        return $this->payments()->one()->where('status', PaymentStatus::Approved)->latestOfMany('processed_at');
     }
 
     /**
@@ -147,5 +166,20 @@ class Order extends Model
     public function total(): Money
     {
         return Money::fromCents($this->total_cents);
+    }
+
+    public function refunded(): Money
+    {
+        return Money::fromCents($this->refunded_cents);
+    }
+
+    /**
+     * Nothing has been charged yet, so ending the order is still cancelling
+     * rather than refunding. It is what the customer's and the admin's cancel
+     * controls are shown by.
+     */
+    public function isCancellable(): bool
+    {
+        return $this->status->canTransitionTo(OrderStatus::Cancelled);
     }
 }

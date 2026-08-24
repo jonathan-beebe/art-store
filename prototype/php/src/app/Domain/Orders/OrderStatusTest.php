@@ -15,12 +15,33 @@ it('lists the statuses a status may transition to', function (OrderStatus $from,
     'unverified may be charged or cancelled' => [OrderStatus::PendingVerification, [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled]],
     'awaiting payment may be charged or cancelled' => [OrderStatus::AwaitingPayment, [OrderStatus::Paid, OrderStatus::PaymentFailed, OrderStatus::Cancelled]],
     'a failed payment may be retried or cancelled' => [OrderStatus::PaymentFailed, [OrderStatus::Paid, OrderStatus::Cancelled]],
-    'paid moves into shipping' => [OrderStatus::Paid, [OrderStatus::PartiallyShipped, OrderStatus::Shipped]],
-    'partially shipped completes shipping' => [OrderStatus::PartiallyShipped, [OrderStatus::Shipped]],
-    'shipped is delivered next' => [OrderStatus::Shipped, [OrderStatus::Delivered]],
-    'delivered is final' => [OrderStatus::Delivered, []],
+    'paid moves into shipping or is refunded' => [OrderStatus::Paid, [OrderStatus::PartiallyShipped, OrderStatus::Shipped, OrderStatus::Refunded]],
+    'partially shipped completes shipping or is refunded' => [OrderStatus::PartiallyShipped, [OrderStatus::Shipped, OrderStatus::Refunded]],
+    'shipped is delivered or refunded next' => [OrderStatus::Shipped, [OrderStatus::Delivered, OrderStatus::Refunded]],
+    'delivered may still be refunded' => [OrderStatus::Delivered, [OrderStatus::Refunded]],
     'cancelled is final' => [OrderStatus::Cancelled, []],
+    'refunded is final' => [OrderStatus::Refunded, []],
 ]);
+
+it('rejects paying an order that was cancelled', function (): void {
+    expect(fn () => OrderStatus::Cancelled->transitionTo(OrderStatus::Paid))
+        ->toThrow(DomainException::class, 'cancelled to paid');
+});
+
+it('rejects paying an order that was refunded', function (): void {
+    expect(fn () => OrderStatus::Refunded->transitionTo(OrderStatus::Paid))
+        ->toThrow(DomainException::class, 'refunded to paid');
+});
+
+it('rejects paying an order that is already paid', function (): void {
+    expect(fn () => OrderStatus::Paid->transitionTo(OrderStatus::Paid))
+        ->toThrow(DomainException::class, 'paid to paid');
+});
+
+it('rejects cancelling an order that has been paid', function (): void {
+    expect(fn () => OrderStatus::Paid->transitionTo(OrderStatus::Cancelled))
+        ->toThrow(DomainException::class, 'paid to cancelled');
+});
 
 it('agrees with the transition table on every pair', function (): void {
     foreach (OrderStatus::cases() as $from) {
@@ -88,6 +109,26 @@ it('rolls up fulfillment statuses into an order status', function (array $fulfil
         [FulfillmentStatus::Delivered, FulfillmentStatus::Delivered],
         OrderStatus::Delivered,
     ],
+    'a declined fulfillment leaves the order reading from the live one' => [
+        [FulfillmentStatus::Declined, FulfillmentStatus::AwaitingShipment],
+        OrderStatus::Paid,
+    ],
+    'a refunded fulfillment beside a shipped one ships the order' => [
+        [FulfillmentStatus::Refunded, FulfillmentStatus::Shipped],
+        OrderStatus::Shipped,
+    ],
+    'a refunded fulfillment beside a delivered one delivers the order' => [
+        [FulfillmentStatus::Refunded, FulfillmentStatus::Delivered],
+        OrderStatus::Delivered,
+    ],
+    'every fulfillment declined refunds the order' => [
+        [FulfillmentStatus::Declined, FulfillmentStatus::Declined],
+        OrderStatus::Refunded,
+    ],
+    'a declined and a refunded fulfillment refund the order' => [
+        [FulfillmentStatus::Declined, FulfillmentStatus::Refunded],
+        OrderStatus::Refunded,
+    ],
 ]);
 
 it('needs at least one fulfillment to roll up', function (): void {
@@ -104,6 +145,29 @@ it('awaits payment only before a successful charge', function (OrderStatus $stat
     'shipped no longer awaits payment' => [OrderStatus::Shipped, false],
     'delivered no longer awaits payment' => [OrderStatus::Delivered, false],
     'cancelled no longer awaits payment' => [OrderStatus::Cancelled, false],
+    'refunded no longer awaits payment' => [OrderStatus::Refunded, false],
+]);
+
+it('releases stock on cancel only while a card could still be charged for the first time', function (OrderStatus $status, bool $expected): void {
+    expect($status->releasesStockOnCancel())->toBe($expected);
+})->with([
+    'a guest order is holding its stock' => [OrderStatus::PendingVerification, true],
+    'an order awaiting payment is holding its stock' => [OrderStatus::AwaitingPayment, true],
+    'a declined charge already handed the stock back' => [OrderStatus::PaymentFailed, false],
+]);
+
+it('knows whether money ever reached the platform', function (OrderStatus $status, bool $expected): void {
+    expect($status->hasBeenPaid())->toBe($expected);
+})->with([
+    'pending verification has not been paid' => [OrderStatus::PendingVerification, false],
+    'awaiting payment has not been paid' => [OrderStatus::AwaitingPayment, false],
+    'a failed payment has not been paid' => [OrderStatus::PaymentFailed, false],
+    'cancelled has not been paid' => [OrderStatus::Cancelled, false],
+    'paid has been paid' => [OrderStatus::Paid, true],
+    'partially shipped has been paid' => [OrderStatus::PartiallyShipped, true],
+    'shipped has been paid' => [OrderStatus::Shipped, true],
+    'delivered has been paid' => [OrderStatus::Delivered, true],
+    'refunded has been paid' => [OrderStatus::Refunded, true],
 ]);
 
 it('retakes stock on a retry only after a declined charge', function (OrderStatus $status, bool $expected): void {
@@ -122,4 +186,6 @@ it('reads its stored value back as a sentence', function (OrderStatus $status, s
     'paid' => [OrderStatus::Paid, 'Paid'],
     'payment failed' => [OrderStatus::PaymentFailed, 'Payment failed'],
     'partially shipped' => [OrderStatus::PartiallyShipped, 'Partially shipped'],
+    'cancelled' => [OrderStatus::Cancelled, 'Cancelled'],
+    'refunded' => [OrderStatus::Refunded, 'Refunded'],
 ]);

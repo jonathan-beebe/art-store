@@ -10,7 +10,6 @@ namespace App\Logging;
  * phase field carries the tense.
  *
  * The events waiting on features this prototype has yet to grow —
- * `order.cancel`, `order.sweep`, `fulfillment.decline`, `refund.issue`,
  * `moderation.remove_listing`, `moderation.lift_listing_removal`,
  * `rate_limit.exceed` — join the enum with the work that emits them.
  */
@@ -30,8 +29,12 @@ enum StoryEvent: string
     case CartRemove = 'cart.remove';
     case OrderPlace = 'order.place';
     case OrderPay = 'order.pay';
+    case OrderCancel = 'order.cancel';
+    case OrderSweep = 'order.sweep';
     case FulfillmentShip = 'fulfillment.ship';
     case FulfillmentDeliver = 'fulfillment.deliver';
+    case FulfillmentDecline = 'fulfillment.decline';
+    case RefundIssue = 'refund.issue';
     case LedgerWrite = 'ledger.write';
     case PayoutRun = 'payout.run';
     case PayoutPay = 'payout.pay';

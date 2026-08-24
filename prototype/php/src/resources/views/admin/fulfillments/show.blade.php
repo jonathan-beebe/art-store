@@ -105,7 +105,7 @@
                     <tbody class="divide-y divide-gray-200">
                         @foreach ($fulfillment->ledgerEntries as $entry)
                             <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">{{ $entry->type->value }}</th>
+                                <th scope="row" class="px-4 py-2 font-normal">{{ $entry->type->label() }}</th>
                                 <td class="px-4 py-2">{{ $entry->occurred_at?->format('M j, Y g:ia') }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $entry->amount()->format() }}</td>
                             </tr>
@@ -113,6 +113,23 @@
                     </tbody>
                 </table>
             </div>
+        @endif
+    </section>
+
+    <section aria-labelledby="refund-heading" class="mt-6">
+        <h2 id="refund-heading" class="font-semibold text-gray-700">Refund</h2>
+
+        @if ($fulfillment->refund)
+            <dl class="mt-2 rounded border border-gray-300 bg-white p-4">
+                <dt class="text-gray-600">Amount</dt>
+                <dd class="mt-1 tabular-nums">{{ $fulfillment->refund->amount()->format() }}</dd>
+                <dt class="mt-3 text-gray-600">Reason</dt>
+                <dd class="mt-1">{{ $fulfillment->refund->reason }}</dd>
+                <dt class="mt-3 text-gray-600">Issued by</dt>
+                <dd class="mt-1">{{ $fulfillment->refund->issuerLabel() }}</dd>
+            </dl>
+        @else
+            <x-admin.refund-form :fulfillment="$fulfillment" />
         @endif
     </section>
 </x-layouts.admin>

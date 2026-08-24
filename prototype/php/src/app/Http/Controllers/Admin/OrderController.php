@@ -42,6 +42,7 @@ final class OrderController extends Controller
                 'items.seller',
                 'payments',
                 'fulfillments.seller',
+                'refunds.fulfillment.seller',
             ]),
         ]);
     }

@@ -58,6 +58,65 @@ it('keeps an undelivered hold apart from a paid-out release', function (): void 
         ->and($balance->paidOut->cents)->toBe(9000);
 });
 
+it('takes a refund before release back out of escrow, releasing nothing', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-9000), 'ful_1'),
+    ]);
+
+    expect($balance->held->cents)->toBe(0)
+        ->and($balance->available->cents)->toBe(0)
+        ->and($balance->paidOut->cents)->toBe(0);
+});
+
+it('drops the available balance on a refund after release', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Released, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-9000), 'ful_1'),
+    ]);
+
+    expect($balance->held->cents)->toBe(0)
+        ->and($balance->available->cents)->toBe(0)
+        ->and($balance->paidOut->cents)->toBe(0);
+});
+
+it('carries a negative available balance when the refund lands after the payout', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Released, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::PaidOut, Money::fromCents(-9000), null),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-9000), 'ful_1'),
+    ]);
+
+    expect($balance->held->cents)->toBe(0)
+        ->and($balance->available->cents)->toBe(-9000)
+        ->and($balance->paidOut->cents)->toBe(9000);
+});
+
+it('nets a refund against its own sale rather than another still in escrow', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Released, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(5000), 'ful_2'),
+    ]);
+
+    expect($balance->held->cents)->toBe(5000)
+        ->and($balance->available->cents)->toBe(0);
+});
+
+it('is not payable while a refund leaves the seller in the red', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Released, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::PaidOut, Money::fromCents(-9000), null),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-9000), 'ful_1'),
+    ]);
+
+    expect($balance->isPayable())->toBeFalse();
+});
+
 it('is payable with money available', function (): void {
     $balance = LedgerBalance::from([
         LedgerMovement::hold(Money::fromCents(9000)),

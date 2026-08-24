@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('shipping_country');
             $table->unsignedInteger('subtotal_cents');
             $table->unsignedInteger('total_cents');
+            $table->unsignedInteger('refunded_cents')->default(0);
             $table->timestamp('placed_at');
             $table->timestamp('finalized_at')->nullable();
             $table->timestamps();

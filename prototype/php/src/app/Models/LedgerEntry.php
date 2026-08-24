@@ -77,7 +77,7 @@ class LedgerEntry extends Model
 
     public function toMovement(): LedgerMovement
     {
-        return LedgerMovement::of($this->type, $this->amount());
+        return LedgerMovement::of($this->type, $this->amount(), $this->fulfillment_id);
     }
 
     /**
@@ -110,18 +110,34 @@ class LedgerEntry extends Model
     }
 
     /**
-     * One row per (seller, type), its `amount_cents` the sum the database
-     * added up. A ledger fold only ever adds amounts of the same type
-     * together, so one summed row per type stands in for every entry behind
-     * it.
+     * One row per (seller, fulfillment, type), its `amount_cents` the sum the
+     * database added up. A ledger fold only ever adds amounts of the same
+     * type on the same fulfillment together, so one summed row per pair
+     * stands in for every entry behind it — and the fulfillment stays in the
+     * grouping because a refund nets against its own sale's hold or release
+     * (`LedgerBalance::from()`), never against another's.
      *
      * @param  Builder<$this>  $query
      */
     #[Scope]
     protected function totalledByType(Builder $query): void
     {
-        $query->select('seller_id', 'type')
+        $query->select('seller_id', 'fulfillment_id', 'type')
             ->selectRaw('sum(amount_cents) as amount_cents')
-            ->groupBy('seller_id', 'type');
+            ->groupBy('seller_id', 'fulfillment_id', 'type');
+    }
+
+    /**
+     * The ledger browser and the seller's earnings page, narrowed to one
+     * kind of movement. A null filter adds no clause.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofType(Builder $query, ?LedgerEntryType $type): void
+    {
+        if ($type instanceof LedgerEntryType) {
+            $query->where('type', $type);
+        }
     }
 }

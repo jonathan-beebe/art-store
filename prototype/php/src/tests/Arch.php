@@ -92,9 +92,10 @@ arch()->preset()->laravel()
         // by the same rule, beside the formatter that writes it.
         'App\Domain',
         'App\Logging',
-        // Named for the artisan command it registers (`payouts:run`), not
-        // suffixed `Command` — the one command in the app.
+        // Named for the artisan command each registers (`payouts:run`,
+        // `orders:sweep`), not suffixed `Command`.
         'App\Console\Commands\RunWeeklyPayouts',
+        'App\Console\Commands\SweepOrders',
         // A delivery channel is not a notification, and Laravel's own docs
         // home for a custom channel is App\Notifications\Channels.
         'App\Notifications\Channels',

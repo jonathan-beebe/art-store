@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Customer;
 
@@ -107,3 +108,44 @@ it('answers not found for a value that is not an order id, the same as an unknow
     'a value of no shape at all' => 'nonsense',
     'an order that does not exist' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
 ]);
+
+it('offers to cancel an order nothing has been charged for', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('Cancel this order');
+});
+
+it('stops offering to cancel a paid order', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Cancel this order');
+    $response->assertSee('Refund this fulfillment');
+});
+
+it('says so on an order with no refunds', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('No refunds.');
+});
+
+it('lists the refunds issued on an order', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
+    $fulfillment = $order->fulfillments()->orderBy('id')->firstOrFail();
+    app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('The kiln cracked the glaze.');
+    $response->assertSee('Seller');
+    $response->assertSee('Nothing left to refund on this fulfillment.');
+});

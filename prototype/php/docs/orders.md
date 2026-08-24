@@ -1,7 +1,9 @@
 # Orders
 
-Checkout, payment, and fulfillment. Code: `app/Actions/Orders/`,
-`app/Actions/Fulfillment/`, `app/Http/Controllers/Shop/CheckoutController.php`,
+Checkout, payment, fulfillment, and the sad half: cancel, sweep, decline, and
+refund. Code: `app/Actions/Orders/`, `app/Actions/Fulfillment/`,
+`app/Actions/Escrow/IssueRefund.php`,
+`app/Http/Controllers/Shop/CheckoutController.php`,
 `app/Http/Controllers/Shop/OrderPaymentController.php`,
 `app/Domain/Orders/OrderStatus.php`, `app/Domain/Orders/FulfillmentStatus.php`.
 
@@ -139,16 +141,80 @@ stateDiagram-v2
     paid --> shipped : every fulfillment shipped
     partially_shipped --> shipped
     shipped --> delivered : every fulfillment delivered
+    paid --> refunded : every fulfillment declined or refunded
+    partially_shipped --> refunded
+    shipped --> refunded
+    delivered --> refunded
     delivered --> [*]
+    cancelled --> [*]
+    refunded --> [*]
 ```
 
 Source of truth: `App\Domain\Orders\OrderStatus::transitions()`, verified by
-`OrderStatusTest`. `Cancelled` has no route to it from the UI in this
-prototype — the transition exists in the domain but no action calls it.
+`OrderStatusTest`. `Cancelled` is reached by `CancelOrder` — from the customer's
+button, the admin console, or the stale sweep — and `refunded` by the roll-up
+once no fulfillment is left live.
+
 `OrderStatus::fromFulfillments()` rolls a multi-seller order up from its
-fulfillments: any fulfillment that has shipped or delivered counts as
-"departed"; a delivered fulfillment mixed with an unshipped one still reads
-`partially_shipped`, not `paid`.
+**live** fulfillments — the ones that are neither `declined` nor `refunded`
+(`FulfillmentStatus::isLive()`). Among those, any that has shipped or delivered
+counts as "departed"; a delivered fulfillment mixed with an unshipped one still
+reads `partially_shipped`, not `paid`. An order whose fulfillments are all
+settled rolls up to `refunded`, and `orders.refunded_cents` carries the sum of
+its refunds.
+
+## Cancelling an order nothing has been charged for
+
+Question: who can cancel, what happens to the stock, and what stops a paid
+order from being cancelled?
+
+```mermaid
+sequenceDiagram
+    actor Asker as Customer / admin / sweep
+    participant Cancel as CancelOrder
+    participant Listings as listings
+    participant Orders as orders
+    participant Listener as NotifyOfCancellation
+
+    Asker->>Cancel: __invoke(order, now)
+    Cancel->>Orders: refresh inside the transaction
+    alt status releases stock on cancel (pending_verification, awaiting_payment)
+        Cancel->>Listings: lockedForPlacement, restock every line
+    else payment_failed
+        Note over Cancel: the declined card already handed the stock back
+    end
+    Cancel->>Orders: status.transitionTo(cancelled)
+    Cancel->>Listener: OrderCancelled (after commit)
+    Listener->>Listener: PurchaseCancelled to the customer, SaleCancelled to each seller
+```
+
+Caveats: `CancelOrder` re-reads the order's status **inside** the transaction
+that writes, so an order paid between the page and the submit is refused rather
+than cancelled out from under the money — `OrderStatus::transitionTo()` has no
+`paid -> cancelled` edge. The storefront route authorizes `view` (another
+customer's order is a 404) and lets the action phrase the refusal;
+`OrderPolicy::cancel` is what the button on the order page is shown by.
+`OrderStatus::releasesStockOnCancel()` is the one predicate that decides
+whether stock comes back: a `payment_failed` order already restocked when the
+card was declined.
+
+## The stale-order sweep
+
+Question: what stops an abandoned guest checkout from holding stock forever?
+
+`make sweep` runs `orders:sweep` (`App\Console\Commands\SweepOrders`), also
+scheduled hourly in `routes/console.php`. It cancels every
+`pending_verification` order whose `placed_at` is older than
+`config('orders.stale_hours')` — `STALE_ORDER_HOURS`, default `24` — through
+the same `CancelOrder` every other cancel path uses, so the stock comes back
+the same way.
+
+It is idempotent by construction: it selects `pending_verification` and leaves
+`cancelled`, so a second run over the same window finds nothing. It never
+touches `awaiting_payment` — a verified customer still has a card form open —
+and never anything younger than the cutoff. `SweepStaleOrders` calls
+`Story::asSystem()` first, so its `order.sweep` lines and the `order.cancel`
+each order writes carry `actor_type: system` (docs/alignment.md §2.1).
 
 ## Fulfillment status (per order × seller)
 
@@ -159,7 +225,13 @@ stateDiagram-v2
     [*] --> awaiting_shipment
     awaiting_shipment --> shipped : seller ships (MarkShipped: carrier + tracking)
     shipped --> delivered : customer confirms (ConfirmDelivered)
+    awaiting_shipment --> declined : seller declines (DeclineFulfillment: reason)
+    awaiting_shipment --> refunded : admin refunds a silent seller
+    shipped --> refunded : admin settles a dispute
+    delivered --> refunded : admin settles a dispute
     delivered --> [*]
+    declined --> [*]
+    refunded --> [*]
 ```
 
 Source of truth: `App\Domain\Orders\FulfillmentStatus::transitions()`,
@@ -169,3 +241,36 @@ into the customer's "Order shipped" notification after the commit; `ConfirmDeliv
 the fulfillment's held escrow (see `docs/escrow.md`) and rolls the order
 status up. Delivery confirmation is the customer clicking a button on the
 order page — a stand-in for carrier tracking in this prototype.
+
+## Decline and refund
+
+Question: who can send a fulfillment's money back, what happens to the stock,
+and what refuses a second one?
+
+```mermaid
+flowchart TD
+    decline["Seller: DeclineFulfillment(reason)\nawaiting_shipment only"] --> restock["Restock this seller's lines\n(lockedForPlacement, sold -> for_sale)"]
+    restock --> issue
+    refund["Admin: RefundFulfillment(reason)\nawaiting_shipment | shipped | delivered"] --> nostock["No stock moves"]
+    nostock --> issue["IssueRefund"]
+    issue --> row["refunds row (rfd_): order, fulfillment,\napproved payment, subtotal, reason, issuer"]
+    issue --> ledger["ledger_entries: refunded, -net_cents"]
+    issue --> total["orders.refunded_cents += subtotal"]
+    issue --> event["RefundIssued -> NotifyOfRefund"]
+    event --> rollup["RollUpOrderStatus over the live fulfillments"]
+```
+
+Caveats: both actions re-read the fulfillment's status **inside** the
+transaction that writes it, so "decline after ship", "ship after decline",
+"refund twice", and "refund what was already declined" are all refused by
+`FulfillmentStatus::transitionTo()` against the row as it stands at write time,
+not as the page rendered it. `IssueRefund` refuses an order no card ever
+cleared (`OrderStatus::hasBeenPaid()`), which is what stops a refund on an
+unpaid order — the fulfillments exist from the moment the order is placed.
+`refunds` has `unique(fulfillment_id)`: the amount is always the whole
+subtotal, so a second row would be a second full refund.
+
+A decline is the seller's and restores stock; a refund is the admin's and does
+not — the pieces are with the customer, or with a seller who is not answering
+for them. The seller who declined is not notified of their own decision;
+an admin refund tells both sides.

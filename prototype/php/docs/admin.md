@@ -1,7 +1,8 @@
 # Admin site
 
 What a platform operator does: read every seller, customer, listing, order and
-fulfillment on the platform, and moderate a customer they need to stop.
+fulfillment on the platform, moderate a customer they need to stop, and settle
+the money — cancel an unpaid order, refund a fulfillment.
 Code: `app/Http/Controllers/Admin/`, `routes/admin.php`,
 `resources/views/admin/`, `resources/views/components/admin/`,
 `app/View/Composers/AdminLayoutComposer.php`.
@@ -22,10 +23,12 @@ sign in through the same magic link sellers and customers use
 | `GET /admin/listings?status=&seller=` | every listing across every seller |
 | `GET /admin/listings/{listing}` | the listing, its view / favorite / cart-add counts, and every order line it sold on |
 | `GET /admin/orders?status=&customer=` | every order with its customer, item count and total |
-| `GET /admin/orders/{order}` | items, payment attempts, fulfillments |
+| `GET /admin/orders/{order}` | items, payment attempts, fulfillments, refunds, the cancel action and a refund form per fulfillment |
 | `GET /admin/fulfillments?status=&seller=` | every fulfillment with its order and seller |
-| `GET /admin/fulfillments/{fulfillment}` | the shipment, the lines it carries, its money, and its ledger entries |
+| `GET /admin/fulfillments/{fulfillment}` | the shipment, the lines it carries, its money, its ledger entries, and the refund or the form to issue one |
 | `GET\|POST /admin/messages`, `/admin/messages/{conversation}` | the admin inbox ([`messaging.md`](messaging.md)) |
+| `POST /admin/orders/{order}/cancel` | cancel an order nothing has been charged for; the stock goes back on the storefront |
+| `POST /admin/fulfillments/{fulfillment}/refund` | refund one fulfillment with a reason; stock stays sold |
 | `POST /admin/customers/{customer}/blocks`, `.../blocks/lift` | block with a reason; lift it |
 | `POST /admin/sellers/{seller}/messages`, `POST /admin/customers/{customer}/messages` | open a thread from the directory |
 | `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
@@ -35,6 +38,10 @@ Every filter is optional and an empty value means "all": the console submits
 `$request->filled(...)` (a string filter) or `$request->enum(...)` (a status),
 both of which answer null for an absent, empty, or unrecognised value — so a
 hand-typed `?status=nonsense` shows everything rather than an error page.
+
+The `status` selects on the orders and fulfillments lists are driven by
+`OrderStatus::cases()` and `FulfillmentStatus::cases()`, so `cancelled`,
+`refunded`, and `declined` appear as filter values with no console change.
 
 `StandingFilter` (`app/Domain/Customers/StandingFilter.php`) is the one filter
 whose "all" is a value of its own, because the customers list offers it as a
@@ -122,5 +129,4 @@ that names the owner is noise on the owner's own page.
 | --- | --- |
 | `removed=any\|removed\|visible` on the listings list, the removal reason on a listing, `POST /admin/listings/{listing}/removals` and the lift | FEAT-024 |
 | `/admin/payouts` and the platform payout run | FEAT-024 |
-| The refunds section and the `refunded` statuses on an order, and the cancel / refund actions on the order and fulfillment detail pages | FEAT-020 |
-| `/admin` money tallies, `/admin/accounting`, `/admin/ledger`, `/admin/stats`, the page-view roll-up | FEAT-023 |
+| `/admin` money tallies, `/admin/accounting` (fees earned and refunded), `/admin/ledger` and its `type=refunded` filter, `/admin/stats`, the page-view roll-up | FEAT-023 |

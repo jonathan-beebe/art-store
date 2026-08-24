@@ -7,9 +7,13 @@ namespace App\Providers;
 use App\Domain\Auth\ActorType;
 use App\Events\FulfillmentShipped;
 use App\Events\MessagePosted;
+use App\Events\OrderCancelled;
 use App\Events\OrderPaid;
+use App\Events\RefundIssued;
 use App\Listeners\NotifyCustomerOfShipment;
+use App\Listeners\NotifyOfCancellation;
 use App\Listeners\NotifyOfMessage;
+use App\Listeners\NotifyOfRefund;
 use App\Listeners\NotifySellerOfSale;
 use App\Models\Admin;
 use App\Models\Customer;
@@ -54,11 +58,13 @@ class AppServiceProvider extends ServiceProvider
         // them is registered rather than discovered.
         Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
 
-        // What each business moment tells someone. Both listeners implement
+        // What each business moment tells someone. Every listener implements
         // ShouldHandleEventsAfterCommit, so nothing is sent for a transaction
         // that rolls back.
         Event::listen(OrderPaid::class, NotifySellerOfSale::class);
         Event::listen(FulfillmentShipped::class, NotifyCustomerOfShipment::class);
+        Event::listen(OrderCancelled::class, NotifyOfCancellation::class);
+        Event::listen(RefundIssued::class, NotifyOfRefund::class);
         Event::listen(MessagePosted::class, NotifyOfMessage::class);
 
         // The header counts belong to the layout that renders them, so every

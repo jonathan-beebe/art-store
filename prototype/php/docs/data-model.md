@@ -28,7 +28,7 @@ prototypes share.
 | listing_events | `lev` | fulfillments | `ful` |
 | conversations | `cnv` | ledger_entries | `led` |
 | messages | `msg` | payouts | `pyt` |
-| notifications | `ntf` | | |
+| notifications | `ntf` | refunds | `rfd` |
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -117,6 +117,7 @@ erDiagram
         string shipping_country
         unsigned subtotal_cents
         unsigned total_cents
+        unsigned refunded_cents "sum of this order's refunds"
         timestamp placed_at
         timestamp finalized_at "nullable, set on paid"
     }
@@ -142,12 +143,22 @@ erDiagram
         text id PK
         text order_id FK "UK with seller_id"
         text seller_id FK
-        string status "awaiting_shipment|shipped|delivered"
+        string status "awaiting_shipment|shipped|delivered|declined|refunded"
         string carrier "nullable"
         string tracking_number "nullable"
         unsigned subtotal_cents
         unsigned fee_cents
         unsigned net_cents
+    }
+    refunds {
+        text id PK
+        text order_id FK
+        text fulfillment_id FK "UK, one refund per fulfillment"
+        text payment_id FK "nullable, the charge it reverses"
+        unsigned amount_cents "always the whole fulfillment subtotal"
+        string reason "1-500 chars"
+        string issued_by_type "seller|admin"
+        text issued_by_id "id within that table"
     }
     payouts {
         text id PK
@@ -162,7 +173,7 @@ erDiagram
         text seller_id FK
         text fulfillment_id FK "nullable"
         text payout_id FK "nullable"
-        string type "held|released|paid_out"
+        string type "held|released|paid_out|refunded"
         int amount_cents "signed"
         timestamp occurred_at
     }
@@ -240,6 +251,9 @@ erDiagram
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
     orders ||--o{ fulfillments : split_by_seller
+    orders ||--o{ refunds : sends_back
+    fulfillments ||--o| refunds : settled_by
+    payments ||--o{ refunds : reversed_by
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
 ```
@@ -289,6 +303,12 @@ Caveats:
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one by `processed_at` (`Order::latestPayment()`).
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
-  positive, `paid_out` is negative. See `docs/escrow.md`.
+  positive, `paid_out` and `refunded` are negative. See `docs/escrow.md`.
+- `refunds` has `unique(fulfillment_id)`: the amount is always the whole
+  fulfillment subtotal, so a second row would be a second full refund. It
+  names who issued it with `issued_by_type` / `issued_by_id` rather than a
+  foreign key, because a seller and an admin live in different tables; the
+  column holds the same `seller` / `admin` words the morph map uses, read back
+  through `Refund::issuer()`. See `docs/orders.md`.
 - `carts.customer_id` is not unique — `MergeAnonymousCustomer` can re-point
   a second cart onto a customer that already has one.
