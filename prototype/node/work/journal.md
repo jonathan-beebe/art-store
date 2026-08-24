@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-23:21:30:00 — FEAT-018 — started
+- 2026-08-23:21:29:00 — MAINT-001 — done: make vocabulary (up/down/build/logs/shell/test/smoke/coverage/lint/lint-fix/assets/check/migrate/fresh/seed/routes/payouts/sweep/outbox) with `make check` = lint -> assets -> coverage as one npm script CI runs too; hook proved refusing a failing commit; 1536 tests, 99.57/97.22/99.47 unchanged
 - 2026-08-23:21:00:00 — MAINT-001 — started
 - 2026-08-23:20:33:31 — MAINT-002 — defined: Final validation and docs refresh for the alignment branch
 - 2026-08-23:20:33:31 — IMPRV-012 — defined: Field-level errors on every form
