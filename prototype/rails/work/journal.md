@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:04:10:00 — FEAT-020 — started
+- 2026-08-24:04:09:00 — FEAT-018 — done: seven configurable rate limits over Solid Cache, boot refusal on a malformed value, 429 pages, CSP and security headers; 1020 runs / 3679 assertions / 100% lines
 - 2026-08-24:02:40:00 — FEAT-018 — started
 - 2026-08-24:02:39:00 — FEAT-017 — done: cancel, stale sweep, seller decline, admin refund, refunds table, refunded ledger entry folding in all three timings; 973 runs / 3357 assertions / 100% lines
 - 2026-08-24:01:15:00 — FEAT-017 — started
