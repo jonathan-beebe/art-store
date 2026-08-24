@@ -19,15 +19,17 @@ final class ListingController extends ShopController
         abort_unless($listing->status->isOnStorefront(), 404);
 
         $visitor = $this->visitor();
-        $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
+        $event = $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
 
-        // Every view writes its own line: nothing here collapses the repeat
-        // views one customer makes within an hour into a single one.
-        Story::for(StoryEvent::ListingView)->did('viewed a listing', [
-            'listing_id' => $listing->id,
-            'seller_id' => $listing->seller_id,
-            'status' => $listing->status->value,
-        ]);
+        // A repeat view within the hour writes no row (RecordListingEvent
+        // returns null), so the story reads it as a refusal rather than a
+        // second `did` for the same visit.
+        $story = Story::for(StoryEvent::ListingView);
+        $data = ['listing_id' => $listing->id, 'seller_id' => $listing->seller_id];
+
+        $event === null
+            ? $story->refused('collapsed a repeat view into the hour already recorded', $data)
+            : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
 
         return view('shop.listing', [
             'listing' => $listing->load('seller', 'faqs'),

@@ -56,6 +56,25 @@ it('sums the entries of each seller, fulfillment and type into one row apiece', 
         ->and($rows->sum(fn (LedgerEntry $row): int => $row->amount_cents))->toBe(54000);
 });
 
+it('narrows to one seller\'s entries, leaving another\'s out', function (): void {
+    $first = $this->seller('Blue Kiln Studio');
+    $second = $this->seller('Rye Press');
+    $this->deliveredFulfillmentFor($first, priceCents: 10000);
+    $this->deliveredFulfillmentFor($second, priceCents: 20000);
+
+    expect(LedgerEntry::query()->ofSeller($first->id)->get()->every(fn (LedgerEntry $entry): bool => $entry->seller_id === $first->id))
+        ->toBeTrue()
+        ->and(LedgerEntry::query()->ofSeller(null)->count())->toBe(4);
+});
+
+it('narrows to one entry type, leaving the others out', function (): void {
+    $this->deliveredFulfillmentFor($this->seller(), priceCents: 10000);
+
+    expect(LedgerEntry::query()->ofType(LedgerEntryType::Held)->get()->every(fn (LedgerEntry $entry): bool => $entry->type === LedgerEntryType::Held))
+        ->toBeTrue()
+        ->and(LedgerEntry::query()->ofType(null)->count())->toBe(2);
+});
+
 it('folds every seller\'s balance out of one read of the ledger', function (): void {
     $first = $this->seller('Blue Kiln Studio');
     $second = $this->seller('Rye Press');

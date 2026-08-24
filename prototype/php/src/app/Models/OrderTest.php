@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\UnavailableReason;
 
 it('reads its totals as money', function (): void {
@@ -53,4 +54,22 @@ it('plans placement from its items against the listings behind them', function (
     expect($plan->isPlaceable())->toBeFalse()
         ->and($plan->blocked[0]->title)->toBe('Winter Elm')
         ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
+});
+
+it('counts every status the table holds, in one row each', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $counts = [];
+    foreach (Order::query()->countedByStatus()->get() as $row) {
+        $counts[$row->status->value] = $row->tally;
+    }
+
+    expect($counts)->toBe([OrderStatus::AwaitingPayment->value => 2]);
+});
+
+it('counts every status across the whole platform', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    expect(Order::platformCountsByStatus())->toBe([OrderStatus::AwaitingPayment->value => 1]);
 });

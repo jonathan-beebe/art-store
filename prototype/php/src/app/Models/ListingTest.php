@@ -154,3 +154,14 @@ it('reads the favorites it was added to', function (): void {
 
     expect($listing->favorites()->pluck('customer_id')->all())->toBe([$customer->id]);
 });
+
+it('counts every status across every seller\'s listings, in one row each', function (): void {
+    $this->listing($this->seller(), ['status' => ListingStatus::Draft]);
+    $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
+    $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
+
+    expect(Listing::platformCountsByStatus())->toEqualCanonicalizing([
+        ListingStatus::Draft->value => 1,
+        ListingStatus::ForSale->value => 2,
+    ]);
+});

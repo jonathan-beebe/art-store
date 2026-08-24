@@ -23,5 +23,22 @@ it('answers zero for a seller with no movements at all', function (): void {
 
     expect($balances->of('sel_unknown')->held)->toBeMoney(0)
         ->and($balances->of('sel_unknown')->available)->toBeMoney(0)
-        ->and($balances->of('sel_unknown')->paidOut)->toBeMoney(0);
+        ->and($balances->of('sel_unknown')->paidOut)->toBeMoney(0)
+        ->and($balances->of('sel_unknown')->refunded)->toBeMoney(0);
+});
+
+it('totals every seller\'s balance into the platform\'s own', function (): void {
+    $balances = LedgerBalances::from([
+        'sel_one' => [LedgerMovement::hold(Money::fromCents(9000)), LedgerMovement::release(Money::fromCents(4000))],
+        'sel_two' => [LedgerMovement::hold(Money::fromCents(2500))],
+    ]);
+
+    $total = $balances->total();
+
+    expect($total->held)->toBeMoney(5000 + 2500)
+        ->and($total->available)->toBeMoney(4000);
+});
+
+it('totals to zero for an empty ledger', function (): void {
+    expect(LedgerBalances::from([])->total()->held)->toBeMoney(0);
 });

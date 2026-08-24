@@ -8,6 +8,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\ListingEvent;
 use App\Models\ListingFaq;
+use Tests\CapturedStory;
 
 it('shows the listing in full', function (): void {
     $listing = $this->listing($this->seller('Blue Kiln Studio'), [
@@ -40,6 +41,38 @@ it('records a view event for the visitor', function (): void {
     expect($event->type)->toBe(ListingEventType::View)
         ->and($event->listing_id)->toBe($listing->id)
         ->and($event->customer_id)->toBe($visitor->id);
+});
+
+it('collapses a second view within the hour into no row, logged as a refusal', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $log = CapturedStory::capture();
+
+    $this->travelTo($this->moment('2026-08-20 09:00:00'));
+    $first = $this->get('/art/harbour-at-dawn');
+    $visitorCookie = $first->getCookie('customer_id')?->getValue();
+    assert(is_string($visitorCookie));
+
+    $this->travelTo($this->moment('2026-08-20 09:45:00'));
+    $this->withCookie('customer_id', $visitorCookie)->get('/art/harbour-at-dawn');
+
+    expect(ListingEvent::query()->where('type', ListingEventType::View)->count())->toBe(1);
+
+    $refused = $log->line('listing.view', 'refused');
+    expect($refused['level'])->toBe('debug');
+});
+
+it('records a view in the next hour as a row and a did line of its own', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $this->travelTo($this->moment('2026-08-20 09:00:00'));
+    $first = $this->get('/art/harbour-at-dawn');
+    $visitorCookie = $first->getCookie('customer_id')?->getValue();
+    assert(is_string($visitorCookie));
+
+    $this->travelTo($this->moment('2026-08-20 10:00:00'));
+    $this->withCookie('customer_id', $visitorCookie)->get('/art/harbour-at-dawn');
+
+    expect(ListingEvent::query()->where('type', ListingEventType::View)->count())->toBe(2);
 });
 
 it('says a sold listing is sold and offers no cart button', function (): void {

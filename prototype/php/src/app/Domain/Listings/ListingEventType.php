@@ -10,4 +10,9 @@ enum ListingEventType: string
     case Favorite = 'favorite';
     case Unfavorite = 'unfavorite';
     case CartAdd = 'cart_add';
+
+    public function label(): string
+    {
+        return ucfirst(str_replace('_', ' ', $this->value));
+    }
 }

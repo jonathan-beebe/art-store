@@ -23,6 +23,7 @@ use Override;
 
 /**
  * @property-read Customer $customer
+ * @property-read int $tally  only on a row the `countedByStatus` scope selected
  */
 #[Fillable([
     'customer_id', 'email', 'status', 'shipping_name', 'shipping_line1', 'shipping_line2',
@@ -156,6 +157,37 @@ class Order extends Model
         if ($customerId !== null) {
             $query->where('customer_id', $customerId);
         }
+    }
+
+    /**
+     * One row per status the table holds, carrying how many hold it — the
+     * dashboard's order tally reads this the way `Listing::countedByStatus`
+     * feeds the listing one.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function countedByStatus(Builder $query): void
+    {
+        $query->select('status')
+            ->selectRaw('count(*) as tally')
+            ->groupBy('status');
+    }
+
+    /**
+     * The same tally, for `/admin`'s order count.
+     *
+     * @return array<string, int> status value => count
+     */
+    public static function platformCountsByStatus(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
     }
 
     public function subtotal(): Money

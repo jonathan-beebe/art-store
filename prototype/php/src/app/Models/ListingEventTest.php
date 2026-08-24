@@ -43,3 +43,17 @@ it('leaves events before the window out', function (): void {
     expect($listing->eventCountsByDateSince($this->moment('2026-08-15 00:00:00')))
         ->toBe(['2026-08-20' => [ListingEventType::View->value => 1]]);
 });
+
+it('counts every event type across every listing on the platform', function (): void {
+    $first = $this->listing($this->seller());
+    $second = $this->listing($this->seller());
+    $record = app(RecordListingEvent::class);
+    $record($first, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $record($second, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $record($first, null, ListingEventType::Favorite, $this->moment('2026-08-20 09:00:00'));
+
+    expect(ListingEvent::platformCountsByType())->toEqualCanonicalizing([
+        ListingEventType::View->value => 2,
+        ListingEventType::Favorite->value => 1,
+    ]);
+});

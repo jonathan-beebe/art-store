@@ -140,4 +140,18 @@ class LedgerEntry extends Model
             $query->where('type', $type);
         }
     }
+
+    /**
+     * The ledger browser, narrowed to one seller. A null filter adds no
+     * clause, which is what the console's "All sellers" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSeller(Builder $query, ?string $sellerId): void
+    {
+        if ($sellerId !== null) {
+            $query->where('seller_id', $sellerId);
+        }
+    }
 }

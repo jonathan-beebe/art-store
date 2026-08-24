@@ -102,7 +102,9 @@ it('renders on a fixed number of queries however many entries the ledger holds',
     $this->deliveredFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(7)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(8)
         ->get('/seller/earnings');
 
     $response->assertOk();

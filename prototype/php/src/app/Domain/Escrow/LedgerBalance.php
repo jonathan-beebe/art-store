@@ -8,7 +8,12 @@ use App\Domain\Money\Money;
 
 final readonly class LedgerBalance
 {
-    private function __construct(public Money $held, public Money $available, public Money $paidOut) {}
+    private function __construct(
+        public Money $held,
+        public Money $available,
+        public Money $paidOut,
+        public Money $refunded,
+    ) {}
 
     public function isPayable(): bool
     {
@@ -37,6 +42,7 @@ final readonly class LedgerBalance
     {
         $held = Money::zero();
         $available = Money::zero();
+        $refundedTotal = Money::zero();
 
         foreach (self::byFulfillment($movements) as $entries) {
             $released = self::total($entries, LedgerEntryType::Released);
@@ -50,9 +56,43 @@ final readonly class LedgerBalance
                 ->add(self::total($entries, LedgerEntryType::PaidOut))
                 ->add($refunded)
                 ->add($fromEscrow);
+            // A refund movement is stored as the negative of what it sends
+            // back (`LedgerMovement::refund()`), so the running total reads
+            // as a positive amount refunded.
+            $refundedTotal = $refundedTotal->subtract($refunded);
         }
 
-        return new self($held, $available, Money::zero()->subtract(self::total($movements, LedgerEntryType::PaidOut)));
+        return new self(
+            $held,
+            $available,
+            Money::zero()->subtract(self::total($movements, LedgerEntryType::PaidOut)),
+            $refundedTotal,
+        );
+    }
+
+    /**
+     * Several balances added together, field by field. Valid because each
+     * one already folded its own fulfillments: a fulfillment belongs to
+     * exactly one seller, so grouping by fulfillment across every seller at
+     * once (`from()` on the whole ledger) partitions into the same groups as
+     * folding each seller alone and adding the results — which is what lets
+     * a platform total be built from balances a page already computed
+     * rather than a second read of the ledger.
+     *
+     * @param  list<self>  $balances
+     */
+    public static function combine(array $balances): self
+    {
+        return array_reduce(
+            $balances,
+            fn (self $sum, self $balance): self => new self(
+                $sum->held->add($balance->held),
+                $sum->available->add($balance->available),
+                $sum->paidOut->add($balance->paidOut),
+                $sum->refunded->add($balance->refunded),
+            ),
+            self::from([]),
+        );
     }
 
     /**

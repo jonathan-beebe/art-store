@@ -7,6 +7,7 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Http\Middleware\LogRequestStory;
 use App\Http\Middleware\NameRequestVisitor;
 use App\Http\Middleware\ResolveCustomerIdentity;
+use App\Http\Middleware\RollUpPageViews;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Requests\Shop\ShopRequest;
 use Illuminate\Auth\Middleware\Authenticate;
@@ -38,6 +39,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // alignment.md's security-headers section names, the way its 404
         // already carries `X-Request-Id` from the middleware above.
         $middleware->append(SecurityHeaders::class);
+
+        // Global for the same reason again: a hit against any of the three
+        // sites rolls up, and a route that matches nothing is counted
+        // against nothing. Terminable rather than answered from `handle()`
+        // — the write happens after the response has already gone back, so
+        // it costs the roll-up nothing on the request it counts.
+        $middleware->append(RollUpPageViews::class);
 
         // Appended to the group instead, because the `sid` cookie is only
         // readable after the group decrypts cookies and a guard only names

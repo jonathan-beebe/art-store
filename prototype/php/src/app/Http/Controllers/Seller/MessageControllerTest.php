@@ -80,7 +80,9 @@ it('renders the inbox on a fixed number of queries however many threads the sell
     }
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(7)
         ->get('/seller/messages');
 
     $response->assertOk();

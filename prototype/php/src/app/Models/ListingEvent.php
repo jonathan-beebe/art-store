@@ -72,4 +72,21 @@ class ListingEvent extends Model
             ->selectRaw('count(*) as tally')
             ->groupBy('day', 'type');
     }
+
+    /**
+     * How many events of each type the whole platform has recorded, across
+     * every listing — `/admin/stats`'s tally.
+     *
+     * @return array<string, int> event type value => count
+     */
+    public static function platformCountsByType(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->select('type')->selectRaw('count(*) as tally')->groupBy('type')->get() as $row) {
+            $counts[$row->type->value] = $row->tally;
+        }
+
+        return $counts;
+    }
 }

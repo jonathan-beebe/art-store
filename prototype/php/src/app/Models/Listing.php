@@ -210,6 +210,22 @@ class Listing extends Model
             ->groupBy('status');
     }
 
+    /**
+     * The same tally, across every seller — `/admin`'s listing count.
+     *
+     * @return array<string, int> status value => count
+     */
+    public static function platformCountsByStatus(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
+    }
+
     /** @param Builder<$this> $query */
     #[Scope]
     protected function withEventCounts(Builder $query): void

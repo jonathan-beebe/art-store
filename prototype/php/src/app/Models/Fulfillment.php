@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Escrow\PlatformFees;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -21,6 +22,7 @@ use Override;
 /**
  * @property-read Order $order
  * @property-read Seller $seller
+ * @property-read int $tally  only on a row the `countedByStatus` scope selected
  */
 #[Fillable([
     'order_id', 'seller_id', 'status', 'carrier', 'tracking_number',
@@ -109,6 +111,56 @@ class Fulfillment extends Model
         if ($sellerId !== null) {
             $query->where('seller_id', $sellerId);
         }
+    }
+
+    /**
+     * One row per status the table holds, carrying how many hold it — the
+     * dashboard's fulfillment tally reads this the way `Listing::ofStatus`'s
+     * sibling scope feeds the listing one.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function countedByStatus(Builder $query): void
+    {
+        $query->select('status')
+            ->selectRaw('count(*) as tally')
+            ->groupBy('status');
+    }
+
+    /**
+     * The same tally, for `/admin`'s fulfillment count.
+     *
+     * @return array<string, int> status value => count
+     */
+    public static function platformCountsByStatus(): array
+    {
+        $counts = [];
+
+        foreach (self::query()->countedByStatus()->get() as $row) {
+            $counts[$row->status->value] = $row->tally;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * What the platform earned and gave back in fees, across every
+     * fulfillment there is — one read, folded by the pure
+     * {@see PlatformFees}.
+     */
+    public static function platformFees(): PlatformFees
+    {
+        return PlatformFees::from(array_values(
+            self::query()
+                ->select('status', 'fee_cents')
+                ->get()
+                ->map(fn (self $fulfillment): array => [
+                    'status' => $fulfillment->status,
+                    'feeCents' => $fulfillment->fee_cents,
+                ])
+                ->all(),
+        ));
     }
 
     public function subtotal(): Money

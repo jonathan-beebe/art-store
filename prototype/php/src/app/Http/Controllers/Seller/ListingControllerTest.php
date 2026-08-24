@@ -227,7 +227,9 @@ it('renders the activity page on a fixed number of queries however many events t
     }
 
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(5)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(6)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();

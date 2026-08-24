@@ -266,7 +266,9 @@ it('renders the inbox on a fixed number of queries however many threads the admi
     }
 
     $response = $this->actingAs($admin, 'admin')
-        ->expectsDatabaseQueryCount(6)
+        // +1 for the page-view roll-up's upsert, which runs after every
+        // countable response (RollUpPageViews).
+        ->expectsDatabaseQueryCount(7)
         ->get('/admin/messages');
 
     $response->assertOk();

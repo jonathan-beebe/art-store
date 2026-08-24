@@ -32,4 +32,15 @@ final readonly class LedgerBalances
     {
         return $this->bySeller[$sellerId] ?? LedgerBalance::from([]);
     }
+
+    /**
+     * Every seller's balance added together — the platform's own, for
+     * `/admin` and `/admin/accounting`. Free of a second ledger read:
+     * {@see LedgerBalance::combine()} is why summing balances already folded
+     * per seller agrees with folding the whole ledger at once.
+     */
+    public function total(): LedgerBalance
+    {
+        return LedgerBalance::combine(array_values($this->bySeller));
+    }
 }
