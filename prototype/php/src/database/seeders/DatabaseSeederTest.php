@@ -112,8 +112,12 @@ it('notifies sellers and the customer', function (): void {
     expect(DatabaseNotification::count())->toBe(16);
 });
 
-it('seeds one admin who can sign in at /admin/login', function (): void {
-    expect(Admin::where('email', AdminSeeder::EMAIL)->count())->toBe(1);
+it('seeds the two platform admins who can sign in at /admin/login', function (): void {
+    expect(Admin::count())->toBe(2);
+
+    foreach (AdminSeeder::ADMINS as $admin) {
+        expect(Admin::where('email', $admin['email'])->count())->toBe(1);
+    }
 });
 
 it('seeds one conversation of every messaging kind and one published FAQ', function (): void {

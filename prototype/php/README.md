@@ -129,13 +129,14 @@ from scratch.
 
 ## Seeded accounts
 
-`make fresh` seeds one admin, four sellers, one customer, 29 listings, three
+`make fresh` seeds two admins, four sellers, one customer, 29 listings, three
 orders, one completed payout, and one conversation of each messaging kind.
 Every account signs in through the debug magic link (see below).
 
 | Role | Shop / name | Email |
 | --- | --- | --- |
-| Admin | Reese Calloway | admin@example.com |
+| Admin | Jonathan Beebe | jonathan-beebe@outlook.com |
+| Admin | Anna Schmunk | annaschmunk@pm.me |
 | Seller | Terra & Glaze Ceramics | maya@example.com |
 | Seller | North Light Editions | noah@example.com |
 | Seller | Priya Anand Textile Studio | priya@example.com |

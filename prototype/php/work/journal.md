@@ -6,13 +6,16 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 18
-- IMPRV: 3
+- IMPRV: 4
 - MAINT: 3
 - A11Y: 1
 - RFCTR: 9
 - BUG: 3
 
 ## Log
+- 2026-08-23:19:12:59 — IMPRV-002 — amended: debug notice no longer names a seeded admin address
+- 2026-08-23:19:03:03 — IMPRV-003 — done: AdminSeeder now seeds two real operators (Jonathan Beebe, Anna Schmunk) via AdminSeeder::ADMINS replacing the single EMAIL constant; MessagingSeeder/debug notice/README/tests updated to match; 1111 tests / 2501 assertions, 100.0% coverage
+- 2026-08-23:18:58:30 — IMPRV-003 — started
 - 2026-08-23:18:53:14 — IMPRV-002 — done: admin login debug bar now flashes a debug_notice (unadmitted address + AdminSeeder::EMAIL) under session delivery, unchanged under mail; 1111 tests / 2497 assertions, 100.0% coverage
 - 2026-08-23:18:48:22 — IMPRV-002 — started
 - 2026-08-23:17:48:22 — FEAT-017 — done: composer.json test:coverage fixed with -d memory_limit=1G (make coverage now works, 100.0%), curl walk over a fresh seed covered ask-to-FAQ, both support threads answered by admin, non-participant 404s, a blocked customer's read-only thread and refused hand-rolled POST, and the SSE first frame; docs/architecture.md, docs/identity.md (new admin sign-in section), docs/messaging.md (maxlength literal + blocked-ask empty thread), docs/review.md (new admin/messaging requirements table + Node comparison), README.md, and docs/README.md brought current; 1107 tests / 2491 assertions, 100.0% coverage

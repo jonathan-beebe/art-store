@@ -69,19 +69,25 @@ it('flashes the link for the debug alert only when the address admits an admin',
     expect(Arr::string(Session::all(), 'debug_magic_link'))->toStartWith(url('/auth/magic').'/');
 });
 
-it('flashes a debug notice naming the seeded admin address for an address with no admin row', function (): void {
+it('flashes a debug notice for an address with no admin row, naming no seeded admin address', function (): void {
     $this->post('/admin/login', ['email' => 'nobody@example.com']);
 
-    expect(Arr::string(Session::all(), 'debug_notice'))
-        ->toContain('nobody@example.com')
-        ->toContain(AdminSeeder::EMAIL);
+    $notice = Arr::string(Session::all(), 'debug_notice');
+    expect($notice)->toContain('nobody@example.com');
+
+    foreach (AdminSeeder::ADMINS as $admin) {
+        expect($notice)->not->toContain($admin['email']);
+    }
 });
 
 it('shows the debug notice on the redirected page for an address with no admin row', function (): void {
     $response = $this->followingRedirects()->post('/admin/login', ['email' => 'nobody@example.com']);
 
-    $response->assertSee('nobody@example.com')
-        ->assertSee(AdminSeeder::EMAIL);
+    $response->assertSee('nobody@example.com');
+
+    foreach (AdminSeeder::ADMINS as $admin) {
+        $response->assertDontSee($admin['email']);
+    }
 });
 
 it('flashes no debug notice for an address with an admin row', function (): void {

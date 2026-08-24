@@ -52,7 +52,7 @@ it('leaves a non-zero unread count for the seeded seller, customer, and admin', 
     $priya = Seller::where('email', SellerSeeder::PRIYA_EMAIL)->firstOrFail();
     $noah = Seller::where('email', SellerSeeder::NOAH_EMAIL)->firstOrFail();
     $casey = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();
-    $admin = Admin::where('email', AdminSeeder::EMAIL)->firstOrFail();
+    $admin = Admin::where('email', AdminSeeder::ADMINS[0]['email'])->firstOrFail();
 
     expect(Message::query()->unreadInInboxOf($priya)->count())->toBe(2)
         ->and(Message::query()->unreadInInboxOf($noah)->count())->toBe(1)

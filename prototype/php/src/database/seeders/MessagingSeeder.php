@@ -36,7 +36,7 @@ class MessagingSeeder extends Seeder
 
     public function run(): void
     {
-        $admin = Admin::where('email', AdminSeeder::EMAIL)->firstOrFail();
+        $admin = Admin::where('email', AdminSeeder::ADMINS[0]['email'])->firstOrFail();
         $priya = Seller::where('email', SellerSeeder::PRIYA_EMAIL)->firstOrFail();
         $noah = Seller::where('email', SellerSeeder::NOAH_EMAIL)->firstOrFail();
         $casey = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();

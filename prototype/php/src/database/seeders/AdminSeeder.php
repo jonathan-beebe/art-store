@@ -9,21 +9,29 @@ use DateTimeImmutable;
 use Illuminate\Database\Seeder;
 
 /**
- * The one admin `/admin/login` admits and the one every support thread opens
- * against (`Admin::platformAdmin()`).
+ * The admins `/admin/login` admits. `ADMINS[0]` is seeded first, making it
+ * `Admin::platformAdmin()` — the one every support thread opens against.
  */
 class AdminSeeder extends Seeder
 {
-    public const EMAIL = 'admin@example.com';
+    /**
+     * @var list<array{email: string, name: string}>
+     */
+    public const ADMINS = [
+        ['email' => 'jonathan-beebe@outlook.com', 'name' => 'Jonathan Beebe'],
+        ['email' => 'annaschmunk@pm.me', 'name' => 'Anna Schmunk'],
+    ];
 
     public function run(): void
     {
-        Admin::firstOrCreate(
-            ['email' => self::EMAIL],
-            [
-                'name' => 'Reese Calloway',
-                'email_verified_at' => new DateTimeImmutable('2026-06-01 00:00:00'),
-            ],
-        );
+        foreach (self::ADMINS as $admin) {
+            Admin::firstOrCreate(
+                ['email' => $admin['email']],
+                [
+                    'name' => $admin['name'],
+                    'email_verified_at' => new DateTimeImmutable('2026-06-01 00:00:00'),
+                ],
+            );
+        }
     }
 }
