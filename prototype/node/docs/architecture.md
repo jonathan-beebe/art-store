@@ -162,6 +162,7 @@ so no site guard and no site layout reaches it, and it answers JSON.
 | `unreadMessages` | `plugins/unread-messages.ts` | `countUnreadMessages(actorType)` as a `preHandler`, decorating `request.unreadMessageCount`. |
 | `eventBus` | `plugins/events.ts` | `app.events` (a typed `node:events` emitter), the `onResponse` hook that fires `changed` after any request that wrote, the `preClose` hook that fires `closing`, and `unreadEventsRoute(actorType)` serving `<prefix>/events` as `text/event-stream`. |
 | `healthCheck` | `plugins/health.ts` | `GET /health`. |
+| rate limiting | `plugins/rate-limit.ts` | Not a registered plugin itself: `rateLimitGuard({ name, key })` and `magicLinkRequestGuard(email)` are `preHandler` factories a route applies directly, and `clientIp(request)` reads `request.ip`. `answerIfRateLimited` is the shared 429 answer both call, and the same function a route with a conditional link send (guest checkout) calls inline rather than as a `preHandler`. |
 | `addSiteRender` | `plugins/site-render.ts` | Called inside a site rather than at the root: gives that site a `reply.render(page)` carrying its layout, the flash, the identity, and the unread count, and returns the `SitePageRenderer` a 404 handed over by `callNotFound` renders through. |
 | `rootPlugin` | `plugins/root-plugin.ts` | Marks a plugin as belonging to the root context (`Symbol.for('skip-override')` and `plugin-meta` set by hand — no `fastify-plugin` dependency). |
 

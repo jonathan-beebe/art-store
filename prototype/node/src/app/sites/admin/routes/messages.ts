@@ -10,6 +10,7 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { adminPage } from '../page.ts'
 import { customerDetail } from '../queries/customer-detail.ts'
 import { sellerDetail } from '../queries/seller-detail.ts'
@@ -28,6 +29,8 @@ function currentAdminId(request: FastifyRequest): AdminId {
 function adminActor(request: FastifyRequest): { type: 'admin'; id: AdminId } {
   return { type: 'admin', id: currentAdminId(request) }
 }
+
+const guardMessagePost = rateLimitGuard({ name: 'message_post', key: currentAdminId })
 
 export const messageRoutes: ZodRoutes = (admin, _options, done) => {
   admin.get('/messages', async (request, reply) => {
@@ -50,7 +53,7 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
 
   admin.post(
     '/messages/:id',
-    { schema: { params: idParams('cnv'), body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm }, preHandler: guardMessagePost },
     async (request, reply) => {
       const conversationId = request.params.id
       const context = requestActions(request)

@@ -9,11 +9,15 @@ import { TransitionError } from '../../../core/transition-error.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
 
 const replyForm = submittedForm({ body: z.string().optional() })
+
+const guardMessagePost = rateLimitGuard({ name: 'message_post', key: currentSellerId })
+const guardConversationOpen = rateLimitGuard({ name: 'conversation_open', key: currentSellerId })
 
 export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
   portal.get('/messages', async (request, reply) => {
@@ -45,7 +49,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/messages/:id',
-    { schema: { params: idParams('cnv'), body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm }, preHandler: guardMessagePost },
     async (request, reply) => {
       const conversationId = request.params.id
       const { db } = request.server
@@ -71,7 +75,7 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
     },
   )
 
-  portal.get('/support', async (request, reply) => {
+  portal.get('/support', { preHandler: guardConversationOpen }, async (request, reply) => {
     const result = await openSupportConversation(requestActions(request), {
       actorType: 'seller',
       actorId: currentSellerId(request),

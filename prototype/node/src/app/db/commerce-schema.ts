@@ -25,6 +25,7 @@ import type {
   PageViewCountId,
   PaymentId,
   PayoutId,
+  RateLimitWindowId,
   RefundId,
   SellerId,
 } from '../core/ids/entity-ids.ts'
@@ -37,6 +38,7 @@ import type { OrderStatus } from '../core/orders/order-status.ts'
 import type { RefundIssuerType } from '../core/orders/refund.ts'
 import type { DeclineReason } from '../core/payments/decline-reason.ts'
 import type { PaymentStatus } from '../core/payments/payment-status.ts'
+import type { RateLimitName } from '../core/rate-limit/rate-limit-name.ts'
 import type { Cents } from '../core/money.ts'
 import type { Timestamp } from './timestamp.ts'
 
@@ -251,6 +253,22 @@ export type PageViewCountsTable = {
 }
 
 /**
+ * One fixed-window rate-limit counter, `docs/alignment.md` §3: `name` is one
+ * of `RATE_LIMIT_NAMES`, `key` is whatever the limit is keyed by (an email
+ * address, a client ip, or an actor id — never the raw value in a log line),
+ * and `windowStart` plus the limit's own window length decide when a fresh
+ * row starts counting again.
+ */
+export type RateLimitWindowsTable = {
+  id: RateLimitWindowId
+  name: RateLimitName
+  key: string
+  windowStart: Timestamp
+  /** Defaults to 0 in the migration; the upsert always sets it explicitly. */
+  count: Generated<number>
+}
+
+/**
  * `kind` decides which two participant columns are filled and which subject
  * column, if any, names what the thread is about.
  */
@@ -306,6 +324,7 @@ export type CommerceTables = {
   notifications: NotificationsTable
   outboxMessages: OutboxMessagesTable
   pageViewCounts: PageViewCountsTable
+  rateLimitWindows: RateLimitWindowsTable
   conversations: ConversationsTable
   messages: MessagesTable
   listingFaqs: ListingFaqsTable

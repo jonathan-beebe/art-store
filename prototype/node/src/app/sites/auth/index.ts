@@ -10,6 +10,7 @@ import { resolveLocalRedirect } from '../../core/auth/local-redirect.ts'
 import { requestActions } from '../../http/request-actions.ts'
 import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { identityId } from '../../plugins/identity.ts'
+import { clientIp, rateLimitGuard } from '../../plugins/rate-limit.ts'
 import { requestOrigin } from './request-origin.ts'
 
 const REFUSALS = {
@@ -27,29 +28,36 @@ const linkParams = z.object({ token: z.string().min(1) })
  * side it signs in, so nothing about it belongs to a particular site.
  */
 export const authSite: ZodRoutes = (auth, _options, done) => {
-  auth.get('/auth/magic/:token', { schema: { params: linkParams } }, async (request, reply) => {
-    const actions = requestActions(request)
-    const remembered = await resolveCustomerFromCookie(actions, identityId(request, 'customer'))
+  auth.get(
+    '/auth/magic/:token',
+    {
+      schema: { params: linkParams },
+      preHandler: rateLimitGuard({ name: 'magic_link_consume', key: clientIp }),
+    },
+    async (request, reply) => {
+      const actions = requestActions(request)
+      const remembered = await resolveCustomerFromCookie(actions, identityId(request, 'customer'))
 
-    const signIn = await signInWithMagicLink(actions, {
-      token: request.params.token,
-      currentCustomerId: remembered?.id ?? null,
-    })
+      const signIn = await signInWithMagicLink(actions, {
+        token: request.params.token,
+        currentCustomerId: remembered?.id ?? null,
+      })
 
-    if (signIn.outcome === 'unknown') return refuse(reply, 'customer', UNKNOWN_LINK)
-    if (signIn.outcome === 'refused') {
-      return refuse(reply, signIn.actorType, REFUSALS[signIn.refusal])
-    }
+      if (signIn.outcome === 'unknown') return refuse(reply, 'customer', UNKNOWN_LINK)
+      if (signIn.outcome === 'refused') {
+        return refuse(reply, signIn.actorType, REFUSALS[signIn.refusal])
+      }
 
-    reply.signIn(signIn.actorType, signIn.actorId)
+      reply.signIn(signIn.actorType, signIn.actorId)
 
-    return await reply.redirect(
-      resolveLocalRedirect(signIn.redirectTo, {
-        fallback: ACTOR_SITES[signIn.actorType].homePath,
-        origin: requestOrigin(request),
-      }),
-    )
-  })
+      return await reply.redirect(
+        resolveLocalRedirect(signIn.redirectTo, {
+          fallback: ACTOR_SITES[signIn.actorType].homePath,
+          origin: requestOrigin(request),
+        }),
+      )
+    },
+  )
 
   done()
 }

@@ -64,11 +64,14 @@ export function buildApp({
   magicLinkDelivery,
   loggerStream,
 }: AppDependencies): FastifyInstance {
-  // trustProxy is what makes request.protocol and request.host read the
-  // forwarded headers, so it is on only where a proxy is known to set them.
+  // trustProxy is what makes request.protocol, request.host, and request.ip
+  // read forwarded headers rather than the raw socket. `trustedProxies` names
+  // exactly which hops to believe, which is what request.ip needs to resist a
+  // caller forging its own X-Forwarded-For; the plain boolean is a coarser
+  // switch for protocol/host alone, kept for a deployment with no named list.
   const app = Fastify({
     ...loggingOptions(config, { stream: loggerStream }),
-    trustProxy: config.trustProxy,
+    trustProxy: config.trustedProxies ?? config.trustProxy,
   })
 
   // Every route declares its params, query, and body as zod schemas; this is

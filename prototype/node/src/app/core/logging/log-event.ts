@@ -6,10 +6,6 @@
  * `<subject>.<verb>` in the imperative — `order.place`, never `order.placed`.
  * Tense lives in `phase`, which says whether the line is the intent, a step, or
  * the outcome.
- *
- * One name below belongs to a feature this prototype does not have yet:
- * `rate_limit.exceed`. It stays in the vocabulary so the table reads whole; the
- * code that emits it arrives with the feature.
  */
 
 export const LOG_EVENTS = [

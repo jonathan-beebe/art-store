@@ -23,6 +23,15 @@ All three cookies are signed, `httpOnly`, `sameSite=lax`, and last a year
 (`app/plugins/identity.ts`). They are independent, so one browser can be all
 three at once.
 
+`POST /login` on every site and guest checkout's implicit link sit behind the
+`magic_link_request` limit (`RATE_LIMIT_MAGIC_LINK_REQUEST`, default `5/15m`),
+keyed by the lowercased address and, separately, the client ip — either can
+trip it. `GET /auth/magic/:token` sits behind `magic_link_consume`
+(`RATE_LIMIT_MAGIC_LINK_CONSUME`, default `20/15m`), keyed by client ip. A trip
+answers `429` before either route's own logic runs, so a tripped sign-in
+writes no `magic_links` row. `app/plugins/rate-limit.ts`; `docs/alignment.md`
+§3.
+
 ## Seller magic-link sign-in
 
 Question: what happens between a seller submitting an email and landing on the

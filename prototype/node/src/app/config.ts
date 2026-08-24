@@ -1,6 +1,8 @@
 import path from 'node:path'
 import { z } from 'zod'
 import { MAGIC_LINK_DELIVERIES } from './delivery/magic-link-delivery.ts'
+import { RATE_LIMIT_NAMES, type RateLimitName } from './core/rate-limit/rate-limit-name.ts'
+import { parseRateLimit, type RateLimit } from './core/rate-limit/rate-limit-value.ts'
 
 export const ENVIRONMENTS = ['development', 'test', 'production'] as const
 
@@ -16,6 +18,18 @@ const DEFAULT_UPLOADS_DIR = path.join(PUBLIC_ROOT, 'uploads')
 // Signs the flash and identity cookies outside production, so a clone runs
 // with no configuration. Production brings its own secret or does not boot.
 const DEVELOPMENT_COOKIE_SECRET = 'art-store-prototype-cookie-secret'
+
+/** `docs/alignment.md` §3, in table order: the env variable and default for
+ * each of the seven limits. */
+const RATE_LIMIT_ENV: Record<RateLimitName, { variable: string; default: string }> = {
+  magic_link_request: { variable: 'RATE_LIMIT_MAGIC_LINK_REQUEST', default: '5/15m' },
+  magic_link_consume: { variable: 'RATE_LIMIT_MAGIC_LINK_CONSUME', default: '20/15m' },
+  message_post: { variable: 'RATE_LIMIT_MESSAGE_POST', default: '30/1h' },
+  conversation_open: { variable: 'RATE_LIMIT_CONVERSATION_OPEN', default: '10/1h' },
+  checkout: { variable: 'RATE_LIMIT_CHECKOUT', default: '10/1h' },
+  payment_attempt: { variable: 'RATE_LIMIT_PAYMENT_ATTEMPT', default: '5/15m' },
+  listing_write: { variable: 'RATE_LIMIT_LISTING_WRITE', default: '60/1h' },
+}
 
 const environmentVariables = z.object({
   NODE_ENV: z.enum(ENVIRONMENTS).default('development'),
@@ -35,6 +49,18 @@ const environmentVariables = z.object({
     .transform((value) => new URL(value).origin)
     .optional(),
   TRUST_PROXY: z.stringbool().default(false),
+  // A comma-separated list of proxy addresses/CIDRs Fastify's own `trustProxy`
+  // option accepts. Unset, `request.ip` reads the socket; set, it reads the
+  // first forwarded hop past those addresses — never any hop a caller can
+  // forge by sending its own `X-Forwarded-For`.
+  TRUSTED_PROXIES: z.string().min(1).optional(),
+  RATE_LIMIT_MAGIC_LINK_REQUEST: z.string().min(1).optional(),
+  RATE_LIMIT_MAGIC_LINK_CONSUME: z.string().min(1).optional(),
+  RATE_LIMIT_MESSAGE_POST: z.string().min(1).optional(),
+  RATE_LIMIT_CONVERSATION_OPEN: z.string().min(1).optional(),
+  RATE_LIMIT_CHECKOUT: z.string().min(1).optional(),
+  RATE_LIMIT_PAYMENT_ATTEMPT: z.string().min(1).optional(),
+  RATE_LIMIT_LISTING_WRITE: z.string().min(1).optional(),
 })
 
 type ParsedEnvironment = z.output<typeof environmentVariables>
@@ -57,6 +83,38 @@ function refuseUnsafeProduction(parsed: ParsedEnvironment): void {
         'NODE_ENV=production.',
     )
   }
+}
+
+/** The comma-separated list `TRUSTED_PROXIES` carries, or `null` for none —
+ * what Fastify's `trustProxy` server option reads besides a plain boolean. */
+function parseTrustedProxies(raw: string | undefined): string[] | null {
+  if (raw === undefined) return null
+
+  const addresses = raw
+    .split(',')
+    .map((address) => address.trim())
+    .filter((address) => address.length > 0)
+
+  return addresses.length === 0 ? null : addresses
+}
+
+/**
+ * Every limit `docs/alignment.md` §3 names, parsed from its own env variable
+ * or its default. A malformed value throws with the variable it came from, so
+ * `loadConfig` refuses to boot rather than serve an unbounded route.
+ */
+function rateLimitsFrom(parsed: ParsedEnvironment): Record<RateLimitName, RateLimit> {
+  const entries = RATE_LIMIT_NAMES.map((name) => {
+    const { variable, default: defaultValue } = RATE_LIMIT_ENV[name]
+    const raw = parsed[variable as keyof ParsedEnvironment] as string | undefined
+    const result = parseRateLimit(raw, defaultValue)
+
+    if (!result.ok) throw new Error(`${variable}: ${result.error}`)
+
+    return [name, result.value] as const
+  })
+
+  return Object.fromEntries(entries) as Record<RateLimitName, RateLimit>
 }
 
 /** The SCREAMING_CASE environment as the camelCase deployment the app reads. */
@@ -82,8 +140,13 @@ function toAppConfig(parsed: ParsedEnvironment) {
     staleOrderHours: parsed.STALE_ORDER_HOURS,
     publicUrl,
     trustProxy: parsed.TRUST_PROXY,
+    // The addresses Fastify trusts a forwarded header from, or null to fall
+    // back to `trustProxy` above. Kept apart from it so an operator can turn
+    // on protocol/host forwarding without also trusting client-ip headers.
+    trustedProxies: parseTrustedProxies(parsed.TRUSTED_PROXIES),
     secureCookies: isProduction || publicUrl?.startsWith('https:') === true,
     showsDebugMagicLinks: !isProduction && parsed.MAGIC_LINK_DELIVERY === 'flash',
+    rateLimits: rateLimitsFrom(parsed),
   }
 }
 

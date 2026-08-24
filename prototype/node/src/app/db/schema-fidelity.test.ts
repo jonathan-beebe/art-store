@@ -32,6 +32,7 @@ import type {
   PageViewCountsTable,
   Payment,
   Payout,
+  RateLimitWindowsTable,
   Refund,
 } from './commerce-schema.ts'
 
@@ -265,6 +266,14 @@ const pageViewCountsSample: Selectable<PageViewCountsTable> = {
   count: 1,
 }
 
+const rateLimitWindowsSample: Selectable<RateLimitWindowsTable> = {
+  id: fixtureId('rlw', 1),
+  name: 'magic_link_request',
+  key: 'a1b2c3d4e5f6a7b8',
+  windowStart: '2026-01-01T00:00:00.000Z',
+  count: 1,
+}
+
 const conversationsSample: Conversation = {
   id: fixtureId('cnv', 1),
   kind: 'admin_seller',
@@ -322,6 +331,7 @@ const TABLE_SAMPLES: ReadonlyArray<readonly [string, Record<string, unknown>]> =
   ['notifications', notificationsSample],
   ['outbox_messages', outboxMessagesSample],
   ['page_view_counts', pageViewCountsSample],
+  ['rate_limit_windows', rateLimitWindowsSample],
   ['conversations', conversationsSample],
   ['messages', messagesSample],
   ['listing_faqs', listingFaqsSample],

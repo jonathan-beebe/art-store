@@ -9,6 +9,7 @@ import { submittedForm } from '../../http/request-schema.ts'
 import { requestActions } from '../../http/request-actions.ts'
 import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
+import { magicLinkRequestGuard } from '../../plugins/rate-limit.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
 const NO_ADDRESS = 'Enter an email address to sign in.'
@@ -19,6 +20,8 @@ const signInForm = submittedForm({
   email: z.string().optional(),
   redirect_to: z.string().optional(),
 })
+
+type SignInForm = z.output<typeof signInForm>
 
 export type SignInRoutesOptions = {
   actorType: ActorType
@@ -69,33 +72,40 @@ export function signInRoutes({
       })
     })
 
-    routes.post('/login', { schema: { body: signInForm } }, async (request, reply) => {
-      const submitted = request.body
-      const redirectTo = keepLocalRedirect(submitted.redirect_to, requestOrigin(request))
+    routes.post(
+      '/login',
+      {
+        schema: { body: signInForm },
+        preHandler: magicLinkRequestGuard<SignInForm>((request) => request.body.email ?? ''),
+      },
+      async (request, reply) => {
+        const submitted = request.body
+        const redirectTo = keepLocalRedirect(submitted.redirect_to, requestOrigin(request))
 
-      if (!isEmailAddress(submitted.email)) return await refuseLink(reply, NO_ADDRESS, redirectTo)
+        if (!isEmailAddress(submitted.email)) return await refuseLink(reply, NO_ADDRESS, redirectTo)
 
-      const email = normalizeEmail(submitted.email)
-      if (admits !== undefined && !(await admits(routes.db, email))) {
-        return await refuseLink(reply, refusal ?? NO_ADDRESS, redirectTo)
-      }
+        const email = normalizeEmail(submitted.email)
+        if (admits !== undefined && !(await admits(routes.db, email))) {
+          return await refuseLink(reply, refusal ?? NO_ADDRESS, redirectTo)
+        }
 
-      // The action logs the request; neither the address nor the token reaches
-      // the log. `delivered` carries the debug magic link, and the flash it
-      // becomes is the only place that link is allowed.
-      const delivered = await sendMagicLink(
-        {
-          ...requestActions(request),
-          delivery: routes.magicLinkDelivery,
-          magicLinkUrl: (token) => magicLinkUrl(request, token),
-        },
-        { email, actorType, redirectTo },
-      )
+        // The action logs the request; neither the address nor the token reaches
+        // the log. `delivered` carries the debug magic link, and the flash it
+        // becomes is the only place that link is allowed.
+        const delivered = await sendMagicLink(
+          {
+            ...requestActions(request),
+            delivery: routes.magicLinkDelivery,
+            magicLinkUrl: (token) => magicLinkUrl(request, token),
+          },
+          { email, actorType, redirectTo },
+        )
 
-      reply.setFlash({ ...delivered, notice: `Sign-in link sent to ${email}.` })
+        reply.setFlash({ ...delivered, notice: `Sign-in link sent to ${email}.` })
 
-      return await reply.redirect(loginPath(site.loginPath, redirectTo))
-    })
+        return await reply.redirect(loginPath(site.loginPath, redirectTo))
+      },
+    )
 
     routes.post('/logout', async (_request, reply) => {
       reply.signOut(actorType)

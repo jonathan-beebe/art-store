@@ -10,6 +10,7 @@ import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requireVerifiedCustomer } from '../../../plugins/identity.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { customerOrderPath, loadCustomerOrder } from '../customer-order.ts'
 import { declineNotice } from '../decline-notice.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
@@ -68,7 +69,11 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
     '/orders/:id/pay',
     {
       schema: { params: idParams('ord'), body: cardForm },
-      preHandler: [requireVerifiedCustomer, refuseBlockedCustomer(customerOrderPath)],
+      preHandler: [
+        requireVerifiedCustomer,
+        refuseBlockedCustomer(customerOrderPath),
+        rateLimitGuard<{ id: OrderId }>({ name: 'payment_attempt', key: (request) => request.params.id }),
+      ],
     },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)

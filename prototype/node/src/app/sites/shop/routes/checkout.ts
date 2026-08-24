@@ -1,4 +1,4 @@
-import type { FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { sendMagicLink } from '../../../actions/auth/send-magic-link.ts'
@@ -21,6 +21,7 @@ import { submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import { signedInActorId } from '../../../plugins/identity.ts'
+import { answerIfRateLimited, magicLinkRequestDecision, rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { magicLinkUrl } from '../../auth/request-origin.ts'
 import { missingFieldLabels, SHIPPING_FIELDS, shippingFromForm } from '../checkout-fields.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
@@ -63,6 +64,42 @@ function renderCheckout(reply: FastifyReply, view: CheckoutView, status = 200): 
       totals: view.contents.totals,
     }),
   )
+}
+
+/**
+ * Verifies a guest's address once their order is placed, unless it is already
+ * charged or `magic_link_request` is over its limit. The order is already
+ * placed either way — a trip here blocks only the link, the same limit
+ * sign-in's own `POST /login` checks, keyed the same way.
+ */
+async function verifyGuestAddress(
+  shop: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  input: { purchaser: PlaceOrderInput['purchaser']; charged: Order | null; order: Order },
+): Promise<FastifyReply> {
+  if (input.charged !== null) return await reply.redirect(`/orders/${input.order.id}`)
+
+  const { decision, key } = await magicLinkRequestDecision(request, input.purchaser.email ?? '')
+  const tripped = await answerIfRateLimited(request, reply, 'magic_link_request', key, decision)
+  if (tripped) return reply
+
+  const delivered = await sendMagicLink(
+    {
+      ...requestActions(request),
+      delivery: shop.magicLinkDelivery,
+      magicLinkUrl: (token) => magicLinkUrl(request, token),
+    },
+    {
+      email: input.purchaser.email ?? '',
+      actorType: 'customer',
+      redirectTo: `/orders/${input.order.id}/pay`,
+    },
+  )
+
+  reply.setFlash({ ...delivered, notice: 'Check your email to verify your address and pay.' })
+
+  return await reply.redirect(`/orders/${input.order.id}`)
 }
 
 type CheckOutCartInput = PlaceOrderInput & { cardNumber: string }
@@ -118,9 +155,14 @@ export const checkoutRoutes: ZodRoutes = (shop, _options, done) => {
     })
   })
 
+  const guardCheckoutRate = rateLimitGuard({
+    name: 'checkout',
+    key: (request) => storefrontCustomer(request).id,
+  })
+
   shop.post(
     '/checkout',
-    { schema: { body: checkoutForm }, preHandler: guardBlocked },
+    { schema: { body: checkoutForm }, preHandler: [guardBlocked, guardCheckoutRate] },
     async (request, reply) => {
       const customer = storefrontCustomer(request)
       const cart = await currentCart({ db, clock }, customer.id)
@@ -183,26 +225,7 @@ export const checkoutRoutes: ZodRoutes = (shop, _options, done) => {
         )
       }
 
-      const order = placement.order
-
-      if (charged !== null) return await reply.redirect(`/orders/${order.id}`)
-
-      const delivered = await sendMagicLink(
-        {
-          ...requestActions(request),
-          delivery: shop.magicLinkDelivery,
-          magicLinkUrl: (token) => magicLinkUrl(request, token),
-        },
-        {
-          email: purchaser.email ?? '',
-          actorType: 'customer',
-          redirectTo: `/orders/${order.id}/pay`,
-        },
-      )
-
-      reply.setFlash({ ...delivered, notice: 'Check your email to verify your address and pay.' })
-
-      return await reply.redirect(`/orders/${order.id}`)
+      return await verifyGuestAddress(shop, request, reply, { purchaser, charged, order: placement.order })
     },
   )
 

@@ -64,11 +64,27 @@ sets `HOST` and `PORT` for the container.
 | `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
 | `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
 | `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
+| `TRUSTED_PROXIES` | unset | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate limit's client-ip key reads) trusts `X-Forwarded-For` only past those hops instead of the raw socket, and takes over from `TRUST_PROXY` for protocol/host too. |
 | `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
 | `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
 | `STALE_ORDER_HOURS` | `24` | How long an order left unverified holds its stock before `make sweep` cancels it. |
 | `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds the `listing.view` and `ledger.write` lines. |
+| `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | Sign-in's `POST /login` on every site, and guest checkout's implicit link. Keyed by lowercased email and, separately, client ip. |
+| `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | `GET /auth/magic/:token`. Keyed by client ip. |
+| `RATE_LIMIT_MESSAGE_POST` | `30/1h` | Every message POST. Keyed by actor id. |
+| `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | The listing question box, support, and fulfillment thread opens. Keyed by actor id. |
+| `RATE_LIMIT_CHECKOUT` | `10/1h` | `POST /checkout`. Keyed by customer id. |
+| `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | `POST /orders/:id/pay`. Keyed by order id. |
+| `RATE_LIMIT_LISTING_WRITE` | `60/1h` | Listing create and update. Keyed by seller id. |
+
+Every `RATE_LIMIT_*` value is `<count>/<window>` (`<n>s`, `<n>m`, or `<n>h`) or
+`off`. A malformed value refuses to boot, the same as an unsafe production
+setting. A trip answers `429` with a `Retry-After` header, the site's own page
+("Too many requests — try again in N minutes."), and one `rate_limit.exceed`
+log line; the write the limit guards does not happen. Counters live in the
+`rate_limit_windows` table, so they survive a restart. See
+`docs/alignment.md` §3.
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
 `https:` origin — there is no separate switch for it.

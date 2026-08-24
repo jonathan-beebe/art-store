@@ -17,6 +17,7 @@ import type { AppDatabase } from '../../../db/database.ts'
 import { idParams, idValue, slugParams, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { loadCustomerOrder } from '../customer-order.ts'
 import { findListingOnStorefront } from '../queries/find-listing-on-storefront.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
@@ -45,6 +46,17 @@ async function fulfillmentSellerId(
   return row?.sellerId ?? null
 }
 
+/** Every guard below is keyed by the storefront customer, which
+ * `resolveCustomerIdentity` puts on every request under this plugin. */
+const guardMessagePost = rateLimitGuard({
+  name: 'message_post',
+  key: (request) => storefrontCustomer(request).id,
+})
+const guardConversationOpen = rateLimitGuard({
+  name: 'conversation_open',
+  key: (request) => storefrontCustomer(request).id,
+})
+
 export const messageRoutes: ZodRoutes = (shop, _options, done) => {
   shop.get('/messages', async (request, reply) => {
     const customer = storefrontCustomer(request)
@@ -69,7 +81,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post(
     '/messages/:id',
-    { schema: { params: idParams('cnv'), body: replyForm } },
+    { schema: { params: idParams('cnv'), body: replyForm }, preHandler: guardMessagePost },
     async (request, reply) => {
       const conversationId = request.params.id
       const actor: MessagingActor = { type: 'customer', id: storefrontCustomer(request).id }
@@ -96,7 +108,10 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post(
     '/art/:slug/questions',
-    { schema: { params: slugParams, body: questionForm } },
+    {
+      schema: { params: slugParams, body: questionForm },
+      preHandler: [guardConversationOpen, guardMessagePost],
+    },
     async (request, reply) => {
       const { slug } = request.params
       const found = await findListingOnStorefront(shop.db, slug)
@@ -139,7 +154,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
     },
   )
 
-  shop.get('/support', async (request, reply) => {
+  shop.get('/support', { preHandler: guardConversationOpen }, async (request, reply) => {
     const customer = storefrontCustomer(request)
     const result = await openSupportConversation(requestActions(request), {
       actorType: 'customer',
@@ -157,7 +172,7 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post(
     '/orders/:id/fulfillments/:fulfillmentId/messages',
-    { schema: { params: fulfillmentParams } },
+    { schema: { params: fulfillmentParams }, preHandler: guardConversationOpen },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
       if (found === null) return renderNotFound(reply)

@@ -35,8 +35,22 @@ export const TEST_CONFIG: AppConfig = {
   staleOrderHours: 24,
   publicUrl: null,
   trustProxy: false,
+  trustedProxies: null,
   secureCookies: false,
   showsDebugMagicLinks: true,
+  // Off by default so a test unrelated to rate limiting can hit a guarded
+  // route as many times as its scenario needs; a test about one limit
+  // overrides just that entry (see `rate-limit.test.ts` and each guarded
+  // route's own suite).
+  rateLimits: {
+    magic_link_request: 'off',
+    magic_link_consume: 'off',
+    message_post: 'off',
+    conversation_open: 'off',
+    checkout: 'off',
+    payment_attempt: 'off',
+    listing_write: 'off',
+  },
 }
 
 export type TestAppOverrides = Partial<AppDependencies> & {

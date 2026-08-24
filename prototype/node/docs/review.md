@@ -261,6 +261,21 @@ refinement batch landed.
     every week" is a platform action) but means there is no way to demo a
     single seller's payout in isolation from `/admin`.
 
+11. **Every rate-limit trip answers the generic 429 page, not a re-rendered
+    form.** `docs/alignment.md` §3 says a form re-renders the "too many
+    requests" sentence as a field-less error; every guarded route instead
+    answers `plugins/rate-limit.ts`'s shared `error` page. Lowest priority in
+    FEAT-020's own cut order, cut to land the seven limits, the parser, the
+    counter table, and the seven routes' wiring with full test coverage.
+
+12. **The admin's `POST /sellers/:id/messages` and `POST /customers/:id/messages`
+    carry no rate limit.** Both open a conversation with no message body, the
+    same shape as the fulfillment-thread open `conversation_open` guards
+    elsewhere, but `docs/alignment.md` §3's guard list names only "listing
+    question, support, fulfillment thread opens" — these two admin routes are
+    not among them, and an admin is already authenticated. Left unguarded
+    rather than stretching the contract's list past what it says (FEAT-020).
+
 Closed by the refinement batch, and listed here so a reader of an older copy of
 this file is not misled: email had no implementation at all (FEAT-015 added the
 outbox), an unmatched route answered Fastify's JSON (IMPRV-001), the admin
@@ -296,6 +311,9 @@ no CI (FEAT-014).
 10. Document the platform-wide payout run as intentional in the seller-facing
     copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
     demo one seller's payout in isolation. Closes gap 10.
+
+11. Give `answerIfRateLimited` an optional per-route `onTrip` re-render
+    callback and wire it for `POST /login` first. Closes gap 11.
 
 ## Stack notes
 

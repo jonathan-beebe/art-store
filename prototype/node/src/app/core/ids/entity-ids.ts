@@ -34,6 +34,7 @@ export const ID_PREFIXES = {
   notifications: 'ntf',
   outbox_messages: 'obx',
   page_view_counts: 'pvc',
+  rate_limit_windows: 'rlw',
   sessions: 'ses',
   transactions: 'txn',
 } as const
@@ -66,6 +67,7 @@ export type MessageId = PrefixedId<typeof ID_PREFIXES.messages>
 export type NotificationId = PrefixedId<typeof ID_PREFIXES.notifications>
 export type OutboxMessageId = PrefixedId<typeof ID_PREFIXES.outbox_messages>
 export type PageViewCountId = PrefixedId<typeof ID_PREFIXES.page_view_counts>
+export type RateLimitWindowId = PrefixedId<typeof ID_PREFIXES.rate_limit_windows>
 
 /** The `sid` cookie's value: one browser, across sign-ins and sign-outs. */
 export type SessionId = PrefixedId<typeof ID_PREFIXES.sessions>

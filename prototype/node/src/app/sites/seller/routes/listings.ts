@@ -27,6 +27,7 @@ import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import { identityId } from '../../../plugins/identity.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
 import { listingFormFieldsView } from '../listing-form-fields-view.ts'
@@ -171,6 +172,8 @@ function refuseStatusChange(reply: FastifyReply, message: string): FastifyReply 
   return reply.redirect('/seller/listings')
 }
 
+const guardListingWrite = rateLimitGuard({ name: 'listing_write', key: currentSellerId })
+
 export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
   portal.get('/listings', async (request, reply) => {
     const { db } = request.server
@@ -203,32 +206,36 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
     }),
   )
 
-  portal.post('/listings', { schema: { body: listingFormBody } }, async (request, reply) => {
-    const uploadedImage = await readUploadedImage(request.body)
-    const fields = listingDraftFieldsFrom(request.body, uploadedImage?.format ?? null)
-    const draft = parseListingDraft(fields)
-    if (!draft.ok) {
-      return reply.code(422).render('listings/new', {
-        title: 'New listing',
-        fields: listingFormFieldsView(fields, draft.errors),
-        errors: draft.errors,
-      })
-    }
+  portal.post(
+    '/listings',
+    { schema: { body: listingFormBody }, preHandler: guardListingWrite },
+    async (request, reply) => {
+      const uploadedImage = await readUploadedImage(request.body)
+      const fields = listingDraftFieldsFrom(request.body, uploadedImage?.format ?? null)
+      const draft = parseListingDraft(fields)
+      if (!draft.ok) {
+        return reply.code(422).render('listings/new', {
+          title: 'New listing',
+          fields: listingFormFieldsView(fields, draft.errors),
+          errors: draft.errors,
+        })
+      }
 
-    const { config } = request.server
-    const listing = await createListing(
-      requestActions(request),
-      {
-        sellerId: currentSellerId(request),
-        draft: draft.value,
-        imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
-      },
-    )
+      const { config } = request.server
+      const listing = await createListing(
+        requestActions(request),
+        {
+          sellerId: currentSellerId(request),
+          draft: draft.value,
+          imagePath: await savedImagePath(config.uploadsDir, uploadedImage),
+        },
+      )
 
-    reply.setFlash({ notice: `"${listing.title}" is saved as a draft.` })
+      reply.setFlash({ notice: `"${listing.title}" is saved as a draft.` })
 
-    return reply.redirect('/seller/listings')
-  })
+      return reply.redirect('/seller/listings')
+    },
+  )
 
   portal.get('/listings/:id', { schema: { params: idParams('lst') } }, async (request, reply) => {
     const listing = await findOwnedListing(request, reply, request.params.id)
@@ -274,7 +281,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
 
   portal.post(
     '/listings/:id',
-    { schema: { params: idParams('lst'), body: listingFormBody } },
+    { schema: { params: idParams('lst'), body: listingFormBody }, preHandler: guardListingWrite },
     async (request, reply) => {
       const listing = await findOwnedListing(request, reply, request.params.id)
       if (listing === null) return reply
