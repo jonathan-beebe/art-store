@@ -37,6 +37,17 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "the index orders listings by creation time, not by mint order" do
+    seller = signed_in_seller
+    minted_first = create_listing(seller, title: "Minted First", created_at: 1.day.ago)
+    minted_second = create_listing(seller, title: "Minted Second", created_at: 5.days.ago)
+
+    get seller_listings_path
+
+    assert_select "tbody tr:first-child[data-listing=?]", minted_first.id
+    assert_select "tbody tr:last-child[data-listing=?]", minted_second.id
+  end
+
   test "another seller's listings stay off the index" do
     signed_in_seller
     rival = create_listing(other_seller, title: "Rival Work")

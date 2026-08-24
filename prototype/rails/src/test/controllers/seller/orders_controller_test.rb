@@ -82,4 +82,14 @@ class Seller::OrdersControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
   end
+
+  test "an id from another table is not found, even an order id at this order-shaped URL" do
+    signed_in_seller
+
+    get "/seller/orders/#{unused_id(:ord)}"
+    assert_response :not_found
+
+    get "/seller/orders/#{create_fulfillment(other_seller).id}"
+    assert_response :not_found
+  end
 end

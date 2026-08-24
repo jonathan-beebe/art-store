@@ -6,6 +6,6 @@ class Seller::DashboardController < Seller::BaseController
     @awaiting_shipment = current_seller.fulfillments.awaiting_shipment.count
     @balance = current_seller.escrow_balance
     @unread_notifications = unread_notification_count
-    @recent_notifications = current_seller.notifications.order(id: :desc).limit(RECENT_NOTIFICATIONS)
+    @recent_notifications = current_seller.notifications.order(created_at: :desc, id: :desc).limit(RECENT_NOTIFICATIONS)
   end
 end

@@ -4,14 +4,14 @@ class Seller::ListingsController < Seller::BaseController
   before_action :set_listing, only: %i[show edit update]
 
   def index
-    @listings = current_seller.listings.order(id: :desc).to_a
+    @listings = current_seller.listings.order(created_at: :desc, id: :desc).to_a
     @activity = ListingEvent.totals_by_listing(@listings)
   end
 
   def show
     @totals = @listing.activity_totals
     @days = @listing.activity_by_day(days: WINDOW_DAYS)
-    @sales = @listing.order_items.includes(:order).order(id: :desc)
+    @sales = @listing.order_items.includes(:order).order(created_at: :desc, id: :desc)
   end
 
   def new

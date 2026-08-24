@@ -96,6 +96,17 @@ module Shop
       assert_select "a[rel=prev]", text: "Previous"
     end
 
+    test "the feed orders listings by creation time, not by mint order" do
+      seller = create_seller
+      minted_first = create_listing(seller, title: "Minted First", created_at: 1.day.ago)
+      create_listing(seller, title: "Minted Second", created_at: 5.days.ago)
+
+      get root_path
+
+      assert_select "ul li:first-child h2", text: minted_first.title
+      assert_select "ul li:last-child h2", text: "Minted Second"
+    end
+
     test "a page past the end lands on the last page" do
       create_listing(title: "Harbour at Dusk")
 

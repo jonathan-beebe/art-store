@@ -4,7 +4,7 @@ module Shop
       @listings = Listing
         .where(id: current_customer.favorites.select(:listing_id))
         .includes(:seller)
-        .order(id: :desc)
+        .order(created_at: :desc, id: :desc)
     end
 
     def toggle

@@ -1,7 +1,7 @@
 module Shop
   class OrdersController < BaseController
     def index
-      @orders = current_customer.orders.includes(:items).order(id: :desc)
+      @orders = current_customer.orders.includes(:items).order(created_at: :desc, id: :desc)
     end
 
     def show

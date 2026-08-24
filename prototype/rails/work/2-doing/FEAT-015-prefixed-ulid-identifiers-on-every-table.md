@@ -75,7 +75,9 @@ Vanilla Rails: `create_table ..., id: :string` with `t.references ..., type: :st
   reads `order(:created_at, :id)`: `Admin.on_duty`, `Conversation.open`,
   `Conversation#move_to`, the cart, checkout, order and admin dashboard
   lists. The id stays as the tie-breaker between two rows written in the same
-  millisecond, which is exactly the order they were written in.
+  millisecond, which is exactly the order they were written in. This swept
+  the ascending call sites only; the ten `order(id: :desc)` newest-first call
+  sites survived the commit and are corrected in the Fix-up section below.
 - **The conversations shape index** — its `COALESCE(seller_id, 0)` terms
   became `COALESCE(seller_id, '')` now that the columns are text.
 - **The order number** — every surface already rendered `order.id`
@@ -96,3 +98,51 @@ Vanilla Rails: `create_table ..., id: :string` with `t.references ..., type: :st
 ### Deviations from the contract
 
 None.
+
+### Fix-up
+
+A review of `2aa0e19` found three defects, fixed on `align/rails`.
+
+- **The id-ordering sweep was incomplete.** Ten `order(id: :desc)` newest-first
+  call sites survived the original commit: the seller dashboard's recent
+  notifications, seller orders index, seller listings index and its sales
+  list, seller earnings' fulfillments, seller notifications index, the shop
+  favorites index, the storefront's paginated public feed, the shop account
+  notifications, and the shop orders index. All ten now read
+  `order(created_at: :desc, id: :desc)`, matching the pattern the rest of the
+  commit already used. A repeat grep of `src/app`, `src/lib`, and `src/db` for
+  `order(:id)`, `order(id:`, `order("id`, `reorder`, `maximum(:id)`,
+  `minimum(:id)`, and bare `.first`/`.last` standing in for newest/oldest
+  turned up nothing else — the remaining `.first`/`.last` calls either read
+  arrays (`split("@").first`, `errors[...].first`) or already order by
+  `created_at` first. The sweep is complete. Two tests pin this where a
+  regression would be user-visible: the storefront feed's pagination order
+  and the seller listings index, each built from listings whose creation call
+  order and `created_at` disagree, so a return to id ordering fails them.
+- **The clock feeding the id mint was not the seeds' clock.** `db/seeds.rb`
+  and the six modules under `db/seeds/` ran on real wall time: the `at:`
+  keyword each one threads through (`placed_at`, `shipped_at`, the message
+  exchange, ...) only ever set the domain's own timestamp columns, never
+  `created_at`, and `PrefixedId` mints from `Time.current` with no `at:`
+  passed, so both `created_at` and the embedded ULID timestamp came from
+  whatever moment the seed script happened to run at rather than a
+  reproducible clock. Decision: (b) — the seed run is now wrapped in a single
+  `ActiveSupport::Testing::TimeHelpers#travel_to` around the six
+  `Seeds::*.create_all` calls in `db/seeds.rb`, freezing `Time.current` to one
+  fixed instant for the whole run. This is the smallest fix: it threads no
+  `at:` through every model, and `PrefixedUlid`'s per-millisecond counter
+  already handles a clock that stands still (its own comment: "Ids minted
+  within one millisecond count up from that millisecond's random draw, which
+  holds the order under a clock that stands still"), so every row minted
+  during the frozen run still sorts by id in the order it was created, and
+  `created_at` — now also frozen — ties correctly to that same order. A test
+  on `PrefixedId` proves a row built under `travel_to` mints an id whose
+  embedded ULID timestamp matches the frozen instant.
+- **`Seller::OrdersController` had no wrong-prefix test.** Added, covering
+  both an `ord_…` id (the route's `/seller/orders/:id` noun) and another
+  seller's real `ful_…` id — the two ids most likely to be reached for by a
+  caller of this one route, since its URL noun and its table disagree.
+
+`make check`: 772 runs, 2428 assertions, 0 failures, 0 errors, 100% line
+coverage (1317/1317), up from the pre-fix-up baseline of 768 runs / 2417
+assertions.
