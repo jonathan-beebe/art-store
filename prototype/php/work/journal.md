@@ -5,14 +5,27 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 18
-- IMPRV: 4
-- MAINT: 3
+- FEAT: 25
+- IMPRV: 6
+- MAINT: 5
 - A11Y: 1
 - RFCTR: 9
-- BUG: 3
+- BUG: 4
 
 ## Log
+
+- 2026-08-23:20:36:19 — MAINT-004 — defined: Final validation and docs refresh for the alignment branch
+- 2026-08-23:20:36:19 — IMPRV-005 — defined: Merge folds the cart and de-duplicates favorites
+- 2026-08-23:20:36:19 — BUG-003 — defined: A blocked customer's ask leaves an empty thread, and a magic link can be consumed twice
+- 2026-08-23:20:36:19 — FEAT-024 — defined: Admin moderation of listings, and the payout run moves to admin
+- 2026-08-23:20:36:19 — FEAT-023 — defined: Admin dashboard, accounting, ledger browser, and site stats
+- 2026-08-23:20:36:19 — FEAT-022 — defined: Admin directory: sellers, customers, listings, orders, fulfillments
+- 2026-08-23:20:36:19 — FEAT-021 — defined: Configurable rate limits and security headers
+- 2026-08-23:20:36:19 — FEAT-020 — defined: Order lifecycle back half: cancel, stale sweep, seller decline, admin refund
+- 2026-08-23:20:36:19 — IMPRV-004 — defined: Checkout refusal lists every blocked line and the cart gates checkout
+- 2026-08-23:20:36:19 — FEAT-019 — defined: Structured JSON logs that tell the story
+- 2026-08-23:20:36:19 — FEAT-018 — defined: Prefixed ULID identifiers on every table
+- 2026-08-23:20:36:19 — MAINT-003 — defined: Common make vocabulary, check gate, and CI
 - 2026-08-23:19:12:59 — IMPRV-002 — amended: debug notice no longer names a seeded admin address
 - 2026-08-23:19:03:03 — IMPRV-003 — done: AdminSeeder now seeds two real operators (Jonathan Beebe, Anna Schmunk) via AdminSeeder::ADMINS replacing the single EMAIL constant; MessagingSeeder/debug notice/README/tests updated to match; 1111 tests / 2501 assertions, 100.0% coverage
 - 2026-08-23:18:58:30 — IMPRV-003 — started
@@ -41,7 +54,6 @@
 - 2026-08-23:14:29:48 — FEAT-010 — reviewed: arch rules now run in the gate, SignInAdmin refuses an unknown address, unused admin base controller dropped, docs carry the third site; 826 tests / 1887 assertions, 100.0% coverage
 - 2026-08-23:14:14:49 — FEAT-010 — done: admin actor/site + customer blocks landed, 810 tests / 1788 assertions, make check green
 - 2026-08-23:13:59:13 — FEAT-010 — started
-
 - 2026-08-23:13:50:48 — FEAT-017 — defined: Final validation and documentation refresh
 - 2026-08-23:13:50:48 — FEAT-016 — defined: Live unread badge over eventstream sse
 - 2026-08-23:13:50:48 — FEAT-015 — defined: Seed data for messaging and smoke walk
