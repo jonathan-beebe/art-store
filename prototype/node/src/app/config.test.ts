@@ -29,7 +29,6 @@ test('an empty environment yields the development defaults', () => {
     outboxDir: 'storage/outbox',
     staleOrderHours: 24,
     publicUrl: null,
-    trustProxy: false,
     trustedProxies: null,
     secureCookies: false,
     showsDebugMagicLinks: true,
@@ -57,7 +56,6 @@ test('the environment overrides every default', () => {
     UPLOADS_DIR: '/var/data/uploads',
     OUTBOX_DIR: '/var/data/outbox',
     PUBLIC_URL: 'https://art-store.example.com',
-    TRUST_PROXY: 'true',
     TRUSTED_PROXIES: '10.0.0.1, 10.0.0.2',
     RATE_LIMIT_MAGIC_LINK_REQUEST: '3/1m',
     RATE_LIMIT_MAGIC_LINK_CONSUME: '3/1m',
@@ -78,7 +76,6 @@ test('the environment overrides every default', () => {
   assert.equal(config.uploadsDir, '/var/data/uploads')
   assert.equal(config.outboxDir, '/var/data/outbox')
   assert.equal(config.publicUrl, 'https://art-store.example.com')
-  assert.equal(config.trustProxy, true)
   assert.deepEqual(config.trustedProxies, ['10.0.0.1', '10.0.0.2'])
   assert.deepEqual(config.rateLimits, {
     magic_link_request: { count: 3, windowSeconds: 60 },
@@ -159,13 +156,6 @@ test('a public url is kept as an origin, whatever path or trailing slash it arri
 
 test('a public url that is not a url is refused', () => {
   assert.throws(() => loadConfig({ PUBLIC_URL: 'art-store.example.com' }))
-})
-
-test('the proxy is trusted only when the environment says so', () => {
-  assert.equal(loadConfig({}).trustProxy, false)
-  assert.equal(loadConfig({ TRUST_PROXY: 'true' }).trustProxy, true)
-  assert.equal(loadConfig({ TRUST_PROXY: 'false' }).trustProxy, false)
-  assert.throws(() => loadConfig({ TRUST_PROXY: 'maybe' }))
 })
 
 test('no trusted proxies are named unless TRUSTED_PROXIES is set', () => {

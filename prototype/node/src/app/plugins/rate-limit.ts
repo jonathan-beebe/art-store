@@ -7,6 +7,7 @@ import type { RateLimitName } from '../core/rate-limit/rate-limit-name.ts'
 import type { RateLimitDecision } from '../core/rate-limit/rate-limit-window.ts'
 import { tooManyRequestsMessage } from '../core/rate-limit/too-many-requests.ts'
 import { requestActions } from '../http/request-actions.ts'
+import { logLine } from '../log-story.ts'
 
 const TOO_MANY_REQUESTS = 429
 
@@ -36,9 +37,12 @@ function rendersPages(reply: FastifyReply): boolean {
  * Answers a tripped limit: `Retry-After`, one `rate_limit.exceed` line at
  * `warn`, and the site's own 429 page — the same `error` template a 400 or
  * 500 renders, in the layout the request already landed in, or plain text for
- * a route with no site layout to reach for. Returns whether it answered, so a
- * `preHandler` or a route handler falls through to its own next step when it
- * did not.
+ * a route with no site layout to reach for. A tripped `magic_link_request`
+ * also gets a `magic_link.request` `refused` line: the guard runs as a
+ * `preHandler`, before `sendMagicLink` would have opened its own `will`, so
+ * this is the only place that limit's refusal is told. Returns whether it
+ * answered, so a `preHandler` or a route handler falls through to its own
+ * next step when it did not.
  *
  * Returns a plain `boolean` rather than the `FastifyReply` it wrote to on
  * purpose: `FastifyReply` implements `then`, so returning one from an `async`
@@ -65,6 +69,13 @@ export async function answerIfRateLimited(
     { limit: name, key: redactedRateLimitKey(key), retry_after_seconds: decision.retryAfterSeconds },
     'warn',
   )
+
+  if (name === 'magic_link_request') {
+    logLine(request.log, 'info', 'magic_link.request', 'refused', {
+      msg: 'refused to send a sign-in link over the rate limit',
+      data: { reason: 'rate_limited', key: redactedRateLimitKey(key) },
+    })
+  }
 
   const message = tooManyRequestsMessage(decision.retryAfterSeconds)
 

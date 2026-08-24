@@ -180,3 +180,35 @@ Names, env variables, defaults, key rules, and the 429 behaviour match
 `docs/alignment.md` §3 exactly except the form re-render (cut, above). The
 `rate_limit_windows` table matches the `(name, key, window_start, count)`
 shape §3 names.
+
+### Fix-up
+
+Two items from the FEAT-020 review, against contract `docs/alignment.md`
+§2.3 and §3.
+
+1. **The missing `magic_link.request` `refused` line.** The `magic_link_request`
+   guard runs as a `preHandler`, before `sendMagicLink` ever opens its own
+   `will`/`did` story, so a tripped limit wrote `rate_limit.exceed` and
+   nothing else. `answerIfRateLimited` (`app/plugins/rate-limit.ts`) now also
+   writes a `magic_link.request` `refused` line at `info` when `name` is
+   `magic_link_request`, reusing the same `redactedRateLimitKey` digest —
+   `{"event":"magic_link.request","phase":"refused","data":{"reason":"rate_limited","key":"<digest>"},"msg":"refused to send a sign-in link over the rate limit"}`.
+   Covers both call sites keyed by that limit: sign-in's `POST /login`
+   (`magicLinkRequestGuard`) and checkout's implicit link
+   (`sites/shop/routes/checkout.ts`'s inline call). The not-admitted half
+   stays out of scope for `IMPRV-011`. `app/plugins/rate-limit.test.ts` adds
+   a test asserting both lines and that neither carries the address or the ip.
+
+2. **`TRUST_PROXY` / `TRUSTED_PROXIES`.** Both fed the same Fastify
+   `trustProxy` constructor option — one as a plain boolean (trust every
+   forwarded header, no address check), the other as an address/CIDR list —
+   so they were two encodings of one setting, not two concerns. Collapsed to
+   `TRUSTED_PROXIES` alone, the one `docs/alignment.md` §3 names:
+   `config.ts` drops the `TRUST_PROXY` variable and the `trustProxy` config
+   field; `app.ts` reads `trustProxy: config.trustedProxies ?? false`. Unset,
+   every environment trusts nothing forwarded and reads the raw socket, same
+   as development always did. `config.test.ts`, `test/build-test-app.ts`,
+   and the README's environment-variable table updated to match.
+
+`make check`: 1805 tests, coverage 99.53% lines / 97.28% branches / 99.55%
+functions — unchanged from baseline `6a7ba03`.

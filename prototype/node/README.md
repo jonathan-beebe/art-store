@@ -63,8 +63,7 @@ sets `HOST` and `PORT` for the container.
 | `DATABASE_FILE` | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`. |
 | `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
 | `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
-| `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
-| `TRUSTED_PROXIES` | unset | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate limit's client-ip key reads) trusts `X-Forwarded-For` only past those hops instead of the raw socket, and takes over from `TRUST_PROXY` for protocol/host too. |
+| `TRUSTED_PROXIES` | unset | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate limit's client-ip key reads), `request.protocol`, and `request.hostname` trust `X-Forwarded-*` headers only past those hops instead of the raw socket. |
 | `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
 | `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |

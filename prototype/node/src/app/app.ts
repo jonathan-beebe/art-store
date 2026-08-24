@@ -67,11 +67,11 @@ export function buildApp({
   // trustProxy is what makes request.protocol, request.host, and request.ip
   // read forwarded headers rather than the raw socket. `trustedProxies` names
   // exactly which hops to believe, which is what request.ip needs to resist a
-  // caller forging its own X-Forwarded-For; the plain boolean is a coarser
-  // switch for protocol/host alone, kept for a deployment with no named list.
+  // caller forging its own X-Forwarded-For; unset, Fastify trusts nothing
+  // forwarded and reads the raw socket.
   const app = Fastify({
     ...loggingOptions(config, { stream: loggerStream }),
-    trustProxy: config.trustedProxies ?? config.trustProxy,
+    trustProxy: config.trustedProxies ?? false,
   })
 
   // Every route declares its params, query, and body as zod schemas; this is

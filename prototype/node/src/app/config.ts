@@ -48,11 +48,11 @@ const environmentVariables = z.object({
     .url()
     .transform((value) => new URL(value).origin)
     .optional(),
-  TRUST_PROXY: z.stringbool().default(false),
   // A comma-separated list of proxy addresses/CIDRs Fastify's own `trustProxy`
-  // option accepts. Unset, `request.ip` reads the socket; set, it reads the
-  // first forwarded hop past those addresses — never any hop a caller can
-  // forge by sending its own `X-Forwarded-For`.
+  // option accepts. Unset, `request.ip`, `request.protocol`, and
+  // `request.hostname` read the raw socket and the un-forwarded request; set,
+  // they read the first forwarded hop past those addresses — never any hop a
+  // caller can forge by sending its own `X-Forwarded-For`.
   TRUSTED_PROXIES: z.string().min(1).optional(),
   RATE_LIMIT_MAGIC_LINK_REQUEST: z.string().min(1).optional(),
   RATE_LIMIT_MAGIC_LINK_CONSUME: z.string().min(1).optional(),
@@ -139,10 +139,9 @@ function toAppConfig(parsed: ParsedEnvironment) {
     // How long an unverified order holds its stock before `make sweep` cancels it.
     staleOrderHours: parsed.STALE_ORDER_HOURS,
     publicUrl,
-    trustProxy: parsed.TRUST_PROXY,
-    // The addresses Fastify trusts a forwarded header from, or null to fall
-    // back to `trustProxy` above. Kept apart from it so an operator can turn
-    // on protocol/host forwarding without also trusting client-ip headers.
+    // The addresses Fastify trusts a forwarded header from, or null to trust
+    // none: the raw socket and an un-forwarded request, in every environment
+    // with no proxy in front of it.
     trustedProxies: parseTrustedProxies(parsed.TRUSTED_PROXIES),
     secureCookies: isProduction || publicUrl?.startsWith('https:') === true,
     showsDebugMagicLinks: !isProduction && parsed.MAGIC_LINK_DELIVERY === 'flash',

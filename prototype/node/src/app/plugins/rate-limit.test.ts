@@ -112,6 +112,30 @@ test('magic_link_request trips per email address, and sends no further link once
   assert.doesNotMatch(testApp.logLines.text(), /ada@example\.com/)
 })
 
+test('a tripped magic_link_request also tells magic_link.request refused, without the address or the ip', async (t) => {
+  const testApp = await buildLoggedTestApp({
+    config: rateLimitedConfig({ magic_link_request: { count: 1, windowSeconds: 900 } }, 'debug'),
+  })
+  t.after(testApp.close)
+  const payload = { email: 'ada@example.com' }
+
+  await testApp.app.inject({ method: 'POST', url: '/login', payload })
+  const tripped = await testApp.app.inject({ method: 'POST', url: '/login', payload })
+  assert.equal(tripped.statusCode, 429)
+
+  const exceeded = testApp.logLines.line('rate_limit.exceed', 'did')
+  assert.equal(exceeded.level, 'warn')
+
+  const refused = testApp.logLines.line('magic_link.request', 'refused')
+  assert.equal(refused.level, 'info')
+  const data = testApp.logLines.data('magic_link.request', 'refused')
+  assert.equal(data.reason, 'rate_limited')
+  assert.equal(typeof data.key, 'string')
+
+  assert.doesNotMatch(testApp.logLines.text(), /ada@example\.com/)
+  assert.doesNotMatch(testApp.logLines.text(), /127\.0\.0\.1/)
+})
+
 test('magic_link_request also trips per client ip, shared across different email addresses', async (t) => {
   const testApp = await buildTestApp({
     config: rateLimitedConfig({ magic_link_request: { count: 2, windowSeconds: 900 } }),

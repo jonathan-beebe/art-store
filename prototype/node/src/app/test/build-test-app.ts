@@ -34,7 +34,6 @@ export const TEST_CONFIG: AppConfig = {
   outboxDir: path.join(tmpdir(), 'art-store-test-outbox-unused'),
   staleOrderHours: 24,
   publicUrl: null,
-  trustProxy: false,
   trustedProxies: null,
   secureCookies: false,
   showsDebugMagicLinks: true,
