@@ -182,6 +182,12 @@ make fresh      # drop, create, migrate, re-seed
 
 Deleting `src/storage/development.sqlite3` and running `make up` rebuilds it.
 
+Migrations in this prototype are sometimes rewritten in place rather than
+followed by a new one (see `docs/alignment.md` §1) — a rewritten migration
+keeps its original version stamp, so `make migrate` on a database that already
+ran it applies nothing and the schema change never lands. `make fresh` is the
+way to pick up a rewritten migration on an existing development database.
+
 ## Styling
 
 Tailwind v4 through `tailwindcss-rails`, which ships the standalone binary — no

@@ -1,15 +1,16 @@
 module Shop
   class CancellationsController < BaseController
-    # An order past the point of cancelling is not an order this route can act
-    # on, and neither is somebody else's — both answer the same 404.
+    # Somebody else's order is not this customer's to act on, and "not found"
+    # tells them nothing about whether it exists. An order this customer owns
+    # but can no longer call off is a domain refusal instead: cancel! raises
+    # and the customer reads why.
     def create
       order = order_of_customer(params[:id])
-
-      raise ActiveRecord::RecordNotFound unless order.cancellable?
-
       order.cancel!(by: current_customer)
 
       redirect_to shop_order_path(order), notice: "Order cancelled."
+    rescue TransitionError => refusal
+      redirect_to shop_order_path(order), alert: refusal.message
     end
   end
 end

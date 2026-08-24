@@ -79,14 +79,17 @@ class Fulfillment < ApplicationRecord
   end
 
   # The seller hands the package over: the fulfillment records how to follow
-  # it, the order catches up, and the customer is told where to look.
+  # it, the order catches up, and the customer is told where to look. The row
+  # is locked and judged inside the transaction that writes, so a ship racing
+  # a decline reads the current status rather than one taken before either
+  # side started.
   def ship!(carrier:, tracking_number:, at: Time.current)
     Story.tell("fulfillment.ship", "handing the package to the carrier",
       fulfillment_id: id, order_id: order_id, status_from: status) do |story|
-      assign_attributes(carrier: carrier, tracking_number: tracking_number)
-      validate!(:ship)
-
       transaction do
+        lock!
+        assign_attributes(carrier: carrier, tracking_number: tracking_number)
+        validate!(:ship)
         update!(status: :shipped, shipped_at: at)
         order.roll_up_status!
         Notification.order_shipped(self)
@@ -100,13 +103,14 @@ class Fulfillment < ApplicationRecord
   end
 
   # The customer confirms the package arrived, which is what releases the money
-  # the sale has been holding for the seller.
+  # the sale has been holding for the seller. The row is locked and judged
+  # inside the transaction that writes, matching `ship!`.
   def deliver!(at: Time.current)
     Story.tell("fulfillment.deliver", "confirming the package arrived",
       fulfillment_id: id, order_id: order_id, status_from: status) do |story|
-      validate!(:deliver)
-
       transaction do
+        lock!
+        validate!(:deliver)
         update!(status: :delivered, delivered_at: at)
         LedgerEntry.release(self, at: at)
         order.roll_up_status!

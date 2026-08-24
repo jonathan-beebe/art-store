@@ -264,6 +264,28 @@ class FulfillmentTest < ActiveSupport::TestCase
     assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to shipped."
   end
 
+  test "shipping locks the row before judging it, so a stale in-memory status cannot ship over a decline" do
+    fulfillment = awaiting_shipment
+    stale = Fulfillment.find(fulfillment.id)
+    decline(fulfillment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(stale) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to shipped."
+    assert_predicate fulfillment.reload, :declined?
+  end
+
+  test "delivery locks the row before judging it, so a stale in-memory status cannot deliver over a refund" do
+    fulfillment = ship(awaiting_shipment)
+    stale = Fulfillment.find(fulfillment.id)
+    refund(fulfillment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { deliver(stale) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from refunded to delivered."
+    assert_predicate fulfillment.reload, :refunded?
+  end
+
   test "it refuses to decline the same fulfillment twice" do
     fulfillment = decline(awaiting_shipment)
 

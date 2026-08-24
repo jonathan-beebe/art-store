@@ -27,8 +27,31 @@ module Shop
       assert_select "[data-order-status]", text: "Cancelled"
     end
 
-    test "cancelling a paid order is not found" do
+    test "cancelling a paid order is refused" do
       order = paid_order
+
+      post shop_cancel_order_path(order)
+
+      assert_redirected_to shop_order_path(order)
+      assert_predicate order.reload, :paid?
+      follow_redirect!
+      assert_select "[data-flash=alert]", text: "An order cannot move from paid to cancelled."
+    end
+
+    test "cancelling a paid order logs the refusal at info" do
+      order = paid_order
+
+      lines = captured_log_lines { post shop_cancel_order_path(order) }
+
+      refusal = log_lines_for("order.cancel", lines).last
+      assert_equal "refused", refusal["phase"]
+      assert_equal "info", refusal["level"]
+    end
+
+    test "cancelling another customer's order is not found" do
+      order = paid_order
+      end_session
+      sign_in_as_customer(email: "stranger@example.com")
 
       post shop_cancel_order_path(order)
 

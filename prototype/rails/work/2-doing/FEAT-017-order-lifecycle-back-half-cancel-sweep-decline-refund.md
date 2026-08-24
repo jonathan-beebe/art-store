@@ -221,3 +221,53 @@ Before: 882 runs, 2956 assertions, 0 failures, 1706/1706 lines.
 After: 969 runs, 3338 assertions, 0 failures, 1859/1859 lines (100%).
 `make lint` clean, 245 files inspected. `make sweep` and
 `make sweep AS_OF=...` both run; `make fresh` reseeds.
+
+### Fix-up
+
+A reviewer found three defects in this ticket's commit.
+
+1. **`Shop::CancellationsController` answered 404 for a paid order it owned.**
+   `create` pre-checked `order.cancellable?` and raised
+   `ActiveRecord::RecordNotFound` when it was false, so a customer's own paid
+   order and a stranger's order both came back 404 — collapsing two of §4.3's
+   sad paths into one. Rewritten to match `Admin::CancellationsController` and
+   `Seller::DeclinesController`: ownership scoping (`order_of_customer`) still
+   404s a stranger's order, and `order.cancel!` runs unconditionally so a
+   state refusal comes back as a `TransitionError` the controller rescues into
+   `flash[:alert]`, with `order.cancel`'s `refused` line at `info` in the log.
+   `cancellable?` is now unused in this controller (it still backs the "Cancel
+   this order" button's visibility on the order page). Swept every controller
+   this commit added or touched — `admin/cancellations_controller.rb`,
+   `admin/fulfillments_controller.rb`, `admin/orders_controller.rb`,
+   `admin/refunds_controller.rb`, `seller/declines_controller.rb`,
+   `seller/earnings_controller.rb`, `shop/cancellations_controller.rb`,
+   `shop/orders_controller.rb` — for the same
+   `raise ActiveRecord::RecordNotFound unless <domain predicate>` shape; none
+   of the other seven had it.
+
+2. **`Fulfillment#ship!` and `#deliver!` validated their guard outside the
+   transaction, with no lock.** `decline!`/`refund!` (via `reverse_to!`)
+   already ran `lock!` then `validate!` then `update!` inside `transaction
+   do`; `ship!` and `deliver!` ran `validate!` first and locked nothing, so a
+   `ship!` racing a `decline!` could read the pre-decline status, pass its
+   guard, and overwrite a `declined` row back to `shipped`. Moved the lock and
+   the guard inside the transaction in both methods, in the same order
+   `reverse_to!` uses.
+
+3. **`make migrate` on an existing database silently misses a rewritten
+   migration.** `orders.refunded_cents` was added by rewriting `CreateOrders`
+   in place rather than as a new migration (§1 allows this), but a rewritten
+   migration keeps its original version stamp, so a developer database that
+   already ran it never re-runs it and never gets the column.
+   `README.md`'s Database section now says `make fresh` is the way to pick up
+   a rewritten migration on an existing database.
+
+Tests added: `shop/cancellations_controller_test.rb` — the paid-order refusal
+(flash text, order unchanged), the refusal's log payload (`refused` at
+`info`), and a stranger's paid order still 404ing, replacing the test that
+pinned the 404. `fulfillment_test.rb` — a stale in-memory read racing a
+decline (for `ship!`) and racing a refund (for `deliver!`), pinning that the
+lock takes effect before the guard runs.
+
+Numbers after the fix-up: 973 runs, 3357 assertions, 0 failures, 1861/1861
+lines (100%). `make lint` clean, 245 files inspected.
