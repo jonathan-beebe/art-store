@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Domain\Auth\ActorType;
+use App\Domain\CarriesRefusalData;
 use App\Domain\DomainRuleViolation;
 use App\Logging\StoryEvent;
 use App\Logging\StoryLevel;
@@ -129,7 +130,7 @@ final class Story
         try {
             return $work($this);
         } catch (DomainRuleViolation $violation) {
-            $this->refused($violation->getMessage(), $data);
+            $this->refused($violation->getMessage(), [...$data, ...self::refusalData($violation)]);
 
             throw $violation;
         } catch (Throwable $error) {
@@ -237,5 +238,16 @@ final class Story
     private static function openUnit(): ?string
     {
         return self::$units === [] ? null : self::$units[array_key_last(self::$units)];
+    }
+
+    /**
+     * A violation that names nothing beyond its message carries nothing more
+     * onto the line it ends the story with.
+     *
+     * @return array<string, mixed>
+     */
+    private static function refusalData(DomainRuleViolation $violation): array
+    {
+        return $violation instanceof CarriesRefusalData ? $violation->refusalData() : [];
     }
 }

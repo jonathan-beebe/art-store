@@ -7,6 +7,7 @@ namespace App\Actions\Orders;
 use App\Domain\Cart\CartTotals;
 use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\Fee;
+use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
@@ -31,10 +32,22 @@ final readonly class PlaceOrder
         ], function (Story $story) use ($cart, $purchaser, $shipping, $now): Order {
             CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
 
-            $cart->load('items.listing');
-            $totals = CartTotals::forCheckout($cart->lines());
+            $order = DB::transaction(function () use ($cart, $purchaser, $shipping, $now): Order {
+                // Read fresh, inside the transaction: what the cart holds and
+                // what the listings behind it allow right now, so a line
+                // that went stale between the page and this submit is
+                // refused — every blocked line at once — rather than
+                // half-placed, and two shoppers cannot both take the last
+                // piece.
+                $cart->load('items.listing');
+                $plan = $cart->placementPlan();
 
-            $order = DB::transaction(function () use ($cart, $purchaser, $shipping, $totals, $now): Order {
+                if (! $plan->isPlaceable()) {
+                    throw new OrderPlacementRefused($plan->blocked);
+                }
+
+                $totals = CartTotals::forCheckout($cart->lines());
+
                 $order = Order::create($shipping->attributes() + [
                     'customer_id' => $purchaser->customerId,
                     'email' => $purchaser->email,

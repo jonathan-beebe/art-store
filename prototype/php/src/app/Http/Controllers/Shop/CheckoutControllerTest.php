@@ -141,7 +141,7 @@ it('sends a blocked customer to the cart with the reason instead of placing an o
     expect(Order::count())->toBe(0);
 });
 
-it('sends the shopper back to the cart when a line was archived while it sat there', function () use ($checkoutFields): void {
+it('re-renders checkout naming the line archived while it sat there, not a redirect to the cart', function () use ($checkoutFields): void {
     $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
     $this->post('/cart/harbour-at-dawn');
@@ -149,24 +149,68 @@ it('sends the shopper back to the cart when a line was archived while it sat the
 
     $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
 
-    $response->assertRedirect(route('shop.cart'));
-    $response->assertSessionHasErrors();
+    $response->assertStatus(422);
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('no longer for sale');
     expect(Order::count())->toBe(0)
         ->and($listing->refresh()->quantity)->toBe(1);
 });
 
-it('names the item that sold to someone else and marks it on the cart page', function () use ($checkoutFields): void {
+it('names every reason two stale lines were refused, at once', function () use ($checkoutFields): void {
     $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
-    $listing = $this->listing($this->seller(), ['slug' => 'winter-elm', 'title' => 'Winter Elm', 'price_cents' => 24500, 'quantity' => 1]);
+    $offSale = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $soldOut = $this->listing($this->seller(), ['slug' => 'winter-elm', 'title' => 'Winter Elm', 'price_cents' => 24500, 'quantity' => 1]);
+    $this->post('/cart/harbour-at-dawn');
     $this->post('/cart/winter-elm');
-    $this->orderFor($this->verifiedCustomer(), $listing);
+    $offSale->update(['status' => ListingStatus::Archived]);
+    $this->orderFor($this->verifiedCustomer(), $soldOut->refresh());
 
-    $response = $this->followingRedirects()->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+    $response = $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
 
-    $response->assertOk();
-    $response->assertSee('“Winter Elm” is no longer for sale.');
-    $response->assertSee('No longer available');
+    $response->assertStatus(422);
+    $response->assertSee('Harbour at Dawn');
+    $response->assertSee('no longer for sale');
+    $response->assertSee('Winter Elm');
+    $response->assertSee('sold out');
     expect(Order::count())->toBe(1);
+});
+
+it('keeps what the shopper typed when checkout is refused', function (): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $response = $this->post('/checkout', [
+        'email' => 'shopper@example.com',
+        'shipping_name' => 'Ada Lovelace',
+        'shipping_line1' => '12 Analytical Way',
+        'shipping_city' => 'London',
+        'shipping_region' => 'Greater London',
+        'shipping_postal_code' => 'EC1A 1BB',
+        'shipping_country' => 'GB',
+        'card_number' => '4242424242424242',
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertSee('value="12 Analytical Way"', escape: false);
+});
+
+it('carries every blocked line into the refused log line', function () use ($checkoutFields): void {
+    $this->actingAs(Customer::factory()->create(['email' => 'shopper@example.com']), 'customer');
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'title' => 'Harbour at Dawn', 'price_cents' => 24500]);
+    $this->post('/cart/harbour-at-dawn');
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $log = CapturedStory::capture();
+
+    $this->post('/checkout', $checkoutFields() + ['card_number' => '4242424242424242']);
+
+    $refused = $log->line('order.place', 'refused');
+
+    expect($refused['data'])->toHaveKey('blocked', [
+        ['listing_id' => $listing->id, 'title' => 'Harbour at Dawn', 'reason' => 'off_sale'],
+    ]);
 });
 
 it('tells the story of one checkout in order, under one request and one unit of work', function () use ($fillCart, $checkoutFields): void {

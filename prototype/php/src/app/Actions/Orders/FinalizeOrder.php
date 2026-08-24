@@ -6,6 +6,7 @@ namespace App\Actions\Orders;
 
 use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\LedgerMovement;
+use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Payments\FakeCard;
 use App\Domain\Payments\PaymentOutcome;
@@ -40,6 +41,13 @@ final readonly class FinalizeOrder
 
             $paid = DB::transaction(function () use ($order, $decision, $outcome, $retakesStock, $status, $now): Order {
                 if ($retakesStock) {
+                    // The decline that put this order here also put the
+                    // stock it held back on the storefront, so a retry has
+                    // to find the same listings still available before it
+                    // claims them again — the same shape checkout refuses
+                    // with, because the customer sitting on this page is
+                    // exactly the shopper a stale cart would have refused.
+                    $this->assertStillAvailable($order);
                     $this->sellItems($order);
                 }
 
@@ -103,6 +111,15 @@ final readonly class FinalizeOrder
             'amount_cents' => $movement->amount->cents,
             'occurred_at' => $now,
         ]);
+    }
+
+    private function assertStillAvailable(Order $order): void
+    {
+        $plan = $order->load('items.listing')->placementPlan();
+
+        if (! $plan->isPlaceable()) {
+            throw new OrderPlacementRefused($plan->blocked);
+        }
     }
 
     private function sellItems(Order $order): void

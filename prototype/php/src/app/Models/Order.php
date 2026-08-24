@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Money\Money;
+use App\Domain\Orders\OrderPlacementPlan;
 use App\Domain\Orders\OrderStatus;
+use App\Domain\Orders\PlaceableLine;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -84,6 +86,27 @@ class Order extends Model
     public function latestPayment(): HasOne
     {
         return $this->payments()->one()->latestOfMany('processed_at');
+    }
+
+    /**
+     * How placement judges this order's items against the listings behind
+     * them, right now. A retry after a decline calls this before it retakes
+     * stock, so an item that went stale while the card sat declined is
+     * refused rather than sold a second time out from under someone else.
+     */
+    public function placementPlan(): OrderPlacementPlan
+    {
+        return OrderPlacementPlan::for(array_values($this->items->map(
+            fn (OrderItem $item): PlaceableLine => new PlaceableLine(
+                listingId: $item->listing_id,
+                title: $item->title,
+                status: $item->listing->status,
+                availableQuantity: $item->listing->quantity,
+                quantity: $item->quantity,
+                // FEAT-024 wires an admin listing removal in here.
+                hasActiveRemoval: false,
+            ),
+        )->all()));
     }
 
     public function subtotal(): Money

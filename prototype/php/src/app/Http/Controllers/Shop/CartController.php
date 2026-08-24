@@ -21,6 +21,7 @@ final class CartController extends ShopController
         return view('shop.cart', [
             'cart' => $cart,
             'totals' => CartTotals::from($cart->lines()),
+            'plan' => $cart->placementPlan(),
         ]);
     }
 

@@ -10,10 +10,15 @@ use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\Cart\CartTotals;
 use App\Domain\DomainRuleViolation;
+use App\Domain\Orders\BlockedLine;
 use App\Domain\Orders\OrderPayment;
+use App\Domain\Orders\OrderPlacementRefused;
 use App\Http\Requests\Shop\CheckoutRequest;
+use App\Models\Cart;
+use App\Models\Customer;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 final class CheckoutController extends ShopController
 {
@@ -26,12 +31,7 @@ final class CheckoutController extends ShopController
             return redirect()->route('shop.cart');
         }
 
-        return view('shop.checkout', [
-            'cart' => $cart,
-            'totals' => CartTotals::from($cart->lines()),
-            'visitor' => $visitor,
-            'isVerified' => $visitor->isVerified(),
-        ]);
+        return view('shop.checkout', $this->viewData($cart, $visitor));
     }
 
     /**
@@ -44,7 +44,7 @@ final class CheckoutController extends ShopController
         PlaceOrder $placeOrder,
         FinalizeOrder $finalizeOrder,
         SendMagicLink $sendMagicLink,
-    ): RedirectResponse {
+    ): View|RedirectResponse|Response {
         $visitor = $this->visitor();
         $cart = $visitor->currentCart();
 
@@ -57,9 +57,21 @@ final class CheckoutController extends ShopController
 
         try {
             $order = $placeOrder($cart, $purchaser, $request->toShippingAddress(), $now);
+        } catch (OrderPlacementRefused $refusal) {
+            // Checkout is where the shopper is already looking at every
+            // line: the whole cart re-renders with each blocked one named,
+            // rather than a redirect that loses the form to fill in again.
+            $request->flash();
+
+            return response()->view(
+                'shop.checkout',
+                $this->viewData($visitor->currentCart()->load('items.listing.seller'), $visitor, $refusal->blocked),
+                422,
+            );
         } catch (DomainRuleViolation $violation) {
-            // The cart is where the shopper can act on the refusal: it still
-            // holds every line, and the one the message names is marked there.
+            // A refusal that is not about a specific line — the customer's
+            // own standing — sends the shopper to the cart instead: it still
+            // holds every line, and there is no per-line blame to show here.
             return redirect()->route('shop.cart')->withErrors($violation->getMessage());
         }
 
@@ -77,5 +89,20 @@ final class CheckoutController extends ShopController
         );
 
         return redirect()->route('shop.order', $order);
+    }
+
+    /**
+     * @param  list<BlockedLine>  $blocked
+     * @return array<string, mixed>
+     */
+    private function viewData(Cart $cart, Customer $visitor, array $blocked = []): array
+    {
+        return [
+            'cart' => $cart,
+            'totals' => CartTotals::from($cart->lines()),
+            'visitor' => $visitor,
+            'isVerified' => $visitor->isVerified(),
+            'blocked' => $blocked,
+        ];
     }
 }

@@ -11,6 +11,17 @@
         </p>
     @endif
 
+    @if (count($blocked) > 0)
+        <div role="alert" class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+            <p>This order can no longer be completed:</p>
+            <ul class="mt-2 list-disc pl-5">
+                @foreach ($blocked as $line)
+                    <li>{{ $line->title }} — {{ $line->reason->notice() }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('shop.order.pay.submit', $order) }}" class="mt-8 max-w-xl">
         @csrf
         <x-card-fields />

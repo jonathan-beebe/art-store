@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Orders\UnavailableReason;
+
 it('reads its totals as money', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
 
@@ -40,4 +42,15 @@ it('reads the items, fulfillments, and customer behind it', function (): void {
     expect($order->items()->count())->toBe(1)
         ->and($order->fulfillments()->count())->toBe(1)
         ->and($order->customer->is($customer))->toBeTrue();
+});
+
+it('plans placement from its items against the listings behind them', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 1]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $plan = $order->load('items.listing')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
 });

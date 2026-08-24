@@ -7,7 +7,9 @@ namespace App\Actions\Orders;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
+use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
+use App\Domain\Orders\UnavailableReason;
 use App\Domain\Payments\DeclineReason;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\CustomerBlock;
@@ -15,6 +17,7 @@ use App\Models\LedgerEntry;
 use App\Notifications\ItemSold;
 use DomainException;
 use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 
 it('pays the order with an approved card', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
@@ -121,6 +124,30 @@ it('pays the order and takes the stock again on a retry with a good card', funct
     expect($listing->refresh()->quantity)->toBe(0)
         ->and($listing->status)->toBe(ListingStatus::Sold);
     expect(LedgerEntry::query()->sole()->amount_cents)->toBe(40500);
+});
+
+it('refuses a retry when the listing sold to someone else while the card sat declined', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 45000, 'quantity' => 1]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    $finalizeOrder = app(FinalizeOrder::class);
+    $finalizeOrder($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
+
+    $this->orderFor($this->verifiedCustomer(), $listing->refresh());
+
+    $retry = fn () => $finalizeOrder($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:05:00'));
+
+    try {
+        $retry();
+
+        throw new RuntimeException('Expected the retry to be refused.');
+    } catch (OrderPlacementRefused $refusal) {
+        expect($refusal->blocked[0]->title)->toBe('Winter Elm')
+            ->and($refusal->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
+    }
+
+    expect($order->refresh()->status)->toBe(OrderStatus::PaymentFailed)
+        ->and($order->payments()->count())->toBe(1)
+        ->and($listing->refresh()->status)->toBe(ListingStatus::Sold);
 });
 
 it('refuses a blocked customer', function (): void {
