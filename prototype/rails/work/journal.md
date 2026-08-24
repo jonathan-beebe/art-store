@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:01:15:00 — FEAT-017 — started
+- 2026-08-24:01:14:00 — FEAT-019 — done: ten admin directory pages with every §5 filter, folded balances, pinned query counts, docs/admin.md; 882 runs / 2956 assertions / 100% lines
 - 2026-08-24:00:20:00 — FEAT-019 — started
 - 2026-08-24:00:19:00 — BUG-004 — done: OrderPlacement plan refuses a stale cart with every blocked line, cart gating, pay-page refusal, id-ordered row locks; 809 runs / 2689 assertions / 100% lines
 - 2026-08-23:23:30:00 — BUG-004 — started
