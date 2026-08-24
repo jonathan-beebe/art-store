@@ -50,17 +50,17 @@ class Notification < ApplicationRecord
 
   # An admin called an order off, which is news to the customer waiting on it
   # and to every seller who was going to ship part of it.
-  def self.order_cancelled(order)
+  def self.order_cancelled(order, reason:)
     deliver(
       recipient: order.customer,
       subject: "Order cancelled",
-      body: "Order #{order.id} has been cancelled. Nothing was charged."
+      body: "Order #{order.id} has been cancelled. Nothing was charged. Reason: #{reason}"
     )
     order.fulfillments.includes(:seller).each do |fulfillment|
       deliver(
         recipient: fulfillment.seller,
         subject: "Order cancelled",
-        body: "Order #{order.id} has been cancelled. Your items are back on the storefront."
+        body: "Order #{order.id} has been cancelled. Your items are back on the storefront. Reason: #{reason}"
       )
     end
   end

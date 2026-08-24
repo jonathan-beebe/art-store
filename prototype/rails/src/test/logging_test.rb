@@ -178,9 +178,13 @@ class LoggingTest < ActionDispatch::IntegrationTest
     order = order_for(create_verified_customer, create_listing)
     sign_in_as_admin
 
-    lines = captured_log_lines { post admin_order_cancellation_path(order) }
+    lines = captured_log_lines do
+      post admin_order_cancellation_path(order), params: { reason: "Buyer asked to call it off." }
+    end
 
-    assert_equal [ "admin" ], log_lines_for("order.cancel", lines).map { |line| line["actor_type"] }.uniq
+    cancelling = log_lines_for("order.cancel", lines)
+    assert_equal [ "admin" ], cancelling.map { |line| line["actor_type"] }.uniq
+    assert_equal "Buyer asked to call it off.", cancelling.last["data"]["reason"]
   end
 
   test "the sweep says the system cancelled each order it swept" do

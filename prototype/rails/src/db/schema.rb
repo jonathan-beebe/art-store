@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_000106) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_000108) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -178,6 +178,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000106) do
     t.string "source_message_id"
     t.datetime "updated_at", null: false
     t.index ["listing_id", "created_at"], name: "index_listing_faqs_on_listing_id_and_created_at"
+    t.index ["listing_id", "source_message_id"], name: "index_listing_faqs_on_listing_id_and_source_message_id", unique: true
   end
 
   create_table "listing_removals", id: :string, force: :cascade do |t|
@@ -261,6 +262,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_000106) do
   end
 
   create_table "orders", id: :string, force: :cascade do |t|
+    t.string "cancellation_reason"
     t.datetime "created_at", null: false
     t.string "customer_id", null: false
     t.string "email"

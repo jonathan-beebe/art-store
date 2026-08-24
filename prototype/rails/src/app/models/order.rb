@@ -12,6 +12,9 @@ class Order < ApplicationRecord
   # A second address line is the one part a package can arrive without.
   REQUIRED_SHIPPING_FIELDS = (SHIPPING_FIELDS - %i[shipping_line2]).freeze
 
+  MISSING_CANCELLATION_REASON = "An admin cancellation needs a reason.".freeze
+  LONG_CANCELLATION_REASON = "Keep the reason under #{Refund::REASON_LIMIT} characters.".freeze
+
   belongs_to :customer
   has_many :items, class_name: "OrderItem", dependent: :destroy, inverse_of: :order
   has_many :fulfillments, dependent: :destroy
@@ -62,9 +65,14 @@ class Order < ApplicationRecord
   scope :for_customer, ->(customer_id) { where(customer_id: customer_id) if customer_id.present? }
 
   normalizes(*SHIPPING_FIELDS, with: ->(line) { line.strip.presence })
+  normalizes :cancellation_reason, with: ->(reason) { reason.strip.presence }
 
   validates :email, format: { with: EmailAddress::SHAPE }
   validates(*REQUIRED_SHIPPING_FIELDS, presence: true)
+  # Only an admin's cancel is asked for a reason; the customer's own cancel
+  # and the stale sweep carry none, so this context is opted into rather than
+  # run on every save.
+  validate(on: :admin_cancel) { must_state_cancellation_reason }
 
   # Cart or order lines that stopped a placement or charge from completing,
   # set only on a refusal `place`/`#pay!` returns without raising. Not a
@@ -104,7 +112,10 @@ class Order < ApplicationRecord
 
         order.save!
         snapshot(order, plan.items)
-        fulfillments = split_by_seller(order, cart.subtotals_by_seller)
+        # The plan's own items, not `cart.subtotals_by_seller`: `snapshot`
+        # just took their stock, and a listing that sold out because of it
+        # would otherwise read back as blocked on a fresh query.
+        fulfillments = split_by_seller(order, plan.items)
         cart.items.destroy_all
       end
 
@@ -149,15 +160,19 @@ class Order < ApplicationRecord
     end
   end
 
-  private_class_method def self.split_by_seller(order, subtotals)
-    subtotals.map do |seller_id, subtotal|
-      order.fulfillments.create!(
-        seller_id: seller_id,
-        subtotal_cents: subtotal.cents,
-        fee_cents: Fulfillment.fee_for(subtotal).cents,
-        net_cents: Fulfillment.net_for(subtotal).cents
-      )
-    end
+  private_class_method def self.split_by_seller(order, items)
+    items
+      .group_by { |item| item.listing.seller_id }
+      .transform_values { |own| own.sum(Money.from_cents(0), &:total) }
+      .sort.to_h
+      .map do |seller_id, subtotal|
+        order.fulfillments.create!(
+          seller_id: seller_id,
+          subtotal_cents: subtotal.cents,
+          fee_cents: Fulfillment.fee_for(subtotal).cents,
+          net_cents: Fulfillment.net_for(subtotal).cents
+        )
+      end
   end
 
   # The lifecycle move as a value, for a caller that works out a status without
@@ -235,20 +250,25 @@ class Order < ApplicationRecord
   # The order is called off before any money changed hands: the stock it was
   # holding goes back on the storefront and nothing can charge it afterwards.
   # The row is locked and judged inside the transaction that writes, so two
-  # cancels racing each other leave one refusal behind.
-  def cancel!(by:)
+  # cancels racing each other leave one refusal behind. Only an admin's cancel
+  # takes a reason — the customer's own cancel and the stale sweep need none.
+  def cancel!(by:, reason: nil)
     Story.tell("order.cancel", "cancelling the order", order_id: id, status_from: status) do |story|
       from = status
+      admin_cancel = by.is_a?(Admin)
 
       transaction do
         lock!
         landed = self.class.transition(status, "cancelled")
+        self.cancellation_reason = reason if admin_cancel
+        validate!(:admin_cancel) if admin_cancel
         move_stock(status, landed, nil)
         update!(status: landed)
       end
 
-      Notification.order_cancelled(self) if by.is_a?(Admin)
-      story.did("cancelled the order", order_id: id, status_from: from, status_to: status)
+      Notification.order_cancelled(self, reason: cancellation_reason) if admin_cancel
+      story.did("cancelled the order", order_id: id, status_from: from, status_to: status,
+        **(admin_cancel ? { reason: cancellation_reason } : {}))
 
       self
     end
@@ -356,6 +376,15 @@ class Order < ApplicationRecord
 
   def holds_stock?(status)
     RELEASES_STOCK.exclude?(status)
+  end
+
+  # An admin's cancel has to say why: the sentence is what the customer and
+  # every seller waiting on the order read, so it is one refusal, not a field
+  # error — matching Refund#reason_says_something's shape.
+  def must_state_cancellation_reason
+    return errors.add(:base, MISSING_CANCELLATION_REASON) if cancellation_reason.blank?
+
+    errors.add(:base, LONG_CANCELLATION_REASON) if cancellation_reason.length > Refund::REASON_LIMIT
   end
 
   # A retry that reclaims stock leaves the order where it was. Every blocked

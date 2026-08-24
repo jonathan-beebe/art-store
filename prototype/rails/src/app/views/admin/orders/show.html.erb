@@ -16,11 +16,8 @@
     <dt class="text-slate-400">Status</dt>
     <dd data-field="status" class="mt-1">
       <%= status_label(@order.status) %>
-
-      <% if @order.cancellable? %>
-        <%= button_to "Cancel", admin_order_cancellation_path(@order), method: :post,
-              form_class: "mt-2",
-              class: "rounded border border-slate-600 bg-slate-900 px-3 py-1 font-medium" %>
+      <% if @order.cancellation_reason.present? %>
+        <p data-field="cancellation_reason" class="mt-1 text-slate-400">Reason: <%= @order.cancellation_reason %></p>
       <% end %>
     </dd>
   </div>
@@ -100,3 +97,20 @@
           rows: render(partial: "admin/orders/refund", collection: @refunds) %>
   <% end %>
 </section>
+
+<% if @order.cancellable? %>
+  <section aria-labelledby="cancel-heading" class="mt-6">
+    <h2 id="cancel-heading" class="font-semibold text-slate-300">Cancel this order</h2>
+
+    <%= form_with url: admin_order_cancellation_path(@order), method: :post,
+          html: { class: "mt-4 max-w-xl rounded border border-slate-700 bg-slate-800 p-4" } do |form| %>
+      <div>
+        <%= form.label :reason, "Why", class: "block text-slate-400" %>
+        <%= form.text_area :reason, rows: 3, required: true, maxlength: Refund::REASON_LIMIT,
+              class: "mt-1 block w-full rounded border border-slate-600 bg-slate-900 px-3 py-2" %>
+      </div>
+
+      <%= form.submit "Cancel order", class: "mt-4 rounded bg-slate-100 px-3 py-1 font-medium text-slate-900" %>
+    <% end %>
+  </section>
+<% end %>

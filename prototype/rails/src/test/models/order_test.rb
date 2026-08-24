@@ -625,23 +625,45 @@ class OrderTest < ActiveSupport::TestCase
     assert_predicate order.reload, :paid?
   end
 
-  test "an admin cancelling tells the customer and every seller waiting to ship" do
+  test "an admin cancelling tells the customer and every seller waiting to ship, with the reason" do
     buyer = create_verified_customer
     order = order_for(buyer, create_listing(create_seller(shop_name: "Blue Kiln Studio")))
     shop = order.fulfillments.sole.seller
 
-    order.cancel!(by: create_admin)
+    order.cancel!(by: create_admin, reason: "Buyer asked to call it off.")
 
     assert_equal "Order cancelled", buyer.notifications.sole.subject
+    assert_match "Buyer asked to call it off.", buyer.notifications.sole.body
     assert_equal "Order cancelled", shop.notifications.sole.subject
+    assert_match "Buyer asked to call it off.", shop.notifications.sole.body
+    assert_equal "Buyer asked to call it off.", order.reload.cancellation_reason
   end
 
-  test "a customer cancelling their own order tells nobody" do
+  test "an admin cancelling with no reason is refused" do
+    order = order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) { order.cancel!(by: create_admin) }
+
+    assert_equal Order::MISSING_CANCELLATION_REASON, error.record.errors[:base].first
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "an admin cancelling with a reason over 500 characters is refused" do
+    order = order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) { order.cancel!(by: create_admin, reason: "a" * 501) }
+
+    assert_equal Order::LONG_CANCELLATION_REASON, error.record.errors[:base].first
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "a customer cancelling their own order tells nobody and needs no reason" do
     order = place(create_verified_customer)
 
     order.cancel!(by: order.customer)
 
     assert_equal 0, Notification.count
+    assert_nil order.reload.cancellation_reason
   end
 
   test "an order every seller pulled out of reads as refunded" do
