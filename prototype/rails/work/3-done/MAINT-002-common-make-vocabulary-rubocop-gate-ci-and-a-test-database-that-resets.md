@@ -1,7 +1,7 @@
 ---
 id: MAINT-002
 type: maintenance
-status: open
+status: resolved
 created: 2026-08-23
 ---
 
@@ -86,8 +86,8 @@ Decisions:
   omakase rather than running it, which the doctrine (vanilla Rails,
   omakase over the community defaults) argues against. MAINT-001's
   over-120-character lines in `seeds_test.rb`,
-  `models/order_lifecycle_test.rb`, `models/listing_test.rb`, and
-  `models/payout_test.rb` are left as they are — closed by this decision,
+  `models/order_lifecycle_test.rb`, and `models/payout_test.rb`
+  (`models/listing_test.rb` has no line over 120 characters) are left as they are — closed by this decision,
   not by editing them.
 - **`data-model.md`: dropped all three `→ notifications` lines, not only
   sellers/customers.** The task named sellers/customers specifically; the

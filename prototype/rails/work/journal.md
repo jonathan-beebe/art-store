@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-23:21:35:00 — MAINT-002 — done: make vocabulary, RuboCop omakase gate, rails.yml CI, db:test:prepare before every run; 748 runs / 2361 assertions / 100% lines
+- 2026-08-23:21:35:00 — MAINT-001 — done: closed with MAINT-002 (helper rename, covers? deleted, data-model FK lines, RuboCop config)
+- 2026-08-23:21:35:00 — BUG-003 — done: closed with MAINT-002 (db:test:prepare wired into make test/smoke/coverage)
 - 2026-08-23:21:05:00 — MAINT-002 — started (absorbs BUG-003, MAINT-001)
 - 2026-08-23:20:38:04 — MAINT-003 — defined: Final validation and docs refresh for the alignment branch
 - 2026-08-23:20:38:04 — IMPRV-003 — defined: Merge folds the cart and de-duplicates favorites, and three actors share one browser
