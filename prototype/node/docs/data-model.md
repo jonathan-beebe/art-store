@@ -26,12 +26,40 @@ needs no date functions. `payouts.period_start` / `period_end` and
 `page_view_counts.day` are `YYYY-MM-DD` text for the same reason. Money is
 always integer cents.
 
+## Identifiers
+
+Every primary key is a prefixed ULID stored as text: a three-letter table
+prefix, an underscore, and the 26-character Crockford base32 ULID —
+`ord_01J5X3M9A2K8YB7Q4R6T1V0WZE`, thirty characters. A foreign key holds the
+same string as the key it references. `docs/alignment.md` §1 fixes the prefix
+per table for all three prototypes; `app/core/ids/entity-ids.ts` is that table
+in TypeScript, and every id type (`OrderId`, `ListingId`, …) is derived from
+it, so a `ListingId` will not go where an `OrderId` belongs.
+
+The application mints the id, not the database: `newId(prefix, at)`
+(`app/ids.ts`) draws the random bits and hands them with the clock's
+millisecond to the pure `encodeUlid` in `app/core/ids/prefixed-id.ts`. Actions
+mint from the clock they already receive, so seeds on a fixed clock produce the
+same time order every run. Within one millisecond the draw is stepped by one —
+the ULID spec's monotonic mode — so ids written in sequence read back in
+sequence.
+
+Queries order by the row's own creation column (`created_at`, `placed_at`,
+`occurred_at`, `sent_at`, …) with the id as a secondary key, never by the id
+alone. `cart_items`, `order_items`, and `fulfillments` carry a `created_at`
+for exactly that reason.
+
+Untrusted text becomes an id only through `parsePrefixedId(prefix, value)`,
+which refuses a wrong prefix or a malformed body. Routes reach it through
+`idParams('ord')` (`app/http/request-schema.ts`), so `/orders/lst_…` and
+`/orders/42` both answer the site's 404 page rather than reaching a query.
+
 Question: what tables exist, what does each row mean, and how do they connect?
 
 ```mermaid
 erDiagram
     sellers {
-        integer id PK
+        text id PK
         text email UK
         text name "nullable"
         text shop_name "nullable"
@@ -39,20 +67,20 @@ erDiagram
         text created_at
     }
     customers {
-        integer id PK
+        text id PK
         text email UK "nullable — an anonymous row has none"
         text name "nullable"
         text email_verified_at "nullable"
         text created_at
     }
     admins {
-        integer id PK
+        text id PK
         text email UK
         text name
         text created_at
     }
     magic_links {
-        integer id PK
+        text id PK
         text token_digest UK "sha256 hex, never the token"
         text email
         text actor_type "seller|customer|admin"
@@ -62,14 +90,14 @@ erDiagram
         text created_at
     }
     customer_merges {
-        integer id PK
-        integer anonymous_customer_id FK "UK, to customers"
-        integer customer_id FK "to customers, the verified survivor"
+        text id PK
+        text anonymous_customer_id FK "UK, to customers"
+        text customer_id FK "to customers, the verified survivor"
         text created_at
     }
     listings {
-        integer id PK
-        integer seller_id FK
+        text id PK
+        text seller_id FK
         text title
         text slug UK
         text description "nullable"
@@ -83,41 +111,42 @@ erDiagram
         text updated_at
     }
     listing_events {
-        integer id PK
-        integer listing_id FK
-        integer customer_id FK "nullable"
+        text id PK
+        text listing_id FK
+        text customer_id FK "nullable"
         text event_type "view|favorite|unfavorite|cart_add"
         text occurred_at
     }
     favorites {
-        integer id PK
-        integer customer_id FK "UK with listing_id"
-        integer listing_id FK
+        text id PK
+        text customer_id FK "UK with listing_id"
+        text listing_id FK
         text created_at
     }
     listing_removals {
-        integer id PK
-        integer listing_id FK
-        integer admin_id FK
+        text id PK
+        text listing_id FK
+        text admin_id FK
         text kind "temporary|permanent"
         text reason
         text created_at
         text lifted_at "nullable — null means active"
     }
     carts {
-        integer id PK
-        integer customer_id FK "not unique — a merge can leave two"
+        text id PK
+        text customer_id FK "not unique — a merge can leave two"
         text created_at
     }
     cart_items {
-        integer id PK
-        integer cart_id FK "UK with listing_id"
-        integer listing_id FK
+        text id PK
+        text cart_id FK "UK with listing_id"
+        text listing_id FK
         integer quantity "check >= 1"
+        text created_at
     }
     orders {
-        integer id PK
-        integer customer_id FK
+        text id PK
+        text customer_id FK
         text email "nullable"
         text status "see orders.md"
         text shipping_name
@@ -134,17 +163,18 @@ erDiagram
         text cancelled_at "nullable"
     }
     order_items {
-        integer id PK
-        integer order_id FK
-        integer listing_id FK
-        integer seller_id FK
+        text id PK
+        text order_id FK
+        text listing_id FK
+        text seller_id FK
         text title "snapshot"
         integer unit_price_cents "snapshot"
         integer quantity
+        text created_at
     }
     payments {
-        integer id PK
-        integer order_id FK "one row per attempt"
+        text id PK
+        text order_id FK "one row per attempt"
         text status "approved|declined"
         integer amount_cents
         text card_last_four
@@ -152,40 +182,41 @@ erDiagram
         text processed_at
     }
     fulfillments {
-        integer id PK
-        integer order_id FK "UK with seller_id"
-        integer seller_id FK
+        text id PK
+        text order_id FK "UK with seller_id"
+        text seller_id FK
         text status "awaiting_shipment|shipped|delivered"
         text carrier "nullable"
         text tracking_number "nullable"
         integer subtotal_cents
         integer fee_cents "priced once at placement"
         integer net_cents "priced once at placement"
+        text created_at
         text shipped_at "nullable"
         text delivered_at "nullable"
     }
     payouts {
-        integer id PK
-        integer seller_id FK "UK with period_start"
+        text id PK
+        text seller_id FK "UK with period_start"
         text period_start "YYYY-MM-DD"
         text period_end "YYYY-MM-DD"
         integer amount_cents
         text paid_at
     }
     ledger_entries {
-        integer id PK
-        integer seller_id FK
-        integer fulfillment_id FK "nullable"
-        integer payout_id FK "nullable"
+        text id PK
+        text seller_id FK
+        text fulfillment_id FK "nullable"
+        text payout_id FK "nullable"
         text entry_type "held|released|paid_out"
         integer amount_cents "signed"
         text occurred_at
     }
     notifications {
-        integer id PK
-        integer seller_id FK "nullable"
-        integer customer_id FK "nullable"
-        integer admin_id FK "nullable — check: exactly one is set"
+        text id PK
+        text seller_id FK "nullable"
+        text customer_id FK "nullable"
+        text admin_id FK "nullable — check: exactly one is set"
         text subject
         text body
         text url "nullable"
@@ -193,22 +224,22 @@ erDiagram
         text read_at "nullable"
     }
     customer_blocks {
-        integer id PK
-        integer customer_id FK
-        integer admin_id FK
+        text id PK
+        text customer_id FK
+        text admin_id FK
         text reason
         text created_at
         text lifted_at "nullable — null means active"
     }
     page_view_counts {
-        integer id PK
+        text id PK
         text site "shop|seller|admin, by convention — no check"
         text path_pattern "the route pattern, /art/:slug"
         text day "UK with site and path_pattern"
         integer count "default 0, incremented on conflict"
     }
     outbox_messages {
-        integer id PK
+        text id PK
         text recipient "an email address, not an FK"
         text subject
         text body
@@ -217,31 +248,31 @@ erDiagram
         text delivered_at "nullable — null means pending"
     }
     conversations {
-        integer id PK
+        text id PK
         text kind "admin_seller|admin_customer|fulfillment|listing_question"
-        integer seller_id FK "nullable"
-        integer customer_id FK "nullable"
-        integer admin_id FK "nullable"
-        integer listing_id FK "nullable"
-        integer fulfillment_id FK "nullable"
+        text seller_id FK "nullable"
+        text customer_id FK "nullable"
+        text admin_id FK "nullable"
+        text listing_id FK "nullable"
+        text fulfillment_id FK "nullable"
         text created_at
         text last_message_at
     }
     messages {
-        integer id PK
-        integer conversation_id FK
+        text id PK
+        text conversation_id FK
         text sender_type "seller|customer|admin"
-        integer sender_id "no FK — read through sender_type"
+        text sender_id "no FK — read through sender_type"
         text body
         text sent_at
         text read_at "nullable"
     }
     listing_faqs {
-        integer id PK
-        integer listing_id FK
+        text id PK
+        text listing_id FK
         text question
         text answer
-        integer source_message_id FK "nullable"
+        text source_message_id FK "nullable"
         text published_at "a row exists only while published"
     }
 

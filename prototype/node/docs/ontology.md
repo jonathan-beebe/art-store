@@ -338,6 +338,34 @@ Carries the Platform fee. Subject of `fulfillment` Conversations.
 **In code.** `Fulfillment` (`fulfillments`), `markShipped`, `confirmDelivered`,
 `hasDeparted`.
 
+## Identifiers
+
+### Prefixed id
+
+**Who/what.** What names every row: a three-letter table prefix, an underscore,
+and a 26-character Crockford base32 ULID — `ord_01J5X3M9A2K8YB7Q4R6T1V0WZE`,
+thirty characters. There is no second column; the primary key is the public id
+and it appears in the URL.
+
+**Why it exists.** A sequential integer leaks how many orders the platform has
+taken and lets anyone walk the next one. A prefixed id says what it names in a
+log line or a URL without a lookup, and the same prefixes across the three
+prototypes let a reader compare their logs directly (`docs/alignment.md` §1).
+
+**Lifecycle.** Minted in the shell when the row is written, from the clock the
+action already holds, so a seed on a fixed clock mints the same time order
+every run. The random draw is fresh per millisecond and stepped by one for each
+id after the first inside it.
+
+**Relates to.** Every table. Every foreign key holds the referenced table's own
+id, and the types say so: `OrderId` will not go where a `ListingId` belongs.
+
+**In code.** `PrefixedId`, `encodeUlid`, `parsePrefixedId`
+(`app/core/ids/prefixed-id.ts`); the prefix table and the named id types
+(`app/core/ids/entity-ids.ts`); `newId` (`app/ids.ts`); `idParams` and
+`idValue` (`app/http/request-schema.ts`); `fixtureId` for tests that name their
+rows (`app/test/fixture-ids.ts`).
+
 ## Money
 
 ### Money

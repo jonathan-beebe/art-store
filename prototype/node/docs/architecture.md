@@ -92,14 +92,17 @@ flowchart TD
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `listings`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `reports`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
+| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `ids`, `listings`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `reports`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
 | Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `count.ts`, `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` and `NotificationDelivery` ports, the `DeliveryContext` both `deliver` calls take, and their implementations — `flash-magic-link-delivery.ts`, `outbox-magic-link-delivery.ts`, `outbox-notification-delivery.ts`, plus `outbox-message.ts`, which enqueues and renders a row. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
-| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
+| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams(prefix)`, `idValue(prefix)`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
 | Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen, signal handling), `app/config.ts` (env → typed config), `app/logging.ts` (logger options and serializers), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
 
 `app/clock.ts` sits at the root of `app/` rather than in a layer: the `Clock`
 type, `systemClock`, and `fixedClock`. Core takes a `Date`, so `Clock` has no
-reason to live in `app/core/`.
+reason to live in `app/core/`. `app/ids.ts` sits beside it for the same reason:
+`newId(prefix, at)` draws the random bits a new prefixed ULID needs and hands
+them, with the millisecond its caller's clock reported, to the pure
+`encodeUlid` in `app/core/ids/`.
 
 ### The path a request takes
 
@@ -681,10 +684,11 @@ prototype/node/
       config.ts        env → typed config, parsed by zod
       logging.ts       logger options, request id, redacting serializers
       clock.ts         Clock, systemClock, fixedClock
+      ids.ts           newId: a prefixed ULID from a clock's instant
       core/            functional core: analytics, auth, cart, customers, escrow,
-                       health, listings, messaging, moderation, notifications,
-                       orders, payments, reports, shop, plus money.ts,
-                       status-label.ts and transition-error.ts
+                       health, ids, listings, messaging, moderation,
+                       notifications, orders, payments, reports, shop, plus
+                       money.ts, status-label.ts and transition-error.ts
       actions/         verbs over ActionContext: analytics, auth, carts, customers,
                        escrow, favorites, fulfillments, listings, messaging,
                        moderation, notifications, orders, outbox, plus

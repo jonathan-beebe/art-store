@@ -592,9 +592,10 @@ prototype/node/
       config.ts           env -> typed config
       logging.ts          logger options, request id, redacting serializers
       clock.ts             systemClock and fixedClock
+      ids.ts               newId: a prefixed ULID from a clock's instant
       core/                functional core, sidecar tests, no I/O:
                            analytics/, auth/, cart/, customers/, escrow/,
-                           health/, listings/, messaging/, moderation/,
+                           health/, ids/, listings/, messaging/, moderation/,
                            notifications/, orders/, payments/, reports/, shop/,
                            money.ts, status-label.ts, transition-error.ts
       actions/             verbs over ActionContext, one folder per concept:
