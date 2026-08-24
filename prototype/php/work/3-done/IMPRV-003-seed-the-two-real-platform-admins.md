@@ -42,5 +42,5 @@ Reviewers sign in as themselves on the Node demo; the PHP demo asking for a made
 - Verification, `make fresh` then curl against `http://localhost:8000/admin/login`, each in its own cookie jar:
   - POST `jonathan-beebe@outlook.com` → "Check your email" + "Debug magic link:" with a `/auth/magic/<token>` link.
   - POST `annaschmunk@pm.me` → same, its own token.
-  - POST `random-address@example.test` → "No admin account exists for random-address@example.test. The seeded admin address is jonathan-beebe@outlook.com."
+  - POST `random-address@example.test` → "No admin account exists for random-address@example.test. No sign-in link was issued." (amended 2026-08-23 — the notice no longer names a seeded admin address)
 - `make check`: 1111 tests, 2501 assertions, green (2497 → 2501: +4 assertions from the rewritten `AdminSeederTest`/`DatabaseSeederTest` cases; test count unchanged at 1111). `make coverage`: 100.0%.

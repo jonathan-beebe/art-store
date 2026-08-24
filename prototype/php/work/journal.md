@@ -13,6 +13,7 @@
 - BUG: 3
 
 ## Log
+- 2026-08-23:19:12:59 — IMPRV-002 — amended: debug notice no longer names a seeded admin address
 - 2026-08-23:19:03:03 — IMPRV-003 — done: AdminSeeder now seeds two real operators (Jonathan Beebe, Anna Schmunk) via AdminSeeder::ADMINS replacing the single EMAIL constant; MessagingSeeder/debug notice/README/tests updated to match; 1111 tests / 2501 assertions, 100.0% coverage
 - 2026-08-23:18:58:30 — IMPRV-003 — started
 - 2026-08-23:18:53:14 — IMPRV-002 — done: admin login debug bar now flashes a debug_notice (unadmitted address + AdminSeeder::EMAIL) under session delivery, unchanged under mail; 1111 tests / 2497 assertions, 100.0% coverage

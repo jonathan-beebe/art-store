@@ -8,7 +8,6 @@ use App\Actions\Auth\SendMagicLink;
 use App\Domain\Auth\ActorType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendAdminMagicLinkRequest;
-use Database\Seeders\AdminSeeder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -43,7 +42,7 @@ final class AdminLoginController extends Controller
         if (config('magic_links.delivery') === 'session') {
             $redirect->with(
                 'debug_notice',
-                "No admin account exists for {$request->email()}. The seeded admin address is ".AdminSeeder::ADMINS[0]['email'].'.',
+                "No admin account exists for {$request->email()}. No sign-in link was issued.",
             );
         }
 
