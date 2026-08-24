@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { addToCart } from '../actions/carts/add-to-cart.ts'
 import { currentCart } from '../actions/carts/current-cart.ts'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
+import { postMessage } from '../actions/messaging/post-message.ts'
 import type { Clock } from '../clock.ts'
 import type { AppConfig } from '../config.ts'
 import type { CustomerId, ListingId } from '../core/ids/entity-ids.ts'
@@ -13,11 +14,13 @@ import { cartWithArtwork, listArtwork, placeCustomerOrder } from '../sites/shop/
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
+  signInAsAdmin,
   signInAsCustomer,
   signInAsSeller,
   TEST_CONFIG,
   type TestApp,
 } from '../test/build-test-app.ts'
+import { createSeller } from '../test/commerce-world.ts'
 import { buildLoggedTestApp } from '../test/log-lines.ts'
 
 const APPROVED_CARD = '4242 4242 4242 4242'
@@ -371,6 +374,141 @@ test('message_post trips per actor and appends no further message once tripped',
     .where('conversationId', '=', conversation.id)
     .execute()
   assert.equal(after.length, before.length)
+})
+
+test('message_post trips the seller thread reply and re-renders the thread with the kept body', async (t) => {
+  const testApp = await buildTestApp({
+    config: rateLimitedConfig({ message_post: { count: 1, windowSeconds: 900 } }),
+  })
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  const context = { db: testApp.db, clock: testApp.clock }
+  const listing = await listArtwork(context, { sellerId: seller.id })
+  const conversation = await openConversation(context, {
+    kind: 'listing_question',
+    sellerId: seller.id,
+    customerId: customer.id,
+    listingId: listing.id,
+  })
+  await postMessage(context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: customer.id },
+    body: 'Is this framed?',
+  })
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/messages/${conversation.id}`,
+    cookies: seller.cookies,
+    payload: { body: 'Sure, framed in oak.' },
+  })
+  assert.equal(first.statusCode, 302)
+
+  const before = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .execute()
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/messages/${conversation.id}`,
+    cookies: seller.cookies,
+    payload: { body: 'Also, it ships worldwide.' },
+  })
+  assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="body"[^>]*>Also, it ships worldwide\./)
+
+  const after = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .execute()
+  assert.equal(after.length, before.length)
+})
+
+test('message_post trips the admin thread reply and re-renders the thread with the kept body', async (t) => {
+  const testApp = await buildTestApp({
+    config: rateLimitedConfig({ message_post: { count: 1, windowSeconds: 900 } }),
+  })
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const conversation = await openConversation(context, {
+    kind: 'admin_seller',
+    adminId: admin.id,
+    sellerId,
+  })
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/messages/${conversation.id}`,
+    cookies: admin.cookies,
+    payload: { body: 'Thanks for reaching out.' },
+  })
+  assert.equal(first.statusCode, 302)
+
+  const before = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .execute()
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: `/admin/messages/${conversation.id}`,
+    cookies: admin.cookies,
+    payload: { body: 'One more thing.' },
+  })
+  assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="body"[^>]*>One more thing\./)
+
+  const after = await testApp.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversation.id)
+    .execute()
+  assert.equal(after.length, before.length)
+})
+
+test('message_post trips the ask-a-question box and re-renders the listing with the kept body', async (t) => {
+  const testApp = await buildTestApp({
+    config: rateLimitedConfig({ message_post: { count: 1, windowSeconds: 900 } }),
+  })
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'ada@example.test')
+  const customer = await signInAsCustomer(testApp, 'buyer@example.com')
+  await listArtwork({ db: testApp.db, clock: testApp.clock }, { sellerId: seller.id, title: 'Harbour at dusk' })
+
+  const first = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    cookies: customer.cookies,
+    payload: { body: 'Is this framed?' },
+  })
+  assert.equal(first.statusCode, 302)
+
+  const conversationsBefore = await testApp.db.selectFrom('conversations').selectAll().execute()
+
+  const second = await testApp.app.inject({
+    method: 'POST',
+    url: '/art/harbour-at-dusk/questions',
+    cookies: customer.cookies,
+    payload: { body: 'Also, does it ship internationally?' },
+  })
+  assert.equal(second.statusCode, 429)
+  assert.match(second.body, /data-form-error/)
+  assert.match(second.body, /Too many requests — try again in \d+ minutes\./)
+  assert.match(second.body, /id="question"[^>]*>Also, does it ship internationally\?/)
+
+  const conversationsAfter = await testApp.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(conversationsAfter.length, conversationsBefore.length)
 })
 
 test('conversation_open trips per actor', async (t) => {

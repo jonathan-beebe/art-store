@@ -161,9 +161,29 @@ further was needed there.
 Green throughout, committed in batches as each went green. Coverage moved from 99.50/96.74/99.56
 (lines/branches/functions) at the `b251bb8` baseline to 99.4x/9x.x/99.x by the last batch — see the
 final commit's own coverage report for the exact figures; the branch-coverage dip is dead branches
-removed (the `fieldView` deletion) and a few `TransitionError` catches that are no longer reachable
+removed (the `fieldView` deletion), a few `TransitionError` catches that are no longer reachable
 from their own route now that `messageBodyError` is checked ahead of them (seller and storefront
-message replies) — both documented above rather than chased for their own sake.
+message replies), and three `onTrip` re-render callbacks this ticket wired but left untested
+(the seller and admin thread-reply trips, and the ask-a-question box's trip) — all three now
+documented above rather than chased for their own sake.
+
+### Fix-up
+
+Two IMPRV-012 review gaps closed as tests-only follow-up, no shipped behaviour touched:
+
+- Added `src/app/core/shop/cart-quantity.test.ts`, the dedicated literal-input unit test
+  `parseCartQuantity` was missing — a blank/absent input, a non-numeric string, zero, a negative, a
+  non-integer, one, a mid-range value, a whitespace-padded value, exactly the stock on hand, one
+  over it, and an error message that names the real stock figure rather than a fixed number.
+- Added the three untested `onTrip` trip tests to `src/app/plugins/rate-limit.test.ts`: the seller
+  thread-reply trip (`seller/routes/messages.ts`), the admin thread-reply trip
+  (`admin/routes/messages.ts`), and the ask-a-question box's trip
+  (`shop/routes/messages.ts`). Each drives `message_post` to its trip, then asserts 429,
+  `data-form-error` with the "Too many requests" sentence, the submitted body kept in the
+  re-rendered form, and no message row (or, for the question box, no conversation row) written.
+
+No test revealed a behavioural bug; `make check` stayed green throughout (1906 tests, up from 1891;
+coverage 99.42/95.94/99.49 lines/branches/functions).
 
 Left in `work/2-doing/`, not journaled or closed — that is the lane orchestrator's call after
 review.
