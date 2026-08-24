@@ -321,6 +321,33 @@ test('a link carrying a redirect_to outside its own site falls back on consumpti
   assert.equal(followed.headers.location, '/seller')
 })
 
+test('a link carrying a redirect_to that resolves onto another site through a dot segment falls back on consumption', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const token = '3'.repeat(64)
+
+  // Crafted directly, the same as the sibling test above, so this proves the
+  // consumption-side check itself collapses the dot segment rather than
+  // relying on a form that never lets one through.
+  await testApp.db
+    .insertInto('magicLinks')
+    .values({
+      id: newId('mlk', new Date()),
+      tokenDigest: digestMagicLinkToken(token),
+      email: 'artist@example.com',
+      actorType: 'seller',
+      redirectTo: '/./admin/orders',
+      expiresAt: new Date(TEST_INSTANT.getTime() + 60_000).toISOString(),
+      consumedAt: null,
+      createdAt: TEST_INSTANT.toISOString(),
+    })
+    .execute()
+
+  const followed = await testApp.app.inject({ method: 'GET', url: `/auth/magic/${token}` })
+
+  assert.equal(followed.headers.location, '/seller')
+})
+
 test('consuming a link closes magic_link.consume with who signed in', async (t) => {
   const testApp = await buildLoggedTestApp()
   const log = testApp.logLines

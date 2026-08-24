@@ -374,6 +374,20 @@ test('a seller-site sign-in drops a redirect_to onto an admin path', async (t) =
   assert.equal(link.redirectTo, null)
 })
 
+test('a seller-site sign-in drops a redirect_to that resolves onto an admin path through a dot segment', async (t) => {
+  const testApp = await buildSignedUpApp()
+  t.after(testApp.close)
+
+  await testApp.app.inject({
+    method: 'POST',
+    url: '/seller/login',
+    payload: { email: 'artist@example.com', redirect_to: '/./admin/orders' },
+  })
+
+  const link = await testApp.db.selectFrom('magicLinks').selectAll().executeTakeFirstOrThrow()
+  assert.equal(link.redirectTo, null)
+})
+
 test('a customer sign-in drops a redirect_to onto a seller or an admin path', async (t) => {
   const testApp = await buildSignedUpApp()
   t.after(testApp.close)

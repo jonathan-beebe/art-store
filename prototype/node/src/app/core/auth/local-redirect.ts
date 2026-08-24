@@ -43,13 +43,18 @@ export function allowsPath(actorType: ActorType, path: string): boolean {
 }
 
 /** The path segment of a target already known to be root-relative or
- * origin-prefixed, stripped of any query or fragment — what `allowsPath`
- * reads. */
+ * origin-prefixed, stripped of any query or fragment and with any `.`/`..`
+ * segment collapsed — what `allowsPath` reads. Resolving through `URL`
+ * (against a placeholder base, so a root-relative target parses the same as
+ * an origin-prefixed one) collapses dot segments, including their
+ * percent-encoded form (`%2e`), the same way a browser collapses them from a
+ * `Location` header before it requests the redirected page — so a path that
+ * reads as safe before collapsing cannot smuggle a different one past
+ * `allowsPath`. */
 function pathOf(target: string): string {
   const withoutFragment = target.split('#')[0] ?? target
-  const path = withoutFragment.startsWith('/') ? withoutFragment : new URL(withoutFragment).pathname
 
-  return path.split('?')[0] ?? path
+  return new URL(withoutFragment, 'http://placeholder').pathname
 }
 
 /**

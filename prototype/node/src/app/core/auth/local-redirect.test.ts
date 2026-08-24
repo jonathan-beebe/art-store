@@ -156,3 +156,53 @@ test('allowsPath: a prefix match requires a path boundary, not merely a shared p
   assert.equal(allowsPath('customer', '/sellers'), true)
   assert.equal(allowsPath('customer', '/administration'), true)
 })
+
+test('keepLocalRedirect refuses a dot-segment path that resolves onto a forbidden prefix', () => {
+  assert.equal(keepLocalRedirect('/./admin/orders', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/admin/./orders', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/seller/../admin/orders', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/../admin', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/a/../../admin', 'seller', origin), null)
+})
+
+test('keepLocalRedirect refuses a percent-encoded dot-segment path the same way: URL decodes %2e before collapsing dot segments', () => {
+  assert.equal(keepLocalRedirect('/%2e/admin', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/%2e%2e/admin', 'seller', origin), null)
+})
+
+test('keepLocalRedirect refuses a dot-segment path for a customer and an admin too', () => {
+  assert.equal(keepLocalRedirect('/./seller/listings', 'admin', origin), null)
+  assert.equal(keepLocalRedirect('/./admin/orders', 'customer', origin), null)
+  assert.equal(keepLocalRedirect('/./seller/listings', 'customer', origin), null)
+})
+
+test('keepLocalRedirect keeps a requested target unchanged when its collapsed path merely shares a prefix with a forbidden one', () => {
+  assert.equal(keepLocalRedirect('/./adminfoo', 'seller', origin), '/./adminfoo')
+  assert.equal(keepLocalRedirect('/./administrator', 'seller', origin), '/./administrator')
+})
+
+test('keepLocalRedirect keeps a near-miss path outright: not an /admin or /seller path', () => {
+  assert.equal(keepLocalRedirect('/adminfoo', 'seller', origin), '/adminfoo')
+  assert.equal(keepLocalRedirect('/administrator', 'seller', origin), '/administrator')
+})
+
+test('keepLocalRedirect keeps an admin path for an admin even with a dot segment ahead of it', () => {
+  assert.equal(keepLocalRedirect('/admin', 'admin', origin), '/admin')
+  assert.equal(keepLocalRedirect('/./admin', 'admin', origin), '/./admin')
+})
+
+test('keepLocalRedirect refuses a protocol-relative path, a backslash-prefixed path, a foreign origin, an empty string, and an embedded control character', () => {
+  assert.equal(keepLocalRedirect('//admin', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/\\admin', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('http://evil.example/admin', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('', 'seller', origin), null)
+  assert.equal(keepLocalRedirect('/orders/7\nSet-Cookie: x=1', 'seller', origin), null)
+})
+
+test('keepLocalRedirect returns the requested target unchanged, query string and all, once the collapsed path clears allowsPath', () => {
+  assert.equal(keepLocalRedirect('/orders/./7?step=2', 'seller', origin), '/orders/./7?step=2')
+})
+
+test('keepLocalRedirect returns the requested target unchanged, fragment and all, once the collapsed path clears allowsPath', () => {
+  assert.equal(keepLocalRedirect('/orders/./7#section', 'seller', origin), '/orders/./7#section')
+})

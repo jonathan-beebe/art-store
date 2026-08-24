@@ -284,7 +284,13 @@ each actor type holds no guard for —
 
 — so a seller may still be sent to `/orders/7` (no site owns that prefix) but
 never to `/admin/orders`, and an admin may be sent to a customer path but
-never a seller one. `keepLocalRedirect(requested, actorType, origin)` now
+never a seller one. The path `allowsPath` checks comes from `pathOf` (same
+file), which resolves the target through `URL` before the prefix check —
+collapsing a `.`/`..` segment, including its percent-encoded form (`%2e`),
+the same way a browser collapses one from a `Location` header before it
+requests the redirected page — so `/./admin/orders` and
+`/seller/../admin/orders` refuse exactly as `/admin/orders` does.
+`keepLocalRedirect(requested, actorType, origin)` now
 takes the actor alongside the origin and refuses a target `allowsPath` refuses,
 on top of everything it already refused (control characters, `//`, `/\`, a
 foreign host). Every call site names the actor already in scope: the site

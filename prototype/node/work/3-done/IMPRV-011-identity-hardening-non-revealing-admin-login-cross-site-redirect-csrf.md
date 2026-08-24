@@ -160,3 +160,42 @@ all green.
   answers with the site's own page" — Node answers 403; PHP's stock behaviour
   is 419. Worth a decision at the contract level if the three should agree
   on one status code, but out of this ticket's scope.
+
+### Fix-up
+
+Review found `pathOf` (`app/core/auth/local-redirect.ts`) collapsing dot
+segments on the origin-prefixed branch only, through `new URL(...).pathname`.
+The root-relative branch — every `redirect_to` this app produces — returned
+the raw string unchanged, so `/./admin/orders` and `/seller/../admin/orders`
+read as `/admin/orders`-shaped to a browser but not to `hasPathPrefix`, and
+`allowsPath` let a seller-site sign-in carry a `redirect_to` onto an admin
+path.
+
+`pathOf` now resolves both branches through `new URL(target, 'http://placeholder')`
+before `allowsPath` sees the result, so a root-relative target collapses dot
+segments the same way an origin-prefixed one already did. `URL` decodes
+`%2e` before collapsing, so `/%2e/admin` and `/%2e%2e/admin` collapse and
+refuse the same as their literal-dot equivalents — no separate percent-decode
+step was needed. The existing refusals (`//`, `/\`, control characters,
+empty, off-origin absolute URLs) sit ahead of `pathOf` in `keepLocalRedirect`
+and are unchanged. `keepLocalRedirect` still returns the requested target
+verbatim when it is kept — `pathOf`'s collapsed value is used only for the
+`allowsPath` check, never for the returned redirect, so a kept target's query
+string and fragment pass through unmangled.
+
+Regression tests added to `local-redirect.test.ts` (dot-segment and
+percent-encoded bypasses refused for each actor type, near-misses like
+`/adminfoo` and `/administrator` still kept, the pre-existing refusals
+re-confirmed, query string and fragment preserved on a kept target) and one
+route-level test in each of `sign-in-routes.test.ts` (a seller-site
+`POST /seller/login` with `redirect_to=/./admin/orders` stores a null
+`redirectTo`) and `index.test.ts` (a magic-link row crafted directly with
+`redirectTo: '/./admin/orders'` falls back to `/seller` on consumption,
+mirroring the existing crafted-row test for the literal `/admin/orders`
+case).
+
+`make check`: 1887 → 1898 tests, all passing. Coverage 99.50/96.71/99.56 →
+99.50/96.74/99.56 (statements/branches/functions); `local-redirect.ts` itself
+93.55% → 96.43% branch coverage. `docs/identity.md`'s cross-site redirect
+section now states that `pathOf` collapses dot segments (including their
+percent-encoded form) before the prefix check runs.
