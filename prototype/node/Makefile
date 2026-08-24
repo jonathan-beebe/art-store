@@ -31,6 +31,9 @@ shell:
 test:
 	docker compose run --rm app npm run coverage
 
+smoke:
+	docker compose run --rm app node --test app/test/smoke.test.ts
+
 # Same run as `test` — the coverage reporter always writes coverage/lcov.info
 # alongside the table it prints, so there is nothing a dedicated report step
 # would add.

@@ -118,3 +118,25 @@ Outcome and contract §6.2, solved as the ticket's own step 4 suggested.
 - Historical evidence in `docs/review.md`'s "Verified on FEAT-017" section
   (quoting the old `make test` / `npm run check` behavior) was left as-is —
   it is a dated verification record, not a description of current vocabulary.
+
+### Fix-up
+
+The Working section above claimed the Makefile answered every §6.1 target
+including `smoke`, but the `smoke:` recipe was dropped from the file during
+editing — only its name survived, in `.PHONY`. `make smoke` had no rule and
+would have fallen through to Make's "nothing to be done" or a build error.
+Restored the recipe at its original position (between `test` and `coverage`):
+
+```
+smoke:
+	docker compose run --rm app node --test app/test/smoke.test.ts
+```
+
+No `--disable-warning=ExperimentalWarning` needed — running it plain
+produces no experimental-warning noise, so the flag other node invocations
+in this Makefile use was not added here either.
+
+Verified after restoring: `make smoke` — 8/8 tests pass, exit 0. `make lint`,
+`make lint-fix`, `make sweep`, `make routes` — all exit 0, unchanged.
+`make check` — exit 0, 1536/1536 tests, 99.57% lines / 97.22% branches /
+99.47% functions, unchanged from baseline.
