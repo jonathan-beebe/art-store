@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:21:50:00 — IMPRV-006 — started
+- 2026-08-24:21:45:00 — BUG-004 — done: RateLimitsConfigTest writes and reads through Dotenv's repository and restores what `.env` gave it, so the gate is green whatever `.env` holds; 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:21:25:00 — BUG-004 — started
 - 2026-08-24:21:20:00 — IMPRV-009 — defined: the visitor is resolved from the cookie twice per request (16 queries on /, two of them duplicates)
 - 2026-08-24:21:19:00 — IMPRV-008 — defined: the entrypoint rebuilds the Vite bundle on every container start and every `docker compose run` (three builds per `make check`)
