@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:22:15:00 — IMPRV-007 — started
+- 2026-08-24:22:10:00 — IMPRV-006 — done: the stream yields a frame per tick so a failed write reaches `connection_aborted()`, and the worker pool goes 5 -> 16; twelve abandoned streams then `GET /` 49.4s -> 0.25s, twelve held 50.8s -> 0.11s, three live streams 5.6% -> 0.99% of one core; 1827 tests, 100% lines
 - 2026-08-24:21:50:00 — IMPRV-006 — started
 - 2026-08-24:21:45:00 — BUG-004 — done: RateLimitsConfigTest writes and reads through Dotenv's repository and restores what `.env` gave it, so the gate is green whatever `.env` holds; 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:21:25:00 — BUG-004 — started

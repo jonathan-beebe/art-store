@@ -24,7 +24,17 @@ Measured (RSRCH-001 M7), returning visitor:
 | `/art/{slug}` | 18 |
 | `/favorites` | 13 |
 
-Two of each of those counts are the duplicate.
+Two of each of those counts are the duplicate. The SQL for `GET /`, in order,
+with the pair repeated at 4 and 5:
+
+```
+ 1 select * from "sessions" where "id" = ? limit 1
+ 2 select "customer_id" from "customer_merges" where "anonymous_customer_id" = ? limit 1
+ 3 select * from "customers" where "customers"."id" = ? limit 1
+ 4 select "customer_id" from "customer_merges" where "anonymous_customer_id" = ? limit 1
+ 5 select * from "customers" where "customers"."id" = ? limit 1
+ 6 select distinct "medium" from "listings" ...
+```
 
 ## Goal
 A request resolves its visitor once, and both readers get that answer.
