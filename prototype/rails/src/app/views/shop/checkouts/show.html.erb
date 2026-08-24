@@ -2,6 +2,8 @@
 
 <h1 class="text-4xl font-light tracking-tight">Checkout</h1>
 
+<%= render "shop/blocked_lines_notice", blocked_lines: @order.blocked_lines %>
+
 <div class="mt-12 grid gap-16 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
   <%= form_with url: shop_place_order_path, method: :post, class: "max-w-xl" do |form| %>
     <h2 class="text-xs uppercase tracking-wide text-neutral-500">Contact</h2>

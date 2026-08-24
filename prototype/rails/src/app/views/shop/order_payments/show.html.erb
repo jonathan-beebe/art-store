@@ -7,6 +7,7 @@
 </p>
 
 <%= render "shop/decline_notice", payment: @payment %>
+<%= render "shop/blocked_lines_notice", blocked_lines: @order.blocked_lines %>
 
 <%= form_with url: shop_pay_order_path(@order), method: :post, class: "mt-8 max-w-xl" do |form| %>
   <%= render "shop/card_fields", form: form %>

@@ -1,7 +1,8 @@
 # Orders
 
 Checkout, payment, and fulfillment. Code: `app/models/order.rb`,
-`app/models/fulfillment.rb`, `app/controllers/shop/checkouts_controller.rb`,
+`app/models/order_placement.rb`, `app/models/fulfillment.rb`,
+`app/controllers/shop/checkouts_controller.rb`,
 `app/controllers/shop/order_payments_controller.rb`.
 
 ## Checkout to a paid, seller-notified order
@@ -20,8 +21,14 @@ sequenceDiagram
 
     Customer->>Checkout: POST /checkout (email, shipping, card?)
     Checkout->>Order: Order.place(cart:, customer:, email:, email_verified:, shipping:)
-    Order->>Order: snapshot items, split per seller, take stock, empty the cart
-    Order-->>Checkout: order (pending_verification | awaiting_payment)
+    Order->>Order: OrderPlacement.plan(cart items), inside the transaction
+    alt a line is blocked
+        Order-->>Checkout: order (unsaved), blocked_lines
+        Checkout-->>Customer: 422, every blocked line and its reason
+    else every line is placeable
+        Order->>Order: snapshot items, split per seller, take stock, empty the cart
+        Order-->>Checkout: order (pending_verification | awaiting_payment)
+    end
 
     alt the buyer's email is verified
         Checkout->>Order: pay!(card_number)
@@ -53,6 +60,59 @@ checkout left incomplete never reaches an `orders` row: `Order` validates the
 email and the shipping fields, `Order.place` hands an invalid order back
 unsaved, and `Shop::CheckoutsController` re-renders the form with the
 `INCOMPLETE` alert and the values that were submitted.
+
+## Placement availability
+
+Question: what stops a cart from becoming an order, and how does a customer
+learn about it?
+
+A cart sits for as long as its owner leaves it there, so what it holds is
+judged fresh: `OrderPlacement.plan` folds a set of lines (cart items at
+checkout, order items at a retried charge) into placeable lines and blocked
+lines, each blocked line carrying one `OrderPlacement::Line`-derived reason —
+`removed`, `off_sale`, `sold_out`, or `short_stock` (`OrderPlacement.reason_for`).
+A removal outranks whatever the status says; a sold listing outranks a bare
+quantity of zero reading as merely out of stock.
+
+```mermaid
+flowchart TD
+    A[line: listing + requested quantity] --> B{actively removed?}
+    B -- yes --> R[removed]
+    B -- no --> C{status == sold?}
+    C -- yes --> S[sold_out]
+    C -- no --> D{status != for_sale?}
+    D -- yes --> O[off_sale]
+    D -- no --> E{available quantity < 1?}
+    E -- yes --> S
+    E -- no --> F{requested > available?}
+    F -- yes --> H[short_stock]
+    F -- no --> P[placeable]
+```
+
+`Order.place` builds the plan as the first statement inside the transaction
+that takes the stock, against the listing rows as they stand at that moment —
+so a listing another shopper claimed first is refused rather than oversold.
+A blocked plan rolls the transaction back (`ActiveRecord::Rollback`) and
+`Order.place` hands back an unsaved order carrying `blocked_lines`, named and
+reasoned; `Shop::CheckoutsController#create` re-renders checkout at 422 with
+every blocked line, rather than letting `Listing#take_stock!`'s `ArgumentError`
+reach the customer as a 500. `Shop::CartsController#show` runs the same plan
+read-only against the cart, so the cart page marks each blocked line and
+disables the checkout control while any exists.
+
+A charge can also reclaim stock: a retry from `payment_failed` to `paid`
+takes the stock the earlier decline had restored. `Order#pay!` builds the same
+plan from the order's own items before that retry, and a listing sold out
+from under the order while it sat unpaid refuses the charge the same way —
+`Shop::OrderPaymentsController#create` re-renders the pay page at 422 with the
+blocked line, and no payment row is written. `removed` is implemented but
+unreachable today: no admin removal exists in this prototype, so
+`Listing#actively_removed?` always answers `false`. FEAT-021 backs it with a
+`listing_removals` row.
+
+Both refusals log through `Story`: `order.place` and `order.pay` write a
+`refused` line at `info`, carrying `blocked_lines` (listing id, title, reason)
+in `data` — never `failed` at `error`, since the world is unchanged.
 
 ## Order status
 

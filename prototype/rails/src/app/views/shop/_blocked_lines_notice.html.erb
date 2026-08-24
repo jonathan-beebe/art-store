@@ -1,0 +1,13 @@
+<% if blocked_lines.present? %>
+  <div role="alert" data-blocked-lines
+       class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+    <p>Take these out of your cart before placing the order:</p>
+    <ul class="mt-2 list-disc pl-5">
+      <% blocked_lines.each do |line| %>
+        <li data-blocked-line data-reason="<%= line.reason %>">
+          <%= line.title %> — <%= OrderPlacement.notice_for(line.reason) %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

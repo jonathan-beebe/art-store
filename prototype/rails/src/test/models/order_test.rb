@@ -109,7 +109,77 @@ class OrderTest < ActiveSupport::TestCase
                         shipping: shipping_address(shipping_city: nil), at: moment("2026-08-20 09:00:00"))
 
     refute_predicate order, :persisted?
+    assert_empty order.blocked_lines
     assert_equal 1, cart.reload.items.count
+  end
+
+  test "a cart line archived after it was added is refused as off sale, not a raised error" do
+    buyer = create_verified_customer
+    art = create_listing(title: "Harbour at Dusk")
+    cart = cart_holding(buyer, art)
+    art.update!(status: "archived")
+
+    order = Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+
+    refute_predicate order, :persisted?
+    assert_equal [ { listing_id: art.id, title: "Harbour at Dusk", reason: :off_sale } ],
+      order.blocked_lines.map { |line| { listing_id: line.listing_id, title: line.title, reason: line.reason } }
+    assert_equal 1, cart.reload.items.count
+    assert_empty Order.all
+  end
+
+  test "two blocked lines are both reported at once" do
+    buyer = create_verified_customer
+    low_tide = create_listing(title: "Low tide")
+    harbour = create_listing(title: "Harbour at dusk")
+    cart = cart_holding(buyer, low_tide, harbour)
+    low_tide.update!(status: "archived")
+    harbour.update!(quantity: 0)
+
+    order = Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+
+    assert_equal(
+      [ [ low_tide.id, :off_sale ], [ harbour.id, :sold_out ] ],
+      order.blocked_lines.map { |line| [ line.listing_id, line.reason ] }
+    )
+  end
+
+  test "a listing another buyer takes between building the cart and placing it is refused, not oversold" do
+    art = create_listing(quantity: 1)
+    first_buyer = create_verified_customer
+    second_buyer = create_verified_customer
+    cart = cart_holding(second_buyer, art)
+
+    order_for(first_buyer, art)
+
+    order = Order.place(cart: cart, customer: second_buyer, email: second_buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:05:00"))
+
+    refute_predicate order, :persisted?
+    assert_equal [ :sold_out ], order.blocked_lines.map(&:reason)
+    assert_equal 0, art.reload.quantity
+    assert_equal 1, Order.count
+  end
+
+  test "a refused placement carries the blocked lines in the log" do
+    buyer = create_verified_customer
+    art = create_listing(title: "Harbour at Dusk")
+    cart = cart_holding(buyer, art)
+    art.update!(status: "archived")
+
+    lines = captured_log_lines do
+      Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                  shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+    end
+
+    refused = log_lines_for("order.place", lines).find { |line| line["phase"] == "refused" }
+    assert_equal "info", refused["level"]
+    assert_equal(
+      [ { "listing_id" => art.id, "title" => "Harbour at Dusk", "reason" => "off_sale" } ],
+      refused["data"]["blocked_lines"]
+    )
   end
 
   test "an approved card pays the order" do
@@ -216,6 +286,38 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 1, art.quantity
     assert_equal "for_sale", art.status
     assert_equal "insufficient_funds", order.payments.last.decline_reason
+  end
+
+  test "a retry that would reclaim stock is refused when another buyer already took it" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+
+    paid_order_for(create_verified_customer, art)
+
+    pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00")
+
+    assert_predicate order, :payment_failed?
+    assert_equal [ { listing_id: art.id, title: art.title, reason: :sold_out } ],
+      order.blocked_lines.map { |line| { listing_id: line.listing_id, title: line.title, reason: line.reason } }
+    assert_equal 1, order.payments.count
+    assert_equal 0, art.reload.quantity
+  end
+
+  test "a stale retry carries the blocked lines in the log rather than failing" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+    paid_order_for(create_verified_customer, art)
+
+    lines = captured_log_lines { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
+
+    refused = log_lines_for("order.pay", lines).find { |line| line["phase"] == "refused" }
+    assert_equal "info", refused["level"]
+    assert_equal(
+      [ { "listing_id" => art.id, "title" => art.title, "reason" => "sold_out" } ],
+      refused["data"]["blocked_lines"]
+    )
   end
 
   test "it refuses to charge an order that is already paid" do

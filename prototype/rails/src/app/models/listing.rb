@@ -142,6 +142,13 @@ class Listing < ApplicationRecord
     for_sale? && quantity.positive?
   end
 
+  # Whether an admin has pulled this listing off the storefront independent of
+  # its status. No admin removal exists yet in this prototype; FEAT-021 backs
+  # this with a listing_removals row.
+  def actively_removed?
+    false
+  end
+
   # An order claims stock when it is placed and hands it back when the card is
   # declined, which puts a listing that had sold out back on the storefront.
   def take_stock!(count)

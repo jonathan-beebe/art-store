@@ -101,12 +101,27 @@ module Shop
       assert_select "[data-decline]", text: /not valid/
     end
 
+    test "a retry answers 422 and names the line when another buyer took the last one first" do
+      listing = create_listing(title: "Harbour at Dusk", quantity: 1)
+      order = placed_order(listing)
+      post shop_pay_order_path(order), params: { card_number: UNFUNDED_CARD }
+
+      other_buyer = create_verified_customer(email: unique_email("rival"))
+      paid_order_for(other_buyer, listing)
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-line][data-reason=sold_out]", text: /Harbour at Dusk/
+      assert_equal "payment_failed", order.reload.status
+      assert_equal 1, order.payments.count
+    end
+
     private
 
     # A guest checkout followed by the magic link, which is the only way a card
     # form is reached.
-    def placed_order
-      listing = create_listing
+    def placed_order(listing = create_listing)
       post shop_add_to_cart_path(slug: listing.slug)
       post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
       order = order_of_visiting_customer

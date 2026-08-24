@@ -146,10 +146,49 @@ module Shop
       assert_empty Order.all
     end
 
+    test "a cart line archived after it was added answers 422 and names it, instead of 500" do
+      listing = fill_cart(title: "Harbour at Dusk")
+      listing.update!(status: "archived")
+
+      post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-lines] [data-blocked-line][data-reason=off_sale]", text: /Harbour at Dusk/
+      assert_empty Order.all
+    end
+
+    test "every blocked line in the cart is reported at once" do
+      low_tide = fill_cart(title: "Low tide")
+      harbour = fill_cart(title: "Harbour at dusk")
+      low_tide.update!(status: "archived")
+      harbour.update!(quantity: 0)
+
+      post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-line]", count: 2
+      assert_select "[data-blocked-line][data-reason=off_sale]", text: /Low tide/
+      assert_select "[data-blocked-line][data-reason=sold_out]", text: /Harbour at dusk/
+    end
+
+    test "a listing sold out from under a shopper between the cart and checkout is refused, not oversold" do
+      art = create_listing(quantity: 1)
+      post shop_add_to_cart_path(slug: art.slug)
+
+      paid_order_for(create_verified_customer, art)
+
+      post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-line][data-reason=sold_out]"
+      assert_equal 1, Order.count
+      assert_equal 0, art.reload.quantity
+    end
+
     private
 
-    def fill_cart
-      create_listing.tap { |listing| post shop_add_to_cart_path(slug: listing.slug) }
+    def fill_cart(**attributes)
+      create_listing(**attributes).tap { |listing| post shop_add_to_cart_path(slug: listing.slug) }
     end
   end
 end

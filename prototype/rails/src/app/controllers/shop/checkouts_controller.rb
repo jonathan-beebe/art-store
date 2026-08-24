@@ -3,6 +3,7 @@ module Shop
     include MagicLinkSender
 
     INCOMPLETE = "Enter an email address and a full shipping address.".freeze
+    UNAVAILABLE = "Your cart changed before checkout. Take these out before placing the order.".freeze
 
     def show
       return redirect_to shop_cart_path if current_cart.empty?
@@ -21,6 +22,7 @@ module Shop
         email_verified: verified_account.present?, shipping: shipping_params, at: Time.current
       )
 
+      return reject_unavailable if @order.blocked_lines.present?
       return reject_incomplete unless @order.persisted?
       return charge(@order) if @order.awaiting_payment?
 
@@ -46,6 +48,13 @@ module Shop
     def reject_incomplete
       load_summary
       flash.now[:alert] = INCOMPLETE
+
+      render :show, status: :unprocessable_content
+    end
+
+    def reject_unavailable
+      load_summary
+      flash.now[:alert] = UNAVAILABLE
 
       render :show, status: :unprocessable_content
     end

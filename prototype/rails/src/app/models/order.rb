@@ -49,10 +49,22 @@ class Order < ApplicationRecord
   validates :email, format: { with: EmailAddress::SHAPE }
   validates(*REQUIRED_SHIPPING_FIELDS, presence: true)
 
+  # Cart or order lines that stopped a placement or charge from completing,
+  # set only on a refusal `place`/`#pay!` returns without raising. Not a
+  # database column.
+  attr_writer :blocked_lines
+
+  def blocked_lines
+    @blocked_lines ||= []
+  end
+
   # The cart becomes an order: every line keeps the title and price it was
   # bought at, the order splits into one fulfillment per seller with the
   # platform fee taken out, and the stock it claims leaves the storefront.
-  # An order checkout left incomplete comes back unsaved, so nothing moves.
+  # What the cart holds is judged fresh inside the transaction that takes the
+  # stock, so a line another shopper claimed first is refused rather than
+  # oversold. An order checkout left incomplete or blocked comes back
+  # unsaved, so nothing moves.
   def self.place(cart:, customer:, email:, shipping:, email_verified: false, at: Time.current)
     raise ArgumentError, "an order needs at least one item" if cart.empty?
 
@@ -64,16 +76,22 @@ class Order < ApplicationRecord
         status: email_verified ? :awaiting_payment : :pending_verification,
         subtotal_cents: cart.subtotal.cents, total_cents: cart.subtotal.cents
       )
-      next refuse(story, cart, order) unless order.valid?
+      next refuse_incomplete(story, order) unless order.valid?
 
+      plan = nil
       fulfillments = nil
 
       transaction do
+        plan = OrderPlacement.plan(cart.items.includes(:listing))
+        raise ActiveRecord::Rollback unless plan.ok?
+
         order.save!
-        snapshot(order, cart.items.includes(:listing).to_a)
+        snapshot(order, plan.items)
         fulfillments = split_by_seller(order, cart.subtotals_by_seller)
         cart.items.destroy_all
       end
+
+      next refuse_unavailable(story, order, cart, plan) unless plan.ok?
 
       story.did("placed the order",
         order_id: order.id, total_cents: order.total_cents, status: order.status,
@@ -83,10 +101,21 @@ class Order < ApplicationRecord
     end
   end
 
-  # A checkout that cannot be placed leaves the cart where it was. The lines
-  # that stopped it are named so the story says what to fix.
-  private_class_method def self.refuse(story, cart, order)
-    story.refused("the order is incomplete", cart_id: cart.id, blocked_lines: [])
+  # An incomplete address leaves the cart where it was. No line stopped it, so
+  # the story carries none.
+  private_class_method def self.refuse_incomplete(story, order)
+    story.refused("the order is incomplete", blocked_lines: [])
+
+    order
+  end
+
+  # A cart line that left the storefront or ran out leaves the cart where it
+  # was. Every blocked line is named so the story — and the page the shopper
+  # is on — say what to fix.
+  private_class_method def self.refuse_unavailable(story, order, cart, plan)
+    order.blocked_lines = plan.blocked_lines
+    story.refused("a cart line is no longer available",
+      cart_id: cart.id, blocked_lines: OrderPlacement.log_payload(plan.blocked_lines))
 
     order
   end
@@ -156,20 +185,28 @@ class Order < ApplicationRecord
 
   # One charge attempt. The card decides where the order lands, a payments row
   # keeps what was tried, and the stock follows the status. A paid order holds
-  # each seller's net in escrow and tells them their item sold.
+  # each seller's net in escrow and tells them their item sold. A retry that
+  # reclaims stock judges each item fresh, so a listing that sold out while
+  # the order sat unpaid refuses the charge instead of overselling.
   def pay!(card_number, at: Time.current)
     Story.tell("order.pay", "charging the card for the order",
       order_id: id, amount_cents: total_cents) do |story|
       card = FakeCard.new(card_number)
       landed = self.class.transition(status, card.approved? ? "paid" : "payment_failed")
+      plan = nil
       payment = nil
 
       transaction do
-        move_stock(status, landed)
+        plan = restock_plan(landed)
+        raise ActiveRecord::Rollback if plan && !plan.ok?
+
+        move_stock(status, landed, plan)
         payment = record_attempt(card, at)
         update!(status: landed, finalized_at: (at if landed == "paid"))
         hold_in_escrow(at) if paid?
       end
+
+      next refuse_stale(story, plan) if plan && !plan.ok?
 
       tell_the_charge(story, card, payment)
 
@@ -210,16 +247,38 @@ class Order < ApplicationRecord
     )
   end
 
-  def move_stock(from, to)
+  # The plan a retry must clear before it reclaims stock — nil when this
+  # charge does not move stock at all, or moves it back to the storefront
+  # rather than claiming it. Read fresh each call, so a listing another buyer
+  # took while this order sat unpaid is judged as it stands now.
+  def restock_plan(to)
+    return nil unless holds_stock?(status) != holds_stock?(to) && holds_stock?(to)
+
+    OrderPlacement.plan(items.includes(:listing))
+  end
+
+  def move_stock(from, to, plan)
     return if holds_stock?(from) == holds_stock?(to)
 
-    items.includes(:listing).each do |item|
-      holds_stock?(to) ? item.listing.take_stock!(item.quantity) : item.listing.restore_stock!(item.quantity)
+    if holds_stock?(to)
+      plan.items.each { |item| item.listing.take_stock!(item.quantity) }
+    else
+      items.includes(:listing).each { |item| item.listing.restore_stock!(item.quantity) }
     end
   end
 
   def holds_stock?(status)
     RELEASES_STOCK.exclude?(status)
+  end
+
+  # A retry that reclaims stock leaves the order where it was. Every blocked
+  # line is named so the story — and the pay page — say what changed.
+  def refuse_stale(story, plan)
+    self.blocked_lines = plan.blocked_lines
+    story.refused("a cart line is no longer available",
+      order_id: id, blocked_lines: OrderPlacement.log_payload(plan.blocked_lines))
+
+    self
   end
 
   def hold_in_escrow(at)

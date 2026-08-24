@@ -14,10 +14,19 @@ module Shop
 
       order.pay!(params[:card_number])
 
+      return reject_unavailable(order) if order.blocked_lines.present?
+
       redirect_to shop_order_path(order)
     end
 
     private
+
+    def reject_unavailable(order)
+      @order = order
+      @payment = @order.payments.order(:created_at, :id).last
+
+      render :show, status: :unprocessable_content
+    end
 
     # Verifying the address is what carries a guest's order from
     # pending_verification to a status a card can settle, so the card form is

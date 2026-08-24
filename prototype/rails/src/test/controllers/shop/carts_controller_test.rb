@@ -41,5 +41,36 @@ module Shop
       assert_select "a", text: "Harbour at Dusk"
       refute_equal guest.id, visiting_customer.id
     end
+
+    test "a line archived after it was added is marked with its reason" do
+      listing = create_listing(title: "Harbour at Dusk")
+      post shop_add_to_cart_path(slug: listing.slug)
+      listing.update!(status: "archived")
+
+      get shop_cart_path
+
+      assert_select "li[data-reason=off_sale]", text: /Harbour at Dusk/
+      assert_select "[data-unavailable-reason]", text: "no longer for sale"
+    end
+
+    test "checkout is disabled while a blocked line sits in the cart" do
+      listing = create_listing
+      post shop_add_to_cart_path(slug: listing.slug)
+      listing.update!(quantity: 0)
+
+      get shop_cart_path
+
+      assert_select "a", text: "Checkout", count: 0
+      assert_select "[data-checkout-disabled]", text: "Checkout"
+    end
+
+    test "checkout stays live while nothing in the cart is blocked" do
+      post shop_add_to_cart_path(slug: create_listing.slug)
+
+      get shop_cart_path
+
+      assert_select "a", text: "Checkout"
+      assert_select "[data-checkout-disabled]", count: 0
+    end
   end
 end
