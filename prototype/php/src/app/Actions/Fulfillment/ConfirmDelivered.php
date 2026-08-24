@@ -26,9 +26,13 @@ final readonly class ConfirmDelivered
             'status_from' => $fulfillment->status->value,
             'status_to' => FulfillmentStatus::Delivered->value,
         ], function (Story $story) use ($fulfillment, $now): Fulfillment {
-            $status = $fulfillment->status->transitionTo(FulfillmentStatus::Delivered);
+            $delivered = DB::transaction(function () use ($fulfillment, $now): Fulfillment {
+                // Judged inside the transaction that writes, against a row
+                // held for update (docs/alignment.md §4.1): the status the
+                // refusal reads is the status this update replaces, and the
+                // escrow release below cannot be written twice for one row.
+                $status = $fulfillment->takeForTransition()->status->transitionTo(FulfillmentStatus::Delivered);
 
-            $delivered = DB::transaction(function () use ($fulfillment, $status, $now): Fulfillment {
                 $fulfillment->update(['status' => $status, 'delivered_at' => $now]);
 
                 $movement = LedgerMovement::release($fulfillment->net());

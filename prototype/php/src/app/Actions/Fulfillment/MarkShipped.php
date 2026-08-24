@@ -29,9 +29,12 @@ final readonly class MarkShipped
             'status_from' => $fulfillment->status->value,
             'status_to' => FulfillmentStatus::Shipped->value,
         ], function (Story $story) use ($fulfillment, $carrier, $trackingNumber, $now): Fulfillment {
-            $status = $fulfillment->status->transitionTo(FulfillmentStatus::Shipped);
+            $shipped = DB::transaction(function () use ($fulfillment, $carrier, $trackingNumber, $now): Fulfillment {
+                // Judged inside the transaction that writes, against a row
+                // held for update (docs/alignment.md §4.1): the status the
+                // refusal reads is the status this update replaces.
+                $status = $fulfillment->takeForTransition()->status->transitionTo(FulfillmentStatus::Shipped);
 
-            $shipped = DB::transaction(function () use ($fulfillment, $status, $carrier, $trackingNumber, $now): Fulfillment {
                 $fulfillment->update([
                     'status' => $status,
                     'carrier' => $carrier,

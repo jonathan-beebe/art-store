@@ -180,3 +180,47 @@ FEAT-023 has to compute and render, on `/admin/accounting` and `/admin`:
   `fulfillment_id`, `amount_cents`, `reason`).
 - `STALE_ORDER_HOURS` default `24`; the sweep touches only
   `pending_verification`.
+
+### Review fix-up
+
+docs/alignment.md §4.1: "Both checks run inside the transaction that writes."
+Four fulfillment transitions did not hold to it.
+
+`DeclineFulfillment` and `RefundFulfillment` re-read the row inside
+`DB::transaction` but took no lock, so two consoles could both read the
+pre-decline status, both pass `transitionTo`, and the second land on
+`refunds.unique(fulfillment_id)` as a raw `QueryException` rather than the
+`DomainRuleViolation` the sequential tests exercise. `MarkShipped` and
+`ConfirmDelivered` were worse: they evaluated `transitionTo` *before*
+`DB::transaction` opened, against whatever the caller's in-memory instance
+happened to hold.
+
+All four now judge the transition against a locked row read inside the
+writing transaction. `Fulfillment::lockedForTransition()` is the `#[Scope]`
+compiling to `for update`, following IMPRV-004's `Listing::lockedForPlacement()`;
+`Fulfillment::takeForTransition()` re-reads this row through it and syncs the
+attributes back onto the instance, the way `refresh()` does without a lock.
+Each action's first statement inside `DB::transaction` is now
+`$fulfillment->takeForTransition()->status->transitionTo(...)`.
+
+**What the lock buys, and what SQLite gives for free.** Under a database with
+real concurrent writers the lock is what makes the refusal correct: the row is
+held from the read the transition is judged on until the commit, so a second
+writer blocks rather than reading a status that is about to change. SQLite —
+what this prototype develops and tests on — has no row lock and serialises
+writers at the file level, so it already gives the same outcome and its
+grammar compiles `for update` away entirely. The interleaving therefore cannot
+be demonstrated from a test here, and no test pretends to.
+
+**How it is tested instead.** `FulfillmentTest` compiles
+`Fulfillment::query()->lockedForTransition()` against `MySqlGrammar` and
+asserts the SQL ends in `for update` — the same shape `ListingTest` uses for
+`lockedForPlacement`. `FulfillmentTest` also asserts `takeForTransition()`
+answers the row's current status rather than the instance's. `MarkShippedTest`
+and `ConfirmDeliveredTest` each hand the action a stale instance whose row has
+already moved and assert the refusal, which is the behaviour the pre-transaction
+check got wrong. The existing sequential refusal tests all stand unchanged.
+
+**What Node and Rails must match:** every fulfillment transition is read under
+a row lock taken inside the transaction that writes it — decline, refund,
+ship, and deliver alike, not only the two that also write a refund row.

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\DomainRuleViolation;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Events\FulfillmentShipped;
 use App\Logging\StoryEvent;
 use App\Models\Customer;
+use App\Models\Fulfillment;
 use App\Models\Order;
 use App\Notifications\OrderShipped;
 use App\Support\Story;
@@ -120,3 +122,14 @@ it('refuses to ship a fulfillment twice', function () use ($paidOrder): void {
 
     $markShipped($fulfillment, 'FedEx', '7712349', $this->moment('2026-08-21 12:00:00'));
 })->throws(DomainException::class);
+
+it('judges the transition against the row it locks, not the instance it was handed', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller());
+    $stale = Fulfillment::query()->findOrFail($fulfillment->id);
+    app(DeclineFulfillment::class)($fulfillment, 'Damaged.', $this->moment('2026-08-21 09:00:00'));
+
+    expect(fn () => app(MarkShipped::class)($stale, 'Royal Mail', 'RM999', $this->moment('2026-08-22 09:00:00')))
+        ->toThrow(DomainRuleViolation::class, 'declined to shipped');
+
+    expect($fulfillment->fresh()?->status)->toBe(FulfillmentStatus::Declined);
+});

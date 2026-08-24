@@ -114,6 +114,40 @@ class Fulfillment extends Model
     }
 
     /**
+     * Takes the rows this query selects for update. A transition reads the
+     * status the row holds and writes a new one back over it, so the row has
+     * to be held from that read until the transaction commits — otherwise two
+     * consoles both read `awaiting_shipment`, both pass `transitionTo`, and
+     * the second write lands on a row that has already moved (and, for a
+     * refund, breaks on `refunds.unique(fulfillment_id)` as a raw
+     * `QueryException` instead of a refusal). SQLite, which the prototype
+     * develops and tests on, has no row lock and serialises writers instead;
+     * its grammar compiles the clause away.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function lockedForTransition(Builder $query): void
+    {
+        $query->lockForUpdate();
+    }
+
+    /**
+     * Re-reads this row for update inside the caller's transaction, the way
+     * `refresh()` re-reads it without one. docs/alignment.md §4.1 has every
+     * transition judged inside the transaction that writes, so the four
+     * actions that move a fulfillment call this first and read the status off
+     * what it hands back.
+     */
+    public function takeForTransition(): static
+    {
+        /** @var static $locked */
+        $locked = $this->newQuery()->whereKey($this->getKey())->lockedForTransition()->sole();
+
+        return $this->setRawAttributes($locked->getAttributes(), sync: true);
+    }
+
+    /**
      * One row per status the table holds, carrying how many hold it — the
      * dashboard's fulfillment tally reads this the way `Listing::ofStatus`'s
      * sibling scope feeds the listing one.

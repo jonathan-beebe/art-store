@@ -38,10 +38,12 @@ final readonly class DeclineFulfillment
             'status_to' => FulfillmentStatus::Declined->value,
         ], function (Story $story) use ($fulfillment, $reason, $now): Fulfillment {
             $declined = DB::transaction(function () use ($fulfillment, $reason, $now): Fulfillment {
-                // Read inside the transaction that writes: a parcel shipped
+                // Judged inside the transaction that writes, against a row
+                // held for update (docs/alignment.md §4.1): a parcel shipped
                 // between the page and this submit is refused here rather
-                // than declined after it left.
-                $status = $fulfillment->refresh()->status->transitionTo(FulfillmentStatus::Declined);
+                // than declined after it left, and a second console cannot
+                // read the same pre-decline status while this one holds it.
+                $status = $fulfillment->takeForTransition()->status->transitionTo(FulfillmentStatus::Declined);
 
                 $this->restockItems($fulfillment);
 
