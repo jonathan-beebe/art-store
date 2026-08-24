@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:14:10:00 — IMPRV-010 — started
+- 2026-08-24:14:09:00 — FEAT-020 — done: all seven §3 limits read from the environment at boot (`off` disables, malformed refuses to boot), counted in a `rate_limit_windows` table by one atomic upsert that survives a restart, tripping to 429 with `Retry-After` and the site's own page, no side effect performed, `rate_limit.exceed` at warn with a hashed key and `magic_link.request` refused beside it; `TRUST_PROXY` collapsed into the contract's `TRUSTED_PROXIES`; 1747 -> 1805 tests, coverage 99.53/97.28/99.55; reviewer: accept-with-fixes, both fixed in fdf6ce1. Cut: the field-less form re-render on a trip, folded into IMPRV-012
 - 2026-08-24:09:00:00 — FEAT-020 — started
 - 2026-08-24:08:59:00 — FEAT-019 — done: order `refunded`, fulfillment `declined`/`refunded`, ledger `refunded`, a `refunds` table and `orders.refunded_cents`; seller decline restoring scoped stock, admin refund and admin cancel, `make sweep` cancelling stale `pending_verification` orders; the §4.2 fold keyed by `fulfillment_id` so a refund leaves `held` before release and `available` after; all nine §4.3 sad paths tested; 1631 -> 1747 tests, coverage 99.52/97.30/99.53; reviewer: accept, one affordance defect fixed in 787dd04
 - 2026-08-24:06:00:00 — FEAT-019 — started
