@@ -113,6 +113,15 @@ half differs:
 | No JavaScript required | done | every flow is a form POST that redirects; `app/javascript/application.js` is one `import "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as it did before Turbo |
 | Hotwire | done | `turbo-rails` 2.0.23, `importmap-rails` 2.2.3, `solid_cable` 4.0.2 — thread pages and the nav badge update over Action Cable with the broadcast queue in the app's own SQLite file |
 
+## Cross-prototype comparison
+
+- **CSRF failure status**: Rails answers **422** — a raised
+  `ActionController::InvalidAuthenticityToken` is unrescued anywhere in the
+  tree, so it falls through to Rails' own default mapping
+  (`ActionDispatch::ExceptionWrapper`'s `unprocessable_content`). Node
+  answers 403, Laravel answers 419. Each stack keeps its own idiom; the
+  divergence is recorded here rather than resolved.
+
 ## Development workflow
 
 | Requirement | Status | Evidence |

@@ -156,6 +156,36 @@ class Seller::FaqsControllerTest < ActionDispatch::IntegrationTest
     assert_equal answer, listing.faqs.sole.source_message
   end
 
+  test "a second publish of the same answer is refused" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    answer = answered_question(seller, listing).latest_message_from(seller)
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "Is the frame included?", answer: "It is.", source_message_id: answer.id }
+    }
+
+    post seller_listing_faqs_path(listing), params: {
+      listing_faq: { question: "Is the frame included?", answer: "It is.", source_message_id: answer.id }
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[data-faq-refusal]", text: "is already published as an FAQ."
+    assert_equal 1, listing.faqs.count
+  end
+
+  test "the thread shows a published marker on a message already published as an FAQ" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+    conversation = answered_question(seller, listing)
+    answer = conversation.latest_message_from(seller)
+    ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.", source_message: answer)
+
+    get seller_conversation_path(conversation)
+
+    assert_select "[data-message=?] [data-faq-published]", answer.id
+    assert_select "#publish-faq-heading", count: 0
+  end
+
   test "an answer from another listing's thread is not found" do
     seller = signed_in_seller
     listing = create_listing(seller)

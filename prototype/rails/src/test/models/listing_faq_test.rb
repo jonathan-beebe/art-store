@@ -119,6 +119,31 @@ class ListingFaqTest < ActiveSupport::TestCase
     assert_nil ListingFaq.draft_from(conversation)
   end
 
+  test "publishing the same answer twice is refused" do
+    conversation = answered_question
+    listing = conversation.subject
+    answer = conversation.latest_message_from(conversation.seller)
+    ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.", source_message: answer)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) do
+      ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.", source_message: answer)
+    end
+
+    assert_equal "Validation failed: Source message is already published as an FAQ.", error.message
+    assert_equal 1, listing.faqs.count
+  end
+
+  test "two hand-written entries with no source message are both fine" do
+    listing = create_listing
+
+    first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
+    second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
+
+    assert_nil first.source_message_id
+    assert_nil second.source_message_id
+    assert_equal 2, listing.faqs.count
+  end
+
   test "a listing carries its entries away with it" do
     listing = create_listing
     ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")

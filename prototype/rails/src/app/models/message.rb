@@ -5,6 +5,9 @@ class Message < ApplicationRecord
 
   belongs_to :conversation
   belongs_to :sender, polymorphic: true
+  # The FAQ entry this message became the answer of, if a seller has
+  # published it. Nil for every message that never became one.
+  has_one :listing_faq, foreign_key: :source_message_id, inverse_of: :source_message
 
   scope :oldest_first, -> { order(:created_at, :id) }
 

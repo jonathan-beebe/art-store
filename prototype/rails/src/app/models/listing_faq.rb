@@ -7,7 +7,7 @@ class ListingFaq < ApplicationRecord
   belongs_to :listing
   # The answer the entry was lifted from, for the kinds of entry that came out
   # of a thread. The entry outlives the thread.
-  belongs_to :source_message, class_name: "Message", optional: true
+  belongs_to :source_message, class_name: "Message", optional: true, inverse_of: :listing_faq
 
   scope :oldest_first, -> { order(:created_at, :id) }
 
@@ -19,6 +19,8 @@ class ListingFaq < ApplicationRecord
   validates :answer,
     presence: { message: "Enter the answer." },
     length: { maximum: ANSWER_LIMIT, message: "Keep the answer under #{ANSWER_LIMIT} characters." }
+  validates :source_message_id, uniqueness: { scope: :listing_id, message: "is already published as an FAQ." },
+    allow_nil: true
 
   # The entry a thread offers to publish: what the customer last asked and
   # what the seller last answered, with that answer as its source. Nil until a
