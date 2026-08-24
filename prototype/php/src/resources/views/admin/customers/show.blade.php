@@ -1,6 +1,6 @@
-<x-layouts.admin :title="($customer->name ?? $customer->id).' — Art Store admin'">
+<x-layouts.admin :title="$customer->displayName().' — Art Store admin'">
     <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">{{ $customer->name ?? $customer->id }}</h1>
+        <h1 class="text-xl font-semibold">{{ $customer->displayName() }}</h1>
         <a href="{{ route('admin.customers.index') }}" class="ml-auto text-gray-700 underline">All customers</a>
     </div>
 
@@ -44,6 +44,116 @@
         @endif
     </section>
 
+    <section aria-labelledby="block-history-heading" class="mt-6">
+        <h2 id="block-history-heading" class="font-semibold text-gray-700">Block history</h2>
+
+        @if ($customer->blocks->isEmpty())
+            <x-admin.nothing>Never blocked.</x-admin.nothing>
+        @else
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <table class="w-full text-left">
+                    <caption class="sr-only">Every block this customer has been under</caption>
+                    <thead class="border-b border-gray-300 bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 font-semibold">Reason</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Blocked</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Lifted</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($customer->blocks as $block)
+                            <tr>
+                                <th scope="row" class="px-4 py-2 font-normal">{{ $block->reason }}</th>
+                                <td class="px-4 py-2">{{ $block->created_at?->format('M j, Y g:ia') }}</td>
+                                <td class="px-4 py-2">{{ $block->lifted_at?->format('M j, Y g:ia') ?? 'Active' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    <section aria-labelledby="merges-heading" class="mt-6">
+        <h2 id="merges-heading" class="font-semibold text-gray-700">Merge history</h2>
+
+        @if ($customer->mergesAsCustomer->isEmpty() && $customer->mergesAsAnonymous->isEmpty())
+            <x-admin.nothing>No merges.</x-admin.nothing>
+        @else
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <table class="w-full text-left">
+                    <caption class="sr-only">Anonymous visitors folded into this account, and the account this row was folded into</caption>
+                    <thead class="border-b border-gray-300 bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-4 py-2 font-semibold">Direction</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Other customer</th>
+                            <th scope="col" class="px-4 py-2 font-semibold">Merged</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($customer->mergesAsCustomer as $merge)
+                            <tr>
+                                <th scope="row" class="px-4 py-2 font-normal">Absorbed</th>
+                                <td class="px-4 py-2">
+                                    <a href="{{ route('admin.customers.show', $merge->anonymous_customer_id) }}" class="underline">{{ $merge->anonymous_customer_id }}</a>
+                                </td>
+                                <td class="px-4 py-2">{{ $merge->created_at?->format('M j, Y g:ia') }}</td>
+                            </tr>
+                        @endforeach
+                        @foreach ($customer->mergesAsAnonymous as $merge)
+                            <tr>
+                                <th scope="row" class="px-4 py-2 font-normal">Folded into</th>
+                                <td class="px-4 py-2">
+                                    <a href="{{ route('admin.customers.show', $merge->customer_id) }}" class="underline">{{ $merge->customer_id }}</a>
+                                </td>
+                                <td class="px-4 py-2">{{ $merge->created_at?->format('M j, Y g:ia') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </section>
+
+    <section aria-labelledby="orders-heading" class="mt-6">
+        <h2 id="orders-heading" class="font-semibold text-gray-700">Orders</h2>
+
+        <x-admin.orders-table :orders="$customer->orders" :show-customer="false" caption="Orders this customer placed" />
+    </section>
+
+    <section aria-labelledby="favorites-heading" class="mt-6">
+        <h2 id="favorites-heading" class="font-semibold text-gray-700">Favorites</h2>
+
+        @if ($customer->favorites->isEmpty())
+            <x-admin.nothing>No favorites.</x-admin.nothing>
+        @else
+            <ul class="mt-2 divide-y divide-gray-200 rounded border border-gray-300 bg-white">
+                @foreach ($customer->favorites as $favorite)
+                    <li class="px-4 py-2">
+                        <a href="{{ route('admin.listings.show', $favorite->listing) }}" class="underline">{{ $favorite->listing->title }}</a>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    </section>
+
+    <section aria-labelledby="cart-heading" class="mt-6">
+        <h2 id="cart-heading" class="font-semibold text-gray-700">Cart</h2>
+
+        @if ($customer->cartItems->isEmpty())
+            <x-admin.nothing>Cart is empty.</x-admin.nothing>
+        @else
+            <ul class="mt-2 divide-y divide-gray-200 rounded border border-gray-300 bg-white">
+                @foreach ($customer->cartItems as $item)
+                    <li class="flex justify-between px-4 py-2">
+                        <a href="{{ route('admin.listings.show', $item->listing) }}" class="underline">{{ $item->listing->title }}</a>
+                        <span class="tabular-nums">&times;{{ $item->quantity }}</span>
+                    </li>
+                @endforeach
+            </ul>
+        @endif
+    </section>
+
     <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
         <h2 id="message-heading" class="font-semibold text-gray-700">Message customer</h2>
 
@@ -52,37 +162,5 @@
             label="Message"
             class="mt-2 rounded border border-gray-300 bg-white p-4"
         />
-    </section>
-
-    <section aria-labelledby="orders-heading" class="mt-6">
-        <h2 id="orders-heading" class="font-semibold text-gray-700">Orders</h2>
-
-        @if ($customer->orders->isEmpty())
-            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No orders yet.</p>
-        @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
-                <table class="w-full text-left">
-                    <caption class="sr-only">Orders this customer placed</caption>
-                    <thead class="border-b border-gray-300 bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-4 py-2 font-semibold">Order</th>
-                            <th scope="col" class="px-4 py-2 font-semibold">Status</th>
-                            <th scope="col" class="px-4 py-2 text-right font-semibold">Total</th>
-                            <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @foreach ($customer->orders as $order)
-                            <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">{{ $order->id }}</th>
-                                <td class="px-4 py-2">{{ $order->status->label() }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ $order->total()->format() }}</td>
-                                <td class="px-4 py-2">{{ $order->placed_at?->format('M j, Y') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
     </section>
 </x-layouts.admin>

@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Customers\StandingFilter;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -59,6 +63,39 @@ class Customer extends Authenticatable
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    /**
+     * Every line in every cart the customer holds, so a page counts or lists
+     * them without walking the carts first.
+     *
+     * @return HasManyThrough<CartItem, Cart, $this>
+     */
+    public function cartItems(): HasManyThrough
+    {
+        return $this->hasManyThrough(CartItem::class, Cart::class);
+    }
+
+    /**
+     * Merges this customer absorbed: an anonymous visitor's rows folded into
+     * this account when they verified an address.
+     *
+     * @return HasMany<CustomerMerge, $this>
+     */
+    public function mergesAsCustomer(): HasMany
+    {
+        return $this->hasMany(CustomerMerge::class);
+    }
+
+    /**
+     * The merge that folded this row into someone else, which only an
+     * anonymous customer has.
+     *
+     * @return HasMany<CustomerMerge, $this>
+     */
+    public function mergesAsAnonymous(): HasMany
+    {
+        return $this->hasMany(CustomerMerge::class, 'anonymous_customer_id');
     }
 
     /** @return BelongsToMany<Listing, $this> */
@@ -156,5 +193,31 @@ class Customer extends Authenticatable
     public function isVerified(): bool
     {
         return $this->email_verified_at !== null;
+    }
+
+    /**
+     * What the admin console calls this customer: their name, the address
+     * they verified, or — for a visitor who has given neither — their id.
+     */
+    public function displayName(): string
+    {
+        return $this->name ?? $this->email ?? $this->id;
+    }
+
+    /**
+     * The admin customers list, narrowed to one standing. `All` adds no
+     * clause at all, which is what an empty filter asks for.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function inStanding(Builder $query, StandingFilter $standing): void
+    {
+        match ($standing) {
+            StandingFilter::All => $query,
+            StandingFilter::Verified => $query->whereNotNull('email_verified_at'),
+            StandingFilter::Anonymous => $query->whereNull('email'),
+            StandingFilter::Blocked => $query->whereHas('blocks', fn (Builder $blocks): Builder => $blocks->whereNull('lifted_at')),
+        };
     }
 }

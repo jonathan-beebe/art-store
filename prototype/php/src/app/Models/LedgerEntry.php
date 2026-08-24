@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Escrow\LedgerBalances;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Money\Money;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 use Override;
 
 /**
@@ -76,6 +78,28 @@ class LedgerEntry extends Model
     public function toMovement(): LedgerMovement
     {
         return LedgerMovement::of($this->type, $this->amount());
+    }
+
+    /**
+     * Every seller's balance from one read of the whole ledger: the database
+     * sums each (seller, type) pair and the fold turns the summed rows behind
+     * a seller into their balance. This is what a page listing sellers reads,
+     * so the number of queries it costs does not follow the number of sellers
+     * on it.
+     */
+    public static function balancesBySeller(): LedgerBalances
+    {
+        /** @var array<string, list<LedgerMovement>> $movements */
+        $movements = self::query()
+            ->totalledByType()
+            ->get()
+            ->groupBy('seller_id')
+            ->map(fn (Collection $entries): array => array_values(
+                $entries->map(fn (self $entry): LedgerMovement => $entry->toMovement())->all(),
+            ))
+            ->all();
+
+        return LedgerBalances::from($movements);
     }
 
     /** @param Builder<$this> $query */

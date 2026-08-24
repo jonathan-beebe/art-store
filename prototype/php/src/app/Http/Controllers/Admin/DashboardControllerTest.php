@@ -11,11 +11,14 @@ it('renders the admin dashboard', function (): void {
     $response->assertSee('Dashboard');
 });
 
-it('links to the sellers and customers pages', function (): void {
+it('links to every page of the directory', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
     $response->assertSee('href="'.route('admin.sellers.index').'"', escape: false);
     $response->assertSee('href="'.route('admin.customers.index').'"', escape: false);
+    $response->assertSee('href="'.route('admin.listings.index').'"', escape: false);
+    $response->assertSee('href="'.route('admin.orders.index').'"', escape: false);
+    $response->assertSee('href="'.route('admin.fulfillments.index').'"', escape: false);
 });
 
 it('sends a guest to the admin login page', function (): void {

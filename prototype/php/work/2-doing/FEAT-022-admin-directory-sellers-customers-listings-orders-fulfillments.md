@@ -25,3 +25,78 @@ Node's `docs/admin.md` (on `main`) is the reference for pages, filters, and the 
 ## Related work
 - docs/alignment.md §5
 - FEAT-010, FEAT-014
+
+## Working
+
+Built, one page at a time, each with its route, filter scopes, Blade view and
+sidecar test:
+
+| Path | What it shows |
+| --- | --- |
+| `GET /admin/sellers` | counts as before, plus held / available / paid out folded from one read of the ledger |
+| `GET /admin/sellers/{seller}` | listings, fulfillments, payouts, escrow balance |
+| `GET /admin/customers?standing=all\|verified\|anonymous\|blocked` | anonymous rows included; order, favorite and cart-line counts |
+| `GET /admin/customers/{customer}` | orders, favorites, cart, block history, merge history |
+| `GET /admin/listings?status=&seller=` | every listing across every seller |
+| `GET /admin/listings/{listing}` | detail with view / favorite / cart-add counts and every order line it sold on |
+| `GET /admin/orders?status=&customer=` | every order with customer, item count, total |
+| `GET /admin/orders/{order}` | items, payment attempts, fulfillments |
+| `GET /admin/fulfillments?status=&seller=` | every fulfillment with order and seller |
+| `GET /admin/fulfillments/{fulfillment}` | lines, money, ledger entries |
+
+`docs/admin.md` is written and linked from `docs/README.md`; it carries the
+page table, the one-guard / one-404 diagram, and the folded-balance sequence.
+
+Rules honoured:
+
+- **Balances folded once.** `LedgerEntry::balancesBySeller()` reads the summed
+  `(seller, type)` rows once and hands them to the new
+  `App\Domain\Escrow\LedgerBalances`, which answers per seller and returns a
+  zero balance for a seller with no entries. `SellerControllerTest` counts the
+  queries that touch `ledger_entries` on `/admin/sellers` and holds it to one.
+- **One guard.** The `auth.admin` middleware already sits on the whole group in
+  `routes/admin.php`; the six new routes joined the group and added no check of
+  their own.
+- **404 for every miss.** Every detail route is route-model bound, so a wrong
+  prefix, a bare ULID, nonsense, and an unknown id are one page. Each new
+  controller test carries the four-case dataset; `SellerControllerTest` gained
+  the one it was missing.
+- **Aggregation in the database.** `withCount` for listing / fulfillment /
+  order / favorite / cart-line / item counts, `group by` for the ledger fold
+  and the listing status tally.
+
+Filters are query scopes on the models — `Listing::ofStatus` / `ofSeller`,
+`Order::ofStatus` / `ofCustomer`, `Fulfillment::ofStatus` / `ofSeller`,
+`Customer::inStanding` — each taking a nullable value and adding no clause when
+it is null. Controllers read `$request->enum(...)` for a status and
+`$request->filled(...)` for an id, so an absent, empty or unrecognised value is
+one answer: all rows. Repeated tables became anonymous Blade components under
+`resources/views/components/admin/`.
+
+### Deliberately left out
+
+- `removed=any|removed|visible` on `/admin/listings`, the removal reason on a
+  listing detail, and the removal / lift actions — **FEAT-024**, which creates
+  `listing_removals`. The listings table and detail page have room for the
+  column and the panel; nothing is stubbed.
+- The refunds section on `/admin/orders/{order}`, the `refunded` status values,
+  and the Cancel / Refund actions on the order and fulfillment detail pages —
+  **FEAT-020**. Both detail pages end with their last section, so a refunds
+  section and an actions form slot in without moving anything.
+- `/admin/payouts` and the platform payout run — **FEAT-024**. The seller
+  detail page shows payout history read-only.
+- `/admin` tallies and platform money, `/admin/accounting`, `/admin/ledger`,
+  `/admin/stats`, the page-view roll-up — **FEAT-023**. `/admin` stays the
+  console's front door and now links to all five directory pages.
+
+### Deviations from §5
+
+- An unrecognised filter value (`?status=nonsense`) shows every row rather than
+  answering 400 the way Node's `optionalFilter` does. Laravel's
+  `$request->enum()` reads absent, empty and unrecognised alike, and the
+  console only ever submits a real value; the behaviour is written down in
+  `docs/admin.md`.
+- The customers list shows a `Verified` / `Unverified` / `Anonymous` standing
+  where it used to show `OK`, so the column and the filter say the same words.
+- `PaymentStatus::label()` was added beside the other status enums' labels, for
+  the payments table on the order detail page.

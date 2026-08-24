@@ -20,6 +20,9 @@
                     <a href="{{ route('admin.dashboard') }}" class="text-gray-600 hover:text-gray-900">Dashboard</a>
                     <a href="{{ route('admin.sellers.index') }}" class="text-gray-600 hover:text-gray-900">Sellers</a>
                     <a href="{{ route('admin.customers.index') }}" class="text-gray-600 hover:text-gray-900">Customers</a>
+                    <a href="{{ route('admin.listings.index') }}" class="text-gray-600 hover:text-gray-900">Listings</a>
+                    <a href="{{ route('admin.orders.index') }}" class="text-gray-600 hover:text-gray-900">Orders</a>
+                    <a href="{{ route('admin.fulfillments.index') }}" class="text-gray-600 hover:text-gray-900">Fulfillments</a>
                     <a href="{{ route('admin.messages.index') }}" class="text-gray-600 hover:text-gray-900" data-live-badge="Messages" data-events-url="{{ route('admin.events') }}">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                 </nav>
             @endauth

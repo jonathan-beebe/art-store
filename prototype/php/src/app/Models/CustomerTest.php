@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Cart\AddToCart;
+use App\Domain\Customers\StandingFilter;
 use App\Domain\Money\Money;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
@@ -148,4 +150,46 @@ it('reads only the active block when it has been blocked more than once', functi
     CustomerBlock::factory()->create(['customer_id' => $customer->id, 'reason' => 'Second block.']);
 
     expect($customer->blockReason())->toBe('Second block.');
+});
+
+it('names itself by its name, then its address, then its id', function (): void {
+    $named = new Customer(['name' => 'Ada Painter', 'email' => 'ada@example.com']);
+    $addressed = new Customer(['email' => 'ada@example.com']);
+    $anonymous = Customer::factory()->anonymous()->create();
+
+    expect($named->displayName())->toBe('Ada Painter')
+        ->and($addressed->displayName())->toBe('ada@example.com')
+        ->and($anonymous->displayName())->toBe($anonymous->id);
+});
+
+it('reads every line across the carts it holds', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['quantity' => 3]);
+    app(AddToCart::class)($this->cartFor($customer), $listing, 2, $this->moment('2026-08-20 08:00:00'));
+
+    expect($customer->cartItems()->count())->toBe(1)
+        ->and($customer->cartItems()->sum('quantity'))->toBe(2);
+});
+
+it('reads the merges it stands on either side of', function (): void {
+    $customer = $this->verifiedCustomer();
+    $anonymous = $this->anonymousCustomer();
+    CustomerMerge::create(['anonymous_customer_id' => $anonymous->id, 'customer_id' => $customer->id]);
+
+    expect($customer->mergesAsCustomer()->count())->toBe(1)
+        ->and($customer->mergesAsAnonymous()->count())->toBe(0)
+        ->and($anonymous->mergesAsAnonymous()->count())->toBe(1)
+        ->and($anonymous->mergesAsCustomer()->count())->toBe(0);
+});
+
+it('narrows to one standing', function (): void {
+    $verified = $this->verifiedCustomer();
+    $anonymous = $this->anonymousCustomer();
+    $blocked = $this->verifiedCustomer();
+    CustomerBlock::factory()->create(['customer_id' => $blocked->id, 'reason' => 'Chargeback fraud.']);
+
+    expect(Customer::query()->inStanding(StandingFilter::All)->count())->toBe(3)
+        ->and(Customer::query()->inStanding(StandingFilter::Verified)->count())->toBe(2)
+        ->and(Customer::query()->inStanding(StandingFilter::Anonymous)->pluck('id')->all())->toBe([$anonymous->id])
+        ->and(Customer::query()->inStanding(StandingFilter::Blocked)->pluck('id')->all())->toBe([$blocked->id]);
 });

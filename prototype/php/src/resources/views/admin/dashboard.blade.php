@@ -8,5 +8,14 @@
         <li>
             <a href="{{ route('admin.customers.index') }}" class="text-gray-700 underline">Customers</a>
         </li>
+        <li>
+            <a href="{{ route('admin.listings.index') }}" class="text-gray-700 underline">Listings</a>
+        </li>
+        <li>
+            <a href="{{ route('admin.orders.index') }}" class="text-gray-700 underline">Orders</a>
+        </li>
+        <li>
+            <a href="{{ route('admin.fulfillments.index') }}" class="text-gray-700 underline">Fulfillments</a>
+        </li>
     </ul>
 </x-layouts.admin>

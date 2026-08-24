@@ -9,6 +9,8 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\FulfillmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -67,6 +69,33 @@ class Fulfillment extends Model
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(LedgerEntry::class);
+    }
+
+    /**
+     * The admin fulfillments list, narrowed to one status. A null filter adds
+     * no clause, which is what the console's "All statuses" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofStatus(Builder $query, ?FulfillmentStatus $status): void
+    {
+        if ($status instanceof FulfillmentStatus) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * The same list narrowed to one seller.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSeller(Builder $query, ?string $sellerId): void
+    {
+        if ($sellerId !== null) {
+            $query->where('seller_id', $sellerId);
+        }
     }
 
     public function subtotal(): Money

@@ -170,6 +170,34 @@ class Listing extends Model
     }
 
     /**
+     * The admin listings list, narrowed to one status. A null filter adds no
+     * clause, which is what the console's "All statuses" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofStatus(Builder $query, ?ListingStatus $status): void
+    {
+        if ($status instanceof ListingStatus) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * The same list narrowed to one seller. A seller id naming nobody selects
+     * nothing rather than everything.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSeller(Builder $query, ?string $sellerId): void
+    {
+        if ($sellerId !== null) {
+            $query->where('seller_id', $sellerId);
+        }
+    }
+
+    /**
      * One row per status the seller's listings hold, carrying how many hold it.
      *
      * @param  Builder<$this>  $query

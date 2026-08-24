@@ -11,6 +11,8 @@ use App\Domain\Orders\PlaceableLine;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -108,6 +110,33 @@ class Order extends Model
                 hasActiveRemoval: false,
             ),
         )->all()));
+    }
+
+    /**
+     * The admin orders list, narrowed to one status. A null filter adds no
+     * clause, which is what the console's "All statuses" submits.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofStatus(Builder $query, ?OrderStatus $status): void
+    {
+        if ($status instanceof OrderStatus) {
+            $query->where('status', $status);
+        }
+    }
+
+    /**
+     * The same list narrowed to one customer.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofCustomer(Builder $query, ?string $customerId): void
+    {
+        if ($customerId !== null) {
+            $query->where('customer_id', $customerId);
+        }
     }
 
     public function subtotal(): Money

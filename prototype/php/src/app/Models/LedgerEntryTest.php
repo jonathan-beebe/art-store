@@ -53,3 +53,19 @@ it('sums the entries of each seller and type into one row apiece', function (): 
         ->and($rows->firstWhere('type', LedgerEntryType::Held)?->amount())->toBeMoney(27000)
         ->and($rows->firstWhere('type', LedgerEntryType::Released)?->amount())->toBeMoney(27000);
 });
+
+it('folds every seller\'s balance out of one read of the ledger', function (): void {
+    $first = $this->seller('Blue Kiln Studio');
+    $second = $this->seller('Rye Press');
+    $this->deliveredFulfillmentFor($first, priceCents: 10000);
+    $this->shippedFulfillmentFor($second, priceCents: 20000);
+    $quiet = $this->seller('Quiet Press');
+
+    $balances = LedgerEntry::balancesBySeller();
+
+    expect($balances->of($first->id)->available)->toBeMoney(9000)
+        ->and($balances->of($first->id)->held)->toBeMoney(0)
+        ->and($balances->of($second->id)->held)->toBeMoney(18000)
+        ->and($balances->of($second->id)->available)->toBeMoney(0)
+        ->and($balances->of($quiet->id)->held)->toBeMoney(0);
+});
