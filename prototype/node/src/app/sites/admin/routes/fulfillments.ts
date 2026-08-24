@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { FULFILLMENT_STATUSES } from '../../../core/orders/fulfillment-status.ts'
-import { idValue, optionalFilter } from '../../../http/request-schema.ts'
+import { idParams, idValue, optionalFilter } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
+import { fulfillmentDetail } from '../queries/fulfillment-detail.ts'
 import { fulfillmentRows } from '../queries/fulfillment-rows.ts'
 
 const fulfillmentsQuery = z.object({
@@ -28,6 +29,13 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
       )
     },
   )
+
+  admin.get('/fulfillments/:id', { schema: { params: idParams('ful') } }, async (request, reply) => {
+    const detail = await fulfillmentDetail({ db: admin.db }, request.params.id)
+    if (detail === null) return reply.callNotFound()
+
+    return reply.render('fulfillment', adminPage(`Fulfillment ${detail.fulfillment.id}`, detail))
+  })
 
   done()
 }

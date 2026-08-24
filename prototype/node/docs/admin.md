@@ -22,8 +22,8 @@ each route would let the next page forget it.
 | `GET /admin/sellers`, `/admin/sellers/:id` | `sellerRows`, `sellerDetail` |
 | `GET /admin/customers?standing=`, `/admin/customers/:id` | `customerRows` (`all` \| `verified` \| `anonymous` \| `blocked`), `customerDetail` |
 | `GET /admin/listings?status=&seller=&removed=`, `/admin/listings/:id` | `listingRows` (`removed` is `any` \| `removed` \| `visible`), `listingDetail` |
-| `GET /admin/orders?status=&customer=` | `orderRows` |
-| `GET /admin/fulfillments?status=&seller=` | `fulfillmentRows` |
+| `GET /admin/orders?status=&customer=`, `/admin/orders/:id` | `orderRows`, `orderDetail` |
+| `GET /admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id` | `fulfillmentRows`, `fulfillmentDetail` |
 | `GET /admin/accounting` | `sellerAccounts`, `platformMoney` |
 | `GET /admin/payouts?seller=`, `POST /admin/payouts` | `payoutRows`, `runWeeklyPayout` |
 | `GET /admin/ledger?seller=&type=` | `ledgerRows` plus the folded totals for the filtered set |

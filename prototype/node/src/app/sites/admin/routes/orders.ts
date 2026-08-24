@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { ORDER_STATUSES } from '../../../core/orders/order-status.ts'
-import { idValue, optionalFilter } from '../../../http/request-schema.ts'
+import { idParams, idValue, optionalFilter } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
+import { orderDetail } from '../queries/order-detail.ts'
 import { orderRows } from '../queries/order-rows.ts'
 
 const ordersQuery = z.object({
@@ -23,6 +24,13 @@ export const orderRoutes: ZodRoutes = (admin, _options, done) => {
         filters: { status: status ?? '', customer: customer ?? '' },
       }),
     )
+  })
+
+  admin.get('/orders/:id', { schema: { params: idParams('ord') } }, async (request, reply) => {
+    const detail = await orderDetail({ db: admin.db }, request.params.id)
+    if (detail === null) return reply.callNotFound()
+
+    return reply.render('order', adminPage(`Order ${detail.order.id}`, detail))
   })
 
   done()

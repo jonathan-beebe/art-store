@@ -1,0 +1,92 @@
+<h1 class="text-lg font-semibold" data-fulfillment="<%= fulfillment.id %>">Fulfillment <%= fulfillment.id %></h1>
+<dl class="mt-2 text-neutral-600">
+  <div>
+    <dt class="inline text-neutral-500">Order</dt>
+    <dd class="inline">
+      <a href="/admin/orders/<%= order.id %>" class="underline"><%= order.id %></a>
+    </dd>
+  </div>
+  <div>
+    <dt class="inline text-neutral-500">Seller</dt>
+    <dd class="inline">
+      <a href="/admin/sellers/<%= seller.id %>" class="underline"><%= seller.name %></a>
+    </dd>
+  </div>
+  <div><dt class="inline text-neutral-500">Status</dt> <dd class="inline" data-fulfillment-status><%= statusLabel(fulfillment.status) %></dd></div>
+  <% if (fulfillment.carrier) { %>
+  <div data-tracking>
+    <dt class="inline text-neutral-500">Tracking</dt>
+    <dd class="inline"><%= fulfillment.carrier %> &middot; <%= fulfillment.trackingNumber %></dd>
+  </div>
+  <% } %>
+  <div><dt class="inline text-neutral-500">Shipped</dt> <dd class="inline"><%= formatMoment(fulfillment.shippedAt) %></dd></div>
+  <div><dt class="inline text-neutral-500">Delivered</dt> <dd class="inline"><%= formatMoment(fulfillment.deliveredAt) %></dd></div>
+</dl>
+
+<dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+  <%- include('sites/admin/views/partials/stat', { key: 'subtotal', label: 'Subtotal', value: formatCents(fulfillment.subtotalCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'fee', label: 'Fee', value: formatCents(fulfillment.feeCents) }) %>
+  <%- include('sites/admin/views/partials/stat', { key: 'net', label: 'Net', value: formatCents(fulfillment.netCents) }) %>
+</dl>
+
+<section class="mt-6" aria-labelledby="items-heading">
+  <h2 id="items-heading" class="font-semibold text-neutral-700">Items</h2>
+  <% if (items.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No items on this fulfillment.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This fulfillment's items</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Item</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Line total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% items.forEach((item) => { %>
+        <tr data-order-item="<%= item.id %>">
+          <th scope="row" class="px-4 py-3 font-normal">
+            <a href="/admin/listings/<%= item.listingId %>" class="underline"><%= item.title %></a>
+          </th>
+          <td data-cell="unit-price" class="px-4 py-3 text-right tabular-nums"><%= formatCents(item.unitPriceCents) %></td>
+          <td data-cell="quantity" class="px-4 py-3 text-right tabular-nums"><%= item.quantity %></td>
+          <td data-cell="line-total" class="px-4 py-3 text-right tabular-nums"><%= formatCents(item.lineTotalCents) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<section class="mt-6" aria-labelledby="ledger-heading">
+  <h2 id="ledger-heading" class="font-semibold text-neutral-700">Ledger</h2>
+  <% if (ledgerEntries.length === 0) { %>
+  <%- include('sites/admin/views/partials/empty', { message: 'No ledger entries yet.' }) %>
+  <% } else { %>
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <table class="w-full text-left">
+      <caption class="sr-only">This fulfillment's ledger entries</caption>
+      <thead class="border-b border-neutral-300 bg-neutral-50">
+        <tr>
+          <th scope="col" class="px-4 py-2 font-semibold">Type</th>
+          <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+          <th scope="col" class="px-4 py-2 font-semibold">Occurred</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-200">
+        <% ledgerEntries.forEach((entry) => { %>
+        <tr data-ledger-entry="<%= entry.id %>">
+          <th scope="row" class="px-4 py-3 font-normal" data-cell="entry-type"><%= statusLabel(entry.entryType) %></th>
+          <td data-cell="amount" class="px-4 py-3 text-right tabular-nums"><%= formatCents(entry.amountCents) %></td>
+          <td class="px-4 py-3"><%= formatMoment(entry.occurredAt) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
