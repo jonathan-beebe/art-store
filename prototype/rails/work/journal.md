@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-24:05:50:00 — FEAT-021 — started
+- 2026-08-24:05:49:00 — FEAT-020 — done: dashboard tallies with zero rows, accounting, ledger browser, stats, page_view_counts roll-up, listing view collapse; 1102 runs / 3924 assertions / 100% lines
 - 2026-08-24:04:10:00 — FEAT-020 — started
 - 2026-08-24:04:09:00 — FEAT-018 — done: seven configurable rate limits over Solid Cache, boot refusal on a malformed value, 429 pages, CSP and security headers; 1020 runs / 3679 assertions / 100% lines
 - 2026-08-24:02:40:00 — FEAT-018 — started
