@@ -35,7 +35,7 @@ Measured from an empty tree — no `src/node_modules`, no SQLite file, no
 `src/public/app.css`: `make build` and `make up` together took **29 seconds**
 to the healthcheck reporting `healthy`, inside which `npm ci`
 installed 230 packages (of the 260 in the lockfile; the rest are
-platform-specific optional binaries npm skips), eleven migrations applied from nothing, the seed wrote
+platform-specific optional binaries npm skips), thirteen migrations applied from nothing, the seed wrote
 2 admins, 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
 4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
 `public/app.css`. Add the one-time pull of `node:24.19.0-bookworm-slim` on a
@@ -83,7 +83,7 @@ setting. A trip answers `429` with a `Retry-After` header, the site's own page
 ("Too many requests — try again in N minutes."), and one `rate_limit.exceed`
 log line; the write the limit guards does not happen. Counters live in the
 `rate_limit_windows` table, so they survive a restart. See
-`docs/alignment.md` §3.
+`../../docs/alignment.md` §3.
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
 `https:` origin — there is no separate switch for it.
@@ -96,7 +96,7 @@ for one). Both throw from `loadConfig` with the reason.
 ## Logs
 
 Every line is one JSON object on stdout, in every environment, in the payload
-all three prototypes share (`docs/alignment.md` §2). A line carries `ts`,
+all three prototypes share (`../../docs/alignment.md` §2). A line carries `ts`,
 `level`, `event`, `phase`, and `msg` always, plus `request_id`, `session_id`,
 `actor_type`, `actor_id`, `txn_id`, `data`, `error`, and `duration_ms` where
 they apply.
@@ -133,6 +133,21 @@ same set:
 `data:` is in `img-src` for the generated SVG placeholder a listing with no
 photograph renders inline. No page has a script tag or an inline style, so
 nothing else needs a relaxation.
+
+## CSRF
+
+Every state-changing request (`POST`, `PUT`, `PATCH`, `DELETE`) across all
+three sites carries a double-submit token, verified in one `preValidation`
+hook (`app/plugins/csrf.ts`) ahead of the route's own zod schema — checking
+any later would let a request through whose schema forgot the field, since
+`submittedForm` strips unknown fields by then. The token is
+`HMAC-SHA256(COOKIE_SECRET, sid)`, so it rides the browser's existing session
+cookie rather than a second one; a shared partial (`_csrf_token`) renders it
+into every `<form method="post">`. A missing, foreign, or stale token answers
+the requesting site's own 403 page. The guard is registered inside each site
+rather than once at the root, after that site's own body parser, so the
+seller portal's `@fastify/multipart` upload has already populated
+`request.body` by the time the check runs.
 
 ## Health
 
@@ -330,7 +345,7 @@ Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' 
 printing Node's own coverage table, failing under 95% lines / 90% branches,
 and writing `coverage/lcov.info` alongside it.
 
-The suite stands at 1,536 tests and 99.57% lines / 97.22% branches / 99.47%
+The suite stands at 1,915 tests and 99.43% lines / 95.92% branches / 99.50%
 functions. What is left uncovered is migration `down()` bodies and a handful of
 defensive branches.
 
@@ -430,7 +445,7 @@ make assets
 ```
 
 Layouts link it as `/app.css`, served by `@fastify/static` from
-`src/public/`. There is no JavaScript bundle. Three of the 66
+`src/public/`. There is no JavaScript bundle. Three of the 71
 `app/**/*.ejs` templates carry a `<script>` tag — the three site layouts, each
 loading the same `<script defer src="/app.js">` — and no other template has one.
 Those 21 dependency-free lines subscribe to `<prefix>/events` and rewrite the
@@ -654,13 +669,15 @@ prototype/node/
       ids.ts               newId: a prefixed ULID from a clock's instant
       core/                functional core, sidecar tests, no I/O:
                            analytics/, auth/, cart/, customers/, escrow/,
-                           health/, ids/, listings/, messaging/, moderation/,
-                           notifications/, orders/, payments/, reports/, shop/,
+                           health/, ids/, listings/, logging/, messaging/,
+                           moderation/, notifications/, orders/, payments/,
+                           rate-limit/, reports/, security/, shop/,
                            money.ts, status-label.ts, transition-error.ts
       actions/             verbs over ActionContext, one folder per concept:
                            analytics/, auth/, carts/, customers/, escrow/,
                            favorites/, fulfillments/, listings/, messaging/,
                            moderation/, notifications/, orders/, outbox/,
+                           rate-limit/, refunds/,
                            action-context.ts, transaction.ts, action-story.ts
       db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
                            migrate.ts, schema.ts, commerce-schema.ts, count.ts,
@@ -674,15 +691,17 @@ prototype/node/
                            request-schema.ts (idParams, slugParams,
                            optionalFilter, submittedForm),
                            request-actions.ts (a request as an ActionContext)
-      plugins/             error-pages.ts, events.ts, flash.ts, health.ts,
-                           identity.ts, page-views.ts, request-log.ts,
-                           root-plugin.ts, security-headers.ts, site-render.ts,
+      plugins/             csrf.ts, error-pages.ts, events.ts, flash.ts,
+                           health.ts, identity.ts, page-views.ts,
+                           rate-limit.ts, request-log.ts, root-plugin.ts,
+                           security-headers.ts, site-render.ts,
                            unread-messages.ts
       sites/               shop/, seller/, admin/ — each a plugin with routes/,
                            views/, queries/; auth/ is three flat files
                            (index.ts, sign-in-routes.ts, request-origin.ts)
-      views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
-                           unread-badge.ejs
+      views/partials/      csrf-field.ejs, debug-alert.ejs, field-error.ejs,
+                           flash.ejs, form-error.ejs, form-field.ejs,
+                           head.ejs, unread-badge.ejs
       cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
                            sweep-stale-orders.ts, parse-as-of.ts
       test/                build-test-app.ts, commerce-world.ts, log-lines.ts,

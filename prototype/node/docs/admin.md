@@ -32,6 +32,7 @@ each route would let the next page forget it.
 | `GET /admin/ledger?seller=&type=` | `ledgerRows` plus the folded totals for the filtered set |
 | `GET /admin/stats` | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies` |
 | `GET|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
+| `POST /admin/sellers/:id/messages`, `POST /admin/customers/:id/messages` | `openConversation` — opens or reuses the admin's thread with that seller or customer and redirects to it |
 | `GET /admin/outbox`, `/admin/outbox/:id`, `POST /admin/outbox/drain` | `outboxRows`, `outboxRow`, `drainOutbox` |
 | `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
 | `POST /admin/listings/:id/removals`, `.../removals/lift` | `removeListing`, `liftListingRemoval` |

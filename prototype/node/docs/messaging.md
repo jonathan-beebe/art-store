@@ -158,8 +158,9 @@ the message rules.
 
 A thread the actor is not in answers 404, not 403 — the reply routes read the
 thread through `conversationThread` before posting, which is what turns "not
-yours" into "not found" without the route holding the rule. A non-numeric id
-answers 404 the same way.
+yours" into "not found" without the route holding the rule. An id that is not
+a well-formed `cnv_` id — the wrong prefix or a malformed body — answers 404
+the same way.
 
 ## Unread counts
 

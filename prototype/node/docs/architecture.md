@@ -92,9 +92,9 @@ flowchart TD
 
 | Layer | Lives in | Rules |
 | --- | --- | --- |
-| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `ids`, `listings`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `reports`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
+| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `ids`, `listings`, `logging`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `rate-limit`, `reports`, `security`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
 | Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `count.ts`, `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` and `NotificationDelivery` ports, the `DeliveryContext` both `deliver` calls take, and their implementations — `flash-magic-link-delivery.ts`, `outbox-magic-link-delivery.ts`, `outbox-notification-delivery.ts`, plus `outbox-message.ts`, which enqueues and renders a row. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
-| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams(prefix)`, `idValue(prefix)`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
+| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery?, log? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams(prefix)`, `idValue(prefix)`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
 | Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen, signal handling), `app/config.ts` (env → typed config), `app/logging.ts` (logger options and serializers), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
 
 `app/clock.ts` sits at the root of `app/` rather than in a layer: the `Clock`
@@ -120,7 +120,9 @@ flowchart TD
     request(["Request"]) --> route{"a route matches?"}
     route -- no --> notfound["setNotFoundHandler, one per site<br/>404 in that site's layout"]
     route -- yes --> parse["Body parsing<br/>@fastify/formbody, or @fastify/multipart in the portal"]
-    parse --> schema{"Route schema<br/>zod params / querystring / body"}
+    parse --> csrf{"csrfProtection: preValidation<br/>double-submit token on a state-changing request"}
+    csrf -- "missing, foreign, or wrong token" --> forbidden["errorPages setErrorHandler<br/>403 in that site's layout"]
+    csrf -- ok --> schema{"Route schema<br/>zod params / querystring / body"}
     schema -- "refused params" --> notfound
     schema -- "refused body or query" --> errors["errorPages setErrorHandler<br/>400 in that site's layout"]
     schema -- ok --> pre["preHandler, in registration order"]
@@ -143,6 +145,7 @@ flowchart TD
     render --> send["onSend: securityHeaders"]
     handler -- "redirect" --> send
     errors --> send
+    forbidden --> send
     notfound --> send
     send --> response(["Response"])
     response --> after["onResponse: pageViewRollup upserts<br/>the count; eventBus fires 'changed'<br/>after any request that wrote"]
@@ -303,6 +306,9 @@ erDiagram
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
     orders ||--o{ fulfillments : split_by_seller
+    orders ||--o{ refunds : reversed_by
+    payments ||--o{ refunds : charged_on
+    fulfillments ||--o| refunds : reversed_by
     sellers ||--o{ fulfillments : ships
     fulfillments ||--o{ ledger_entries : produces
     sellers ||--o{ payouts : receives
@@ -314,12 +320,12 @@ erDiagram
     messages ||--o{ listing_faqs : published_from
 ```
 
-Twenty-four tables, created across ten of the eleven migrations (the first
+Twenty-six tables, created across twelve of the thirteen migrations (the first
 turns on write-ahead logging and creates nothing). `notifications`,
-`magic_links`, `customer_merges`, `page_view_counts`, and `outbox_messages` are
-left off this overview: the first three hang off the identity tables and the
-last two stand alone. Columns, the identity half, and the caveats are in
-[`data-model.md`](data-model.md).
+`magic_links`, `customer_merges`, `page_view_counts`, `outbox_messages`, and
+`rate_limit_windows` are left off this overview: the first three hang off the
+identity tables and the last three stand alone. Columns, the identity half,
+and the caveats are in [`data-model.md`](data-model.md).
 
 Every column holding a string union carries a `CHECK` constraint built from
 that union's `as const` array (`status in ('draft', 'for_sale', …)`), so a value
@@ -396,17 +402,29 @@ stateDiagram-v2
     payment_failed --> cancelled : customer cancels
     paid --> partially_shipped : one fulfillment shipped
     paid --> shipped : all fulfillments shipped
+    paid --> refunded : every fulfillment declined or refunded
     partially_shipped --> shipped
+    partially_shipped --> refunded : every fulfillment declined or refunded
     shipped --> delivered : all fulfillments delivered
+    shipped --> refunded : every fulfillment refunded
+    delivered --> refunded : every fulfillment refunded
     delivered --> [*]
     cancelled --> [*]
+    refunded --> [*]
 ```
 
 Source of truth: `ORDER_STATUS_TRANSITIONS` in
-`app/core/orders/order-status.ts`. `cancelled` is reachable: `cancelOrder`
-(action + `POST /orders/:id/cancel`) covers the three `isCancellable` statuses
-and restores the stock `placeOrder` took. A multi-seller order's status rolls up
-from its fulfillments (`orderStatusFromFulfillments`).
+`app/core/orders/order-status.ts`. `cancelled` is reachable from
+`pending_verification`, `awaiting_payment`, and `payment_failed`:
+`cancelOrder` (action + `POST /orders/:id/cancel`, plus `sweepStaleOrders`)
+covers the three `isCancellable` statuses and restores the stock `placeOrder`
+took. `sweepStaleOrders` (`app/cli/sweep-stale-orders.ts`, `make sweep`,
+`AS_OF=` to sweep as of a given date) cancels every `pending_verification`
+order older than `STALE_ORDER_HOURS` (default 24, `app/config.ts`) and is
+idempotent — a second run cancels nothing new. A multi-seller order's status
+rolls up from its **live** fulfillments —
+`orderStatusFromFulfillments` drops any `declined`/`refunded` fulfillment
+before deciding, and an order with none left standing is `refunded`.
 
 Whether a cart may become an order at all is a core decision, not a route `if`:
 `planOrderPlacement` (`app/core/orders/order-placement.ts`) reads each line
@@ -420,11 +438,18 @@ submit cannot be sold twice.
 
 ### Fulfillment status (per order × seller)
 
-`awaiting_shipment → shipped → delivered`
-(`FULFILLMENT_STATUS_TRANSITIONS`). Seller marks shipped (carrier + tracking);
-customer confirms delivery from the order page. A seller's "order" **is a
-fulfillment** — the portal's orders pages take a `fulfillments.id`, and UI copy
-says "fulfillment" where the row is one.
+`awaiting_shipment → shipped → delivered`, plus two reversals
+(`FULFILLMENT_STATUS_TRANSITIONS` in `app/core/orders/fulfillment-status.ts`):
+`awaiting_shipment → declined` is the seller's, with a reason, restoring stock
+(`sold → for_sale`); `{awaiting_shipment, shipped, delivered} → refunded` is
+the admin's, also with a reason, and does not restore stock. Both issue a
+refund for the fulfillment's whole subtotal through the shared `issueRefund`
+action (see [`orders.md`](orders.md), [`escrow.md`](escrow.md)); neither
+reversal has an outgoing edge, so a declined or refunded fulfillment is a
+terminal state. Seller marks shipped (carrier + tracking); customer confirms
+delivery from the order page. A seller's "order" **is a fulfillment** — the
+portal's orders pages take a `fulfillments.id`, and UI copy says "fulfillment"
+where the row is one.
 
 ### Escrow and payouts
 
@@ -540,8 +565,9 @@ off it.
 | `fulfillment` | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST /orders/:id/fulfillments/:fulfillmentId/messages` | `fulfillment_id` |
 | `listing_question` | customer ↔ seller | `POST /art/:slug/questions` | `listing_id` |
 
-- `conversations`: `id`, `kind`, `seller_id?`, `customer_id?`, `admin_id?`,
-  `listing_id?`, `fulfillment_id?`, `created_at`, `last_message_at`.
+- `conversations`: `id`, `kind`, `subject_key` (unique), `seller_id?`,
+  `customer_id?`, `admin_id?`, `listing_id?`, `fulfillment_id?`, `created_at`,
+  `last_message_at`.
 - `messages`: `id`, `conversation_id`, `sender_type` (`seller` | `customer` |
   `admin`), `sender_id`, `body`, `sent_at`, `read_at?`. A conversation has
   exactly two participants, so **one `read_at` per message** is unambiguous: the
@@ -555,10 +581,15 @@ off it.
   entry; the storefront listing page lists them. The seller can also edit or
   unpublish one.
 - Find-or-open is a pure plan, `planConversation`
-  (`app/core/messaging/conversation-plan.ts`), over the rows that already match
-  the kind and the five id columns — the same shape as the identity plan. One
-  thread per subject is what makes "message this seller" reach the same place
-  every time.
+  (`app/core/messaging/conversation-plan.ts`), over the row `subject_key`
+  already names — `subjectKey(subject)`
+  (`app/core/messaging/conversation-subject.ts`) folds the kind and every
+  filled participant/subject column into one string, mirrored into the unique
+  `subject_key` column, so `openConversation` looks the row up by that key and
+  falls back to an `onConflict`-then-reread on a race rather than scanning the
+  five id columns by hand. One thread per subject is what makes "message this
+  seller" reach the same place every time — the same shape as the identity
+  plan.
 - Who may read or post is a pure predicate, `conversationAccess`
   (`app/core/messaging/conversation-access.ts`), answering `mayRead` and
   `mayPost` separately: reading is being named in the participant column,
@@ -570,8 +601,10 @@ off it.
 - Each site has an inbox (`/messages`, `/seller/messages`, `/admin/messages`)
   listing its conversations by `last_message_at`, and a thread page that posts a
   reply. `conversationPath(actorType, id)` is core, because the same thread has
-  three URLs. Anonymous customers can ask a listing question; the conversation
-  re-points on merge.
+  three URLs. Anonymous customers can ask a listing question; a customer merge
+  folds that conversation onto the verified customer's existing thread on the
+  same subject rather than re-pointing it, so a subject never ends up with two
+  threads.
 - The `unreadMessages` plugin decorates `request.unreadMessageCount` and
   `countUnreadMessages(actorType)` is one `preHandler` per site, so
   `addSiteRender` hands every layout its badge beside the flash and the
@@ -697,11 +730,9 @@ address does not appear. The magic-link route logs its path as the pattern
 | `notification.write` | `notify` |
 | `notification.deliver` | the outbox drain — `will`, one `doing` per file, `did` with the count |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | the four moderation actions |
+| `rate_limit.exceed` | `answerIfRateLimited` (`plugins/rate-limit.ts`), at `warn`, on every trip of the seven limits — `data` names `limit`, a redacted `key`, and `retry_after_seconds` |
 | `migrate.run`, `migrate.apply`, `seed.run` | `app/db/migrate.ts`, `app/db/seed.ts` |
 | `app.boot`, `app.shutdown` | `app/server.ts` |
-
-`rate_limit.exceed` is in the vocabulary (`core/logging/log-event.ts`) and
-unemitted: the feature it belongs to is not built yet.
 
 The CLIs build their logger with `createCliLogger`, which binds
 `actor_type: "system"` — nobody asked for a CLI run.
@@ -815,13 +846,15 @@ prototype/node/
       clock.ts         Clock, systemClock, fixedClock
       ids.ts           newId: a prefixed ULID from a clock's instant
       core/            functional core: analytics, auth, cart, customers, escrow,
-                       health, ids, listings, messaging, moderation,
-                       notifications, orders, payments, reports, shop, plus
-                       money.ts, status-label.ts and transition-error.ts
+                       health, ids, listings, logging, messaging, moderation,
+                       notifications, orders, payments, rate-limit, reports,
+                       security, shop, plus money.ts, status-label.ts and
+                       transition-error.ts
       actions/         verbs over ActionContext: analytics, auth, carts, customers,
                        escrow, favorites, fulfillments, listings, messaging,
-                       moderation, notifications, orders, outbox, plus
-                       action-context.ts, transaction.ts and action-story.ts
+                       moderation, notifications, orders, outbox, rate-limit,
+                       refunds, plus action-context.ts, transaction.ts and
+                       action-story.ts
       db/              database.ts, node-sqlite-dialect.ts, schema.ts +
                        commerce-schema.ts (row types), count.ts,
                        migrations/, migrator.ts, migrate.ts, timestamp.ts, seed*.ts
@@ -830,17 +863,18 @@ prototype/node/
                        outbox-message.ts
       http/            zod-type-provider.ts (validator compiler), request-schema.ts,
                        request-actions.ts (a request as an ActionContext)
-      plugins/         error-pages, events, flash, health, identity, page-views,
-                       request-log, root-plugin, security-headers, site-render,
-                       unread-messages
+      plugins/         csrf, error-pages, events, flash, health, identity,
+                       page-views, rate-limit, request-log, root-plugin,
+                       security-headers, site-render, unread-messages
       sites/           shop/, seller/, admin/ — each a plugin with routes/,
                        views/, queries/ and its own helpers; auth/ is three
                        flat files (index.ts, sign-in-routes.ts,
                        request-origin.ts) and has no pages of its own
-      views/partials/  shared partials: debug-alert.ejs, flash.ejs, head.ejs,
-                       unread-badge.ejs
+      views/partials/  shared partials: csrf-field.ejs, debug-alert.ejs,
+                       field-error.ejs, flash.ejs, form-error.ejs,
+                       form-field.ejs, head.ejs, unread-badge.ejs
       cli/             run-payouts.ts, drain-outbox.ts, print-routes.ts,
-                       parse-as-of.ts
+                       parse-as-of.ts, sweep-stale-orders.ts
       test/            build-test-app.ts, commerce-world.ts, log-lines.ts,
                        smoke.test.ts
       assets/app.css   Tailwind source

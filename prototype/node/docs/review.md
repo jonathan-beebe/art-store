@@ -325,6 +325,9 @@ no CI (FEAT-014).
 
 ## Suggested next steps
 
+Numbered against the open gaps above; gaps 4 and 11 are closed and need no
+step.
+
 1. Add an SMTP implementation of `MagicLinkDelivery` and `NotificationDelivery`
    beside the outbox ones, selected the same way `MAGIC_LINK_DELIVERY` already
    is, and drain to it instead of to files. Closes gap 1.
@@ -333,29 +336,35 @@ no CI (FEAT-014).
    Closes gap 2.
 3. Resolve the customer cookie in a root hook that skips static paths, so the
    storefront's 404 page renders in the visitor's own session. Closes gap 3.
-4. Log `listing.published` from `POST /seller/listings/:id/status` beside the
-   other thirteen. Closes gap 4.
-5. Attach real images in `app/db/seed-catalog.ts` so the demo storefront shows
+4. Attach real images in `app/db/seed-catalog.ts` so the demo storefront shows
    artwork instead of generated shapes. Closes gap 5.
-6. If a real carrier integration is in scope for a later prototype, replace
+5. If a real carrier integration is in scope for a later prototype, replace
    the two free-text shipment fields with a tracking lookup; for this
    prototype's purposes the customer-confirms-delivery model is an accepted
    simplification. Closes gap 6.
-7. Add an assignment column to `conversations` (or a round-robin over
+6. Add an assignment column to `conversations` (or a round-robin over
    `admins`) so support threads are not all routed to the same admin. Closes
    gap 7.
-8. Add a `message_attachments` table and an `archived_at` column on
+7. Add a `message_attachments` table and an `archived_at` column on
    `conversations` if the product review calls for either. Closes gap 8.
-9. Add a migration-cycle test that runs every `down()` after its `up()` on a
+8. Add a migration-cycle test that runs every `down()` after its `up()` on a
    scratch database. Closes gap 9.
-10. Document the platform-wide payout run as intentional in the seller-facing
-    copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
-    demo one seller's payout in isolation. Closes gap 10.
-
-13. Move the admin site's five write forms onto `form-field.ejs`/
+9. Document the platform-wide payout run as intentional in the seller-facing
+   copy, or add a per-seller filter to `/admin/payouts` if reviewers want to
+   demo one seller's payout in isolation. Closes gap 10.
+10. Decide at the contract level whether `docs/alignment.md` §3's guard list
+    should name the admin's two message-open routes; add a `conversation_open`
+    guard to `POST /admin/sellers/:id/messages` and
+    `POST /admin/customers/:id/messages` if so. Closes gap 12.
+11. Move the admin site's five write forms onto `form-field.ejs`/
     `form-error.ejs`, re-rendering in place instead of flashing and
     redirecting, the same conversion IMPRV-012 gave every seller and
     storefront form. Closes gap 13.
+12. Decide at the contract level whether a trip on checkout's implicit guest
+    magic-link guard should redirect to the order page instead of answering
+    the generic 429 — a change to `docs/alignment.md` §3's every-trip-is-429
+    promise, not a same-shape `onTrip` re-render — and implement to match.
+    Closes gap 14.
 
 ## Stack notes
 

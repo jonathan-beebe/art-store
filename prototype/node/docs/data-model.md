@@ -1,6 +1,6 @@
 # Data model
 
-Twenty-five tables, created across eleven of the twelve migrations in
+Twenty-six tables, created across twelve of the thirteen migrations in
 `src/app/db/migrations/` (the first turns on write-ahead logging and creates
 nothing). Row types live beside them in `src/app/db/schema.ts` (identity) and
 `src/app/db/commerce-schema.ts` (everything else); Kysely's `CamelCasePlugin`
@@ -220,7 +220,7 @@ erDiagram
         text seller_id FK
         text fulfillment_id FK "nullable"
         text payout_id FK "nullable"
-        text entry_type "held|released|paid_out"
+        text entry_type "held|released|paid_out|refunded"
         integer amount_cents "signed"
         text occurred_at
     }
@@ -288,6 +288,13 @@ erDiagram
         text source_message_id FK "nullable, UK with listing_id"
         text published_at "a row exists only while published"
     }
+    rate_limit_windows {
+        text id PK
+        text name "the limit's name, checked against RATE_LIMIT_NAMES"
+        text key "UK with name and window_start — email, ip, or an actor/order/customer id, hashed"
+        text window_start "UK with name and key"
+        integer count "default 0, incremented on conflict"
+    }
 
     sellers ||--o{ listings : owns
     sellers ||--o{ order_items : sold_via
@@ -330,10 +337,12 @@ erDiagram
     messages ||--o{ listing_faqs : published_from
 ```
 
-`magic_links`, `page_view_counts`, and `outbox_messages` carry no foreign key
-and are drawn without a relationship line: the first matches by `email` plus
-`actor_type`, the second counts route patterns, and the third addresses a
-recipient who is outside the system.
+`magic_links`, `page_view_counts`, `outbox_messages`, and `rate_limit_windows`
+carry no foreign key and are drawn without a relationship line: the first
+matches by `email` plus `actor_type`, the second counts route patterns, the
+third addresses a recipient who is outside the system, and the fourth counts
+against a name and a key that is an address, an ip, or an id folded into one
+column rather than a reference to a single table.
 
 ## Caveats
 

@@ -545,7 +545,8 @@ the same subject (`planConversation`). `last_message_at` moves on every post,
 which is the inbox order. No archive and no close in this prototype.
 
 **Relates to.** Names two of Seller / Customer / Admin, and optionally a
-Listing or a Fulfillment. Holds Messages. Re-pointed by a Customer merge.
+Listing or a Fulfillment. Holds Messages. Folded by a Customer merge rather
+than re-pointed — a subject never ends up with two threads.
 
 **In code.** `Conversation` (`conversations`), `CONVERSATION_KINDS`,
 `conversationSubject`, `conversationAccess`, `conversationPath`.
