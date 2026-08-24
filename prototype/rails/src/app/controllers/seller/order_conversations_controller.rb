@@ -1,6 +1,8 @@
 # The thread a seller and a customer keep about one order, opened from the
 # fulfillment the seller ships.
 class Seller::OrderConversationsController < Seller::BaseController
+  rate_limit_guard :conversation_open, by: -> { current_participant.id }, only: :create
+
   def create
     fulfillment = current_seller.fulfillments.find(params[:order_id])
     conversation = Conversation.open(

@@ -29,7 +29,7 @@ and `make up` again so the container installs for itself.
 
 ## Ports
 
-PHP 8000, Rails 3000, Node 4000. The three never collide.
+PHP 8000, Rails 3300 (host; 3000 in the container), Node 4000. The three never collide.
 
 ## Git worktrees
 

@@ -41,20 +41,31 @@ module CustomerIdentity
     Customer.from_cookie(cookies.signed[COOKIE])
   end
 
+  # The session travels as a whole inside a signed-and-encrypted cookie bound
+  # to its own content, which is what actually keeps an attacker from riding
+  # in on a fixed session; renewing the id here is defence in depth on top of
+  # that. Renewing, rather than `reset_session`, leaves whatever the seller
+  # or admin session keys already hold in place, so all three actors can be
+  # signed in on the one browser at once.
   def sign_in_customer(customer)
-    reset_session
+    request.session_options[:renew] = true
     session[:customer_id] = customer.id
     @signed_in_customer = customer
     @current_customer = remember_customer(customer)
+    Current.acting_as(customer)
+
+    @current_customer
   end
 
   # Dropping the cookie hands the browser a clean anonymous identity on its
-  # next storefront request rather than the account it just left.
+  # next storefront request rather than the account it just left. Deleting
+  # only this key leaves a seller or admin signed in on the same session.
   def sign_out_customer
-    reset_session
+    session.delete(:customer_id)
     cookies.delete(COOKIE)
     @signed_in_customer = nil
     @current_customer = nil
+    Current.acting_as(nil)
   end
 
   def remember_customer(customer)

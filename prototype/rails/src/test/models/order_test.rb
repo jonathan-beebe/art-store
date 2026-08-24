@@ -49,8 +49,8 @@ class OrderTest < ActiveSupport::TestCase
 
     assert_equal 55_000, order.subtotal_cents
     assert_equal(
-      [[painting.seller_id, 45_000, 4500, 40_500], [print.seller_id, 10_000, 1000, 9000]],
-      order.fulfillments.order(:seller_id).map { |f| [f.seller_id, f.subtotal_cents, f.fee_cents, f.net_cents] }
+      [ [ painting.seller_id, 45_000, 4500, 40_500 ], [ print.seller_id, 10_000, 1000, 9000 ] ],
+      order.fulfillments.order(:seller_id).map { |f| [ f.seller_id, f.subtotal_cents, f.fee_cents, f.net_cents ] }
     )
   end
 
@@ -109,7 +109,91 @@ class OrderTest < ActiveSupport::TestCase
                         shipping: shipping_address(shipping_city: nil), at: moment("2026-08-20 09:00:00"))
 
     refute_predicate order, :persisted?
+    assert_empty order.blocked_lines
     assert_equal 1, cart.reload.items.count
+  end
+
+  test "a cart line archived after it was added is refused as off sale, not a raised error" do
+    buyer = create_verified_customer
+    art = create_listing(title: "Harbour at Dusk")
+    cart = cart_holding(buyer, art)
+    art.update!(status: "archived")
+
+    order = Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+
+    refute_predicate order, :persisted?
+    assert_equal [ { listing_id: art.id, title: "Harbour at Dusk", reason: :off_sale } ],
+      order.blocked_lines.map { |line| { listing_id: line.listing_id, title: line.title, reason: line.reason } }
+    assert_equal 1, cart.reload.items.count
+    assert_empty Order.all
+  end
+
+  test "two blocked lines are both reported at once" do
+    buyer = create_verified_customer
+    low_tide = create_listing(title: "Low tide")
+    harbour = create_listing(title: "Harbour at dusk")
+    cart = cart_holding(buyer, low_tide, harbour)
+    low_tide.update!(status: "archived")
+    harbour.update!(quantity: 0)
+
+    order = Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+
+    assert_equal(
+      [ [ low_tide.id, :off_sale ], [ harbour.id, :sold_out ] ],
+      order.blocked_lines.map { |line| [ line.listing_id, line.reason ] }
+    )
+  end
+
+  test "a listing another buyer takes between building the cart and placing it is refused, not oversold" do
+    art = create_listing(quantity: 1)
+    first_buyer = create_verified_customer
+    second_buyer = create_verified_customer
+    cart = cart_holding(second_buyer, art)
+
+    order_for(first_buyer, art)
+
+    order = Order.place(cart: cart, customer: second_buyer, email: second_buyer.email, email_verified: true,
+                        shipping: shipping_address, at: moment("2026-08-20 09:05:00"))
+
+    refute_predicate order, :persisted?
+    assert_equal [ :sold_out ], order.blocked_lines.map(&:reason)
+    assert_equal 0, art.reload.quantity
+    assert_equal 1, Order.count
+  end
+
+  test "placement locks the listings the cart holds, in id order, before reading their stock" do
+    low_tide = create_listing(title: "Low tide")
+    harbour = create_listing(title: "Harbour at dusk")
+    buyer = create_verified_customer
+    cart = cart_holding(buyer, low_tide, harbour)
+
+    locking_reads = capture_listing_locking_reads do
+      Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                  shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+    end
+
+    assert_equal 1, locking_reads.size
+  end
+
+  test "a refused placement carries the blocked lines in the log" do
+    buyer = create_verified_customer
+    art = create_listing(title: "Harbour at Dusk")
+    cart = cart_holding(buyer, art)
+    art.update!(status: "archived")
+
+    lines = captured_log_lines do
+      Order.place(cart: cart, customer: buyer, email: buyer.email, email_verified: true,
+                  shipping: shipping_address, at: moment("2026-08-20 09:00:00"))
+    end
+
+    refused = log_lines_for("order.place", lines).find { |line| line["phase"] == "refused" }
+    assert_equal "info", refused["level"]
+    assert_equal(
+      [ { "listing_id" => art.id, "title" => "Harbour at Dusk", "reason" => "off_sale" } ],
+      refused["data"]["blocked_lines"]
+    )
   end
 
   test "an approved card pays the order" do
@@ -150,7 +234,7 @@ class OrderTest < ActiveSupport::TestCase
 
     pay(order, APPROVED_CARD)
 
-    assert_equal [9000, 40_500], LedgerEntry.order(:amount_cents).pluck(:amount_cents)
+    assert_equal [ 9000, 40_500 ], LedgerEntry.order(:amount_cents).pluck(:amount_cents)
   end
 
   test "a paid order tells each seller their item sold" do
@@ -216,6 +300,48 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal 1, art.quantity
     assert_equal "for_sale", art.status
     assert_equal "insufficient_funds", order.payments.last.decline_reason
+  end
+
+  test "a retry that would reclaim stock is refused when another buyer already took it" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+
+    paid_order_for(create_verified_customer, art)
+
+    pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00")
+
+    assert_predicate order, :payment_failed?
+    assert_equal [ { listing_id: art.id, title: art.title, reason: :sold_out } ],
+      order.blocked_lines.map { |line| { listing_id: line.listing_id, title: line.title, reason: line.reason } }
+    assert_equal 1, order.payments.count
+    assert_equal 0, art.reload.quantity
+  end
+
+  test "a retry that reclaims stock locks its order's listings before reading them" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+
+    locking_reads = capture_listing_locking_reads { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
+
+    assert_equal 1, locking_reads.size
+  end
+
+  test "a stale retry carries the blocked lines in the log rather than failing" do
+    art = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, art)
+    pay(order, DECLINED_CARD)
+    paid_order_for(create_verified_customer, art)
+
+    lines = captured_log_lines { pay(order, APPROVED_CARD, at: "2026-08-20 10:05:00") }
+
+    refused = log_lines_for("order.pay", lines).find { |line| line["phase"] == "refused" }
+    assert_equal "info", refused["level"]
+    assert_equal(
+      [ { "listing_id" => art.id, "title" => art.title, "reason" => "sold_out" } ],
+      refused["data"]["blocked_lines"]
+    )
   end
 
   test "it refuses to charge an order that is already paid" do
@@ -340,8 +466,12 @@ class OrderTest < ActiveSupport::TestCase
     assert_equal "partially_shipped", Order.transition("paid", "partially_shipped")
   end
 
-  test "a delivered order goes nowhere" do
-    assert_empty Order::TRANSITIONS.fetch("delivered")
+  test "a delivered order can only be refunded" do
+    assert_equal %w[refunded], Order::TRANSITIONS.fetch("delivered")
+  end
+
+  test "a refunded order goes nowhere" do
+    assert_empty Order::TRANSITIONS.fetch("refunded")
   end
 
   test "a cancelled order goes nowhere" do
@@ -429,7 +559,190 @@ class OrderTest < ActiveSupport::TestCase
     refute order_with_status("delivered").payable_by?(true)
   end
 
+  test "an unpaid order can be cancelled and a settled one cannot" do
+    assert_predicate order_with_status("pending_verification"), :cancellable?
+    assert_predicate order_with_status("awaiting_payment"), :cancellable?
+    assert_predicate order_with_status("payment_failed"), :cancellable?
+    refute_predicate order_with_status("paid"), :cancellable?
+    refute_predicate order_with_status("cancelled"), :cancellable?
+  end
+
+  test "an order that reached paid or beyond has been charged" do
+    assert_predicate order_with_status("paid"), :charged?
+    assert_predicate order_with_status("delivered"), :charged?
+    assert_predicate order_with_status("refunded"), :charged?
+    refute_predicate order_with_status("awaiting_payment"), :charged?
+  end
+
+  test "cancelling an order hands its stock back" do
+    listing = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, listing)
+
+    assert_equal "sold", listing.reload.status
+
+    order.cancel!(by: order.customer)
+
+    assert_predicate order, :cancelled?
+    assert_equal "for_sale", listing.reload.status
+    assert_equal 1, listing.quantity
+  end
+
+  test "cancelling an order whose card was declined restores nothing twice over" do
+    listing = create_listing(quantity: 1)
+    order = order_for(create_verified_customer, listing)
+    pay(order, DECLINED_CARD)
+
+    order.cancel!(by: order.customer)
+
+    assert_predicate order, :cancelled?
+    assert_equal 1, listing.reload.quantity
+  end
+
+  test "a cancelled order cannot be paid" do
+    order = place(create_verified_customer)
+    order.cancel!(by: order.customer)
+
+    error = assert_raises(TransitionError) { pay(order, APPROVED_CARD) }
+
+    assert_equal "An order cannot move from cancelled to paid.", error.message
+  end
+
+  test "a refunded order cannot be paid" do
+    order = paid_order_for(create_verified_customer, create_listing)
+    order.fulfillments.sole.refund!(reason: "Dispute found for the buyer.", by: create_admin)
+
+    error = assert_raises(TransitionError) { pay(order.reload, APPROVED_CARD, at: "2026-08-25 10:00:00") }
+
+    assert_equal "An order cannot move from refunded to paid.", error.message
+  end
+
+  test "a paid order cannot be cancelled" do
+    order = paid_order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(TransitionError) { order.cancel!(by: order.customer) }
+
+    assert_equal "An order cannot move from paid to cancelled.", error.message
+    assert_predicate order.reload, :paid?
+  end
+
+  test "an admin cancelling tells the customer and every seller waiting to ship, with the reason" do
+    buyer = create_verified_customer
+    order = order_for(buyer, create_listing(create_seller(shop_name: "Blue Kiln Studio")))
+    shop = order.fulfillments.sole.seller
+
+    order.cancel!(by: create_admin, reason: "Buyer asked to call it off.")
+
+    assert_equal "Order cancelled", buyer.notifications.sole.subject
+    assert_match "Buyer asked to call it off.", buyer.notifications.sole.body
+    assert_equal "Order cancelled", shop.notifications.sole.subject
+    assert_match "Buyer asked to call it off.", shop.notifications.sole.body
+    assert_equal "Buyer asked to call it off.", order.reload.cancellation_reason
+  end
+
+  test "an admin cancelling with no reason is refused" do
+    order = order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) { order.cancel!(by: create_admin) }
+
+    assert_equal Order::MISSING_CANCELLATION_REASON, error.record.errors[:base].first
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "an admin cancelling with a reason over 500 characters is refused" do
+    order = order_for(create_verified_customer, create_listing)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) { order.cancel!(by: create_admin, reason: "a" * 501) }
+
+    assert_equal Order::LONG_CANCELLATION_REASON, error.record.errors[:base].first
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "a customer cancelling their own order tells nobody and needs no reason" do
+    order = place(create_verified_customer)
+
+    order.cancel!(by: order.customer)
+
+    assert_equal 0, Notification.count
+    assert_nil order.reload.cancellation_reason
+  end
+
+  test "an order every seller pulled out of reads as refunded" do
+    order = paid_order_for(
+      create_verified_customer,
+      create_listing(create_seller(shop_name: "Blue Kiln Studio")),
+      create_listing(create_seller(shop_name: "Rye Press"))
+    )
+
+    order.fulfillments.each { |fulfillment| fulfillment.decline!(reason: "Sold elsewhere.", by: fulfillment.seller) }
+
+    assert_predicate order.reload, :refunded?
+    assert_equal order.total_cents, order.refunded_cents
+  end
+
+  test "an order rolls up from the fulfillments nobody pulled out of" do
+    painter = create_seller(shop_name: "Blue Kiln Studio")
+    printer = create_seller(shop_name: "Rye Press")
+    order = paid_order_for(create_verified_customer, create_listing(painter), create_listing(printer))
+    shipped = order.fulfillments.find_by!(seller: painter)
+    declined = order.fulfillments.find_by!(seller: printer)
+
+    shipped.ship!(carrier: "USPS", tracking_number: "9400111899", at: moment("2026-08-21 11:00:00"))
+    declined.decline!(reason: "Sold elsewhere.", by: printer)
+
+    assert_predicate order.reload, :shipped?
+  end
+
+  test "the sweep cancels the orders left unverified past the cutoff" do
+    stale = guest_order(at: "2026-08-20 09:00:00")
+    fresh = guest_order(at: "2026-08-23 09:00:00")
+
+    cancelled = Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_equal [ stale.id ], cancelled.map(&:id)
+    assert_predicate stale.reload, :cancelled?
+    assert_predicate fresh.reload, :pending_verification?
+  end
+
+  test "the sweep leaves an order that is waiting on a card alone" do
+    order = order_for(create_verified_customer, create_listing)
+
+    assert_empty Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+    assert_predicate order.reload, :awaiting_payment?
+  end
+
+  test "sweeping twice cancels nothing the second time" do
+    guest_order(at: "2026-08-20 09:00:00")
+
+    Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_empty Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+  end
+
+  test "the sweep hands back the stock the order was holding" do
+    listing = create_listing(quantity: 1)
+    guest_order(at: "2026-08-20 09:00:00", listing: listing)
+
+    Order.sweep_stale(before: moment("2026-08-22 09:00:00"))
+
+    assert_equal "for_sale", listing.reload.status
+  end
+
+  test "the cutoff sits STALE_ORDER_HOURS behind the moment it is asked for" do
+    assert_equal moment("2026-08-23 09:00:00"), Order.stale_before(at: moment("2026-08-24 09:00:00"))
+  end
+
   private
+
+  # An order placed by a browser nobody has verified an address for, which is
+  # what the sweep is about.
+  def guest_order(at:, listing: create_listing)
+    guest = create_anonymous_customer
+
+    Order.place(
+      cart: cart_holding(guest, listing), customer: guest, email: "guest@example.test",
+      shipping: shipping_address, at: moment(at)
+    )
+  end
 
   def place(buyer)
     order_for(buyer, create_listing(price_cents: 45_000))
@@ -446,5 +759,24 @@ class OrderTest < ActiveSupport::TestCase
   # An order as checkout hands it over, before it is placed.
   def placeable(email: "ada@example.test", **overrides)
     Order.new(customer: create_anonymous_customer, email: email, **shipping_address(**overrides))
+  end
+
+  # The SQL statements block ran that read the listings table in ascending id
+  # order — the shape `OrderPlacement.lock_listings` issues, and not one a
+  # plain `includes(:listing)` read would produce on its own.
+  def capture_listing_locking_reads(&block)
+    reads = []
+    subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*, payload|
+      sql = payload[:sql]
+      reads << sql if sql.include?(%(FROM "listings")) && sql.include?(%(ORDER BY "listings"."id"))
+    end
+
+    begin
+      block.call
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    reads
   end
 end

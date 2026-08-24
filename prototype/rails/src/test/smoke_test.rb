@@ -4,12 +4,17 @@ require "test_helper"
 # seller's payout. Every step drives a real route and asserts both the rows it
 # wrote and the page the person is looking at.
 #
-# Two browsers share the walk: the seller holds a portal session, and the
-# customer arrives with no cookie at all, which is what gives the storefront an
-# anonymous identity to merge on verification.
+# Two browsers share most of the walk: the seller holds a portal session, and
+# the customer arrives with no cookie at all, which is what gives the
+# storefront an anonymous identity to merge on verification. A third browser,
+# at the end, holds all three actors at once — the demo the prototypes are
+# compared side by side with.
 class SmokeTest < ActionDispatch::IntegrationTest
   SELLER_EMAIL = "smoke-seller@example.test".freeze
   CUSTOMER_EMAIL = "smoke-buyer@example.test".freeze
+  REVIEWER_SELLER_EMAIL = "smoke-reviewer-seller@example.test".freeze
+  REVIEWER_CUSTOMER_EMAIL = "smoke-reviewer-customer@example.test".freeze
+  REVIEWER_ADMIN_EMAIL = "smoke-reviewer-admin@example.test".freeze
   LISTING_TITLE = "Meadow at Low Tide".freeze
   PRICE = "480.00".freeze
   PRICE_LABEL = "$480.00".freeze
@@ -34,7 +39,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     @customer_browser = open_session
 
     seller = sign_in_seller
-    listing = create_listing
+    listing = submit_new_listing
     put_up_for_sale(listing)
 
     visitor = arrive_at_the_storefront(listing)
@@ -59,9 +64,38 @@ class SmokeTest < ActionDispatch::IntegrationTest
     read_the_listing_as_a_stranger(listing)
 
     assert_equal visitor.id, order.reload.customer_id
+
+    sign_in_all_three_actors_in_one_browser
   end
 
   private
+
+  # A reviewer's browser, not either of the two above: a seller, a customer,
+  # and an admin sign in one after another, and all three stay signed in
+  # together, each reaching their own site.
+  def sign_in_all_three_actors_in_one_browser
+    browser = open_session
+    admin = create_admin(email: REVIEWER_ADMIN_EMAIL)
+
+    sign_in_on(browser, seller_send_magic_link_path, REVIEWER_SELLER_EMAIL, seller_root_path)
+    sign_in_on(browser, customer_send_magic_link_path, REVIEWER_CUSTOMER_EMAIL, shop_account_path)
+    sign_in_on(browser, admin_send_magic_link_path, admin.email, admin_root_path)
+
+    browser.get seller_root_path
+    browser.assert_response :success
+    browser.get shop_account_path
+    browser.assert_response :success
+    browser.get admin_root_path
+    browser.assert_response :success
+  end
+
+  def sign_in_on(browser, send_link_path, email, home_path)
+    browser.post send_link_path, params: { email: email }
+    browser.follow_redirect!
+    browser.get magic_link_shown_to(browser)
+
+    browser.assert_redirected_to home_path
+  end
 
   def sign_in_seller
     @seller_browser.post seller_send_magic_link_path, params: { email: SELLER_EMAIL }
@@ -78,7 +112,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
     end
   end
 
-  def create_listing
+  def submit_new_listing
     @seller_browser.post seller_listings_path, params: {
       listing: {
         title: LISTING_TITLE,
@@ -207,7 +241,7 @@ class SmokeTest < ActionDispatch::IntegrationTest
 
     @seller_browser.assert_response :success
     @seller_browser.assert_select "[data-notification] p", text: /Item sold/
-    @seller_browser.assert_select "[data-notification] p", text: /Order ##{order.id} is paid/
+    @seller_browser.assert_select "[data-notification] p", text: /Order #{order.id} is paid/
 
     @seller_browser.get seller_orders_path
     @seller_browser.assert_select "[data-group=awaiting_shipment] td", text: LISTING_TITLE

@@ -43,6 +43,34 @@ class Seller::ListingStatusesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "draft", listing.reload.status
   end
 
+  test "a listing an admin removed cannot be put back on sale" do
+    seller = signed_in_seller
+    listing = create_listing(seller, status: "draft")
+    listing.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    post seller_listing_status_path(listing), params: { status: "for_sale" }
+
+    assert_response :unprocessable_content
+    assert_select "[data-refusal]",
+      text: "This listing was removed by an admin and cannot be put back on sale."
+    assert_equal "draft", listing.reload.status
+  end
+
+  test "the seller reads why their listing was removed and gets no for-sale button" do
+    seller = signed_in_seller
+    listing = create_listing(seller, status: "draft")
+    listing.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    get seller_listings_path
+
+    assert_select "[data-listing=?] form[data-status-button=?]", listing.id, "for_sale", false
+    assert_select "[data-listing=?] form[data-status-button=?]", listing.id, "archived"
+
+    get seller_listing_path(listing)
+
+    assert_select "[data-field=removal]", text: /Reported as counterfeit\./
+  end
+
   test "changing another seller's listing is not found" do
     signed_in_seller
     rival = create_listing(other_seller, status: "draft")

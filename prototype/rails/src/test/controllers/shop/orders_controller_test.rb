@@ -8,7 +8,7 @@ module Shop
       get shop_orders_path
 
       assert_response :success
-      assert_select "a", text: "Order ##{order.id}"
+      assert_select "a", text: "Order #{order.id}"
       assert_select "p", text: "Harbour at Dusk"
       assert_select "p", text: "Paid"
     end
@@ -70,6 +70,14 @@ module Shop
       assert_response :not_found
     end
 
+    test "an order path carrying another table's id is not found" do
+      paid_order
+
+      get "/orders/#{unused_id(:lst)}"
+
+      assert_response :not_found
+    end
+
     test "an empty order list says so" do
       get shop_orders_path
 
@@ -79,7 +87,7 @@ module Shop
     private
 
     def paid_order(*listings)
-      listings = [create_listing(title: "Harbour at Dusk")] if listings.empty?
+      listings = [ create_listing(title: "Harbour at Dusk") ] if listings.empty?
       sign_in_as_customer(email: "buyer@example.com")
       listings.each { |listing| post shop_add_to_cart_path(slug: listing.slug) }
       post shop_place_order_path,

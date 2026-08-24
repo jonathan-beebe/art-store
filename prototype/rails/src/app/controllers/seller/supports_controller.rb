@@ -1,4 +1,6 @@
 class Seller::SupportsController < Seller::BaseController
+  rate_limit_guard :conversation_open, by: -> { current_participant.id }, only: :create
+
   # One thread carries a seller's whole conversation with the desk, so the
   # button reopens it rather than starting another.
   def create

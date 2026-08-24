@@ -1,0 +1,7 @@
+<tr data-payment="<%= payment.id %>">
+  <th scope="row" class="px-4 py-2 font-normal"><%= payment.processed_at.strftime("%b %-d, %Y") %></th>
+  <td class="px-4 py-2">•••• <%= payment.card_last_four %></td>
+  <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= money(payment.amount_cents) %></td>
+  <td data-cell="status" class="px-4 py-2"><%= status_label(payment.status) %></td>
+  <td data-cell="decline_reason" class="px-4 py-2"><%= status_label(payment.decline_reason) %></td>
+</tr>

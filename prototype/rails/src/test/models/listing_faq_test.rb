@@ -6,7 +6,7 @@ class ListingFaqTest < ActiveSupport::TestCase
 
     faq = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
 
-    assert_equal [faq], listing.faqs.to_a
+    assert_equal [ faq ], listing.faqs.to_a
     assert_equal "Is the frame included?", faq.question
     assert_equal "It is.", faq.answer
   end
@@ -84,7 +84,7 @@ class ListingFaqTest < ActiveSupport::TestCase
     first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
     second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
 
-    assert_equal [first, second], listing.faqs.oldest_first.to_a
+    assert_equal [ first, second ], listing.faqs.oldest_first.to_a
   end
 
   test "a draft from a thread pairs the last question with the last answer" do
@@ -117,6 +117,31 @@ class ListingFaqTest < ActiveSupport::TestCase
     conversation = Conversation.open(kind: :admin_seller, admin: create_admin, seller: create_seller)
 
     assert_nil ListingFaq.draft_from(conversation)
+  end
+
+  test "publishing the same answer twice is refused" do
+    conversation = answered_question
+    listing = conversation.subject
+    answer = conversation.latest_message_from(conversation.seller)
+    ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.", source_message: answer)
+
+    error = assert_raises(ActiveRecord::RecordInvalid) do
+      ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.", source_message: answer)
+    end
+
+    assert_equal "Validation failed: Source message is already published as an FAQ.", error.message
+    assert_equal 1, listing.faqs.count
+  end
+
+  test "two hand-written entries with no source message are both fine" do
+    listing = create_listing
+
+    first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
+    second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
+
+    assert_nil first.source_message_id
+    assert_nil second.source_message_id
+    assert_equal 2, listing.faqs.count
   end
 
   test "a listing carries its entries away with it" do

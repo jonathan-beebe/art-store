@@ -18,6 +18,10 @@ require "rails/test_unit/railtie"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# Set before the class body so the logger can be built with it: the formatter
+# has to exist before the app boots, which is earlier than autoloading.
+require_relative "../lib/json_log_formatter"
+
 module ArtStore
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -26,7 +30,17 @@ module ArtStore
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    # The formatter and the upload limits are required by hand (the latter
+    # in config/boot.rb, ahead of Bundler), so Zeitwerk leaves both alone.
+    config.autoload_lib(ignore: %w[assets tasks json_log_formatter.rb upload_limits.rb])
+
+    # One JSON object per line on stdout, in every environment, so the log
+    # reads the same wherever it is being read.
+    config.logger = ActiveSupport::Logger.new($stdout, formatter: JsonLogFormatter.new)
+
+    # The request lines are the ones every action tells for itself, so the
+    # middleware that writes a prose line of its own comes out of the stack.
+    config.middleware.delete Rails::Rack::Logger
 
     # Form fields render their own error text through
     # seller/shared/_field_error, so an invalid field keeps the markup the

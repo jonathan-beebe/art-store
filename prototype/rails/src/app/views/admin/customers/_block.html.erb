@@ -1,0 +1,8 @@
+<tr data-block="<%= block.id %>">
+  <th scope="row" class="px-4 py-2 font-normal"><%= block.reason %></th>
+  <td class="px-4 py-2"><%= block.admin.display_name %></td>
+  <td class="px-4 py-2"><%= block.created_at.strftime("%b %-d, %Y") %></td>
+  <td data-cell="lifted" class="px-4 py-2">
+    <%= block.lifted_at? ? block.lifted_at.strftime("%b %-d, %Y") : "Active" %>
+  </td>
+</tr>

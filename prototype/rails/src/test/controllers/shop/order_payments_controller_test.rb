@@ -8,7 +8,7 @@ module Shop
       get shop_order_payment_path(order)
 
       assert_response :success
-      assert_select "h1", text: "Pay for order ##{order.id}"
+      assert_select "h1", text: "Pay for order #{order.id}"
       assert_select "input[name=card_number]"
     end
 
@@ -101,12 +101,51 @@ module Shop
       assert_select "[data-decline]", text: /not valid/
     end
 
+    test "a retry answers 422 and names the line when another buyer took the last one first" do
+      listing = create_listing(title: "Harbour at Dusk", quantity: 1)
+      order = placed_order(listing)
+      post shop_pay_order_path(order), params: { card_number: UNFUNDED_CARD }
+
+      other_buyer = create_verified_customer(email: unique_email("rival"))
+      paid_order_for(other_buyer, listing)
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_response :unprocessable_content
+      assert_select "[data-blocked-line][data-reason=sold_out]", text: /Harbour at Dusk/
+      assert_equal "payment_failed", order.reload.status
+      assert_equal 1, order.payments.count
+    end
+
+    test "a blocked customer cannot pay" do
+      order = placed_order
+      get shop_order_payment_path(order)
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_redirected_to shop_order_path(order)
+      assert_equal "Your account is on hold, so you cannot add to a cart or check out. Chargeback fraud.",
+        flash[:alert]
+      assert_equal "awaiting_payment", order.reload.status
+    end
+
+    test "a lift restores paying" do
+      order = placed_order
+      get shop_order_payment_path(order)
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+      visiting_customer.lift_block!
+
+      post shop_pay_order_path(order), params: { card_number: APPROVED_CARD }
+
+      assert_equal "paid", order.reload.status
+    end
+
     private
 
     # A guest checkout followed by the magic link, which is the only way a card
     # form is reached.
-    def placed_order
-      listing = create_listing
+    def placed_order(listing = create_listing)
       post shop_add_to_cart_path(slug: listing.slug)
       post shop_place_order_path, params: { email: "guest@example.com" }.merge(shipping_params)
       order = order_of_visiting_customer

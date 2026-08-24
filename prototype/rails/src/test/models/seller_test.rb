@@ -67,7 +67,7 @@ class SellerTest < ActiveSupport::TestCase
     create_listing(shop, status: :for_sale)
     create_listing(create_seller, status: :sold, quantity: 0)
 
-    assert_equal [["draft", 0], ["for_sale", 2], ["sold", 0], ["archived", 0]], shop.listing_status_counts
+    assert_equal [ [ "draft", 0 ], [ "for_sale", 2 ], [ "sold", 0 ], [ "archived", 0 ] ], shop.listing_status_counts
   end
 
   test "a seller reads their escrow balance off their own ledger" do

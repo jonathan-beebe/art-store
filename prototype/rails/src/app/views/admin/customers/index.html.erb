@@ -1,0 +1,17 @@
+<% content_for :title, "Customers — Art Store admin" %>
+
+<h1 class="text-lg font-semibold">Customers (<%= @customers.size %>)</h1>
+
+<%= render "admin/shared/filters", url: admin_customers_path, fields: [
+      { name: :standing, label: "Standing", selected: @standing,
+        options: Customer::STANDINGS.map { |standing| [ standing.humanize, standing ] } }
+    ] %>
+
+<% if @customers.empty? %>
+  <%= render "admin/shared/empty", key: "customers", message: "No customer stands that way." %>
+<% else %>
+  <%= render "admin/shared/table",
+        caption: "Every customer the storefront knows, the browsers holding a cart included",
+        headings: [ "Customer", "Email", "Standing", "Orders", "Favorites", "Cart lines" ],
+        rows: render(partial: "admin/customers/row", collection: @customers, as: :row) %>
+<% end %>

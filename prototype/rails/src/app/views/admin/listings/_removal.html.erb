@@ -1,0 +1,9 @@
+<tr data-removal="<%= removal.id %>">
+  <th scope="row" class="px-4 py-2 font-normal"><%= status_label(removal.kind) %></th>
+  <td class="px-4 py-2"><%= removal.reason %></td>
+  <td class="px-4 py-2"><%= removal.admin.display_name %></td>
+  <td class="px-4 py-2"><%= removal.created_at.strftime("%b %-d, %Y") %></td>
+  <td data-cell="lifted" class="px-4 py-2">
+    <%= removal.lifted_at? ? removal.lifted_at.strftime("%b %-d, %Y") : "Active" %>
+  </td>
+</tr>

@@ -37,6 +37,17 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "the index orders listings by creation time, not by mint order" do
+    seller = signed_in_seller
+    minted_first = create_listing(seller, title: "Minted First", created_at: 1.day.ago)
+    minted_second = create_listing(seller, title: "Minted Second", created_at: 5.days.ago)
+
+    get seller_listings_path
+
+    assert_select "tbody tr:first-child[data-listing=?]", minted_first.id
+    assert_select "tbody tr:last-child[data-listing=?]", minted_second.id
+  end
+
   test "another seller's listings stay off the index" do
     signed_in_seller
     rival = create_listing(other_seller, title: "Rival Work")
@@ -61,7 +72,8 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
   test "the activity page totals the events of the seller's own listing" do
     seller = signed_in_seller
     listing = create_listing(seller)
-    2.times { create_listing_event(listing, "view", 1.day.ago) }
+    create_listing_event(listing, "view", 2.days.ago)
+    create_listing_event(listing, "view", 1.day.ago)
     create_listing_event(listing, "favorite", 1.day.ago)
     create_listing_event(listing, "unfavorite", 1.day.ago)
 
@@ -98,7 +110,7 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     get seller_listing_path(listing)
 
     assert_select "[data-sale]", 1
-    assert_select "[data-sale] th", text: "##{order.id}"
+    assert_select "[data-sale] th", text: "#{order.id}"
     assert_select "[data-cell=order_status]", text: "Paid"
   end
 
@@ -191,6 +203,39 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     assert_empty seller.listings
   end
 
+  test "an SVG upload is refused whatever its declared content type" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_svg) }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=listing_image]", text: "Upload an image file."
+    assert_empty seller.listings
+  end
+
+  test "an upload over the size cap is refused, and the form is re-rendered with what the seller typed" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: {
+      listing: submitted_fields(title: "Harbour at Dusk", image: oversized_upload)
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=listing_image]", text: "Upload an image under 5 MB."
+    assert_select "input[name=?][value=?]", "listing[title]", "Harbour at Dusk"
+    assert_empty seller.listings
+  end
+
+  test "a real image declared as something else is accepted on its bytes" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: {
+      listing: submitted_fields(image: upload("text/plain", "\x89PNG\r\n\x1a\n", "harbour.txt"))
+    }
+
+    assert_predicate seller.listings.sole.image, :attached?
+  end
+
   test "the edit form is filled with the listing as it stands" do
     seller = signed_in_seller
     listing = create_listing(seller, title: "Harbour at Dusk", price_cents: 45_000, quantity: 3)
@@ -201,6 +246,23 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     assert_select "input[name=?][value=?]", "listing[title]", "Harbour at Dusk"
     assert_select "input[name=?][value=?]", "listing[price]", "450.00"
     assert_select "input[name=?][value=?]", "listing[quantity]", "3"
+  end
+
+  test "a listing path carrying another table's id is not found" do
+    signed_in_seller
+
+    get "/seller/listings/#{unused_id(:ord)}"
+
+    assert_response :not_found
+  end
+
+  test "a listing path carrying a ulid with no prefix is not found" do
+    seller = signed_in_seller
+    listing = create_listing(seller)
+
+    get "/seller/listings/#{listing.id.delete_prefix('lst_')}"
+
+    assert_response :not_found
   end
 
   test "editing another seller's listing is not found" do
@@ -261,10 +323,19 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     upload("image/png", "\x89PNG\r\n\x1a\n", "harbour.png")
   end
 
-  # Active Storage reads the type out of the bytes, so a refused upload carries
+  # `ImageFormat` reads the type out of the bytes, so a refused upload carries
   # a real header rather than a claim in the request.
   def uploaded_pdf
     upload("application/pdf", "%PDF-1.4\n", "harbour.pdf")
+  end
+
+  def uploaded_svg
+    upload("image/svg+xml", '<svg xmlns="http://www.w3.org/2000/svg"></svg>', "harbour.svg")
+  end
+
+  def oversized_upload
+    png = "\x89PNG\r\n\x1a\n"
+    upload("image/png", png + ("\x00" * (Listing::MAX_IMAGE_UPLOAD_BYTES - png.bytesize + 1)), "harbour.png")
   end
 
   def upload(content_type, bytes, filename)

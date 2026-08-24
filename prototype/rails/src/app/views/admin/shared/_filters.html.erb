@@ -1,0 +1,13 @@
+<%# Every filter is optional: the "all" option submits an empty value, which
+    the page reads as no filter at all. %>
+<%= form_with url: url, method: :get, class: "mt-4 flex flex-wrap items-end gap-3" do |form| %>
+  <% fields.each do |field| %>
+    <div>
+      <%= form.label field[:name], field[:label], class: "block text-slate-400" %>
+      <%= form.select field[:name], options_for_select(field[:options], field[:selected]), {},
+            class: "mt-1 rounded border border-slate-600 bg-slate-900 px-2 py-1" %>
+    </div>
+  <% end %>
+
+  <%= form.submit "Filter", class: "rounded bg-slate-100 px-3 py-1 font-medium text-slate-900" %>
+<% end %>

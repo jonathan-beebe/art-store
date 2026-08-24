@@ -32,7 +32,7 @@ class Admin::SellerConversationsControllerTest < ActionDispatch::IntegrationTest
   test "a seller id nothing was written for opens no thread" do
     sign_in_as_admin
 
-    post admin_seller_conversation_path(seller_id: 0)
+    post admin_seller_conversation_path(seller_id: unused_id(:sel))
 
     assert_response :not_found
     assert_empty Conversation.all

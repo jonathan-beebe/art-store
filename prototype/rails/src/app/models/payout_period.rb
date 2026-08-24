@@ -14,10 +14,6 @@ PayoutPeriod = Data.define(:first_day, :last_day) do
     Time.utc(last_day.year, last_day.month, last_day.day, 23, 59, 59)
   end
 
-  def covers?(moment)
-    (first_day..last_day).cover?(moment.to_date)
-  end
-
   def label
     "#{first_day} to #{last_day}"
   end

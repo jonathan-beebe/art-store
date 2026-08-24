@@ -6,6 +6,10 @@ module MessagingSite
   extend ActiveSupport::Concern
   include ThreadPage
 
+  included do
+    rate_limit_guard :message_post, by: -> { current_participant.id }, only: :create
+  end
+
   # Both participants and the subject are read for every row, and the unread
   # counts arrive as one hash, so the page costs the same whether it lists one
   # thread or twenty.
@@ -31,6 +35,11 @@ module MessagingSite
     present_thread(refusal.record)
 
     render thread_template, status: :unprocessable_content
+  rescue TransitionError => refusal
+    present_thread(Message.new)
+    flash.now[:alert] = refusal.message
+
+    render thread_template, status: :unprocessable_content
   end
 
   private
@@ -43,5 +52,16 @@ module MessagingSite
 
   def message_params
     params.expect(message: %i[body])
+  end
+
+  # A tripped `message_post` comes back on the same thread page a refused
+  # reply does, the sentence standing in for a field error since the trip is
+  # not about what the reply said.
+  def render_too_many_requests(trip)
+    @conversation = thread(params[:conversation_id])
+    present_thread(Message.new)
+    flash.now[:alert] = rate_limit_message(trip)
+
+    render thread_template, status: :too_many_requests
   end
 end

@@ -55,5 +55,39 @@ module Shop
 
       assert_response :not_found
     end
+
+    test "a listing an admin removed cannot reach a cart" do
+      listing = create_listing(status: "for_sale")
+      listing.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+
+      post shop_add_to_cart_path(slug: listing.slug)
+
+      assert_response :not_found
+    end
+
+    test "a blocked customer cannot add to a cart" do
+      listing = create_listing
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_add_to_cart_path(slug: listing.slug)
+
+      assert_redirected_to shop_listing_path(slug: listing.slug)
+      assert_equal "Your account is on hold, so you cannot add to a cart or check out. Chargeback fraud.",
+        flash[:alert]
+      assert_empty visiting_customer.current_cart.items
+    end
+
+    test "a lift restores cart add" do
+      listing = create_listing
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+      visiting_customer.lift_block!
+
+      post shop_add_to_cart_path(slug: listing.slug)
+
+      assert_redirected_to shop_cart_path
+      assert_equal 1, visiting_customer.current_cart.items.sole.quantity
+    end
   end
 end

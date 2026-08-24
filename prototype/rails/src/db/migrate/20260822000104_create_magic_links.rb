@@ -1,6 +1,6 @@
 class CreateMagicLinks < ActiveRecord::Migration[8.1]
   def change
-    create_table :magic_links do |t|
+    create_table :magic_links, id: :string do |t|
       t.string :token_digest, null: false
       t.string :email, null: false
       t.string :actor_type, null: false

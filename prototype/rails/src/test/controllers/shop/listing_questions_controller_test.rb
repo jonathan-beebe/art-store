@@ -73,6 +73,18 @@ module Shop
       assert_response :not_found
     end
 
+    test "a blocked customer cannot ask a question" do
+      listing = create_listing
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      post shop_listing_questions_path(slug: listing.slug), params: { message: { body: "Is the frame included?" } }
+
+      assert_redirected_to shop_listing_path(slug: listing.slug)
+      assert_equal "This account is blocked and cannot send messages.", flash[:alert]
+      assert_empty Conversation.all
+    end
+
     test "verifying an address already in use carries the thread over" do
       buyer = create_verified_customer(email: "buyer@example.com")
       listing = create_listing

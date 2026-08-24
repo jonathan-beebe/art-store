@@ -1,0 +1,12 @@
+<% content_for :title, "Sellers — Art Store admin" %>
+
+<h1 class="text-lg font-semibold">Sellers (<%= @sellers.size %>)</h1>
+
+<% if @sellers.empty? %>
+  <%= render "admin/shared/empty", key: "sellers", message: "Nobody has opened a shop yet." %>
+<% else %>
+  <%= render "admin/shared/table",
+        caption: "Every seller with their catalogue, their sales, and their escrow balance",
+        headings: [ "Shop", "Email", "Listings", "Sales", "Held", "Available", "Paid out" ],
+        rows: render(partial: "admin/sellers/row", collection: @sellers, as: :row) %>
+<% end %>

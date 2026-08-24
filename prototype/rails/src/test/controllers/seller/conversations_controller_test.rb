@@ -5,7 +5,7 @@ class Seller::ConversationsControllerTest < ActionDispatch::IntegrationTest
     get seller_conversations_path
     assert_redirected_to seller_login_path
 
-    get seller_conversation_path(id: 1)
+    get seller_conversation_path(id: unused_id(:cnv))
     assert_redirected_to seller_login_path
   end
 
@@ -161,7 +161,7 @@ class Seller::ConversationsControllerTest < ActionDispatch::IntegrationTest
   test "an id no thread carries is not found" do
     signed_in_seller
 
-    get seller_conversation_path(id: "not-a-number")
+    get seller_conversation_path(id: unused_id(:cnv))
 
     assert_response :not_found
   end

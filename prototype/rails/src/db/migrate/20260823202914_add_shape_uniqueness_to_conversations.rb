@@ -5,8 +5,8 @@ class AddShapeUniquenessToConversations < ActiveRecord::Migration[8.1]
     # the index reads every column through COALESCE and a second row of the
     # same shape collides whichever kind it is.
     add_index :conversations,
-      "kind, COALESCE(seller_id, 0), COALESCE(customer_id, 0), COALESCE(admin_id, 0), " \
-      "COALESCE(subject_type, ''), COALESCE(subject_id, 0)",
+      "kind, COALESCE(seller_id, ''), COALESCE(customer_id, ''), COALESCE(admin_id, ''), " \
+      "COALESCE(subject_type, ''), COALESCE(subject_id, '')",
       unique: true, name: "index_conversations_on_shape"
   end
 end

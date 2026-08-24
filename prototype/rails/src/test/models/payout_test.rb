@@ -74,16 +74,39 @@ class PayoutTest < ActiveSupport::TestCase
     end
   end
 
+  test "a balance a refund carried negative pays nothing and stays where it is" do
+    shop = create_seller
+    fulfillment = deliver_a_sale(shop)
+    run_weekly("2026-08-24 09:00:00")
+    fulfillment.refund!(reason: "Dispute found for the buyer.", by: create_admin, at: moment("2026-08-25 09:00:00"))
+
+    assert_empty run_weekly("2026-08-31 09:00:00")
+    assert_equal 1, Payout.count
+    assert_equal(-40_500, shop.escrow_balance.available.cents)
+  end
+
+  test "a negative balance nets against the next week's sale" do
+    shop = create_seller
+    fulfillment = deliver_a_sale(shop)
+    run_weekly("2026-08-24 09:00:00")
+    fulfillment.refund!(reason: "Dispute found for the buyer.", by: create_admin, at: moment("2026-08-25 09:00:00"))
+    deliver_a_sale(shop, price_cents: 100_000, shipped_at: "2026-08-26 11:00:00", delivered_at: "2026-08-27 11:00:00")
+
+    payouts = run_weekly("2026-08-31 09:00:00")
+
+    assert_equal [ 49_500 ], payouts.map(&:amount_cents)
+  end
+
   private
 
   def run_weekly(as_of)
     Payout.run_weekly(as_of: moment(as_of))
   end
 
-  def deliver_a_sale(shop, price_cents: 45_000, delivered_at: "2026-08-21 11:00:00")
+  def deliver_a_sale(shop, price_cents: 45_000, shipped_at: "2026-08-20 11:00:00", delivered_at: "2026-08-21 11:00:00")
     order = paid_order_for(create_verified_customer, create_listing(shop, price_cents: price_cents))
     fulfillment = order.fulfillments.sole
-    fulfillment.ship!(carrier: "USPS", tracking_number: "9400111899", at: moment("2026-08-20 11:00:00"))
+    fulfillment.ship!(carrier: "USPS", tracking_number: "9400111899", at: moment(shipped_at))
     fulfillment.deliver!(at: moment(delivered_at))
   end
 end

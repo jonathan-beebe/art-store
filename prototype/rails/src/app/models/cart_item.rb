@@ -1,4 +1,6 @@
 class CartItem < ApplicationRecord
+  prefixed_id :cti
+
   belongs_to :cart
   belongs_to :listing
 

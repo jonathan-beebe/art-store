@@ -4,10 +4,10 @@ class SeedsTest < ActiveSupport::TestCase
   setup { Rails.application.load_seed }
 
   test "it seeds two verified admins with Jonathan on duty" do
-    admins = Admin.order(:id)
+    admins = Admin.order(:created_at, :id)
 
-    assert_equal ["jonathan-beebe@outlook.com", "annaschmunk@pm.me"], admins.map(&:email)
-    assert_equal ["Jonathan Beebe", "Anna Schmunk"], admins.map(&:name)
+    assert_equal [ "jonathan-beebe@outlook.com", "annaschmunk@pm.me" ], admins.map(&:email)
+    assert_equal [ "Jonathan Beebe", "Anna Schmunk" ], admins.map(&:name)
     assert_equal "jonathan-beebe@outlook.com", Admin.on_duty.email
     assert admins.all? { |admin| admin.email_verified_at.present? }
   end
@@ -91,6 +91,15 @@ class SeedsTest < ActiveSupport::TestCase
   test "it notifies sellers and the customer" do
     assert_equal 14, Notification.count
     assert_equal 9, Notification.where(subject: "New message").count
+  end
+
+  test "every seeded row carries its own table's id, in the order it was written" do
+    { Listing => "lst", Order => "ord", Message => "msg" }.each do |model, prefix|
+      ids = model.order(:created_at, :id).pluck(:id)
+
+      assert ids.all? { |id| id.start_with?("#{prefix}_") }, "a #{model.name.downcase} id is not a #{prefix} id"
+      assert_equal ids.sort, ids, "#{model.name.downcase} ids do not sort in the order they were written"
+    end
   end
 
   test "it does not duplicate data on a second run" do

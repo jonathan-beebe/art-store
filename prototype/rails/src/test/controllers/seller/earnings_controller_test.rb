@@ -67,13 +67,12 @@ class Seller::EarningsControllerTest < ActionDispatch::IntegrationTest
     assert_select "[data-stat=available]", text: "$0.00"
   end
 
-  test "the page offers the debug payout control" do
+  test "the page offers no control that runs a payout" do
     signed_in_seller
 
     get seller_earnings_path
 
-    assert_select "form[action=?][method=post]", seller_earnings_payout_path
-    assert_select "form[action=?] button[type=submit]", seller_earnings_payout_path, text: "Run weekly payout now"
+    assert_select "button", text: /Run weekly payout/, count: 0
   end
 
   private

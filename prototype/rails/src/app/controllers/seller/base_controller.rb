@@ -7,9 +7,13 @@ class Seller::BaseController < ApplicationController
 
   before_action :require_seller!
 
-  helper_method :unread_notification_count, :own_items
+  helper_method :unread_notification_count
 
   private
+
+  def logged_actor
+    current_seller
+  end
 
   def unread_notification_count
     @unread_notification_count ||= current_seller.notifications.unread.count
@@ -18,10 +22,5 @@ class Seller::BaseController < ApplicationController
   # Which side of a conversation the portal's visitor sits on.
   def current_participant
     current_seller
-  end
-
-  # An order may span sellers. These are the lines of it this seller ships.
-  def own_items(order)
-    order.items.select { |item| item.seller_id == current_seller.id }
   end
 end

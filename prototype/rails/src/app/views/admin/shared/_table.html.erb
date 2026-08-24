@@ -1,0 +1,13 @@
+<div class="mt-2 overflow-x-auto rounded border border-slate-700 bg-slate-800">
+  <table class="w-full text-left">
+    <caption class="sr-only"><%= caption %></caption>
+    <thead class="border-b border-slate-700 bg-slate-900">
+      <tr>
+        <% headings.each do |heading| %>
+          <th scope="col" class="px-4 py-2 font-semibold"><%= heading %></th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-700"><%= rows %></tbody>
+  </table>
+</div>

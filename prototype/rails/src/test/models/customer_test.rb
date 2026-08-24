@@ -30,7 +30,7 @@ class CustomerTest < ActiveSupport::TestCase
     verified = create_verified_customer
     create_anonymous_customer
 
-    assert_equal [verified], Customer.verified.to_a
+    assert_equal [ verified ], Customer.verified.to_a
   end
 
   test "a visitor with no cookie and no account gets a new verified customer" do
@@ -111,15 +111,15 @@ class CustomerTest < ActiveSupport::TestCase
   test "a visitor who has given no address is displayed by their id" do
     anonymous = create_anonymous_customer
 
-    assert_equal "Visitor ##{anonymous.id}", anonymous.display_name
+    assert_equal "Visitor #{anonymous.id}", anonymous.display_name
   end
 
   test "absorb moves the history of the anonymous customer" do
     anonymous = create_anonymous_customer
     verified = create_verified_customer
-    listing = create_listing
+    listing = create_listing(quantity: 2)
     favorite = Favorite.create!(customer: anonymous, listing: listing)
-    cart = Cart.create!(customer: anonymous)
+    cart = cart_holding(anonymous, listing)
     order = order_for(anonymous, listing)
     event = listing.events.create!(
       customer: anonymous, event_type: "view", occurred_at: Time.current
@@ -133,7 +133,11 @@ class CustomerTest < ActiveSupport::TestCase
     verified.absorb(anonymous)
 
     assert_equal verified, favorite.reload.customer
-    assert_equal verified, cart.reload.customer
+    assert_equal verified, verified.current_cart.customer
+    assert_equal listing, verified.current_cart.items.sole.listing
+    refute Cart.exists?(cart.id)
+    assert_equal 0, anonymous.carts.count
+    assert_equal 1, verified.carts.count
     assert_equal verified, order.reload.customer
     assert_equal verified, event.reload.customer
     assert_equal verified, notification.reload.recipient
@@ -158,7 +162,7 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal standing, Conversation.involving(verified.reload).sole
     assert_equal standing, Conversation.involving(seller).sole
     assert_equal(
-      ["Is the frame included?", "It is.", "And does it ship rolled?"],
+      [ "Is the frame included?", "It is.", "And does it ship rolled?" ],
       standing.messages.oldest_first.pluck(:body)
     )
     assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
@@ -259,7 +263,7 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal :added, shopper.toggle_favorite(listing, at: moment("2026-08-20 09:00:00"))
     assert shopper.favorited?(listing)
-    assert_equal ["favorite"], listing.events.pluck(:event_type)
+    assert_equal [ "favorite" ], listing.events.pluck(:event_type)
   end
 
   test "toggling twice drops the favorite and records the event" do
@@ -289,6 +293,73 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal :added, other.toggle_favorite(listing, at: moment("2026-08-20 09:01:00"))
     assert shopper.favorited?(listing)
+  end
+
+  test "a good-standing customer can shop" do
+    assert_predicate create_verified_customer, :can_shop?
+    refute_predicate create_verified_customer, :blocked?
+  end
+
+  test "blocking a customer names the reason and who blocked them" do
+    admin = create_admin
+    customer = create_verified_customer
+
+    block = customer.block!(reason: "Chargeback fraud.", by: admin)
+
+    assert_equal "Chargeback fraud.", block.reason
+    assert_equal admin, block.admin
+    assert_predicate customer, :blocked?
+    refute_predicate customer, :can_shop?
+    assert_equal "Chargeback fraud.", customer.blocked_reason
+  end
+
+  test "a customer already blocked is not blocked a second time" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+    error = assert_raises(TransitionError) { customer.block!(reason: "Again.", by: create_admin) }
+
+    assert_equal "customer #{customer.id} is already blocked", error.message
+    assert_equal 1, customer.blocks.count
+  end
+
+  test "lifting a block hands the cart and checkout back" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+    lifted = customer.lift_block!
+
+    refute_nil lifted.lifted_at
+    assert_predicate customer, :can_shop?
+    refute_predicate customer, :blocked?
+    assert_nil customer.blocked_reason
+  end
+
+  test "a customer nobody blocked cannot be lifted" do
+    customer = create_verified_customer
+
+    error = assert_raises(TransitionError) { customer.lift_block! }
+
+    assert_equal "customer #{customer.id} is not blocked", error.message
+  end
+
+  test "a lifted block leaves the customer blockable again, on a new reason" do
+    customer = create_verified_customer
+    customer.block!(reason: "Chargeback fraud.", by: create_admin)
+    customer.lift_block!
+
+    customer.block!(reason: "It happened again.", by: create_admin)
+
+    assert_equal "It happened again.", customer.blocked_reason
+  end
+
+  test "Customer.blocked carries only the customers a block stands over" do
+    blocked = create_verified_customer
+    blocked.block!(reason: "Chargeback fraud.", by: create_admin)
+    untouched = create_verified_customer
+
+    assert_equal [ blocked ], Customer.blocked.to_a
+    assert_not_includes Customer.blocked, untouched
   end
 
   test "a customer counts the unread messages across their own threads" do

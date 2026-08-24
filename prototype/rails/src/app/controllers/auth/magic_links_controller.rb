@@ -1,5 +1,7 @@
 module Auth
   class MagicLinksController < BaseController
+    rate_limit_guard :magic_link_consume, by: -> { rate_limit_client_ip }, only: :show
+
     EXPIRED = "That sign-in link has expired. Ask for a new one.".freeze
     CONSUMED = "That sign-in link has already been used. Ask for a new one.".freeze
     UNKNOWN_LINK = "That sign-in link is not valid. Ask for a new one.".freeze
@@ -14,17 +16,29 @@ module Auth
     }.freeze
 
     def show
-      link = MagicLink.find_by_token(params[:token])
-      return refuse("customer", UNKNOWN_LINK) if link.nil?
-      return refuse(link.actor_type, refusal_for(link)) unless link.usable?
+      Story.tell("magic_link.consume", "following a sign-in link") do |story|
+        link = MagicLink.find_by_token(params[:token])
+        next turn_away(story, "customer", UNKNOWN_LINK) if link.nil?
+        next turn_away(story, link.actor_type, refusal_for(link), link) unless link.usable?
+        next turn_away(story, link.actor_type, CONSUMED, link) unless link.consume
 
-      link.consume!
-      return refuse(link.actor_type, UNKNOWN_ADMIN) if sign_in(link).nil?
+        next turn_away(story, link.actor_type, UNKNOWN_ADMIN, link) if sign_in(link).nil?
 
-      redirect_to url_from(link.redirect_to) || path_for(HOME_PATHS, link.actor_type)
+        story.did("signed in from the link", actor_type: link.actor_type, magic_link_id: link.id)
+
+        redirect_to url_from(link.redirect_to) || path_for(HOME_PATHS, link.actor_type)
+      end
     end
 
     private
+
+    # A link that cannot sign anyone in leaves the visitor at the sign-in form
+    # with the sentence saying why.
+    def turn_away(story, actor_type, message, link = nil)
+      story.refused(message, actor_type: actor_type, magic_link_id: link&.id)
+
+      refuse(actor_type, message)
+    end
 
     # Returns the actor now in the session. Sellers and customers sign up by
     # following their first link; admins are seeded, so an address no admin row
@@ -51,6 +65,14 @@ module Auth
 
     def path_for(paths, actor_type)
       public_send(paths.fetch(actor_type))
+    end
+
+    # This route is shared by all three sign-in flows, so a trip here answers
+    # before there is a token to say which site the visitor was headed to.
+    # The storefront layout is the nearest thing this endpoint has to a home.
+    def render_too_many_requests(trip)
+      render "application/rate_limit_exceeded", layout: "shop", status: :too_many_requests,
+        locals: { message: rate_limit_message(trip) }
     end
   end
 end

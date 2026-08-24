@@ -131,10 +131,10 @@ class MagicLinkTest < ActiveSupport::TestCase
     assert_predicate link, :expired?
   end
 
-  test "consume! marks the link used so it cannot sign anyone in again" do
+  test "consume marks the link used so it cannot sign anyone in again" do
     _token, link = create_magic_link
 
-    link.consume!
+    assert link.consume
 
     assert_predicate link, :consumed?
     refute_predicate link, :usable?
@@ -143,8 +143,50 @@ class MagicLinkTest < ActiveSupport::TestCase
   test "a consumed link stays consumed once it also passes its expiry" do
     _token, link = create_magic_link(expires_at: 1.minute.ago)
 
-    link.consume!
+    link.consume
 
     assert_predicate link, :consumed?
+  end
+
+  test "consume updates the row so a second load also reads it as spent" do
+    _token, link = create_magic_link
+
+    link.consume
+
+    assert_predicate MagicLink.find(link.id), :consumed?
+  end
+
+  # Two requests racing to verify the same link each load their own copy of
+  # the row before either writes — that is the shape of the race this guards
+  # against, not two threads sharing one Ruby object. `consume` on the first
+  # copy commits the row as spent; `consume` on the second still sees a
+  # freshly loaded, unconsumed `consumed_at` in memory, but its own `UPDATE
+  # ... WHERE consumed_at IS NULL` matches nothing once it runs, because the
+  # first copy's write already landed. Only one of the two returns true.
+  test "consume refuses a second copy of the link loaded before the first was spent" do
+    _token, link = create_magic_link
+    racer_a = MagicLink.find(link.id)
+    racer_b = MagicLink.find(link.id)
+
+    first = racer_a.consume
+    second = racer_b.consume
+
+    assert first
+    refute second
+    assert_predicate MagicLink.find(link.id), :consumed?
+  end
+
+  test "consume is a single conditional UPDATE, not a read followed by a write" do
+    _token, link = create_magic_link
+    statements = []
+    subscriber = ->(_name, _started, _finished, _id, payload) {
+      statements << payload[:sql] unless %w[SCHEMA TRANSACTION].include?(payload[:name])
+    }
+
+    ActiveSupport::Notifications.subscribed(subscriber, "sql.active_record") { link.consume }
+
+    assert_equal 1, statements.size
+    assert_match(/\AUPDATE/i, statements.first)
+    assert_match(/consumed_at.*IS NULL/mi, statements.first)
   end
 end

@@ -5,15 +5,54 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 15
-- IMPRV: 3
-- MAINT: 2
+- FEAT: 22
+- IMPRV: 4
+- MAINT: 4
 - A11Y: 1
 - RFCTR: 16
-- BUG: 4
+- BUG: 6
 
 ## Log
 
+- 2026-08-24:12:30:00 — MAINT-003 — done: docs and README refreshed against the code, route walk with no 5xx, hook demonstrated refusing a failing commit, Node-lane alignment fixes; 1262 runs / 4506 assertions / 100% lines
+- 2026-08-24:10:05:00 — MAINT-003 — started
+- 2026-08-24:10:04:00 — IMPRV-003 — done: CustomerMergePlan folds the cart and de-dupes favorites move-or-drop, per-actor session keys so three actors share one browser; 1246 runs / 4387 assertions / 100% lines
+- 2026-08-24:08:50:00 — IMPRV-003 — started
+- 2026-08-24:08:49:00 — BUG-005 — done: image uploads capped and byte-sniffed, magic-link consume is one conditional UPDATE checked by row count; 1211 runs / 4287 assertions / 100% lines
+- 2026-08-24:07:20:00 — BUG-005 — started
+- 2026-08-24:07:19:00 — FEAT-021 — done: listing removals, customer blocks, payout run moved to admin, seller payout button deleted; 1182 runs / 4214 assertions / 100% lines
+- 2026-08-24:05:50:00 — FEAT-021 — started
+- 2026-08-24:05:49:00 — FEAT-020 — done: dashboard tallies with zero rows, accounting, ledger browser, stats, page_view_counts roll-up, listing view collapse; 1102 runs / 3924 assertions / 100% lines
+- 2026-08-24:04:10:00 — FEAT-020 — started
+- 2026-08-24:04:09:00 — FEAT-018 — done: seven configurable rate limits over Solid Cache, boot refusal on a malformed value, 429 pages, CSP and security headers; 1020 runs / 3679 assertions / 100% lines
+- 2026-08-24:02:40:00 — FEAT-018 — started
+- 2026-08-24:02:39:00 — FEAT-017 — done: cancel, stale sweep, seller decline, admin refund, refunds table, refunded ledger entry folding in all three timings; 973 runs / 3357 assertions / 100% lines
+- 2026-08-24:01:15:00 — FEAT-017 — started
+- 2026-08-24:01:14:00 — FEAT-019 — done: ten admin directory pages with every §5 filter, folded balances, pinned query counts, docs/admin.md; 882 runs / 2956 assertions / 100% lines
+- 2026-08-24:00:20:00 — FEAT-019 — started
+- 2026-08-24:00:19:00 — BUG-004 — done: OrderPlacement plan refuses a stale cart with every blocked line, cart gating, pay-page refusal, id-ordered row locks; 809 runs / 2689 assertions / 100% lines
+- 2026-08-23:23:30:00 — BUG-004 — started
+- 2026-08-23:23:29:00 — FEAT-016 — done: JSON log formatter, Current attributes, Story will/did/refused/failed, sid cookie, request id, 28 events; 780 runs / 2608 assertions / 100% lines
+- 2026-08-23:22:20:00 — FEAT-016 — started
+- 2026-08-23:22:19:00 — FEAT-015 — done: prefixed ULID primary keys on all 20 domain tables, route prefix constraints, seeds on a frozen clock; 772 runs / 2428 assertions / 100% lines
+- 2026-08-23:22:10:00 — FEAT-015 — implemented: prefixed ULID primary keys on every domain table, route constraints per prefix, schema and seeds rebuilt; 768 runs / 2417 assertions / 100% lines
+- 2026-08-23:21:36:00 — FEAT-015 — started
+- 2026-08-23:21:35:00 — MAINT-002 — done: make vocabulary, RuboCop omakase gate, rails.yml CI, db:test:prepare before every run; 748 runs / 2361 assertions / 100% lines
+- 2026-08-23:21:35:00 — MAINT-001 — done: closed with MAINT-002 (helper rename, covers? deleted, data-model FK lines, RuboCop config)
+- 2026-08-23:21:35:00 — BUG-003 — done: closed with MAINT-002 (db:test:prepare wired into make test/smoke/coverage)
+- 2026-08-23:21:05:00 — MAINT-002 — started (absorbs BUG-003, MAINT-001)
+- 2026-08-23:20:38:04 — MAINT-003 — defined: Final validation and docs refresh for the alignment branch
+- 2026-08-23:20:38:04 — IMPRV-003 — defined: Merge folds the cart and de-duplicates favorites, and three actors share one browser
+- 2026-08-23:20:38:04 — BUG-005 — defined: Uploads trust the browser's content type with no size cap, and a magic link can be consumed twice
+- 2026-08-23:20:38:04 — FEAT-021 — defined: Admin moderation of listings and customers, and the payout run moves to admin
+- 2026-08-23:20:38:04 — FEAT-020 — defined: Admin dashboard, accounting, ledger browser, and site stats
+- 2026-08-23:20:38:04 — FEAT-019 — defined: Admin directory: sellers, customers, listings, orders, fulfillments
+- 2026-08-23:20:38:04 — FEAT-018 — defined: Configurable rate limits and security headers
+- 2026-08-23:20:38:04 — FEAT-017 — defined: Order lifecycle back half: cancel, stale sweep, seller decline, admin refund
+- 2026-08-23:20:38:04 — BUG-004 — defined: Checkout 500s on a stale cart line instead of listing what is wrong
+- 2026-08-23:20:38:04 — FEAT-016 — defined: Structured JSON logs that tell the story
+- 2026-08-23:20:38:04 — FEAT-015 — defined: Prefixed ULID identifiers on every table
+- 2026-08-23:20:38:04 — MAINT-002 — defined: Common make vocabulary, RuboCop gate, CI, and a test database that resets
 - 2026-08-23:18:56:07 — IMPRV-002 — defined: Two operators produce twin support threads and the support button reaches only one
 - 2026-08-23:18:55:39 — BUG-003 — defined: A killed test run poisons the test database and the next run fails without naming why
 

@@ -4,6 +4,11 @@ class CreateActiveStorageTables < ActiveRecord::Migration[7.0]
     # Use Active Record's configured type for primary and foreign keys
     primary_key_type, foreign_key_type = primary_and_foreign_key_types
 
+    # An attachment points at a domain row, whose primary key is a prefixed
+    # ULID, so `record_id` is text while the blob keys Active Storage owns
+    # stay as the framework made them.
+    record_type = :string
+
     create_table :active_storage_blobs, id: primary_key_type do |t|
       t.string   :key,          null: false
       t.string   :filename,     null: false
@@ -24,7 +29,7 @@ class CreateActiveStorageTables < ActiveRecord::Migration[7.0]
 
     create_table :active_storage_attachments, id: primary_key_type do |t|
       t.string     :name,     null: false
-      t.references :record,   null: false, polymorphic: true, index: false, type: foreign_key_type
+      t.references :record,   null: false, polymorphic: true, index: false, type: record_type
       t.references :blob,     null: false, type: foreign_key_type
 
       if connection.supports_datetime_with_precision?

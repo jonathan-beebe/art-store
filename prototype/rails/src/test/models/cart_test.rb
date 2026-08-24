@@ -8,7 +8,7 @@ class CartTest < ActiveSupport::TestCase
     item = cart.add(art, quantity: 2, at: moment("2026-08-20 08:00:00"))
 
     assert_equal 2, item.quantity
-    assert_equal [art], cart.reload.items.map(&:listing)
+    assert_equal [ art ], cart.reload.items.map(&:listing)
   end
 
   test "adding the same listing again adds to the line" do
@@ -57,7 +57,7 @@ class CartTest < ActiveSupport::TestCase
 
     cart.remove(dropped)
 
-    assert_equal [kept], cart.reload.items.map(&:listing)
+    assert_equal [ kept ], cart.reload.items.map(&:listing)
   end
 
   test "removing a listing the cart never held changes nothing" do
@@ -103,7 +103,43 @@ class CartTest < ActiveSupport::TestCase
     cart.add(create_listing(second))
     cart.add(create_listing(first))
 
-    assert_equal [first.id, second.id], cart.subtotals_by_seller.keys
+    assert_equal [ first.id, second.id ], cart.subtotals_by_seller.keys
+  end
+
+  test "a line removed after it was added is left out of the subtotal" do
+    shop = create_seller
+    cart = cart_for(create_verified_customer)
+    kept = create_listing(shop, price_cents: 1_000)
+    removed = create_listing(shop, price_cents: 45_000)
+    cart.add(kept)
+    cart.add(removed)
+
+    removed.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    assert_equal 1_000, cart.subtotal.cents
+  end
+
+  test "a line removed after it was added is left out of the per-seller subtotal" do
+    shop = create_seller
+    cart = cart_for(create_verified_customer)
+    kept = create_listing(shop, price_cents: 1_000)
+    removed = create_listing(shop, price_cents: 45_000)
+    cart.add(kept)
+    cart.add(removed)
+
+    removed.remove!(kind: :temporary, reason: "Reported as counterfeit.", by: create_admin)
+
+    assert_equal({ shop.id => 1_000 }, cart.subtotals_by_seller.transform_values(&:cents))
+  end
+
+  test "a sold-out line is left out of the subtotal" do
+    cart = cart_for(create_verified_customer)
+    listing = create_listing(quantity: 1, price_cents: 45_000)
+    cart.add(listing)
+
+    listing.update!(quantity: 0, status: "sold")
+
+    assert_equal 0, cart.subtotal.cents
   end
 
   test "an empty cart totals nothing" do

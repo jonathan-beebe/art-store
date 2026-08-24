@@ -1,0 +1,10 @@
+<tr data-payout="<%= payout.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to payout.seller.display_name, admin_seller_path(payout.seller), class: "underline" %>
+  </th>
+  <td class="px-4 py-2">
+    <%= payout.period_start.strftime("%b %-d, %Y") %> to <%= payout.period_end.strftime("%b %-d, %Y") %>
+  </td>
+  <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= payout.amount.format %></td>
+  <td class="px-4 py-2"><%= payout.paid_at.strftime("%b %-d, %Y") %></td>
+</tr>

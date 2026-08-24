@@ -1,4 +1,6 @@
 class Admin < ApplicationRecord
+  prefixed_id :adm
+
   include EmailAddress
   include Messaging
 
@@ -11,9 +13,9 @@ class Admin < ApplicationRecord
   end
 
   # The operator a support thread opens against. Rows are seeded and nothing
-  # assigns them, so the desk is the first admin by id.
+  # assigns them, so the desk is the operator seeded first.
   def self.on_duty
-    order(:id).first
+    order(:created_at, :id).first
   end
 
   # An operator is seeded with a name; the address stands in while they have

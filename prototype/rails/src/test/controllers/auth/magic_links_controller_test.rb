@@ -71,6 +71,48 @@ module Auth
       assert_equal "That sign-in link has already been used. Ask for a new one.", flash[:alert]
     end
 
+    test "a second, sequential visit to a used link is refused and logged" do
+      post seller_send_magic_link_path, params: { email: "artist@example.com" }
+      url = flash[:debug_magic_link]
+      get url
+      winner = MagicLink.sole
+
+      lines = captured_log_lines { get url }
+
+      ending = log_lines_for("magic_link.consume", lines).last
+      assert_equal "refused", ending["phase"]
+      assert_equal "info", ending["level"]
+      assert_equal "seller", ending["data"]["actor_type"]
+      assert_equal winner.id, ending["data"]["magic_link_id"]
+    end
+
+    test "an expired, a consumed, and an unknown token all log the same refusal shape at info" do
+      expired_token, = create_magic_link(expires_at: 1.minute.ago)
+      consumed_token, consumed_link = create_magic_link
+      consumed_link.consume
+      unknown_token = "0" * 64
+
+      [ expired_token, consumed_token, unknown_token ].each do |token|
+        lines = captured_log_lines { get verify_magic_link_path(token) }
+
+        ending = log_lines_for("magic_link.consume", lines).last
+        assert_equal "refused", ending["phase"]
+        assert_equal "info", ending["level"]
+      end
+    end
+
+    test "the winning consume logs did, carrying the actor type and the link's own id" do
+      token, link = create_magic_link
+
+      lines = captured_log_lines { get verify_magic_link_path(token) }
+
+      ending = log_lines_for("magic_link.consume", lines).last
+      assert_equal "did", ending["phase"]
+      assert_equal "seller", ending["data"]["actor_type"]
+      assert_equal link.id, ending["data"]["magic_link_id"]
+      assert_equal Seller.sole.id, session[:seller_id]
+    end
+
     test "a link past its expiry signs nobody in" do
       token, = create_magic_link(expires_at: 16.minutes.ago)
 
@@ -83,7 +125,7 @@ module Auth
 
     test "a link used before it expired reads as used rather than expired" do
       token, link = create_magic_link(expires_at: 16.minutes.ago)
-      link.consume!
+      link.consume
 
       get verify_magic_link_path(token)
 

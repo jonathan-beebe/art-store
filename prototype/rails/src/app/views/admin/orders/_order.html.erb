@@ -1,0 +1,15 @@
+<tr data-order="<%= order.id %>">
+  <th scope="row" class="px-4 py-2 font-normal">
+    <%= link_to order.id, admin_order_path(order), class: "font-medium underline" %>
+  </th>
+  <td class="px-4 py-2">
+    <%= link_to order.customer.display_name, admin_customer_path(order.customer), class: "underline" %>
+  </td>
+  <td data-cell="status" class="px-4 py-2"><%= status_label(order.status) %></td>
+  <td data-cell="items" class="px-4 py-2 text-right tabular-nums"><%= order.items.sum(&:quantity) %></td>
+  <td data-cell="total" class="px-4 py-2 text-right tabular-nums"><%= money(order.total_cents) %></td>
+  <td data-cell="fulfillments" class="px-4 py-2">
+    <%= order.fulfillments.map { |fulfillment| status_label(fulfillment.status) }.join(", ") %>
+  </td>
+  <td class="px-4 py-2"><%= order.placed_at.strftime("%b %-d, %Y") %></td>
+</tr>

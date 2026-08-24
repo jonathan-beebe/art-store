@@ -3,6 +3,7 @@ module Shop
     SOLD_OUT = "That listing is no longer for sale.".freeze
 
     before_action :set_listing
+    before_action -> { refuse_blocked_customer(to: shop_listing_path(slug: params[:slug])) }, only: :create
 
     def create
       return redirect_to shop_listing_path(slug: @listing.slug), alert: SOLD_OUT unless @listing.purchasable?
@@ -27,7 +28,7 @@ module Shop
     # The form offers a number field only for listings with more than one in
     # stock, so a request with nothing in it asks for one.
     def requested_quantity
-      [params[:quantity].to_i, 1].max
+      [ params[:quantity].to_i, 1 ].max
     end
   end
 end

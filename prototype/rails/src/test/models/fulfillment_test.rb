@@ -2,7 +2,7 @@ require "test_helper"
 
 class FulfillmentTest < ActiveSupport::TestCase
   test "a fulfillment starts out awaiting shipment" do
-    assert_equal %w[awaiting_shipment shipped delivered], Fulfillment.statuses.keys
+    assert_equal %w[awaiting_shipment shipped delivered declined refunded], Fulfillment.statuses.keys
     assert_predicate awaiting_shipment, :awaiting_shipment?
   end
 
@@ -21,8 +21,13 @@ class FulfillmentTest < ActiveSupport::TestCase
     assert Fulfillment.new(status: :shipped).can_transition_to?(:delivered)
   end
 
-  test "a delivered fulfillment has nowhere left to go" do
-    assert_empty Fulfillment::TRANSITIONS.fetch("delivered")
+  test "a delivered fulfillment can only be refunded" do
+    assert_equal %w[refunded], Fulfillment::TRANSITIONS.fetch("delivered")
+  end
+
+  test "a declined or refunded fulfillment has nowhere left to go" do
+    assert_empty Fulfillment::TRANSITIONS.fetch("declined")
+    assert_empty Fulfillment::TRANSITIONS.fetch("refunded")
   end
 
   test "a fulfillment that has shipped or arrived has departed" do
@@ -83,7 +88,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment) }
 
-    assert_equal ["A fulfillment cannot move from shipped to shipped."], refusal.record.errors.full_messages
+    assert_equal [ "A fulfillment cannot move from shipped to shipped." ], refusal.record.errors.full_messages
   end
 
   test "it refuses a shipment with no carrier" do
@@ -91,7 +96,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment, carrier: " ") }
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
     assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
@@ -100,7 +105,7 @@ class FulfillmentTest < ActiveSupport::TestCase
 
     refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment, tracking_number: "") }
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
     assert_predicate fulfillment.reload, :awaiting_shipment?
   end
 
@@ -109,7 +114,7 @@ class FulfillmentTest < ActiveSupport::TestCase
       awaiting_shipment.ship!(carrier: nil, tracking_number: nil)
     end
 
-    assert_equal ["A shipment needs a carrier and a tracking number."], refusal.record.errors.full_messages
+    assert_equal [ "A shipment needs a carrier and a tracking number." ], refusal.record.errors.full_messages
   end
 
   test "delivery records when the order arrived" do
@@ -150,7 +155,7 @@ class FulfillmentTest < ActiveSupport::TestCase
   test "it refuses to deliver a fulfillment that has not shipped" do
     refusal = assert_raises(ActiveRecord::RecordInvalid) { deliver(awaiting_shipment) }
 
-    assert_equal ["A fulfillment cannot move from awaiting_shipment to delivered."],
+    assert_equal [ "A fulfillment cannot move from awaiting_shipment to delivered." ],
                  refusal.record.errors.full_messages
   end
 
@@ -183,7 +188,242 @@ class FulfillmentTest < ActiveSupport::TestCase
     assert_equal 0, Fulfillment.fee_for(Money.zero).cents
   end
 
+  test "declining stops the fulfillment and sends the subtotal back" do
+    fulfillment = decline(awaiting_shipment)
+
+    assert_predicate fulfillment, :declined?
+    assert_predicate fulfillment, :reversed?
+
+    refund = fulfillment.refunds.sole
+    assert_equal 45_000, refund.amount_cents
+    assert_equal "seller", refund.issued_by_type
+    assert_equal fulfillment.seller_id, refund.issued_by_id
+    assert_equal "The kiln cracked it.", fulfillment.refund_reason
+  end
+
+  test "declining puts the stock back on the storefront" do
+    listing = create_listing(create_seller, quantity: 1)
+    fulfillment = paid_order_for(create_verified_customer, listing).fulfillments.sole
+
+    assert_equal "sold", listing.reload.status
+
+    decline(fulfillment)
+
+    assert_equal "for_sale", listing.reload.status
+    assert_equal 1, listing.quantity
+  end
+
+  test "declining restores only the quantities that fulfillment claimed" do
+    painter = create_seller
+    printer = create_seller
+    painting = create_listing(painter, quantity: 3)
+    print = create_listing(printer, quantity: 3)
+    order = paid_order_for(create_verified_customer, painting, print)
+
+    decline(order.fulfillments.find_by!(seller: painter))
+
+    assert_equal 3, painting.reload.quantity
+    assert_equal 2, print.reload.quantity
+  end
+
+  test "declining takes the net back off the seller's balance" do
+    shop = create_seller
+
+    decline(awaiting_shipment(shop))
+
+    balance = shop.escrow_balance
+    assert_equal 0, balance.held.cents
+    assert_equal 0, balance.available.cents
+  end
+
+  test "declining tells the customer what happened and why" do
+    buyer = create_verified_customer
+    fulfillment = paid_order_for(buyer, create_listing).fulfillments.sole
+
+    decline(fulfillment)
+
+    notification = buyer.notifications.where(subject: "Order refunded").sole
+    assert_includes notification.body, "The kiln cracked it."
+    assert_includes notification.body, "$450.00"
+  end
+
+  test "it refuses to decline a fulfillment that has shipped" do
+    fulfillment = ship(awaiting_shipment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { decline(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from shipped to declined."
+    assert_equal 0, Refund.count
+  end
+
+  test "it refuses to ship a fulfillment that was declined" do
+    fulfillment = decline(awaiting_shipment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to shipped."
+  end
+
+  test "shipping locks the row before judging it, so a stale in-memory status cannot ship over a decline" do
+    fulfillment = awaiting_shipment
+    stale = Fulfillment.find(fulfillment.id)
+    decline(fulfillment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { ship(stale) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to shipped."
+    assert_predicate fulfillment.reload, :declined?
+  end
+
+  test "delivery locks the row before judging it, so a stale in-memory status cannot deliver over a refund" do
+    fulfillment = ship(awaiting_shipment)
+    stale = Fulfillment.find(fulfillment.id)
+    refund(fulfillment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { deliver(stale) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from refunded to delivered."
+    assert_predicate fulfillment.reload, :refunded?
+  end
+
+  test "it refuses to decline the same fulfillment twice" do
+    fulfillment = decline(awaiting_shipment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { decline(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to declined."
+    assert_equal 1, Refund.count
+  end
+
+  test "it refuses to decline a fulfillment nobody has paid for" do
+    fulfillment = order_for(create_verified_customer, create_listing).fulfillments.sole
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { decline(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, Fulfillment::UNCHARGED
+    assert_predicate fulfillment.reload, :awaiting_shipment?
+  end
+
+  test "refunding sends the subtotal back without moving the stock" do
+    listing = create_listing(create_seller, quantity: 1)
+    fulfillment = paid_order_for(create_verified_customer, listing).fulfillments.sole
+
+    refund(fulfillment)
+
+    assert_predicate fulfillment, :refunded?
+    assert_equal 45_000, fulfillment.refunds.sole.amount_cents
+    assert_equal "admin", fulfillment.refunds.sole.issued_by_type
+    assert_equal "sold", listing.reload.status
+    assert_equal 0, listing.quantity
+  end
+
+  test "the platform can refund a fulfillment at any point the customer holds money in" do
+    assert_predicate refund(awaiting_shipment), :refunded?
+    assert_predicate refund(ship(awaiting_shipment)), :refunded?
+    assert_predicate refund(deliver(ship(awaiting_shipment))), :refunded?
+  end
+
+  test "refunding a delivered fulfillment takes back what delivery released" do
+    shop = create_seller
+
+    refund(deliver(ship(awaiting_shipment(shop))))
+
+    balance = shop.escrow_balance
+    assert_equal 0, balance.held.cents
+    assert_equal 0, balance.available.cents
+  end
+
+  test "refunding tells both the customer and the seller" do
+    shop = create_seller
+    buyer = create_verified_customer
+    fulfillment = paid_order_for(buyer, create_listing(shop)).fulfillments.sole
+
+    refund(fulfillment)
+
+    assert_equal "Order refunded", buyer.notifications.where(subject: "Order refunded").sole.subject
+    assert_includes shop.notifications.where(subject: "Sale refunded").sole.body, "Dispute found for the buyer."
+  end
+
+  test "it refuses to refund the same fulfillment twice" do
+    fulfillment = refund(awaiting_shipment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { refund(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from refunded to refunded."
+    assert_equal 1, Refund.count
+  end
+
+  test "it refuses to refund a declined fulfillment" do
+    fulfillment = decline(awaiting_shipment)
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { refund(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, "A fulfillment cannot move from declined to refunded."
+  end
+
+  test "it refuses to refund a fulfillment nobody has paid for" do
+    fulfillment = order_for(create_verified_customer, create_listing).fulfillments.sole
+
+    refusal = assert_raises(ActiveRecord::RecordInvalid) { refund(fulfillment) }
+
+    assert_includes refusal.record.errors.full_messages, Fulfillment::UNCHARGED
+    assert_equal 0, Refund.count
+  end
+
+  test "a refund with no reason leaves the fulfillment where it was" do
+    fulfillment = awaiting_shipment
+
+    assert_raises(ActiveRecord::RecordInvalid) { fulfillment.refund!(reason: " ", by: create_admin) }
+
+    assert_predicate fulfillment.reload, :awaiting_shipment?
+    assert_equal 0, Refund.count
+    assert_equal 0, LedgerEntry.refunded.count
+  end
+
+  test "only a paid fulfillment that has not been reversed can be declined or refunded" do
+    unpaid = order_for(create_verified_customer, create_listing).fulfillments.sole
+    paid = awaiting_shipment
+
+    refute_predicate unpaid, :declinable?
+    refute_predicate unpaid, :refundable?
+    assert_predicate paid, :declinable?
+    assert_predicate paid, :refundable?
+    refute_predicate ship(paid), :declinable?
+    assert_predicate paid, :refundable?
+  end
+
+  test "a fulfillment nothing was reversed on carries no refund reason" do
+    assert_nil awaiting_shipment.refund_reason
+  end
+
+  test "the platform forgoes its fee on a fulfillment whose money went back" do
+    decline(awaiting_shipment)
+    ship(awaiting_shipment)
+
+    assert_equal 4_500, Fulfillment.fees_earned_cents
+    assert_equal 4_500, Fulfillment.fees_refunded_cents
+  end
+
+  test "a fee nobody paid for is neither earned nor refunded" do
+    order_for(create_verified_customer, create_listing)
+
+    assert_equal 0, Fulfillment.fees_earned_cents
+    assert_equal 0, Fulfillment.fees_refunded_cents
+  end
+
   private
+
+  def decline(fulfillment)
+    fulfillment.decline!(
+      reason: "The kiln cracked it.", by: fulfillment.seller, at: moment("2026-08-21 09:00:00")
+    )
+  end
+
+  def refund(fulfillment)
+    fulfillment.refund!(
+      reason: "Dispute found for the buyer.", by: create_admin, at: moment("2026-08-23 09:00:00")
+    )
+  end
 
   def awaiting_shipment(shop = create_seller)
     paid_order_for(create_verified_customer, create_listing(shop)).fulfillments.sole

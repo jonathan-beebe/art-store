@@ -1,6 +1,6 @@
 <% content_for :title, "#{@seller.display_name} — Art Store admin" %>
 
-<p><%= link_to "Sellers", admin_root_path(anchor: "sellers"), class: "text-slate-400 underline" %></p>
+<p><%= link_to "Sellers", admin_sellers_path, class: "text-slate-400 underline" %></p>
 
 <div class="mt-2 flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold"><%= @seller.display_name %></h1>
@@ -21,6 +21,60 @@
 
   <div>
     <dt class="text-slate-400">Listings</dt>
-    <dd data-field="listings" class="mt-1 tabular-nums"><%= @listing_count %></dd>
+    <dd data-field="listings" class="mt-1 tabular-nums"><%= @listings.size %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Held in escrow</dt>
+    <dd data-field="held" class="mt-1 tabular-nums"><%= @balance.held.format %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Available</dt>
+    <dd data-field="available" class="mt-1 tabular-nums"><%= @balance.available.format %></dd>
+  </div>
+
+  <div>
+    <dt class="text-slate-400">Paid out</dt>
+    <dd data-field="paid_out" class="mt-1 tabular-nums"><%= @balance.paid_out.format %></dd>
   </div>
 </dl>
+
+<section aria-labelledby="listings-heading" class="mt-6">
+  <h2 id="listings-heading" class="font-semibold text-slate-300">Listings</h2>
+
+  <% if @listings.empty? %>
+    <%= render "admin/shared/empty", key: "seller_listings", message: "This seller has listed nothing." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Everything this seller has listed, newest first",
+          headings: [ "Listing", "Seller", "Status", "Price", "Qty", "Storefront" ],
+          rows: render(partial: "admin/listings/listing", collection: @listings) %>
+  <% end %>
+</section>
+
+<section aria-labelledby="fulfillments-heading" class="mt-6">
+  <h2 id="fulfillments-heading" class="font-semibold text-slate-300">Fulfillments</h2>
+
+  <% if @fulfillments.empty? %>
+    <%= render "admin/shared/empty", key: "seller_fulfillments", message: "This seller has sold nothing." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Every sale this seller ships, newest first",
+          headings: [ "Fulfillment", "Order", "Seller", "Status", "Subtotal", "Fee", "Net" ],
+          rows: render(partial: "admin/fulfillments/fulfillment", collection: @fulfillments) %>
+  <% end %>
+</section>
+
+<section aria-labelledby="payouts-heading" class="mt-6">
+  <h2 id="payouts-heading" class="font-semibold text-slate-300">Payouts</h2>
+
+  <% if @payouts.empty? %>
+    <%= render "admin/shared/empty", key: "seller_payouts", message: "This seller has been paid nothing yet." %>
+  <% else %>
+    <%= render "admin/shared/table",
+          caption: "Weekly payouts, newest first",
+          headings: [ "Period", "Amount", "Paid" ],
+          rows: render(partial: "admin/sellers/payout", collection: @payouts, as: :payout) %>
+  <% end %>
+</section>

@@ -1,4 +1,6 @@
 class Conversation < ApplicationRecord
+  prefixed_id :cnv
+
   # Where an actor of one type sits in a conversation, which site they read one
   # on, and where they read it.
   Side = Data.define(:column, :site, :inbox_path)
@@ -27,7 +29,7 @@ class Conversation < ApplicationRecord
     "admin_customer" => Kind.new(sides: %i[admin customer], subject_type: nil, topic: ->(_) { SUPPORT_DESK }),
     "fulfillment" => Kind.new(
       sides: %i[seller customer], subject_type: "Fulfillment",
-      topic: ->(fulfillment) { "order ##{fulfillment.order_id}" }
+      topic: ->(fulfillment) { "order #{fulfillment.order_id}" }
     ),
     "listing_question" => Kind.new(
       sides: %i[seller customer], subject_type: "Listing",
@@ -41,7 +43,7 @@ class Conversation < ApplicationRecord
   belongs_to :subject, polymorphic: true, optional: true
   has_many :messages, dependent: :destroy
 
-  enum :kind, KINDS.keys.to_h { |kind| [kind.to_sym, kind] }, validate: true
+  enum :kind, KINDS.keys.to_h { |kind| [ kind.to_sym, kind ] }, validate: true
 
   validate :sides_match_the_kind
   validate :subject_matches_the_kind
@@ -56,7 +58,15 @@ class Conversation < ApplicationRecord
     named = KINDS.fetch(kind.to_s).sides.index_with { |side| participants.fetch(side) }
     shape = { kind: kind, subject: subject, **named }
 
-    where(shape).order(:id).first || create!(**shape, last_message_at: at)
+    Story.tell("conversation.open", "opening the #{kind} thread", kind: kind.to_s) do |story|
+      standing = where(shape).order(:created_at, :id).first
+      conversation = standing || create!(**shape, last_message_at: at)
+
+      story.did(standing ? "the #{kind} thread was already open" : "opened the #{kind} thread",
+        kind: kind.to_s, conversation_id: conversation.id, opened: standing.nil?)
+
+      conversation
+    end
   end
 
   # Which side of a conversation this actor sits on, whatever kind it is.
@@ -110,26 +120,37 @@ class Conversation < ApplicationRecord
   # takes this one's messages onto theirs and this row goes, so one thread per
   # kind, participants and subject survives the merge.
   def move_to(customer)
-    standing = self.class.where(shape.merge("customer_id" => customer.id)).order(:id).first
+    standing = self.class.where(shape.merge("customer_id" => customer.id)).order(:created_at, :id).first
     return update!(customer: customer) if standing.nil?
 
     transaction do
       messages.update_all(conversation_id: standing.id)
-      standing.update!(last_message_at: [standing.last_message_at, last_message_at].max)
+      standing.update!(last_message_at: [ standing.last_message_at, last_message_at ].max)
       destroy!
     end
   end
 
   # Appends one message, moves the thread to the top of both inboxes, and tells
-  # the other side.
+  # the other side. A blocked customer reads and joins threads same as ever;
+  # this is the one seam every entry point posts through, so the refusal lives
+  # here rather than in each route that can start a reply.
   def post!(sender, body, at: Time.current)
     raise ArgumentError, "a conversation takes messages from its participants only" unless participant?(sender)
 
-    transaction do
-      message = messages.create!(sender: sender, body: body)
-      update!(last_message_at: at)
-      recipient = counterpart_of(sender)
-      Notification.new_message(message, url: thread_path_for(recipient))
+    Story.tell("message.post", "posting a message to the thread",
+      conversation_id: id, kind: kind) do |story|
+      raise TransitionError, "This account is blocked and cannot send messages." if
+        sender.is_a?(Customer) && !sender.can_shop?
+
+      message = transaction do
+        posted = messages.create!(sender: sender, body: body)
+        update!(last_message_at: at)
+        Notification.new_message(posted, url: thread_path_for(counterpart_of(sender)))
+
+        posted
+      end
+
+      story.did("posted the message", conversation_id: id, message_id: message.id, kind: kind)
 
       message
     end
@@ -151,7 +172,7 @@ class Conversation < ApplicationRecord
   end
 
   def unread_count_for(actor)
-    self.class.unread_counts_for(actor, [self])[id]
+    self.class.unread_counts_for(actor, [ self ])[id]
   end
 
   # Opening a thread reads what the other side sent. Returns how many messages

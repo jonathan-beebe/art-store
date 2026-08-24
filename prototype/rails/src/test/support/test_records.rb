@@ -49,7 +49,7 @@ module TestRecords
       **attributes
     )
 
-    [token, link]
+    [ token, link ]
   end
 
   def shipping_address(**overrides)
@@ -87,6 +87,11 @@ module TestRecords
 
   def moment(text)
     Time.zone.parse(text)
+  end
+
+  # An id of the shape a table mints, for a row that was never written.
+  def unused_id(prefix)
+    PrefixedUlid.generate(prefix)
   end
 
   def unique_email(role)

@@ -26,9 +26,9 @@ the image builds and gems compile; later runs take seconds.
 
 Then open:
 
-- Storefront — <http://localhost:3000/>
-- Seller portal — <http://localhost:3000/seller>
-- Admin site — <http://localhost:3000/admin>
+- Storefront — <http://localhost:3300/>
+- Seller portal — <http://localhost:3300/seller>
+- Admin site — <http://localhost:3300/admin>
 
 `make down` stops the stack. `make logs` follows the server output.
 
@@ -64,22 +64,31 @@ so an address with no `admins` row is refused at `/admin/login`.
 
 ## Commands
 
-Every target is a thin `docker compose` wrapper, so either form works.
+Every target runs through `docker compose`; nothing here touches the host.
+`sweep` and `outbox` print a line and exit — see below.
 
-| Make | Docker Compose |
+| Make | Runs |
 | --- | --- |
 | `make up` | `docker compose up -d` |
 | `make down` | `docker compose down` |
 | `make build` | `docker compose build` |
-| `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
+| `make logs` | `docker compose logs -f` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app bin/rails test` |
-| `make smoke` | `docker compose run --rm app bin/rails test test/smoke_test.rb` |
-| `make coverage` | `docker compose run --rm -e COVERAGE_MIN=80 app bin/rails test` |
+| `make test` | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`) |
+| `make smoke` | `bin/rails db:test:prepare`, then `bin/rails test test/smoke_test.rb` |
+| `make coverage` | `bin/rails db:test:prepare`, then `bin/rails test`, writing the HTML report with no gate |
+| `make lint` | `bin/rubocop`, read-only |
+| `make lint-fix` | `bin/rubocop -a`, the auto-fixable subset |
+| `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
+| `make check` | `lint` → `assets` → `test`; the commit gate and the CI job |
 | `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
 | `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
+| `make seed` | `docker compose run --rm app bin/rails db:seed` |
+| `make routes` | `docker compose run --rm app bin/rails routes` |
+| `make payouts` | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date |
+| `make sweep` | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep AS_OF=2026-08-24` measures the cutoff from that moment instead of now |
+| `make outbox` | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job |
 | `make console` | `docker compose run --rm app bin/rails console` |
-| `make logs` | `docker compose logs -f` |
 
 Run any other command the same way:
 
@@ -103,6 +112,12 @@ make test                                                                    # w
 docker compose run --rm app bin/rails test test/models/money_test.rb         # one file
 docker compose run --rm app bin/rails test test/models/money_test.rb -n /percent/   # one test
 ```
+
+`make test` runs `bin/rails db:test:prepare` first, so a run killed mid-way
+never leaves rows behind for the next run to trip over: `test/seeds_test.rb`
+and `test/smoke_test.rb` are the only tests that write outside the
+transactional-fixture rollback, and the prepare step resets the schema ahead
+of every run regardless of what a prior run left in `storage/test.sqlite3`.
 
 Every test requires `test_helper` and subclasses `ActiveSupport::TestCase`,
 `ActionDispatch::IntegrationTest` or `ActionView::TestCase`. A value object
@@ -138,8 +153,23 @@ make coverage
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
-overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 750 runs and 100% line coverage.
+overall line minimum and fails the run below it; `make test` sets it to 100 and
+is the coverage gate, so `make check` fails under 100% line coverage. `make
+coverage` runs the same suite without the gate, for reading the report. The
+suite stands at 1247 runs, 4388 assertions, and 100% line coverage
+(2218/2218).
+
+## Linting
+
+```sh
+make lint       # rubocop, read-only
+make lint-fix   # rubocop -a, the auto-fixable subset
+```
+
+RuboCop runs `rubocop-rails-omakase` (`src/.rubocop.yml`), the Rails 8 default
+styling — omakase enables cops department by department rather than starting
+from the community defaults, and it does not enable `Layout/LineLength`, so
+this repository does not either. `make check` runs `lint` before `test`.
 
 ## Database
 
@@ -152,6 +182,12 @@ make fresh      # drop, create, migrate, re-seed
 ```
 
 Deleting `src/storage/development.sqlite3` and running `make up` rebuilds it.
+
+Migrations in this prototype are sometimes rewritten in place rather than
+followed by a new one (see `docs/alignment.md` §1) — a rewritten migration
+keeps its original version stamp, so `make migrate` on a database that already
+ran it applies nothing and the schema change never lands. `make fresh` is the
+way to pick up a rewritten migration on an existing development database.
 
 ## Styling
 
@@ -194,7 +230,8 @@ prototype/rails/
   docker/entrypoint.sh bundle, database, Tailwind, then the container command
   Makefile             host-side wrappers over docker compose
   docs/                architecture, feature docs (messaging, identity,
-                       orders, escrow, data model, ontology), and review.md
+                       orders, escrow, data model, ontology, admin), and
+                       review.md
   work/                tickets and journal
   src/                 the Rails application
     app/models/        the records, the value objects, and their behaviour
@@ -227,7 +264,7 @@ address creates a seller or a customer account; an admin address with no
 
 `MagicLink.issue(email:, actor_type:)` writes the row and returns the
 plaintext token beside it — only the SHA256 digest is stored — and the verify
-side is `MagicLink.find_by_token`, `#usable?` and `#consume!`. A followed link
+side is `MagicLink.find_by_token`, `#usable?` and `#consume`. A followed link
 reaches `Seller.claim(email)`, `Customer.claim(email, current:)` or
 `Admin.claim(email)`.
 
@@ -266,6 +303,33 @@ The card is fake and nothing is stored but the last four digits.
 Spaces and dashes are ignored. A decline leaves the order on a retry form with
 the stock returned to the listing.
 
+## Rate limits
+
+Seven write routes are rate limited, each configurable from the environment
+(`<count>/<window>`, `off` to disable, unset for the default); see [`docs/
+architecture.md`](docs/architecture.md#rate-limits) for the full table and
+the trip behaviour.
+
+```sh
+RATE_LIMIT_MAGIC_LINK_REQUEST=5/15m
+RATE_LIMIT_MAGIC_LINK_CONSUME=20/15m
+RATE_LIMIT_MESSAGE_POST=30/1h
+RATE_LIMIT_CONVERSATION_OPEN=10/1h
+RATE_LIMIT_CHECKOUT=10/1h
+RATE_LIMIT_PAYMENT_ATTEMPT=5/15m
+RATE_LIMIT_LISTING_WRITE=60/1h
+TRUSTED_PROXIES=                # unset: client ip is the socket's own peer
+```
+
+## Stale orders
+
+`make sweep` cancels every guest order still `pending_verification` past the
+cutoff, restoring the stock it held.
+
+```sh
+STALE_ORDER_HOURS=24
+```
+
 ## Known gaps
 
 The full list, with the next steps for each, is in
@@ -276,11 +340,13 @@ The full list, with the next steps for each, is in
   `ActionMailer::Base.deliveries`; production needs the SMTP settings that are
   commented out in `config/environments/production.rb`.
   `Notification#deliver_by_email` is still empty.
-- "Run weekly payout now" on the earnings page pays every seller, not the
-  signed-in one. It is a debug control; `payouts:run` is the real entry point.
-- A merge can leave a customer holding two carts, and the storefront shops with
-  whichever holds more items.
-- There is no order cancellation route.
 - There is no libvips in the image, so Active Storage serves original blobs and
   a variant would raise. Seeded listings carry a generated SVG rather than a
   photograph.
+- No site renders its own 400 or 404 — an unknown id or an unrecognised admin
+  filter value falls through to Rails' static `public/400.html` /
+  `public/404.html`, with no site's own nav or layout.
+- A customer merge deliberately leaves an active block behind on the
+  anonymous row it absorbs, so a blocked visitor can evade the block by
+  verifying into a different, unblocked account. Shared with the Node and PHP
+  prototypes; a product decision, not a Rails bug.

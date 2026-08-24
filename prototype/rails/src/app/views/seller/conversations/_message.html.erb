@@ -4,4 +4,7 @@
     <%= message.created_at.strftime("%b %-d, %Y %-l:%M%P") %>
   </p>
   <p class="mt-1 whitespace-pre-line"><%= message.body %></p>
+  <% if message.listing_faq %>
+    <p data-faq-published class="mt-1 text-emerald-700">Published as an FAQ on the listing.</p>
+  <% end %>
 </li>

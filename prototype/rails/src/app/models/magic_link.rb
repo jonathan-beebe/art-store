@@ -1,6 +1,8 @@
 require "digest"
 
 class MagicLink < ApplicationRecord
+  prefixed_id :mlk
+
   include EmailAddress
 
   TOKEN_BYTES = 32
@@ -23,7 +25,7 @@ class MagicLink < ApplicationRecord
     )
     link.save
 
-    [link, token]
+    [ link, token ]
   end
 
   def self.find_by_token(token)
@@ -50,7 +52,14 @@ class MagicLink < ApplicationRecord
     !consumed? && !expired?(now)
   end
 
-  def consume!(now = Time.current)
-    update!(consumed_at: now)
+  # Spends the link, reporting whether this call is the one that spent it.
+  # The `consumed_at IS NULL` clause guards the update itself rather than a
+  # read taken beforehand, so two calls racing to consume the same link
+  # cannot both win: one `UPDATE` matches the row, the other matches none.
+  def consume(now = Time.current)
+    spent = self.class.where(id: id, consumed_at: nil).update_all(consumed_at: now) == 1
+    self.consumed_at = now if spent
+
+    spent
   end
 end

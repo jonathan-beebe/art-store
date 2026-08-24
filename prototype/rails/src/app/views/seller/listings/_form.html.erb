@@ -57,11 +57,12 @@
 
     <div class="mt-4">
       <%= form.label :image, "Image", class: "block font-medium text-neutral-700" %>
-      <%= form.file_field :image, accept: "image/*",
+      <%= form.file_field :image, accept: "image/png,image/jpeg,image/gif,image/webp",
             "aria-describedby": "listing_image-hint#{" listing_image-error" if listing.errors[:image].any?}",
             class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
       <p id="listing_image-hint" class="mt-1 text-neutral-600">
-        An image file up to a few megabytes. Artwork drawn from the title stands in until you upload one.
+        PNG, JPEG, GIF, or WebP, up to <%= Listing::MAX_IMAGE_UPLOAD_BYTES / 1.megabyte %> MB.
+        Artwork drawn from the title stands in until you upload one.
       </p>
       <%= render "seller/shared/field_error", field: "listing_image", message: listing.errors[:image].first %>
     </div>

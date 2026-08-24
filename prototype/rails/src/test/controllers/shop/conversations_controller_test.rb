@@ -99,7 +99,7 @@ module Shop
     test "an id no thread carries is not found" do
       visiting_customer_after_sign_in
 
-      get shop_conversation_path(id: "not-a-number")
+      get shop_conversation_path(id: unused_id(:cnv))
 
       assert_response :not_found
     end

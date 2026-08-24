@@ -38,6 +38,28 @@ module Shop
       assert_select "h2", text: "Already Sold", count: 0
     end
 
+    test "a blocked customer can still browse" do
+      create_listing(title: "Harbour at Dusk")
+      sign_in_as_customer
+      visiting_customer.block!(reason: "Chargeback fraud.", by: create_admin)
+
+      get root_path
+
+      assert_response :success
+      assert_select "h2", text: "Harbour at Dusk"
+    end
+
+    test "it leaves out a listing an admin removed" do
+      removed = create_listing(title: "Under Review")
+      removed.remove!(kind: :temporary, reason: "Reported.", by: create_admin)
+      create_listing(title: "Harbour at Dusk")
+
+      get root_path
+
+      assert_select "h2", text: "Harbour at Dusk"
+      assert_select "h2", text: "Under Review", count: 0
+    end
+
     test "it searches titles, descriptions, and media" do
       create_listing(title: "Harbour at Dusk", description: "Boats", medium: "Oil on canvas")
       create_listing(title: "Kiln Fired", description: "A dusk-lit vessel", medium: "Ceramic")
@@ -94,6 +116,17 @@ module Shop
 
       assert_select "ul li", count: 2
       assert_select "a[rel=prev]", text: "Previous"
+    end
+
+    test "the feed orders listings by creation time, not by mint order" do
+      seller = create_seller
+      minted_first = create_listing(seller, title: "Minted First", created_at: 1.day.ago)
+      create_listing(seller, title: "Minted Second", created_at: 5.days.ago)
+
+      get root_path
+
+      assert_select "ul li:first-child h2", text: minted_first.title
+      assert_select "ul li:last-child h2", text: "Minted Second"
     end
 
     test "a page past the end lands on the last page" do

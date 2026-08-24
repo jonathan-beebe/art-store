@@ -1,0 +1,19 @@
+<% content_for :title, "Orders — Art Store admin" %>
+
+<h1 class="text-lg font-semibold">Orders (<%= @orders.size %>)</h1>
+
+<%= render "admin/shared/filters", url: admin_orders_path, fields: [
+      { name: :status, label: "Status", selected: @status,
+        options: [ [ "All statuses", "" ] ] + Order.statuses.keys.map { |status| [ status_label(status), status ] } },
+      { name: :customer, label: "Customer", selected: @customer_id,
+        options: [ [ "All customers", "" ] ] + @customers.map { |customer| [ customer.display_name, customer.id ] } }
+    ] %>
+
+<% if @orders.empty? %>
+  <%= render "admin/shared/empty", key: "orders", message: "No order matches that filter." %>
+<% else %>
+  <%= render "admin/shared/table",
+        caption: "Every order across every customer, newest first",
+        headings: [ "Order", "Customer", "Status", "Items", "Total", "Fulfillments", "Placed" ],
+        rows: render(partial: "admin/orders/order", collection: @orders) %>
+<% end %>

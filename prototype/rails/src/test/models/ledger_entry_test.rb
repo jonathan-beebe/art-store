@@ -86,9 +86,67 @@ class LedgerEntryTest < ActiveSupport::TestCase
 
     balances = LedgerEntry.balances_by_seller
 
-    assert_equal [fulfillment.seller_id, second_fulfillment.seller_id].sort, balances.keys
+    assert_equal [ fulfillment.seller_id, second_fulfillment.seller_id ].sort, balances.keys
     assert_equal 40_500, balances.fetch(fulfillment.seller_id).held.cents
     assert_equal 9000, balances.fetch(second_fulfillment.seller_id).held.cents
+  end
+
+  test "a refund takes the seller net back off the ledger, so its entry is negative" do
+    entry = LedgerEntry.refund(fulfillment, at: moment("2026-08-25 09:00:00"))
+
+    assert_predicate entry, :refunded?
+    assert_equal(-40_500, entry.amount_cents)
+    assert_equal fulfillment.id, entry.fulfillment_id
+    assert_equal fulfillment.seller_id, entry.seller_id
+  end
+
+  # The three timings of docs/alignment.md §4.2, one test each.
+
+  test "a refund before release empties the hold and releases nothing" do
+    LedgerEntry.hold(fulfillment, at: moment("2026-08-20 10:00:00"))
+    LedgerEntry.refund(fulfillment, at: moment("2026-08-21 10:00:00"))
+
+    balance = LedgerEntry.balance
+    assert_equal 0, balance.held.cents
+    assert_equal 0, balance.available.cents
+    assert_equal 0, balance.paid_out.cents
+    refute_predicate balance, :payable?
+  end
+
+  test "a refund after release drops what is available" do
+    hold_and_release
+    LedgerEntry.hold(second_fulfillment, at: moment("2026-08-20 10:00:00"))
+    LedgerEntry.release(second_fulfillment, at: moment("2026-08-22 09:00:00"))
+    LedgerEntry.refund(fulfillment, at: moment("2026-08-23 09:00:00"))
+
+    balance = LedgerEntry.balance
+    assert_equal 0, balance.held.cents
+    assert_equal 9000, balance.available.cents
+    assert_predicate balance, :payable?
+  end
+
+  test "a refund after payout carries a negative available balance" do
+    hold_and_release
+    LedgerEntry.pay_out(payout, at: moment("2026-08-23 23:59:59"))
+    LedgerEntry.refund(fulfillment, at: moment("2026-08-25 09:00:00"))
+
+    balance = LedgerEntry.balance
+    assert_equal 0, balance.held.cents
+    assert_equal(-40_500, balance.available.cents)
+    assert_equal 40_500, balance.paid_out.cents
+    refute_predicate balance, :payable?
+  end
+
+  test "a negative balance nets against the next sale before anything is payable" do
+    hold_and_release
+    LedgerEntry.pay_out(payout, at: moment("2026-08-23 23:59:59"))
+    LedgerEntry.refund(fulfillment, at: moment("2026-08-25 09:00:00"))
+    LedgerEntry.hold(later_sale, at: moment("2026-08-26 09:00:00"))
+    LedgerEntry.release(later_sale, at: moment("2026-08-27 09:00:00"))
+
+    balance = LedgerEntry.where(seller_id: fulfillment.seller_id).balance
+    assert_equal(-31_500, balance.available.cents)
+    refute_predicate balance, :payable?
   end
 
   private
@@ -104,6 +162,13 @@ class LedgerEntryTest < ActiveSupport::TestCase
 
   def second_fulfillment
     @second_fulfillment ||= sale_of(10_000)
+  end
+
+  # A second sale for the same seller, so a carried negative and a fresh sale
+  # meet in one balance.
+  def later_sale
+    @later_sale ||= order_for(create_verified_customer, create_listing(fulfillment.seller, price_cents: 10_000))
+      .fulfillments.sole
   end
 
   def payout
