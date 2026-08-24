@@ -91,7 +91,7 @@ final readonly class NameRequestVisitor
             }
         }
 
-        $customer = ($this->resolveFromCookie)(CustomerIdentity::cookieValue($request));
+        $customer = CustomerIdentity::fromCookie($request, $this->resolveFromCookie);
 
         if ($customer !== null) {
             Story::actorIs(ActorType::Customer, (string) $customer->id);

@@ -7,6 +7,11 @@ namespace App\Http\Middleware;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Support\CustomerIdentity;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 it('gives a first visit an anonymous customer and a cookie', function (): void {
@@ -91,4 +96,32 @@ it('exposes the resolved customer through CustomerIdentity', function (): void {
     $response = $this->get('/customer-identity-probe');
 
     $response->assertSee('customer:'.Customer::sole()->id);
+});
+
+it('resolves the visitor from the cookie once for the whole request', function (string $cookieValue): void {
+    $lookups = [];
+
+    DB::listen(function (QueryExecuted $query) use (&$lookups): void {
+        if (str_contains($query->sql, 'customer_merges')) {
+            $lookups[] = $query->sql;
+        }
+    });
+
+    $this->withCookie(CustomerIdentity::COOKIE, $cookieValue)->get('/')->assertOk();
+
+    expect($lookups)->toHaveCount(1);
+})->with([
+    'a cookie naming a customer' => fn (): string => (string) Customer::factory()->anonymous()->create()->id,
+    'a cookie naming no customer' => 'cus_01J00000000000000000000ABC',
+]);
+
+it('resolves the visitor for itself where nothing has named one yet', function (): void {
+    $visitor = Customer::factory()->anonymous()->create();
+    $request = Request::create('/probe', 'GET', [], [CustomerIdentity::COOKIE => (string) $visitor->id]);
+
+    $response = app(ResolveCustomerIdentity::class)->handle($request, fn (): Response => new Response('probed'));
+
+    expect($response->getContent())->toBe('probed')
+        ->and(Customer::count())->toBe(1)
+        ->and(Cookie::queued(CustomerIdentity::COOKIE)?->getValue())->toBe((string) $visitor->id);
 });

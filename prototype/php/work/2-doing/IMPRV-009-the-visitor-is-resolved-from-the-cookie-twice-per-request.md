@@ -78,3 +78,96 @@ directly; the ticket is done when those tests say the resolve happened once.
 - FEAT-002 (magic-link identity), FEAT-019 (structured logs, `NameRequestVisitor`)
 - IMPRV-005 (customer merge)
 - RSRCH-001 (M7)
+
+## Working
+
+### The change
+
+`CustomerIdentity::fromCookie(Request, ResolveCustomerFromCookie)` is the one
+door both middlewares now go through. It reads the cookie, runs the action
+the first time a request asks, writes the answer into
+`$request->attributes` under `customer.from_cookie`, and returns what is
+stored from then on. `NameRequestVisitor::nameActor()` and
+`ResolveCustomerIdentity::handle()` each call it; neither knows nor cares
+which of them asked first.
+
+The memo sits beside the request attribute `CustomerIdentity::current()`
+already reads and the cookie the same class already owns, so the action
+itself stays a question about a cookie value with no HTTP knowledge.
+
+**"Resolved to nothing" is a stored `null`.** `ParameterBag::has()` is
+`array_key_exists`, so an attribute holding `null` is distinguishable from an
+attribute that was never set. A cookie naming a customer no row carries costs
+one `customer_merges` lookup and one `customers` find for the request, not one
+pair per asker. `ResolveCustomerIdentity` on a route where `NameRequestVisitor`
+never ran finds no attribute and resolves for itself.
+
+Files:
+- `src/app/Support/CustomerIdentity.php` — `fromCookie()`, `RESOLVED_ATTRIBUTE`
+- `src/app/Http/Middleware/NameRequestVisitor.php` — calls it
+- `src/app/Http/Middleware/ResolveCustomerIdentity.php` — calls it
+- `src/app/Http/Middleware/ResolveCustomerIdentityTest.php` — query-count tests
+- `src/app/Support/CustomerIdentityTest.php` — the memo answers a second ask
+  after the row is deleted
+
+### M7, returning visitor
+
+Both columns measured 2026-08-24 against the same seeded database, the
+`after` column with the change applied and the `before` column with it
+stashed, so the two are the same data.
+
+| page | before | after | ticket target |
+|---|---|---|---|
+| `/` | 16 | **14** | 14 |
+| `/cart` | 13 | **11** | 11 |
+| `/art/{slug}` | 17 | **15** | 16 |
+| `/favorites` | 13 | **11** | 11 |
+
+`/art/{slug}` measured 17 rather than the 18 RSRCH-001 recorded. The
+unchanged code measures 17 on today's database, which holds 3196 customers
+and weeks of page views against the freshly seeded database RSRCH-001 read;
+the extra query belongs to that difference in state. Against one database the
+drop is two queries on every page.
+
+### The log payload
+
+`GET /` against the container on port 8000, a returning visitor's cookie in a
+curl jar. Before:
+
+```
+{"ts":"2026-08-24T21:36:07.815Z","level":"info","event":"http.request","phase":"did","msg":"GET / 200","request_id":"req_01M0TV7G3JYWTZ9PV3GYK49J14","session_id":"ses_01M0TV7FVPQNS24C457ZWD2EX3","actor_type":"customer","actor_id":"cus_01M0TV7FWZ2187JEASKSX5KQAH","data":{"status":200},"duration_ms":21}
+```
+
+After:
+
+```
+{"ts":"2026-08-24T21:40:47.174Z","level":"info","event":"http.request","phase":"did","msg":"GET / 200","request_id":"req_01M0TVG0WN7CPTCW01KJ2P1EVB","session_id":"ses_01M0TVG0R3B7D2WB0CTT2F4RHD","actor_type":"customer","actor_id":"cus_01M0TVG0RMEW1TZCZ494NQ985R","data":{"status":200},"duration_ms":48}
+```
+
+Same keys, same order, `actor_type` `customer`, `actor_id` a `cus_…`. The ids
+differ because each capture used its own jar.
+
+### A first-time visitor still gets a row
+
+```
+$ curl -s -o /dev/null -c /tmp/j http://localhost:8000/
+customers before: 3196   after: 3197
+Set-Cookie: customer_id=eyJpdiI6InMzRG1rZGR…
+```
+
+### The gate
+
+`make check`: Pint 615 files, PHPStan level max `[OK] No errors`, **1831
+tests, 4955 assertions, coverage 100.0 %**. Four tests added: the two dataset
+cases of the once-per-request query count, the resolve on a route nothing
+else named a visitor for, and the memo read in `CustomerIdentityTest`.
+
+### Left out
+
+`MagicLinkVerificationController` resolves the cookie for itself
+(`$resolveFromCookie(CustomerIdentity::cookieValue($request))`) on
+`GET /auth/magic/{token}`, a `web` route where `NameRequestVisitor` already
+asked. Routing it through `fromCookie()` would save the same two queries
+there. It is one request per sign-in rather than one per page view, and the
+controller merges customers a few lines later, so sharing a memo across that
+boundary wants its own reading. Not filed.
