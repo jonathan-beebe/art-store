@@ -69,3 +69,85 @@ code, so both are part of the change.
 ## Related work
 - FEAT-016 (live unread badge over EventStream SSE)
 - RSRCH-001 (M8)
+
+## Working
+
+Two changes, both measured before they were kept.
+
+**1. `UnreadCountStream::forActor()` yields on every tick.** The `$lastSent`
+comparison is gone: each tick yields the count it just read. `eventStream`
+writes every yielded frame and checks `connection_aborted()` once per frame,
+and PHP learns a socket is dead only from a failed write, so a frame per
+tick is what lets a stream notice its browser left. `live-badge.js` sets the
+label from whatever the frame carries, so a repeated count is a no-op in the
+browser. The class docblock and the three `EventsController` docblocks
+describe that behaviour now.
+
+**2. `PHP_CLI_SERVER_WORKERS` 5 → 16.** Measured, not assumed: the yield fix
+alone took the M8 killed-client case from 48.5 s to 4.2–8.5 s, short of the
+under-1 s outcome. What remains at five workers is queueing — twelve
+connections against five workers means seven wait in the accept backlog, and
+each abandoned one still costs a worker one tick to discover. Sixteen covers
+M8's twelve streams with room for page requests. Cost: about 5 MiB of
+container memory per worker (90.5 MiB at 5, 137–164 MiB at 16, against the
+RSRCH-001 M4 baseline of 101.8 MiB).
+
+### M8 — `GET /` with N streams on `/events`
+
+Each cell is `%{time_total}` for the page load, 35 s of settle before each
+run. The two middle columns isolate the levers; the last column is what
+ships.
+
+| M8 case | 5 workers, on change (baseline) | 5 workers, every tick | 16 workers, on change | 16 workers, every tick |
+|---|---|---|---|---|
+| 5 streams held | 0.14 s | — | — | 0.11 s |
+| 8 streams held | 0.07 s | — | — | 0.66 s |
+| 12 streams held | 50.6 s | 24.4 s | 0.11 s | 0.12 s |
+| 12 streams, clients killed at 3 s | 48.5 s | 8.3 / 8.5 / 4.2 s | 0.10 / 0.09 s | 0.08 / 0.08 s |
+| 24 streams, clients killed at 3 s | — | — | 22.7 / 22.5 s | 0.09 / 4.3 s |
+
+The 48.5 s baseline column reproduces RSRCH-001's 50.8 s / 49.4 s.
+
+The 24-stream row is why the yield fix stays even though the worker bump
+alone clears M8: at 16 workers, 24 abandoned tabs still park the pool for
+22.5 s on the old generator and clear in under 5 s on the new one. The
+worker count buys headroom; the yield is what returns a worker when a tab
+closes.
+
+### M4 — container CPU over 30 s (cgroup `usage_usec`)
+
+| Config | 0 streams | 3 streams |
+|---|---|---|
+| RSRCH-001 baseline (5 workers, on change) | 1.4 % | 5.6 % |
+| 5 workers, every tick | 0.26 % | 1.61 % |
+| 16 workers, every tick | 0.37 % | 0.99 % |
+
+Both post-change readings sit under the 5.6 % ceiling. The idle column is
+also below the baseline's 1.4 %, so the host was quieter than it was on
+2026-08-24; read the 3-stream figure against its own idle row rather than
+across rows.
+
+### Badge
+
+`curl -s -N -m 10 http://localhost:8000/events` emits five `event: unread` /
+`data: 0` frames, one per 2 s tick, where it emitted one before. `GET /`
+still renders `data-live-badge="Messages" data-events-url=".../events"`; the
+server-rendered count is covered by the layout-composer and messaging tests
+in the suite.
+
+`make check`: 1827 tests, 4946 assertions, 100.0 % line coverage, Pint and
+PHPStan clean.
+
+### Left out
+
+- `UnreadCountStream::TICK_SECONDS` is unchanged at 2 s. It bounds how long
+  a dead stream lingers; shortening it would multiply the `count` query rate
+  for a gain M8 no longer needs.
+- `live-badge.js` is unchanged — it was already idempotent.
+- The container on port 8000 that these numbers were taken against still
+  runs with 5 workers where the last column says 16; `PHP_CLI_SERVER_WORKERS`
+  is read by `php -S` at start, so the compose change reaches it on the next
+  `make up` (a `docker compose restart` does not re-read the environment).
+  The 16-worker columns were measured on a second container started from the
+  same compose service with `-e PHP_CLI_SERVER_WORKERS=16 -p 8001:8000`, and
+  removed afterwards.
