@@ -84,7 +84,7 @@ make check                                                   # lint + assets + t
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1107 tests (2491 assertions), run by Pest — `it()`/`test()` functions, no
+1827 tests (4934 assertions), run by Pest — `it()`/`test()` functions, no
 PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
@@ -270,11 +270,11 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Email delivery is a hook, not an implementation. Every notification has a
   `toMail()` and `MAGIC_LINK_DELIVERY=mail` / `NOTIFICATION_CHANNELS=database,mail`
   switch the channel, but `MAIL_MAILER` points at `log`.
-- A cart holding a line the listing can no longer supply still shows a live
-  Checkout button. The write refuses and names the item.
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
-- A blocked customer's ask still opens an empty thread; a closed messaging tab
-  holds its SSE worker for a few seconds before it frees. See
-  `docs/messaging.md`.
+- A closed messaging tab holds its SSE worker for a few seconds before it
+  frees. See `docs/messaging.md`.
+- A merged cart keeps a line whose listing carries an active removal, at
+  whatever quantity it clamps to; checkout refuses it and names the item
+  rather than the merge dropping it.
