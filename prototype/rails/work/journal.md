@@ -5,15 +5,45 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 9
-- IMPRV: 1
+- FEAT: 15
+- IMPRV: 3
 - MAINT: 2
 - A11Y: 1
 - RFCTR: 16
-- BUG: 1
+- BUG: 4
 
 ## Log
 
+- 2026-08-23:18:56:07 — IMPRV-002 — defined: Two operators produce twin support threads and the support button reaches only one
+- 2026-08-23:18:55:39 — BUG-003 — defined: A killed test run poisons the test database and the next run fails without naming why
+
+- 2026-08-23:15:41:37 — IMPRV-001 — done: Conversation.unread_counts_for groups a whole inbox's counts into one query returning a hash that answers 0 for a quiet thread, MessagingSite#index adds includes(:subject, :seller, :customer, :admin) for the participants counterpart_of reads, and one seller's inbox goes from 7/21/45 queries at 1/8/20 rows to 7 at all three, asserted through a count_queries helper on sql.active_record; Conversation#unread_count_for reads the plural so the rule keeps one definition; the seller thread page's FAQ draft became a controller assignment under BUG-002; architecture.md cites two broadcast assertions the suite runs in place of two it does not, messaging.md says what holds between the nav badge, the inbox row and the marking, states the inbox's constant cost and the second-admin case where Admin.on_duty and current_admin give a seller two threads both titled Art Store support, and ontology.md loses a stray blank line; 750 runs at 100% line coverage (this commit)
+- 2026-08-23:15:36:47 — IMPRV-001 — started
+- 2026-08-23:15:36:35 — BUG-002 — done: Seller::FaqsController#render_refusal reads the refused entry's source_message and re-renders the thread page holding the entry and its errors at :unprocessable_content, the way MessagingSite#create answers a refused reply, keeping render :index for an entry written from scratch; MessagingSite#present_thread moved into a ThreadPage concern and SellerThreadPage adds @faq over it for the three portal controllers that draw the thread view, which now reads @faq in place of calling ListingFaq.draft_from from the template; the hidden source_message_id moved from _publish_faq into _fields, so both forms keep the answer an entry came from and a shortened question publishes with its attribution; 748 runs at 100% line coverage (this commit)
+- 2026-08-23:15:33:37 — BUG-002 — started
+- 2026-08-23:15:33:24 — BUG-001 — done: conversations leave Customer::MERGED_ASSOCIATIONS for Conversation#move_to, which folds a thread into the one the receiving customer already holds on the same kind, participants and subject — messages move across, last_message_at takes the later of the two, the emptied row is destroyed, and per-message read_at keeps both sides' unread counts right; index_conversations_on_shape is unique over the six columns read through COALESCE, since SQLite counts two nulls as different values and every kind leaves some of them null; Conversation.open reads where(shape).order(:id).first before it creates; docs/messaging.md and docs/data-model.md state the fold and the index; 744 runs at 100% line coverage (this commit)
+- 2026-08-23:15:28:36 — BUG-001 — started
+- 2026-08-23:15:22:10 — IMPRV-001 — defined: Inbox query cost, thread-page assignment, and doc corrections from the review
+- 2026-08-23:15:21:54 — BUG-002 — defined: A refused FAQ publish moves the seller off the thread and drops the source message
+- 2026-08-23:15:21:40 — BUG-001 — defined: Customer merge can duplicate a thread and find-or-open then splits the pair
+- 2026-08-23:15:11:10 — FEAT-014 — done: Seeds::Messaging opens one thread of each kind against the seeded admin, sellers, casey and the shipped fulfillment with nine messages and the listing question's answer published as an FAQ through draft_from and publish, each reply reading the thread it replies in so every thread ends on one unread message, all behind the existing Seller.exists? guard and counted on the seeded-counts line; the smoke walk gains the buyer's question, the seller's inbox reply, the publish carrying source_message_id and a cookieless browser reading the pair on the listing page; docs/messaging.md mirrors the Node doc's three questions and adds live updates, architecture.md, data-model.md, ontology.md and README.md carry the three sites, the admin actor, the messaging tables and the Hotwire stack, and review.md drops the no-app/javascript claim, maps the feature to its routes and tests and states the two prototypes' live implementations side by side; make fresh, a curl walk of all three sites and 737 runs at 100% line coverage (this commit)
+- 2026-08-23:14:53:27 — FEAT-014 — started
+- 2026-08-23:14:51:25 — FEAT-013 — done: turbo-rails, importmap-rails and solid_cable with action_cable/engine on, config/importmap.rb pinning application and @hotwired/turbo-rails from the gem's assets and javascript_importmap_tags in the three layouts; Solid Cable on the single database the gem documents for that shape, its schema as a normal migration so make fresh and db:prepare both reach it; each thread page subscribes with turbo_stream_from @conversation, current_<actor> and Message after_create_commit appends the site's own message partial to each participant's stream, with broadcast_replace_to [actor, :unread_messages] moving the counterpart's badge on a post and the reader's on read_by!, both through the partial the layouts render; after-commit means a rolled-back post sends nothing and signed stream names keep one actor off another's stream; the four redirects after a PATCH or DELETE answer :see_other for Turbo; 734 runs at 100% line coverage (this commit)
+- 2026-08-23:14:34:06 — FEAT-013 — started
+- 2026-08-23:14:35:41 — FEAT-012 — done: a shopper asks from the listing page over POST /art/:slug/questions with no account, the open and the first post sharing a transaction so a refused body leaves no thread; the seller's question thread offers Publish as FAQ pre-filled by ListingFaq.draft_from with a hidden source_message_id, Seller::FaqsController under resources :listings do resources :faqs end lists, publishes, edits and unpublishes, and a source outside the listing's threads is 404; the storefront listing page reads listing.faqs.oldest_first under Questions and answers and the seller listing page links to the FAQ page; 723 runs at 100% line coverage (this commit)
+- 2026-08-23:14:21:15 — FEAT-012 — started
+- 2026-08-23:14:17:53 — FEAT-011 — done: resourceful messages routes on all three sites with a MessagingSite concern carrying the inbox, thread and reply from each site's current_participant, so a non-participant and a bad id both answer 404; support buttons on the storefront account page and the seller dashboard, Message buttons on the admin's seller and customer pages, and per-order buttons on both order pages, each opening or reusing one thread; Messages in every nav with a data-unread-messages badge, data-unread-count on inbox rows, read on open, and a notification pointing the counterpart at their own site; Admin.on_duty and Admin#display_name; 687 runs at 100% line coverage (this commit)
+- 2026-08-23:14:01:30 — FEAT-011 — started
+- 2026-08-23:13:59:15 — FEAT-010 — done: conversations, messages and listing_faqs tables; Conversation with KINDS as the one source for the participant pair, subject class and topic, open/involving/participant?/counterpart_of/post!/read_by!/unread_count_for/thread_path_for, Message with unread_for as the single definition of unread, ListingFaq.publish; a Messaging concern gives Seller, Customer and Admin their threads, sent messages and unread badge count, MERGED_ASSOCIATIONS gains both, and Notification.new_message files under the counterpart with their own thread path; 617 runs at 100% line coverage (this commit)
+- 2026-08-23:13:53:58 — FEAT-010 — started
+- 2026-08-23:13:49:05 — FEAT-009 — done: admins table and Admin model with EmailAddress, MagicLink.actor_type gains admin and Auth::MagicLinksController refuses a link for an address no admin row holds; /admin/login and /admin/logout, AdminAuthentication, Admin::BaseController, a slate layouts/admin, a dashboard listing sellers and verified customers, and the two account pages; Seeds::Admins seeds ops@example.com and Customer#display_name mirrors Seller's; 567 runs at 100% line coverage (this commit)
+- 2026-08-23:13:40:01 — FEAT-009 — started
+- 2026-08-23:13:36:30 — FEAT-014 — defined: Messaging seeds, smoke walk, docs, and final validation
+- 2026-08-23:13:36:29 — FEAT-013 — defined: Live threads and unread badge with Hotwire over Solid Cable
+- 2026-08-23:13:36:28 — FEAT-012 — defined: Listing questions and FAQ publishing
+- 2026-08-23:13:36:27 — FEAT-011 — defined: Inboxes, threads, and entry points on all three sites
+- 2026-08-23:13:36:26 — FEAT-010 — defined: Conversations, messages, and listing FAQs on the models
+- 2026-08-23:13:36:25 — FEAT-009 — defined: Admin actor and a minimal admin site
 - 2026-08-22:21:06:12 — MAINT-001 — defined: Small leftovers from the refactor sweep
 - 2026-08-22:21:06:12 — RFCTR-015 — defined: Split Listing's activity reporting into a concern; Fulfillment computes its own fee
 - 2026-08-22:21:06:12 — RFCTR-014 — defined: Notifications reach email through a mailer

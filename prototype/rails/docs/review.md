@@ -2,7 +2,8 @@
 
 Every requirement in `__local__/prompts/initial-prompt.md`, its status, and the
 route helper and test class that prove it. Verified on FEAT-008 against a clean
-first run: 527 tests green, 100% line coverage.
+first run (527 tests, 100% line coverage) and again on FEAT-014 after the
+messaging feature (737 tests, 100% line coverage).
 
 Status values: **done** — built and covered by a test; **partial** — built with
 a stated gap; **missing** — not built.
@@ -54,6 +55,50 @@ is `@import "tailwindcss"` and nothing else.
 | Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
 | Pay out at the end of every week | done | `payouts:run`, `seller_earnings_payout` | `PayoutsTaskTest`, `PayoutTest`, `PayoutPeriodTest` |
 
+## Messaging and the admin site
+
+Added after the brief (FEAT-009 … FEAT-014), so these are the feature's own
+claims rather than requirements from `initial-prompt.md`.
+
+| Capability | Status | Route helper | Test |
+| --- | --- | --- | --- |
+| An admin site with a seeded-only account | done | `admin_login`, `admin_root`, `admin_seller`, `admin_customer` | `Auth::AdminSessionsControllerTest`, `Admin::DashboardControllerTest`, `Admin::SellersControllerTest`, `Admin::CustomersControllerTest`, `AdminTest` |
+| One conversation record for four kinds | done | — | `ConversationTest`, `MessageTest` |
+| Inbox and thread on all three sites, non-participant answers 404 | done | `shop_conversations`, `seller_conversations`, `admin_conversations` and each `…_conversation` | `Shop::ConversationsControllerTest`, `Seller::ConversationsControllerTest`, `Admin::ConversationsControllerTest` |
+| Reply, with the counterpart notified at their own path | done | each site's `…_conversation_messages` | `Shop::MessagesControllerTest`, `Seller::MessagesControllerTest`, `Admin::MessagesControllerTest`, `NotificationTest` |
+| Support threads against `Admin.on_duty` | done | `shop_support`, `seller_support` | `Shop::SupportsControllerTest`, `Seller::SupportsControllerTest` |
+| The desk opens a thread from either account page | done | `admin_seller_conversation`, `admin_customer_conversation` | `Admin::SellerConversationsControllerTest`, `Admin::CustomerConversationsControllerTest` |
+| A thread per fulfillment from either order page | done | `shop_fulfillment_conversation`, `seller_order_conversation` | `Shop::FulfillmentConversationsControllerTest`, `Seller::OrderConversationsControllerTest` |
+| Anonymous shopper asks a question on a listing | done | `shop_listing_questions` | `Shop::ListingQuestionsControllerTest`, `CustomerTest` (merge carries the thread) |
+| Seller publishes, edits, unpublishes an FAQ; the storefront shows it | done | `seller_listing_faqs` | `Seller::FaqsControllerTest`, `Shop::ListingsControllerTest`, `ListingFaqTest` |
+| Unread count in every nav, read on opening a thread | done | every layout | `ConversationTest`, the three inbox tests |
+| Live message and badge over Turbo streams | done | `turbo_stream_from` on each thread page | `MessageTest`, `ConversationTest`, the three thread-page tests |
+| A shopper's question through to a published FAQ on the listing page | done | the chain above | `SmokeTest` |
+
+### The same feature in the Node prototype
+
+Both prototypes carry the four conversation kinds, the FAQ publish, and the
+nav badge, and both keep every page working with JavaScript off. The live
+half differs:
+
+- **Node** hand-rolls Server-Sent Events. `app/plugins/events.ts` (174 lines)
+  holds an in-process `EventEmitter`, an `onResponse` hook that emits after
+  any write, and the SSE route each site serves at `/events`,
+  `/seller/events`, `/admin/events`. `src/public/app.js` (21 lines) opens an
+  `EventSource` and rewrites the nav badge. The frame carries one number: the
+  actor's unread total. An open thread page gains nothing until the next load.
+  The bus is in-process, so a second app instance needs a shared broker.
+- **Rails** uses Turbo streams. The client is
+  `app/javascript/application.js` (4 lines, one `import`) plus the
+  `turbo.min.js` the `turbo-rails` gem serves through the import map.
+  `Message#broadcast_arrival` (`after_create_commit`) appends the rendered
+  message row to each participant's stream and replaces the counterpart's
+  badge partial; `Conversation#read_by!` replaces the reader's. So an open
+  thread gains the other side's message, and the badge moves in both
+  directions. Transport is Action Cable on Solid Cable, whose queue is the
+  `solid_cable_messages` table in the same SQLite file. Broadcasts run after
+  commit, so a rolled-back post sends nothing, and stream names are signed.
+
 ## Tech stack
 
 | Requirement | Status | Evidence |
@@ -62,7 +107,8 @@ is `@import "tailwindcss"` and nothing else.
 | SQLite | done | `config/database.yml`, `src/storage/development.sqlite3` |
 | Tailwind | done | `tailwindcss-rails` 4.6.0 / tailwindcss 4.3.3, standalone binary, no Node |
 | Semantic HTML + CSS | done | `app/views/**` |
-| No JavaScript required | done | no `<script>` in any view, no `app/javascript`, no importmap; every flow is a form POST |
+| No JavaScript required | done | every flow is a form POST that redirects; `app/javascript/application.js` is one `import "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as it did before Turbo |
+| Hotwire | done | `turbo-rails` 2.0.23, `importmap-rails` 2.2.3, `solid_cable` 4.0.2 — thread pages and the nav badge update over Action Cable with the broadcast queue in the app's own SQLite file |
 
 ## Development workflow
 
@@ -70,14 +116,14 @@ is `@import "tailwindcss"` and nothing else.
 | --- | --- | --- |
 | Everything dockerized, nothing on the host | done | `Dockerfile`, `docker-compose.yml`, `Makefile` — every target is a `docker compose` wrapper |
 | All source in `src` | done | `prototype/rails/src/` |
-| Tests mirror the code under `test/` | partial | 20 files under `app/` have no test of their own (see Known gaps); all are at 100% line coverage through the tests of their callers |
+| Tests mirror the code under `test/` | partial | 20 of the 85 files under `app/` have no test of their own (see Known gaps); all are at 100% line coverage through the tests of their callers |
 | `/test*` and `/tdd*` skills | partial | process, not visible in the artifacts; the shape they call for holds — pure core tests, HTTP tests for the shell |
-| `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 8 tickets |
+| `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets |
 | `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
 | TDD flow | partial | process; each ticket's `## Working` notes record it |
 | Measure coverage, keep it high | done | `make coverage` — 100% line coverage, `COVERAGE_MIN=80` enforced |
 | Functional core / imperative shell | done | The value objects in `app/models` (`Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`) are pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
-| `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `data-model.md`, `ontology.md` |
+| `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `messaging.md`, `data-model.md`, `ontology.md` |
 
 ## Goal
 
@@ -89,7 +135,7 @@ is `@import "tailwindcss"` and nothing else.
 | Magic links for both sides, printed to the screen in a debug alert | done | `MagicLinkSender#send_magic_link` → `layouts/_debug_alert` (`MAGIC_LINK_DEBUG_ALERT`) |
 | A hook where email goes later | done | `MagicLinkMailer#sign_in` sends the link; `Notification#deliver_by_email` is still empty |
 | Guest checkout requiring verification before the order finalizes | done | `Shop::CheckoutsController#create` → `Shop::OrderPaymentsController` |
-| Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-008 |
+| Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-014 and RFCTR-001 … RFCTR-013 |
 | Delivered in `./prototype/rails/` with a complete README and a docs folder | done | `README.md`, `docs/` |
 
 ## Verified on FEAT-008
@@ -122,9 +168,11 @@ is `@import "tailwindcss"` and nothing else.
 2. **The payout button pays every seller**, not the signed-in one. It is
    labelled a debug control on `seller_earnings` and the controller says so.
    `payouts:run` is the real entry point.
-3. **16 files under `app/` have no test of their own**: `ApplicationController`,
-   the three base controllers, the three controller concerns, the two helpers,
-   `ApplicationMailer`, `ApplicationRecord`, the `EmailAddress` concern,
+3. **20 files under `app/` have no test of their own**: `ApplicationController`,
+   the four base controllers, the five controller concerns
+   (`AdminAuthentication`, `CustomerAuthentication`, `SellerAuthentication`,
+   `MagicLinkSender`, `MessagingSite`), the two helpers, `ApplicationMailer`,
+   `ApplicationRecord`, the `EmailAddress` and `Messaging` model concerns,
    `TransitionError`, and `CustomerMerge`, `Favorite` and `OrderItem`. Every
    one is at 100% line coverage through the tests of its callers.
 4. **A merge can leave a customer holding two carts.**

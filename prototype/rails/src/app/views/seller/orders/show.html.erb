@@ -3,7 +3,9 @@
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold">Order #<%= @fulfillment.order_id %></h1>
   <p data-cell="status" class="text-neutral-600"><%= status_label(@fulfillment.status) %></p>
-  <%= link_to "All orders", seller_orders_path, class: "ml-auto underline" %>
+  <%= button_to "Message the customer", seller_order_conversation_path(@fulfillment),
+        form_class: "ml-auto", class: "rounded border border-neutral-400 bg-white px-3 py-1 font-medium" %>
+  <%= link_to "All orders", seller_orders_path, class: "underline" %>
 </div>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-2">

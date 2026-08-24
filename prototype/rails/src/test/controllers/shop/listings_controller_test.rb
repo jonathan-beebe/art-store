@@ -67,6 +67,36 @@ module Shop
       assert_response :not_found
     end
 
+    test "it offers to ask the seller a question" do
+      listing = create_listing
+
+      get shop_listing_path(slug: listing.slug)
+
+      assert_select "h2", text: "Ask the seller a question"
+      assert_select "form[action=?][method=post] textarea[name=?]",
+        shop_listing_questions_path(slug: listing.slug), "message[body]"
+    end
+
+    test "it reads the published questions in the order they went up" do
+      listing = create_listing
+      first = ListingFaq.publish(listing, question: "Is the frame included?", answer: "It is.")
+      second = ListingFaq.publish(listing, question: "Does it ship abroad?", answer: "It does.")
+
+      get shop_listing_path(slug: listing.slug)
+
+      assert_select "h2", text: "Questions and answers"
+      assert_select "[data-faq]", 2
+      assert_select "[data-faq]:first-of-type", text: /Is the frame included\?/
+      assert_select "[data-faq=?] dt", first.id.to_s, text: "Is the frame included?"
+      assert_select "[data-faq=?] dd", second.id.to_s, text: "It does."
+    end
+
+    test "a listing with nothing published carries no FAQ heading" do
+      get shop_listing_path(slug: create_listing.slug)
+
+      assert_select "h2", text: "Questions and answers", count: 0
+    end
+
     test "it offers to favorite a listing the visitor has not saved" do
       listing = create_listing
 

@@ -1,5 +1,6 @@
 class Seller < ApplicationRecord
   include EmailAddress
+  include Messaging
 
   has_many :listings
   has_many :fulfillments

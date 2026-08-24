@@ -19,5 +19,12 @@ module Shop
     def order_of_customer(id)
       current_customer.orders.find(id)
     end
+
+    # Which side of a conversation the storefront's visitor sits on. A visitor
+    # who has given no address still has threads, since a question about a
+    # listing needs no account.
+    def current_participant
+      current_customer
+    end
   end
 end

@@ -78,4 +78,16 @@ class SellerTest < ActiveSupport::TestCase
     assert_equal 40_500, shop.escrow_balance.held.cents
     assert_equal 0, other.escrow_balance.held.cents
   end
+
+  test "a seller counts the unread messages across their own threads" do
+    shop = create_seller
+    buyer = create_verified_customer
+    listing = create_listing(shop)
+    conversation = Conversation.open(kind: :listing_question, seller: shop, customer: buyer, subject: listing)
+    conversation.post!(buyer, "Is the frame included?")
+    conversation.post!(shop, "It is.")
+
+    assert_equal 1, shop.unread_message_count
+    assert_equal 0, create_seller.unread_message_count
+  end
 end

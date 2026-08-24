@@ -15,6 +15,11 @@ class Seller::BaseController < ApplicationController
     @unread_notification_count ||= current_seller.notifications.unread.count
   end
 
+  # Which side of a conversation the portal's visitor sits on.
+  def current_participant
+    current_seller
+  end
+
   # An order may span sellers. These are the lines of it this seller ships.
   def own_items(order)
     order.items.select { |item| item.seller_id == current_seller.id }

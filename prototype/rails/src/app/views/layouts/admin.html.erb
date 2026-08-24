@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Admin" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <%= stylesheet_link_tag :app %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body data-site="admin" class="min-h-screen bg-slate-900 text-sm text-slate-100">
+    <%= render "layouts/debug_alert" %>
+    <%= render "layouts/flash" %>
+    <%= turbo_stream_from current_admin, :unread_messages if admin_signed_in? %>
+
+    <header class="border-b border-slate-700 bg-slate-950">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
+        <%= link_to "Art Store admin", admin_root_path, class: "font-semibold tracking-wide" %>
+
+        <% if admin_signed_in? %>
+          <nav aria-label="Admin" class="flex flex-wrap gap-4 text-slate-400">
+            <%= link_to "Dashboard", admin_root_path %>
+            <%= link_to "Sellers", admin_root_path(anchor: "sellers") %>
+            <%= link_to "Customers", admin_root_path(anchor: "customers") %>
+            <%= link_to admin_conversations_path, class: "flex items-center gap-1" do %>
+              Messages
+              <%= render "admin/conversations/unread_badge", actor: current_admin %>
+            <% end %>
+          </nav>
+
+          <div class="ml-auto flex items-center gap-4 text-slate-400">
+            <span><%= current_admin.email %></span>
+            <%= button_to "Sign out", admin_logout_path, method: :post, form_class: "inline" %>
+          </div>
+        <% else %>
+          <div class="ml-auto text-slate-400"><%= link_to "Sign in", admin_login_path %></div>
+        <% end %>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-6">
+      <%= yield %>
+    </main>
+  </body>
+</html>

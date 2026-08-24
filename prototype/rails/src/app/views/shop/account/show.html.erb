@@ -7,9 +7,13 @@
   <dd data-account-email class="mt-1 text-lg"><%= current_customer.email %></dd>
 </dl>
 
-<%= button_to "Sign out", customer_logout_path, method: :post,
-      form_class: "mt-8",
-      class: "rounded-full border border-neutral-300 px-6 py-2 text-base hover:border-neutral-900" %>
+<div class="mt-8 flex flex-wrap gap-3">
+  <%= button_to "Contact support", shop_support_path, method: :post,
+        class: "rounded-full bg-neutral-900 px-6 py-2 text-base text-white" %>
+
+  <%= button_to "Sign out", customer_logout_path, method: :post,
+        class: "rounded-full border border-neutral-300 px-6 py-2 text-base hover:border-neutral-900" %>
+</div>
 
 <h2 class="mt-16 text-2xl font-light tracking-tight">Notifications</h2>
 

@@ -19,6 +19,15 @@ module IntegrationHelpers
     follow_magic_link
   end
 
+  # Admin rows are seeded rather than created by signing in, so the walk starts
+  # from a row and hands it back.
+  def sign_in_as_admin(admin = create_admin)
+    post admin_send_magic_link_path, params: { email: admin.email }
+    follow_magic_link
+
+    admin
+  end
+
   def sign_in_as(seller)
     sign_in_as_seller(email: seller.email)
   end
@@ -91,5 +100,19 @@ module IntegrationHelpers
 
   def create_listing_event(listing, event_type, occurred_at)
     listing.record_event!(event_type, at: occurred_at)
+  end
+
+  # The statements one request sends to the database, leaving out the schema
+  # reads Active Record does once per column set and the transaction each test
+  # runs inside. A page whose cost follows its row count asserts on this.
+  def count_queries
+    counted = 0
+    counter = ->(_name, _started, _finished, _id, payload) {
+      counted += 1 unless payload[:cached] || ["SCHEMA", "TRANSACTION"].include?(payload[:name])
+    }
+
+    ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { yield }
+
+    counted
   end
 end

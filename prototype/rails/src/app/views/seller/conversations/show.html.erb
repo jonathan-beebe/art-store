@@ -1,0 +1,28 @@
+<% content_for :title, "#{@conversation.topic} — Art Store seller" %>
+
+<%= turbo_stream_from @conversation, current_seller %>
+
+<div class="flex flex-wrap items-center gap-4">
+  <h1 class="text-lg font-semibold"><%= @conversation.topic %></h1>
+  <p data-cell="counterpart" class="text-neutral-600">
+    with <%= @conversation.counterpart_of(current_seller).display_name %>
+  </p>
+  <%= link_to "All messages", seller_conversations_path, class: "ml-auto underline" %>
+</div>
+
+<ol id="<%= @conversation.messages_dom_id %>" class="mt-6 max-w-2xl space-y-3">
+  <%= render partial: "seller/conversations/message", collection: @messages %>
+</ol>
+
+<%= form_with model: @message, url: seller_conversation_messages_path(@conversation),
+      html: { class: "mt-6 max-w-2xl rounded border border-neutral-300 bg-white p-4" } do |form| %>
+  <%= form.label :body, "Reply", class: "block font-medium text-neutral-700" %>
+  <%= form.text_area :body, rows: 4, maxlength: Message::BODY_LIMIT,
+        "aria-describedby": @message.errors[:body].first && "message_body-error",
+        class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+  <%= render "seller/shared/field_error", field: "message_body", message: @message.errors[:body].first %>
+
+  <%= form.submit "Send", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+<% end %>
+
+<%= render "seller/conversations/publish_faq", draft: @faq %>

@@ -30,6 +30,21 @@ class NotificationTest < ActiveSupport::TestCase
     )
   end
 
+  test "a message files under the side that did not send it and says what it is about" do
+    shop = create_seller
+    listing = create_listing(shop, title: "Harbour at Dusk")
+    buyer = create_verified_customer
+    conversation = Conversation.open(kind: :listing_question, seller: shop, customer: buyer, subject: listing)
+    message = Message.create!(conversation: conversation, sender: buyer, body: "Is the frame included?")
+
+    notification = Notification.new_message(message, url: "/seller/messages/#{conversation.id}")
+
+    assert_equal shop, notification.recipient
+    assert_equal "New message", notification.subject
+    assert_equal "You have a new message about “Harbour at Dusk”.", notification.body
+    assert_equal "/seller/messages/#{conversation.id}", notification.url
+  end
+
   test "a new notification is unread" do
     notification = Notification.item_sold(fulfillment_for(create_seller))
 

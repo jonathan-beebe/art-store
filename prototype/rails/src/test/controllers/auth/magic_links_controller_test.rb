@@ -33,6 +33,33 @@ module Auth
       assert_equal Customer.sole.id, signed_cookie(CustomerIdentity::COOKIE)
     end
 
+    test "an admin's link signs them in and lands on the console" do
+      admin = create_admin
+
+      sign_in_as_admin(admin)
+
+      assert_redirected_to admin_root_path
+      assert_equal admin.id, session[:admin_id]
+    end
+
+    test "a link for an address no admin holds signs nobody in" do
+      token, = create_magic_link(email: "stranger@example.com", actor_type: :admin)
+
+      get verify_magic_link_path(token)
+
+      assert_redirected_to admin_login_path
+      assert_equal "That address does not reach the admin site.", flash[:alert]
+      assert_nil session[:admin_id]
+    end
+
+    test "an expired admin link sends the visitor to the admin sign-in" do
+      token, = create_magic_link(actor_type: :admin, expires_at: 1.minute.ago)
+
+      get verify_magic_link_path(token)
+
+      assert_redirected_to admin_login_path
+    end
+
     test "a link works only once" do
       post seller_send_magic_link_path, params: { email: "artist@example.com" }
       url = flash[:debug_magic_link]

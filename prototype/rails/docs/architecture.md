@@ -1,10 +1,11 @@
 # Art Store prototype (Rails) — system architecture
 
-Prototype of a two-sided art marketplace: a **seller portal** (back office) and a
-**customer storefront**, one Rails deployable, one SQLite file, no JavaScript
-required. Every agent working in `prototype/rails/` reads this doc first and
-follows the conventions in it. The PHP spike in `prototype/php/` solved the same
-product; its domain decisions carry over unless stated otherwise here.
+Prototype of a two-sided art marketplace with a desk behind it: a **seller
+portal** (back office), a **customer storefront**, and an **admin site**, one
+Rails deployable, one SQLite file. Turbo is the only JavaScript and every page
+works without it. Every agent working in `prototype/rails/` reads this doc first
+and follows the conventions in it. The PHP spike in `prototype/php/` solved the
+same product; its domain decisions carry over unless stated otherwise here.
 
 ## Deployables
 
@@ -13,23 +14,27 @@ Question: what runs, and what talks to what?
 ```mermaid
 flowchart LR
     subgraph docker["docker compose: app container"]
-        rails["Rails 8 app (Ruby 3.3)\n/seller/* portal\n/ storefront"]
-        sqlite[("SQLite\nsrc/storage/development.sqlite3")]
+        rails["Rails 8 app (Ruby 3.3)\n/seller/* portal\n/admin/* desk\n/ storefront\n/cable Action Cable"]
+        sqlite[("SQLite\nsrc/storage/development.sqlite3\ndomain tables + solid_cable_messages")]
         rails --> sqlite
     end
-    seller["Seller (browser)"] -- "HTML forms" --> rails
-    customer["Customer (browser)"] -- "HTML forms" --> rails
+    seller["Seller (browser)"] -- "HTML forms\nWebSocket /cable" --> rails
+    customer["Customer (browser)"] -- "HTML forms\nWebSocket /cable" --> rails
+    admin["Admin (browser)"] -- "HTML forms\nWebSocket /cable" --> rails
     smtp["SMTP (production only; delivery_method :test elsewhere)"] -.-> rails
 ```
 
 One container (`app`) holds Ruby, Bundler, the Tailwind standalone binary
 (via `tailwindcss-rails`), and the SQLite file. Nothing is installed on the host.
+Action Cable rides the same Puma process and the same SQLite file: Solid Cable
+writes broadcasts to `solid_cable_messages` and subscribers poll it, so live
+updates need no Redis and no second database.
 
 ## Layers inside the deployable
 
-The stock Rails tree. `app/` holds `assets controllers helpers mailers models
-views`, `config/application.rb` has no autoloader configuration, and
-`bin/rails zeitwerk:check` passes on the defaults.
+The stock Rails tree. `app/` holds `assets controllers helpers javascript
+mailers models views`, `config/application.rb` has no autoloader configuration,
+and `bin/rails zeitwerk:check` passes on the defaults.
 
 ```mermaid
 flowchart TD
@@ -40,15 +45,28 @@ flowchart TD
     controllers --> mailers
     mailers["app/mailers"] --> models
     models["app/models — Active Record records and plain Ruby value objects"]
+    models -- "after-commit broadcasts" --> cable["Turbo::StreamsChannel\n(Action Cable on Solid Cable)"]
+    views -- "turbo_stream_from" --> cable
+    js["app/javascript/application.js\n(importmap: application, @hotwired/turbo-rails)"] --> cable
 ```
 
 | Lives in | Holds |
 | --- | --- |
-| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation both accounts share. |
-| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). |
+| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Payout.run_weekly`, `Listing#take_stock!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. A value object takes time and ids as arguments and touches no database. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry. |
+| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). `MessagingSite` is the inbox, thread and reply the three sites share, over the assigns `ThreadPage` names; `SellerThreadPage` adds the portal's publish-as-FAQ form to those assigns, which is what lets a refused entry come back on the thread it was lifted from. |
 | `app/mailers/` | `MagicLinkMailer` and its views. |
-| `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). |
-| `config/routes.rb`, `config/initializers/*` | Wiring only. |
+| `app/views/`, `app/helpers/` | ERB templates and the two view helpers (`status_label`, and the storefront header counts plus `money`). The partials a broadcast renders live here too, one per site: `{shop,seller,admin}/conversations/_message` and `_unread_badge`. |
+| `app/javascript/` | `application.js` — one `import "@hotwired/turbo-rails"` and nothing else. `config/importmap.rb` pins it and the Turbo the gem ships; `javascript_importmap_tags` in the three layouts serves the map. No bundler, no Node, no Stimulus. |
+| `config/routes.rb`, `config/initializers/*`, `config/cable.yml`, `config/importmap.rb` | Wiring only. |
+
+The gems outside stock Rails 8.1.3.1 on Ruby 3.3.12:
+
+| Gem | Version | What it brings |
+| --- | --- | --- |
+| `tailwindcss-rails` | 4.6.0 (tailwindcss 4.3.3) | The standalone Tailwind binary, so the image needs no Node. |
+| `turbo-rails` | 2.0.23 | Turbo Drive, `turbo_stream_from`, `broadcast_append_to` / `broadcast_replace_to`, `Turbo::StreamsChannel`, and the broadcast test helper. |
+| `importmap-rails` | 2.2.3 | `config/importmap.rb` and `javascript_importmap_tags`; two pins, no bundler. |
+| `solid_cable` | 4.0.2 | The Action Cable adapter that keeps broadcasts in `solid_cable_messages` in the application's own SQLite database. |
 
 Naming follows the `naming` skill: model methods are the verb a record answers
 to (`Order#pay!`, `Fulfillment#ship!`, `Payout.run_weekly`,
@@ -58,8 +76,15 @@ Rails makes every `app/*` directory a Zeitwerk root, and `app/models/seller.rb`
 already defines `Seller` as a class, so a `seller/` directory elsewhere under
 `app/` declaring `module Seller` raises `TypeError: Seller is not a module`.
 That collision makes every seller-portal controller `class Seller::XController <
-Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
-`Auth::` have no matching model and stay `module`.
+Seller::BaseController` (compact form) instead of `module Seller`; `Shop::`,
+`Admin::` and `Auth::` have no matching model and stay `module`.
+
+There is no `app/channels/`. `action_cable/engine` is required in
+`config/application.rb` and `Turbo::StreamsChannel` (from `turbo-rails`) is the
+only channel the app subscribes to. Action Cable falls back to
+`ActionCable::Connection::Base` when no `ApplicationCable::Connection` is
+defined, and the signed stream names `turbo_stream_from` renders are the access
+control, so an identified connection would add a file with nothing to say.
 
 ## Sites
 
@@ -67,20 +92,30 @@ Seller::BaseController` (compact form) instead of `module Seller`; `Shop::` and
 | --- | --- | --- | --- |
 | Seller portal | `/seller` | `session[:seller_id]` | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
 | Storefront | `/` | `session[:customer_id]` + signed cookie `customer_id` for the anonymous identity | Bright, open, white space, large imagery, brand recedes. |
+| Admin site | `/admin` | `session[:admin_id]` | Slate — dark chrome, tabular, the operator's view of both sides. |
 
 Controllers: `Seller::*Controller` under `app/controllers/seller/`,
-`Shop::*Controller` under `app/controllers/shop/`, `Auth::*Controller` under
-`app/controllers/auth/`. Layouts `app/views/layouts/seller.html.erb` and
-`app/views/layouts/shop.html.erb`; both render `layouts/_debug_alert.html.erb`
-which prints `flash[:debug_magic_link]`.
+`Shop::*Controller` under `app/controllers/shop/`, `Admin::*Controller` under
+`app/controllers/admin/`, `Auth::*Controller` under `app/controllers/auth/`.
+Layouts `app/views/layouts/seller.html.erb`, `shop.html.erb` and
+`admin.html.erb`; all three render `layouts/_debug_alert.html.erb` which prints
+`flash[:debug_magic_link]`, and all three carry a Messages link with the unread
+badge.
 
 ## Identity
 
 - Passwordless. `magic_links` holds a hashed token, `email`, `actor_type`
-  (`seller` | `customer`), `expires_at`, `consumed_at`, optional `redirect_to`.
-  `MagicLink.issue` writes the row and returns the plaintext token beside it;
-  `MagicLink.find_by_token`, `#usable?` and `#consume!` are the verify side.
-  `Seller.claim` and `Customer.claim` turn a followed link into an account.
+  (`seller` | `customer` | `admin`), `expires_at`, `consumed_at`, optional
+  `redirect_to`. `MagicLink.issue` writes the row and returns the plaintext
+  token beside it; `MagicLink.find_by_token`, `#usable?` and `#consume!` are the
+  verify side. `Seller.claim` and `Customer.claim` turn a followed link into an
+  account.
+- Admins are seeded. `Admin.claim` finds the row rather than creating one, so a
+  followed link for an address no `admins` row holds goes back to
+  `/admin/login` with "That address does not reach the admin site."
+  `Admin.on_duty` (the first admin by id) is who both support buttons open a
+  thread against. `Auth::AdminSessionsController` and `Admin::BaseController`
+  are the admin arm of the same magic-link flow.
 - `MagicLinkSender#send_magic_link` issues the link and enqueues
   `MagicLinkMailer.with(link:, url:).sign_in.deliver_later`. Delivery is
   `:test` in development and test, so the mail stays in
@@ -129,6 +164,21 @@ erDiagram
     customers ||--o{ customer_merges : merged_from
     sellers ||--o{ notifications : notifies
     customers ||--o{ notifications : notifies
+    admins ||--o{ notifications : notifies
+```
+
+Messaging hangs off the same actors, one table for all four kinds of thread:
+
+```mermaid
+erDiagram
+    admins ||--o{ conversations : "admin side"
+    sellers ||--o{ conversations : "seller side"
+    customers ||--o{ conversations : "customer side"
+    conversations ||--o{ messages : holds
+    listings ||--o{ conversations : "subject of a listing_question"
+    fulfillments ||--o{ conversations : "subject of a fulfillment thread"
+    listings ||--o{ listing_faqs : publishes
+    messages ||--o| listing_faqs : "answer an entry came from"
 ```
 
 ### Listing status
@@ -227,8 +277,21 @@ Spaces and dashes are ignored. Only the last four digits are stored.
 `notifications` rows (polymorphic `recipient`, subject, body, url, read_at)
 shown in each site's header. `Notification.item_sold` files "Item sold" under
 the seller when an order is paid; `Notification.order_shipped` files "Order
-shipped" under the customer when a fulfillment departs.
-`Notification#deliver_by_email` is the email hook.
+shipped" under the customer when a fulfillment departs;
+`Notification.new_message` files "New message" under the counterpart when a
+thread gains a message, with `url` set to that recipient's own thread path
+(`Conversation#thread_path_for`), since the three sites carry the same
+conversation under three paths. `Notification#deliver_by_email` is the email
+hook.
+
+## Messaging
+
+Four kinds of conversation over one `conversations` table, an inbox and a
+thread page on each of the three sites, and a seller's answer published to a
+listing as an FAQ. The kinds, the access rule, the unread count and the Turbo
+broadcasts are in [`messaging.md`](messaging.md), beside
+[`identity.md`](identity.md), [`orders.md`](orders.md) and
+[`escrow.md`](escrow.md).
 
 ## Testing
 
@@ -253,6 +316,13 @@ shipped" under the customer when a fulfillment departs.
   `TestRecords`.
 - Controller and task tests run against the test SQLite database; they drive
   HTTP and assert on rendered HTML and DB state.
+- Broadcasts are asserted with `Turbo::Broadcastable::TestHelper`, which the
+  `turbo-rails` engine mixes into `ActiveSupport::TestCase` on load — the
+  suite includes nothing of its own. `config/cable.yml` uses the `test`
+  adapter, so `capture_turbo_stream_broadcasts([conversation, seller])` and
+  `assert_turbo_stream_broadcasts([seller, :unread_messages], count: 0)` read
+  what a post or a read enqueued without a running cable server. A rolled-back
+  post asserts through the same helper, since the broadcasts are after-commit.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
   per-group summary (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` is
   one global line-coverage minimum (`make coverage` sets it to 80); the suite

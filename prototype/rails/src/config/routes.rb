@@ -12,6 +12,10 @@ Rails.application.routes.draw do
     post "login", to: "customer_sessions#create", as: :customer_send_magic_link
     post "logout", to: "customer_sessions#destroy", as: :customer_logout
 
+    get "admin/login", to: "admin_sessions#new", as: :admin_login
+    post "admin/login", to: "admin_sessions#create", as: :admin_send_magic_link
+    post "admin/logout", to: "admin_sessions#destroy", as: :admin_logout
+
     get "auth/magic/:token", to: "magic_links#show", as: :verify_magic_link
   end
 
@@ -20,10 +24,12 @@ Rails.application.routes.draw do
 
     resources :listings, only: %i[index show new create edit update] do
       resource :status, only: :create, controller: "listing_statuses"
+      resources :faqs, only: %i[index create update destroy]
     end
 
     resources :orders, only: %i[index show] do
       resource :shipment, only: :create, controller: "shipments"
+      resource :conversation, only: :create, controller: "order_conversations"
     end
 
     get "earnings", to: "earnings#show", as: :earnings
@@ -32,10 +38,33 @@ Rails.application.routes.draw do
     resources :notifications, only: :index do
       resource :read, only: :create, controller: "notification_reads"
     end
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
+
+    resource :support, only: :create
+  end
+
+  namespace :admin do
+    root "dashboard#show"
+
+    resources :sellers, only: :show do
+      resource :conversation, only: :create, controller: "seller_conversations"
+    end
+
+    resources :customers, only: :show do
+      resource :conversation, only: :create, controller: "customer_conversations"
+    end
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
   end
 
   namespace :shop, path: "" do
     get "art/:slug", to: "listings#show", as: :listing
+    post "art/:slug/questions", to: "listing_questions#create", as: :listing_questions
 
     get "favorites", to: "favorites#index", as: :favorites
     post "art/:slug/favorite", to: "favorites#toggle", as: :toggle_favorite
@@ -53,9 +82,17 @@ Rails.application.routes.draw do
     post "orders/:id/pay", to: "order_payments#create", as: :pay_order
     post "orders/:order_id/fulfillments/:id/delivered",
       to: "delivery_confirmations#create", as: :confirm_delivery
+    post "orders/:order_id/fulfillments/:id/conversation",
+      to: "fulfillment_conversations#create", as: :fulfillment_conversation
 
     get "account", to: "account#show", as: :account
     post "account/notifications/:id/read", to: "notification_reads#create", as: :read_notification
+
+    resources :conversations, path: "messages", only: %i[index show] do
+      resources :messages, only: :create
+    end
+
+    resource :support, only: :create
   end
 
   root "shop/storefront#show"

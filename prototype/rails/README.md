@@ -1,7 +1,9 @@
 # Art Store prototype (Rails)
 
-A two-sided art marketplace prototype: a seller portal at `/seller` and a
-customer storefront at `/`. One Rails app, one SQLite file, no JavaScript.
+A two-sided art marketplace prototype with a desk behind it: a seller portal at
+`/seller`, a customer storefront at `/`, and an admin site at `/admin`. One
+Rails app, one SQLite file. Turbo is the only JavaScript, and every page works
+without it.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -26,28 +28,38 @@ Then open:
 
 - Storefront — <http://localhost:3000/>
 - Seller portal — <http://localhost:3000/seller>
+- Admin site — <http://localhost:3000/admin>
 
 `make down` stops the stack. `make logs` follows the server output.
 
 ## Seeded accounts
 
 `bin/rails db:seed` (part of `make fresh`, and run once automatically by the
-entrypoint against a fresh database) creates four verified sellers, 29
-listings, one verified customer, and order history built through the FEAT-003
-actions: a paid order awaiting shipment, a shipped order, and a delivered
-order whose escrow is released and paid out.
+entrypoint against a fresh database) creates one admin, four verified sellers,
+29 listings, one verified customer, order history built through the FEAT-003
+actions (a paid order awaiting shipment, a shipped order, and a delivered
+order whose escrow is released and paid out), and messaging: one thread of
+each of the four kinds — the desk with a seller, the desk with the customer,
+the customer and a seller about the shipped order, and a question on a
+listing — nine messages between them, and the one answer published to the
+listing as an FAQ. Every thread ends on a message its other side has not
+opened, so four badges are waiting: one each for maya and noah in the portal,
+two for casey on the storefront.
 
 | Email | Role | Shop |
 | --- | --- | --- |
+| `ops@example.com` | Admin | — (the platform operator, 2 support threads) |
 | `maya@example.com` | Seller | Terra & Glaze Ceramics |
 | `noah@example.com` | Seller | North Light Editions |
 | `priya@example.com` | Seller | Priya Anand Textile Studio |
 | `leo@example.com` | Seller | Leo Martins Photography |
-| `casey@example.com` | Customer | — (3 favorites, view history, 3 orders) |
+| `casey@example.com` | Customer | — (3 favorites, view history, 3 orders, 3 threads) |
 
-Every account is passwordless. Sign in at `/seller/login` or `/login` with one
-of the emails above; the layout's debug alert prints the magic link in place
-of sending an email, and clicking it signs you in.
+Every account is passwordless. Sign in at `/seller/login`, `/login`, or
+`/admin/login` with one of the emails above; the layout's debug alert prints
+the magic link in place of sending an email, and clicking it signs you in.
+Sellers and customers sign up by following their first link; admins are seeded,
+so an address with no `admins` row is refused at `/admin/login`.
 
 ## Commands
 
@@ -112,8 +124,10 @@ with an image, marks it for sale; a fresh anonymous visitor views, favorites,
 and carts it, checks out as a guest, verifies the address from the debug alert,
 pays with 4242; the seller reads the "Item sold" notification and ships; the
 customer confirms delivery; the weekly payout runs and the earnings page shows
-the net. Time is frozen so the payout period is the same whatever day it runs.
-It is part of `make test`.
+the net; the buyer asks a question on the listing, the seller reads it in the
+inbox, replies, and publishes the pair as an FAQ, and a third browser with no
+cookie reads the question and the answer on the listing page. Time is frozen so
+the payout period is the same whatever day it runs. It is part of `make test`.
 
 ## Coverage
 
@@ -124,7 +138,7 @@ make coverage
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
 overall line minimum and fails the run below it; `make coverage` passes 80. The
-suite stands at 527 runs and 100% line coverage.
+suite stands at 737 runs and 100% line coverage.
 
 ## Database
 
@@ -151,8 +165,23 @@ make assets
 
 The source is `src/app/assets/tailwind/application.css`; the build lands in
 `src/app/assets/builds/tailwind.css`, which is not committed. Layouts reference
-it with `stylesheet_link_tag :app`. There is no JavaScript bundle and no
-`<script>` tag in any view.
+it with `stylesheet_link_tag :app`.
+
+## JavaScript
+
+`javascript_importmap_tags` in the three layouts serves an import map with two
+entries: `application` (`src/app/javascript/application.js`, four lines, one
+`import`) and `@hotwired/turbo-rails`, pinned in `config/importmap.rb` to the
+`turbo.min.js` the gem ships. No bundler, no CDN, no Node.
+
+What Turbo adds: a message thread appends the other side's reply and the nav's
+Messages badge changes count without a reload, over Action Cable on Solid Cable
+(`solid_cable_messages` in the same SQLite file — no Redis). The stream names
+in `<turbo-cable-stream-source>` are signed, so a browser can only subscribe to
+the threads and the badge the server handed it.
+
+With JavaScript off, every page, form, link, and redirect behaves as it did
+before Turbo; the thread page and the badge then change on the next load.
 
 ## Layout
 
@@ -163,15 +192,16 @@ prototype/rails/
   docker-compose.yml   one service: app
   docker/entrypoint.sh bundle, database, Tailwind, then the container command
   Makefile             host-side wrappers over docker compose
-  docs/                architecture, feature docs, and review.md
+  docs/                architecture, feature docs (messaging, identity,
+                       orders, escrow, data model, ontology), and review.md
   work/                tickets and journal
   src/                 the Rails application
     app/models/        the records, the value objects, and their behaviour
-    app/controllers/   one namespace per site: shop/, seller/, auth/
+    app/controllers/   one namespace per site: shop/, seller/, admin/, auth/
     app/helpers/       status_label and the storefront header counts
     app/mailers/       MagicLinkMailer, which sends the sign-in link
-    app/views/layouts/ shop, seller, and the _debug_alert partial both render
-    config/routes.rb   / and /seller
+    app/views/layouts/ shop, seller, admin, and the partials all three render
+    config/routes.rb   /, /seller, and /admin
     test/              mirrors app/: models/, controllers/, mailers/, views/
     test/test_helper.rb SimpleCov and the Rails test base
     test/support/      the record builders and the HTTP sign-in helpers
@@ -183,19 +213,22 @@ route and the test that prove it, and lists what is missing.
 
 ## Magic links
 
-Passwordless on both sides. `MagicLinkMailer.sign_in` sends the URL, and
+Passwordless on all three sites. `MagicLinkMailer.sign_in` sends the URL, and
 because the container has no mailbox anyone can read, the URL is also flashed
 into `flash[:debug_magic_link]`, which `layouts/_debug_alert` prints at the top
-of both layouts.
+of all three layouts.
 
-Sellers sign in at `/seller/login`, customers at `/login`; both submit an email
-address, then click the link in the debug alert. A link lasts 15 minutes and
-works once. The first link for an address creates the account.
+Sellers sign in at `/seller/login`, customers at `/login`, admins at
+`/admin/login`; each submits an email address, then clicks the link in the
+debug alert. A link lasts 15 minutes and works once. The first link for an
+address creates a seller or a customer account; an admin address with no
+`admins` row is refused when the link is followed.
 
 `MagicLink.issue(email:, actor_type:)` writes the row and returns the
 plaintext token beside it — only the SHA256 digest is stored — and the verify
 side is `MagicLink.find_by_token`, `#usable?` and `#consume!`. A followed link
-reaches `Seller.claim(email)` or `Customer.claim(email, current:)`.
+reaches `Seller.claim(email)`, `Customer.claim(email, current:)` or
+`Admin.claim(email)`.
 
 Every storefront visitor gets a `customers` row before they give an address,
 carried in the signed `customer_id` cookie. Verifying an address either claims
@@ -215,8 +248,8 @@ Development and test both use `delivery_method :test`, so mail accumulates in
 mail is at `/rails/mailers/magic_link_mailer/sign_in` in development.
 
 `src/app/models/notification.rb` (`Notification#deliver_by_email`) is the
-remaining hook, for the "Item sold" and "Order shipped" notifications, which
-reach the in-app inbox today.
+remaining hook, for the "Item sold", "Order shipped" and "New message"
+notifications, which reach the in-app inbox today.
 
 ## Paying
 

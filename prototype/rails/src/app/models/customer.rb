@@ -1,9 +1,14 @@
 class Customer < ApplicationRecord
   include EmailAddress
+  include Messaging
 
   # The rows that move with a customer when an anonymous identity is absorbed
-  # into a verified one.
-  MERGED_ASSOCIATIONS = %i[favorites carts orders listing_events notifications].freeze
+  # into a verified one, each by re-pointing the column it hangs from.
+  # Conversations move through `Conversation#move_to`, since two threads of the
+  # same shape have to fold into one.
+  MERGED_ASSOCIATIONS = %i[
+    favorites carts orders listing_events notifications sent_messages
+  ].freeze
 
   has_many :merges_absorbed, class_name: "CustomerMerge", dependent: :destroy, inverse_of: :customer
   has_many :carts, dependent: :destroy
@@ -39,6 +44,12 @@ class Customer < ApplicationRecord
 
   def anonymous?
     email.nil?
+  end
+
+  # A customer gives an address before they give a name, and a visitor gives
+  # neither, so the display falls back through what is there.
+  def display_name
+    name.to_s.strip.presence || email.to_s.split("@").first.presence || "Visitor ##{id}"
   end
 
   # A merge hands the verified customer whatever cart the anonymous visitor was
@@ -96,6 +107,7 @@ class Customer < ApplicationRecord
         anonymous.public_send(association).update_all(foreign_key => id)
       end
 
+      anonymous.conversations.each { |conversation| conversation.move_to(self) }
       merges_absorbed.create!(anonymous_customer: anonymous)
     end
 

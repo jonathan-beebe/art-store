@@ -21,6 +21,12 @@ class MagicLinkTest < ActiveSupport::TestCase
     assert_predicate MagicLink.sole, :customer?
   end
 
+  test "issue records a link asked for from the admin site" do
+    MagicLink.issue(email: "ops@example.com", actor_type: :admin)
+
+    assert_predicate MagicLink.sole, :admin?
+  end
+
   test "issue carries the destination the visitor was headed for" do
     MagicLink.issue(email: "buyer@example.com", actor_type: :customer, redirect_to: "/orders/7/pay")
 

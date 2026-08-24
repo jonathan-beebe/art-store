@@ -96,6 +96,24 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal existing, Customer.claim("BUYER@Example.com")
   end
 
+  test "a named customer is displayed under their name" do
+    assert_equal "Casey Whitfield", create_verified_customer(name: "Casey Whitfield").display_name
+  end
+
+  test "an unnamed customer is displayed under the local part of the address" do
+    assert_equal "casey", create_verified_customer(name: nil, email: "casey@example.test").display_name
+  end
+
+  test "a customer named with whitespace counts as unnamed" do
+    assert_equal "casey", create_verified_customer(name: "   ", email: "casey@example.test").display_name
+  end
+
+  test "a visitor who has given no address is displayed by their id" do
+    anonymous = create_anonymous_customer
+
+    assert_equal "Visitor ##{anonymous.id}", anonymous.display_name
+  end
+
   test "absorb moves the history of the anonymous customer" do
     anonymous = create_anonymous_customer
     verified = create_verified_customer
@@ -107,6 +125,10 @@ class CustomerTest < ActiveSupport::TestCase
       customer: anonymous, event_type: "view", occurred_at: Time.current
     )
     notification = Notification.create!(recipient: anonymous, subject: "Order placed", body: "Order #1 is open.")
+    conversation = Conversation.open(
+      kind: :listing_question, seller: listing.seller, customer: anonymous, subject: listing
+    )
+    message = conversation.post!(anonymous, "Is the frame included?")
 
     verified.absorb(anonymous)
 
@@ -115,6 +137,33 @@ class CustomerTest < ActiveSupport::TestCase
     assert_equal verified, order.reload.customer
     assert_equal verified, event.reload.customer
     assert_equal verified, notification.reload.recipient
+    assert_equal verified, conversation.reload.customer
+    assert_equal verified, message.reload.sender
+  end
+
+  test "absorb folds a duplicate thread into the one the verified customer already holds" do
+    anonymous = create_anonymous_customer
+    verified = create_verified_customer
+    listing = create_listing
+    seller = listing.seller
+    standing = question_about(listing, verified, at: moment("2026-08-20 09:00:00"))
+    standing.post!(verified, "Is the frame included?", at: moment("2026-08-20 09:00:00"))
+    standing.post!(seller, "It is.", at: moment("2026-08-20 10:00:00"))
+    standing.read_by!(verified)
+    duplicate = question_about(listing, anonymous, at: moment("2026-08-21 09:00:00"))
+    duplicate.post!(anonymous, "And does it ship rolled?", at: moment("2026-08-21 09:00:00"))
+
+    verified.absorb(anonymous)
+
+    assert_equal standing, Conversation.involving(verified.reload).sole
+    assert_equal standing, Conversation.involving(seller).sole
+    assert_equal(
+      ["Is the frame included?", "It is.", "And does it ship rolled?"],
+      standing.messages.oldest_first.pluck(:body)
+    )
+    assert_equal moment("2026-08-21 09:00:00"), standing.reload.last_message_at
+    assert_equal 2, standing.unread_count_for(seller)
+    assert_equal 0, standing.unread_count_for(verified)
   end
 
   test "absorb leaves the rows of a bystander where they are" do
@@ -240,5 +289,24 @@ class CustomerTest < ActiveSupport::TestCase
 
     assert_equal :added, other.toggle_favorite(listing, at: moment("2026-08-20 09:01:00"))
     assert shopper.favorited?(listing)
+  end
+
+  test "a customer counts the unread messages across their own threads" do
+    buyer = create_verified_customer
+    shop = create_seller
+    listing = create_listing(shop)
+    conversation = Conversation.open(kind: :listing_question, seller: shop, customer: buyer, subject: listing)
+    conversation.post!(shop, "This one is back in stock.")
+
+    assert_equal 1, buyer.unread_message_count
+    assert_equal 0, create_verified_customer.unread_message_count
+  end
+
+  private
+
+  def question_about(listing, customer, at: Time.current)
+    Conversation.open(
+      kind: :listing_question, seller: listing.seller, customer: customer, subject: listing, at: at
+    )
   end
 end

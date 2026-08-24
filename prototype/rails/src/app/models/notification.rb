@@ -20,6 +20,19 @@ class Notification < ApplicationRecord
     )
   end
 
+  # The url is the recipient's own thread page: the three sites carry the same
+  # conversation under three paths.
+  def self.new_message(message, url:)
+    conversation = message.conversation
+
+    deliver(
+      recipient: conversation.counterpart_of(message.sender),
+      subject: "New message",
+      body: "You have a new message about #{conversation.topic}.",
+      url: url
+    )
+  end
+
   private_class_method def self.deliver(attributes)
     notification = create!(attributes)
     notification.deliver_by_email

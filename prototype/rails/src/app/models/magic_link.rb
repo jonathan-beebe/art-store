@@ -5,7 +5,7 @@ class MagicLink < ApplicationRecord
 
   TOKEN_BYTES = 32
 
-  enum :actor_type, { seller: "seller", customer: "customer" }
+  enum :actor_type, { seller: "seller", customer: "customer", admin: "admin" }
 
   validates :email, format: { with: EmailAddress::SHAPE }
 

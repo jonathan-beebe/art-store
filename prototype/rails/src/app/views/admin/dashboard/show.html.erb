@@ -1,0 +1,41 @@
+<% content_for :title, "Dashboard — Art Store admin" %>
+
+<h1 class="text-lg font-semibold">Dashboard</h1>
+
+<section aria-labelledby="sellers" class="mt-6">
+  <h2 id="sellers" class="font-semibold text-slate-300">Sellers (<%= @sellers.size %>)</h2>
+
+  <% if @sellers.empty? %>
+    <p data-empty="sellers" class="mt-2 rounded border border-slate-700 bg-slate-800 p-4 text-slate-400">
+      Nobody has opened a shop yet.
+    </p>
+  <% else %>
+    <ul class="mt-2 divide-y divide-slate-700 rounded border border-slate-700 bg-slate-800">
+      <% @sellers.each do |seller| %>
+        <li data-seller="<%= seller.id %>" class="flex flex-wrap items-center gap-4 p-4">
+          <%= link_to seller.display_name, admin_seller_path(seller), class: "font-medium underline" %>
+          <span class="text-slate-400"><%= seller.email %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
+
+<section aria-labelledby="customers" class="mt-6">
+  <h2 id="customers" class="font-semibold text-slate-300">Customers (<%= @customers.size %>)</h2>
+
+  <% if @customers.empty? %>
+    <p data-empty="customers" class="mt-2 rounded border border-slate-700 bg-slate-800 p-4 text-slate-400">
+      Nobody has verified an address yet.
+    </p>
+  <% else %>
+    <ul class="mt-2 divide-y divide-slate-700 rounded border border-slate-700 bg-slate-800">
+      <% @customers.each do |customer| %>
+        <li data-customer="<%= customer.id %>" class="flex flex-wrap items-center gap-4 p-4">
+          <%= link_to customer.display_name, admin_customer_path(customer), class: "font-medium underline" %>
+          <span class="text-slate-400"><%= customer.email %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</section>
