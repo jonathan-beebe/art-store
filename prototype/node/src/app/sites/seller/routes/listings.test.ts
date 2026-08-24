@@ -228,7 +228,7 @@ test('a listing with no title is refused', async (t) => {
 
   assert.equal(response.statusCode, 422)
   assert.match(response.body, /data-field-error="listing_title"[^>]*>Enter a title\./)
-  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error" aria-invalid="true"/)
+  assert.match(response.body, /id="listing_title"[^>]*aria-describedby="listing_title-error"[^>]*aria-invalid="true"/)
   // A field with no error of its own carries neither attribute.
   assert.doesNotMatch(response.body, /id="listing_medium"[^>]*aria-describedby/)
 })

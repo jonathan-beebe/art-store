@@ -5,97 +5,77 @@
   class="mt-4 max-w-3xl rounded border border-neutral-300 bg-white p-4"
 >
   <%- include('views/partials/csrf-field', { csrfToken }) %>
+  <%- include('views/partials/form-error', { formError: typeof formError !== 'undefined' ? formError : null }) %>
   <fieldset>
     <legend class="font-semibold text-neutral-700">Listing details</legend>
 
-    <div class="mt-2">
-      <label for="listing_title" class="block text-sm font-medium text-neutral-700">Title</label>
-      <input
-        type="text"
-        name="title"
-        id="listing_title"
-        value="<%= fields.title.value %>"
-        required
-        maxlength="255"
-        <% if (fields.title.errorId) { %>aria-describedby="<%= fields.title.errorId %>" aria-invalid="true"<% } %>
-        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-      />
-      <%- include('views/partials/field-error', { field: 'listing_title', message: errors.title }) %>
-    </div>
+    <%- include('views/partials/form-field', {
+      name: 'title',
+      id: 'listing_title',
+      label: 'Title',
+      value: fields.title ?? '',
+      error: errors.title,
+      required: true,
+      maxlength: 255,
+      wrapperClass: 'mt-2',
+    }) %>
 
-    <div class="mt-4">
-      <label for="listing_description" class="block text-sm font-medium text-neutral-700">Description</label>
-      <textarea
-        name="description"
-        id="listing_description"
-        rows="4"
-        maxlength="5000"
-        <% if (fields.description.errorId) { %>aria-describedby="<%= fields.description.errorId %>" aria-invalid="true"<% } %>
-        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-      ><%= fields.description.value %></textarea>
-      <%- include('views/partials/field-error', { field: 'listing_description', message: errors.description }) %>
-    </div>
+    <%- include('views/partials/form-field', {
+      name: 'description',
+      id: 'listing_description',
+      label: 'Description',
+      type: 'textarea',
+      value: fields.description ?? '',
+      error: errors.description,
+      rows: 4,
+      maxlength: 5000,
+    }) %>
 
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
-      <div>
-        <label for="listing_medium" class="block text-sm font-medium text-neutral-700">Medium</label>
-        <input
-          type="text"
-          name="medium"
-          id="listing_medium"
-          value="<%= fields.medium.value %>"
-          maxlength="255"
-          <% if (fields.medium.errorId) { %>aria-describedby="<%= fields.medium.errorId %>" aria-invalid="true"<% } %>
-          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-        />
-        <%- include('views/partials/field-error', { field: 'listing_medium', message: errors.medium }) %>
-      </div>
+      <%- include('views/partials/form-field', {
+        name: 'medium',
+        id: 'listing_medium',
+        label: 'Medium',
+        value: fields.medium ?? '',
+        error: errors.medium,
+        maxlength: 255,
+        wrapperClass: '',
+      }) %>
 
-      <div>
-        <label for="listing_dimensions" class="block text-sm font-medium text-neutral-700">Dimensions</label>
-        <input
-          type="text"
-          name="dimensions"
-          id="listing_dimensions"
-          value="<%= fields.dimensions.value %>"
-          maxlength="255"
-          <% if (fields.dimensions.errorId) { %>aria-describedby="<%= fields.dimensions.errorId %>" aria-invalid="true"<% } %>
-          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-        />
-        <%- include('views/partials/field-error', { field: 'listing_dimensions', message: errors.dimensions }) %>
-      </div>
+      <%- include('views/partials/form-field', {
+        name: 'dimensions',
+        id: 'listing_dimensions',
+        label: 'Dimensions',
+        value: fields.dimensions ?? '',
+        error: errors.dimensions,
+        maxlength: 255,
+        wrapperClass: '',
+      }) %>
 
-      <div>
-        <label for="listing_price" class="block text-sm font-medium text-neutral-700">Price (dollars)</label>
-        <input
-          type="text"
-          inputmode="decimal"
-          name="price"
-          id="listing_price"
-          value="<%= fields.price.value %>"
-          required
-          <% if (fields.price.errorId) { %>aria-describedby="<%= fields.price.errorId %>" aria-invalid="true"<% } %>
-          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-        />
-        <%- include('views/partials/field-error', { field: 'listing_price', message: errors.price }) %>
-      </div>
+      <%- include('views/partials/form-field', {
+        name: 'price',
+        id: 'listing_price',
+        label: 'Price (dollars)',
+        value: fields.price ?? '',
+        error: errors.price,
+        required: true,
+        inputmode: 'decimal',
+        wrapperClass: '',
+      }) %>
 
-      <div>
-        <label for="listing_quantity" class="block text-sm font-medium text-neutral-700">Quantity</label>
-        <input
-          type="number"
-          name="quantity"
-          id="listing_quantity"
-          value="<%= fields.quantity.value %>"
-          step="1"
-          min="0"
-          max="999"
-          required
-          <% if (fields.quantity.errorId) { %>aria-describedby="<%= fields.quantity.errorId %>" aria-invalid="true"<% } %>
-          class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
-        />
-        <%- include('views/partials/field-error', { field: 'listing_quantity', message: errors.quantity }) %>
-      </div>
+      <%- include('views/partials/form-field', {
+        name: 'quantity',
+        id: 'listing_quantity',
+        label: 'Quantity',
+        type: 'number',
+        value: fields.quantity ?? '',
+        error: errors.quantity,
+        required: true,
+        step: 1,
+        min: 0,
+        max: 999,
+        wrapperClass: '',
+      }) %>
     </div>
 
     <div class="mt-4">
@@ -105,8 +85,8 @@
         name="image"
         id="listing_image"
         accept="image/*"
-        aria-describedby="listing_image-hint<% if (fields.image.errorId) { %> <%= fields.image.errorId %><% } %>"
-        <% if (fields.image.errorId) { %>aria-invalid="true"<% } %>
+        aria-describedby="listing_image-hint<% if (errors.image) { %> listing_image-error<% } %>"
+        <% if (errors.image) { %>aria-invalid="true"<% } %>
         class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
       />
       <p id="listing_image-hint" class="mt-1 text-sm text-neutral-600">

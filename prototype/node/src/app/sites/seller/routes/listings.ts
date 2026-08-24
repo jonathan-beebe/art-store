@@ -30,7 +30,6 @@ import { identityId } from '../../../plugins/identity.ts'
 import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDay } from '../format.ts'
-import { listingFormFieldsView } from '../listing-form-fields-view.ts'
 import {
   listingDraftFieldsFrom,
   listingFormBody,
@@ -140,7 +139,7 @@ export async function renderOversizedImageForm(
     return reply.code(422).render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
-      fields: listingFormFieldsView(editFieldsFrom(listing), errors),
+      fields: editFieldsFrom(listing),
       errors,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
@@ -148,7 +147,7 @@ export async function renderOversizedImageForm(
 
   return reply.code(422).render('listings/new', {
     title: 'New listing',
-    fields: listingFormFieldsView(emptyDraftFields(), errors),
+    fields: emptyDraftFields(),
     errors,
   })
 }
@@ -201,7 +200,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
   portal.get('/listings/new', async (_request, reply) =>
     reply.render('listings/new', {
       title: 'New listing',
-      fields: listingFormFieldsView(emptyDraftFields(), NO_ERRORS),
+      fields: emptyDraftFields(),
       errors: NO_ERRORS,
     }),
   )
@@ -216,7 +215,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
       if (!draft.ok) {
         return reply.code(422).render('listings/new', {
           title: 'New listing',
-          fields: listingFormFieldsView(fields, draft.errors),
+          fields,
           errors: draft.errors,
         })
       }
@@ -273,7 +272,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
     return reply.render('listings/edit', {
       title: `Edit ${listing.title}`,
       listing,
-      fields: listingFormFieldsView(editFieldsFrom(listing), NO_ERRORS),
+      fields: editFieldsFrom(listing),
       errors: NO_ERRORS,
       imageSrc: listingImageSource(listing.imagePath, listing.title),
     })
@@ -293,7 +292,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
         return reply.code(422).render('listings/edit', {
           title: `Edit ${listing.title}`,
           listing,
-          fields: listingFormFieldsView(fields, draft.errors),
+          fields,
           errors: draft.errors,
           imageSrc: listingImageSource(listing.imagePath, listing.title),
         })
