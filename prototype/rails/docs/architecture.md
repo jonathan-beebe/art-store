@@ -204,6 +204,15 @@ column stores cents, so `Listing#price` reads and writes `"249.00"` around
 `Seller::ListingsController` is the stock new/create/edit/update shape and the
 form is `form_with model: [:seller, listing]`.
 
+An image upload is judged before it reaches Active Storage: over
+`Listing::MAX_IMAGE_UPLOAD_BYTES` (5 MB) is refused on size alone, and
+`ImageFormat.sniff` reads the leading bytes for a PNG, JPEG, GIF, or WebP
+signature — a browser-declared `Content-Type` names nothing, only the bytes
+decide, and a file whose bytes are not one of the four is refused, SVG
+(markup, not a magic-byte format) included, since a stored SVG is stored
+script. Both land as a `listing_image` field error on the same re-rendered
+form as any other invalid field.
+
 ### Order status
 
 ```mermaid

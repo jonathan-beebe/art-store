@@ -71,6 +71,57 @@ class ListingTest < ActiveSupport::TestCase
     assert_predicate record, :valid?
   end
 
+  test "a JPEG, GIF, and WebP upload are each accepted" do
+    [
+      upload("image/jpeg", "\xff\xd8\xff\xe0\x00\x10", "harbour.jpg"),
+      upload("image/gif", "GIF89a rest of file", "harbour.gif"),
+      upload("image/webp", "RIFF____WEBPVP8 ", "harbour.webp")
+    ].each do |file|
+      record = draft
+      record.image = file
+
+      assert_predicate record, :valid?
+    end
+  end
+
+  test "an SVG upload is refused whatever its declared content type" do
+    record = draft
+    record.image = uploaded_svg
+
+    refute_predicate record, :valid?
+    assert_equal "Upload an image file.", record.errors[:image].first
+  end
+
+  test "an SVG upload declared as a PNG is still refused — the bytes decide" do
+    record = draft
+    record.image = upload("image/png", "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>", "harbour.png")
+
+    refute_predicate record, :valid?
+    assert_equal "Upload an image file.", record.errors[:image].first
+  end
+
+  test "a real PNG declared as text/plain is accepted on its bytes" do
+    record = draft
+    record.image = upload("text/plain", "\x89PNG\r\n\x1a\n", "harbour.txt")
+
+    assert_predicate record, :valid?
+  end
+
+  test "an upload over the size cap is refused with a field error" do
+    record = draft
+    record.image = image_of_size(Listing::MAX_IMAGE_UPLOAD_BYTES + 1)
+
+    refute_predicate record, :valid?
+    assert_equal "Upload an image under 5 MB.", record.errors[:image].first
+  end
+
+  test "an upload at exactly the size cap is accepted" do
+    record = draft
+    record.image = image_of_size(Listing::MAX_IMAGE_UPLOAD_BYTES)
+
+    assert_predicate record, :valid?
+  end
+
   test "a listing with no upload asks for none" do
     assert_empty draft.errors[:image]
   end
@@ -559,10 +610,21 @@ class ListingTest < ActiveSupport::TestCase
     upload("image/png", "\x89PNG\r\n\x1a\n", filename)
   end
 
-  # Active Storage reads the type out of the bytes, so a refused upload carries
+  # `ImageFormat` reads the type out of the bytes, so a refused upload carries
   # a real header rather than a claim in the request.
   def uploaded_pdf
     upload("application/pdf", "%PDF-1.4\n", "harbour.pdf")
+  end
+
+  def uploaded_svg
+    upload("image/svg+xml", '<svg xmlns="http://www.w3.org/2000/svg"></svg>', "harbour.svg")
+  end
+
+  # A real PNG signature padded out to +byte_count+ bytes, so a cap test
+  # exercises a file `ImageFormat` would otherwise accept.
+  def image_of_size(byte_count)
+    png = "\x89PNG\r\n\x1a\n"
+    upload("image/png", png + ("\x00" * (byte_count - png.bytesize)), "harbour.png")
   end
 
   def upload(content_type, bytes, filename)

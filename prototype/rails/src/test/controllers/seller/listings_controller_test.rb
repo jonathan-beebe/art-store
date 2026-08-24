@@ -203,6 +203,39 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     assert_empty seller.listings
   end
 
+  test "an SVG upload is refused whatever its declared content type" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: { listing: submitted_fields(image: uploaded_svg) }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=listing_image]", text: "Upload an image file."
+    assert_empty seller.listings
+  end
+
+  test "an upload over the size cap is refused, and the form is re-rendered with what the seller typed" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: {
+      listing: submitted_fields(title: "Harbour at Dusk", image: oversized_upload)
+    }
+
+    assert_response :unprocessable_content
+    assert_select "[data-field-error=listing_image]", text: "Upload an image under 5 MB."
+    assert_select "input[name=?][value=?]", "listing[title]", "Harbour at Dusk"
+    assert_empty seller.listings
+  end
+
+  test "a real image declared as something else is accepted on its bytes" do
+    seller = signed_in_seller
+
+    post seller_listings_path, params: {
+      listing: submitted_fields(image: upload("text/plain", "\x89PNG\r\n\x1a\n", "harbour.txt"))
+    }
+
+    assert_predicate seller.listings.sole.image, :attached?
+  end
+
   test "the edit form is filled with the listing as it stands" do
     seller = signed_in_seller
     listing = create_listing(seller, title: "Harbour at Dusk", price_cents: 45_000, quantity: 3)
@@ -290,10 +323,19 @@ class Seller::ListingsControllerTest < ActionDispatch::IntegrationTest
     upload("image/png", "\x89PNG\r\n\x1a\n", "harbour.png")
   end
 
-  # Active Storage reads the type out of the bytes, so a refused upload carries
+  # `ImageFormat` reads the type out of the bytes, so a refused upload carries
   # a real header rather than a claim in the request.
   def uploaded_pdf
     upload("application/pdf", "%PDF-1.4\n", "harbour.pdf")
+  end
+
+  def uploaded_svg
+    upload("image/svg+xml", '<svg xmlns="http://www.w3.org/2000/svg"></svg>', "harbour.svg")
+  end
+
+  def oversized_upload
+    png = "\x89PNG\r\n\x1a\n"
+    upload("image/png", png + ("\x00" * (Listing::MAX_IMAGE_UPLOAD_BYTES - png.bytesize + 1)), "harbour.png")
   end
 
   def upload(content_type, bytes, filename)

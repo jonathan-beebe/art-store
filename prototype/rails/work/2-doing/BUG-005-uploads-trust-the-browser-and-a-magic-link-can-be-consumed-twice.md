@@ -25,3 +25,86 @@ Active Storage's `blob.byte_size` and a magic-byte check on the first bytes (or 
 ## Related work
 - prototype/node BUG-002, BUG-004
 - FEAT-004 (seller portal)
+
+## Working
+
+**Upload validation.** `app/models/image_format.rb` is a new plain module —
+`ImageFormat.sniff(bytes)` — that reads the leading bytes and returns
+`:png`/`:jpeg`/`:gif`/`:webp` or `nil`, ported from the Node prototype's
+`image-format.ts` magic-byte table. `Listing#image=` now reads the upload's
+`size` (rejecting over `Listing::MAX_IMAGE_UPLOAD_BYTES`) and its first
+`ImageFormat::SNIFF_BYTES` bytes (rejecting anything `ImageFormat.sniff`
+does not recognise) before ever calling `super`/`attach`; the rejection
+message is carried in an instance variable and surfaced by the existing
+`validate :image_is_an_image` as a `listing_image` field error, so a
+rejected upload re-renders the form with the seller's other fields intact —
+same path a title or price validation failure already took. `image=` only
+runs this check against something that looks like a real upload
+(`respond_to?(:read) && respond_to?(:size)`); anything else (e.g. a signed
+blob id string, which stock Active Storage direct uploads use) still passes
+straight to `super`, unchanged from before this ticket — nothing in this
+app posts that shape today, so this is a no-op guard, not a new path.
+
+- **Cap: 5 MB** (`Listing::MAX_IMAGE_UPLOAD_BYTES = 5.megabytes`). Matches
+  the PHP prototype's `MAX_IMAGE_KILOBYTES = 5120`.
+- **Accepted formats: PNG, JPEG, GIF, WebP** — the same four Node and PHP
+  accept. SVG is deliberately excluded (markup, not a signature format) and
+  refused whatever its declared `Content-Type`; a mismatched declared type
+  is ignored entirely — only the bytes decide, both ways (a lying `image/png`
+  on SVG bytes is refused, a lying `text/plain` on real PNG bytes is
+  accepted).
+- Checked for other reachable paths: no seed, rake task, or API touches
+  `Listing#image`; the only writer is the seller listing form
+  (`Seller::ListingsController`). `Listing#image.attach` called directly on
+  an association (bypassing the `image=` setter and its validation) is used
+  once in `test/models/listing_test.rb` to test that an already-stored
+  blob renders — that path was already outside every prior upload
+  validation too, and stays that way; nothing in the app reaches it.
+- Form (`app/views/seller/listings/_form.html.erb`) states the cap and the
+  four formats in the hint text and narrows `accept` to the four MIME
+  types. Docs: `docs/architecture.md`'s listing-validation paragraph now
+  names the cap and `ImageFormat.sniff`.
+
+**Magic-link double consume.** `MagicLink#consume` (renamed from the old
+bang `consume!`, since it now returns a boolean rather than raising)
+replaced the read-then-`update!` pair with
+`self.class.where(id: id, consumed_at: nil).update_all(consumed_at: now) == 1`.
+`Auth::MagicLinksController#show` keeps its `link.usable?` gate first (that
+read only decides which message — expired vs. already-used — an
+already-spent or expired link gets; it changes no row) and then
+unconditionally calls `link.consume`; a `false` return (the atomic update
+matched no row) is refused with the same "already been used" message a
+sequentially-replayed link gets, logged the same way. `docs/identity.md`'s
+seller sign-in section states the rule and what the `usable?` read still
+is and is not responsible for.
+
+- **What the test proves.** `test/models/magic_link_test.rb` — "consume
+  refuses a second copy of the link loaded before the first was spent" —
+  loads the same row into two separate `MagicLink` instances (`racer_a`,
+  `racer_b`), as two concurrent requests would each do their own `SELECT`,
+  then calls `consume` on each. `racer_a` wins; `racer_b`'s `UPDATE`
+  matches nothing because `racer_a`'s write already landed, and it returns
+  `false` even though `racer_b`'s own in-memory `consumed_at` was still
+  read as nil. This is the shape of the fix: refusal comes from the
+  database's row-count answer at write time, not from a timestamp read
+  into Ruby beforehand. What it does **not** prove: two threads or two
+  Puma workers hitting the same row at the literal same instant — SQLite
+  in this container serializes writes regardless, so a true concurrent
+  race was not driven end to end. A second test — "consume is a single
+  conditional UPDATE, not a read followed by a write" — subscribes to
+  `sql.active_record` and asserts `consume` issues exactly one `UPDATE ...
+  WHERE ... consumed_at IS NULL` statement, no separate `SELECT`, which is
+  the actual guarantee SQLite's own single-writer serialization relies on
+  to make the two-instance test meaningful.
+- Renaming `consume!` to `consume` touched three existing test call sites
+  (`test/models/magic_link_test.rb`,
+  `test/controllers/auth/magic_links_controller_test.rb`) — no behavior
+  change to those, only the name and (for the two direct-consume calls) an
+  unused boolean return.
+- Added controller-level `LogCapture` tests asserting `magic_link.consume`
+  logs `refused` at `info` for an expired, a consumed, and an unknown
+  token alike (never saying which), and `did` for the winning consume,
+  carrying `actor_type` and `magic_link_id`.
+
+**Deviations from the ticket's literal wording:** none. `make check`
+(rubocop → tailwindcss build → full suite at `COVERAGE_MIN=100`) is green.

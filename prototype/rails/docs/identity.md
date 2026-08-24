@@ -39,7 +39,7 @@ sequenceDiagram
 
     Seller->>Verify: GET /auth/magic/:token
     Verify->>MagicLinks: find_by_token(token)
-    Verify->>MagicLinks: consume!
+    Verify->>MagicLinks: consume — UPDATE ... WHERE consumed_at IS NULL
     Verify->>Sellers: claim(link.email)
     Sellers->>Sellers: find_or_initialize_by(email:), email_verified_at ||= now
     Verify->>Verify: sign_in_seller(seller) — session[:seller_id] = seller.id
@@ -52,6 +52,17 @@ sign-up step. An address that is not an address comes back from
 `422`. A link that is not `usable?` (consumed, or past `expires_at`)
 redirects back to `seller_login_path` with an error instead of reaching
 `Seller.claim`.
+
+One use is enforced by `MagicLink#consume`'s `UPDATE ... WHERE consumed_at IS
+NULL` and the affected-row count it returns, not by the `usable?` read taken
+before it — that read only chooses which message an already-spent or expired
+link gets. Two requests that load the same unconsumed link before either
+writes still race on the `UPDATE`: exactly one changes a row and returns
+`true`; the other matches nothing, returns `false`, and `Auth::MagicLinksController#show`
+sends it to `turn_away` with the same "already been used" message a
+sequentially-replayed link gets. Every refusal — unknown token, expired,
+consumed, or lost this race — logs `magic_link.consume` `refused` at `info`
+without saying which of the three it was.
 
 ## Customer guest verification with anonymous merge
 

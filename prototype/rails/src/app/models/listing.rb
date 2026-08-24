@@ -8,6 +8,10 @@ class Listing < ApplicationRecord
   SLUG_FALLBACK = "listing".freeze
   TEXT_MATCH = "title LIKE :pattern OR description LIKE :pattern OR medium LIKE :pattern".freeze
 
+  # The multipart size limit an uploaded listing image is held to, stated on
+  # the form's own help text below.
+  MAX_IMAGE_UPLOAD_BYTES = 5.megabytes
+
   belongs_to :seller
   has_many :events, class_name: "ListingEvent", dependent: :destroy
   has_many :favorites, dependent: :destroy
@@ -136,9 +140,16 @@ class Listing < ApplicationRecord
   end
 
   # A file field left empty posts as "", which would otherwise detach the
-  # image. The portal replaces an image, it never removes one.
+  # image. The portal replaces an image, it never removes one. A file upload
+  # is judged before Active Storage ever sees it: over the size cap, or bytes
+  # `ImageFormat` does not recognise (SVG included — stored script, not a
+  # format with a signature), never reaches `attach`.
   def image=(upload)
-    super if upload.present?
+    return if upload.blank?
+    return super unless upload.respond_to?(:read) && upload.respond_to?(:size)
+
+    @image_upload_rejection = image_upload_rejection(upload)
+    super if @image_upload_rejection.nil?
   end
 
   # A removal blocks a return to `for_sale` regardless of caller, so a stale
@@ -312,12 +323,19 @@ class Listing < ApplicationRecord
     self.slug = self.class.first_free_slug(title) if slug.blank?
   end
 
-  # Only the upload being attached is worth checking; what is already stored
-  # was checked when it arrived.
+  # Only the upload just handed to `image=` is worth checking; what is
+  # already stored was checked when it arrived.
   def image_is_an_image
-    upload = attachment_changes["image"]
-    return if upload.nil? || upload.blob.content_type.to_s.start_with?("image/")
+    errors.add(:image, @image_upload_rejection) if @image_upload_rejection
+  end
 
-    errors.add(:image, "Upload an image file.")
+  # nil accepts the upload; a message names why it does not reach `attach`.
+  def image_upload_rejection(upload)
+    return "Upload an image under #{MAX_IMAGE_UPLOAD_BYTES / 1.megabyte} MB." if upload.size > MAX_IMAGE_UPLOAD_BYTES
+
+    bytes = upload.read(ImageFormat::SNIFF_BYTES)
+    upload.rewind
+
+    "Upload an image file." if ImageFormat.sniff(bytes).nil?
   end
 end

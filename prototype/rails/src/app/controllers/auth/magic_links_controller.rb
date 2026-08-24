@@ -20,8 +20,8 @@ module Auth
         link = MagicLink.find_by_token(params[:token])
         next turn_away(story, "customer", UNKNOWN_LINK) if link.nil?
         next turn_away(story, link.actor_type, refusal_for(link), link) unless link.usable?
+        next turn_away(story, link.actor_type, CONSUMED, link) unless link.consume
 
-        link.consume!
         next turn_away(story, link.actor_type, UNKNOWN_ADMIN, link) if sign_in(link).nil?
 
         story.did("signed in from the link", actor_type: link.actor_type, magic_link_id: link.id)
