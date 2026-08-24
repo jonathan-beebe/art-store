@@ -222,9 +222,13 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app npm run assets` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app npm run check` |
+| `make test` | `docker compose run --rm app npm run coverage` |
 | `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
 | `make coverage` | `docker compose run --rm app npm run coverage` |
+| `make lint` | `docker compose run --rm app npm run lint` |
+| `make lint-fix` | `docker compose run --rm app npm run lint:fix` |
+| `make check` | `docker compose run --rm app npm run check` |
+| `make sweep` | prints that the command lands with FEAT-019; no CLI yet |
 | `make docs-check` | `./docker/docs-check.sh` |
 | `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
@@ -251,11 +255,13 @@ than from a table someone keeps up to date.
 ## Tests
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
-`node:assert/strict` — no test framework is installed. `make test` runs
-`npm run check`: `tsc --noEmit`, then eslint (`recommendedTypeChecked`,
-`complexity` max 8, `max-depth` max 3), then the coverage-gated suite (see
-Coverage below). `npm test` on its own runs the suite without the coverage
-gate, for a fast local loop.
+`node:assert/strict` — no test framework is installed. `make test` runs the
+coverage-gated suite (see Coverage below). `npm test` on its own runs the
+suite without the coverage gate, for a fast local loop. `make lint` runs
+`tsc --noEmit` then eslint (`recommendedTypeChecked`, `complexity` max 8,
+`max-depth` max 3) — read-only, no gate on the suite itself. `make check`
+runs lint, then `make assets`, then the coverage-gated suite, and is the
+commit gate `.githooks/pre-commit` and CI both run (see CI below).
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -281,7 +287,8 @@ make coverage
 ```
 
 Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 'app/**/*.test.ts'`,
-printing Node's own coverage table and failing under 95% lines / 90% branches.
+printing Node's own coverage table, failing under 95% lines / 90% branches,
+and writing `coverage/lcov.info` alongside it.
 
 The suite stands at 1,536 tests and 99.57% lines / 97.22% branches / 99.47%
 functions. What is left uncovered is migration `down()` bodies and a handful of
@@ -297,12 +304,11 @@ stable one.
 
 [`.github/workflows/node.yml`](../../.github/workflows/node.yml) runs on
 every push to `main` and every pull request touching `prototype/node/**`: it
-installs on Node 24, builds the Tailwind stylesheet the smoke test serves, then
-runs `npm run typecheck`, `npm run lint`, and `npm run test:ci` as three steps,
-and uploads `coverage/lcov.info` as a build artifact. Those are the same three
-things `npm run check` runs locally — spelled out so a failure names itself in
-the job list, and with `test:ci` in place of `coverage` because it writes the
-lcov report the upload needs. The suite runs once.
+installs on Node 24, then runs `npm run check` — the same script
+`make check`'s recipe delegates to — and uploads `coverage/lcov.info` as a
+build artifact. CI has no compose stack, so it cannot run `make check`
+through Docker the way `.githooks/pre-commit` does; running the identical npm
+script is how the hook and CI stay unable to disagree. The suite runs once.
 
 ## Smoke
 

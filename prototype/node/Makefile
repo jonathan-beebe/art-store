@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage docs-check routes migrate fresh seed payouts outbox logs image run-image
+.PHONY: up down build assets shell test smoke coverage lint lint-fix check docs-check routes migrate fresh seed payouts outbox sweep logs image run-image
 
 # Compose names its project after this directory, so two checkouts of the
 # same prototype (the main repo and a worktree) would share one container.
@@ -25,16 +25,31 @@ assets:
 shell:
 	docker compose run --rm app bash
 
-# `check` now runs the coverage-gated suite, not the fast one, so `make test`
-# also fails under 95% lines / 90% branches.
+# The full suite with the coverage gate: fails under 95% lines / 90% branches.
+# `npm test` inside the container runs the same files without the gate, for a
+# faster local loop; that raw script is not exposed as a make target.
 test:
-	docker compose run --rm app npm run check
+	docker compose run --rm app npm run coverage
 
-smoke:
-	docker compose run --rm app node --test app/test/smoke.test.ts
-
+# Same run as `test` — the coverage reporter always writes coverage/lcov.info
+# alongside the table it prints, so there is nothing a dedicated report step
+# would add.
 coverage:
 	docker compose run --rm app npm run coverage
+
+# Read-only: tsc --noEmit, then eslint. Nothing here changes a file.
+lint:
+	docker compose run --rm app npm run lint
+
+# The auto-fixable subset of lint: eslint --fix. Type errors have no auto-fix
+# and are left for `make lint` to report.
+lint-fix:
+	docker compose run --rm app npm run lint:fix
+
+# The commit gate: lint -> assets -> coverage, composed as one npm script so
+# the pre-commit hook and CI run the identical command and cannot drift apart.
+check:
+	docker compose run --rm app npm run check
 
 # Renders every Mermaid block under docs/ through minlag/mermaid-cli. A diagram
 # that does not parse fails the build.
@@ -75,6 +90,11 @@ payouts:
 # admin site's Drain button does the same work.
 outbox:
 	docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))
+
+# The stale-order sweep has no CLI yet; FEAT-019 adds one. Exits 0 so a
+# scripted `make sweep` does not fail while the command doesn't exist.
+sweep:
+	@echo "make sweep: lands with FEAT-019, no CLI yet"
 
 logs:
 	docker compose logs -f

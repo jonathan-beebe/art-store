@@ -46,10 +46,11 @@ and compiles the stylesheet once), and `runtime` (production dependencies only,
 `USER node`, no bind mount) — `make image` and `make run-image`.
 
 Every Make target wraps `docker compose`: `up`, `down`, `build`, `assets`,
-`shell`, `test` (`npm run check`), `smoke`, `coverage`, `routes`, `migrate`,
-`fresh`, `seed`, `payouts`, `outbox`, `logs`, plus `docs-check` (Mermaid through
-`minlag/mermaid-cli`), `image`, and `run-image`. The README's Commands table
-gives the compose command each one stands for.
+`shell`, `test` (`npm run coverage`), `lint`, `lint-fix`, `check`, `smoke`,
+`coverage`, `routes`, `migrate`, `fresh`, `seed`, `payouts`, `outbox`,
+`sweep`, `logs`, plus `docs-check` (Mermaid through `minlag/mermaid-cli`),
+`image`, and `run-image`. The README's Commands table gives the compose
+command each one stands for.
 
 ## Deployables
 
@@ -613,18 +614,19 @@ off it.
 | Command | What it runs |
 | --- | --- |
 | `npm test` | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate |
-| `npm run coverage` | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90` |
-| `npm run test:ci` | the same gated suite plus a `spec` reporter to stdout and an `lcov` reporter to `coverage/lcov.info` |
+| `npm run coverage` | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90`, and writes `coverage/lcov.info` alongside the table it prints. `make test` and `make coverage` both run this. |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console` |
-| `npm run check` | typecheck, then lint, then `npm run coverage`. `make test` runs this. |
+| `npm run lint` | `tsc --noEmit`, then `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console`. Read-only. `make lint` runs this. |
+| `npm run lint:fix` | `eslint app --fix` — the auto-fixable subset. `make lint-fix` runs this. |
+| `npm run check` | lint, then `npm run assets`, then `npm run coverage`. `make check` runs this — the commit gate `.githooks/pre-commit` and CI both call. |
 | `npm run routes` | boots the real app over `:memory:` and prints `printRoutes()` then `printPlugins()` (`app/cli/print-routes.ts`) |
 
-CI runs `typecheck`, `lint`, and `test:ci` as three steps
-([`.github/workflows/node.yml`](../../../.github/workflows/node.yml)), so a
-failure names itself in the job list and the suite runs once with the lcov
-report the upload needs. `npm run check` is the local gate: the same typecheck
-and lint, ending in `coverage`, which is `test:ci` without the reporters.
+CI has no compose stack, so it cannot run `make check` through Docker the way
+the pre-commit hook does. It runs `npm run check` directly instead — the same
+script `make check`'s recipe delegates to
+([`.github/workflows/node.yml`](../../../.github/workflows/node.yml)) — then
+uploads the `coverage/lcov.info` that run wrote. The hook and CI run one
+identical command, so they cannot disagree.
 
 - Core tests (`app/core/**`) import only the file under test. No database, no
   doubles.

@@ -98,7 +98,7 @@ a stated gap; **missing** — not built.
 | `/work-*` skills for defining and managing work | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 35 tickets: the ten build tickets and BUG-001, then 24 refinement tickets (BUG-002…006, FEAT-011…017, IMPRV-001…008, RFCTR-001…004) |
 | `/write-*` skills for classes, functions, comments | partial | process; not independently verifiable from the tree |
 | TDD flow | partial | process; each ticket's `## Working` notes assert it (e.g. FEAT-001 built `app/core/money.ts` test-first) |
-| Measure and keep test coverage high | done | `npm run coverage` — `--test-coverage-lines=95 --test-coverage-branches=90`, enforced; `npm run check` ends with it and CI runs `npm run test:ci`, the same gate plus an lcov report |
+| Measure and keep test coverage high | done | `npm run coverage` — `--test-coverage-lines=95 --test-coverage-branches=90`, enforced, and writes `coverage/lcov.info`; `npm run check` ends with it, and CI runs that same `npm run check` |
 | Functional core / imperative shell | done | `app/core/**` is pure (no I/O, no clock, no random — `now: Date` and ids arrive as parameters); `app/actions/**` sequences core + adapters in one transaction; routes hold no domain `if` |
 | `/diagramming` skill used to capture docs | done | `docs/README.md`, `docs/architecture.md`, `docs/identity.md`, `docs/orders.md`, `docs/escrow.md`, `docs/messaging.md`, `docs/admin.md`, `docs/data-model.md`, `docs/ontology.md`; `make docs-check` renders every Mermaid block through `minlag/mermaid-cli` and fails on one that does not parse |
 
