@@ -72,3 +72,14 @@ it('leaves another customer notification alone', function () use ($notify): void
     $response->assertNotFound();
     expect($notification->refresh()->read_at)->toBeNull();
 });
+
+it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
+    $this->actingAs(Customer::factory()->create(), 'customer');
+
+    $this->post("/account/notifications/{$id}/read")->assertNotFound();
+})->with([
+    'another table prefix' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'a notification that does not exist' => 'ntf_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

@@ -141,3 +141,29 @@ Idiomatic Laravel: `Str::ulid()` ships (Symfony Uid); a `HasPrefixedUlid` trait 
 - `make fresh`: rebuilds and seeds; a served page renders
   `/art/{slug}` at 200, and `/orders/cus_01J…` and `/orders/nonsense` both
   answer 404.
+
+### Review fix-ups
+
+Closed three gaps a review of `935877c` found, against current `HEAD`
+(after FEAT-019 landed):
+
+- **Real delivery asserts the `ntf_` shape.** Added a test to
+  `app/Notifications/ItemSoldTest.php` — `ItemSold`'s own sidecar, since
+  `PrefixedUlidNotification` is abstract and carries no sidecar of its own —
+  that sends a real, non-faked notification through the database channel
+  (`$seller->notify(new ItemSold(...))`) and asserts
+  `PrefixedId::parse('ntf', $notification->id)` is not null on the persisted
+  row.
+- **404-boundary coverage for the two `DatabaseNotification`-bound routes.**
+  Added a Pest dataset test to `app/Http/Controllers/Seller/NotificationControllerTest.php`
+  (`POST /seller/notifications/{notification}/read`) and to
+  `app/Http/Controllers/Shop/AccountControllerTest.php`
+  (`POST /account/notifications/{notification}/read`), each matching the
+  shape of the three existing route tests: a wrong-prefix id, a bare ULID, a
+  malformed value, and an unknown-but-well-formed `ntf_` id all answer 404.
+- **Docs nit.** `docs/architecture.md` now lists `MessageReceived` alongside
+  `ItemSold` and `OrderShipped` as extending `PrefixedUlidNotification`.
+
+`make test`: 1234 tests, 3302 assertions, 100.0 % of lines (was 1225 / 3293
+on `HEAD` before these fix-ups; +9 tests, +9 assertions). `make check`
+green: Pint clean, PHPStan level max no errors, 100 % coverage.

@@ -63,3 +63,12 @@ it('refuses to mark another sellers notification read', function () use ($notify
     $response->assertNotFound();
     expect($notification->refresh()->read_at)->toBeNull();
 });
+
+it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
+    $this->actingAs($this->seller(), 'seller')->post("/seller/notifications/{$id}/read")->assertNotFound();
+})->with([
+    'another table prefix' => 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a bare ULID' => '01J5X3M9A2K8YB7Q4R6T1V0WZE',
+    'a value of no shape at all' => 'nonsense',
+    'a notification that does not exist' => 'ntf_01J5X3M9A2K8YB7Q4R6T1V0WZE',
+]);

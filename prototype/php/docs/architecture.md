@@ -413,8 +413,8 @@ flowchart LR
   `ShouldHandleEventsAfterCommit`, so a rolled-back transaction tells nobody
   and no delivery runs with the transaction still open.
 - Notifications (`App\Notifications\ItemSold`,
-  `App\Notifications\OrderShipped`) extend
-  `App\Notifications\PrefixedUlidNotification`, which gives each one a `ntf_`
+  `App\Notifications\OrderShipped`, `App\Notifications\MessageReceived`)
+  extend `App\Notifications\PrefixedUlidNotification`, which gives each one a `ntf_`
   id before it is sent so the row carries the platform's id shape rather than
   the framework's UUID. `via()` reads
   `config('notifications.channels')` — `database` alone by default, with

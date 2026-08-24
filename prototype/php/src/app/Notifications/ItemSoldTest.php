@@ -4,7 +4,18 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Identifiers\PrefixedId;
 use App\Domain\Money\Money;
+
+it('persists under a ntf_ id when sent through the database channel', function (): void {
+    $seller = $this->seller();
+
+    $seller->notify(new ItemSold('ord_00000000000000000000000004', Money::fromCents(9000)));
+
+    $notification = $seller->notifications()->sole();
+
+    expect(PrefixedId::parse('ntf', $notification->id))->not->toBeNull();
+});
 
 it('goes to the in-app inbox by default', function (): void {
     $seller = $this->seller();
