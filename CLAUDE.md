@@ -46,3 +46,17 @@ down first (`make down` in the other checkout) before `make up` in this one.
 
 Each prototype carries its tickets in `<prototype>/work/` (`1-inbox` →
 `2-doing` → `3-done`, with `journal.md`). Use the `/work-*` skills.
+
+## Alignment contract
+
+`docs/alignment.md` fixes the shapes the three prototypes share: prefixed
+ULID ids, the JSON log payload and event vocabulary, rate-limit names and env
+variables, the order/fulfillment/refund lifecycle, the admin feature set, and
+the make-target vocabulary. Read it before changing any of those in one
+prototype; the other two must match.
+
+## Commit gate
+
+`make hooks` at the repository root installs `.githooks/pre-commit`, which
+runs `make -C prototype/<x> check` for every prototype a commit touches
+(outside `work/` and `docs/`). `make check` is lint → assets → tests.

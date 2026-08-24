@@ -1,5 +1,10 @@
 .PHONY: up down build assets shell test smoke coverage migrate fresh logs analyse lint check
 
+# Compose names its project after this directory, so two checkouts of the
+# same prototype (the main repo and a worktree) would share one container.
+# Naming it after the checkout as well keeps them apart.
+export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(CURDIR))
+
 up:
 	docker compose up -d
 	@echo "http://localhost:8000"
