@@ -10,7 +10,7 @@ export const sellerRoutes: ZodRoutes = (admin, _options, done) => {
     reply.render('sellers', adminPage('Sellers', { rows: await sellerRows({ db: admin.db }) })),
   )
 
-  admin.get('/sellers/:id', { schema: { params: idParams } }, async (request, reply) => {
+  admin.get('/sellers/:id', { schema: { params: idParams('sel') } }, async (request, reply) => {
     const detail = await sellerDetail({ db: admin.db }, request.params.id)
     if (detail === null) return reply.callNotFound()
 

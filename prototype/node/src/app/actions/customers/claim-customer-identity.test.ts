@@ -1,18 +1,23 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../ids.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { claimCustomerIdentity } from './claim-customer-identity.ts'
 import { createAnonymousCustomer } from './create-anonymous-customer.ts'
+import type {
+  CustomerId,
+} from '../../core/ids/entity-ids.ts'
 
 const NOW = TEST_INSTANT.toISOString()
 
 async function createVerifiedCustomer(
   { db }: TestApp,
   email = 'buyer@example.com',
-): Promise<number> {
+): Promise<CustomerId> {
   const customer = await db
     .insertInto('customers')
-    .values({ email, name: null, emailVerifiedAt: NOW, createdAt: NOW })
+    .values({ id: newId('cus', new Date()), email, name: null, emailVerifiedAt: NOW, createdAt: NOW })
     .returning('id')
     .executeTakeFirstOrThrow()
 
@@ -125,7 +130,7 @@ test('an address a guest checkout left unverified is settled by the link', async
   t.after(testApp.close)
   const guest = await testApp.db
     .insertInto('customers')
-    .values({ email: 'guest@example.com', name: null, emailVerifiedAt: null, createdAt: NOW })
+    .values({ id: newId('cus', new Date()), email: 'guest@example.com', name: null, emailVerifiedAt: null, createdAt: NOW })
     .returning('id')
     .executeTakeFirstOrThrow()
 
@@ -144,7 +149,7 @@ test('a second link leaves the original verification time alone', async (t) => {
   const earlier = '2026-08-01T09:00:00.000Z'
   const existing = await testApp.db
     .insertInto('customers')
-    .values({ email: 'buyer@example.com', name: null, emailVerifiedAt: earlier, createdAt: earlier })
+    .values({ id: newId('cus', new Date()), email: 'buyer@example.com', name: null, emailVerifiedAt: earlier, createdAt: earlier })
     .returning('id')
     .executeTakeFirstOrThrow()
 
@@ -177,7 +182,7 @@ test('a cookie naming a customer that is gone is treated as no cookie', async (t
 
   const customer = await claimCustomerIdentity(testApp, {
     email: 'newcomer@example.com',
-    currentCustomerId: 404,
+    currentCustomerId: fixtureId('cus', 404),
   })
 
   assert.equal(customer.email, 'newcomer@example.com')

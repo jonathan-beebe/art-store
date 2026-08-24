@@ -1,22 +1,28 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { ledgerBalance, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import type { LedgerEntryType } from '../../../core/escrow/ledger-entry-type.ts'
+import type {
+  FulfillmentId,
+  LedgerEntryId,
+  PayoutId,
+  SellerId,
+} from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type LedgerRow = {
-  id: number
-  sellerId: number
+  id: LedgerEntryId
+  sellerId: SellerId
   sellerName: string
   entryType: LedgerEntryType
   amountCents: Cents
-  fulfillmentId: number | null
-  payoutId: number | null
+  fulfillmentId: FulfillmentId | null
+  payoutId: PayoutId | null
   occurredAt: Timestamp
 }
 
-export type LedgerRowsFilter = { sellerId?: number; entryType?: LedgerEntryType }
+export type LedgerRowsFilter = { sellerId?: SellerId; entryType?: LedgerEntryType }
 
 /** The rows a filter matches, plus what they fold to — a partial ledger reads as a partial balance. */
 export type LedgerRowsResult = { rows: readonly LedgerRow[]; totals: LedgerBalance }
@@ -39,6 +45,7 @@ export async function ledgerRows(
       'ledgerEntries.payoutId',
       'ledgerEntries.occurredAt',
     ])
+    .orderBy('ledgerEntries.occurredAt', 'desc')
     .orderBy('ledgerEntries.occurredAt', 'desc')
     .orderBy('ledgerEntries.id', 'desc')
 

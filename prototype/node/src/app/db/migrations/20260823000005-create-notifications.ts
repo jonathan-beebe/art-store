@@ -8,10 +8,10 @@ import { sql, type Kysely } from 'kysely'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('notifications')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('seller_id', 'integer', (column) => column.references('sellers.id'))
-    .addColumn('customer_id', 'integer', (column) => column.references('customers.id'))
-    .addColumn('admin_id', 'integer', (column) => column.references('admins.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('seller_id', 'text', (column) => column.references('sellers.id'))
+    .addColumn('customer_id', 'text', (column) => column.references('customers.id'))
+    .addColumn('admin_id', 'text', (column) => column.references('admins.id'))
     .addColumn('subject', 'text', (column) => column.notNull())
     .addColumn('body', 'text', (column) => column.notNull())
     .addColumn('url', 'text')

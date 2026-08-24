@@ -1,5 +1,6 @@
 import { claimSellerIdentity } from '../actions/auth/claim-seller-identity.ts'
 import { fixedClock } from '../clock.ts'
+import type { SellerId } from '../core/ids/entity-ids.ts'
 import type { AppDatabase } from './database.ts'
 
 const VERIFIED_AT = new Date('2026-06-01T00:00:00.000Z')
@@ -15,9 +16,9 @@ export const SEEDED_SELLERS: readonly SeededSeller[] = [
 ]
 
 /** Claims and profiles every seeded seller, keyed by email for the catalog to join against. */
-export async function seedSellers(db: AppDatabase): Promise<Record<string, number>> {
+export async function seedSellers(db: AppDatabase): Promise<Record<string, SellerId>> {
   const clock = fixedClock(VERIFIED_AT)
-  const sellerIdsByEmail: Record<string, number> = {}
+  const sellerIdsByEmail: Record<string, SellerId> = {}
 
   for (const seller of SEEDED_SELLERS) {
     const claimed = await claimSellerIdentity({ db, clock }, seller.email)

@@ -1,11 +1,12 @@
 import type { ActorType } from '../auth/actor-type.ts'
 import type { ConversationParticipant } from './conversation-access.ts'
+import type { ActorId, ConversationId } from '../ids/entity-ids.ts'
 
 /** What the fold needs off a message row: who sent it, and whether it was read. */
 export type ReadMarker = {
-  conversationId: number
+  conversationId: ConversationId
   senderType: ActorType
-  senderId: number
+  senderId: ActorId
   readAt: string | null
 }
 
@@ -30,8 +31,8 @@ export function isUnreadBy(message: ReadMarker, reader: ConversationParticipant)
 export function unreadCountsByConversation(
   messages: readonly ReadMarker[],
   reader: ConversationParticipant,
-): ReadonlyMap<number, number> {
-  const counts = new Map<number, number>()
+): ReadonlyMap<ConversationId, number> {
+  const counts = new Map<ConversationId, number>()
   for (const message of messages) {
     if (isUnreadBy(message, reader)) {
       counts.set(message.conversationId, (counts.get(message.conversationId) ?? 0) + 1)
@@ -40,6 +41,6 @@ export function unreadCountsByConversation(
   return counts
 }
 
-export function totalUnreadMessages(counts: ReadonlyMap<number, number>): number {
+export function totalUnreadMessages(counts: ReadonlyMap<ConversationId, number>): number {
   return [...counts.values()].reduce((total, count) => total + count, 0)
 }

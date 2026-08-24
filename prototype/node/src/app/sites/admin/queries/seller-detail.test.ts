@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 import { sellerDetail } from './seller-detail.ts'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
@@ -18,7 +19,7 @@ test('an id that names no seller reads null', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
 
-  assert.equal(await sellerDetail(world.context, 999), null)
+  assert.equal(await sellerDetail(world.context, fixtureId('sel', 999)), null)
 })
 
 test('a seller with nothing yet reads empty lists and a zero balance', async (t) => {

@@ -1,3 +1,4 @@
+import type { CustomerId, ListingId } from '../../../core/ids/entity-ids.ts'
 import { STOREFRONT_STATUSES } from '../../../core/listings/listing-availability.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { toStorefrontListing, type StorefrontListing } from './find-storefront-listings.ts'
@@ -9,7 +10,7 @@ import { toStorefrontListing, type StorefrontListing } from './find-storefront-l
  */
 export async function findFavoriteListings(
   db: AppDatabase,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<readonly StorefrontListing[]> {
   const rows = await db
     .selectFrom('favorites')
@@ -41,6 +42,7 @@ export async function findFavoriteListings(
         ),
       ),
     )
+    .orderBy('favorites.createdAt', 'desc')
     .orderBy('favorites.id', 'desc')
     .execute()
 
@@ -49,7 +51,7 @@ export async function findFavoriteListings(
 
 export async function isListingFavorited(
   db: AppDatabase,
-  input: { customerId: number; listingId: number },
+  input: { customerId: CustomerId; listingId: ListingId },
 ): Promise<boolean> {
   const saved = await db
     .selectFrom('favorites')

@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { AdminId, CartId, ListingId, OrderId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import { placeOrder } from './place-order.ts'
 import { addToCart } from '../carts/add-to-cart.ts'
@@ -259,12 +261,13 @@ test('placement and the charge roll back together', async (t) => {
 
 async function removeListing(
   { db, clock }: ActionContext,
-  listingId: number,
-  adminId: number,
+  listingId: ListingId,
+  adminId: AdminId,
 ): Promise<void> {
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId,
       adminId,
       kind: 'temporary',
@@ -283,7 +286,7 @@ async function readPayments(db: AppDatabase) {
   return db.selectFrom('payments').select('id').execute()
 }
 
-async function readOrderItems(db: AppDatabase, orderId: number) {
+async function readOrderItems(db: AppDatabase, orderId: OrderId) {
   return db
     .selectFrom('orderItems')
     .select(['title', 'unitPriceCents', 'sellerId'])
@@ -291,7 +294,7 @@ async function readOrderItems(db: AppDatabase, orderId: number) {
     .execute()
 }
 
-async function readFulfillments(db: AppDatabase, orderId: number) {
+async function readFulfillments(db: AppDatabase, orderId: OrderId) {
   return db
     .selectFrom('fulfillments')
     .select(['sellerId', 'status', 'subtotalCents', 'feeCents', 'netCents'])
@@ -300,7 +303,7 @@ async function readFulfillments(db: AppDatabase, orderId: number) {
     .execute()
 }
 
-async function readStock(db: AppDatabase, listingId: number) {
+async function readStock(db: AppDatabase, listingId: ListingId) {
   return db
     .selectFrom('listings')
     .select(['quantity', 'status'])
@@ -308,6 +311,6 @@ async function readStock(db: AppDatabase, listingId: number) {
     .executeTakeFirstOrThrow()
 }
 
-async function readCartItems(db: AppDatabase, cartId: number) {
+async function readCartItems(db: AppDatabase, cartId: CartId) {
   return db.selectFrom('cartItems').select('id').where('cartId', '=', cartId).execute()
 }

@@ -35,7 +35,7 @@ Measured from an empty tree — no `src/node_modules`, no SQLite file, no
 `src/public/app.css`: `make build` and `make up` together took **29 seconds**
 to the healthcheck reporting `healthy`, inside which `npm ci`
 installed 230 packages (of the 260 in the lockfile; the rest are
-platform-specific optional binaries npm skips), eleven migrations applied from nothing, the seed wrote
+platform-specific optional binaries npm skips), thirteen migrations applied from nothing, the seed wrote
 2 admins, 4 sellers, 29 listings, 5 customers, 3 orders, 98 page-view rows,
 4 conversations, 11 messages and 1 listing FAQ, and Tailwind built
 `public/app.css`. Add the one-time pull of `node:24.19.0-bookworm-slim` on a
@@ -63,11 +63,27 @@ sets `HOST` and `PORT` for the container.
 | `DATABASE_FILE` | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`. |
 | `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
 | `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
-| `TRUST_PROXY` | `false` | Reads `X-Forwarded-Proto` and `X-Forwarded-Host`. Turn it on only behind a proxy that sets them. |
+| `TRUSTED_PROXIES` | unset | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate limit's client-ip key reads), `request.protocol`, and `request.hostname` trust `X-Forwarded-*` headers only past those hops instead of the raw socket. |
 | `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
 | `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
 | `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
-| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. |
+| `STALE_ORDER_HOURS` | `24` | How long an order left unverified holds its stock before `make sweep` cancels it. |
+| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds the `listing.view` and `ledger.write` lines. |
+| `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | Sign-in's `POST /login` on every site, and guest checkout's implicit link. Keyed by lowercased email and, separately, client ip. |
+| `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | `GET /auth/magic/:token`. Keyed by client ip. |
+| `RATE_LIMIT_MESSAGE_POST` | `30/1h` | Every message POST. Keyed by actor id. |
+| `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | The listing question box, support, and fulfillment thread opens. Keyed by actor id. |
+| `RATE_LIMIT_CHECKOUT` | `10/1h` | `POST /checkout`. Keyed by customer id. |
+| `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | `POST /orders/:id/pay`. Keyed by order id. |
+| `RATE_LIMIT_LISTING_WRITE` | `60/1h` | Listing create and update. Keyed by seller id. |
+
+Every `RATE_LIMIT_*` value is `<count>/<window>` (`<n>s`, `<n>m`, or `<n>h`) or
+`off`. A malformed value refuses to boot, the same as an unsafe production
+setting. A trip answers `429` with a `Retry-After` header, the site's own page
+("Too many requests — try again in N minutes."), and one `rate_limit.exceed`
+log line; the write the limit guards does not happen. Counters live in the
+`rate_limit_windows` table, so they survive a restart. See
+`../../docs/alignment.md` §3.
 
 Cookies carry `Secure` when `NODE_ENV=production` or `PUBLIC_URL` is an
 `https:` origin — there is no separate switch for it.
@@ -76,6 +92,30 @@ A production boot refuses to start rather than run unsafely: without
 `COOKIE_SECRET` (a shared default makes an admin cookie forgeable), and with
 `MAGIC_LINK_DELIVERY=flash` (it prints sign-in links into the page that asked
 for one). Both throw from `loadConfig` with the reason.
+
+## Logs
+
+Every line is one JSON object on stdout, in every environment, in the payload
+all three prototypes share (`../../docs/alignment.md` §2). A line carries `ts`,
+`level`, `event`, `phase`, and `msg` always, plus `request_id`, `session_id`,
+`actor_type`, `actor_id`, `txn_id`, `data`, `error`, and `duration_ms` where
+they apply.
+
+```json
+{"level":"info","ts":"2026-08-24T04:03:19.982Z","pid":1,"hostname":"012798ac8c7d","request_id":"208baa17-25b5-4ebe-b605-fbac29a5a9bd","session_id":"ses_01M0RYZQQQTPVW5D8MC9KWPS06","actor_type":"customer","actor_id":"cus_01M0RYZQQXD6A1SF40F6TZFFMP","event":"http.request","phase":"will","data":{"method":"GET","path":"/art/x"},"msg":"GET /art/x"}
+```
+
+Every write tells a story: `will` before it, then `did`, `refused` (the domain
+said no, at `info`), or `failed` (an exception nobody expected, at `error`).
+Reading one `txn_id` back gives the whole unit of work; reading one `request_id`
+gives the whole request. A browser is named by the `sid` cookie (`ses_<ulid>`,
+one year, unchanged by sign-in and sign-out); a caller may name its own request
+with `X-Request-Id`, which is echoed back when it matches
+`^[A-Za-z0-9_-]{1,64}$`. Cookie values, magic-link tokens, card numbers, and
+email addresses never appear.
+
+[`docs/architecture.md`](docs/architecture.md#the-log) has the field table, the
+event vocabulary, and how each field reaches a line.
 
 ## Security headers
 
@@ -93,6 +133,21 @@ same set:
 `data:` is in `img-src` for the generated SVG placeholder a listing with no
 photograph renders inline. No page has a script tag or an inline style, so
 nothing else needs a relaxation.
+
+## CSRF
+
+Every state-changing request (`POST`, `PUT`, `PATCH`, `DELETE`) across all
+three sites carries a double-submit token, verified in one `preValidation`
+hook (`app/plugins/csrf.ts`) ahead of the route's own zod schema — checking
+any later would let a request through whose schema forgot the field, since
+`submittedForm` strips unknown fields by then. The token is
+`HMAC-SHA256(COOKIE_SECRET, sid)`, so it rides the browser's existing session
+cookie rather than a second one; a shared partial (`_csrf_token`) renders it
+into every `<form method="post">`. A missing, foreign, or stale token answers
+the requesting site's own 403 page. The guard is registered inside each site
+rather than once at the root, after that site's own body parser, so the
+seller portal's `@fastify/multipart` upload has already populated
+`request.body` by the time the check runs.
 
 ## Health
 
@@ -222,9 +277,13 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build` | `docker compose build` |
 | `make assets` | `docker compose run --rm app npm run assets` |
 | `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app npm run check` |
+| `make test` | `docker compose run --rm app npm run coverage` |
 | `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
 | `make coverage` | `docker compose run --rm app npm run coverage` |
+| `make lint` | `docker compose run --rm app npm run lint` |
+| `make lint-fix` | `docker compose run --rm app npm run lint:fix` |
+| `make check` | `docker compose run --rm app npm run check` |
+| `make sweep` | `docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))` |
 | `make docs-check` | `./docker/docs-check.sh` |
 | `make routes` | `docker compose run --rm app npm run routes` |
 | `make migrate` | `docker compose run --rm app npm run migrate` |
@@ -251,11 +310,13 @@ than from a table someone keeps up to date.
 ## Tests
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
-`node:assert/strict` — no test framework is installed. `make test` runs
-`npm run check`: `tsc --noEmit`, then eslint (`recommendedTypeChecked`,
-`complexity` max 8, `max-depth` max 3), then the coverage-gated suite (see
-Coverage below). `npm test` on its own runs the suite without the coverage
-gate, for a fast local loop.
+`node:assert/strict` — no test framework is installed. `make test` runs the
+coverage-gated suite (see Coverage below). `npm test` on its own runs the
+suite without the coverage gate, for a fast local loop. `make lint` runs
+`tsc --noEmit` then eslint (`recommendedTypeChecked`, `complexity` max 8,
+`max-depth` max 3) — read-only, no gate on the suite itself. `make check`
+runs lint, then `make assets`, then the coverage-gated suite, and is the
+commit gate `.githooks/pre-commit` and CI both run (see CI below).
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -281,9 +342,10 @@ make coverage
 ```
 
 Runs `node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 'app/**/*.test.ts'`,
-printing Node's own coverage table and failing under 95% lines / 90% branches.
+printing Node's own coverage table, failing under 95% lines / 90% branches,
+and writing `coverage/lcov.info` alongside it.
 
-The suite stands at 1,536 tests and 99.57% lines / 97.22% branches / 99.47%
+The suite stands at 1,915 tests and 99.43% lines / 95.92% branches / 99.50%
 functions. What is left uncovered is migration `down()` bodies and a handful of
 defensive branches.
 
@@ -297,12 +359,11 @@ stable one.
 
 [`.github/workflows/node.yml`](../../.github/workflows/node.yml) runs on
 every push to `main` and every pull request touching `prototype/node/**`: it
-installs on Node 24, builds the Tailwind stylesheet the smoke test serves, then
-runs `npm run typecheck`, `npm run lint`, and `npm run test:ci` as three steps,
-and uploads `coverage/lcov.info` as a build artifact. Those are the same three
-things `npm run check` runs locally — spelled out so a failure names itself in
-the job list, and with `test:ci` in place of `coverage` because it writes the
-lcov report the upload needs. The suite runs once.
+installs on Node 24, then runs `npm run check` — the same script
+`make check`'s recipe delegates to — and uploads `coverage/lcov.info` as a
+build artifact. CI has no compose stack, so it cannot run `make check`
+through Docker the way `.githooks/pre-commit` does; running the identical npm
+script is how the hook and CI stay unable to disagree. The suite runs once.
 
 ## Smoke
 
@@ -384,7 +445,7 @@ make assets
 ```
 
 Layouts link it as `/app.css`, served by `@fastify/static` from
-`src/public/`. There is no JavaScript bundle. Three of the 66
+`src/public/`. There is no JavaScript bundle. Three of the 71
 `app/**/*.ejs` templates carry a `<script>` tag — the three site layouts, each
 loading the same `<script defer src="/app.js">` — and no other template has one.
 Those 21 dependency-free lines subscribe to `<prefix>/events` and rewrite the
@@ -549,6 +610,24 @@ it settles, so running the same period again pays nothing. The admin site
 also exposes the run at `POST /admin/payouts`; the seller portal has no
 payout control.
 
+A refund can leave a seller's available balance negative. Nothing clamps it:
+`isPayable` is false while it stands, so the run writes no payout row for that
+seller and the negative nets against their later sales until it clears.
+
+## The stale-order sweep
+
+An order a visitor places and never verifies holds its stock. The sweep hands
+it back:
+
+```sh
+make sweep                      # cancels orders unverified for STALE_ORDER_HOURS (24)
+make sweep AS_OF=2026-08-24     # sweeps as though the run happened then
+```
+
+It touches `pending_verification` orders only — an order that reached
+`awaiting_payment` has a verified customer behind it — and it is idempotent,
+because cancelling moves the order out of the status the query reads.
+
 ## No build step
 
 Node 24 strips TypeScript types natively: `node app/server.ts` runs the
@@ -584,18 +663,22 @@ prototype/node/
                            drains on SIGINT/SIGTERM
       app.ts              buildApp(deps): composition root
       config.ts           env -> typed config
-      logging.ts          logger options, request id, redacting serializers
+      logging.ts          pino payload options, request id, CLI logger
+      log-story.ts        will/doing/did/refused/failed over any logger
       clock.ts             systemClock and fixedClock
+      ids.ts               newId: a prefixed ULID from a clock's instant
       core/                functional core, sidecar tests, no I/O:
                            analytics/, auth/, cart/, customers/, escrow/,
-                           health/, listings/, messaging/, moderation/,
-                           notifications/, orders/, payments/, reports/, shop/,
+                           health/, ids/, listings/, logging/, messaging/,
+                           moderation/, notifications/, orders/, payments/,
+                           rate-limit/, reports/, security/, shop/,
                            money.ts, status-label.ts, transition-error.ts
       actions/             verbs over ActionContext, one folder per concept:
                            analytics/, auth/, carts/, customers/, escrow/,
                            favorites/, fulfillments/, listings/, messaging/,
                            moderation/, notifications/, orders/, outbox/,
-                           action-context.ts, transaction.ts
+                           rate-limit/, refunds/,
+                           action-context.ts, transaction.ts, action-story.ts
       db/                  database.ts, node-sqlite-dialect.ts, migrator.ts,
                            migrate.ts, schema.ts, commerce-schema.ts, count.ts,
                            timestamp.ts, migrations/,
@@ -606,18 +689,21 @@ prototype/node/
                            implementations, outbox-message.ts
       http/                zod-type-provider.ts (the validator compiler),
                            request-schema.ts (idParams, slugParams,
-                           optionalFilter, submittedForm)
-      plugins/             error-pages.ts, events.ts, flash.ts, health.ts,
-                           identity.ts, page-views.ts, root-plugin.ts,
+                           optionalFilter, submittedForm),
+                           request-actions.ts (a request as an ActionContext)
+      plugins/             csrf.ts, error-pages.ts, events.ts, flash.ts,
+                           health.ts, identity.ts, page-views.ts,
+                           rate-limit.ts, request-log.ts, root-plugin.ts,
                            security-headers.ts, site-render.ts,
                            unread-messages.ts
       sites/               shop/, seller/, admin/ — each a plugin with routes/,
                            views/, queries/; auth/ is three flat files
                            (index.ts, sign-in-routes.ts, request-origin.ts)
-      views/partials/      debug-alert.ejs, flash.ejs, head.ejs,
-                           unread-badge.ejs
+      views/partials/      csrf-field.ejs, debug-alert.ejs, field-error.ejs,
+                           flash.ejs, form-error.ejs, form-field.ejs,
+                           head.ejs, unread-badge.ejs
       cli/                 run-payouts.ts, drain-outbox.ts, print-routes.ts,
-                           parse-as-of.ts
+                           sweep-stale-orders.ts, parse-as-of.ts
       test/                build-test-app.ts, commerce-world.ts, log-lines.ts,
                            smoke.test.ts
       assets/app.css       Tailwind source

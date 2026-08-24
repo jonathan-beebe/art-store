@@ -28,17 +28,11 @@ jobs:
 
       - run: npm ci
 
-      # The smoke test serves /public/app.css; nothing builds it on install.
-      - run: npm run assets
-
-      # The three steps `npm run check` runs locally, spelled out so a failure
-      # names itself in the job list. `test:ci` is the coverage-gated suite
-      # `check` ends with, plus an lcov reporter for the upload below.
-      - run: npm run typecheck
-
-      - run: npm run lint
-
-      - run: npm run test:ci
+      # CI has no compose stack, so it cannot run `make check` through Docker
+      # like the pre-commit hook does. It runs the same `npm run check` the
+      # Makefile's `check` target delegates to instead, so the hook and CI
+      # run one identical command and cannot drift apart.
+      - run: npm run check
 
       - uses: actions/upload-artifact@v4
         with:

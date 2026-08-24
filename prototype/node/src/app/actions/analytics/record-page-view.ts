@@ -1,4 +1,5 @@
 import { sql } from 'kysely'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { pageViewDay } from '../../core/analytics/page-view.ts'
 import type { PageViewSite } from '../../core/analytics/page-view-site.ts'
@@ -20,7 +21,7 @@ export async function recordPageView(
 ): Promise<void> {
   await db
     .insertInto('pageViewCounts')
-    .values({ site, pathPattern, day: pageViewDay(clock.now()), count: 1 })
+    .values({ id: newId('pvc', clock.now()), site, pathPattern, day: pageViewDay(clock.now()), count: 1 })
     .onConflict((conflict) =>
       conflict
         .columns(['site', 'pathPattern', 'day'])

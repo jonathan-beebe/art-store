@@ -1,4 +1,5 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import { isOnStorefront } from '../../../core/listings/listing-availability.ts'
 import type { ListingStatus } from '../../../core/listings/listing-status.ts'
@@ -10,14 +11,14 @@ export type ListingRemovedFilter = (typeof REMOVED_FILTERS)[number]
 
 export type ListingRowFilters = {
   status?: ListingStatus
-  sellerId?: number
+  sellerId?: SellerId
   removed?: ListingRemovedFilter
 }
 
 export type ListingRow = {
-  id: number
+  id: ListingId
   title: string
-  sellerId: number
+  sellerId: SellerId
   sellerName: string
   status: ListingStatus
   priceCents: Cents
@@ -41,6 +42,7 @@ export async function listingRows(
     .innerJoin('sellers', 'sellers.id', 'listings.sellerId')
     .selectAll('listings')
     .select(['sellers.shopName as sellerShopName', 'sellers.email as sellerEmail'])
+    .orderBy('listings.createdAt', 'desc')
     .orderBy('listings.id', 'desc')
 
   if (filters.status !== undefined) query = query.where('listings.status', '=', filters.status)
@@ -58,9 +60,9 @@ export async function listingRows(
 }
 
 type ListingJoinRow = {
-  id: number
+  id: ListingId
   title: string
-  sellerId: number
+  sellerId: SellerId
   sellerShopName: string | null
   sellerEmail: string
   status: ListingStatus
@@ -92,9 +94,9 @@ function matchesRemovedFilter(row: ListingRow, filter: ListingRemovedFilter): bo
 
 async function activeRemovalsByListing(
   db: ActionContext['db'],
-  listingIds: readonly number[],
-): Promise<ReadonlyMap<number, ActiveRemoval>> {
-  const byListing = new Map<number, ActiveRemoval>()
+  listingIds: readonly ListingId[],
+): Promise<ReadonlyMap<ListingId, ActiveRemoval>> {
+  const byListing = new Map<ListingId, ActiveRemoval>()
   if (listingIds.length === 0) return byListing
 
   const removals = await db

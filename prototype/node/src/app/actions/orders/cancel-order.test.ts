@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { ListingId } from '../../core/ids/entity-ids.ts'
 import { cancelOrder } from './cancel-order.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -61,7 +62,7 @@ test('it refuses a paid order', async (t) => {
   await assert.rejects(() => cancelOrder(context, order.id), /cannot move from paid to cancelled/)
 })
 
-async function readStock(db: AppDatabase, listingId: number) {
+async function readStock(db: AppDatabase, listingId: ListingId) {
   return db
     .selectFrom('listings')
     .select(['quantity', 'status'])

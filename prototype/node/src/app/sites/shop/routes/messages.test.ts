@@ -1,7 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { postMessage } from '../../../actions/messaging/post-message.ts'
-import { flashSchema } from '../../../plugins/flash.ts'
+import type {
+  ConversationId,
+  CustomerId,
+} from '../../../core/ids/entity-ids.ts'
+import { parsePrefixedId } from '../../../core/ids/prefixed-id.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -19,15 +23,16 @@ import {
   placeCustomerOrder,
 } from '../storefront-fixtures.ts'
 
-function conversationIdFrom(location: string | undefined): number {
-  const id = Number(location?.split('/').pop())
-  if (!Number.isInteger(id)) throw new Error(`no conversation id in redirect "${location}"`)
-  return id
+function conversationIdFrom(location: string | undefined): ConversationId {
+  const parsed = parsePrefixedId('cnv', location?.split('/').pop() ?? '')
+  if (parsed.outcome !== 'id') throw new Error(`no conversation id in redirect "${location}"`)
+
+  return parsed.id
 }
 
 async function orderWithFulfillment(
   testApp: TestApp,
-  customerId: number,
+  customerId: CustomerId,
   title = 'Harbour at dusk',
 ) {
   const seller = await signInAsSeller(testApp, 'ada@example.test')
@@ -186,7 +191,7 @@ test('an id naming somebody else’s thread and a non-numeric id both answer 404
   assert.equal(postBad.statusCode, 404)
 })
 
-test('posting a reply appends and redirects; an empty body flashes and appends nothing', async (t) => {
+test('posting a reply appends and redirects; an empty body re-renders with a field error and appends nothing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -204,8 +209,8 @@ test('posting a reply appends and redirects; an empty body flashes and appends n
     payload: { body: '   ' },
     cookies: customer.cookies,
   })
-  assert.equal(emptyResponse.statusCode, 302)
-  assert.equal(emptyResponse.headers.location, `/messages/${conversationId}`)
+  assert.equal(emptyResponse.statusCode, 422)
+  assert.match(emptyResponse.body, /data-field-error="body"[^>]*>Write a message before sending\./)
 
   const afterEmpty = await testApp.db
     .selectFrom('messages')
@@ -230,7 +235,7 @@ test('posting a reply appends and redirects; an empty body flashes and appends n
   assert.equal(afterReply.length, 2)
 })
 
-test('a bodiless question POST redirects instead of failing, and leaves no conversation behind', async (t) => {
+test('a bodiless question POST re-renders the listing with a field error, and leaves no conversation behind', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -243,14 +248,14 @@ test('a bodiless question POST redirects instead of failing, and leaves no conve
     cookies: customer.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, '/art/harbour-at-dusk')
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="question"[^>]*>Write a message before sending\./)
 
   const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
   assert.equal(conversations.length, 0)
 })
 
-test('a blocked customer asking a listing question is refused, and leaves no conversation behind', async (t) => {
+test('a blocked customer asking a listing question is refused with a field-less error, and leaves no conversation behind', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -266,8 +271,10 @@ test('a blocked customer asking a listing question is refused, and leaves no con
     cookies: customer.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, '/art/harbour-at-dusk')
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-form-error/)
+  assert.match(response.body, /This account is blocked and cannot send messages\./)
+  assert.match(response.body, /id="question"[^>]*>Is this framed\?/)
 
   const conversations = await testApp.db.selectFrom('conversations').selectAll().execute()
   assert.equal(conversations.length, 0)
@@ -318,14 +325,11 @@ test('a customer with an active block is refused when posting a reply, and no me
     cookies: customer.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, `/messages/${conversationId}`)
-
-  const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
-  assert.ok(flashCookie !== undefined)
-  const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
-  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
-  assert.equal(flash.alert, 'This account is blocked and cannot send messages.')
+  assert.equal(response.statusCode, 422)
+  // The reply form itself is gone once the customer is blocked; the page's
+  // own status message is what tells them why, not a form-level error beside
+  // a form that no longer renders.
+  assert.match(response.body, /role="status"[^>]*>[\s\S]*This account is blocked and cannot send messages\./)
 
   const messages = await testApp.db
     .selectFrom('messages')
@@ -347,7 +351,7 @@ test('/support opens the admin thread and reuses the same one on a second visit'
     cookies: customer.cookies,
   })
   assert.equal(first.statusCode, 302)
-  assert.match(first.headers.location ?? '', /^\/messages\/\d+$/)
+  assert.match(first.headers.location ?? '', /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const second = await testApp.app.inject({
     method: 'GET',
@@ -399,7 +403,7 @@ test('posting a fulfillment message opens the thread, and 404s for another custo
     cookies: customer.cookies,
   })
   assert.equal(response.statusCode, 302)
-  assert.match(response.headers.location ?? '', /^\/messages\/\d+$/)
+  assert.match(response.headers.location ?? '', /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const conversation = await testApp.db
     .selectFrom('conversations')
@@ -426,7 +430,7 @@ test('posting a fulfillment message opens the thread, and 404s for another custo
   assert.equal(crossedFulfillment.statusCode, 404)
 })
 
-test('a bodiless reply POST flashes what is missing instead of failing', async (t) => {
+test('a bodiless reply POST re-renders with a field error instead of failing', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
@@ -444,12 +448,8 @@ test('a bodiless reply POST flashes what is missing instead of failing', async (
     cookies: customer.cookies,
   })
 
-  assert.equal(response.statusCode, 302)
-  assert.equal(response.headers.location, `/messages/${conversationId}`)
-  const flashCookie = response.cookies.find((cookie) => cookie.name === 'flash')
-  const unsigned = testApp.app.unsignCookie(String(flashCookie?.value))
-  const flash = flashSchema.parse(JSON.parse(unsigned.value ?? '{}'))
-  assert.equal(flash.alert, 'Write a message before sending.')
+  assert.equal(response.statusCode, 422)
+  assert.match(response.body, /data-field-error="body"[^>]*>Write a message before sending\./)
 
   const messages = await testApp.db
     .selectFrom('messages')
@@ -457,4 +457,48 @@ test('a bodiless reply POST flashes what is missing instead of failing', async (
     .where('conversationId', '=', conversationId)
     .execute()
   assert.equal(messages.length, 1)
+})
+
+test('the customer thread shows a published FAQ answer with a link to the listing', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const customer = await signInAsCustomer(testApp)
+  await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
+  const { conversationId } = await askAQuestion(testApp, {
+    slug: 'harbour-at-dusk',
+    body: 'Is this framed?',
+    cookies: customer.cookies,
+  })
+  const answer = await postMessage(testApp, {
+    conversationId,
+    sender: { type: 'seller', id: seller.id },
+    body: 'Yes, in oak.',
+  })
+  const listing = await testApp.db
+    .selectFrom('listings')
+    .selectAll()
+    .where('slug', '=', 'harbour-at-dusk')
+    .executeTakeFirstOrThrow()
+  await testApp.app.inject({
+    method: 'POST',
+    url: `/seller/listings/${listing.id}/faqs`,
+    cookies: seller.cookies,
+    payload: { question: 'Is this framed?', answer: 'Yes, in oak.', source_message_id: String(answer.id) },
+  })
+  const faq = await testApp.db
+    .selectFrom('listingFaqs')
+    .selectAll()
+    .where('listingId', '=', listing.id)
+    .executeTakeFirstOrThrow()
+
+  const thread = await testApp.app.inject({
+    method: 'GET',
+    url: `/messages/${conversationId}`,
+    cookies: customer.cookies,
+  })
+
+  assert.equal(thread.statusCode, 200)
+  assert.match(thread.body, /Published to FAQ/)
+  assert.match(thread.body, new RegExp(`/art/harbour-at-dusk#faq-${faq.id}`))
 })

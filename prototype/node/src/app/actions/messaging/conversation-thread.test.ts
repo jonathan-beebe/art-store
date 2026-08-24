@@ -1,8 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationThread } from './conversation-thread.ts'
 import { openConversation } from './open-conversation.ts'
 import { postMessage } from './post-message.ts'
+import { publishListingFaq } from './publish-listing-faq.ts'
 import { blockCustomer } from '../moderation/block-customer.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
@@ -48,10 +56,15 @@ async function admin(context: ActionContext) {
   return found
 }
 
-async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: number): Promise<number> {
+async function insertFulfillment(
+  db: AppDatabase,
+  sellerId: SellerId,
+  customerId: CustomerId,
+): Promise<FulfillmentId> {
   const order = await db
     .insertInto('orders')
     .values({
+      id: newId('ord', new Date()),
       customerId,
       email: null,
       status: 'paid',
@@ -74,6 +87,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
   const fulfillment = await db
     .insertInto('fulfillments')
     .values({
+      id: newId('ful', new Date()),
       orderId: order.id,
       sellerId,
       status: 'awaiting_shipment',
@@ -82,6 +96,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
       subtotalCents: 45_000,
       feeCents: 4_500,
       netCents: 40_500,
+      createdAt: NOW.toISOString(),
       shippedAt: null,
       deliveredAt: null,
     })
@@ -244,9 +259,48 @@ test('it returns null for an id that names nothing', async (t) => {
   const buyer = await customer(world.context)
 
   const thread = await conversationThread(world.context, {
-    conversationId: 999_999,
+    conversationId: fixtureId('cnv', 999),
     actor: { type: 'customer', id: buyer.id },
   })
 
   assert.equal(thread, null)
+})
+
+test('a message published to the listing carries the FAQ id it was published as; the rest carry null', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
+  const conversation = await openConversation(world.context, {
+    kind: 'listing_question',
+    sellerId: shop.id,
+    customerId: buyer.id,
+    listingId: art.id,
+  })
+  const question = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: buyer.id },
+    body: 'Is this framed?',
+  })
+  const answer = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'seller', id: shop.id },
+    body: 'Yes, in oak.',
+  })
+  const faq = await publishListingFaq(world.context, {
+    listingId: art.id,
+    draft: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+    sourceMessageId: answer.id,
+  })
+
+  const thread = await conversationThread(world.context, {
+    conversationId: conversation.id,
+    actor: { type: 'seller', id: shop.id },
+  })
+
+  const questionMessage = thread?.messages.find((message) => message.id === question.id)
+  const answerMessage = thread?.messages.find((message) => message.id === answer.id)
+  assert.equal(questionMessage?.publishedFaqId, null)
+  assert.equal(answerMessage?.publishedFaqId, faq.id)
 })

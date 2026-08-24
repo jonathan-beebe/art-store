@@ -43,7 +43,7 @@ test('the ledger page lists every entry with no filter applied', async (t) => {
   })
 
   assert.equal(response.statusCode, 200)
-  assert.match(response.body, /data-entry="1"/)
+  assert.match(response.body, /data-entry="led_[0-9A-HJKMNP-TV-Z]{26}"/)
   assert.match(response.body, /data-cell="type"[^<]*>Held/)
   assert.match(response.body, /data-stat="held"[\s\S]*?\$405\.00/)
 })

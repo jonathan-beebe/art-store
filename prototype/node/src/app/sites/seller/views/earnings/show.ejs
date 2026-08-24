@@ -44,13 +44,43 @@
             <tr data-fulfillment="<%= fulfillment.id %>">
               <td class="px-4 py-2"><%= formatDate(fulfillment.placedAt) %></td>
               <th scope="row" class="px-4 py-2 font-normal">
-                <a href="/seller/orders/<%= fulfillment.id %>" class="underline">#<%= fulfillment.orderId %></a>
+                <a href="/seller/orders/<%= fulfillment.id %>" class="underline"><%= fulfillment.orderId %></a>
               </th>
               <td class="px-4 py-2"><%= (itemTitles.get(fulfillment.orderId) || []).join(', ') %></td>
               <td data-cell="subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>
               <td data-cell="fee" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.feeCents) %></td>
               <td data-cell="net" class="px-4 py-2 text-right tabular-nums"><%= formatCents(fulfillment.netCents) %></td>
               <td data-cell="status" class="px-4 py-2"><%= statusLabel(fulfillment.status) %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>
+
+<section aria-labelledby="movements-heading" class="mt-6">
+  <h2 id="movements-heading" class="font-semibold text-neutral-700">Movements</h2>
+
+  <% if (movements.length === 0) { %>
+    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No movements yet.</p>
+  <% } else { %>
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">Every step your money took, newest first</caption>
+        <thead class="border-b border-neutral-300 bg-neutral-50">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-semibold">Date</th>
+            <th scope="col" class="px-4 py-2 font-semibold">Movement</th>
+            <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-200">
+          <% movements.forEach(function (movement) { %>
+            <tr data-movement="<%= movement.id %>" data-entry-type="<%= movement.entryType %>">
+              <td class="px-4 py-2"><%= formatDate(movement.occurredAt) %></td>
+              <th scope="row" class="px-4 py-2 font-normal"><%= statusLabel(movement.entryType) %></th>
+              <td data-cell="amount" class="px-4 py-2 text-right tabular-nums"><%= formatCents(movement.amountCents) %></td>
             </tr>
           <% }); %>
         </tbody>

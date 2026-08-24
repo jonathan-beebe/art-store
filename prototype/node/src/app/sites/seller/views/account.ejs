@@ -12,6 +12,7 @@
   <% } %>
 </dl>
 <form method="post" action="/seller/logout" class="mt-6">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <button
     type="submit"
     class="cursor-pointer rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white"

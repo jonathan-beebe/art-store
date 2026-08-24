@@ -7,7 +7,7 @@ const CRLF = '\r\n'
 const SOLD: MailMessage = {
   to: 'artist@example.com',
   subject: 'Item sold',
-  body: 'Order #7 is paid. $405.00 is held until the customer confirms delivery.',
+  body: 'Order 7 is paid. $405.00 is held until the customer confirms delivery.',
   url: 'http://localhost:4000/seller/orders/7',
   messageId: 'outbox-1@art-store.example',
   date: new Date('2026-08-24T12:00:00.000Z'),
@@ -26,7 +26,7 @@ test('it renders the whole message, headers then a blank line then the body', ()
       'Content-Type: text/plain; charset="utf-8"',
       'Content-Transfer-Encoding: 8bit',
       '',
-      'Order #7 is paid. $405.00 is held until the customer confirms delivery.',
+      'Order 7 is paid. $405.00 is held until the customer confirms delivery.',
       '',
       'http://localhost:4000/seller/orders/7',
       '',
@@ -46,7 +46,7 @@ test('a message with no url ends after the body', () => {
 
   assert.equal(
     rendered.endsWith(
-      `${CRLF}${CRLF}Order #7 is paid. $405.00 is held until the customer confirms delivery.${CRLF}`,
+      `${CRLF}${CRLF}Order 7 is paid. $405.00 is held until the customer confirms delivery.${CRLF}`,
     ),
     true,
   )

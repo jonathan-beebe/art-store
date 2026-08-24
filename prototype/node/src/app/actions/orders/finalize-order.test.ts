@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { ListingId, OrderId } from '../../core/ids/entity-ids.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import type { DeliveryContext } from '../../delivery/delivery-context.ts'
 import type { DeliverableNotification } from '../../delivery/notification-delivery.ts'
@@ -210,7 +211,7 @@ test('a notificationDelivery passed on the context receives the delivered notifi
   assert.equal(delivered[0]?.subject, 'Item sold')
 })
 
-async function readPayments(db: AppDatabase, orderId: number) {
+async function readPayments(db: AppDatabase, orderId: OrderId) {
   return db
     .selectFrom('payments')
     .select(['status', 'amountCents', 'cardLastFour', 'declineReason'])
@@ -218,7 +219,7 @@ async function readPayments(db: AppDatabase, orderId: number) {
     .execute()
 }
 
-async function readFulfillments(db: AppDatabase, orderId: number) {
+async function readFulfillments(db: AppDatabase, orderId: OrderId) {
   return db.selectFrom('fulfillments').select(['id', 'sellerId']).where('orderId', '=', orderId).execute()
 }
 
@@ -230,7 +231,7 @@ async function readNotifications(db: AppDatabase) {
   return db.selectFrom('notifications').selectAll().execute()
 }
 
-async function readStock(db: AppDatabase, listingId: number) {
+async function readStock(db: AppDatabase, listingId: ListingId) {
   return db
     .selectFrom('listings')
     .select(['quantity', 'status'])

@@ -1,19 +1,27 @@
+import type { CustomerId, FulfillmentId, OrderId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { Order, OrderItem, Payment } from '../../../db/commerce-schema.ts'
+import type { Cents } from '../../../core/money.ts'
 import {
   canTransitionFulfillment,
+  isReversed,
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
 
+/** What the customer is told when a half of their order was reversed. */
+export type OrderFulfillmentRefund = { amountCents: Cents; reason: string }
+
 /** One seller's half of an order, as the customer follows it. */
 export type OrderFulfillment = {
-  id: number
+  id: FulfillmentId
   status: FulfillmentStatus
   carrier: string | null
   trackingNumber: string | null
   seller: { shopName: string | null; email: string }
   items: readonly OrderItem[]
   canConfirmDelivery: boolean
+  /** Set exactly while the fulfillment is declined or refunded. */
+  refund: OrderFulfillmentRefund | null
 }
 
 export type CustomerOrder = {
@@ -30,7 +38,7 @@ export type CustomerOrder = {
  */
 export async function findCustomerOrder(
   db: AppDatabase,
-  input: { orderId: number; customerId: number },
+  input: { orderId: OrderId; customerId: CustomerId },
 ): Promise<CustomerOrder | null> {
   const order = await db
     .selectFrom('orders')
@@ -45,6 +53,7 @@ export async function findCustomerOrder(
     .selectFrom('orderItems')
     .selectAll()
     .where('orderId', '=', order.id)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 
@@ -61,13 +70,21 @@ export async function findCustomerOrder(
       'sellers.email as sellerEmail',
     ])
     .where('fulfillments.orderId', '=', order.id)
+    .orderBy('fulfillments.createdAt')
     .orderBy('fulfillments.id')
+    .execute()
+
+  const refunds = await db
+    .selectFrom('refunds')
+    .select(['fulfillmentId', 'amountCents', 'reason'])
+    .where('orderId', '=', order.id)
     .execute()
 
   const lastPayment = await db
     .selectFrom('payments')
     .selectAll()
     .where('orderId', '=', order.id)
+    .orderBy('processedAt', 'desc')
     .orderBy('id', 'desc')
     .executeTakeFirst()
 
@@ -82,6 +99,9 @@ export async function findCustomerOrder(
       seller: { shopName: row.sellerShopName, email: row.sellerEmail },
       items: items.filter((item) => item.sellerId === row.sellerId),
       canConfirmDelivery: canTransitionFulfillment(row.status, 'delivered'),
+      refund: isReversed(row.status)
+        ? (refunds.find((refund) => refund.fulfillmentId === row.id) ?? null)
+        : null,
     })),
   }
 }

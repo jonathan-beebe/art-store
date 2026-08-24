@@ -1,6 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CustomerId,
+  FulfillmentId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import { openConversation } from './open-conversation.ts'
+import { subjectKey } from '../../core/messaging/conversation-subject.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -45,10 +52,15 @@ async function admin(context: ActionContext) {
   return found
 }
 
-async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: number): Promise<number> {
+async function insertFulfillment(
+  db: AppDatabase,
+  sellerId: SellerId,
+  customerId: CustomerId,
+): Promise<FulfillmentId> {
   const order = await db
     .insertInto('orders')
     .values({
+      id: newId('ord', new Date()),
       customerId,
       email: null,
       status: 'paid',
@@ -71,6 +83,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
   const fulfillment = await db
     .insertInto('fulfillments')
     .values({
+      id: newId('ful', new Date()),
       orderId: order.id,
       sellerId,
       status: 'awaiting_shipment',
@@ -79,6 +92,7 @@ async function insertFulfillment(db: AppDatabase, sellerId: number, customerId: 
       subtotalCents: 45_000,
       feeCents: 4_500,
       netCents: 40_500,
+      createdAt: NOW.toISOString(),
       shippedAt: null,
       deliveredAt: null,
     })
@@ -234,4 +248,60 @@ test('a different seller opens a second row', async (t) => {
   })
 
   assert.notEqual(a.id, b.id)
+})
+
+test('two concurrent opens of the same subject settle on one thread, and neither call throws', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
+  const opening = {
+    kind: 'listing_question' as const,
+    sellerId: shop.id,
+    customerId: buyer.id,
+    listingId: art.id,
+  }
+
+  const [first, second] = await Promise.all([
+    openConversation(world.context, opening),
+    openConversation(world.context, opening),
+  ])
+
+  assert.equal(first.id, second.id)
+  const rows = await world.db.selectFrom('conversations').selectAll().execute()
+  assert.equal(rows.length, 1)
+})
+
+test('the subject_key a row is opened with matches subjectKey(subject)', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
+
+  const conversation = await openConversation(world.context, {
+    kind: 'listing_question',
+    sellerId: shop.id,
+    customerId: buyer.id,
+    listingId: art.id,
+  })
+
+  const row = await world.db
+    .selectFrom('conversations')
+    .select('subjectKey')
+    .where('id', '=', conversation.id)
+    .executeTakeFirstOrThrow()
+
+  assert.equal(
+    row.subjectKey,
+    subjectKey({
+      kind: 'listing_question',
+      sellerId: shop.id,
+      customerId: buyer.id,
+      adminId: null,
+      listingId: art.id,
+      fulfillmentId: null,
+    }),
+  )
 })

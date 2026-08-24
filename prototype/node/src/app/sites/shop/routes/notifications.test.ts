@@ -6,6 +6,7 @@ import {
   orderShippedMessage,
 } from '../../../core/notifications/notification-message.ts'
 import { buildTestApp, signInAsCustomer } from '../../../test/build-test-app.ts'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 
 test('the account page shows the signed-in address and the customer notifications, newest first', async (t) => {
   const testApp = await buildTestApp()
@@ -19,7 +20,7 @@ test('the account page shows the signed-in address and the customer notification
   await notify(testApp, {
     recipientType: 'customer',
     recipientId: customer.id,
-    message: orderShippedMessage(7, 'UPS', '1Z999', '/orders/7'),
+    message: orderShippedMessage(fixtureId('ord', 7), 'UPS', '1Z999', '/orders/7'),
   })
 
   const response = await testApp.app.inject({

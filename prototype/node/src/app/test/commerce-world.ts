@@ -4,12 +4,14 @@ import { currentCart } from '../actions/carts/current-cart.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import type { Clock } from '../clock.ts'
+import type { AdminId, CartId, CustomerId, ListingId, SellerId } from '../core/ids/entity-ids.ts'
 import type { ListingStatus } from '../core/listings/listing-status.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
 import type { Listing, Order } from '../db/commerce-schema.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
 import { toTimestamp } from '../db/timestamp.ts'
+import { newId } from '../ids.ts'
 
 export const APPROVED_CARD = '4242 4242 4242 4242'
 export const DECLINED_CARD = '4000 0000 0000 0002'
@@ -78,10 +80,11 @@ function nextSuffix(): number {
 export async function createSeller(
   { db, clock }: ActionContext,
   shopName = 'Blue Kiln Studio',
-): Promise<number> {
+): Promise<SellerId> {
   const seller = await db
     .insertInto('sellers')
     .values({
+      id: newId('sel', clock.now()),
       email: `seller-${nextSuffix()}@example.test`,
       name: null,
       shopName,
@@ -97,11 +100,12 @@ export async function createSeller(
 export async function createCustomer(
   { db, clock }: ActionContext,
   options: { isVerified?: boolean } = {},
-): Promise<number> {
+): Promise<CustomerId> {
   const isVerified = options.isVerified ?? true
   const customer = await db
     .insertInto('customers')
     .values({
+      id: newId('cus', clock.now()),
       email: isVerified ? `customer-${nextSuffix()}@example.test` : null,
       name: null,
       emailVerifiedAt: isVerified ? toTimestamp(clock.now()) : null,
@@ -113,10 +117,11 @@ export async function createCustomer(
   return customer.id
 }
 
-export async function createAdmin({ db, clock }: ActionContext): Promise<number> {
+export async function createAdmin({ db, clock }: ActionContext): Promise<AdminId> {
   const admin = await db
     .insertInto('admins')
     .values({
+      id: newId('adm', clock.now()),
       email: `admin-${nextSuffix()}@example.test`,
       name: 'Jonathan Beebe',
       createdAt: toTimestamp(clock.now()),
@@ -137,7 +142,7 @@ export type ListingOverrides = {
 
 export async function createListing(
   { db, clock }: ActionContext,
-  sellerId: number,
+  sellerId: SellerId,
   overrides: ListingOverrides = {},
 ): Promise<Listing> {
   const now = toTimestamp(clock.now())
@@ -145,6 +150,7 @@ export async function createListing(
   return db
     .insertInto('listings')
     .values({
+      id: newId('lst', clock.now()),
       sellerId,
       title: overrides.title ?? 'Harbour at Dusk',
       slug: `listing-${nextSuffix()}`,
@@ -165,9 +171,9 @@ export async function createListing(
 /** A cart holding one of each listing, the way a visitor fills it. */
 export async function cartHolding(
   context: ActionContext,
-  customerId: number,
-  listingIds: readonly number[],
-): Promise<number> {
+  customerId: CustomerId,
+  listingIds: readonly ListingId[],
+): Promise<CartId> {
   const cart = await currentCart(context, customerId)
 
   for (const listingId of listingIds) {
@@ -179,8 +185,8 @@ export async function cartHolding(
 
 export async function placedOrder(
   context: ActionContext,
-  customerId: number,
-  listingIds: readonly number[],
+  customerId: CustomerId,
+  listingIds: readonly ListingId[],
   options: { isVerified?: boolean } = {},
 ): Promise<Order> {
   const cartId = await cartHolding(context, customerId, listingIds)
@@ -198,8 +204,8 @@ export async function placedOrder(
 
 export async function paidOrder(
   context: ActionContext,
-  customerId: number,
-  listingIds: readonly number[],
+  customerId: CustomerId,
+  listingIds: readonly ListingId[],
 ): Promise<Order> {
   const order = await placedOrder(context, customerId, listingIds)
 

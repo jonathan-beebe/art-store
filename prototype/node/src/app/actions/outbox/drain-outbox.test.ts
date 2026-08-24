@@ -34,8 +34,11 @@ test('it writes one file per pending message, named for the row', async (t) => {
   const drained = await drainOutbox(world.context, { outboxDir })
 
   assert.equal(drained.length, 2)
-  assert.deepEqual((await readdir(outboxDir)).sort(), ['1.eml', '2.eml'])
-  assert.equal(drained[0]?.file, path.join(outboxDir, '1.eml'))
+  assert.deepEqual(
+    (await readdir(outboxDir)).sort(),
+    drained.map((message) => `${message.id}.eml`).sort(),
+  )
+  assert.equal(drained[0]?.file, path.join(outboxDir, `${drained[0]?.id}.eml`))
   assert.equal(drained[0]?.recipient, 'artist@example.com')
   assert.equal(drained[0]?.subject, 'Item sold')
 })
@@ -46,9 +49,9 @@ test('the file holds the rendered message', async (t) => {
   const outboxDir = await temporaryOutboxDir(t)
 
   await queue(world, 'Item sold', 'http://localhost:4000/seller/orders/7')
-  await drainOutbox(world.context, { outboxDir })
+  const [sold] = await drainOutbox(world.context, { outboxDir })
 
-  const written = await readFile(path.join(outboxDir, '1.eml'), 'utf8')
+  const written = await readFile(path.join(outboxDir, `${sold?.id}.eml`), 'utf8')
 
   assert.match(written, /^Subject: Item sold\r$/m)
   assert.match(written, /^To: artist@example\.com\r$/m)
@@ -74,12 +77,12 @@ test('a second drain writes nothing: delivered messages are not pending', async 
   const outboxDir = await temporaryOutboxDir(t)
 
   await queue(world, 'Item sold', null)
-  await drainOutbox(world.context, { outboxDir })
+  const [sold] = await drainOutbox(world.context, { outboxDir })
 
   const second = await drainOutbox(world.context, { outboxDir })
 
   assert.deepEqual(second, [])
-  assert.deepEqual(await readdir(outboxDir), ['1.eml'])
+  assert.deepEqual(await readdir(outboxDir), [`${sold?.id}.eml`])
 })
 
 test('an empty outbox creates no directory and writes nothing', async (t) => {
@@ -99,11 +102,12 @@ test('it drains a message queued after an earlier drain', async (t) => {
   const outboxDir = await temporaryOutboxDir(t)
 
   await queue(world, 'Item sold', null)
-  await drainOutbox(world.context, { outboxDir })
+  const [sold] = await drainOutbox(world.context, { outboxDir })
   await queue(world, 'Order shipped', null)
 
   const drained = await drainOutbox(world.context, { outboxDir })
 
   assert.equal(drained.length, 1)
-  assert.equal(drained[0]?.id, 2)
+  assert.notEqual(drained[0]?.id, sold?.id)
+  assert.equal(drained[0]?.subject, 'Order shipped')
 })

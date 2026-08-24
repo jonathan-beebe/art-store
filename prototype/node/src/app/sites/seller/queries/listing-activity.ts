@@ -1,10 +1,11 @@
+import type { ListingId, OrderId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import type { ListingEventType } from '../../../core/listings/listing-event-type.ts'
 import { toTimestamp, type Timestamp } from '../../../db/timestamp.ts'
 
 export async function listingEventTotals(
   db: AppDatabase,
-  listingId: number,
+  listingId: ListingId,
 ): Promise<Partial<Record<ListingEventType, number>>> {
   const rows = await db
     .selectFrom('listingEvents')
@@ -20,7 +21,7 @@ export async function listingEventTotals(
  * day it occurred on and then by event type — what `activityTimeline` reads. */
 export async function listingEventCountsByDay(
   db: AppDatabase,
-  listingId: number,
+  listingId: ListingId,
   since: Date,
 ): Promise<Record<string, Partial<Record<ListingEventType, number>>>> {
   const rows = await db
@@ -41,14 +42,14 @@ export async function listingEventCountsByDay(
 }
 
 export type ListingSale = {
-  orderId: number
+  orderId: OrderId
   orderStatus: string
   placedAt: Timestamp
   quantity: number
   unitPriceCents: number
 }
 
-export async function salesForListing(db: AppDatabase, listingId: number): Promise<readonly ListingSale[]> {
+export async function salesForListing(db: AppDatabase, listingId: ListingId): Promise<readonly ListingSale[]> {
   return db
     .selectFrom('orderItems')
     .innerJoin('orders', 'orders.id', 'orderItems.orderId')
@@ -60,6 +61,7 @@ export async function salesForListing(db: AppDatabase, listingId: number): Promi
       'orderItems.unitPriceCents as unitPriceCents',
     ])
     .where('orderItems.listingId', '=', listingId)
+    .orderBy('orderItems.createdAt', 'desc')
     .orderBy('orderItems.id', 'desc')
     .execute()
 }

@@ -1,3 +1,4 @@
+import type { OrderId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { orderStatusAfterVerification } from '../../core/orders/order-status.ts'
@@ -10,7 +11,7 @@ import type { Order } from '../../db/commerce-schema.ts'
  */
 export async function markAwaitingPayment(
   context: ActionContext,
-  orderId: number,
+  orderId: OrderId,
 ): Promise<Order> {
   return runInTransaction(context, async ({ db }) => {
     const order = await db

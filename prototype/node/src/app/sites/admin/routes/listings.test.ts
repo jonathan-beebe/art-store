@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildTestApp, signInAsAdmin } from '../../../test/build-test-app.ts'
 import { createListing, createSeller } from '../../../test/commerce-world.ts'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 
 test('GET /admin/listings lists every listing with its seller, price, and storefront status', async (t) => {
   const testApp = await buildTestApp()
@@ -65,6 +66,22 @@ test('GET /admin/listings filters by seller', async (t) => {
 
   assert.match(response.body, new RegExp(`data-listing="${wanted.id}"`))
   assert.doesNotMatch(response.body, /Not this one/)
+})
+
+test('the filter form remembers the submitted values', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const sellerId = fixtureId('sel', 3)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: `/admin/listings?status=for_sale&seller=${sellerId}`,
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /<option value="for_sale" selected>/)
+  assert.match(response.body, new RegExp(`value="${sellerId}"`))
 })
 
 test('GET /admin/listings defaults to showing removed and visible listings, and can filter either', async (t) => {

@@ -8,8 +8,8 @@ import { sql, type Kysely } from 'kysely'
 export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('carts')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('customer_id', 'integer', (column) => column.notNull().references('customers.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('customer_id', 'text', (column) => column.notNull().references('customers.id'))
     .addColumn('created_at', 'text', (column) => column.notNull())
     .execute()
 
@@ -17,10 +17,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await db.schema
     .createTable('cart_items')
-    .addColumn('id', 'integer', (column) => column.primaryKey().autoIncrement())
-    .addColumn('cart_id', 'integer', (column) => column.notNull().references('carts.id'))
-    .addColumn('listing_id', 'integer', (column) => column.notNull().references('listings.id'))
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('cart_id', 'text', (column) => column.notNull().references('carts.id'))
+    .addColumn('listing_id', 'text', (column) => column.notNull().references('listings.id'))
     .addColumn('quantity', 'integer', (column) => column.notNull().check(sql`quantity >= 1`))
+    .addColumn('created_at', 'text', (column) => column.notNull())
     .execute()
 
   await db.schema

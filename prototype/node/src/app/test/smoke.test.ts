@@ -7,6 +7,13 @@ import assert from 'node:assert/strict'
 import type { LightMyRequestResponse } from 'fastify'
 import { drainOutbox } from '../actions/outbox/drain-outbox.ts'
 import { fixedClock } from '../clock.ts'
+import type {
+  ActorId,
+  AdminId,
+  FulfillmentId,
+  OrderId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import { cents, formatCents, subtractCents } from '../core/money.ts'
 import type { Listing } from '../db/commerce-schema.ts'
 import { outboxMagicLinkDelivery } from '../delivery/outbox-magic-link-delivery.ts'
@@ -20,6 +27,8 @@ import {
   takeDebugMagicLink,
   TEST_CONFIG,
 } from './build-test-app.ts'
+import type { LogEvent, LogPhase } from '../core/logging/log-event.ts'
+import { buildLoggedTestApp, type CapturedLogLines } from './log-lines.ts'
 
 /** Where a redirect sent the visitor. */
 function destinationOf(response: { headers: OutgoingHttpHeaders }): string {
@@ -101,7 +110,7 @@ const CUSTOMER_EMAIL = 'smoke-buyer@example.test'
 const FROZEN_NOW = new Date('2026-08-19T09:00:00.000Z')
 const PAYOUT_AS_OF = '2026-08-24'
 
-type Actor = { id: number; cookies: Record<string, string> }
+type Actor<Id extends ActorId = ActorId> = { id: Id; cookies: Record<string, string> }
 type Visitor = { cookies: Record<string, string> }
 
 function multipartHeaders(boundary = '----smoketest'): Record<string, string> {
@@ -120,7 +129,9 @@ function multipartPayload(fields: Record<string, string>, boundary = '----smoket
   return Buffer.from(parts.join('\r\n'))
 }
 
-async function signSellerIn(testApp: Awaited<ReturnType<typeof buildTestApp>>): Promise<Actor> {
+async function signSellerIn(
+  testApp: Awaited<ReturnType<typeof buildTestApp>>,
+): Promise<Actor<SellerId>> {
   const asked = await testApp.app.inject({
     method: 'POST',
     url: '/seller/login',
@@ -142,7 +153,7 @@ async function signSellerIn(testApp: Awaited<ReturnType<typeof buildTestApp>>): 
   return { id: seller.id, cookies: cookiesFrom(followed) }
 }
 
-async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor): Promise<Listing> {
+async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor<SellerId>): Promise<Listing> {
   const created = await testApp.app.inject({
     method: 'POST',
     url: '/seller/listings',
@@ -174,7 +185,7 @@ async function listThePiece(testApp: Awaited<ReturnType<typeof buildTestApp>>, s
 
 async function putUpForSale(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
+  seller: Actor<SellerId>,
   listing: Listing,
 ): Promise<Listing> {
   const changed = await testApp.app.inject({
@@ -267,7 +278,7 @@ async function cartThePiece(
   )
 }
 
-type GuestCheckout = { orderId: number; verificationLink: string }
+type GuestCheckout = { orderId: OrderId; verificationLink: string }
 
 async function guestChecksOut(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
@@ -398,12 +409,12 @@ async function payWithTheApprovedCard(
 
 async function sellerReadsTheSale(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
+  seller: Actor<SellerId>,
   checkout: GuestCheckout,
-): Promise<{ id: number }> {
+): Promise<{ id: FulfillmentId }> {
   const notifications = await testApp.app.inject({ method: 'GET', url: '/seller/notifications', cookies: seller.cookies })
   assert.match(notifications.body, /Item sold/)
-  assert.match(notifications.body, new RegExp(`Order #${checkout.orderId} is paid`))
+  assert.match(notifications.body, new RegExp(`Order ${checkout.orderId} is paid`))
 
   const orders = await testApp.app.inject({ method: 'GET', url: '/seller/orders', cookies: seller.cookies })
   assert.match(orders.body, new RegExp(`data-group="awaiting_shipment"[\\s\\S]*?${PIECE_TITLE}`))
@@ -420,8 +431,8 @@ async function sellerReadsTheSale(
 
 async function sellerShipsIt(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
-  seller: Actor,
-  fulfillment: { id: number },
+  seller: Actor<SellerId>,
+  fulfillment: { id: FulfillmentId },
 ): Promise<void> {
   const shipped = await testApp.app.inject({
     method: 'POST',
@@ -442,7 +453,7 @@ async function customerConfirmsDelivery(
   testApp: Awaited<ReturnType<typeof buildTestApp>>,
   shopper: Visitor,
   checkout: GuestCheckout,
-  fulfillment: { id: number },
+  fulfillment: { id: FulfillmentId },
 ): Promise<void> {
   const confirmed = await testApp.app.inject({
     method: 'POST',
@@ -465,7 +476,7 @@ async function customerConfirmsDelivery(
   assert.equal(released.amountCents, SELLER_NET_CENTS)
 }
 
-async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof buildTestApp>>, admin: Actor): Promise<void> {
+async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof buildTestApp>>, admin: Actor<AdminId>): Promise<void> {
   const run = await testApp.app.inject({
     method: 'POST',
     url: '/admin/payouts',
@@ -479,7 +490,7 @@ async function adminRunsTheWeeklyPayout(testApp: Awaited<ReturnType<typeof build
   assert.equal(payouts[0]?.amountCents, SELLER_NET_CENTS)
 }
 
-async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor): Promise<void> {
+async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildTestApp>>, seller: Actor<SellerId>): Promise<void> {
   const earnings = await testApp.app.inject({ method: 'GET', url: '/seller/earnings', cookies: seller.cookies })
   assert.equal(earnings.statusCode, 200)
 
@@ -489,7 +500,7 @@ async function sellerSeesTheNetPaidOut(testApp: Awaited<ReturnType<typeof buildT
 }
 
 test('a listing travels from the seller signing in to their weekly payout', async (t) => {
-  const testApp = await buildTestApp({ clock: fixedClock(FROZEN_NOW) })
+  const testApp = await buildLoggedTestApp({ clock: fixedClock(FROZEN_NOW) })
   t.after(testApp.close)
 
   const seller = await signSellerIn(testApp)
@@ -516,7 +527,56 @@ test('a listing travels from the seller signing in to their weekly payout', asyn
   const admin = await signInAsAdmin(testApp)
   await adminRunsTheWeeklyPayout(testApp, admin)
   await sellerSeesTheNetPaidOut(testApp, seller)
+
+  assertTheWalkToldItsStory(testApp.logLines)
 })
+
+/**
+ * Every event the walk passes through, in the phase it ends in. Reading the log
+ * of one journey back is the point of the payload, so the walk asserts it here
+ * rather than leaving each event to the route test that fires it.
+ */
+const WALK_STORY: readonly [LogEvent, LogPhase][] = [
+  ['http.request', 'did'],
+  ['magic_link.request', 'did'],
+  ['magic_link.consume', 'did'],
+  ['listing.create', 'did'],
+  ['listing.publish', 'did'],
+  ['listing.view', 'did'],
+  ['cart.add', 'did'],
+  ['order.place', 'did'],
+  ['order.pay', 'refused'],
+  ['order.pay', 'did'],
+  ['fulfillment.ship', 'did'],
+  ['fulfillment.deliver', 'did'],
+  ['ledger.write', 'did'],
+  ['notification.write', 'did'],
+  ['payout.run', 'did'],
+  ['payout.pay', 'did'],
+]
+
+function assertTheWalkToldItsStory(log: CapturedLogLines): void {
+  for (const [event, phase] of WALK_STORY) {
+    const line = log.line(event, phase)
+
+    assert.match(String(line.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, event)
+    assert.equal(typeof line.level, 'string', event)
+    assert.equal(typeof line.msg, 'string', event)
+    assert.equal(typeof line.request_id, 'string', event)
+    assert.match(String(line.session_id), /^ses_/, event)
+  }
+
+  // Every write happened inside a unit of work, and none of the request lines did.
+  for (const [event] of WALK_STORY.filter(([event]) => event !== 'http.request')) {
+    assert.match(String(log.line(event, 'did').txn_id), /^txn_/, event)
+  }
+  assert.equal(log.line('http.request', 'did').txn_id, undefined)
+
+  // Nothing anyone typed an address or a card into rode out in the log.
+  for (const secret of [SELLER_EMAIL, CUSTOMER_EMAIL, APPROVED_CARD, DECLINED_CARD]) {
+    assert.equal(log.text().includes(secret), false, secret)
+  }
+}
 
 test('a question on a listing becomes an answer and then a published FAQ', async (t) => {
   const testApp = await buildTestApp()
@@ -537,7 +597,7 @@ test('a question on a listing becomes an answer and then a published FAQ', async
 
   assert.equal(asked.statusCode, 302)
   const threadPath = destinationOf(asked)
-  assert.match(threadPath, /^\/messages\/\d+$/)
+  assert.match(threadPath, /^\/messages\/cnv_[0-9A-HJKMNP-TV-Z]{26}$/)
 
   const sellerInbox = await app.inject({ url: '/seller/messages', cookies: seller.cookies })
   assert.equal(sellerInbox.statusCode, 200)

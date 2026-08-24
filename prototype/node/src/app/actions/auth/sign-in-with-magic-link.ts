@@ -2,12 +2,13 @@ import type { Selectable } from 'kysely'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { magicLinkStatus } from '../../core/auth/magic-link-status.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
+import type { ActorId, CustomerId, MagicLinkId } from '../../core/ids/entity-ids.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { MagicLinkTable } from '../../db/schema.ts'
 import { fromNullableTimestamp, fromTimestamp, toTimestamp } from '../../db/timestamp.ts'
 import type { ActionContext } from '../action-context.ts'
-import { runInTransaction } from '../transaction.ts'
+import { actionStory } from '../action-story.ts'
 import { claimSellerIdentity } from './claim-seller-identity.ts'
 import { findAdminByEmail } from './find-admin-by-email.ts'
 
@@ -16,12 +17,12 @@ export type MagicLinkRefusal = 'expired' | 'consumed' | 'unrecognized'
 export type MagicLinkSignIn =
   | { outcome: 'unknown' }
   | { outcome: 'refused'; actorType: ActorType; refusal: MagicLinkRefusal }
-  | { outcome: 'signedIn'; actorType: ActorType; actorId: number; redirectTo: string | null }
+  | { outcome: 'signedIn'; actorType: ActorType; actorId: ActorId; redirectTo: string | null }
 
 export type SignInWithMagicLinkInput = {
   token: string
   /** The customer the identity cookie points at; only a customer link reads it. */
-  currentCustomerId: number | null
+  currentCustomerId: CustomerId | null
 }
 
 /**
@@ -34,41 +35,63 @@ export async function signInWithMagicLink(
   context: ActionContext,
   { token, currentCustomerId }: SignInWithMagicLinkInput,
 ): Promise<MagicLinkSignIn> {
-  return runInTransaction(context, async (transacted) => {
-    const { db, clock } = transacted
-    const link = await db
-      .selectFrom('magicLinks')
-      .selectAll()
-      .where('tokenDigest', '=', digestMagicLinkToken(token))
-      .executeTakeFirst()
+  return actionStory<MagicLinkSignIn>(
+    context,
+    {
+      event: 'magic_link.consume',
+      will: { msg: 'spending a sign-in link' },
+      ended: (signIn) =>
+        signIn.outcome === 'signedIn'
+          ? {
+              phase: 'did',
+              msg: `signed in a ${signIn.actorType}`,
+              data: { actor_type: signIn.actorType, actor_id: signIn.actorId },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the sign-in link cannot be spent',
+              data: {
+                reason: signIn.outcome === 'unknown' ? 'unknown_token' : signIn.refusal,
+                ...(signIn.outcome === 'unknown' ? {} : { actor_type: signIn.actorType }),
+              },
+            },
+    },
+    async (transacted) => {
+      const { db, clock } = transacted
+      const link = await db
+        .selectFrom('magicLinks')
+        .selectAll()
+        .where('tokenDigest', '=', digestMagicLinkToken(token))
+        .executeTakeFirst()
 
-    if (link === undefined) return { outcome: 'unknown' }
+      if (link === undefined) return { outcome: 'unknown' }
 
-    const now = clock.now()
-    const status = magicLinkStatus(
-      {
-        expiresAt: fromTimestamp(link.expiresAt),
-        consumedAt: fromNullableTimestamp(link.consumedAt),
-      },
-      now,
-    )
+      const now = clock.now()
+      const status = magicLinkStatus(
+        {
+          expiresAt: fromTimestamp(link.expiresAt),
+          consumedAt: fromNullableTimestamp(link.consumedAt),
+        },
+        now,
+      )
 
-    if (status !== 'usable') {
-      return { outcome: 'refused', actorType: link.actorType, refusal: status }
-    }
+      if (status !== 'usable') {
+        return { outcome: 'refused', actorType: link.actorType, refusal: status }
+      }
 
-    if (!(await consume(db, link.id, now))) {
-      return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
-    }
+      if (!(await consume(db, link.id, now))) {
+        return { outcome: 'refused', actorType: link.actorType, refusal: 'consumed' }
+      }
 
-    return await signInAs(transacted, link, currentCustomerId)
-  })
+      return await signInAs(transacted, link, currentCustomerId)
+    },
+  )
 }
 
 async function signInAs(
   context: ActionContext,
   link: Selectable<MagicLinkTable>,
-  currentCustomerId: number | null,
+  currentCustomerId: CustomerId | null,
 ): Promise<MagicLinkSignIn> {
   const actorId = await claimActor(context, link, currentCustomerId)
 
@@ -89,7 +112,7 @@ async function signInAs(
  * `consumed_at is null` clause is what makes a link work exactly once when two
  * requests arrive together.
  */
-async function consume(db: AppDatabase, linkId: number, now: Date): Promise<boolean> {
+async function consume(db: AppDatabase, linkId: MagicLinkId, now: Date): Promise<boolean> {
   const result = await db
     .updateTable('magicLinks')
     .set({ consumedAt: toTimestamp(now) })
@@ -104,8 +127,8 @@ async function consume(db: AppDatabase, linkId: number, now: Date): Promise<bool
 async function claimActor(
   context: ActionContext,
   link: Selectable<MagicLinkTable>,
-  currentCustomerId: number | null,
-): Promise<number | null> {
+  currentCustomerId: CustomerId | null,
+): Promise<ActorId | null> {
   switch (link.actorType) {
     case 'seller':
       return (await claimSellerIdentity(context, link.email)).id

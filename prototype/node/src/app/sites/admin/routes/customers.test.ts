@@ -189,7 +189,7 @@ test('the customer detail page titles a verified customer by their address', asy
   assert.match(response.body, new RegExp(`<title>${customer.email} — Admin</title>`))
 })
 
-test('the customer detail page titles an anonymous customer Guest #<id>', async (t) => {
+test('the customer detail page titles an anonymous customer Guest <id>', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)
   const admin = await signInAsAdmin(testApp)
@@ -203,7 +203,7 @@ test('the customer detail page titles an anonymous customer Guest #<id>', async 
     cookies: admin.cookies,
   })
 
-  assert.match(response.body, new RegExp(`<title>Guest #${customerId} — Admin</title>`))
+  assert.match(response.body, new RegExp(`<title>Guest ${customerId} — Admin</title>`))
 })
 
 test('the customer detail page shows a blocked customer with a lift form and the reason', async (t) => {

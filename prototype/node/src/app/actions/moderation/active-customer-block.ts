@@ -1,10 +1,11 @@
+import type { CustomerBlockId, CustomerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeBlock } from '../../core/moderation/customer-standing.ts'
 import { fromNullableTimestamp, fromTimestamp } from '../../db/timestamp.ts'
 
 /** A block as a page shows it: enough to name the reason and offer the lift. */
 export type ActiveCustomerBlock = {
-  id: number
+  id: CustomerBlockId
   reason: string
   createdAt: Date
   liftedAt: Date | null
@@ -17,13 +18,14 @@ export type ActiveCustomerBlock = {
  */
 export async function activeCustomerBlock(
   { db }: Pick<ActionContext, 'db'>,
-  customerId: number,
+  customerId: CustomerId,
 ): Promise<ActiveCustomerBlock | null> {
   const blocks = await db
     .selectFrom('customerBlocks')
     .select(['id', 'reason', 'createdAt', 'liftedAt'])
     .where('customerId', '=', customerId)
     .where('liftedAt', 'is', null)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 

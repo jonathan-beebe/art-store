@@ -1,11 +1,9 @@
-import type { RecipientType } from '../../core/notifications/recipient-type.ts'
+import type { NotificationRecipient } from '../../core/notifications/recipient-type.ts'
 import type { Notification } from '../../db/commerce-schema.ts'
 
 /** A notification with the inbox it belongs to named once, in one field. */
-export type ParsedNotification = Omit<Notification, 'sellerId' | 'customerId' | 'adminId'> & {
-  recipientType: RecipientType
-  recipientId: number
-}
+export type ParsedNotification = Omit<Notification, 'sellerId' | 'customerId' | 'adminId'> &
+  NotificationRecipient
 
 /**
  * Reads the one recipient column the row carries. The table's check constraint

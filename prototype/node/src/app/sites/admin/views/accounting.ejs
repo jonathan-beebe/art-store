@@ -16,6 +16,7 @@
         <th scope="col" class="px-4 py-2 text-right font-semibold">Held</th>
         <th scope="col" class="px-4 py-2 text-right font-semibold">Available</th>
         <th scope="col" class="px-4 py-2 text-right font-semibold">Paid out</th>
+        <th scope="col" class="px-4 py-2 text-right font-semibold">Refunded</th>
         <th scope="col" class="px-4 py-2 text-right font-semibold">Payout total</th>
         <th scope="col" class="px-4 py-2 font-semibold">Reconciles</th>
         <th scope="col" class="px-4 py-2 text-right font-semibold">Lifetime subtotal</th>
@@ -30,6 +31,7 @@
         <td data-cell="held" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.heldCents) %></td>
         <td data-cell="available" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.availableCents) %></td>
         <td data-cell="paid-out" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.paidOutCents) %></td>
+        <td data-cell="refunded" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.refundedCents) %></td>
         <td data-cell="payout-total" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.payoutTotalCents) %></td>
         <td data-cell="reconciles" class="px-4 py-2"><%= account.reconciles ? 'Yes' : 'No' %></td>
         <td data-cell="lifetime-subtotal" class="px-4 py-2 text-right tabular-nums"><%= formatCents(account.lifetimeSubtotalCents) %></td>
@@ -44,9 +46,10 @@
         <td data-cell="held" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.heldCents) %></td>
         <td data-cell="available" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.availableCents) %></td>
         <td data-cell="paid-out" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.paidOutCents) %></td>
+        <td data-cell="refunded" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.refundedCents) %></td>
         <td colspan="3"></td>
         <td data-cell="fees-earned" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.feesEarnedCents) %></td>
-        <td></td>
+        <td data-cell="fees-refunded" class="px-4 py-2 text-right font-semibold tabular-nums"><%= formatCents(totals.feesRefundedCents) %></td>
       </tr>
     </tfoot>
   </table>

@@ -2,15 +2,21 @@ import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
+import { csrfToken } from '../core/security/csrf-token.ts'
 import {
   buildTestApp,
   signInAsAdmin,
   signInAsCustomer,
   signInAsSeller,
+  TEST_CONFIG,
   type SignedInActor,
   type TestApp,
 } from '../test/build-test-app.ts'
 import { unreadEventStream, type AppEvents, type UnreadStreamSource } from './events.ts'
+
+/** A `sid` this suite's real `fetch()` calls carry by hand — real requests get
+ * theirs from the server, but nothing here walks a page load first. */
+const FETCH_TEST_SID = `ses_${'0'.repeat(26)}`
 
 /** A stream fed by hand: one count per read, the last one repeating. */
 function fakeSource(counts: readonly number[]): {
@@ -222,10 +228,13 @@ test('a posted message reaches the recipient and nobody else', async (t) => {
   const posted = await fetch(`${baseUrl}/messages/${conversation.id}`, {
     method: 'POST',
     headers: {
-      cookie: cookieHeader(customer),
+      cookie: cookieHeader({ ...customer, cookies: { ...customer.cookies, sid: FETCH_TEST_SID } }),
       'content-type': 'application/x-www-form-urlencoded',
     },
-    body: new URLSearchParams({ body: 'Any news on my order?' }),
+    body: new URLSearchParams({
+      body: 'Any news on my order?',
+      _csrf_token: csrfToken(FETCH_TEST_SID, TEST_CONFIG.cookieSecret),
+    }),
     redirect: 'manual',
   })
 

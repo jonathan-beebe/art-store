@@ -9,6 +9,7 @@ import { markNotificationRead } from '../../actions/notifications/mark-notificat
 import { notify } from '../../actions/notifications/notify.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
+import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { cents } from '../../core/money.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
@@ -27,7 +28,7 @@ const DEFAULT_DRAFT: ListingDraft = {
 
 export async function createTestListing(
   testApp: TestApp,
-  sellerId: number,
+  sellerId: SellerId,
   overrides: Partial<ListingDraft> = {},
 ): Promise<Listing> {
   const { db, clock } = testApp
@@ -37,7 +38,7 @@ export async function createTestListing(
 
 export async function createForSaleListing(
   testApp: TestApp,
-  sellerId: number,
+  sellerId: SellerId,
   overrides: Partial<ListingDraft> = {},
 ): Promise<Listing> {
   const listing = await createTestListing(testApp, sellerId, overrides)
@@ -53,7 +54,7 @@ export async function createForSaleListing(
  */
 export async function createFulfillment(
   testApp: TestApp,
-  sellerId: number,
+  sellerId: SellerId,
   listing?: Listing,
 ): Promise<Fulfillment> {
   const { db, clock } = testApp
@@ -80,7 +81,7 @@ export async function createFulfillment(
 /** A fulfillment shipped and confirmed delivered, so its escrow is released. */
 export async function createDeliveredFulfillment(
   testApp: TestApp,
-  sellerId: number,
+  sellerId: SellerId,
   listing?: Listing,
 ): Promise<Fulfillment> {
   const { db, clock } = testApp
@@ -96,7 +97,7 @@ export async function createDeliveredFulfillment(
 
 export async function createTestNotification(
   testApp: TestApp,
-  sellerId: number,
+  sellerId: SellerId,
   overrides: Partial<NotificationMessage> & { read?: boolean } = {},
 ): Promise<Notification> {
   const { db, clock } = testApp

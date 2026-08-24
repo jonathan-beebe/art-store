@@ -1,4 +1,5 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
+import type { CustomerId, OrderId } from '../../../core/ids/entity-ids.ts'
 import type { Cents } from '../../../core/money.ts'
 import type { FulfillmentStatus } from '../../../core/orders/fulfillment-status.ts'
 import type { OrderStatus } from '../../../core/orders/order-status.ts'
@@ -6,11 +7,11 @@ import type { Timestamp } from '../../../db/timestamp.ts'
 
 export type OrderRowFilters = {
   status?: OrderStatus
-  customerId?: number
+  customerId?: CustomerId
 }
 
 export type OrderRow = {
-  id: number
+  id: OrderId
   customerEmail: string | null
   status: OrderStatus
   itemCount: number
@@ -30,7 +31,7 @@ export async function orderRows(
   filters: OrderRowFilters = {},
 ): Promise<OrderRow[]> {
   const { db } = context
-  let query = db.selectFrom('orders').selectAll().orderBy('id', 'desc')
+  let query = db.selectFrom('orders').selectAll().orderBy('placedAt', 'desc').orderBy('id', 'desc')
 
   if (filters.status !== undefined) query = query.where('status', '=', filters.status)
   if (filters.customerId !== undefined) query = query.where('customerId', '=', filters.customerId)
@@ -54,9 +55,9 @@ export async function orderRows(
 
 async function itemCountsByOrder(
   db: ActionContext['db'],
-  orderIds: readonly number[],
-): Promise<ReadonlyMap<number, number>> {
-  const byOrder = new Map<number, number>()
+  orderIds: readonly OrderId[],
+): Promise<ReadonlyMap<OrderId, number>> {
+  const byOrder = new Map<OrderId, number>()
   if (orderIds.length === 0) return byOrder
 
   const rows = await db
@@ -74,9 +75,9 @@ async function itemCountsByOrder(
 
 async function fulfillmentStatusesByOrder(
   db: ActionContext['db'],
-  orderIds: readonly number[],
-): Promise<ReadonlyMap<number, FulfillmentStatus[]>> {
-  const byOrder = new Map<number, FulfillmentStatus[]>()
+  orderIds: readonly OrderId[],
+): Promise<ReadonlyMap<OrderId, FulfillmentStatus[]>> {
+  const byOrder = new Map<OrderId, FulfillmentStatus[]>()
   if (orderIds.length === 0) return byOrder
 
   const rows = await db

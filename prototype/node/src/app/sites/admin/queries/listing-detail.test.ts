@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 import { listingDetail, type ListingDetail, type ListingDetailRemoval } from './listing-detail.ts'
 import { removeListing } from '../../../actions/moderation/remove-listing.ts'
 import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
@@ -48,7 +49,7 @@ test('nothing answers for an id that names no listing', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
 
-  assert.equal(await listingDetail(world.context, 999), null)
+  assert.equal(await listingDetail(world.context, fixtureId('lst', 999)), null)
 })
 
 test('an actively removed listing carries the removal and says it can be lifted', async (t) => {

@@ -1,5 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  FulfillmentId,
+  ListingId,
+  OrderId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
+import { fixtureId } from '../../test/fixture-ids.ts'
 import { cancelOrder } from './cancel-order.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import { markAwaitingPayment } from './mark-awaiting-payment.ts'
@@ -57,7 +64,7 @@ test('an order runs from the cart to the weekly payout', async (t) => {
 
   world.travelTo(SHIPPED_AT)
   await markShipped(context, {
-    fulfillmentId: paintingShipment ?? 0,
+    fulfillmentId: paintingShipment ?? fixtureId('ful', 0),
     carrier: 'USPS',
     trackingNumber: '9400111899',
   })
@@ -65,7 +72,7 @@ test('an order runs from the cart to the weekly payout', async (t) => {
   assert.equal(await readOrderStatus(world.db, order.id), 'partially_shipped')
 
   await markShipped(context, {
-    fulfillmentId: printShipment ?? 0,
+    fulfillmentId: printShipment ?? fixtureId('ful', 0),
     carrier: 'FedEx',
     trackingNumber: '7712349',
   })
@@ -75,11 +82,11 @@ test('an order runs from the cart to the weekly payout', async (t) => {
 
   // Delivery is what releases escrow, one fulfillment at a time.
   world.travelTo(DELIVERED_AT)
-  await confirmDelivered(context, paintingShipment ?? 0)
+  await confirmDelivered(context, paintingShipment ?? fixtureId('ful', 0))
 
   assert.equal(await readOrderStatus(world.db, order.id), 'shipped')
 
-  await confirmDelivered(context, printShipment ?? 0)
+  await confirmDelivered(context, printShipment ?? fixtureId('ful', 0))
 
   assert.equal(await readOrderStatus(world.db, order.id), 'delivered')
   assert.deepEqual(await availableFor(context, [painter, printer]), [40_500, 10_800])
@@ -132,12 +139,12 @@ test('a declined card returns the stock and a retry completes the order', async 
   const [fulfillment] = await fulfillmentIds(world.db, order.id)
   world.travelTo(SHIPPED_AT)
   await markShipped(context, {
-    fulfillmentId: fulfillment ?? 0,
+    fulfillmentId: fulfillment ?? fixtureId('ful', 0),
     carrier: 'USPS',
     trackingNumber: '9400111899',
   })
   world.travelTo(DELIVERED_AT)
-  await confirmDelivered(context, fulfillment ?? 0)
+  await confirmDelivered(context, fulfillment ?? fixtureId('ful', 0))
 
   world.travelTo(PAYOUT_RUN_AT)
   const payouts = await runWeeklyPayout(context, PAYOUT_RUN_AT)
@@ -188,11 +195,11 @@ test('a cancelled order cannot be verified, charged, or cancelled again', async 
   assert.equal((await markAwaitingPayment(context, order.id)).status, 'cancelled')
 })
 
-async function readListing(db: AppDatabase, listingId: number) {
+async function readListing(db: AppDatabase, listingId: ListingId) {
   return db.selectFrom('listings').selectAll().where('id', '=', listingId).executeTakeFirstOrThrow()
 }
 
-async function readStock(db: AppDatabase, listingId: number) {
+async function readStock(db: AppDatabase, listingId: ListingId) {
   return db
     .selectFrom('listings')
     .select(['quantity', 'status'])
@@ -200,7 +207,7 @@ async function readStock(db: AppDatabase, listingId: number) {
     .executeTakeFirstOrThrow()
 }
 
-async function readOrderStatus(db: AppDatabase, orderId: number): Promise<string> {
+async function readOrderStatus(db: AppDatabase, orderId: OrderId): Promise<string> {
   const order = await db
     .selectFrom('orders')
     .select('status')
@@ -210,7 +217,7 @@ async function readOrderStatus(db: AppDatabase, orderId: number): Promise<string
   return order.status
 }
 
-async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[]> {
+async function fulfillmentIds(db: AppDatabase, orderId: OrderId): Promise<FulfillmentId[]> {
   const rows = await db
     .selectFrom('fulfillments')
     .select('id')
@@ -221,7 +228,7 @@ async function fulfillmentIds(db: AppDatabase, orderId: number): Promise<number[
   return rows.map((row) => row.id)
 }
 
-async function fulfillmentMoney(db: AppDatabase, orderId: number) {
+async function fulfillmentMoney(db: AppDatabase, orderId: OrderId) {
   return db
     .selectFrom('fulfillments')
     .select(['sellerId', 'subtotalCents', 'feeCents', 'netCents'])
@@ -230,7 +237,7 @@ async function fulfillmentMoney(db: AppDatabase, orderId: number) {
     .execute()
 }
 
-async function paymentAttempts(db: AppDatabase, orderId: number) {
+async function paymentAttempts(db: AppDatabase, orderId: OrderId) {
   return db
     .selectFrom('payments')
     .select(['status', 'declineReason'])
@@ -249,14 +256,14 @@ async function countNotifications(db: AppDatabase, subject: string): Promise<num
   return rows.length
 }
 
-async function heldFor(context: ActionContext, sellerIds: readonly number[]): Promise<number[]> {
+async function heldFor(context: ActionContext, sellerIds: readonly SellerId[]): Promise<number[]> {
   return Promise.all(sellerIds.map(async (id) => (await sellerBalance(context, id)).heldCents))
 }
 
-async function availableFor(context: ActionContext, sellerIds: readonly number[]): Promise<number[]> {
+async function availableFor(context: ActionContext, sellerIds: readonly SellerId[]): Promise<number[]> {
   return Promise.all(sellerIds.map(async (id) => (await sellerBalance(context, id)).availableCents))
 }
 
-async function paidOutFor(context: ActionContext, sellerIds: readonly number[]): Promise<number[]> {
+async function paidOutFor(context: ActionContext, sellerIds: readonly SellerId[]): Promise<number[]> {
   return Promise.all(sellerIds.map(async (id) => (await sellerBalance(context, id)).paidOutCents))
 }

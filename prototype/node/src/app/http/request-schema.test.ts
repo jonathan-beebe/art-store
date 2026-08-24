@@ -3,19 +3,27 @@ import assert from 'node:assert/strict'
 import { z } from 'zod'
 import { idParams, idValue, optionalFilter, slugParams, submittedForm } from './request-schema.ts'
 
-const sellerFilter = z.object({ seller: optionalFilter(idValue) })
+const sellerFilter = z.object({ seller: optionalFilter(idValue('sel')) })
 const typeFilter = z.object({ type: optionalFilter(z.enum(['hold', 'release'])) })
 
-test('an id segment reads as the number it names', () => {
-  assert.deepEqual(idParams.parse({ id: '42' }), { id: 42 })
+const ORDER_ID = 'ord_01J5X3M9A2K8YB7Q4R6T1V0WZE'
+const SELLER_ID = 'sel_01J5X3M9A2K8YB7Q4R6T1V0WZE'
+
+test('an id segment reads as the prefixed id it names', () => {
+  assert.deepEqual(idParams('ord').parse({ id: ORDER_ID }), { id: ORDER_ID })
   assert.deepEqual(slugParams.parse({ slug: 'harbour-at-dusk' }), { slug: 'harbour-at-dusk' })
 })
 
-test('a segment that is not a positive integer is refused', () => {
-  assert.equal(idParams.safeParse({ id: 'abc' }).success, false)
-  assert.equal(idParams.safeParse({ id: '0' }).success, false)
-  assert.equal(idParams.safeParse({ id: '-3' }).success, false)
-  assert.equal(idParams.safeParse({ id: '1.5' }).success, false)
+test("an id belonging to another table is refused by the route's own prefix", () => {
+  assert.equal(idParams('ord').safeParse({ id: SELLER_ID }).success, false)
+})
+
+test('a segment that is not a prefixed id is refused', () => {
+  assert.equal(idParams('ord').safeParse({ id: 'abc' }).success, false)
+  assert.equal(idParams('ord').safeParse({ id: '42' }).success, false)
+  assert.equal(idParams('ord').safeParse({ id: '' }).success, false)
+  assert.equal(idParams('ord').safeParse({ id: ORDER_ID.toLowerCase() }).success, false)
+  assert.equal(idParams('ord').safeParse({ id: `${ORDER_ID}E` }).success, false)
 })
 
 test('a filter left off the query string is absent', () => {
@@ -28,12 +36,13 @@ test('a filter submitted empty by the "all" option is absent, not refused', () =
 })
 
 test('a filter carrying a value the schema accepts keeps it', () => {
-  assert.deepEqual(sellerFilter.parse({ seller: '7' }), { seller: 7 })
+  assert.deepEqual(sellerFilter.parse({ seller: SELLER_ID }), { seller: SELLER_ID })
   assert.deepEqual(typeFilter.parse({ type: 'hold' }), { type: 'hold' })
 })
 
 test('a filter carrying something the schema refuses is refused', () => {
   assert.equal(sellerFilter.safeParse({ seller: 'nobody' }).success, false)
+  assert.equal(sellerFilter.safeParse({ seller: ORDER_ID }).success, false)
   assert.equal(typeFilter.safeParse({ type: 'nonsense' }).success, false)
 })
 

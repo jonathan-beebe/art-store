@@ -4,6 +4,7 @@ import type { Clock } from '../../clock.ts'
 import type { ActorType } from '../../core/auth/actor-type.ts'
 import { digestMagicLinkToken } from '../../core/auth/magic-link-token.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
+import { newId } from '../../ids.ts'
 import { buildTestApp, TEST_INSTANT, type TestApp } from '../../test/build-test-app.ts'
 import { createAnonymousCustomer } from '../customers/create-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
@@ -32,6 +33,7 @@ async function issueLink({ db }: TestApp, options: LinkOptions = {}): Promise<st
   await db
     .insertInto('magicLinks')
     .values({
+      id: newId('mlk', new Date()),
       tokenDigest: digestMagicLinkToken(token),
       email: options.email ?? 'artist@example.com',
       actorType: options.actorType ?? 'seller',
@@ -221,7 +223,7 @@ test("signing in inside the caller's transaction joins it", async (t) => {
   const anonymous = await createAnonymousCustomer(testApp)
   await testApp.db
     .insertInto('customers')
-    .values({ email: 'buyer@example.com', name: null, emailVerifiedAt: NOW, createdAt: NOW })
+    .values({ id: newId('cus', new Date()), email: 'buyer@example.com', name: null, emailVerifiedAt: NOW, createdAt: NOW })
     .execute()
   const token = await issueLink(testApp, { actorType: 'customer', email: 'buyer@example.com' })
 

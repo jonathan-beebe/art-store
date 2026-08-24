@@ -3,6 +3,11 @@ import { changeListingStatus } from '../actions/listings/change-listing-status.t
 import { createListing } from '../actions/listings/create-listing.ts'
 import { removeListing } from '../actions/moderation/remove-listing.ts'
 import { fixedClock } from '../clock.ts'
+import type {
+  AdminId,
+  ListingId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import { cents } from '../core/money.ts'
 import type { AppDatabase } from './database.ts'
 
@@ -304,18 +309,18 @@ export const REMOVED_LISTING_TITLE = 'Night Freight'
 const REMOVAL_REASON = 'Under review: a buyer reported the print does not match the listed edition size.'
 
 export type SeededCatalog = {
-  listingIdsByTitle: Record<string, number>
+  listingIdsByTitle: Record<string, ListingId>
 }
 
 /** Creates every catalog listing through the seller portal's own actions and
  * takes one for_sale listing down with a temporary removal. */
 export async function seedCatalog(
   db: AppDatabase,
-  sellerIdsByEmail: Record<string, number>,
-  adminId: number,
+  sellerIdsByEmail: Record<string, SellerId>,
+  adminId: AdminId,
 ): Promise<SeededCatalog> {
   const context: ActionContext = { db, clock: fixedClock(CREATED_AT) }
-  const listingIdsByTitle: Record<string, number> = {}
+  const listingIdsByTitle: Record<string, ListingId> = {}
 
   for (const record of CATALOG) {
     const sellerId = requireSellerId(sellerIdsByEmail, record.sellerEmail)
@@ -352,7 +357,7 @@ export async function seedCatalog(
  * single-hop transitions the status table allows. */
 async function advanceToStatus(
   context: ActionContext,
-  listingId: number,
+  listingId: ListingId,
   target: CatalogStatus,
 ): Promise<void> {
   if (target === 'draft') return
@@ -363,7 +368,7 @@ async function advanceToStatus(
   }
 }
 
-function requireSellerId(sellerIdsByEmail: Record<string, number>, email: string): number {
+export function requireSellerId(sellerIdsByEmail: Record<string, SellerId>, email: string): SellerId {
   const sellerId = sellerIdsByEmail[email]
   if (sellerId === undefined) {
     throw new Error(`seedCatalog: no seeded seller for ${email}`)
@@ -371,7 +376,7 @@ function requireSellerId(sellerIdsByEmail: Record<string, number>, email: string
   return sellerId
 }
 
-function requireListingId(listingIdsByTitle: Record<string, number>, title: string): number {
+export function requireListingId(listingIdsByTitle: Record<string, ListingId>, title: string): ListingId {
   const listingId = listingIdsByTitle[title]
   if (listingId === undefined) {
     throw new Error(`seedCatalog: no seeded listing titled ${title}`)

@@ -1,5 +1,5 @@
 import { TransitionError } from '../transition-error.ts'
-import { hasDeparted, type FulfillmentStatus } from './fulfillment-status.ts'
+import { hasDeparted, isReversed, type FulfillmentStatus } from './fulfillment-status.ts'
 import { isCardApproved, type CardDecision } from '../payments/card-decision.ts'
 
 export const ORDER_STATUSES = [
@@ -11,6 +11,7 @@ export const ORDER_STATUSES = [
   'shipped',
   'delivered',
   'cancelled',
+  'refunded',
 ] as const
 export type OrderStatus = (typeof ORDER_STATUSES)[number]
 
@@ -19,11 +20,12 @@ export const ORDER_STATUS_TRANSITIONS = {
   awaiting_payment: ['paid', 'payment_failed', 'cancelled'],
   // A retry that is declined again leaves the order where it already was.
   payment_failed: ['paid', 'payment_failed', 'cancelled'],
-  paid: ['partially_shipped', 'shipped'],
-  partially_shipped: ['shipped'],
-  shipped: ['delivered'],
-  delivered: [],
+  paid: ['partially_shipped', 'shipped', 'refunded'],
+  partially_shipped: ['shipped', 'refunded'],
+  shipped: ['delivered', 'refunded'],
+  delivered: ['refunded'],
   cancelled: [],
+  refunded: [],
 } as const satisfies Record<OrderStatus, readonly OrderStatus[]>
 
 const CANCELLABLE_STATUSES = [
@@ -58,19 +60,29 @@ export function orderStatusFromCardDecision(decision: CardDecision): OrderStatus
   return isCardApproved(decision) ? 'paid' : 'payment_failed'
 }
 
-/** A multi-seller order rolls up from its fulfillments: a delivered one mixed
- * with an unshipped one is still partially shipped. */
+/**
+ * A multi-seller order rolls up from its fulfillments: a delivered one mixed
+ * with an unshipped one is still partially shipped. Declined and refunded
+ * halves are money the customer has back, so they drop out of the roll-up —
+ * one shipped beside one declined reads as shipped, and an order with nothing
+ * left is refunded.
+ */
 export function orderStatusFromFulfillments(statuses: readonly FulfillmentStatus[]): OrderStatus {
   if (statuses.length === 0) {
     throw new RangeError('an order rolls up from at least one fulfillment')
   }
-  if (statuses.every((status) => status === 'delivered')) {
+
+  const live = statuses.filter((status) => !isReversed(status))
+  if (live.length === 0) {
+    return 'refunded'
+  }
+  if (live.every((status) => status === 'delivered')) {
     return 'delivered'
   }
-  if (statuses.every((status) => hasDeparted(status))) {
+  if (live.every((status) => hasDeparted(status))) {
     return 'shipped'
   }
-  if (statuses.some((status) => hasDeparted(status))) {
+  if (live.some((status) => hasDeparted(status))) {
     return 'partially_shipped'
   }
 

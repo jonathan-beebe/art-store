@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { newId } from '../../ids.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
@@ -30,6 +31,7 @@ test('an unlifted removal comes back with its kind and reason and its dates as D
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: art.id,
       adminId,
       kind: 'temporary',
@@ -59,6 +61,7 @@ test('a lifted removal is not active', async (t) => {
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: art.id,
       adminId,
       kind: 'temporary',
@@ -85,6 +88,7 @@ test('the unlifted one wins when a listing has both', async (t) => {
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: art.id,
       adminId,
       kind: 'temporary',
@@ -96,6 +100,7 @@ test('the unlifted one wins when a listing has both', async (t) => {
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', new Date()),
       listingId: art.id,
       adminId,
       kind: 'permanent',

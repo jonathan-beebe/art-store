@@ -1,5 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type {
+  CartId,
+  ListingId,
+} from '../../core/ids/entity-ids.ts'
 import { addToCart } from './add-to-cart.ts'
 import { currentCart } from './current-cart.ts'
 import { removeFromCart } from './remove-from-cart.ts'
@@ -41,7 +45,7 @@ test('removing a listing the cart never held changes nothing', async (t) => {
   assert.deepEqual(await listingIdsIn(world.db, cart.id), [held.id])
 })
 
-async function listingIdsIn(db: AppDatabase, cartId: number): Promise<number[]> {
+async function listingIdsIn(db: AppDatabase, cartId: CartId): Promise<ListingId[]> {
   const rows = await db
     .selectFrom('cartItems')
     .select('listingId')

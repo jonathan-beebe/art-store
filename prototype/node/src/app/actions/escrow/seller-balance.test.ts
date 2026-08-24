@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { SellerId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import { sellerBalance } from './seller-balance.ts'
 import { createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
@@ -92,13 +94,13 @@ test('another seller’s movements never reach this seller’s balance', async (
 
 async function insertLedgerEntry(
   world: Awaited<ReturnType<typeof openCommerceWorld>>,
-  sellerId: number,
+  sellerId: SellerId,
   entryType: 'held' | 'released' | 'paid_out',
   amountCents: number,
   occurredAt: string,
 ): Promise<void> {
   await world.db
     .insertInto('ledgerEntries')
-    .values({ sellerId, fulfillmentId: null, payoutId: null, entryType, amountCents, occurredAt })
+    .values({ id: newId('led', new Date()), sellerId, fulfillmentId: null, payoutId: null, entryType, amountCents, occurredAt })
     .execute()
 }

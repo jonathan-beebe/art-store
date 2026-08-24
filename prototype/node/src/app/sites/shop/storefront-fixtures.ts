@@ -5,12 +5,21 @@ import { createListing } from '../../actions/listings/create-listing.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
 import type { ActionContext } from '../../actions/action-context.ts'
+import type {
+  AdminId,
+  CartId,
+  CustomerId,
+  ListingId,
+  OrderId,
+  SellerId,
+} from '../../core/ids/entity-ids.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
 import { cents, type Cents } from '../../core/money.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
 import type { Listing, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+import { newId } from '../../ids.ts'
 import { APPROVED_CARD, DECLINED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
 
 export { APPROVED_CARD, DECLINED_CARD }
@@ -18,7 +27,7 @@ export { APPROVED_CARD, DECLINED_CARD }
 export const TEST_SHIPPING = SHIPPING_ADDRESS
 
 export type ArtworkInput = {
-  sellerId: number
+  sellerId: SellerId
   title?: string
   description?: string | null
   medium?: string | null
@@ -67,11 +76,12 @@ export async function listArtwork(context: ActionContext, input: ArtworkInput): 
 
 export async function removeListing(
   { db, clock }: ActionContext,
-  input: { listingId: number; adminId: number; kind?: RemovalKind; reason?: string },
+  input: { listingId: ListingId; adminId: AdminId; kind?: RemovalKind; reason?: string },
 ): Promise<void> {
   await db
     .insertInto('listingRemovals')
     .values({
+      id: newId('rmv', clock.now()),
       listingId: input.listingId,
       adminId: input.adminId,
       kind: input.kind ?? 'temporary',
@@ -88,8 +98,8 @@ export async function removeListing(
  */
 export async function cartWithArtwork(
   context: ActionContext,
-  input: { customerId: number; listingId: number; quantity?: number },
-): Promise<number> {
+  input: { customerId: CustomerId; listingId: ListingId; quantity?: number },
+): Promise<CartId> {
   const cart = await currentCart(context, input.customerId)
   await addToCart(context, {
     cartId: cart.id,
@@ -102,7 +112,7 @@ export async function cartWithArtwork(
 
 export async function placeCustomerOrder(
   context: ActionContext,
-  input: { cartId: number; customerId: number; email?: string; isEmailVerified?: boolean },
+  input: { cartId: CartId; customerId: CustomerId; email?: string; isEmailVerified?: boolean },
 ): Promise<Order> {
   return placeOrderOrThrow(context, {
     cartId: input.cartId,
@@ -118,7 +128,7 @@ export async function placeCustomerOrder(
 /** An order already paid for, which is where shipping and delivery start. */
 export async function payForOrder(
   context: ActionContext,
-  input: { orderId: number; cardNumber?: string },
+  input: { orderId: OrderId; cardNumber?: string },
 ): Promise<Order> {
   return finalizeOrder(context, {
     orderId: input.orderId,
@@ -128,11 +138,12 @@ export async function payForOrder(
 
 export async function blockCustomer(
   { db, clock }: ActionContext,
-  input: { customerId: number; adminId: number; reason?: string },
+  input: { customerId: CustomerId; adminId: AdminId; reason?: string },
 ): Promise<void> {
   await db
     .insertInto('customerBlocks')
     .values({
+      id: newId('blk', clock.now()),
       customerId: input.customerId,
       adminId: input.adminId,
       reason: input.reason ?? 'Chargeback fraud.',

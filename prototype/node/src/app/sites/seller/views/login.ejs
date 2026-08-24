@@ -4,17 +4,19 @@
   prototype the link is printed at the top of this page instead of emailed.
 </p>
 <form method="post" action="<%= loginPath %>" class="mt-6 max-w-sm space-y-4">
-  <div>
-    <label for="email" class="block text-sm font-medium text-neutral-700">Email address</label>
-    <input
-      type="email"
-      name="email"
-      id="email"
-      required
-      autofocus
-      class="mt-1 block w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-    />
-  </div>
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
+  <%- include('views/partials/form-error', { formError: typeof formError !== 'undefined' ? formError : null }) %>
+  <%- include('views/partials/form-field', {
+    name: 'email',
+    label: 'Email address',
+    type: 'email',
+    value: typeof email !== 'undefined' ? email : '',
+    error: typeof error !== 'undefined' ? error : null,
+    required: true,
+    autofocus: true,
+    wrapperClass: '',
+    inputClass: 'mt-1 block w-full rounded border border-neutral-300 px-3 py-2 text-sm',
+  }) %>
   <% if (redirectTo) { %>
   <input type="hidden" name="redirect_to" value="<%= redirectTo %>" />
   <% } %>

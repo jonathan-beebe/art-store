@@ -9,7 +9,7 @@ import { listingRows, REMOVED_FILTERS } from '../queries/listing-rows.ts'
 
 const listingsQuery = z.object({
   status: optionalFilter(z.enum(LISTING_STATUSES)),
-  seller: optionalFilter(idValue),
+  seller: optionalFilter(idValue('sel')),
   removed: optionalFilter(z.enum(REMOVED_FILTERS)).default('any'),
 })
 
@@ -29,7 +29,7 @@ export const listingRoutes: ZodRoutes = (admin, _options, done) => {
     )
   })
 
-  admin.get('/listings/:id', { schema: { params: idParams } }, async (request, reply) => {
+  admin.get('/listings/:id', { schema: { params: idParams('lst') } }, async (request, reply) => {
     const detail = await listingDetail({ db: admin.db }, request.params.id)
     if (detail === null) return reply.callNotFound()
 

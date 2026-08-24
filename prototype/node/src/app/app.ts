@@ -18,6 +18,7 @@ import { flashCookie } from './plugins/flash.ts'
 import { healthCheck } from './plugins/health.ts'
 import { identityCookies } from './plugins/identity.ts'
 import { pageViewRollup } from './plugins/page-views.ts'
+import { requestLog } from './plugins/request-log.ts'
 import { securityHeaders } from './plugins/security-headers.ts'
 import { unreadMessages } from './plugins/unread-messages.ts'
 import { adminSite } from './sites/admin/index.ts'
@@ -63,11 +64,14 @@ export function buildApp({
   magicLinkDelivery,
   loggerStream,
 }: AppDependencies): FastifyInstance {
-  // trustProxy is what makes request.protocol and request.host read the
-  // forwarded headers, so it is on only where a proxy is known to set them.
+  // trustProxy is what makes request.protocol, request.host, and request.ip
+  // read forwarded headers rather than the raw socket. `trustedProxies` names
+  // exactly which hops to believe, which is what request.ip needs to resist a
+  // caller forging its own X-Forwarded-For; unset, Fastify trusts nothing
+  // forwarded and reads the raw socket.
   const app = Fastify({
     ...loggingOptions(config, { stream: loggerStream }),
-    trustProxy: config.trustProxy,
+    trustProxy: config.trustedProxies ?? false,
   })
 
   // Every route declares its params, query, and body as zod schemas; this is
@@ -82,6 +86,10 @@ export function buildApp({
   app.decorate('draining', false)
 
   app.register(fastifyCookie, { secret: config.cookieSecret })
+  // Ahead of the static and site plugins: a route inherits the root's hooks as
+  // they stand when its own context is built, so a hook added after them would
+  // never see the requests they answer.
+  app.register(requestLog)
   // Kept in place of a `URLSearchParams` parser of its own. Every form here is
   // flat and would survive the swap, but this parser also decides what a
   // repeated or bracketed field name means, and deciding that by hand is a
@@ -118,6 +126,14 @@ export function buildApp({
   app.register(eventBus)
   app.register(healthCheck)
 
+  // csrfProtection is registered inside each site rather than here: it reads
+  // `request.body`, and `@fastify/multipart`'s `attachFieldsToBody` (seller's
+  // own site) populates that itself through a `preValidation` hook of its
+  // own. A hook the root adds always runs ahead of one a child registers,
+  // whatever order they were written in — so registered here, the guard would
+  // run before multipart had attached anything at all. Registered inside
+  // each site, after that site's own body parser, it runs once that parser's
+  // own hook (if it added one) already has.
   app.register(authSite)
   app.register(shopSite)
   app.register(sellerSite, { prefix: '/seller' })

@@ -26,6 +26,7 @@
         <div class="ml-auto flex items-center gap-4 text-neutral-300">
           <a href="/admin/account" class="hover:text-white"><%= identity.admin.email %></a>
           <form method="post" action="/admin/logout" class="inline">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
             <button type="submit" class="cursor-pointer hover:text-white">Sign out</button>
           </form>
         </div>

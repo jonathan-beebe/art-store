@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { holdMovement, releaseMovement, payoutMovement } from './ledger-movement.ts'
+import { holdMovement, payoutMovement, refundMovement, releaseMovement } from './ledger-movement.ts'
 import { cents } from '../money.ts'
 
 test('a hold adds the net to escrow', () => {
@@ -26,6 +26,19 @@ test('a payout leaves the ledger entry negative', () => {
 
 test('a payout of zero stays a positive zero', () => {
   const movement = payoutMovement(cents(0))
+
+  assert.equal(Object.is(movement.amountCents, -0), false)
+})
+
+test('a refund leaves the ledger entry negative', () => {
+  const movement = refundMovement(cents(40_500))
+
+  assert.equal(movement.entryType, 'refunded')
+  assert.equal(movement.amountCents, -40_500)
+})
+
+test('a refund of zero stays a positive zero', () => {
+  const movement = refundMovement(cents(0))
 
   assert.equal(Object.is(movement.amountCents, -0), false)
 })

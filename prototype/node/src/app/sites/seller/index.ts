@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyPluginCallback } from 'fastify'
 import multipart from '@fastify/multipart'
+import { csrfProtection } from '../../plugins/csrf.ts'
 import { addNotFoundPage } from '../../plugins/error-pages.ts'
 import { unreadEventsRoute } from '../../plugins/events.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
@@ -24,6 +25,10 @@ export const sellerSite: FastifyPluginCallback = (portal, _options, done) => {
     attachFieldsToBody: true,
     limits: { fileSize: MAX_IMAGE_UPLOAD_BYTES, files: 1 },
   })
+  // After multipart: `attachFieldsToBody` populates `request.body` through a
+  // `preValidation` hook of its own, and a hook registered here runs after
+  // one a plugin registered earlier in this same body already added.
+  portal.register(csrfProtection)
   portal.addHook('preHandler', countUnreadMessages('seller'))
 
   addNotFoundPage(portal, renderPage)

@@ -5,6 +5,13 @@ import { openConversation } from '../actions/messaging/open-conversation.ts'
 import { postMessage } from '../actions/messaging/post-message.ts'
 import { publishListingFaq } from '../actions/messaging/publish-listing-faq.ts'
 import { fixedClock } from '../clock.ts'
+import type {
+  AdminId,
+  ConversationId,
+  FulfillmentId,
+  ListingId,
+  SellerId,
+} from '../core/ids/entity-ids.ts'
 import type { Message } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
@@ -76,15 +83,15 @@ export async function seedMessaging(
     casey,
     fulfillmentId,
   }: {
-    adminId: number
-    sellerIdsByEmail: Record<string, number>
-    listingIdsByTitle: Record<string, number>
+    adminId: AdminId
+    sellerIdsByEmail: Record<string, SellerId>
+    listingIdsByTitle: Record<string, ListingId>
     casey: SeededCasey
-    fulfillmentId: number
+    fulfillmentId: FulfillmentId
   },
 ): Promise<SeededMessaging> {
-  const admin: MessagingActor = { type: 'admin', id: adminId }
-  const customer: MessagingActor = { type: 'customer', id: casey.id }
+  const admin: AdminActor = { type: 'admin', id: adminId }
+  const customer: CustomerActor = { type: 'customer', id: casey.id }
 
   const adminSellerMessages = await seedAdminSellerThread(db, {
     admin,
@@ -114,13 +121,19 @@ export async function seedMessaging(
   return { conversationCount: 4, messageCount, faqCount: 1 }
 }
 
+/** One side of a seeded thread, narrowed so a seller's id cannot open an
+ * admin's half of it. */
+type AdminActor = Extract<MessagingActor, { type: 'admin' }>
+type SellerActor = Extract<MessagingActor, { type: 'seller' }>
+type CustomerActor = Extract<MessagingActor, { type: 'customer' }>
+
 function actionContext(db: AppDatabase, at: Date): ActionContext {
   return { db, clock: fixedClock(at) }
 }
 
 async function runConversationSteps(
   db: AppDatabase,
-  conversationId: number,
+  conversationId: ConversationId,
   steps: readonly ConversationStep[],
 ): Promise<readonly Message[]> {
   const messages: Message[] = []
@@ -139,7 +152,7 @@ async function runConversationSteps(
  * the admin's closing reply is left unread so the seller portal shows a badge. */
 async function seedAdminSellerThread(
   db: AppDatabase,
-  { admin, seller }: { admin: MessagingActor; seller: MessagingActor },
+  { admin, seller }: { admin: AdminActor; seller: SellerActor },
 ): Promise<readonly Message[]> {
   const conversation = await openConversation(actionContext(db, ADMIN_SELLER_OPENED_AT), {
     kind: 'admin_seller',
@@ -160,7 +173,7 @@ async function seedAdminSellerThread(
  * the storefront shows a badge. */
 async function seedAdminCustomerThread(
   db: AppDatabase,
-  { admin, customer }: { admin: MessagingActor; customer: MessagingActor },
+  { admin, customer }: { admin: AdminActor; customer: CustomerActor },
 ): Promise<readonly Message[]> {
   const conversation = await openConversation(actionContext(db, ADMIN_CUSTOMER_OPENED_AT), {
     kind: 'admin_customer',
@@ -182,7 +195,11 @@ async function seedAdminCustomerThread(
  * read: a demo thread with no badge to show. */
 async function seedFulfillmentThread(
   db: AppDatabase,
-  { seller, customer, fulfillmentId }: { seller: MessagingActor; customer: MessagingActor; fulfillmentId: number },
+  {
+    seller,
+    customer,
+    fulfillmentId,
+  }: { seller: SellerActor; customer: CustomerActor; fulfillmentId: FulfillmentId },
 ): Promise<readonly Message[]> {
   const conversation = await openConversation(actionContext(db, FULFILLMENT_OPENED_AT), {
     kind: 'fulfillment',
@@ -209,7 +226,11 @@ async function seedFulfillmentThread(
  * the answer is ready to publish as an FAQ. */
 async function seedListingQuestionThread(
   db: AppDatabase,
-  { seller, customer, listingId }: { seller: MessagingActor; customer: MessagingActor; listingId: number },
+  {
+    seller,
+    customer,
+    listingId,
+  }: { seller: SellerActor; customer: CustomerActor; listingId: ListingId },
 ): Promise<readonly Message[]> {
   const conversation = await openConversation(actionContext(db, LISTING_QUESTION_OPENED_AT), {
     kind: 'listing_question',
@@ -231,7 +252,7 @@ async function seedListingQuestionThread(
   return messages
 }
 
-async function publishFaq(db: AppDatabase, listingId: number, threadMessages: readonly Message[]): Promise<void> {
+async function publishFaq(db: AppDatabase, listingId: ListingId, threadMessages: readonly Message[]): Promise<void> {
   const sellerAnswer = threadMessages[1]
   if (sellerAnswer === undefined) {
     throw new Error('seedMessaging: the listing-question thread has no seller answer to publish')
@@ -244,7 +265,7 @@ async function publishFaq(db: AppDatabase, listingId: number, threadMessages: re
   })
 }
 
-function requireSellerId(sellerIdsByEmail: Record<string, number>, email: string): number {
+function requireSellerId(sellerIdsByEmail: Record<string, SellerId>, email: string): SellerId {
   const sellerId = sellerIdsByEmail[email]
   if (sellerId === undefined) {
     throw new Error(`seedMessaging: no seeded seller for ${email}`)
@@ -252,7 +273,7 @@ function requireSellerId(sellerIdsByEmail: Record<string, number>, email: string
   return sellerId
 }
 
-function requireListingId(listingIdsByTitle: Record<string, number>, title: string): number {
+function requireListingId(listingIdsByTitle: Record<string, ListingId>, title: string): ListingId {
   const listingId = listingIdsByTitle[title]
   if (listingId === undefined) {
     throw new Error(`seedMessaging: no seeded listing titled ${title}`)

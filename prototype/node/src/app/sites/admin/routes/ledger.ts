@@ -7,7 +7,7 @@ import { ledgerRows } from '../queries/ledger-rows.ts'
 import { sellerOptions } from '../queries/seller-accounts.ts'
 
 const ledgerQuery = z.object({
-  seller: optionalFilter(idValue),
+  seller: optionalFilter(idValue('sel')),
   type: optionalFilter(z.enum(LEDGER_ENTRY_TYPES)),
 })
 

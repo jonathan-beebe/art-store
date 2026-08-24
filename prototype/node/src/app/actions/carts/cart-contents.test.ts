@@ -3,7 +3,14 @@ import assert from 'node:assert/strict'
 import { addToCart } from './add-to-cart.ts'
 import { cartContents } from './cart-contents.ts'
 import { currentCart } from './current-cart.ts'
-import { createCustomer, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
+import { removeListing } from '../moderation/remove-listing.ts'
+import {
+  createAdmin,
+  createCustomer,
+  createListing,
+  createSeller,
+  openCommerceWorld,
+} from '../../test/commerce-world.ts'
 
 test('an empty cart totals nothing', async (t) => {
   const world = await openCommerceWorld()
@@ -98,4 +105,80 @@ test('a line carries its own total, priced through cartLineTotal', async (t) => 
   const contents = await cartContents(context, cart.id)
 
   assert.equal(contents.lines[0]?.lineTotalCents, 13_500)
+})
+
+test('a listing an admin removed after it was carted stays on the cart, marked unavailable', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const adminId = await createAdmin(context)
+  const art = await createListing(context, sellerId, { title: 'Harbour at Dusk' })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: art.id, quantity: 1 })
+  await removeListing(context, { listingId: art.id, adminId, kind: 'permanent', reason: 'reported' })
+
+  const contents = await cartContents(context, cart.id)
+
+  assert.equal(contents.lines.length, 1)
+  assert.equal(contents.lines[0]?.isUnavailable, true)
+  assert.equal(contents.lines[0]?.unavailableNotice, 'no longer available')
+})
+
+test('an unavailable line is left out of the cart total', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const adminId = await createAdmin(context)
+  const removed = await createListing(context, sellerId, { title: 'Harbour at Dusk', priceCents: 10_000 })
+  const kept = await createListing(context, sellerId, { title: 'Low Tide', priceCents: 6_000 })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: removed.id, quantity: 1 })
+  await addToCart(context, { cartId: cart.id, listingId: kept.id, quantity: 1 })
+  await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' })
+
+  const contents = await cartContents(context, cart.id)
+
+  assert.equal(contents.lines.length, 2)
+  assert.equal(contents.totals.itemCount, 1)
+  assert.equal(contents.totals.subtotalCents, 6_000)
+})
+
+test('a listing taken off sale after it was carted stays on the cart, marked unavailable', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const art = await createListing(context, sellerId, { status: 'sold' })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: art.id, quantity: 1 })
+
+  const contents = await cartContents(context, cart.id)
+
+  assert.equal(contents.lines[0]?.isUnavailable, true)
+  assert.equal(contents.lines[0]?.unavailableNotice, 'sold out')
+})
+
+test('a line still for sale, in stock, and unremoved is not marked unavailable', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const art = await createListing(context, sellerId, { quantity: 3 })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: art.id, quantity: 1 })
+
+  const contents = await cartContents(context, cart.id)
+
+  assert.equal(contents.lines[0]?.isUnavailable, false)
+  assert.equal(contents.lines[0]?.unavailableNotice, null)
 })

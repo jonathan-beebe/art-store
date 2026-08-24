@@ -3,14 +3,16 @@ import type { ActionContext } from '../../../actions/action-context.ts'
 import { finalizeOrder } from '../../../actions/orders/finalize-order.ts'
 import { markAwaitingPayment } from '../../../actions/orders/mark-awaiting-payment.ts'
 import { runInTransaction } from '../../../actions/transaction.ts'
+import type { OrderId } from '../../../core/ids/entity-ids.ts'
 import { awaitsCard, isUnpaid } from '../../../core/orders/order-payment.ts'
 import type { Order } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
+import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requireVerifiedCustomer } from '../../../plugins/identity.ts'
+import { rateLimitGuard } from '../../../plugins/rate-limit.ts'
 import { customerOrderPath, loadCustomerOrder } from '../customer-order.ts'
 import { declineNotice } from '../decline-notice.ts'
-import { logChargeOutcome } from '../order-events.ts'
 import { refuseBlockedCustomer } from '../refuse-blocked-customer.ts'
 import { renderNotFound, shopPage } from '../shop-page.ts'
 
@@ -24,7 +26,7 @@ const cardForm = submittedForm({ card_number: z.string().optional() })
  */
 async function chargeVerifiedOrder(
   context: ActionContext,
-  input: { orderId: number; cardNumber: string },
+  input: { orderId: OrderId; cardNumber: string },
 ): Promise<Order | null> {
   return runInTransaction(context, async (transacted) => {
     const order = await markAwaitingPayment(transacted, input.orderId)
@@ -44,7 +46,7 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.get(
     '/orders/:id/pay',
-    { schema: { params: idParams }, preHandler: requireVerifiedCustomer },
+    { schema: { params: idParams('ord') }, preHandler: requireVerifiedCustomer },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
       if (found === null) return renderNotFound(reply)
@@ -55,7 +57,7 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
       return reply.render(
         'pay',
         shopPage({
-          title: `Pay for order #${order.id}`,
+          title: `Pay for order ${order.id}`,
           order,
           declineMessage: declineNotice(found.lastPayment),
         }),
@@ -63,23 +65,40 @@ export const orderPaymentRoutes: ZodRoutes = (shop, _options, done) => {
     },
   )
 
+  const guardPaymentAttempt = rateLimitGuard<{ id: OrderId }>({
+    name: 'payment_attempt',
+    key: (request) => request.params.id,
+    onTrip: (request) => async (reply, message) => {
+      const found = await loadCustomerOrder(shop, request, request.params.id)
+      if (found === null) return renderNotFound(reply)
+
+      return reply.render(
+        'pay',
+        shopPage({
+          title: `Pay for order ${found.order.id}`,
+          order: found.order,
+          declineMessage: declineNotice(found.lastPayment),
+          formError: message,
+        }),
+      )
+    },
+  })
+
   shop.post(
     '/orders/:id/pay',
     {
-      schema: { params: idParams, body: cardForm },
-      preHandler: [requireVerifiedCustomer, refuseBlockedCustomer(customerOrderPath)],
+      schema: { params: idParams('ord'), body: cardForm },
+      preHandler: [requireVerifiedCustomer, refuseBlockedCustomer(customerOrderPath), guardPaymentAttempt],
     },
     async (request, reply) => {
       const found = await loadCustomerOrder(shop, request, request.params.id)
       if (found === null) return renderNotFound(reply)
 
       const charged = await chargeVerifiedOrder(
-        { db, clock },
+        requestActions(request),
         { orderId: found.order.id, cardNumber: request.body.card_number ?? '' },
       )
       if (charged === null) return renderNotFound(reply)
-
-      logChargeOutcome(request, charged)
 
       return await reply.redirect(`/orders/${charged.id}`)
     },

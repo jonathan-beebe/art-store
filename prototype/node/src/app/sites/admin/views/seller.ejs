@@ -5,6 +5,7 @@
 </dl>
 
 <form method="post" action="/admin/sellers/<%= seller.id %>/messages" class="mt-4">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
   <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
     Message seller
   </button>
@@ -79,7 +80,7 @@
         <% fulfillments.forEach((fulfillment) => { %>
         <tr data-fulfillment="<%= fulfillment.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
-            <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline">#<%= fulfillment.orderId %></a>
+            <a href="/admin/orders/<%= fulfillment.orderId %>" class="font-medium underline"><%= fulfillment.orderId %></a>
           </th>
           <td data-cell="status" class="px-4 py-3"><%= statusLabel(fulfillment.status) %></td>
           <td data-cell="subtotal" class="px-4 py-3 text-right tabular-nums"><%= formatCents(fulfillment.subtotalCents) %></td>

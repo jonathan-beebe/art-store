@@ -1,10 +1,11 @@
+import type { ListingId, ListingRemovalId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { activeRemoval, type RemovalKind } from '../../core/moderation/listing-removal.ts'
 import { fromNullableTimestamp, fromTimestamp } from '../../db/timestamp.ts'
 
 /** A removal as a page shows it: enough to name the reason and offer the lift. */
 export type ActiveListingRemoval = {
-  id: number
+  id: ListingRemovalId
   kind: RemovalKind
   reason: string
   createdAt: Date
@@ -18,12 +19,13 @@ export type ActiveListingRemoval = {
  */
 export async function activeListingRemoval(
   { db }: Pick<ActionContext, 'db'>,
-  listingId: number,
+  listingId: ListingId,
 ): Promise<ActiveListingRemoval | null> {
   const removals = await db
     .selectFrom('listingRemovals')
     .select(['id', 'kind', 'reason', 'createdAt', 'liftedAt'])
     .where('listingId', '=', listingId)
+    .orderBy('createdAt')
     .orderBy('id')
     .execute()
 

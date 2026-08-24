@@ -1,3 +1,5 @@
+import type { CustomerId, ListingId } from '../../core/ids/entity-ids.ts'
+import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
 import { recordListingEvent } from '../listings/record-listing-event.ts'
@@ -9,8 +11,8 @@ import {
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type ToggleFavoriteInput = {
-  customerId: number
-  listingId: number
+  customerId: CustomerId
+  listingId: ListingId
 }
 
 /** One button saves and unsaves, and either way the listing records the event. */
@@ -32,7 +34,7 @@ export async function toggleFavorite(
     if (change === 'added') {
       await db
         .insertInto('favorites')
-        .values({ ...input, createdAt: toTimestamp(clock.now()) })
+        .values({ id: newId('fav', clock.now()), ...input, createdAt: toTimestamp(clock.now()) })
         .execute()
     } else {
       await db

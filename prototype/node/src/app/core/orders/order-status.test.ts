@@ -44,8 +44,29 @@ test('a paid order ships whole or in part', () => {
   assert.equal(canTransitionOrder('paid', 'partially_shipped'), true)
 })
 
-test('a delivered order goes nowhere', () => {
-  assert.deepEqual(ORDER_STATUS_TRANSITIONS.delivered, [])
+test('a delivered order goes nowhere but a refund', () => {
+  assert.deepEqual(ORDER_STATUS_TRANSITIONS.delivered, ['refunded'])
+})
+
+test('a refunded order goes nowhere', () => {
+  assert.deepEqual(ORDER_STATUS_TRANSITIONS.refunded, [])
+})
+
+test('every paid stage reaches refunded', () => {
+  assert.equal(canTransitionOrder('paid', 'refunded'), true)
+  assert.equal(canTransitionOrder('partially_shipped', 'refunded'), true)
+  assert.equal(canTransitionOrder('shipped', 'refunded'), true)
+  assert.equal(canTransitionOrder('delivered', 'refunded'), true)
+})
+
+test('an unpaid order is cancelled rather than refunded', () => {
+  assert.equal(canTransitionOrder('pending_verification', 'refunded'), false)
+  assert.equal(canTransitionOrder('awaiting_payment', 'refunded'), false)
+  assert.equal(canTransitionOrder('payment_failed', 'refunded'), false)
+})
+
+test('a cancelled order cannot be paid', () => {
+  assert.equal(canTransitionOrder('cancelled', 'paid'), false)
 })
 
 test('a cancelled order goes nowhere', () => {
@@ -98,6 +119,19 @@ test('an order with one fulfillment still in the studio is partially shipped', (
 
 test('an order whose fulfillments all await shipment is paid', () => {
   assert.equal(orderStatusFromFulfillments(['awaiting_shipment', 'awaiting_shipment']), 'paid')
+})
+
+test('an order whose fulfillments are all reversed is refunded', () => {
+  assert.equal(orderStatusFromFulfillments(['declined']), 'refunded')
+  assert.equal(orderStatusFromFulfillments(['refunded']), 'refunded')
+  assert.equal(orderStatusFromFulfillments(['declined', 'refunded']), 'refunded')
+})
+
+test('a mixed order rolls up from its live fulfillments only', () => {
+  assert.equal(orderStatusFromFulfillments(['shipped', 'declined']), 'shipped')
+  assert.equal(orderStatusFromFulfillments(['delivered', 'refunded']), 'delivered')
+  assert.equal(orderStatusFromFulfillments(['awaiting_shipment', 'declined']), 'paid')
+  assert.equal(orderStatusFromFulfillments(['shipped', 'awaiting_shipment', 'declined']), 'partially_shipped')
 })
 
 test('an order rolls up from at least one fulfillment', () => {

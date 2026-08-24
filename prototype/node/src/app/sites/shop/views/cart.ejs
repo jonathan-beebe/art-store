@@ -22,7 +22,7 @@
 <% } else { %>
 <ul class="mt-12 divide-y divide-neutral-100 border-y border-neutral-100">
   <% lines.forEach(function (line) { %>
-  <li class="flex flex-wrap items-center gap-6 py-6">
+  <li class="flex flex-wrap items-center gap-6 py-6<% if (line.isUnavailable) { %> opacity-60<% } %>" <% if (line.isUnavailable) { %>data-unavailable<% } %>>
     <img
       src="<%= listingImageSource(line.imagePath, line.title) %>"
       alt=""
@@ -30,13 +30,21 @@
     />
 
     <div class="flex-1">
+      <% if (line.isUnavailable) { %>
+      <p class="text-lg"><%= line.title %></p>
+      <p class="mt-1 text-sm text-rose-700"><%= line.unavailableNotice %></p>
+      <% } else { %>
       <a href="/art/<%= line.slug %>" class="text-lg"><%= line.title %></a>
       <p class="mt-1 text-sm text-neutral-500">Quantity <%= line.quantity %></p>
+      <% } %>
     </div>
 
+    <% if (!line.isUnavailable) { %>
     <p class="text-lg"><%= formatCents(line.lineTotalCents) %></p>
+    <% } %>
 
     <form method="post" action="/cart/<%= line.slug %>/remove">
+  <%- include('views/partials/csrf-field', { csrfToken }) %>
       <button
         type="submit"
         class="cursor-pointer text-sm text-neutral-500 underline hover:text-amber-700"

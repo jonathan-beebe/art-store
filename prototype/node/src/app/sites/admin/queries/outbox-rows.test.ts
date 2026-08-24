@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../../../test/fixture-ids.ts'
 import { outboxRow, outboxRows } from './outbox-rows.ts'
 import { enqueueOutboxMessage } from '../../../delivery/outbox-message.ts'
 import { openCommerceWorld } from '../../../test/commerce-world.ts'
@@ -38,8 +39,9 @@ test('one row comes back by id', async (t) => {
     recipient: 'artist@example.com',
     message: { subject: 'Item sold', body: 'Body.', url: '/seller/orders/7' },
   })
+  const [queued] = await outboxRows(world.context)
 
-  const row = await outboxRow(world.context, 1)
+  const row = await outboxRow(world.context, queued?.id ?? fixtureId('obx', 0))
 
   assert.equal(row?.subject, 'Item sold')
   assert.equal(row?.url, '/seller/orders/7')
@@ -49,5 +51,5 @@ test('an id naming nothing is null', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
 
-  assert.equal(await outboxRow(world.context, 404), null)
+  assert.equal(await outboxRow(world.context, fixtureId('obx', 404)), null)
 })

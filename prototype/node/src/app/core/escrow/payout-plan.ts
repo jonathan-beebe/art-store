@@ -1,18 +1,19 @@
 import { addCents, ZERO_CENTS, type Cents } from '../money.ts'
 import { isPayable, type LedgerBalance } from './ledger-balance.ts'
 import type { PayoutPeriod } from './payout-period.ts'
+import type { SellerId } from '../ids/entity-ids.ts'
 
 /** One seller's share of a weekly payout run — who gets paid, how much, for which period. */
 export type PayoutIntent = {
-  sellerId: number
+  sellerId: SellerId
   amountCents: Cents
   periodStart: string
   periodEnd: string
 }
 
 export type PlanWeeklyPayoutInput = {
-  balances: ReadonlyMap<number, LedgerBalance>
-  settledSellerIds: ReadonlySet<number>
+  balances: ReadonlyMap<SellerId, LedgerBalance>
+  settledSellerIds: ReadonlySet<SellerId>
   period: PayoutPeriod
 }
 

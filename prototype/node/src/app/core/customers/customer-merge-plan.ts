@@ -1,21 +1,23 @@
-export type CartLine = { listingId: number; quantity: number }
+import type { ListingId } from '../ids/entity-ids.ts'
+
+export type CartLine = { listingId: ListingId; quantity: number }
 
 export type CustomerMergePlan = {
   /** The verified customer's cart after the fold, one line per listing. */
   cartLines: readonly CartLine[]
   /** Anonymous favorites the verified customer does not already have — repoint these rows. */
-  favoritesToMove: readonly number[]
+  favoritesToMove: readonly ListingId[]
   /** Anonymous favorites that duplicate one the verified customer already has — delete these rows. */
-  favoritesToDrop: readonly number[]
+  favoritesToDrop: readonly ListingId[]
 }
 
 function foldCartLines(
   verifiedLines: readonly CartLine[],
   anonymousLines: readonly CartLine[],
-  stockByListing: ReadonlyMap<number, number>,
+  stockByListing: ReadonlyMap<ListingId, number>,
 ): CartLine[] {
-  const order: number[] = []
-  const quantityByListing = new Map<number, number>()
+  const order: ListingId[] = []
+  const quantityByListing = new Map<ListingId, number>()
 
   for (const line of [...verifiedLines, ...anonymousLines]) {
     if (!quantityByListing.has(line.listingId)) {
@@ -43,13 +45,13 @@ function foldCartLines(
  * duplicate it).
  */
 function partitionFavorites(
-  verifiedIds: readonly number[],
-  anonymousIds: readonly number[],
+  verifiedIds: readonly ListingId[],
+  anonymousIds: readonly ListingId[],
 ): Pick<CustomerMergePlan, 'favoritesToMove' | 'favoritesToDrop'> {
   const alreadyFavorited = new Set(verifiedIds)
-  const seen = new Set<number>()
-  const favoritesToMove: number[] = []
-  const favoritesToDrop: number[] = []
+  const seen = new Set<ListingId>()
+  const favoritesToMove: ListingId[] = []
+  const favoritesToDrop: ListingId[] = []
 
   for (const listingId of anonymousIds) {
     if (seen.has(listingId)) continue
@@ -68,10 +70,10 @@ function partitionFavorites(
 export function planCustomerMerge(input: {
   verifiedCartLines: readonly CartLine[]
   anonymousCartLines: readonly CartLine[]
-  verifiedFavoriteListingIds: readonly number[]
-  anonymousFavoriteListingIds: readonly number[]
+  verifiedFavoriteListingIds: readonly ListingId[]
+  anonymousFavoriteListingIds: readonly ListingId[]
   /** Units in stock per listing. A listing absent from this map contributes no cap. */
-  stockByListing: ReadonlyMap<number, number>
+  stockByListing: ReadonlyMap<ListingId, number>
 }): CustomerMergePlan {
   return {
     cartLines: foldCartLines(input.verifiedCartLines, input.anonymousCartLines, input.stockByListing),

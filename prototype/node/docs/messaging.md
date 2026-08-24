@@ -80,22 +80,47 @@ sequenceDiagram
 Caveats: an **anonymous** customer can ask — the question route sits inside
 `storefrontRoutes` with no verified-customer guard, so the row the identity hook
 minted is the participant. If that visitor later verifies an address,
-`conversations` is one of `REPOINTED_CUSTOMER_TABLES` and the thread moves with
-them.
+`conversations` folds rather than blindly re-points: see "Guest verification,
+folding the anonymous row in" in `docs/identity.md`.
 
 Find-or-open is `planConversation`, a pure match over the rows that already
 carry the same kind and the same five id columns — the same shape as the
-identity plan. The action narrows in SQL and the plan decides, so "one thread
-per subject" has a single definition and "message this seller" reaches the same
-place every time.
+identity plan. The action narrows by `subject_key` (below) and the plan
+decides, so "one thread per subject" has a single definition and "message this
+seller" reaches the same place every time.
+
+`conversations.subject_key` is `subjectKey(subject)`
+(`app/core/messaging/conversation-subject.ts`) written back to the row: a
+`kind` token followed by a `<letter>:<id>` token for every participant/subject
+column the kind fills, in a fixed order — e.g.
+`listing_question:s:sel_01J…:c:cus_01J…:l:lst_01J…`. It carries a **unique**
+index, which is the invariant `planConversation`'s own read cannot enforce by
+itself. `openConversation` inserts with `onConflict(subjectKey).doNothing()`:
+when the insert lands (no row was there), that is the open; when it conflicts
+(a row appeared between the read and the write), the action re-reads by
+`subject_key` and returns that row as a reuse rather than letting the
+constraint surface to the caller as an error. A composite unique index over the
+five nullable participant/subject columns could not do this job — SQL counts
+two nulls in a unique index as distinct, so two rows of the same kind that both
+leave every column null would still not collide.
 
 A `listing_faqs` row exists **only while it is published**. `published_at` is
 `not null`, unpublishing deletes the row, and the storefront reads the table
 with no predicate of its own. There is no draft state and no fourth route,
 because re-publishing is one click from the thread the answer came from, which
 is still there. `source_message_id` records which answer an entry was lifted
-from. The seller can also edit (`POST /seller/listings/:id/faqs/:faqId`) or
-unpublish (`.../unpublish`) from `/seller/listings/:id/faqs`.
+from, and `(listing_id, source_message_id)` is **unique**: publishing the same
+message a second time is refused (`publishListingFaq` checks first and throws
+a `TransitionError`; the seller sees "That question is already published to
+the listing." as a flash rather than a duplicate entry appearing). A FAQ with
+no source — one written by hand rather than lifted from a thread — carries a
+null there and the uniqueness does not apply, since SQL does not count two
+nulls as a collision either. Both thread pages mark the message a published
+entry came from with a "Published to FAQ" link to the listing's copy
+(`ThreadMessage.publishedFaqId`, computed in `conversationThread`). The seller
+can also edit (`POST /seller/listings/:id/faqs/:faqId`) or unpublish
+(`.../unpublish`) from `/seller/listings/:id/faqs`; unpublishing frees the slot,
+so publishing the same message again after an unpublish is not a duplicate.
 
 `messageBodyError` caps a message at `MESSAGE_BODY_MAX_LENGTH` (2000).
 `parseFaqDraft` (`app/core/messaging/faq-draft.ts`) returns
@@ -133,8 +158,9 @@ the message rules.
 
 A thread the actor is not in answers 404, not 403 — the reply routes read the
 thread through `conversationThread` before posting, which is what turns "not
-yours" into "not found" without the route holding the rule. A non-numeric id
-answers 404 the same way.
+yours" into "not found" without the route holding the rule. An id that is not
+a well-formed `cnv_` id — the wrong prefix or a malformed body — answers 404
+the same way.
 
 ## Unread counts
 

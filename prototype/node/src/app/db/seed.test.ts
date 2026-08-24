@@ -1,5 +1,6 @@
 import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
+import { fixtureId } from '../test/fixture-ids.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
 import { CASEY_EMAIL } from './seed-customers.ts'
 import { FAQ_LISTING_TITLE } from './seed-messaging.ts'
@@ -232,7 +233,7 @@ test('the fulfillment conversation names the seller and customer, keyed to a rea
   const fulfillment = await db
     .selectFrom('fulfillments')
     .select('id')
-    .where('id', '=', conversation.fulfillmentId ?? 0)
+    .where('id', '=', conversation.fulfillmentId ?? fixtureId('ful', 0))
     .executeTakeFirstOrThrow()
   assert.equal(fulfillment.id, conversation.fulfillmentId)
 })
@@ -254,7 +255,7 @@ test('the listing_question conversation names the seller and customer, keyed to 
   const listing = await db
     .selectFrom('listings')
     .select('title')
-    .where('id', '=', conversation.listingId ?? 0)
+    .where('id', '=', conversation.listingId ?? fixtureId('lst', 0))
     .executeTakeFirstOrThrow()
   assert.equal(listing.title, FAQ_LISTING_TITLE)
 })
@@ -315,7 +316,7 @@ test('it publishes one listing FAQ sourced from the seller answer in the listing
   const sourceMessage = await db
     .selectFrom('messages')
     .select('senderType')
-    .where('id', '=', faq.sourceMessageId ?? 0)
+    .where('id', '=', faq.sourceMessageId ?? fixtureId('msg', 0))
     .executeTakeFirstOrThrow()
   assert.equal(sourceMessage.senderType, 'seller')
 })

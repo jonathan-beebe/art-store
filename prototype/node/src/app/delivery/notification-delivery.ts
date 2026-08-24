@@ -1,9 +1,10 @@
+import type { ActorId } from '../core/ids/entity-ids.ts'
 import type { RecipientType } from '../core/notifications/recipient-type.ts'
 import type { DeliveryContext } from './delivery-context.ts'
 
 export type DeliverableNotification = {
   recipientType: RecipientType
-  recipientId: number
+  recipientId: ActorId
   subject: string
   body: string
   url: string | null
