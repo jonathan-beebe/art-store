@@ -116,7 +116,7 @@ test('a second look inside the hour is refused rather than counted again', async
 
   const refused = testApp.logLines.line('listing.view', 'refused')
   assert.equal(refused.level, 'debug')
-  assert.equal(refused.msg, 'this customer already viewed the listing this hour')
+  assert.equal(refused.msg, '⚠️ this customer already viewed the listing this hour')
 })
 
 test('a sold listing keeps its page and says it is sold out', async (t) => {

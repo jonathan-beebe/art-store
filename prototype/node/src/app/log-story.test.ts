@@ -101,7 +101,7 @@ test('a thrown domain refusal is refused at info, and the caller still sees it',
 
   assert.equal(written[1]?.level, 'info')
   assert.equal(written[1]?.payload.phase, 'refused')
-  assert.equal(written[1]?.msg, 'A listing cannot move from archived to for_sale.')
+  assert.equal(written[1]?.msg, '⚠️ A listing cannot move from archived to for_sale.')
   assert.deepEqual(written[1]?.payload.data, { reason: 'TransitionError' })
 })
 
@@ -125,12 +125,52 @@ test('an exception nobody expected is failed at error, with the type, message, a
 
   assert.equal(written[1]?.level, 'error')
   assert.equal(written[1]?.payload.phase, 'failed')
-  assert.equal(written[1]?.msg, 'the order.place action failed')
+  assert.equal(written[1]?.msg, '🛑 the order.place action failed')
   const error = written[1]?.payload.error as Record<string, unknown>
   assert.equal(error.type, 'Error')
   assert.equal(error.message, 'the database went away')
   assert.equal(typeof error.stack, 'string')
   assert.equal(typeof written[1]?.payload.duration_ms, 'number')
+})
+
+test('a root story prefixes its will line with 🎬 and its did line with 🟢', async () => {
+  const written: Written[] = []
+
+  await tellStory(
+    recordingLog(written),
+    {
+      event: 'migrate.run',
+      root: true,
+      will: { msg: 'migrating db.sqlite3' },
+      ended: () => ({ phase: 'did', msg: 'db.sqlite3 is up to date' }),
+    },
+    async () => undefined,
+  )
+
+  assert.equal(written[0]?.msg, '🎬 migrating db.sqlite3')
+  assert.equal(written[1]?.msg, '🟢 db.sqlite3 is up to date')
+})
+
+test('a root story that fails prefixes the failed line with ❌', async () => {
+  const written: Written[] = []
+
+  await assert.rejects(
+    tellStory(
+      recordingLog(written),
+      {
+        event: 'seed.run',
+        root: true,
+        will: { msg: 'seeding db.sqlite3' },
+        ended: () => ({ phase: 'did', msg: 'seeded' }),
+      },
+      async () => {
+        throw new Error('the database went away')
+      },
+    ),
+    /the database went away/,
+  )
+
+  assert.equal(written[1]?.msg, '❌ the seed.run action failed')
 })
 
 test('a story written at debug keeps its whole story out of the way', async () => {

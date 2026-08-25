@@ -10,6 +10,7 @@
  */
 import type { LogEvent, LogLineLevel, LogPhase } from './core/logging/log-event.ts'
 import { describeError, isDomainRefusal } from './core/logging/logged-error.ts'
+import { prefixedMsg } from './core/logging/story-emoji.ts'
 
 /** The entity ids and small facts a line is about. Ids are prefixed ids. */
 export type LogData = Record<string, unknown>
@@ -49,6 +50,8 @@ export type Story<Result> = {
   event: LogEvent
   /** What `will`, `doing`, `did`, and `refused` are written at. `failed` is always `error`. */
   level?: LogLineLevel
+  /** Marks the story that opens the process (§2.4); exactly one per request or CLI run. */
+  root?: boolean
   will: StoryLine
   /** Reads the outcome off the result the work returned. */
   ended: (result: Result) => StoryEnding
@@ -62,6 +65,7 @@ export function logLine(
   phase: LogPhase,
   line: StoryLine,
   durationMs?: number,
+  root = false,
 ): void {
   log[level](
     {
@@ -70,7 +74,7 @@ export function logLine(
       ...(line.data === undefined ? {} : { data: line.data }),
       ...(durationMs === undefined ? {} : { duration_ms: durationMs }),
     },
-    line.msg,
+    prefixedMsg(line.msg, phase, level, root),
   )
 }
 
@@ -96,7 +100,8 @@ export async function tellStory<Result>(
   work: () => Promise<Result>,
 ): Promise<Result> {
   const level = story.level ?? 'info'
-  logLine(log, level, story.event, 'will', story.will)
+  const root = story.root ?? false
+  logLine(log, level, story.event, 'will', story.will, undefined, root)
 
   const startedAt = performance.now()
 
@@ -104,11 +109,11 @@ export async function tellStory<Result>(
     const result = await work()
     const ending = story.ended(result)
 
-    logLine(log, level, story.event, ending.phase, ending, elapsedMs(startedAt))
+    logLine(log, level, story.event, ending.phase, ending, elapsedMs(startedAt), root)
 
     return result
   } catch (error) {
-    logException(log, story.event, error, elapsedMs(startedAt))
+    logException(log, story.event, error, elapsedMs(startedAt), root)
 
     throw error
   }
@@ -123,19 +128,25 @@ function elapsedMs(startedAt: number): number {
  * outside development, so where the stack is allowed is decided once, where the
  * environment is already known, rather than by every caller.
  */
-function logException(log: AppLogger, event: LogEvent, error: unknown, durationMs: number): void {
+function logException(
+  log: AppLogger,
+  event: LogEvent,
+  error: unknown,
+  durationMs: number,
+  root: boolean,
+): void {
   const described = describeError(error)
 
   if (isDomainRefusal(error)) {
     const refusal = { msg: described.message, data: { reason: described.type } }
 
-    logLine(log, 'info', event, 'refused', refusal, durationMs)
+    logLine(log, 'info', event, 'refused', refusal, durationMs, root)
 
     return
   }
 
   log.error(
     { event, phase: 'failed', duration_ms: durationMs, error: described },
-    `the ${event} action failed`,
+    prefixedMsg(`the ${event} action failed`, 'failed', 'error', root),
   )
 }

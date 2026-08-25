@@ -29,6 +29,7 @@ export async function main(
       log,
       {
         event: 'seed.run',
+        root: true,
         will: {
           msg: `seeding ${config.databaseFile}`,
           data: { database_file: config.databaseFile },

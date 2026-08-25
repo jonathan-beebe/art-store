@@ -7,6 +7,7 @@ import { requestActor } from '../core/logging/request-actor.ts'
 import { isAssetPath } from '../http/asset-manifest.ts'
 import { newId } from '../ids.ts'
 import { logLine, type LogData } from '../log-story.ts'
+import { prefixedMsg } from '../core/logging/story-emoji.ts'
 import { identityId } from './identity.ts'
 import { rootPlugin } from './root-plugin.ts'
 
@@ -58,10 +59,18 @@ export const requestLog = rootPlugin(
 
       const path = loggedPath(request)
 
-      logLine(request.log, 'info', 'http.request', 'will', {
-        msg: `${request.method} ${path}`,
-        data: { method: request.method, path },
-      })
+      logLine(
+        request.log,
+        'info',
+        'http.request',
+        'will',
+        {
+          msg: `${request.method} ${path}`,
+          data: { method: request.method, path },
+        },
+        undefined,
+        true,
+      )
     })
 
     app.addHook('onResponse', async (request, reply) => {
@@ -103,7 +112,7 @@ export function logRequestFailure(
       error: describeError(error),
       data: { status: statusCode },
     },
-    `${request.method} ${loggedPath(request)} ${statusCode}`,
+    prefixedMsg(`${request.method} ${loggedPath(request)} ${statusCode}`, 'failed', 'error', true),
   )
 }
 

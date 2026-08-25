@@ -6,6 +6,7 @@ import { loadConfig } from './config.ts'
 import { openDatabase } from './db/database.ts'
 import { selectMagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { tellStory } from './log-story.ts'
+import { prefixedMsg } from './core/logging/story-emoji.ts'
 
 const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const
 const FORCE_EXIT_DEADLINE_MS = 10_000
@@ -95,7 +96,7 @@ function logDrainDeadline(app: FastifyInstance): void {
         message: `in-flight requests did not finish within ${FORCE_EXIT_DEADLINE_MS}ms`,
       },
     },
-    'forcing exit after the drain deadline',
+    prefixedMsg('forcing exit after the drain deadline', 'failed', 'error', false),
   )
 }
 

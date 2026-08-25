@@ -27,7 +27,7 @@ export async function main(
   const db = openDatabase(config.databaseFile)
 
   try {
-    await runWeeklyPayout({ db, clock: systemClock, log }, asOf)
+    await runWeeklyPayout({ db, clock: systemClock, log, rootStory: true }, asOf)
   } catch {
     // The action already wrote the `failed` line; the exit code is what is left.
     process.exitCode = 1

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:18:44:49 — IMPRV-023 — done: every log `msg` carries the §2.4 emoji prefix, derived in one place — new pure `storyEmoji`/`prefixedMsg` (`app/core/logging/story-emoji.ts`), checked root-will 🎬, root-failed ❌, warn ⚠️, refused ⚠️, did 🟢, failed 🛑, else none (warn above did so `rate_limit.exceed` reads ⚠️); `Story.root` + a trailing `root` on `logLine`, `logException` splits ❌/🛑; `ActionContext.rootStory` lets a CLI entrypoint mark the story an action tells for it and `actionStory` strips it before nested work; roots wired: `http.request` (incl. `logRequestFailure` ❌), `migrate.run`, `seed.run`, drain-outbox `notification.deliver`, `payout.run`, `order.sweep`; `app.boot`/`app.shutdown` stay non-root and `prepare-db` prints one 🎬 per run it chains; no emoji user-facing; TDD red 17 failures → green, 2024 → 2044 tests, coverage 99.38/95.62/99.45, `make check` green; reviewer: accept, no defects — follow-ups: §2.4 "per process" wording vs `prepare-db`'s two runs, php/rails adoption
+- 2026-08-25:18:28:28 — IMPRV-023 — started
 - 2026-08-25:18:24:12 — IMPRV-028 — defined: moderation refusals retire TransitionError
 - 2026-08-25:18:24:12 — IMPRV-027 — defined: messaging refusals are results
 - 2026-08-25:18:24:12 — IMPRV-026 — defined: order and fulfillment refusals are results

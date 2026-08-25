@@ -71,6 +71,8 @@ test('main cancels the stale orders and says how many', async (t) => {
   assert.equal(stream.data('order.sweep', 'doing').order_id, order.id)
   assert.equal(stream.line('order.sweep', 'did').actor_type, 'system')
   assert.equal(stream.line('order.cancel', 'did').actor_type, 'system')
+  assert.match(String(stream.line('order.sweep', 'will').msg), /^🎬 /)
+  assert.doesNotMatch(String(stream.line('order.cancel', 'will').msg), /^(🎬|🟢|⚠️|🛑|❌)/)
 
   const db = openDatabase(databaseFile)
   const swept = await db
@@ -136,6 +138,7 @@ test('main logs the error and sets a failing exit code when the sweep itself fai
   assert.equal(process.exitCode, 1)
   const failed = stream.line('order.sweep', 'failed')
   assert.equal(failed.level, 'error')
+  assert.match(String(failed.msg), /^❌ /)
 })
 
 test('main also prunes rate-limit windows the largest configured limit can no longer read', async (t) => {

@@ -22,14 +22,23 @@ export function actionLogger(context: Pick<ActionContext, 'log'>): AppLogger {
   return context.log ?? SILENT_LOG
 }
 
-/** Runs `work` as one unit of work, told as one story. */
+/**
+ * Runs `work` as one unit of work, told as one story. `context.rootStory`
+ * marks this story as the one that opens the process; `work` is handed a
+ * context with the flag stripped, so an action it calls in turn tells an
+ * unmarked story of its own.
+ */
 export async function actionStory<Result>(
   context: ActionContext,
   story: Story<Result>,
   work: (context: ActionContext) => Promise<Result>,
 ): Promise<Result> {
+  const root = context.rootStory === true
+
   return runInTransaction(context, async (transacted) =>
-    tellStory(actionLogger(transacted), story, () => work(transacted)),
+    tellStory(actionLogger(transacted), { ...story, root }, () =>
+      work({ ...transacted, rootStory: undefined }),
+    ),
   )
 }
 

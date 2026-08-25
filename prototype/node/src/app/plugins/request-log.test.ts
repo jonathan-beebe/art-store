@@ -152,7 +152,8 @@ test('a response closes the story with did, its status, and how long it took', a
   const did = testApp.logLines.line('http.request', 'did')
   assert.deepEqual(did.data, { status: 200 })
   assert.equal(typeof did.duration_ms, 'number')
-  assert.equal(did.msg, 'GET / 200')
+  assert.equal(did.msg, '🟢 GET / 200')
+  assert.equal(testApp.logLines.line('http.request', 'will').msg, '🎬 GET /')
 })
 
 test('a request that throws closes the story with failed instead of did', async (t) => {
@@ -172,6 +173,7 @@ test('a request that throws closes the story with failed instead of did', async 
   assert.deepEqual(failed.data, { status: 500 })
   assert.equal(typeof failed.duration_ms, 'number')
   assert.equal(typeof (failed.error as { message?: string }).message, 'string')
+  assert.match(String(failed.msg), /^❌ /)
   assert.equal(
     log.linesFor('http.request').some((line) => line.phase === 'did'),
     false,

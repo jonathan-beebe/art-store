@@ -111,6 +111,7 @@ test('magic_link_request trips per email address, and sends no further link once
 
   const line = testApp.logLines.line('rate_limit.exceed', 'did')
   assert.equal(line.level, 'warn')
+  assert.match(String(line.msg), /^⚠️ /)
   const data = testApp.logLines.data('rate_limit.exceed', 'did')
   assert.equal(data.limit, 'magic_link_request')
   assert.equal(typeof data.retry_after_seconds, 'number')
