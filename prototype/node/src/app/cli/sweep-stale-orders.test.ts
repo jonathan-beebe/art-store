@@ -9,6 +9,8 @@ import { fixedClock } from '../clock.ts'
 import { openDatabase, type AppDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
 import { createCliLogger } from '../logging.ts'
+import { toTimestamp } from '../db/timestamp.ts'
+import { newId } from '../ids.ts'
 import {
   createCustomer,
   createListing,
@@ -37,6 +39,20 @@ async function seedUnverifiedOrder(db: AppDatabase) {
     order: await placedOrder({ db, clock }, buyerId, [listing.id], { isVerified: false }),
     listingId: listing.id,
   }
+}
+
+/** A `rateLimitWindows` row written straight through Kysely, at an exact `windowStart`. */
+async function seedRateLimitWindow(db: AppDatabase, windowStart: Date) {
+  await db
+    .insertInto('rateLimitWindows')
+    .values({
+      id: newId('rlw', windowStart),
+      name: 'checkout',
+      key: 'cus_1',
+      windowStart: toTimestamp(windowStart),
+      count: 1,
+    })
+    .execute()
 }
 
 test('main cancels the stale orders and says how many', async (t) => {
@@ -120,6 +136,30 @@ test('main logs the error and sets a failing exit code when the sweep itself fai
   assert.equal(process.exitCode, 1)
   const failed = stream.line('order.sweep', 'failed')
   assert.equal(failed.level, 'error')
+})
+
+test('main also prunes rate-limit windows the largest configured limit can no longer read', async (t) => {
+  const databaseFile = await temporaryDatabaseFile(t)
+  const setupDb = openDatabase(databaseFile)
+  await migrateToLatest(setupDb)
+  // --as-of=2026-08-23 is midnight UTC; the default limits' largest window is
+  // 1h, so 2026-08-22T23:00:00.000Z is the cutoff.
+  await seedRateLimitWindow(setupDb, new Date('2020-01-01T00:00:00.000Z'))
+  await seedRateLimitWindow(setupDb, new Date('2026-08-22T23:30:00.000Z'))
+  await setupDb.destroy()
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+
+  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile }, logger)
+
+  const db = openDatabase(databaseFile)
+  const rows = await db.selectFrom('rateLimitWindows').select('windowStart').execute()
+  assert.deepEqual(
+    rows.map((row) => row.windowStart),
+    ['2026-08-22T23:30:00.000Z'],
+  )
+  await db.destroy()
 })
 
 test('a flag the command does not take is a mistake, not a logged failure', async (t) => {

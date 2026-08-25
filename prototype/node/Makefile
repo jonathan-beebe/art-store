@@ -108,8 +108,9 @@ outbox:
 	docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))
 
 # Cancels every order left unverified longer than STALE_ORDER_HOURS (24 by
-# default), handing its stock back to the storefront. `make sweep AS_OF=2026-08-24`
-# sweeps as though the run happened then; running it twice cancels nothing new.
+# default), handing its stock back to the storefront, and prunes expired
+# rate-limit windows. `make sweep AS_OF=2026-08-24` runs both as though the
+# run happened then; running it twice cancels nothing new.
 sweep:
 	docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))
 
