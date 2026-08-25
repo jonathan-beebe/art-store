@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test test-fast smoke coverage lint lint-fix check docs-check routes migrate fresh seed payouts outbox sweep logs image run-image
+.PHONY: up down build assets shell test smoke coverage lint lint-fix check docs-check routes migrate fresh seed payouts outbox sweep logs image run-image
 
 # Compose names its project after this directory, so two checkouts of the
 # same prototype (the main repo and a worktree) would share one container.
@@ -35,23 +35,16 @@ assets:
 shell:
 	docker compose run --rm app bash
 
-# The full suite with the coverage gate: fails under 95% lines / 90% branches.
-# `test` keeps this meaning per docs/alignment.md §6.1; `test-fast` below is
-# the everyday loop.
+# The full suite, ungated per docs/alignment.md §6.1: same test files as
+# `coverage`, no V8 coverage collection, no lcov report.
 test:
-	docker compose run --rm app npm run coverage
-
-# The full suite without the coverage machinery: same test files, no V8
-# coverage collection, no include/exclude filtering, no lcov report.
-test-fast:
 	docker compose run --rm app npm test
 
 smoke:
 	docker compose run --rm app node --test app/test/smoke.test.ts
 
-# Same run as `test` — the coverage reporter always writes coverage/lcov.info
-# alongside the table it prints, so there is nothing a dedicated report step
-# would add.
+# The suite with the coverage gate: fails under 95% lines / 90% branches, and
+# writes coverage/lcov.info alongside the table it prints.
 coverage:
 	docker compose run --rm app npm run coverage
 

@@ -619,9 +619,9 @@ at `debug` instead, rather than opening a second story.
   post asserts through the same helper, since the broadcasts are after-commit.
 - Coverage via SimpleCov: `bin/rails test` writes `coverage/` and prints a
   per-group summary (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` is
-  one global line-coverage minimum; `make test` sets it to 100, which is the
-  suite's standing coverage. `make coverage` runs the same suite without the
-  gate, for reading the report.
+  one global line-coverage minimum; `make coverage` sets it to 100, which is
+  the suite's standing coverage. `make test` runs the same suite without the
+  gate.
 - `make test` runs `bin/rails db:test:prepare` before the suite. `seeds_test.rb`
   and `smoke_test.rb` write outside the transactional-fixture rollback, so
   without the reset a run killed mid-way leaves rows in `storage/test.sqlite3`
@@ -629,7 +629,7 @@ at `debug` instead, rather than opening a second story.
   whatever the run before it did.
 - Style via RuboCop with `rubocop-rails-omakase` (`src/.rubocop.yml`). `make
   lint` is read-only, `make lint-fix` applies the auto-fixable subset, and
-  `make check` runs lint before the suite.
+  `make check` runs lint before the gated suite.
 - TDD: failing test, make it pass, refactor. Feature tickets are done
   when their flow has an integration test that walks it end to end.
 

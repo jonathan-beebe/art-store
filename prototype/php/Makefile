@@ -31,15 +31,17 @@ assets:
 shell:
 	docker compose run --rm app bash
 
-# The full suite under pcov, gated at 100% of lines.
+# The full suite, ungated per docs/alignment.md §6.1: Pest with no pcov and
+# no coverage minimum.
 test:
 	docker compose run --rm app composer test
 
-# The end-to-end walk alone. Ungated: it exercises one path through the app,
-# not the whole tree, so `test`'s coverage gate does not apply here.
+# The end-to-end walk alone.
 smoke:
 	docker compose run --rm app php vendor/bin/pest --testsuite Smoke
 
+# The suite under pcov, gated at 100% of lines, writing the text summary and
+# the HTML report to coverage/.
 coverage:
 	docker compose run --rm app composer test:coverage
 
@@ -59,7 +61,7 @@ analyse:
 	docker compose run --rm --no-deps --entrypoint composer app analyse
 
 # The commit gate: lint, then the asset build, then the coverage-gated suite.
-check: lint assets test
+check: lint assets coverage
 
 migrate:
 	docker compose run --rm app php artisan migrate

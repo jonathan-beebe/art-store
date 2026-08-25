@@ -290,7 +290,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build`      | `docker compose build`                                                                                |
 | `make assets`     | `docker compose run --rm app npm run assets`                                                          |
 | `make shell`      | `docker compose run --rm app bash`                                                                    |
-| `make test`       | `docker compose run --rm app npm run coverage`                                                        |
+| `make test`       | `docker compose run --rm app npm test`                                                                |
 | `make smoke`      | `docker compose run --rm app node --test app/test/smoke.test.ts`                                      |
 | `make coverage`   | `docker compose run --rm app npm run coverage`                                                        |
 | `make lint`       | `docker compose run --rm app npm run lint`                                                            |
@@ -324,12 +324,12 @@ than from a table someone keeps up to date.
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
 `node:assert/strict` — no test framework is installed. `make test` runs the
-coverage-gated suite (see Coverage below). `npm test` on its own runs the
-suite without the coverage gate, for a fast local loop. `make lint` runs
-`tsc --noEmit` then eslint (`recommendedTypeChecked`, `complexity` max 8,
-`max-depth` max 3) — read-only, no gate on the suite itself. `make check`
-runs lint, then `make assets`, then the coverage-gated suite, and is the
-commit gate `.githooks/pre-commit` and CI both run (see CI below).
+full suite, ungated. `make coverage` runs the same suite with the coverage
+gate (see Coverage below). `make lint` runs `tsc --noEmit` then eslint
+(`recommendedTypeChecked`, `complexity` max 8, `max-depth` max 3) —
+read-only, no gate on the suite itself. `make check` runs lint, then
+`make assets`, then the coverage-gated suite, and is the commit gate
+`.githooks/pre-commit` and CI both run (see CI below).
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with

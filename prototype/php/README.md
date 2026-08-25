@@ -41,30 +41,30 @@ An empty database shows an empty storefront. `make fresh` loads the demo data.
 
 Every target is a thin `docker compose` wrapper, so either form works.
 
-| Make             | Docker Compose                                                                        |
-| ---------------- | ------------------------------------------------------------------------------------- |
-| `make up`        | `docker compose up -d`                                                                |
-| `make down`      | `docker compose down`                                                                 |
-| `make build`     | `docker compose build`                                                                |
-| `make assets`    | `docker compose run --rm app npm run build`                                           |
-| `make shell`     | `docker compose run --rm app bash`                                                    |
-| `make test`      | `docker compose run --rm app composer test` (Pest under pcov, gated at 100% of lines) |
-| `make smoke`     | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke`                   |
-| `make coverage`  | `docker compose run --rm app composer test:coverage`                                  |
-| `make lint`      | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan)   |
-| `make lint-fix`  | `docker compose run --rm --no-deps --entrypoint composer app lint:fix`                |
-| `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                 |
-| `make check`     | `lint`, then `assets`, then `test` — the commit gate                                  |
-| `make migrate`   | `docker compose run --rm app php artisan migrate`                                     |
-| `make fresh`     | `docker compose run --rm app php artisan migrate:fresh --seed`                        |
-| `make seed`      | `docker compose run --rm app php artisan db:seed`                                     |
-| `make routes`    | `docker compose run --rm app php artisan route:list`                                  |
-| `make payouts`   | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))` |
-| `make sweep`     | `docker compose run --rm app php artisan orders:sweep`                                |
-| `make outbox`    | prints a note — this prototype has no outbox; notifications are in-app                |
-| `make logs`      | `docker compose logs -f`                                                              |
-| `make image`     | `docker build --target runtime -t art-store-php .` — see Deployment                   |
-| `make run-image` | runs the production image on port 8100 — see Deployment                               |
+| Make             | Docker Compose                                                                                 |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `make up`        | `docker compose up -d`                                                                         |
+| `make down`      | `docker compose down`                                                                          |
+| `make build`     | `docker compose build`                                                                         |
+| `make assets`    | `docker compose run --rm app npm run build`                                                    |
+| `make shell`     | `docker compose run --rm app bash`                                                             |
+| `make test`      | `docker compose run --rm app composer test` (the full Pest suite, ungated)                     |
+| `make smoke`     | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke`                            |
+| `make coverage`  | `docker compose run --rm app composer test:coverage` (Pest under pcov, gated at 100% of lines) |
+| `make lint`      | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan)            |
+| `make lint-fix`  | `docker compose run --rm --no-deps --entrypoint composer app lint:fix`                         |
+| `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                          |
+| `make check`     | `lint`, then `assets`, then `coverage` — the commit gate                                       |
+| `make migrate`   | `docker compose run --rm app php artisan migrate`                                              |
+| `make fresh`     | `docker compose run --rm app php artisan migrate:fresh --seed`                                 |
+| `make seed`      | `docker compose run --rm app php artisan db:seed`                                              |
+| `make routes`    | `docker compose run --rm app php artisan route:list`                                           |
+| `make payouts`   | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))`          |
+| `make sweep`     | `docker compose run --rm app php artisan orders:sweep`                                         |
+| `make outbox`    | prints a note — this prototype has no outbox; notifications are in-app                         |
+| `make logs`      | `docker compose logs -f`                                                                       |
+| `make image`     | `docker build --target runtime -t art-store-php .` — see Deployment                            |
+| `make run-image` | runs the production image on port 8100 — see Deployment                                        |
 
 `make check` runs `lint` (style, then static analysis), then the asset build,
 then the coverage-gated test suite, stopping at the first failure. `lint`,
@@ -82,7 +82,7 @@ docker compose exec app php artisan tinker      # against the running server
 ```sh
 make test                                                    # whole suite
 make smoke                                                   # the end-to-end walk alone
-make check                                                   # lint + assets + test
+make check                                                   # lint + assets + coverage
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
@@ -119,8 +119,9 @@ verification, payment, shipment, delivery, weekly payout — with no production
 file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
 `make test` as well.
 
-`make coverage` prints a text summary and writes HTML to `src/coverage/` (pcov
-is in the image). Current: **100.0% of lines**.
+`make coverage` runs the suite under pcov, fails under 100% of lines
+(`--min=100`), prints a text summary, and writes HTML to `src/coverage/`
+(pcov is in the image). Current: **100.0% of lines**.
 
 ## Database
 

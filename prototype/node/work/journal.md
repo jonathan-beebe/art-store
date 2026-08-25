@@ -7,13 +7,17 @@
 - ARCH: 1
 - FEAT: 21
 - IMPRV: 23
-- MAINT: 7
+- MAINT: 9
 - A11Y: 1
 - RFCTR: 5
 - BUG: 9
 
 ## Log
 
+- 2026-08-25:13:35:42 — MAINT-007 — done: `make test` runs the plain suite in all three prototypes and the coverage gate lives in `coverage`/`check` — §6.1 rows reworded (`test` ungated; `coverage` carries the gate + HTML/LCOV report; `check` = lint → assets → coverage); node `test` runs `npm test` and `test-fast` is deleted; rails moves `COVERAGE_MIN=100` + `RUBYOPT=-r./test/coverage_boot` from `test` into `coverage` and `check: lint assets coverage`; php moves `--min=100` from `composer test` onto `test:coverage` (`composer test` drops pcov entirely) and `check: lint assets coverage`; READMEs and docs/architecture.md updated in all three; CI untouched (node runs `npm run check`, php/rails run `make check`) and the pre-commit hook still gates; validated in Docker: node test 51s ungated / check 43s gated 99.38/95.58, rails test 33s ungated (99.29% measured, exit 0) / check 45s gated 100%, php test 32s ungated 1836 passed / check 2m07s gated 100.0%
+- 2026-08-25:13:32:00 — MAINT-008 — defined: bare make prints a self-documenting help
+- 2026-08-25:13:25:13 — MAINT-007 — started
+- 2026-08-25:13:24:30 — MAINT-007 — defined: make test runs the plain suite; coverage carries the gate
 - 2026-08-25:13:03:30 — MAINT-006 — done: container starts skip work already done — `app/cli/prepare-db.ts` runs migrate then seed in one Node boot (seed skipped when migrate leaves exit code 1), used by both the entrypoint and the `deploy` script (`prepare-db && start`, was three boots); `entrypoint.sh` gates `npm run --silent assets` behind `assets_current()` — stale when `public/app.css` or `assets-manifest.json` is missing, `app.css` is newer than the manifest, any manifest-named hashed file or its `.gz`/`.br` sibling is missing, or anything under `app/`/`public/app.js` is newer than the manifest (the build's last write); verified in Docker: clean `make up` builds all and is healthy in 5s, warm restart and down/up skip (manifest mtime unchanged, healthy in 2–3s), a touched template or deleted `.br` sibling triggers the rebuild, `make fresh` reseeds and restarts, `make image` builds and its deploy chain migrates+seeds with the production env; runtime image path untouched (entrypoint is dev-stage-only); reviewer: accept, no functional defects — two README passages and a weak failure test fixed (now asserts `migrate.run failed` and no `seed.run` line); 2022 → 2024 tests, coverage 99.38/95.58/99.45 (gate 95/90), `make check` green
 - 2026-08-25:12:39:02 — MAINT-006 — started
 - 2026-08-25:12:35:40 — MAINT-005 — done: fixtures stop re-running the migrator per call — `app/test/schema-template.ts` memoizes one per-process `migrateToLatest` dump (`sqlite_master` DDL + `kysely_migration`/lock rows, so `health.ts`'s `pendingMigrations` still reads current) and both fixtures replay it onto each fresh `:memory:` DB; `buildTestApp` temp dirs go lazy (`buildIsolatedTestConfig` names a `randomUUID` root, mkdir only when the test captures the log, `rm(force)` at close); no test file changed, migrator/schema-fidelity/seed suites keep the real migrator; `make test-fast` 42.7-42.9s → 37.5-39.7s wall (duration_ms 38227/39104 → 33676/36470), 2022/2022 green, coverage 99.43/95.88/99.38 (branches +0.02: the new file enters the covered set), `make check` green; deferred: memoized Fastify app per the ticket's own measure-first caution

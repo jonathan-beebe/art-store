@@ -861,10 +861,10 @@ parses an upload. They carry no `event` or `phase`.
 
 | Command             | What it runs                                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`          | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate                                                           |
+| `npm test`          | `node --test 'app/**/*.test.ts'` — the full suite, no coverage gate. `make test` runs this.                                  |
 | `npm run coverage`  | adds                                                                                                                         |
 |                     | `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90`, |
-|                     | and writes `coverage/lcov.info` alongside the table it prints. `make test` and `make coverage` both run this.                |
+|                     | and writes `coverage/lcov.info` alongside the table it prints. `make coverage` runs this.                                    |
 | `npm run typecheck` | `tsc --noEmit`                                                                                                               |
 | `npm run lint`      | `tsc --noEmit`, then `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console`. Read-only.    |
 |                     | `make lint` runs this.                                                                                                       |

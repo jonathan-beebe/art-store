@@ -28,17 +28,20 @@ shell:
 
 # db:test:prepare loads the schema fresh before every run, so a run killed
 # mid-way never leaves rows in test.sqlite3 for the next run to trip over.
-# RUBYOPT is scoped to the `bin/rails test` command only — `db:test:prepare`
-# runs as its own process first, and starting coverage on it too would open
-# a second, empty run that clobbers the real one.
+# The full suite, ungated per docs/alignment.md §6.1: no COVERAGE_MIN, no
+# coverage boot.
 test:
-	docker compose run --rm -e COVERAGE_MIN=100 app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test"
+	docker compose run --rm app sh -c "bin/rails db:test:prepare && bin/rails test"
 
 smoke:
 	docker compose run --rm app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test test/smoke_test.rb"
 
+# The suite with the coverage gate (COVERAGE_MIN=100) and the SimpleCov
+# report. RUBYOPT is scoped to the `bin/rails test` command only —
+# `db:test:prepare` runs as its own process first, and starting coverage on
+# it too would open a second, empty run that clobbers the real one.
 coverage:
-	docker compose run --rm app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test"
+	docker compose run --rm -e COVERAGE_MIN=100 app sh -c "bin/rails db:test:prepare && RUBYOPT='-r./test/coverage_boot' bin/rails test"
 
 lint:
 	docker compose run --rm app bin/rubocop
@@ -49,7 +52,7 @@ lint-fix:
 assets:
 	docker compose run --rm app bin/rails tailwindcss:build
 
-check: lint assets test
+check: lint assets coverage
 
 migrate:
 	docker compose run --rm app bin/rails db:migrate

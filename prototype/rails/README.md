@@ -78,13 +78,13 @@ Every target runs through `docker compose`; nothing here touches the host.
 | `make build`     | `docker compose build`                                                                                                          |
 | `make logs`      | `docker compose logs -f`                                                                                                        |
 | `make shell`     | `docker compose run --rm app bash`                                                                                              |
-| `make test`      | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`)                                  |
+| `make test`      | `bin/rails db:test:prepare`, then `bin/rails test`, ungated                                                                     |
 | `make smoke`     | `bin/rails db:test:prepare`, then `bin/rails test test/smoke_test.rb`                                                           |
-| `make coverage`  | `bin/rails db:test:prepare`, then `bin/rails test`, writing the HTML report with no gate                                        |
+| `make coverage`  | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`), writing the HTML report         |
 | `make lint`      | `bin/rubocop`, read-only                                                                                                        |
 | `make lint-fix`  | `bin/rubocop -a`, the auto-fixable subset                                                                                       |
 | `make assets`    | `docker compose run --rm app bin/rails tailwindcss:build`                                                                       |
-| `make check`     | `lint` → `assets` → `test`; the commit gate and the CI job                                                                      |
+| `make check`     | `lint` → `assets` → `coverage`; the commit gate and the CI job                                                                  |
 | `make migrate`   | `docker compose run --rm app bin/rails db:migrate`                                                                              |
 | `make fresh`     | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed`                                                    |
 | `make seed`      | `docker compose run --rm app bin/rails db:seed`                                                                                 |
@@ -160,11 +160,10 @@ make coverage
 
 SimpleCov writes `src/coverage/` and prints the overall line coverage plus a
 line per group (Models, Controllers, Helpers, Mailers). `COVERAGE_MIN` sets the
-overall line minimum and fails the run below it; `make test` sets it to 100 and
-is the coverage gate, so `make check` fails under 100% line coverage. `make
-coverage` runs the same suite without the gate, for reading the report. The
-suite stands at 1247 runs, 4388 assertions, and 100% line coverage
-(2218/2218).
+overall line minimum and fails the run below it; `make coverage` sets it to 100
+and is the coverage gate, so `make check` fails under 100% line coverage.
+`make test` runs the same suite without the gate. The suite stands at 1247
+runs, 4388 assertions, and 100% line coverage (2218/2218).
 
 ## Linting
 
@@ -176,7 +175,7 @@ make lint-fix   # rubocop -a, the auto-fixable subset
 RuboCop runs `rubocop-rails-omakase` (`src/.rubocop.yml`), the Rails 8 default
 styling — omakase enables cops department by department rather than starting
 from the community defaults, and it does not enable `Layout/LineLength`, so
-this repository does not either. `make check` runs `lint` before `test`.
+this repository does not either. `make check` runs `lint` before `coverage`.
 
 ## Database
 
