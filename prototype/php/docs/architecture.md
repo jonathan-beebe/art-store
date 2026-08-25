@@ -293,7 +293,11 @@ own `resources/views/errors/rate-limited-{shop,seller,admin}.blade.php`.
 Client ip (`$request->ip()`) is the socket's own unless `TRUSTED_PROXIES` is
 set, in which case `bootstrap/app.php` wires Laravel's `TrustProxies` from
 it (a comma list of IPs/CIDRs, or `*`) and reads the first
-`X-Forwarded-For` value instead.
+`X-Forwarded-For` value instead. The forwarded proto and port are trusted
+alongside it, so behind a TLS-terminating proxy `$request->isSecure()` and
+every generated URL follow the scheme the visitor used; the forwarded host
+is not trusted, since with `*` an attacker-supplied `X-Forwarded-Host`
+would poison every generated URL, magic links included.
 
 `App\Http\Middleware\SecurityHeaders` sits in the global middleware stack
 (not the `web` group — a route that matches nothing still needs to answer

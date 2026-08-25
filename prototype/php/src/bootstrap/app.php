@@ -72,9 +72,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $trustedProxies = env('TRUSTED_PROXIES');
 
         if (is_string($trustedProxies) && $trustedProxies !== '') {
+            // Proto and port ride along with the client ip so generated URLs
+            // follow the scheme the proxy terminated. The forwarded host is
+            // deliberately not trusted: with `*` naming whatever connects,
+            // an attacker-supplied X-Forwarded-Host would poison every
+            // generated URL, magic links included.
             $middleware->trustProxies(
                 at: $trustedProxies === '*' ? '*' : array_map('trim', explode(',', $trustedProxies)),
-                headers: Request::HEADER_X_FORWARDED_FOR,
+                headers: Request::HEADER_X_FORWARDED_FOR
+                    | Request::HEADER_X_FORWARDED_PORT
+                    | Request::HEADER_X_FORWARDED_PROTO,
             );
         }
     })
