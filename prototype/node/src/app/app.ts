@@ -19,6 +19,7 @@ import { flashCookie } from './plugins/flash.ts'
 import { healthCheck } from './plugins/health.ts'
 import { identityCookies } from './plugins/identity.ts'
 import { pageViewRollup } from './plugins/page-views.ts'
+import { placeholderImages } from './plugins/placeholder-images.ts'
 import { requestLog } from './plugins/request-log.ts'
 import { securityHeaders } from './plugins/security-headers.ts'
 import { unreadMessages } from './plugins/unread-messages.ts'
@@ -168,6 +169,7 @@ export function buildApp({
   app.register(unreadMessages)
   app.register(eventBus)
   app.register(healthCheck)
+  app.register(placeholderImages)
 
   // csrfProtection is registered inside each site rather than here: it reads
   // `request.body`, and `@fastify/multipart`'s `attachFieldsToBody` (seller's

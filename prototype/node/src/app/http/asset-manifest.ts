@@ -9,13 +9,15 @@ export const ASSET_MANIFEST_FILENAME = 'assets-manifest.json'
 export const HASHED_ASSET_NAME = /^app\.[0-9a-f]{8}\.(?:css|js)(?:\.gz|\.br)?$/
 
 /**
- * A path `@fastify/static` answers rather than a page route: the unhashed
- * stylesheet and script, a hashed asset at the root, or anything under
- * `/uploads/`. `pathname` carries no query string.
+ * A path kept out of the request log's story: the unhashed stylesheet and
+ * script, a hashed asset at the root, anything under `/uploads/`, or a
+ * generated placeholder picture under `/placeholders/`. `pathname` carries no
+ * query string.
  */
 export function isAssetPath(pathname: string): boolean {
   if (pathname === '/app.css' || pathname === '/app.js') return true
   if (pathname.startsWith('/uploads/')) return true
+  if (pathname.startsWith('/placeholders/')) return true
 
   return pathname.lastIndexOf('/') === 0 && HASHED_ASSET_NAME.test(pathname.slice(1))
 }

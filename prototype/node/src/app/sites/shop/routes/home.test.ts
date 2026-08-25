@@ -43,7 +43,8 @@ test('the grid shows art for sale with its picture, shop, and price', async (t) 
   assert.match(response.body, /href="\/art\/harbour-at-dusk"/)
   assert.match(response.body, /\$240\.00/)
   assert.match(response.body, /ada/)
-  assert.match(response.body, /data:image\/svg\+xml;base64,/)
+  assert.match(response.body, /src="\/placeholders\/Harbour%20at%20dusk"/)
+  assert.doesNotMatch(response.body, /data:image/)
 })
 
 test('the grid leaves out art that is not on the storefront', async (t) => {

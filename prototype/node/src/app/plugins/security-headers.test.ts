@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import { loadAssetManifest } from '../http/asset-manifest.ts'
-import { placeholderImageDataUri } from '../core/listings/placeholder-image.ts'
+import { listingImageSource } from '../core/listings/placeholder-image.ts'
 import { buildTestApp } from '../test/build-test-app.ts'
 
 const PUBLIC_DIR = path.join(import.meta.dirname, '..', '..', 'public')
@@ -17,7 +17,7 @@ const EXPECTED_HEADERS = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'content-security-policy':
-    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; " +
+    "default-src 'self'; img-src 'self'; style-src 'self'; script-src 'self'; " +
     "form-action 'self'; frame-ancestors 'none'",
 }
 
@@ -78,7 +78,8 @@ test('the hashed stylesheet still carries every security header', async (t) => {
   }
 })
 
-test('the placeholder a listing with no photograph renders is allowed by the policy', () => {
-  assert.match(placeholderImageDataUri('Night Freight'), /^data:image\/svg\+xml;base64,/)
-  assert.match(EXPECTED_HEADERS['content-security-policy'], /img-src 'self' data:/)
+test('the placeholder a listing with no photograph renders is same-origin, allowed by the policy', () => {
+  assert.equal(listingImageSource(null, 'Night Freight').startsWith('/placeholders/'), true)
+  assert.match(EXPECTED_HEADERS['content-security-policy'], /img-src 'self'/)
+  assert.doesNotMatch(EXPECTED_HEADERS['content-security-policy'], /data:/)
 })

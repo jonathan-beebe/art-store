@@ -1,14 +1,14 @@
 import { rootPlugin } from './root-plugin.ts'
 
 /**
- * The policy every response carries. `data:` is in `img-src` because a listing
- * with no photograph renders a generated SVG placeholder inline; nothing else
- * loads from anywhere but this origin, and the one script a layout carries is
- * served from it.
+ * The policy every response carries. Every image, including the generated
+ * placeholder a listing with no photograph renders, loads from this origin,
+ * so `img-src` names nothing but `'self'`; the one script a layout carries is
+ * served from it too.
  */
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "img-src 'self' data:",
+  "img-src 'self'",
   "style-src 'self'",
   "script-src 'self'",
   "form-action 'self'",

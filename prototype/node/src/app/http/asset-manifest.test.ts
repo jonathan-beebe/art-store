@@ -80,6 +80,7 @@ test('isAssetPath matches the unhashed names, a hashed asset, its compressed sib
     '/app.1a2b3c4d.js.gz',
     '/uploads/photo.png',
     '/uploads/nothing.png',
+    '/placeholders/Blue%20Heron',
   ]) {
     assert.equal(isAssetPath(pathname), true, pathname)
   }
