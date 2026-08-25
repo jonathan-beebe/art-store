@@ -8,6 +8,7 @@ require_relative "seeds/listings"
 require_relative "seeds/customers"
 require_relative "seeds/order_history"
 require_relative "seeds/messaging"
+require_relative "seeds/wizarding_sellers"
 
 extend ActiveSupport::Testing::TimeHelpers
 
@@ -34,4 +35,16 @@ else
   puts "Seeded #{Admin.count} admins, #{Seller.count} sellers, #{Listing.count} listings, " \
        "#{Customer.count} customers, #{Order.count} orders, #{Conversation.count} conversations, " \
        "#{Message.count} messages, #{ListingFaq.count} published FAQ."
+end
+
+# After the demo data: its already-seeded check reads "any seller exists", so
+# seeding these two first would skip the whole demo. Guarded on its own first
+# email, so the wizarding sellers land even on a database the demo seed
+# refuses to re-touch.
+wizarding = travel_to(Time.utc(2026, 8, 21)) { Seeds::WizardingSellers.create_all }
+
+if wizarding.nil?
+  puts "Wizarding sellers already seeded, skipping."
+else
+  puts "Seeded #{wizarding.fetch(:seller_count)} wizarding sellers, #{wizarding.fetch(:listing_count)} listings."
 end

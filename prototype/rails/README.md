@@ -43,18 +43,22 @@ each of the four kinds — the desk with a seller, the desk with the customer,
 the customer and a seller about the shipped order, and a question on a
 listing — nine messages between them, and the one answer published to the
 listing as an FAQ. Every thread ends on a message its other side has not
-opened, so four badges are waiting: one each for maya and noah in the portal,
-two for casey on the storefront.
+opened, so four badges are waiting: one each for molly and dean in the portal,
+two for hermione on the storefront. After the demo data, two wizarding
+sellers land with eight more `for_sale` listings, guarded on their own first
+email so they seed even against a database the demo seed refuses to re-touch.
 
 | Email | Role | Shop |
 | --- | --- | --- |
 | `jonathan-beebe@outlook.com` | Admin | — (on duty: 2 support threads) |
 | `annaschmunk@pm.me` | Admin | — |
-| `maya@example.com` | Seller | Terra & Glaze Ceramics |
-| `noah@example.com` | Seller | North Light Editions |
-| `priya@example.com` | Seller | Priya Anand Textile Studio |
-| `leo@example.com` | Seller | Leo Martins Photography |
-| `casey@example.com` | Customer | — (3 favorites, view history, 3 orders, 3 threads) |
+| `molly@example.com` | Seller | The Burrow Craftworks |
+| `dean@example.com` | Seller | Dean Thomas Studio |
+| `sybill@example.com` | Seller | Trelawney's Tower Studio |
+| `colin@example.com` | Seller | Creevey Camera Works |
+| `neville@example.com` | Seller | Longbottom Botanicals |
+| `luna@example.com` | Seller | Lovegood Curiosities |
+| `hermione@example.com` | Customer | — (3 favorites, view history, 3 orders, 3 threads) |
 
 Every account is passwordless. Sign in at `/seller/login`, `/login`, or
 `/admin/login` with one of the emails above; the layout's debug alert prints

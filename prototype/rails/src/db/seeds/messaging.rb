@@ -5,13 +5,13 @@ module Seeds
   module Messaging
     module_function
 
-    SUPPORT_SELLER_EMAIL = "maya@example.com"
-    QUESTION_LISTING_TITLE = "Woodfired Vase, Tall"
+    SUPPORT_SELLER_EMAIL = "molly@example.com"
+    QUESTION_LISTING_TITLE = "Divination Tower Vase, Tall"
     OPENED_AT = Time.utc(2026, 7, 12, 9, 0, 0)
 
     def create_all
       admin = Admin.on_duty
-      customer = Customer.find_by!(email: Seeds::Customers::CASEY_EMAIL)
+      customer = Customer.find_by!(email: Seeds::Customers::HERMIONE_EMAIL)
 
       support_for_seller(admin)
       support_for_customer(admin, customer)
@@ -37,7 +37,7 @@ module Seeds
       conversation = Conversation.open(kind: :admin_customer, admin: admin, customer: customer, at: OPENED_AT + 1.day)
 
       say(conversation, customer,
-        "I confirmed delivery on the oak figure. Does the seller get paid straight away?",
+        "I confirmed delivery on the oak gnome. Does the seller get paid straight away?",
         at: OPENED_AT + 1.day)
       answer(conversation, admin,
         "Confirming delivery releases the money to the seller, and it reaches them in that week's payout. " \
@@ -55,10 +55,10 @@ module Seeds
       )
 
       say(conversation, customer,
-        "The tracking says the box is in Portland. Is a signature needed when it arrives?",
+        "The tracking says the box is in London. Is a signature needed when it arrives?",
         at: OPENED_AT + 2.days)
       answer(conversation, fulfillment.seller,
-        "No signature. The driver leaves it at the door, and the painting is crated inside the box.",
+        "No signature. The owl leaves it at the door, and the painting is crated inside the box.",
         at: OPENED_AT + 2.days + 90.minutes)
       answer(conversation, customer, "Perfect, thank you.", at: OPENED_AT + 2.days + 2.hours)
     end
@@ -71,11 +71,11 @@ module Seeds
       )
 
       say(conversation, customer,
-        "Is the vase watertight, or does it want a liner for cut flowers?",
+        "Is this vase watertight, or is it best kept for dried arrangements?",
         at: OPENED_AT + 3.days)
       answer(conversation, listing.seller,
-        "It holds water. The interior is glazed even though the outside is left raw from the wood firing, " \
-        "so it takes a full arrangement with no liner.",
+        "It is fired unglazed, so it is not watertight. Best for dried arrangements, or use a liner if " \
+        "you want fresh-cut flowers. The patterns are for reading, not for water.",
         at: OPENED_AT + 3.days + 4.hours)
 
       conversation

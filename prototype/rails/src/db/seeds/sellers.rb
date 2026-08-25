@@ -7,10 +7,10 @@ module Seeds
     VERIFIED_AT = Time.utc(2026, 6, 1)
 
     RECORDS = [
-      { email: "maya@example.com", name: "Maya Reyes", shop_name: "Terra & Glaze Ceramics" },
-      { email: "noah@example.com", name: "Noah Chen", shop_name: "North Light Editions" },
-      { email: "priya@example.com", name: "Priya Anand", shop_name: "Priya Anand Textile Studio" },
-      { email: "leo@example.com", name: "Leo Martins", shop_name: "Leo Martins Photography" }
+      { email: "molly@example.com", name: "Molly Weasley", shop_name: "The Burrow Craftworks" },
+      { email: "dean@example.com", name: "Dean Thomas", shop_name: "Dean Thomas Studio" },
+      { email: "sybill@example.com", name: "Sybill Trelawney", shop_name: "Trelawney's Tower Studio" },
+      { email: "colin@example.com", name: "Colin Creevey", shop_name: "Creevey Camera Works" }
     ].freeze
 
     def create_all
