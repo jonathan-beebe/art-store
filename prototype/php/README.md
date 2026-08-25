@@ -135,7 +135,7 @@ from scratch.
 
 ## Seeded accounts
 
-`make fresh` seeds two admins, four sellers, one customer, 29 listings, three
+`make fresh` seeds two admins, six sellers, one customer, 37 listings, three
 orders, one completed payout, and one conversation of each messaging kind.
 Every account signs in through the debug magic link (see below).
 
@@ -143,21 +143,23 @@ Every account signs in through the debug magic link (see below).
 | --- | --- | --- |
 | Admin | Jonathan Beebe | jonathan-beebe@outlook.com |
 | Admin | Anna Schmunk | annaschmunk@pm.me |
-| Seller | Terra & Glaze Ceramics | maya@example.com |
-| Seller | North Light Editions | noah@example.com |
-| Seller | Priya Anand Textile Studio | priya@example.com |
-| Seller | Leo Martins Photography | leo@example.com |
-| Customer | Casey Whitfield | casey@example.com |
+| Seller | The Burrow Craftworks | molly@example.com |
+| Seller | Dean Thomas Studio | dean@example.com |
+| Seller | Trelawney's Tower Studio | sybill@example.com |
+| Seller | Creevey Camera Works | colin@example.com |
+| Seller | Longbottom Botanicals | neville@example.com |
+| Seller | Lovegood Curiosities | luna@example.com |
+| Customer | Hermione Granger | hermione@example.com |
 
-Casey has three favorites and order history with two sellers: a paid order
-awaiting shipment and a delivered, paid-out order with Maya, and a shipped
-order with Noah.
+Hermione has three favorites and order history with two sellers: a paid order
+awaiting shipment and a delivered, paid-out order with Molly, and a shipped
+order with Dean.
 
-Priya, Casey, and the admin each have an unread message waiting: Casey asked
-Priya about "Woodfired Vase, Tall" on the storefront, Priya answered, and that
-answer is published as the listing's one FAQ entry; Casey and Noah have a
-thread on Casey's shipped order; Priya and the admin have a support thread,
-and so do Casey and the admin.
+Sybill, Hermione, and the admin each have an unread message waiting: Hermione
+asked Sybill about "Divination Tower Vase, Tall" on the storefront, Sybill
+answered, and that answer is published as the listing's one FAQ entry;
+Hermione and Dean have a thread on Hermione's shipped order; Sybill and the
+admin have a support thread, and so do Hermione and the admin.
 
 ## Magic links
 

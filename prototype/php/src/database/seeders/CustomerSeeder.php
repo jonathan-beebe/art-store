@@ -19,28 +19,28 @@ use Illuminate\Database\Seeder;
  */
 class CustomerSeeder extends Seeder
 {
-    public const CASEY_EMAIL = 'casey@example.com';
+    public const HERMIONE_EMAIL = 'hermione@example.com';
 
     private const FAVORITE_TITLES = [
-        'Woodfired Vase, Tall',
-        'Quarry at First Light',
-        'Handwoven Mohair Throw',
+        'Divination Tower Vase, Tall',
+        'The Orchard at First Light',
+        'House Scarf Throw, Scarlet and Gold',
     ];
 
     private const VIEWED_TITLES = [
-        'Woodfired Vase, Tall',
-        'Quarry at First Light',
-        'Handwoven Mohair Throw',
-        'Ash-Glazed Tea Bowl',
-        'Kitchen Table, Late Morning',
-        'Standing Figure in Reclaimed Oak',
+        'Divination Tower Vase, Tall',
+        'The Orchard at First Light',
+        'House Scarf Throw, Scarlet and Gold',
+        'Burrow Kitchen Tea Bowl',
+        'Gryffindor Common Room, Late Morning',
+        'Garden Gnome in Reclaimed Oak',
     ];
 
     public function run(): void
     {
         $customer = Customer::create([
-            'email' => self::CASEY_EMAIL,
-            'name' => 'Casey Whitfield',
+            'email' => self::HERMIONE_EMAIL,
+            'name' => 'Hermione Granger',
             'email_verified_at' => new DateTimeImmutable('2026-06-01 00:00:00'),
         ]);
 

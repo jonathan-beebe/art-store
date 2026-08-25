@@ -40,30 +40,30 @@ beforeEach(function () use ($seedRun): void {
     $this->seed();
 });
 
-it('seeds four verified sellers', function (): void {
-    expect(Seller::count())->toBe(4)
-        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(4);
+it('seeds six verified sellers', function (): void {
+    expect(Seller::count())->toBe(6)
+        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(6);
 });
 
 it('seeds listings across statuses and media', function (): void {
-    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(24)
+    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(32)
         ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
         ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
 
     expect(Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all())
-        ->toBe(['ceramic', 'painting', 'photography', 'print', 'sculpture', 'textile']);
+        ->toBe(['ceramic', 'curio', 'jewelry', 'painting', 'photography', 'plant', 'print', 'publication', 'sculpture', 'textile']);
 });
 
 it('seeds each listing through CreateListing, so every slug is a plain collision-free slug', function (): void {
-    $listing = Listing::where('title', 'Low Tide at Dusk')->firstOrFail();
+    $listing = Listing::where('title', 'The Burrow at Dusk')->firstOrFail();
 
-    expect($listing->slug)->toBe('low-tide-at-dusk')
+    expect($listing->slug)->toBe('the-burrow-at-dusk')
         ->and(Listing::query()->pluck('slug')->unique())->toHaveCount(Listing::count());
 });
 
 it('seeds the two sold-out listings by title, reached by selling out real stock', function (): void {
-    $bowl = Listing::where('title', 'Copper Patina Bowl')->firstOrFail();
-    $portrait = Listing::where('title', 'Wet Plate Collodion Portrait')->firstOrFail();
+    $bowl = Listing::where('title', 'Copper Cauldron Bowl')->firstOrFail();
+    $portrait = Listing::where('title', 'Wet Plate Portrait, Nearly Headless Gentleman')->firstOrFail();
 
     expect($bowl->status)->toBe(ListingStatus::Sold)
         ->and($bowl->quantity)->toBe(0)
@@ -72,13 +72,13 @@ it('seeds the two sold-out listings by title, reached by selling out real stock'
 });
 
 it('seeds the three draft listings by title', function (): void {
-    foreach (['Untitled Charcoal Study', 'Waxed Linen Sampler', 'Kiln Test Tiles, Series 3'] as $title) {
+    foreach (['Quidditch Keeper, Charcoal Study', 'Tasseled Shawl Sampler', 'Glaze Test Tiles, Series 3'] as $title) {
         expect(Listing::where('title', $title)->firstOrFail()->status)->toBe(ListingStatus::Draft);
     }
 });
 
 it('seeds one verified customer with favorites', function (): void {
-    $customer = Customer::where('email', 'casey@example.com')->sole();
+    $customer = Customer::where('email', 'hermione@example.com')->sole();
 
     expect($customer->email_verified_at)->not->toBeNull();
     expect(Favorite::where('customer_id', $customer->id)->count())->toBe(3);
@@ -98,9 +98,9 @@ it('seeds order history for two sellers', function (): void {
     expect(Payment::count())->toBe(3);
 
     expect(OrderItem::query()->pluck('title')->sort()->values()->all())->toBe([
-        'Ash-Glazed Tea Bowl',
-        'Kitchen Table, Late Morning',
-        'Standing Figure in Reclaimed Oak',
+        'Burrow Kitchen Tea Bowl',
+        'Garden Gnome in Reclaimed Oak',
+        'Gryffindor Common Room, Late Morning',
     ]);
 });
 
@@ -141,5 +141,5 @@ it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 
     expect($log->outline())->toContain('seed.run will', 'seed.run did')
-        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 6);
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 7);
 });
