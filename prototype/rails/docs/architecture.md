@@ -503,29 +503,20 @@ sign-in URL never appears whole.
 
 ### The pieces
 
-| Piece     | File                                     | What it does                             |       |                                          |
-| --------- | ---------------------------------------- | ---------------------------------------- | ----- | ---------------------------------------- |
-| Formatter | `src/lib/json_log_formatter.rb`          | Turns every record into one JSON line    |       |                                          |
-|           |                                          | and fills in the fields from `Current`.  |       |                                          |
-|           |                                          | Framework prose arrives as a string and  |       |                                          |
-|           |                                          | is filed under `app.log`.                |       |                                          |
-| Context   | `src/app/models/current.rb`              | `ActiveSupport::CurrentAttributes`       |       |                                          |
-|           |                                          | holding `request_id`, `session_id`,      |       |                                          |
-|           |                                          | `actor_type`, `actor_id`, `txn_id`.      |       |                                          |
-| Story     | `src/lib/story.rb`                       | `Story.tell(event, message, **data) {    | story | … }` writes the `will` line, mints the   |
-|           |                                          |                                          |       | `txn_id` if none is open, and writes the |
-|           |                                          |                                          |       | ending. `story.did` / `story.refused`    |
-|           |                                          |                                          |       | say how it ended; a `TransitionError` or |
-|           |                                          |                                          |       | a failed validation becomes `refused` at |
-|           |                                          |                                          |       | info, anything else `failed` at error.   |
-| Request   | `src/app/controllers/concerns/request_story.rb` | An `around_action` on                    |       |                                          |
-|           |                                          | `ApplicationController`: resolves the    |       |                                          |
-|           |                                          | three ids, names the actor, and writes   |       |                                          |
-|           |                                          | `http.request` `will`/`did`.             |       |                                          |
-| Silencing | `src/config/initializers/logging.rb`     | Points every framework logger at         |       |                                          |
-|           |                                          | `File::NULL`; `Rails::Rack::Logger`      |       |                                          |
-|           |                                          | comes out of the middleware stack in     |       |                                          |
-|           |                                          | `config/application.rb`.                 |       |                                          |
+| Piece     | File                                            | What it does                                                                         |
+| --------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Formatter | `src/lib/json_log_formatter.rb`                 | Turns every record into one JSON line and fills in the fields from `Current`.        |
+|           |                                                 | Framework prose arrives as a string and is filed under `app.log`.                    |
+| Context   | `src/app/models/current.rb`                     | `ActiveSupport::CurrentAttributes` holding `request_id`, `session_id`, `actor_type`, |
+|           |                                                 | `actor_id`, `txn_id`.                                                                |
+| Story     | `src/lib/story.rb`                              | `Story.tell(event, message, **data) { \|story\| … }` writes the `will` line, mints   |
+|           |                                                 | the `txn_id` if none is open, and writes the ending. `story.did` / `story.refused`   |
+|           |                                                 | say how it ended; a `TransitionError` or a failed validation becomes `refused` at    |
+|           |                                                 | info, anything else `failed` at error.                                               |
+| Request   | `src/app/controllers/concerns/request_story.rb` | An `around_action` on `ApplicationController`: resolves the three ids, names the     |
+|           |                                                 | actor, and writes `http.request` `will`/`did`.                                       |
+| Silencing | `src/config/initializers/logging.rb`            | Points every framework logger at `File::NULL`; `Rails::Rack::Logger` comes out of    |
+|           |                                                 | the middleware stack in `config/application.rb`.                                     |
 
 `request_id` is taken from an incoming `X-Request-Id` only when it matches
 `^[A-Za-z0-9_-]{1,64}$`; otherwise a `req_<ulid>` is minted. `session_id` is

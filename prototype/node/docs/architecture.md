@@ -129,9 +129,9 @@ flowchart TD
 |              |                                                                  | per site, one module per table a page shows, no domain logic.    |
 |              |                                                                  | Views are EJS.                                                   |
 | Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`,   | Actions are verbs (`placeOrder`, `runWeeklyPayout`,              |
-|              | `app/http/`                                                      | `drainOutbox`) that take an `ActionContext` (`{ db, clock,       |
-|              |                                                                  | notificationDelivery?, log? }`) and sequence core + adapters     |
-|              |                                                                  | inside one transaction. Every route declares its                 |
+|              | `app/http/`                                                      | `drainOutbox`) that take an `ActionContext`                      |
+|              |                                                                  | (`{ db, clock, notificationDelivery?, log? }`) and sequence core |
+|              |                                                                  | + adapters inside one transaction. Every route declares its      |
 |              |                                                                  | `params`/`querystring`/`body` as zod schemas, which one          |
 |              |                                                                  | validator compiler set in `buildApp` runs, so a handler reads    |
 |              |                                                                  | already-typed `request.params`/`query`/`body`, calls actions,    |
@@ -635,8 +635,8 @@ off it.
 | ------------------ | ----------------- | -------------------------------------------------------------------------------------- | ---------------- |
 | `admin_seller`     | admin ↔ seller    | `/seller/support`, or `POST /admin/sellers/:id/messages`                               | —                |
 | `admin_customer`   | admin ↔ customer  | `/support`, or `POST /admin/customers/:id/messages`                                    | —                |
-| `fulfillment`      | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST                                           | `fulfillment_id` |
-|                    |                   | /orders/:id/fulfillments/:fulfillmentId/messages`                                      |                  |
+| `fulfillment`      | seller ↔ customer | `POST /seller/orders/:id/messages`, or                                                 | `fulfillment_id` |
+|                    |                   | `POST /orders/:id/fulfillments/:fulfillmentId/messages`                                |                  |
 | `listing_question` | customer ↔ seller | `POST /art/:slug/questions`                                                            | `listing_id`     |
 
 - `conversations`: `id`, `kind`, `subject_key` (unique), `seller_id?`,
@@ -862,9 +862,9 @@ parses an upload. They carry no `event` or `phase`.
 | Command             | What it runs                                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `npm test`          | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate                                                           |
-| `npm run coverage`  | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts'               |
-|                     | --test-coverage-lines=95 --test-coverage-branches=90`, and writes `coverage/lcov.info` alongside the table it prints. `make  |
-|                     | test` and `make coverage` both run this.                                                                                     |
+| `npm run coverage`  | adds                                                                                                                         |
+|                     | `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90`, |
+|                     | and writes `coverage/lcov.info` alongside the table it prints. `make test` and `make coverage` both run this.                |
 | `npm run typecheck` | `tsc --noEmit`                                                                                                               |
 | `npm run lint`      | `tsc --noEmit`, then `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console`. Read-only.    |
 |                     | `make lint` runs this.                                                                                                       |

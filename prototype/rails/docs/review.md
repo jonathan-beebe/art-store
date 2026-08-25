@@ -172,9 +172,9 @@ half differs:
 | SQLite                 | done   | `config/database.yml`, `src/storage/development.sqlite3`                                                         |
 | Tailwind               | done   | `tailwindcss-rails` 4.6.0 / tailwindcss 4.3.3, standalone binary, no Node                                        |
 | Semantic HTML + CSS    | done   | `app/views/**`                                                                                                   |
-| No JavaScript required | done   | every flow is a form POST that redirects; `app/javascript/application.js` is one `import                         |
-|                        |        | "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as it did    |
-|                        |        | before Turbo                                                                                                     |
+| No JavaScript required | done   | every flow is a form POST that redirects; `app/javascript/application.js` is one                                 |
+|                        |        | `import "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as   |
+|                        |        | it did before Turbo                                                                                              |
 | Hotwire                | done   | `turbo-rails` 2.0.23, `importmap-rails` 2.2.3, `solid_cable` 4.0.2 — thread pages and the nav badge update over  |
 |                        |        | Action Cable with the broadcast queue in the app's own SQLite file                                               |
 

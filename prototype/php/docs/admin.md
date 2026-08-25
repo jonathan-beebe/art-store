@@ -51,8 +51,8 @@ sign in through the same magic link sellers and customers use
 | `POST /admin/listings/{listing}/removals`, `.../removals/lift`          | temporary or permanent removal with a reason; lift refused for a         |
 |                                                                         | permanent one                                                            |
 | `POST /admin/customers/{customer}/blocks`, `.../blocks/lift`            | block with a reason; lift it                                             |
-| `POST /admin/sellers/{seller}/messages`, `POST                          | open a thread from the directory                                         |
-| /admin/customers/{customer}/messages`                                   |                                                                          |
+| `POST /admin/sellers/{seller}/messages`,                                | open a thread from the directory                                         |
+| `POST /admin/customers/{customer}/messages`                             |                                                                          |
 | `GET /admin/events`                                                     | the admin's unread-count stream (`text/event-stream`)                    |
 
 Every filter is optional and an empty value means "all": the console submits

@@ -11,8 +11,8 @@ a stated gap; **missing** — not built.
 
 | Requirement                                                         | Status | Evidence (route + test file)                                        |
 | ------------------------------------------------------------------- | ------ | ------------------------------------------------------------------- |
-| Create an account, magic link, no passwords                         | done   | `GET/POST /seller/login` (`app/sites/auth/sign-in-routes.ts`), `GET |
-|                                                                     |        | /auth/magic/:token` (`app/sites/auth/index.ts`) —                   |
+| Create an account, magic link, no passwords                         | done   | `GET/POST /seller/login` (`app/sites/auth/sign-in-routes.ts`),      |
+|                                                                     |        | `GET /auth/magic/:token` (`app/sites/auth/index.ts`) —              |
 |                                                                     |        | `app/sites/auth/sign-in-routes.test.ts`,                            |
 |                                                                     |        | `app/sites/auth/index.test.ts`                                      |
 | Immediately begin managing store by adding items                    | done   | `POST /seller/listings` —                                           |
@@ -20,8 +20,8 @@ a stated gap; **missing** — not built.
 | Item appears on storefront once marked "for sale"                   | done   | `POST /seller/listings/:id/status`, `GET /` —                       |
 |                                                                     |        | `app/sites/seller/routes/listings.test.ts`,                         |
 |                                                                     |        | `app/sites/shop/routes/home.test.ts`, `app/test/smoke.test.ts`      |
-| Manage listings (index, new, edit, show)                            | done   | `GET /seller/listings`, `GET /seller/listings/new`, `GET            |
-|                                                                     |        | /seller/listings/:id/edit`, `POST /seller/listings/:id` —           |
+| Manage listings (index, new, edit, show)                            | done   | `GET /seller/listings`, `GET /seller/listings/new`,                 |
+|                                                                     |        | `GET /seller/listings/:id/edit`, `POST /seller/listings/:id` —      |
 |                                                                     |        | `app/sites/seller/routes/listings.test.ts`                          |
 | Activity per listing: views, favorites, added to cart               | done   | `GET /seller/listings/:id` —                                        |
 |                                                                     |        | `app/sites/seller/routes/listings.test.ts`,                         |
@@ -29,8 +29,8 @@ a stated gap; **missing** — not built.
 |                                                                     |        | `app/core/reports/activity-timeline.test.ts`                        |
 | Reports on sales                                                    | done   | `GET /seller/earnings` (sold-goods table) —                         |
 |                                                                     |        | `app/sites/seller/routes/earnings.test.ts`                          |
-| Tools for fulfillment                                               | done   | `GET /seller/orders`, `GET /seller/orders/:id`, `POST               |
-|                                                                     |        | /seller/orders/:id/ship` —                                          |
+| Tools for fulfillment                                               | done   | `GET /seller/orders`, `GET /seller/orders/:id`,                     |
+|                                                                     |        | `POST /seller/orders/:id/ship` —                                    |
 |                                                                     |        | `app/sites/seller/routes/orders.test.ts`,                           |
 |                                                                     |        | `app/actions/fulfillments/mark-shipped.test.ts`                     |
 | Reports for accumulated earnings and payouts                        | done   | `GET /seller/earnings` —                                            |
@@ -74,9 +74,9 @@ a stated gap; **missing** — not built.
 | Guest checkout, verification required before finalizing | done   | `POST /checkout` → `GET/POST /orders/:id/pay` behind `requireVerifiedCustomer`  |
 |                                                         |        | — `app/sites/shop/routes/checkout.test.ts`,                                     |
 |                                                         |        | `app/sites/shop/routes/order-payments.test.ts`                                  |
-| Mocked cart and fulfillment flow, end to end            | done   | the chain above plus `POST /seller/orders/:id/ship`, `POST                      |
-|                                                         |        | /orders/:id/fulfillments/:fulfillmentId/delivered` — `app/test/smoke.test.ts`,  |
-|                                                         |        | `app/actions/orders/order-lifecycle.test.ts`                                    |
+| Mocked cart and fulfillment flow, end to end            | done   | the chain above plus `POST /seller/orders/:id/ship`,                            |
+|                                                         |        | `POST /orders/:id/fulfillments/:fulfillmentId/delivered` —                      |
+|                                                         |        | `app/test/smoke.test.ts`, `app/actions/orders/order-lifecycle.test.ts`          |
 | Theme: bright, open, easy to read, wares over brand     | done   | `app/sites/shop/views/layout.ejs` — no dedicated test (visual); pages render    |
 |                                                         |        | through every route test above                                                  |
 
@@ -98,12 +98,12 @@ a stated gap; **missing** — not built.
 |                                                                     |        | `app/sites/admin/queries/customer-rows.test.ts`                     |
 | Site-wide stats such as page views                                  | done   | `GET /admin/stats` — `app/sites/admin/routes/stats.test.ts`,        |
 |                                                                     |        | `app/plugins/page-views.test.ts`                                    |
-| Review a seller's listings, remove from sale temporarily or         | done   | `POST /admin/listings/:id/removals`, `POST                          |
-| permanently                                                         |        | /admin/listings/:id/removals/lift` —                                |
+| Review a seller's listings, remove from sale temporarily or         | done   | `POST /admin/listings/:id/removals`,                                |
+| permanently                                                         |        | `POST /admin/listings/:id/removals/lift` —                          |
 |                                                                     |        | `app/sites/admin/routes/moderation.test.ts`,                        |
 |                                                                     |        | `app/core/moderation/listing-removal.test.ts`                       |
-| Review a customer, optionally block                                 | done   | `POST /admin/customers/:id/blocks`, `POST                           |
-|                                                                     |        | /admin/customers/:id/blocks/lift` —                                 |
+| Review a customer, optionally block                                 | done   | `POST /admin/customers/:id/blocks`,                                 |
+|                                                                     |        | `POST /admin/customers/:id/blocks/lift` —                           |
 |                                                                     |        | `app/sites/admin/routes/moderation.test.ts`,                        |
 |                                                                     |        | `app/core/moderation/customer-standing.test.ts`                     |
 | Pre-seeded admins: Jonathan Beebe, Anna Schmunk                     | done   | `app/db/seed-admins.ts` — `app/db/seed-admins.test.ts`              |
@@ -118,8 +118,8 @@ a stated gap; **missing** — not built.
 | Admins message customers                             | done   | `GET /support`, `POST /admin/customers/:id/messages` —                             |
 |                                                      |        | `app/sites/shop/routes/messages.test.ts`,                                          |
 |                                                      |        | `app/sites/admin/routes/messages.test.ts`                                          |
-| Sellers and customers message about orders           | done   | `POST /seller/orders/:id/messages`, `POST                                          |
-|                                                      |        | /orders/:id/fulfillments/:fulfillmentId/messages` —                                |
+| Sellers and customers message about orders           | done   | `POST /seller/orders/:id/messages`,                                                |
+|                                                      |        | `POST /orders/:id/fulfillments/:fulfillmentId/messages` —                          |
 |                                                      |        | `app/sites/seller/routes/orders.test.ts`,                                          |
 |                                                      |        | `app/sites/shop/routes/fulfillments.test.ts`                                       |
 | Customer asks a question about an item               | done   | `POST /art/:slug/questions` — `app/sites/shop/routes/listings.test.ts`,            |
@@ -159,8 +159,8 @@ a stated gap; **missing** — not built.
 | TypeScript + Node                                       | done                        | `src/package.json`, `src/tsconfig.json`,                   |
 |                                                         |                             | `node:24.19.0-bookworm-slim` (`Dockerfile`)                |
 | Fastify 5                                               | done                        | `src/package.json` — `fastify ^5.12.1`                     |
-| EJS via @fastify/view                                   | done                        | `src/package.json` — `@fastify/view ^12.0.0`, `ejs         |
-|                                                         |                             | ^6.0.1`; `app/sites/*/views/**`                            |
+| EJS via @fastify/view                                   | done                        | `src/package.json` — `@fastify/view ^12.0.0`,              |
+|                                                         |                             | `ejs ^6.0.1`; `app/sites/*/views/**`                       |
 | A SQLite driver behind Kysely                           | done, by a different driver | The brief named `better-sqlite3`; the project uses         |
 |                                                         |                             | `node:sqlite`, the SQLite built into the Node 24 runtime,  |
 |                                                         |                             | behind an owned Kysely dialect —                           |
@@ -178,12 +178,12 @@ a stated gap; **missing** — not built.
 | `node:test` sidecars on Node 24                         | done                        | `npm test` runs `node --test 'app/**/*.test.ts'` — 226     |
 |                                                         |                             | sidecar files                                              |
 | Not a React SPA; server-rendered, no client JS required | done                        | every flow is a form POST, and every page renders and      |
-|                                                         |                             | works with JavaScript off. One `<script defer              |
-|                                                         |                             | src="/app.js">` sits in the three site layouts             |
-|                                                         |                             | (`app/sites/*/views/layout.ejs`); the other 63 of the 66   |
-|                                                         |                             | templates carry no tag. Those 21 dependency-free lines     |
-|                                                         |                             | (`public/app.js`) subscribe to `GET <prefix>/events` and   |
-|                                                         |                             | refresh the unread-message badge the layout already        |
+|                                                         |                             | works with JavaScript off. One                             |
+|                                                         |                             | `<script defer src="/app.js">` sits in the three site      |
+|                                                         |                             | layouts (`app/sites/*/views/layout.ejs`); the other 63 of  |
+|                                                         |                             | the 66 templates carry no tag. Those 21 dependency-free    |
+|                                                         |                             | lines (`public/app.js`) subscribe to `GET <prefix>/events` |
+|                                                         |                             | and refresh the unread-message badge the layout already    |
 |                                                         |                             | rendered — `app/plugins/events.ts`,                        |
 |                                                         |                             | `app/plugins/events.test.ts`                               |
 
@@ -191,8 +191,8 @@ a stated gap; **missing** — not built.
 
 | Requirement                                          | Status  | Evidence                                                                          |
 | ---------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
-| Entire product dockerized, nothing installed on host | done    | `docker-compose.yml`, `Dockerfile`, `Makefile` — every target wraps `docker       |
-|                                                      |         | compose`                                                                          |
+| Entire product dockerized, nothing installed on host | done    | `docker-compose.yml`, `Dockerfile`, `Makefile` — every target wraps               |
+|                                                      |         | `docker compose`                                                                  |
 | All source lives in `src`                            | done    | `prototype/node/src/`                                                             |
 | Tests are sidecar files next to the code they test   | done    | 226 `*.test.ts` files beside their 275 source files                               |
 | `/test*` and `/tdd*` skills used                     | partial | process, not visible in the artifacts; ticket `## Working` sections record a TDD  |
@@ -226,13 +226,13 @@ a stated gap; **missing** — not built.
 |                                                                  |        | default `MAGIC_LINK_DELIVERY=flash` outside production                 |
 | A hook where email can be added later                            | done   | Both ports have a working implementation over a transactional outbox — |
 |                                                                  |        | `outboxMagicLinkDelivery` and `outboxNotificationDelivery`             |
-|                                                                  |        | (`app/delivery/`), draining to `.eml` files (`npm run outbox`, `POST   |
-|                                                                  |        | /admin/outbox/drain`) and readable on `/admin/outbox`. A real          |
+|                                                                  |        | (`app/delivery/`), draining to `.eml` files (`npm run outbox`,         |
+|                                                                  |        | `POST /admin/outbox/drain`) and readable on `/admin/outbox`. A real    |
 |                                                                  |        | transport is a third implementation and no call site changes           |
 | Guest checkout requiring verification before finalizing          | done   | `POST /checkout` → `GET/POST /orders/:id/pay` —                        |
 |                                                                  |        | `app/sites/shop/routes/checkout.test.ts`                               |
-| Work orchestrated and delivered by Opus/Sonnet agents            | done   | `work/journal.md`, `work/3-done/` — 35 tickets, each with a `##        |
-|                                                                  |        | Working` section recording what was verified                           |
+| Work orchestrated and delivered by Opus/Sonnet agents            | done   | `work/journal.md`, `work/3-done/` — 35 tickets, each with a            |
+|                                                                  |        | `## Working` section recording what was verified                       |
 | Delivered in `./prototype/node/` with a README and a docs folder | done   | `prototype/node/README.md`, `prototype/node/docs/`                     |
 
 ## Verified on FEAT-017

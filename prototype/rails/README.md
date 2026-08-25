@@ -90,8 +90,8 @@ Every target runs through `docker compose`; nothing here touches the host.
 | `make seed`      | `docker compose run --rm app bin/rails db:seed`                                                                                 |
 | `make routes`    | `docker compose run --rm app bin/rails routes`                                                                                  |
 | `make payouts`   | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date                                  |
-| `make sweep`     | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep                 |
-|                  | AS_OF=2026-08-24` measures the cutoff from that moment instead of now                                                           |
+| `make sweep`     | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back;                             |
+|                  | `make sweep AS_OF=2026-08-24` measures the cutoff from that moment instead of now                                               |
 | `make outbox`    | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job                   |
 | `make console`   | `docker compose run --rm app bin/rails console`                                                                                 |
 | `make image`     | `docker build --target runtime -t art-store-rails .` — see Deployment                                                           |

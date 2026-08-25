@@ -74,8 +74,8 @@ The doc was written before any code existed. Fifteen things had drifted.
 |     |                                                                      | one-active-per-subject, and that a block also stops paying and        |
 |     |                                                                      | messaging.                                                            |
 | 10  | Order state diagram labelled `pending_verification → cancelled`      | There is no stale sweep. Every edge now matches                       |
-|     | "customer cancels or stale sweep"                                    | `ORDER_STATUS_TRANSITIONS` exactly, including `payment_failed →       |
-|     |                                                                      | payment_failed` and terminal `cancelled`.                             |
+|     | "customer cancels or stale sweep"                                    | `ORDER_STATUS_TRANSITIONS` exactly, including                         |
+|     |                                                                      | `payment_failed → payment_failed` and terminal `cancelled`.           |
 | 11  | ER diagram missing `cart_items` and the FAQ-from-message edge; table | Added both; said 23 tables in nine migrations and which four the      |
 |     | count implied 15                                                     | overview leaves to `data-model.md`.                                   |
 | 12  | Messaging "Opened from" column named pages, not routes               | Replaced with the real paths. Added `planConversation`,               |

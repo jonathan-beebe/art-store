@@ -137,19 +137,20 @@ that test (not just the core unit tests) mattered.
 |                      |                                 | a `preHandler`)                                |                                          |
 | `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `GET /auth/magic/:token`                       | client ip                                |
 |                      |                                 | (`sites/auth/index.ts`)                        |                                          |
-| `message_post`       | `RATE_LIMIT_MESSAGE_POST`       | shop `POST /messages/:id`, shop `POST          | actor id                                 |
-|                      |                                 | /art/:slug/questions`, seller `POST            |                                          |
-|                      |                                 | /messages/:id`, admin `POST /messages/:id`     |                                          |
+| `message_post`       | `RATE_LIMIT_MESSAGE_POST`       | shop `POST /messages/:id`, shop                | actor id                                 |
+|                      |                                 | `POST /art/:slug/questions`, seller            |                                          |
+|                      |                                 | `POST /messages/:id`, admin                    |                                          |
+|                      |                                 | `POST /messages/:id`                           |                                          |
 | `conversation_open`  | `RATE_LIMIT_CONVERSATION_OPEN`  | shop `POST /art/:slug/questions` (also         | actor id                                 |
 |                      |                                 | `message_post`, both apply — it opens and      |                                          |
-|                      |                                 | posts in one transaction), shop `GET           |                                          |
-|                      |                                 | /support`, shop `POST                          |                                          |
-|                      |                                 | /orders/:id/fulfillments/:fulfillmentId/messages`, |                                          |
+|                      |                                 | posts in one transaction), shop                |                                          |
+|                      |                                 | `GET /support`, shop                           |                                          |
+|                      |                                 | `POST /orders/:id/fulfillments/:fulfillmentId/messages`, |                                          |
 |                      |                                 | seller `GET /support`                          |                                          |
 | `checkout`           | `RATE_LIMIT_CHECKOUT`           | shop `POST /checkout`                          | customer id                              |
 | `payment_attempt`    | `RATE_LIMIT_PAYMENT_ATTEMPT`    | shop `POST /orders/:id/pay`                    | order id                                 |
-| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | seller `POST /listings`, seller `POST          | seller id                                |
-|                      |                                 | /listings/:id`                                 |                                          |
+| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | seller `POST /listings`, seller                | seller id                                |
+|                      |                                 | `POST /listings/:id`                           |                                          |
 
 ### Trip behaviour
 

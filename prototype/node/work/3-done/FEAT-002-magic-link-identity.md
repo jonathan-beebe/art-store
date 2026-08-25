@@ -52,8 +52,8 @@ Core (pure, sidecar tested, no database):
 | `app/core/auth/magic-link-token.ts`               | `digestMagicLinkToken` (sha256 hex)                                                            |
 | `app/core/auth/magic-link-status.ts`              | `MAGIC_LINK_LIFETIME_MINUTES` (15), `magicLinkStatus(link, now)`,                              |
 |                                                   | `magicLinkExpiresAt(issuedAt)`                                                                 |
-| `app/core/auth/local-redirect.ts`                 | `keepLocalRedirect(requested, origin)`, `resolveLocalRedirect(requested, { fallback, origin    |
-|                                                   | })`                                                                                            |
+| `app/core/auth/local-redirect.ts`                 | `keepLocalRedirect(requested, origin)`,                                                        |
+|                                                   | `resolveLocalRedirect(requested, { fallback, origin })`                                        |
 | `app/core/customers/identity-plan.ts`             | `planCustomerIdentity({ anonymousCustomerId, ownerOfEmailId })`, `resultingCustomerId(plan)`   |
 | `app/core/customers/customer-merge-plan.ts`       | `planCustomerMerge({...})` → `{ cartLines, favoriteListingIds }`, `CartLine`                   |
 | `app/core/customers/repointed-customer-tables.ts` | `REPOINTED_CUSTOMER_TABLES`                                                                    |

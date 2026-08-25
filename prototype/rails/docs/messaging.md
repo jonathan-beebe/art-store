@@ -26,8 +26,8 @@ subject, if any, the thread hangs off (`Conversation::KINDS`, whose values are
 | ------------------ | --------------------------- | ------------- | ------------------------------------------------------------------------------- |
 | `admin_seller`     | `admin_id` ↔ `seller_id`    | —             | `POST /seller/support`, `POST /admin/sellers/:id/conversation`                  |
 | `admin_customer`   | `admin_id` ↔ `customer_id`  | —             | `POST /support`, `POST /admin/customers/:id/conversation`                       |
-| `fulfillment`      | `seller_id` ↔ `customer_id` | `Fulfillment` | `POST /seller/orders/:id/conversation`, `POST                                   |
-|                    |                             |               | /orders/:order_id/fulfillments/:id/conversation`                                |
+| `fulfillment`      | `seller_id` ↔ `customer_id` | `Fulfillment` | `POST /seller/orders/:id/conversation`,                                         |
+|                    |                             |               | `POST /orders/:order_id/fulfillments/:id/conversation`                          |
 | `listing_question` | `seller_id` ↔ `customer_id` | `Listing`     | `POST /art/:slug/questions`                                                     |
 
 Every kind has exactly two participants. That is the invariant the rest of the

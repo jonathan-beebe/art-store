@@ -138,8 +138,7 @@ same set:
 | `X-Content-Type-Options`  | `nosniff`                                                                                                              |
 | `X-Frame-Options`         | `DENY`                                                                                                                 |
 | `Referrer-Policy`         | `strict-origin-when-cross-origin`                                                                                      |
-| `Content-Security-Policy` | `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors    |
-|                           | 'none'`                                                                                                                |
+| `Content-Security-Policy` | `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'` |
 
 `data:` is in `img-src` for the generated SVG placeholder a listing with no
 photograph renders inline. No page has a script tag or an inline style, so
