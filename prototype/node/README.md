@@ -26,10 +26,11 @@ make up
 ```
 
 The entrypoint installs dependencies with `npm ci` when `node_modules` is
-missing or older than `package-lock.json`, runs `node app/db/migrate.ts`,
-seeds the platform admins and demo catalog with `node app/db/seed.ts`, builds
-the Tailwind stylesheet with `npm run assets`, then starts the server with
-`node --watch app/server.ts`.
+missing or older than `package-lock.json`, migrates and seeds the platform
+admins and demo catalog in one process with `node app/cli/prepare-db.ts`,
+builds the assets with `npm run assets` when any output the manifest names is
+missing or any input under `app/` is newer than `public/assets-manifest.json`,
+then starts the server with `node --watch app/server.ts`.
 
 Measured from an empty tree — no `src/node_modules`, no SQLite file, no
 `src/public/app.css`: `make build` and `make up` together took **29 seconds**
@@ -450,7 +451,9 @@ table.
 Tailwind v4 through `@tailwindcss/cli` in the container. Source is
 `src/app/assets/app.css` (`@import "tailwindcss"` plus an `@source` pointing
 at `app/`); output is `src/public/app.css`, which is not committed and is
-rebuilt on every container start. To rebuild without restarting:
+rebuilt at container start when it is stale — a missing hashed or compressed
+sibling, a missing `assets-manifest.json`, or an input under `app/` newer
+than the manifest. To rebuild without restarting:
 
 ```sh
 make assets
@@ -660,7 +663,7 @@ prototype/node/
                          dev/build/runtime targets — see Deployment
   docker-compose.yml    one service: app, built from the dev target
   docker/
-    entrypoint.sh        dev only: install, migrate, seed, build assets, then the container command
+    entrypoint.sh        dev only: install when stale, migrate+seed in one boot, build assets when stale, then the container command
     docs-check.sh        renders every Mermaid block under docs/ through mermaid-cli
   Makefile               host-side wrappers over docker compose, plus image/run-image
   docs/                  architecture.md (the spec) + feature docs + review.md
