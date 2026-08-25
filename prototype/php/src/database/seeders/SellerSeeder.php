@@ -14,13 +14,13 @@ use Illuminate\Database\Seeder;
  */
 class SellerSeeder extends Seeder
 {
-    public const MAYA_EMAIL = 'maya@example.com';
+    public const MOLLY_EMAIL = 'molly@example.com';
 
-    public const NOAH_EMAIL = 'noah@example.com';
+    public const DEAN_EMAIL = 'dean@example.com';
 
-    public const PRIYA_EMAIL = 'priya@example.com';
+    public const SYBILL_EMAIL = 'sybill@example.com';
 
-    public const LEO_EMAIL = 'leo@example.com';
+    public const COLIN_EMAIL = 'colin@example.com';
 
     public function run(): void
     {
@@ -38,27 +38,27 @@ class SellerSeeder extends Seeder
     {
         return [
             [
-                'email' => self::MAYA_EMAIL,
-                'name' => 'Maya Reyes',
-                'shop_name' => 'Terra & Glaze Ceramics',
+                'email' => self::MOLLY_EMAIL,
+                'name' => 'Molly Weasley',
+                'shop_name' => 'The Burrow Craftworks',
                 'email_verified_at' => $verifiedAt,
             ],
             [
-                'email' => self::NOAH_EMAIL,
-                'name' => 'Noah Chen',
-                'shop_name' => 'North Light Editions',
+                'email' => self::DEAN_EMAIL,
+                'name' => 'Dean Thomas',
+                'shop_name' => 'Dean Thomas Studio',
                 'email_verified_at' => $verifiedAt,
             ],
             [
-                'email' => self::PRIYA_EMAIL,
-                'name' => 'Priya Anand',
-                'shop_name' => 'Priya Anand Textile Studio',
+                'email' => self::SYBILL_EMAIL,
+                'name' => 'Sybill Trelawney',
+                'shop_name' => "Trelawney's Tower Studio",
                 'email_verified_at' => $verifiedAt,
             ],
             [
-                'email' => self::LEO_EMAIL,
-                'name' => 'Leo Martins',
-                'shop_name' => 'Leo Martins Photography',
+                'email' => self::COLIN_EMAIL,
+                'name' => 'Colin Creevey',
+                'shop_name' => 'Creevey Camera Works',
                 'email_verified_at' => $verifiedAt,
             ],
         ];

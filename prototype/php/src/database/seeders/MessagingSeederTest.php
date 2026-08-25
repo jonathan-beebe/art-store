@@ -40,23 +40,23 @@ it('publishes the seeded listings question as its one FAQ entry', function (): v
     expect($faq->question)->toBe('Does this vase come with a stand for display?')
         ->and($faq->answer)->toBe('Yes — it ships with a simple wood stand included.');
 
-    $priya = Seller::where('email', SellerSeeder::PRIYA_EMAIL)->firstOrFail();
+    $sybill = Seller::where('email', SellerSeeder::SYBILL_EMAIL)->firstOrFail();
     $source = Message::findOrFail($faq->source_message_id);
 
     expect($source->body)->toBe($faq->answer)
-        ->and($source->sender_type)->toBe($priya->getMorphClass())
-        ->and($source->sender_id)->toBe($priya->id);
+        ->and($source->sender_type)->toBe($sybill->getMorphClass())
+        ->and($source->sender_id)->toBe($sybill->id);
 });
 
 it('leaves a non-zero unread count for the seeded seller, customer, and admin', function (): void {
-    $priya = Seller::where('email', SellerSeeder::PRIYA_EMAIL)->firstOrFail();
-    $noah = Seller::where('email', SellerSeeder::NOAH_EMAIL)->firstOrFail();
-    $casey = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();
+    $sybill = Seller::where('email', SellerSeeder::SYBILL_EMAIL)->firstOrFail();
+    $dean = Seller::where('email', SellerSeeder::DEAN_EMAIL)->firstOrFail();
+    $hermione = Customer::where('email', CustomerSeeder::HERMIONE_EMAIL)->firstOrFail();
     $admin = Admin::where('email', AdminSeeder::ADMINS[0]['email'])->firstOrFail();
 
-    expect(Message::query()->unreadInInboxOf($priya)->count())->toBe(2)
-        ->and(Message::query()->unreadInInboxOf($noah)->count())->toBe(1)
-        ->and(Message::query()->unreadInInboxOf($casey)->count())->toBe(2)
+    expect(Message::query()->unreadInInboxOf($sybill)->count())->toBe(2)
+        ->and(Message::query()->unreadInInboxOf($dean)->count())->toBe(1)
+        ->and(Message::query()->unreadInInboxOf($hermione)->count())->toBe(2)
         ->and(Message::query()->unreadInInboxOf($admin)->count())->toBe(2);
 });
 

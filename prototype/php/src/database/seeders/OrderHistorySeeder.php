@@ -30,20 +30,20 @@ class OrderHistorySeeder extends Seeder
 
     public function run(): void
     {
-        $customer = Customer::where('email', CustomerSeeder::CASEY_EMAIL)->firstOrFail();
+        $customer = Customer::where('email', CustomerSeeder::HERMIONE_EMAIL)->firstOrFail();
         $purchaser = Purchaser::onAccount(
             $customer->id,
             $customer->email,
             $customer->email_verified_at?->toDateTimeImmutable(),
         );
 
-        $this->placeAndPay($customer, $purchaser, 'Ash-Glazed Tea Bowl', new DateTimeImmutable('2026-07-06 09:00:00'));
+        $this->placeAndPay($customer, $purchaser, 'Burrow Kitchen Tea Bowl', new DateTimeImmutable('2026-07-06 09:00:00'));
 
-        $shipped = $this->placeAndPay($customer, $purchaser, 'Kitchen Table, Late Morning', new DateTimeImmutable('2026-07-07 09:00:00'));
-        $this->ship($shipped, 'UPS', '1Z999AA10123456784', new DateTimeImmutable('2026-07-08 09:00:00'));
+        $shipped = $this->placeAndPay($customer, $purchaser, 'Gryffindor Common Room, Late Morning', new DateTimeImmutable('2026-07-07 09:00:00'));
+        $this->ship($shipped, 'Owl Post', 'OWL-2263-1187-GB', new DateTimeImmutable('2026-07-08 09:00:00'));
 
-        $delivered = $this->placeAndPay($customer, $purchaser, 'Standing Figure in Reclaimed Oak', new DateTimeImmutable('2026-07-06 11:00:00'));
-        $this->ship($delivered, 'USPS', '9400111899223197428490', new DateTimeImmutable('2026-07-08 10:00:00'));
+        $delivered = $this->placeAndPay($customer, $purchaser, 'Garden Gnome in Reclaimed Oak', new DateTimeImmutable('2026-07-06 11:00:00'));
+        $this->ship($delivered, 'Knight Bus Parcel', 'KB-9400-1189-2231', new DateTimeImmutable('2026-07-08 10:00:00'));
         $this->deliver($delivered, new DateTimeImmutable('2026-07-10 14:00:00'));
 
         app(RunWeeklyPayout::class)(new DateTimeImmutable('2026-07-16 09:00:00'));
@@ -74,13 +74,13 @@ class OrderHistorySeeder extends Seeder
     private function shippingAddress(): ShippingAddress
     {
         return ShippingAddress::to(
-            name: 'Casey Whitfield',
-            line1: '48 Harbor Street',
+            name: 'Hermione Granger',
+            line1: '12 Heathgate',
             line2: null,
-            city: 'Portland',
-            region: 'Oregon',
-            postalCode: '97201',
-            country: 'US',
+            city: 'London',
+            region: 'Hampstead',
+            postalCode: 'NW11 7EB',
+            country: 'GB',
         );
     }
 }
