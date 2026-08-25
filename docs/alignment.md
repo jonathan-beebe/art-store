@@ -389,6 +389,7 @@ target the stack has no use for still exists and prints one line saying so.
 
 | Target                                 | Meaning                                                                                                   |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `help`                                 | list every target with its one-line description; what bare `make` runs                                    |
 | `up`, `down`, `build`, `logs`, `shell` | the compose stack                                                                                         |
 | `test`                                 | the full suite, ungated                                                                                   |
 | `smoke`                                | the smoke walk only                                                                                       |

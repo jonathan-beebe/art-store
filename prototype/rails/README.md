@@ -69,6 +69,8 @@ so an address with no `admins` row is refused at `/admin/login`.
 ## Commands
 
 Every target runs through `docker compose`; nothing here touches the host.
+Bare `make` (or `make help`) prints this list with a one-line description per
+target.
 `sweep` and `outbox` print a line and exit — see below.
 
 | Make             | Runs                                                                                                                            |

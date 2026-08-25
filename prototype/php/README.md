@@ -39,7 +39,9 @@ An empty database shows an empty storefront. `make fresh` loads the demo data.
 
 ## Commands
 
-Every target is a thin `docker compose` wrapper, so either form works.
+Every target is a thin `docker compose` wrapper, so either form works. Bare
+`make` (or `make help`) prints this list with a one-line description per
+target.
 
 | Make             | Docker Compose                                                                                 |
 | ---------------- | ---------------------------------------------------------------------------------------------- |
