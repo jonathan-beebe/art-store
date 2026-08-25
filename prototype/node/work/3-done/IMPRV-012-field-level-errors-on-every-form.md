@@ -45,20 +45,33 @@ worker left broken. Both resolved in the first commit:
 
 ### Forms converted, by test coverage
 
-| Form | Field-error test | Form-level-error test |
-| --- | --- | --- |
-| Listing form (create + edit), `seller/views/listings/form.ejs` | `listings.test.ts` (title, price — pre-existing, re-asserted against the new markup) | none needed — no domain refusal without a field exists for this form |
-| FAQ edit row + publish form, `seller/views/faqs/index.ejs` | `faqs.test.ts` (blank answer on create and on edit, bodiless create) | `faqs.test.ts` ("already published" `TransitionError` on the create form) |
-| "Publish as FAQ" from a message thread, `seller/views/messages/show.ejs` | `faqs.test.ts` (blank answer, re-renders the thread page, not the FAQ index) | covered by the same thread-origin test |
-| Seller ship form, `seller/views/orders/show.ejs` | `orders.test.ts` (blank carrier and tracking number, values of the other field kept) | `orders.test.ts` ("already shipped" `TransitionError`) |
-| Seller decline form, same page | `orders.test.ts` (blank reason) | `orders.test.ts` (declining after shipping) |
-| Seller message reply, `seller/views/messages/show.ejs` | `messages.test.ts` (blank/bodiless reply) | none reachable — the only `TransitionError` `postMessage` can raise for a seller (blocked sender) never applies to a seller |
-| Storefront message reply, `shop/views/message-thread.ejs` | `messages.test.ts` (blank/bodiless reply) | `messages.test.ts` (blocked customer — but see the note below: the form itself is gone by then) |
-| Admin message reply, `admin/views/message.ejs` | `messages.test.ts` (blank and bodiless) | none reachable, same reason as the seller side |
-| Ask-a-question box, `shop/views/listing.ejs` | `messages.test.ts` (bodiless) | `messages.test.ts` (blocked customer) |
-| Add-to-cart quantity, same page | `carts.test.ts` (not a number, over what remains in stock — value kept) | `carts.test.ts` (sold out) |
-| Checkout, `shop/views/checkout.ejs` | `checkout.test.ts` (blank city, bad email, bodiless) | `rate-limit.test.ts` (the `checkout` trip, since no other domain refusal on this form is field-less) |
-| Pay, `shop/views/pay.ejs` | not converted — see decision below | wired for the `payment_attempt` trip only (`rate-limit.test.ts`) |
+| Form                                           | Field-error test                                | Form-level-error test                           |
+| ---------------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| Listing form (create + edit),                  | `listings.test.ts` (title, price —              | none needed — no domain refusal without a field |
+| `seller/views/listings/form.ejs`               | pre-existing, re-asserted against the new       | exists for this form                            |
+|                                                | markup)                                         |                                                 |
+| FAQ edit row + publish form,                   | `faqs.test.ts` (blank answer on create and on   | `faqs.test.ts` ("already published"             |
+| `seller/views/faqs/index.ejs`                  | edit, bodiless create)                          | `TransitionError` on the create form)           |
+| "Publish as FAQ" from a message thread,        | `faqs.test.ts` (blank answer, re-renders the    | covered by the same thread-origin test          |
+| `seller/views/messages/show.ejs`               | thread page, not the FAQ index)                 |                                                 |
+| Seller ship form,                              | `orders.test.ts` (blank carrier and tracking    | `orders.test.ts` ("already shipped"             |
+| `seller/views/orders/show.ejs`                 | number, values of the other field kept)         | `TransitionError`)                              |
+| Seller decline form, same page                 | `orders.test.ts` (blank reason)                 | `orders.test.ts` (declining after shipping)     |
+| Seller message reply,                          | `messages.test.ts` (blank/bodiless reply)       | none reachable — the only `TransitionError`     |
+| `seller/views/messages/show.ejs`               |                                                 | `postMessage` can raise for a seller (blocked   |
+|                                                |                                                 | sender) never applies to a seller               |
+| Storefront message reply,                      | `messages.test.ts` (blank/bodiless reply)       | `messages.test.ts` (blocked customer — but see  |
+| `shop/views/message-thread.ejs`                |                                                 | the note below: the form itself is gone by      |
+|                                                |                                                 | then)                                           |
+| Admin message reply, `admin/views/message.ejs` | `messages.test.ts` (blank and bodiless)         | none reachable, same reason as the seller side  |
+| Ask-a-question box, `shop/views/listing.ejs`   | `messages.test.ts` (bodiless)                   | `messages.test.ts` (blocked customer)           |
+| Add-to-cart quantity, same page                | `carts.test.ts` (not a number, over what        | `carts.test.ts` (sold out)                      |
+|                                                | remains in stock — value kept)                  |                                                 |
+| Checkout, `shop/views/checkout.ejs`            | `checkout.test.ts` (blank city, bad email,      | `rate-limit.test.ts` (the `checkout` trip,      |
+|                                                | bodiless)                                       | since no other domain refusal on this form is   |
+|                                                |                                                 | field-less)                                     |
+| Pay, `shop/views/pay.ejs`                      | not converted — see decision below              | wired for the `payment_attempt` trip only       |
+|                                                |                                                 | (`rate-limit.test.ts`)                          |
 
 **Button-only forms left alone** (no typed field, so nothing to convert), confirmed by reading
 every `<form method="post">` in the three sites: logout (×3), favorite, mark-notification-read

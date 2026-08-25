@@ -31,17 +31,18 @@ The seller side is where a question is answered and where the FAQ loop closes. I
 ## Discovery notes
 - `docs/messaging.md` § "A question becomes a published FAQ" is the flow; the route table there is the contract. Routes go in `routes/seller.php`, behind `auth.seller`:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/seller/messages` | `seller.messages.index` | Inbox, newest first, with unread counts |
-| GET | `/seller/messages/{conversation}` | `seller.messages.show` | Thread; marks it read; offers "Publish as FAQ" when the thread has a listing |
-| POST | `/seller/messages/{conversation}` | `seller.messages.store` | Reply |
-| GET | `/seller/support` | `seller.support` | Finds or opens the `admin_seller` thread and redirects to it |
-| POST | `/seller/orders/{fulfillment}/messages` | `seller.orders.messages` | Finds or opens the `fulfillment` thread |
-| GET | `/seller/listings/{listing}/faqs` | `seller.listings.faqs.index` | Published entries, edit form, unpublish |
-| POST | `/seller/listings/{listing}/faqs` | `seller.listings.faqs.store` | Publish |
-| PUT | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.update` | Reword |
-| DELETE | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.destroy` | Unpublish (deletes the row) |
+| Method | Path                                    | Name                           | Purpose                                                        |
+| ------ | --------------------------------------- | ------------------------------ | -------------------------------------------------------------- |
+| GET    | `/seller/messages`                      | `seller.messages.index`        | Inbox, newest first, with unread counts                        |
+| GET    | `/seller/messages/{conversation}`       | `seller.messages.show`         | Thread; marks it read; offers "Publish as FAQ" when the thread |
+|        |                                         |                                | has a listing                                                  |
+| POST   | `/seller/messages/{conversation}`       | `seller.messages.store`        | Reply                                                          |
+| GET    | `/seller/support`                       | `seller.support`               | Finds or opens the `admin_seller` thread and redirects to it   |
+| POST   | `/seller/orders/{fulfillment}/messages` | `seller.orders.messages`       | Finds or opens the `fulfillment` thread                        |
+| GET    | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.index`   | Published entries, edit form, unpublish                        |
+| POST   | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.store`   | Publish                                                        |
+| PUT    | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.update`  | Reword                                                         |
+| DELETE | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.destroy` | Unpublish (deletes the row)                                    |
 
 - Route-model binding then authorize, the way every existing seller route does. `ConversationPolicy::view` is what makes another seller's thread a 404, so the reply route needs the same authorization before it posts — a form request's `authorize()` is where the existing portal puts it.
 - The FAQ routes bind two models; nest them so a `{faq}` that is not on `{listing}` answers 404 (`scopeBindings()`, or a relation-scoped binding).

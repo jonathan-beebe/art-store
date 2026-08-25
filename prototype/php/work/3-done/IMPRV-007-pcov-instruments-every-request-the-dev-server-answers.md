@@ -17,10 +17,10 @@ paying to instrument code nobody is measuring.
 Measured (RSRCH-001 M5), a `GET /` batch of 60, minimum of four alternating
 rounds against a control server on the same host:
 
-| ini | ms CPU/req on `/` |
-|---|---|
-| as shipped | 24.7 |
-| `pcov.enabled=0` | **16.6** |
+| ini              | ms CPU/req on `/` |
+| ---------------- | ----------------- |
+| as shipped       | 24.7              |
+| `pcov.enabled=0` | **16.6**          |
 
 That is a third of the CPU of every page the prototype serves, spent on
 coverage data that is discarded.
@@ -77,10 +77,10 @@ OPcache untouched.
 **M5, four alternating rounds, minimum taken (host was loaded, so absolute
 values run higher than RSRCH-001's; the drop is what matters):**
 
-| ini | ms CPU/req on `/` (four rounds) | min |
-|---|---|---|
-| as shipped | 35.0 / 29.6 / 31.6 / 28.0 | 28.0 |
-| `pcov.enabled=0` | 23.8 / 25.9 / 17.3 / 16.8 | **16.8** |
+| ini              | ms CPU/req on `/` (four rounds) | min      |
+| ---------------- | ------------------------------- | -------- |
+| as shipped       | 35.0 / 29.6 / 31.6 / 28.0       | 28.0     |
+| `pcov.enabled=0` | 23.8 / 25.9 / 17.3 / 16.8       | **16.8** |
 
 At or below the 18 ms CPU/req target.
 

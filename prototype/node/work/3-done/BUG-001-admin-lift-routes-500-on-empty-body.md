@@ -32,14 +32,14 @@ A 500 on an admin action reads as a crash in a demo, and the same pattern may ex
 Against the running server on `http://localhost:4000`, signed in as
 `jonathan-beebe@outlook.com`:
 
-| Request | Before | After |
-| --- | --- | --- |
-| `POST /admin/listings/1/removals/lift` (no body) | 500 | 302 |
-| `POST /admin/customers/1/blocks/lift` (no body) | 500 | 302 |
-| `POST /admin/listings/1/removals` (no body) | 500 | 400 |
-| `POST /admin/customers/1/blocks` (no body) | 500 | 400 |
-| `POST /admin/listings/1/removals` with only `redirect_to` | 500 | 400 |
-| `POST /admin/customers/1/blocks` with only `redirect_to` | 500 | 400 |
+| Request                                                   | Before | After |
+| --------------------------------------------------------- | ------ | ----- |
+| `POST /admin/listings/1/removals/lift` (no body)          | 500    | 302   |
+| `POST /admin/customers/1/blocks/lift` (no body)           | 500    | 302   |
+| `POST /admin/listings/1/removals` (no body)               | 500    | 400   |
+| `POST /admin/customers/1/blocks` (no body)                | 500    | 400   |
+| `POST /admin/listings/1/removals` with only `redirect_to` | 500    | 400   |
+| `POST /admin/customers/1/blocks` with only `redirect_to`  | 500    | 400   |
 
 The last two rows widen the ticket: a POST with *missing fields* answered 500
 too, so `request.body ?? {}` on its own would not have reached the goal for the
@@ -55,16 +55,16 @@ one-function module fits there.
 
 Applied at every route that fed a body straight into a throwing `zod.parse`:
 
-| File | Call site |
-| --- | --- |
-| `app/sites/seller/routes/faqs.ts` | `publish`, `update` |
-| `app/sites/seller/routes/orders.ts` | `ship` |
-| `app/sites/auth/sign-in-routes.ts` | `POST /login` |
-| `app/sites/shop/routes/messages.ts` | `POST /art/:slug/questions` |
-| `app/sites/shop/routes/checkout.ts` | `POST /checkout` |
-| `app/sites/shop/routes/carts.ts` | `POST /cart/:slug` |
-| `app/sites/admin/routes/payouts.ts` | `POST /admin/payouts` |
-| `app/sites/admin/routes/moderation.ts` | all four writes |
+| File                                   | Call site                   |
+| -------------------------------------- | --------------------------- |
+| `app/sites/seller/routes/faqs.ts`      | `publish`, `update`         |
+| `app/sites/seller/routes/orders.ts`    | `ship`                      |
+| `app/sites/auth/sign-in-routes.ts`     | `POST /login`               |
+| `app/sites/shop/routes/messages.ts`    | `POST /art/:slug/questions` |
+| `app/sites/shop/routes/checkout.ts`    | `POST /checkout`            |
+| `app/sites/shop/routes/carts.ts`       | `POST /cart/:slug`          |
+| `app/sites/admin/routes/payouts.ts`    | `POST /admin/payouts`       |
+| `app/sites/admin/routes/moderation.ts` | all four writes             |
 
 Every one of those schemas already treats each field as optional or carries a
 zod `.catch`, so an empty object drops into the route's own "you did not fill

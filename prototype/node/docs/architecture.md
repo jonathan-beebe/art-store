@@ -17,19 +17,33 @@ sequences and state machines: [`identity.md`](identity.md),
 
 ## Stack (installed versions, 2026-08-23)
 
-| Concern | Choice | Version |
-| --- | --- | --- |
-| Runtime | Node, native type stripping (`node app/server.ts`, no build step, no `tsx`) | `node:24.19.0-bookworm-slim` |
-| Language | TypeScript, `erasableSyntaxOnly` (no `enum`, no parameter properties, no namespaces), `verbatimModuleSyntax`, `tsc --noEmit` for type checking only | 5.9.3 |
-| HTTP | Fastify | 5.12.1 |
-| Views | EJS via `@fastify/view`; raw `<%- %>` output is reserved for `include(...)` and a layout's `<%- body %>` — every other value renders through the escaping `<%= %>` | ejs 6.0.1, @fastify/view 12.0.0 |
-| Forms, cookies, static, uploads | `@fastify/formbody`, `@fastify/cookie` (signed cookies), `@fastify/static`, `@fastify/multipart` | 9.0.0, 11.1.2, 10.1.3, 10.1.1 |
-| Database | `node:sqlite` behind `app/db/node-sqlite-dialect.ts`, an owned Kysely dialect (`CamelCasePlugin`) + Kysely `Migrator` with `FileMigrationProvider`, both imported from `kysely/migration` | built in, kysely 0.29.5 |
-| Validation at the edge | zod schemas declared on the route, run by one validator compiler (`app/http/zod-type-provider.ts`) | 4.4.3 |
-| Logging | One JSON payload shared with the PHP and Rails prototypes (`docs/alignment.md` §2): `app/logging.ts` shapes it, `app/log-story.ts` tells the will/did story, `app/plugins/request-log.ts` binds the request, session, and actor | pino 10.3.1 |
-| CSS | Tailwind CLI, stock theme | @tailwindcss/cli 4.3.3 |
-| Tests | `node:test` + `node:assert/strict`, sidecar files, `--experimental-test-coverage` with line/branch thresholds | built in |
-| Complexity | eslint + typescript-eslint on `recommendedTypeChecked`, with `complexity` and `max-depth` rules as a gate | eslint 9.39.5, typescript-eslint 8.67.0 |
+| Concern                         | Choice                                                                 | Version                                 |
+| ------------------------------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| Runtime                         | Node, native type stripping (`node app/server.ts`, no build step, no   | `node:24.19.0-bookworm-slim`            |
+|                                 | `tsx`)                                                                 |                                         |
+| Language                        | TypeScript, `erasableSyntaxOnly` (no `enum`, no parameter properties,  | 5.9.3                                   |
+|                                 | no namespaces), `verbatimModuleSyntax`, `tsc --noEmit` for type        |                                         |
+|                                 | checking only                                                          |                                         |
+| HTTP                            | Fastify                                                                | 5.12.1                                  |
+| Views                           | EJS via `@fastify/view`; raw `<%- %>` output is reserved for           | ejs 6.0.1, @fastify/view 12.0.0         |
+|                                 | `include(...)` and a layout's `<%- body %>` — every other value        |                                         |
+|                                 | renders through the escaping `<%= %>`                                  |                                         |
+| Forms, cookies, static, uploads | `@fastify/formbody`, `@fastify/cookie` (signed cookies),               | 9.0.0, 11.1.2, 10.1.3, 10.1.1           |
+|                                 | `@fastify/static`, `@fastify/multipart`                                |                                         |
+| Database                        | `node:sqlite` behind `app/db/node-sqlite-dialect.ts`, an owned Kysely  | built in, kysely 0.29.5                 |
+|                                 | dialect (`CamelCasePlugin`) + Kysely `Migrator` with                   |                                         |
+|                                 | `FileMigrationProvider`, both imported from `kysely/migration`         |                                         |
+| Validation at the edge          | zod schemas declared on the route, run by one validator compiler       | 4.4.3                                   |
+|                                 | (`app/http/zod-type-provider.ts`)                                      |                                         |
+| Logging                         | One JSON payload shared with the PHP and Rails prototypes              | pino 10.3.1                             |
+|                                 | (`docs/alignment.md` §2): `app/logging.ts` shapes it,                  |                                         |
+|                                 | `app/log-story.ts` tells the will/did story,                           |                                         |
+|                                 | `app/plugins/request-log.ts` binds the request, session, and actor     |                                         |
+| CSS                             | Tailwind CLI, stock theme                                              | @tailwindcss/cli 4.3.3                  |
+| Tests                           | `node:test` + `node:assert/strict`, sidecar files,                     | built in                                |
+|                                 | `--experimental-test-coverage` with line/branch thresholds             |                                         |
+| Complexity                      | eslint + typescript-eslint on `recommendedTypeChecked`, with           | eslint 9.39.5, typescript-eslint 8.67.0 |
+|                                 | `complexity` and `max-depth` rules as a gate                           |                                         |
 
 Ten runtime dependencies and seven dev dependencies resolve 260 packages.
 There is no compiled dependency: SQLite comes from the Node runtime, so the
@@ -90,12 +104,48 @@ flowchart TD
     core["Core: app/core/** — pure TypeScript, no I/O, no clock, no random"]
 ```
 
-| Layer | Lives in | Rules |
-| --- | --- | --- |
-| Core | `app/core/<concept>/` | Pure functions and types. Receives `now: Date` and ids as parameters — never a `Clock`. Enumerations are `as const` string unions; state machines are a `TRANSITIONS` table plus `canTransition<Thing>(from, to)` and a throwing `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`, `customers`, `escrow`, `health`, `ids`, `listings`, `logging`, `messaging`, `moderation`, `notifications`, `orders`, `payments`, `rate-limit`, `reports`, `security`, `shop`, plus `money.ts`, `status-label.ts`, `transition-error.ts`. Unit tested with `node:test` and no database. |
-| Adapters | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`, `app/sites/*/queries/` | `app/db/`: the Kysely factory (`openDatabase`), `node-sqlite-dialect.ts` (the dialect over `node:sqlite`), `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` (row types), `count.ts`, `timestamp.ts`, the `seed-*.ts` modules. `app/delivery/`: the `MagicLinkDelivery` and `NotificationDelivery` ports, the `DeliveryContext` both `deliver` calls take, and their implementations — `flash-magic-link-delivery.ts`, `outbox-magic-link-delivery.ts`, `outbox-notification-delivery.ts`, plus `outbox-message.ts`, which enqueues and renders a row. `queries/`: read-only Kysely per site, one module per table a page shows, no domain logic. Views are EJS. |
-| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`, `app/http/` | Actions are verbs (`placeOrder`, `runWeeklyPayout`, `drainOutbox`) that take an `ActionContext` (`{ db, clock, notificationDelivery?, log? }`) and sequence core + adapters inside one transaction. Every route declares its `params`/`querystring`/`body` as zod schemas, which one validator compiler set in `buildApp` runs, so a handler reads already-typed `request.params`/`query`/`body`, calls actions, and renders views. `app/http/` holds that compiler (`zod-type-provider.ts`) and the schema pieces routes are built from (`request-schema.ts`: `idParams(prefix)`, `idValue(prefix)`, `slugParams`, `optionalFilter`, `submittedForm`). `app/plugins/` holds the cross-cutting Fastify wiring — see the table below. None of them owns a domain `if`; if one appears, it moves to `app/core`. Covered by integration tests (`app.inject`). |
-| Entry | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen, signal handling), `app/config.ts` (env → typed config), `app/logging.ts` (logger options and serializers), `app/cli/` | Wiring only. `buildApp` is the composition root and the thing tests construct. |
+| Layer        | Lives in                                                         | Rules                                                            |
+| ------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Core         | `app/core/<concept>/`                                            | Pure functions and types. Receives `now: Date` and ids as        |
+|              |                                                                  | parameters — never a `Clock`. Enumerations are `as const` string |
+|              |                                                                  | unions; state machines are a `TRANSITIONS` table plus            |
+|              |                                                                  | `canTransition<Thing>(from, to)` and a throwing                  |
+|              |                                                                  | `transition<Thing>`. Concepts: `analytics`, `auth`, `cart`,      |
+|              |                                                                  | `customers`, `escrow`, `health`, `ids`, `listings`, `logging`,   |
+|              |                                                                  | `messaging`, `moderation`, `notifications`, `orders`,            |
+|              |                                                                  | `payments`, `rate-limit`, `reports`, `security`, `shop`, plus    |
+|              |                                                                  | `money.ts`, `status-label.ts`, `transition-error.ts`. Unit       |
+|              |                                                                  | tested with `node:test` and no database.                         |
+| Adapters     | `app/db/`, `app/delivery/`, `app/sites/*/views/`, `app/views/`,  | `app/db/`: the Kysely factory (`openDatabase`),                  |
+|              | `app/sites/*/queries/`                                           | `node-sqlite-dialect.ts` (the dialect over `node:sqlite`),       |
+|              |                                                                  | `migrations/`, `migrator.ts`, `schema.ts` + `commerce-schema.ts` |
+|              |                                                                  | (row types), `count.ts`, `timestamp.ts`, the `seed-*.ts`         |
+|              |                                                                  | modules. `app/delivery/`: the `MagicLinkDelivery` and            |
+|              |                                                                  | `NotificationDelivery` ports, the `DeliveryContext` both         |
+|              |                                                                  | `deliver` calls take, and their implementations —                |
+|              |                                                                  | `flash-magic-link-delivery.ts`, `outbox-magic-link-delivery.ts`, |
+|              |                                                                  | `outbox-notification-delivery.ts`, plus `outbox-message.ts`,     |
+|              |                                                                  | which enqueues and renders a row. `queries/`: read-only Kysely   |
+|              |                                                                  | per site, one module per table a page shows, no domain logic.    |
+|              |                                                                  | Views are EJS.                                                   |
+| Coordination | `app/actions/<concept>/`, `app/sites/<site>/`, `app/plugins/`,   | Actions are verbs (`placeOrder`, `runWeeklyPayout`,              |
+|              | `app/http/`                                                      | `drainOutbox`) that take an `ActionContext`                      |
+|              |                                                                  | (`{ db, clock, notificationDelivery?, log? }`) and sequence core |
+|              |                                                                  | + adapters inside one transaction. Every route declares its      |
+|              |                                                                  | `params`/`querystring`/`body` as zod schemas, which one          |
+|              |                                                                  | validator compiler set in `buildApp` runs, so a handler reads    |
+|              |                                                                  | already-typed `request.params`/`query`/`body`, calls actions,    |
+|              |                                                                  | and renders views. `app/http/` holds that compiler               |
+|              |                                                                  | (`zod-type-provider.ts`) and the schema pieces routes are built  |
+|              |                                                                  | from (`request-schema.ts`: `idParams(prefix)`,                   |
+|              |                                                                  | `idValue(prefix)`, `slugParams`, `optionalFilter`,               |
+|              |                                                                  | `submittedForm`). `app/plugins/` holds the cross-cutting Fastify |
+|              |                                                                  | wiring — see the table below. None of them owns a domain `if`;   |
+|              |                                                                  | if one appears, it moves to `app/core`. Covered by integration   |
+|              |                                                                  | tests (`app.inject`).                                            |
+| Entry        | `app/app.ts` (`buildApp(deps)`), `app/server.ts` (listen, signal | Wiring only. `buildApp` is the composition root and the thing    |
+|              | handling), `app/config.ts` (env → typed config),                 | tests construct.                                                 |
+|              | `app/logging.ts` (logger options and serializers), `app/cli/`    |                                                                  |
 
 `app/clock.ts` sits at the root of `app/` rather than in a layer: the `Clock`
 type, `systemClock`, and `fixedClock`. Core takes a `Date`, so `Clock` has no
@@ -154,21 +204,38 @@ flowchart TD
 `healthCheck` sits outside all of it: `GET /health` is registered at the root,
 so no site guard and no site layout reaches it, and it answers JSON.
 
-| Plugin | File | What it adds |
-| --- | --- | --- |
-| `requestLog` | `plugins/request-log.ts` | Registered ahead of the static and site plugins so every route inherits it. Reads or mints the `sid` cookie, binds `session_id` and the actor onto the request's child logger, echoes `X-Request-Id`, and writes the `http.request` `will`/`did` pair. |
-| `errorPages` | `plugins/error-pages.ts` | One root `setErrorHandler`: a thrown `ZodError` is 400, an error carrying a 4xx `statusCode` is that status, anything else closes the request's story with `failed` and renders a generic 500 — each in the layout of the site the request landed on. |
-| `securityHeaders` | `plugins/security-headers.ts` | One `onSend` hook, so a page, the JSON health check, an uploaded file, and a 404 all carry the same headers. |
-| `flashCookie` | `plugins/flash.ts` | `reply.setFlash` / `reply.takeFlash` over a signed one-request cookie. |
-| `identityCookies` | `plugins/identity.ts` | The three signed actor cookies, `signedInActorId`, `resolveCustomerIdentity`, and the `requireSeller` / `requireAdmin` guards. |
-| `csrfProtection` | `plugins/csrf.ts` | Registered inside each site (`admin`, `seller`, `shop`), not at the root — see the note below. One `preValidation` hook verifying a double-submit token on every POST/PUT/PATCH/DELETE, and `csrfTokenForRequest`, which `addSiteRender` hands every layout to render as a hidden field. |
-| `pageViewRollup` | `plugins/page-views.ts` | One root `onResponse` hook that upserts `page_view_counts`. |
-| `unreadMessages` | `plugins/unread-messages.ts` | `countUnreadMessages(actorType)` as a `preHandler`, decorating `request.unreadMessageCount`. |
-| `eventBus` | `plugins/events.ts` | `app.events` (a typed `node:events` emitter), the `onResponse` hook that fires `changed` after any request that wrote, the `preClose` hook that fires `closing`, and `unreadEventsRoute(actorType)` serving `<prefix>/events` as `text/event-stream`. |
-| `healthCheck` | `plugins/health.ts` | `GET /health`. |
-| rate limiting | `plugins/rate-limit.ts` | Not a registered plugin itself: `rateLimitGuard({ name, key })` and `magicLinkRequestGuard(email)` are `preHandler` factories a route applies directly, and `clientIp(request)` reads `request.ip`. `answerIfRateLimited` is the shared 429 answer both call, and the same function a route with a conditional link send (guest checkout) calls inline rather than as a `preHandler`. |
-| `addSiteRender` | `plugins/site-render.ts` | Called inside a site rather than at the root: gives that site a `reply.render(page)` carrying its layout, the flash, the identity, and the unread count, and returns the `SitePageRenderer` a 404 handed over by `callNotFound` renders through. |
-| `rootPlugin` | `plugins/root-plugin.ts` | Marks a plugin as belonging to the root context (`Symbol.for('skip-override')` and `plugin-meta` set by hand — no `fastify-plugin` dependency). |
+| Plugin            | File                          | What it adds                                                                                   |
+| ----------------- | ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `requestLog`      | `plugins/request-log.ts`      | Registered ahead of the static and site plugins so every route inherits it. Reads or mints the |
+|                   |                               | `sid` cookie, binds `session_id` and the actor onto the request's child logger, echoes         |
+|                   |                               | `X-Request-Id`, and writes the `http.request` `will`/`did` pair.                               |
+| `errorPages`      | `plugins/error-pages.ts`      | One root `setErrorHandler`: a thrown `ZodError` is 400, an error carrying a 4xx `statusCode`   |
+|                   |                               | is that status, anything else closes the request's story with `failed` and renders a generic   |
+|                   |                               | 500 — each in the layout of the site the request landed on.                                    |
+| `securityHeaders` | `plugins/security-headers.ts` | One `onSend` hook, so a page, the JSON health check, an uploaded file, and a 404 all carry the |
+|                   |                               | same headers.                                                                                  |
+| `flashCookie`     | `plugins/flash.ts`            | `reply.setFlash` / `reply.takeFlash` over a signed one-request cookie.                         |
+| `identityCookies` | `plugins/identity.ts`         | The three signed actor cookies, `signedInActorId`, `resolveCustomerIdentity`, and the          |
+|                   |                               | `requireSeller` / `requireAdmin` guards.                                                       |
+| `csrfProtection`  | `plugins/csrf.ts`             | Registered inside each site (`admin`, `seller`, `shop`), not at the root — see the note below. |
+|                   |                               | One `preValidation` hook verifying a double-submit token on every POST/PUT/PATCH/DELETE, and   |
+|                   |                               | `csrfTokenForRequest`, which `addSiteRender` hands every layout to render as a hidden field.   |
+| `pageViewRollup`  | `plugins/page-views.ts`       | One root `onResponse` hook that upserts `page_view_counts`.                                    |
+| `unreadMessages`  | `plugins/unread-messages.ts`  | `countUnreadMessages(actorType)` as a `preHandler`, decorating `request.unreadMessageCount`.   |
+| `eventBus`        | `plugins/events.ts`           | `app.events` (a typed `node:events` emitter), the `onResponse` hook that fires `changed` after |
+|                   |                               | any request that wrote, the `preClose` hook that fires `closing`, and                          |
+|                   |                               | `unreadEventsRoute(actorType)` serving `<prefix>/events` as `text/event-stream`.               |
+| `healthCheck`     | `plugins/health.ts`           | `GET /health`.                                                                                 |
+| rate limiting     | `plugins/rate-limit.ts`       | Not a registered plugin itself: `rateLimitGuard({ name, key })` and                            |
+|                   |                               | `magicLinkRequestGuard(email)` are `preHandler` factories a route applies directly, and        |
+|                   |                               | `clientIp(request)` reads `request.ip`. `answerIfRateLimited` is the shared 429 answer both    |
+|                   |                               | call, and the same function a route with a conditional link send (guest checkout) calls inline |
+|                   |                               | rather than as a `preHandler`.                                                                 |
+| `addSiteRender`   | `plugins/site-render.ts`      | Called inside a site rather than at the root: gives that site a `reply.render(page)` carrying  |
+|                   |                               | its layout, the flash, the identity, and the unread count, and returns the `SitePageRenderer`  |
+|                   |                               | a 404 handed over by `callNotFound` renders through.                                           |
+| `rootPlugin`      | `plugins/root-plugin.ts`      | Marks a plugin as belonging to the root context (`Symbol.for('skip-override')` and             |
+|                   |                               | `plugin-meta` set by hand — no `fastify-plugin` dependency).                                   |
 
 `csrfProtection` is the one plugin in that table every other row would call
 "registered at the root" — it is not, and that is deliberate. It reads
@@ -191,12 +258,18 @@ exposes them to TypeScript as camelCase (`price_cents` → `priceCents`).
 
 ## Sites
 
-| Site | URL prefix | Plugin | Identity cookie | Theme |
-| --- | --- | --- | --- | --- |
-| Storefront | `/` | `shopSite` (`app/sites/shop/`) | signed `customer_id` (anonymous or verified) | Bright, open, white space, large imagery, one amber accent, brand recedes. |
-| Seller portal | `/seller` | `sellerSite` (`app/sites/seller/`) | signed `seller_id` | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
-| Admin site | `/admin` | `adminSite` (`app/sites/admin/`) | signed `admin_id` | Same as the seller portal: tools, tables, filters. |
-| Magic links | `/auth/magic/:token` | `authSite` (`app/sites/auth/`) | writes whichever cookie the link names | No pages of its own; every answer is a redirect. |
+| Site          | URL prefix           | Plugin                            | Identity cookie                    | Theme                              |
+| ------------- | -------------------- | --------------------------------- | ---------------------------------- | ---------------------------------- |
+| Storefront    | `/`                  | `shopSite` (`app/sites/shop/`)    | signed `customer_id` (anonymous or | Bright, open, white space, large   |
+|               |                      |                                   | verified)                          | imagery, one amber accent, brand   |
+|               |                      |                                   |                                    | recedes.                           |
+| Seller portal | `/seller`            | `sellerSite`                      | signed `seller_id`                 | Stock Tailwind, system font,       |
+|               |                      | (`app/sites/seller/`)             |                                    | vanilla controls, dense and        |
+|               |                      |                                   |                                    | tool-focused.                      |
+| Admin site    | `/admin`             | `adminSite` (`app/sites/admin/`)  | signed `admin_id`                  | Same as the seller portal: tools,  |
+|               |                      |                                   |                                    | tables, filters.                   |
+| Magic links   | `/auth/magic/:token` | `authSite` (`app/sites/auth/`)    | writes whichever cookie the link   | No pages of its own; every answer  |
+|               |                      |                                   | names                              | is a redirect.                     |
 
 Each site is one Fastify plugin registered in `buildApp`. It calls
 `addSiteRender(site, { pages, layout })` for its own
@@ -486,12 +559,12 @@ See [`escrow.md`](escrow.md).
 
 `decideCard(number)` in `app/core/payments/fake-card.ts`:
 
-| Number | Decision |
-| --- | --- |
-| `4242 4242 4242 4242` | approved |
-| `4000 0000 0000 0002` | declined: `generic_decline` |
-| `4000 0000 0000 9995` | declined: `insufficient_funds` |
-| anything else | declined: `invalid_card_number` |
+| Number                | Decision                        |
+| --------------------- | ------------------------------- |
+| `4242 4242 4242 4242` | approved                        |
+| `4000 0000 0000 0002` | declined: `generic_decline`     |
+| `4000 0000 0000 9995` | declined: `insufficient_funds`  |
+| anything else         | declined: `invalid_card_number` |
 
 Every non-digit is stripped, so spaces and dashes are ignored. Only the last
 four digits are stored, one `payments` row per attempt.
@@ -558,12 +631,13 @@ See [`messaging.md`](messaging.md). One model serves every pairing: a
 `conversations` row names its `kind` and its participants; `messages` rows hang
 off it.
 
-| `kind` | Participants | Opened from | Subject column |
-| --- | --- | --- | --- |
-| `admin_seller` | admin ↔ seller | `/seller/support`, or `POST /admin/sellers/:id/messages` | — |
-| `admin_customer` | admin ↔ customer | `/support`, or `POST /admin/customers/:id/messages` | — |
-| `fulfillment` | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST /orders/:id/fulfillments/:fulfillmentId/messages` | `fulfillment_id` |
-| `listing_question` | customer ↔ seller | `POST /art/:slug/questions` | `listing_id` |
+| `kind`             | Participants      | Opened from                                                                            | Subject column   |
+| ------------------ | ----------------- | -------------------------------------------------------------------------------------- | ---------------- |
+| `admin_seller`     | admin ↔ seller    | `/seller/support`, or `POST /admin/sellers/:id/messages`                               | —                |
+| `admin_customer`   | admin ↔ customer  | `/support`, or `POST /admin/customers/:id/messages`                                    | —                |
+| `fulfillment`      | seller ↔ customer | `POST /seller/orders/:id/messages`, or                                                 | `fulfillment_id` |
+|                    |                   | `POST /orders/:id/fulfillments/:fulfillmentId/messages`                                |                  |
+| `listing_question` | customer ↔ seller | `POST /art/:slug/questions`                                                            | `listing_id`     |
 
 - `conversations`: `id`, `kind`, `subject_key` (unique), `seller_id?`,
   `customer_id?`, `admin_id?`, `listing_id?`, `fulfillment_id?`, `created_at`,
@@ -661,21 +735,23 @@ formatter writes the level's name rather than its number, and `redact` drops
 `error.stack` outside development. `no-console` is an eslint error with no
 override.
 
-| Field | Type | Always | Meaning |
-| --- | --- | --- | --- |
-| `ts` | string | yes | ISO-8601 UTC with milliseconds, `Z` suffix |
-| `level` | string | yes | `debug` \| `info` \| `warn` \| `error` |
-| `event` | string | yes | dotted name from the table below |
-| `phase` | string | yes | `will` \| `doing` \| `did` \| `refused` \| `failed` |
-| `msg` | string | yes | one human sentence, present tense for `will`/`doing`, past for `did` |
-| `request_id` | string | on requests | one per HTTP request, echoed as `X-Request-Id`; an inbound `X-Request-Id` is honoured only when it matches `^[A-Za-z0-9_-]{1,64}$` |
-| `session_id` | string | on requests | the `sid` cookie (`ses_<ulid>`), minted on the first response a browser gets and kept a year, unchanged by sign-in and sign-out |
-| `actor_type` | string | when known | `seller` \| `customer` \| `admin` \| `system` |
-| `actor_id` | string | when known | the actor's prefixed id; an anonymous customer's `cus_…` counts as known |
-| `txn_id` | string | inside a unit of work | `txn_<ulid>`, minted where `runInTransaction` opens |
-| `data` | object | when useful | entity ids and the small facts the line is about, in snake_case |
-| `error` | object | on `failed` | `{ type, message }`, plus `stack` in development |
-| `duration_ms` | number | on `did`/`refused`/`failed` after a `will` | wall time since the `will` |
+| Field         | Type   | Always                                     | Meaning                                                                      |
+| ------------- | ------ | ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `ts`          | string | yes                                        | ISO-8601 UTC with milliseconds, `Z` suffix                                   |
+| `level`       | string | yes                                        | `debug` \| `info` \| `warn` \| `error`                                       |
+| `event`       | string | yes                                        | dotted name from the table below                                             |
+| `phase`       | string | yes                                        | `will` \| `doing` \| `did` \| `refused` \| `failed`                          |
+| `msg`         | string | yes                                        | one human sentence, present tense for `will`/`doing`, past for `did`         |
+| `request_id`  | string | on requests                                | one per HTTP request, echoed as `X-Request-Id`; an inbound `X-Request-Id` is |
+|               |        |                                            | honoured only when it matches `^[A-Za-z0-9_-]{1,64}$`                        |
+| `session_id`  | string | on requests                                | the `sid` cookie (`ses_<ulid>`), minted on the first response a browser gets |
+|               |        |                                            | and kept a year, unchanged by sign-in and sign-out                           |
+| `actor_type`  | string | when known                                 | `seller` \| `customer` \| `admin` \| `system`                                |
+| `actor_id`    | string | when known                                 | the actor's prefixed id; an anonymous customer's `cus_…` counts as known     |
+| `txn_id`      | string | inside a unit of work                      | `txn_<ulid>`, minted where `runInTransaction` opens                          |
+| `data`        | object | when useful                                | entity ids and the small facts the line is about, in snake_case              |
+| `error`       | object | on `failed`                                | `{ type, message }`, plus `stack` in development                             |
+| `duration_ms` | number | on `did`/`refused`/`failed` after a `will` | wall time since the `will`                                                   |
 
 Fastify's `pid` and `hostname` ride alongside; nothing in the table is renamed,
 nested, or dropped.
@@ -705,34 +781,44 @@ address does not appear. The magic-link route logs its path as the pattern
 
 **Events.** `<subject>.<verb>` in the imperative; `phase` carries the tense.
 
-| Event | Emitted by |
-| --- | --- |
-| `http.request` | every request — `will` on entry, `did` on response, `failed` when the error handler answers 500 |
-| `magic_link.request` | `sendMagicLink` |
-| `magic_link.consume` | `signInWithMagicLink`; `refused` on unknown, expired, used, or foreign token |
-| `customer.merge` | `mergeAnonymousCustomer` |
-| `listing.create`, `listing.update` | `createListing`, `updateListing` |
-| `listing.publish`, `listing.transition` | `changeListingStatus` — `publish` when the target is `for_sale`, `transition` otherwise; both carry `status_from`/`status_to` |
-| `listing.view` | `recordListingView`, at `debug`; the once-per-(listing, customer, hour) collapse is `refused` |
-| `cart.add`, `cart.update` | `addToCart` — `update` when the cart already holds the listing |
-| `cart.remove` | `removeFromCart` |
-| `order.place` | `placeOrder`; `refused` carries the lines that stopped it |
-| `order.pay` | `finalizeOrder`; `refused` on a decline, with `decline_reason` |
-| `order.cancel` | `cancelOrder` — from the customer, from `cancelOrderAsAdmin`, and from the sweep; `actor_type` says which |
-| `order.sweep` | `sweepStaleOrders` — `doing` per order, `did` with the count |
-| `fulfillment.ship`, `fulfillment.deliver` | `markShipped`, `confirmDelivered` |
-| `fulfillment.decline` | `declineFulfillment`, wrapping the `refund.issue` it causes |
-| `refund.issue` | `issueRefund`; `data` names `refund_id`, `fulfillment_id`, `amount_cents`, `reason` |
-| `ledger.write` | `writeLedgerEntry`, at `debug` |
-| `payout.run`, `payout.pay` | `runWeeklyPayout` — one `run` around the week, one `pay` per seller inside it |
-| `conversation.open`, `message.post` | `openConversation`, `postMessage` |
-| `faq.publish`, `faq.unpublish` | `publishListingFaq`, `unpublishListingFaq` |
-| `notification.write` | `notify` |
-| `notification.deliver` | the outbox drain — `will`, one `doing` per file, `did` with the count |
-| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | the four moderation actions |
-| `rate_limit.exceed` | `answerIfRateLimited` (`plugins/rate-limit.ts`), at `warn`, on every trip of the seven limits — `data` names `limit`, a redacted `key`, and `retry_after_seconds` |
-| `migrate.run`, `migrate.apply`, `seed.run` | `app/db/migrate.ts`, `app/db/seed.ts` |
-| `app.boot`, `app.shutdown` | `app/server.ts` |
+| Event                                                                   | Emitted by                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `http.request`                                                          | every request — `will` on entry, `did` on response, `failed` when the    |
+|                                                                         | error handler answers 500                                                |
+| `magic_link.request`                                                    | `sendMagicLink`                                                          |
+| `magic_link.consume`                                                    | `signInWithMagicLink`; `refused` on unknown, expired, used, or foreign   |
+|                                                                         | token                                                                    |
+| `customer.merge`                                                        | `mergeAnonymousCustomer`                                                 |
+| `listing.create`, `listing.update`                                      | `createListing`, `updateListing`                                         |
+| `listing.publish`, `listing.transition`                                 | `changeListingStatus` — `publish` when the target is `for_sale`,         |
+|                                                                         | `transition` otherwise; both carry `status_from`/`status_to`             |
+| `listing.view`                                                          | `recordListingView`, at `debug`; the once-per-(listing, customer, hour)  |
+|                                                                         | collapse is `refused`                                                    |
+| `cart.add`, `cart.update`                                               | `addToCart` — `update` when the cart already holds the listing           |
+| `cart.remove`                                                           | `removeFromCart`                                                         |
+| `order.place`                                                           | `placeOrder`; `refused` carries the lines that stopped it                |
+| `order.pay`                                                             | `finalizeOrder`; `refused` on a decline, with `decline_reason`           |
+| `order.cancel`                                                          | `cancelOrder` — from the customer, from `cancelOrderAsAdmin`, and from   |
+|                                                                         | the sweep; `actor_type` says which                                       |
+| `order.sweep`                                                           | `sweepStaleOrders` — `doing` per order, `did` with the count             |
+| `fulfillment.ship`, `fulfillment.deliver`                               | `markShipped`, `confirmDelivered`                                        |
+| `fulfillment.decline`                                                   | `declineFulfillment`, wrapping the `refund.issue` it causes              |
+| `refund.issue`                                                          | `issueRefund`; `data` names `refund_id`, `fulfillment_id`,               |
+|                                                                         | `amount_cents`, `reason`                                                 |
+| `ledger.write`                                                          | `writeLedgerEntry`, at `debug`                                           |
+| `payout.run`, `payout.pay`                                              | `runWeeklyPayout` — one `run` around the week, one `pay` per seller      |
+|                                                                         | inside it                                                                |
+| `conversation.open`, `message.post`                                     | `openConversation`, `postMessage`                                        |
+| `faq.publish`, `faq.unpublish`                                          | `publishListingFaq`, `unpublishListingFaq`                               |
+| `notification.write`                                                    | `notify`                                                                 |
+| `notification.deliver`                                                  | the outbox drain — `will`, one `doing` per file, `did` with the count    |
+| `moderation.remove_listing`, `moderation.lift_listing_removal`,         | the four moderation actions                                              |
+| `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
+| `rate_limit.exceed`                                                     | `answerIfRateLimited` (`plugins/rate-limit.ts`), at `warn`, on every     |
+|                                                                         | trip of the seven limits — `data` names `limit`, a redacted `key`, and   |
+|                                                                         | `retry_after_seconds`                                                    |
+| `migrate.run`, `migrate.apply`, `seed.run`                              | `app/db/migrate.ts`, `app/db/seed.ts`                                    |
+| `app.boot`, `app.shutdown`                                              | `app/server.ts`                                                          |
 
 The CLIs build their logger with `createCliLogger`, which binds
 `actor_type: "system"` — nobody asked for a CLI run.
@@ -740,28 +826,28 @@ The CLIs build their logger with `createCliLogger`, which binds
 **Renamed from the pre-alignment names.** The old names were past tense and the
 outcome was the name; the phase carries it now.
 
-| Old | New | Phase |
-| --- | --- | --- |
-| `magic_link.requested` | `magic_link.request` | `did` |
-| `magic_link.consumed` | `magic_link.consume` | `did` |
-| `magic_link.refused` | `magic_link.consume` | `refused` |
-| `order.placed` | `order.place` | `did` |
-| `order.paid` | `order.pay` | `did` |
-| `order.declined` | `order.pay` | `refused` |
-| `fulfillment.shipped` | `fulfillment.ship` | `did` |
-| `moderation.listing_removed` | `moderation.remove_listing` | `did` |
-| `moderation.listing_removal_lifted` | `moderation.lift_listing_removal` | `did` |
-| `moderation.customer_blocked` | `moderation.block_customer` | `did` |
-| `moderation.customer_block_lifted` | `moderation.lift_customer_block` | `did` |
-| `payout.paid` | `payout.pay` | `did` |
-| `payout.run` | `payout.run` | `will` + `did` |
-| `outbox.drained` | `notification.deliver` | `doing` |
-| `outbox.drain_run` | `notification.deliver` | `will` + `did` |
-| `migrate.removed` | `migrate.run` | `doing` |
-| `migrate.applied` | `migrate.apply` | `did` |
-| `migrate.run` | `migrate.run` | `will` + `did` |
-| `seed.admins` | `seed.run` | `doing` |
-| `seed.demo_data` | `seed.run` | `did` |
+| Old                                 | New                               | Phase          |
+| ----------------------------------- | --------------------------------- | -------------- |
+| `magic_link.requested`              | `magic_link.request`              | `did`          |
+| `magic_link.consumed`               | `magic_link.consume`              | `did`          |
+| `magic_link.refused`                | `magic_link.consume`              | `refused`      |
+| `order.placed`                      | `order.place`                     | `did`          |
+| `order.paid`                        | `order.pay`                       | `did`          |
+| `order.declined`                    | `order.pay`                       | `refused`      |
+| `fulfillment.shipped`               | `fulfillment.ship`                | `did`          |
+| `moderation.listing_removed`        | `moderation.remove_listing`       | `did`          |
+| `moderation.listing_removal_lifted` | `moderation.lift_listing_removal` | `did`          |
+| `moderation.customer_blocked`       | `moderation.block_customer`       | `did`          |
+| `moderation.customer_block_lifted`  | `moderation.lift_customer_block`  | `did`          |
+| `payout.paid`                       | `payout.pay`                      | `did`          |
+| `payout.run`                        | `payout.run`                      | `will` + `did` |
+| `outbox.drained`                    | `notification.deliver`            | `doing`        |
+| `outbox.drain_run`                  | `notification.deliver`            | `will` + `did` |
+| `migrate.removed`                   | `migrate.run`                     | `doing`        |
+| `migrate.applied`                   | `migrate.apply`                   | `did`          |
+| `migrate.run`                       | `migrate.run`                     | `will` + `did` |
+| `seed.admins`                       | `seed.run`                        | `doing`        |
+| `seed.demo_data`                    | `seed.run`                        | `did`          |
 
 Three lines the application does not write itself stay outside the payload:
 Fastify's two `Server listening at …` lines from `listen()`, `@fastify/static`'s
@@ -773,15 +859,19 @@ parses an upload. They carry no `event` or `phase`.
 - `node:test` with `node:assert/strict`. Tests are **sidecars**: `foo.ts` →
   `foo.test.ts` in the same directory.
 
-| Command | What it runs |
-| --- | --- |
-| `npm test` | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate |
-| `npm run coverage` | adds `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90`, and writes `coverage/lcov.info` alongside the table it prints. `make test` and `make coverage` both run this. |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | `tsc --noEmit`, then `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console`. Read-only. `make lint` runs this. |
-| `npm run lint:fix` | `eslint app --fix` — the auto-fixable subset. `make lint-fix` runs this. |
-| `npm run check` | lint, then `npm run assets`, then `npm run coverage`. `make check` runs this — the commit gate `.githooks/pre-commit` and CI both call. |
-| `npm run routes` | boots the real app over `:memory:` and prints `printRoutes()` then `printPlugins()` (`app/cli/print-routes.ts`) |
+| Command             | What it runs                                                                                                                 |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`          | `node --test 'app/**/*.test.ts'` — the fast loop, no coverage gate                                                           |
+| `npm run coverage`  | adds                                                                                                                         |
+|                     | `--experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90`, |
+|                     | and writes `coverage/lcov.info` alongside the table it prints. `make test` and `make coverage` both run this.                |
+| `npm run typecheck` | `tsc --noEmit`                                                                                                               |
+| `npm run lint`      | `tsc --noEmit`, then `eslint app` — `recommendedTypeChecked`, `complexity` ≤ 8, `max-depth` ≤ 3, `no-console`. Read-only.    |
+|                     | `make lint` runs this.                                                                                                       |
+| `npm run lint:fix`  | `eslint app --fix` — the auto-fixable subset. `make lint-fix` runs this.                                                     |
+| `npm run check`     | lint, then `npm run assets`, then `npm run coverage`. `make check` runs this — the commit gate `.githooks/pre-commit` and CI |
+|                     | both call.                                                                                                                   |
+| `npm run routes`    | boots the real app over `:memory:` and prints `printRoutes()` then `printPlugins()` (`app/cli/print-routes.ts`)              |
 
 CI has no compose stack, so it cannot run `make check` through Docker the way
 the pre-commit hook does. It runs `npm run check` directly instead — the same
@@ -884,9 +974,9 @@ prototype/node/
 
 ## Mapping the project skills onto this stack
 
-| Skill says | Here it means |
-| --- | --- |
-| `npm run test:run -- <pattern>` | `docker compose run --rm app node --test app/path/to/file.test.ts` |
-| Vitest unit test | `node:test` sidecar importing only the file under test |
+| Skill says                             | Here it means                                                                     |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| `npm run test:run -- <pattern>`        | `docker compose run --rm app node --test app/path/to/file.test.ts`                |
+| Vitest unit test                       | `node:test` sidecar importing only the file under test                            |
 | React Testing Library integration test | `node:test` sidecar that builds the app with `buildTestApp` and uses `app.inject` |
-| `src/` | `prototype/node/src/app/` |
+| `src/`                                 | `prototype/node/src/app/`                                                         |

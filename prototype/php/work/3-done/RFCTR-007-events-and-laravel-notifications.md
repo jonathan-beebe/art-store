@@ -48,11 +48,11 @@ carried `subject`/`body`/`url` and nullable `seller_id`/`customer_id`; and
 
 ### Numbers
 
-| Gate | Before | After |
-| --- | --- | --- |
-| Pest | 647 tests, 1480 assertions | 665 tests, 1496 assertions |
-| PHPStan (level max) | 0 errors | 0 errors |
-| Pint | clean | clean |
+| Gate                | Before                     | After                      |
+| ------------------- | -------------------------- | -------------------------- |
+| Pest                | 647 tests, 1480 assertions | 665 tests, 1496 assertions |
+| PHPStan (level max) | 0 errors                   | 0 errors                   |
+| Pint                | clean                      | clean                      |
 
 `docker compose run --rm --no-deps --entrypoint php app artisan migrate:fresh
 --seed --force` runs clean and writes five rows: three

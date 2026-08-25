@@ -98,13 +98,13 @@ Each cell is `%{time_total}` for the page load, 35 s of settle before each
 run. The two middle columns isolate the levers; the last column is what
 ships.
 
-| M8 case | 5 workers, on change (baseline) | 5 workers, every tick | 16 workers, on change | 16 workers, every tick |
-|---|---|---|---|---|
-| 5 streams held | 0.14 s | — | — | 0.11 s |
-| 8 streams held | 0.07 s | — | — | 0.66 s |
-| 12 streams held | 50.6 s | 24.4 s | 0.11 s | 0.12 s |
-| 12 streams, clients killed at 3 s | 48.5 s | 8.3 / 8.5 / 4.2 s | 0.10 / 0.09 s | 0.08 / 0.08 s |
-| 24 streams, clients killed at 3 s | — | — | 22.7 / 22.5 s | 0.09 / 4.3 s |
+| M8 case                           | 5 workers, on change (baseline) | 5 workers, every tick | 16 workers, on change | 16 workers, every tick |
+| --------------------------------- | ------------------------------- | --------------------- | --------------------- | ---------------------- |
+| 5 streams held                    | 0.14 s                          | —                     | —                     | 0.11 s                 |
+| 8 streams held                    | 0.07 s                          | —                     | —                     | 0.66 s                 |
+| 12 streams held                   | 50.6 s                          | 24.4 s                | 0.11 s                | 0.12 s                 |
+| 12 streams, clients killed at 3 s | 48.5 s                          | 8.3 / 8.5 / 4.2 s     | 0.10 / 0.09 s         | 0.08 / 0.08 s          |
+| 24 streams, clients killed at 3 s | —                               | —                     | 22.7 / 22.5 s         | 0.09 / 4.3 s           |
 
 The 48.5 s baseline column reproduces RSRCH-001's 50.8 s / 49.4 s.
 
@@ -116,11 +116,11 @@ closes.
 
 ### M4 — container CPU over 30 s (cgroup `usage_usec`)
 
-| Config | 0 streams | 3 streams |
-|---|---|---|
-| RSRCH-001 baseline (5 workers, on change) | 1.4 % | 5.6 % |
-| 5 workers, every tick | 0.26 % | 1.61 % |
-| 16 workers, every tick | 0.37 % | 0.99 % |
+| Config                                    | 0 streams | 3 streams |
+| ----------------------------------------- | --------- | --------- |
+| RSRCH-001 baseline (5 workers, on change) | 1.4 %     | 5.6 %     |
+| 5 workers, every tick                     | 0.26 %    | 1.61 %    |
+| 16 workers, every tick                    | 0.37 %    | 0.99 %    |
 
 Both post-change readings sit under the 5.6 % ceiling. The idle column is
 also below the baseline's 1.4 %, so the host was quieter than it was on

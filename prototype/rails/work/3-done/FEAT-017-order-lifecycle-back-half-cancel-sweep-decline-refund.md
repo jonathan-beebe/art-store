@@ -128,11 +128,11 @@ which is what puts the payout's negative straight into `available`.
 
 The three timings then read, for one $450.00 sale (net $405.00):
 
-| Timing | Entries | held | available | paid out |
-| --- | --- | --- | --- | --- |
-| Before release | `held +40500`, `refunded −40500` | $0.00 | $0.00 | $0.00 |
-| After release | + `released +40500` | $0.00 | $0.00 | $0.00 |
-| After payout | + `paid_out −40500` | $0.00 | **−$405.00** | $405.00 |
+| Timing         | Entries                          | held  | available    | paid out |
+| -------------- | -------------------------------- | ----- | ------------ | -------- |
+| Before release | `held +40500`, `refunded −40500` | $0.00 | $0.00        | $0.00    |
+| After release  | + `released +40500`              | $0.00 | $0.00        | $0.00    |
+| After payout   | + `paid_out −40500`              | $0.00 | **−$405.00** | $405.00  |
 
 "Available drops" in timing 2 is visible with a second released sale in the
 same balance: `test/models/ledger_entry_test.rb` builds that case and asserts

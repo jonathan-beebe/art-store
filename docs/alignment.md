@@ -42,36 +42,36 @@ Rules:
 Prefix table (one prefix per domain table; a table absent in a prototype is
 simply unused there):
 
-| Table | Prefix |
-| --- | --- |
-| admins | `adm` |
-| sellers | `sel` |
-| customers | `cus` |
-| customer_merges | `cmg` |
-| customer_blocks | `blk` |
-| magic_links | `mlk` |
-| listings | `lst` |
-| listing_events | `lev` |
-| listing_faqs | `faq` |
-| listing_removals | `rmv` |
-| carts | `crt` |
-| cart_items | `cti` |
-| favorites | `fav` |
-| orders | `ord` |
-| order_items | `oit` |
-| payments | `pay` |
-| refunds | `rfd` |
-| fulfillments | `ful` |
-| ledger_entries | `led` |
-| payouts | `pyt` |
-| conversations | `cnv` |
-| messages | `msg` |
-| notifications | `ntf` |
-| outbox_messages | `obx` |
-| page_view_counts | `pvc` |
-| rate_limit_windows | `rlw` |
-| sessions (the `sid` cookie value, §2) | `ses` |
-| transactions (the `txn_id` log field, §2) | `txn` |
+| Table                                     | Prefix |
+| ----------------------------------------- | ------ |
+| admins                                    | `adm`  |
+| sellers                                   | `sel`  |
+| customers                                 | `cus`  |
+| customer_merges                           | `cmg`  |
+| customer_blocks                           | `blk`  |
+| magic_links                               | `mlk`  |
+| listings                                  | `lst`  |
+| listing_events                            | `lev`  |
+| listing_faqs                              | `faq`  |
+| listing_removals                          | `rmv`  |
+| carts                                     | `crt`  |
+| cart_items                                | `cti`  |
+| favorites                                 | `fav`  |
+| orders                                    | `ord`  |
+| order_items                               | `oit`  |
+| payments                                  | `pay`  |
+| refunds                                   | `rfd`  |
+| fulfillments                              | `ful`  |
+| ledger_entries                            | `led`  |
+| payouts                                   | `pyt`  |
+| conversations                             | `cnv`  |
+| messages                                  | `msg`  |
+| notifications                             | `ntf`  |
+| outbox_messages                           | `obx`  |
+| page_view_counts                          | `pvc`  |
+| rate_limit_windows                        | `rlw`  |
+| sessions (the `sid` cookie value, §2)     | `ses`  |
+| transactions (the `txn_id` log field, §2) | `txn`  |
 
 Generation per stack (the maker decides; these are the platform-first
 options): Node — an owned ~30-line generator over `node:crypto`
@@ -91,21 +91,32 @@ prototype. No prose logs, no per-environment format switch.
 
 ### 2.1 Payload
 
-| Field | Type | Always | Meaning |
-| --- | --- | --- | --- |
-| `ts` | string | yes | ISO-8601 UTC with milliseconds, `Z` suffix |
-| `level` | string | yes | `debug` \| `info` \| `warn` \| `error` |
-| `event` | string | yes | dotted name from §2.3, e.g. `order.place` |
-| `phase` | string | yes | `will` \| `doing` \| `did` \| `refused` \| `failed` |
-| `msg` | string | yes | one human sentence, present tense for `will`/`doing`, past for `did` |
-| `request_id` | string | on requests | one per HTTP request; echoed as `X-Request-Id` response header; honoured from an incoming `X-Request-Id` only when it matches `^[A-Za-z0-9_-]{1,64}$` |
-| `session_id` | string | on requests | value of the `sid` cookie (`ses_<ulid>`), minted on the first response a browser gets and kept for a year, unchanged by sign-in/out; carried from the point the session is available — a framework's outermost request line may carry `request_id` alone |
-| `actor_type` | string | when known | `seller` \| `customer` \| `admin` \| `system` |
-| `actor_id` | string | when known | the actor's prefixed id; an anonymous customer's `cus_…` counts as known |
-| `txn_id` | string | inside a unit of work | `txn_<ulid>` minted when an action's transaction opens; every line inside it carries the same value |
-| `data` | object | when useful | entity ids and the small facts the line is about (`order_id`, `amount_cents`, `status_from`, `status_to`, …). Ids are prefixed ids. |
-| `error` | object | on `failed` | `{ "type": "<class or code>", "message": "<text>" }` and, in development, `"stack"` |
-| `duration_ms` | number | on `did`/`refused`/`failed` when a `will` preceded it | wall time since the `will` line |
+| Field         | Type   | Always                                                | Meaning                                                           |
+| ------------- | ------ | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| `ts`          | string | yes                                                   | ISO-8601 UTC with milliseconds, `Z` suffix                        |
+| `level`       | string | yes                                                   | `debug` \| `info` \| `warn` \| `error`                            |
+| `event`       | string | yes                                                   | dotted name from §2.3, e.g. `order.place`                         |
+| `phase`       | string | yes                                                   | `will` \| `doing` \| `did` \| `refused` \| `failed`               |
+| `msg`         | string | yes                                                   | one human sentence, present tense for `will`/`doing`, past for    |
+|               |        |                                                       | `did`                                                             |
+| `request_id`  | string | on requests                                           | one per HTTP request; echoed as `X-Request-Id` response header;   |
+|               |        |                                                       | honoured from an incoming `X-Request-Id` only when it matches     |
+|               |        |                                                       | `^[A-Za-z0-9_-]{1,64}$`                                           |
+| `session_id`  | string | on requests                                           | value of the `sid` cookie (`ses_<ulid>`), minted on the first     |
+|               |        |                                                       | response a browser gets and kept for a year, unchanged by         |
+|               |        |                                                       | sign-in/out; carried from the point the session is available — a  |
+|               |        |                                                       | framework's outermost request line may carry `request_id` alone   |
+| `actor_type`  | string | when known                                            | `seller` \| `customer` \| `admin` \| `system`                     |
+| `actor_id`    | string | when known                                            | the actor's prefixed id; an anonymous customer's `cus_…` counts   |
+|               |        |                                                       | as known                                                          |
+| `txn_id`      | string | inside a unit of work                                 | `txn_<ulid>` minted when an action's transaction opens; every     |
+|               |        |                                                       | line inside it carries the same value                             |
+| `data`        | object | when useful                                           | entity ids and the small facts the line is about (`order_id`,     |
+|               |        |                                                       | `amount_cents`, `status_from`, `status_to`, …). Ids are prefixed  |
+|               |        |                                                       | ids.                                                              |
+| `error`       | object | on `failed`                                           | `{ "type": "<class or code>", "message": "<text>" }` and, in      |
+|               |        |                                                       | development, `"stack"`                                            |
+| `duration_ms` | number | on `did`/`refused`/`failed` when a `will` preceded it | wall time since the `will` line                                   |
 
 Additional keys are allowed at the top level for framework-native fields the
 stack's logger adds (Fastify's `pid`/`hostname`, Rails' `pid`), but nothing in
@@ -140,29 +151,38 @@ Example, one checkout:
 `<subject>.<verb>` in the imperative; the `phase` field carries tense. Every
 prototype emits every event below that its features support.
 
-| Event | Emitted by |
-| --- | --- |
-| `http.request` | every request (will on entry, did on response), including 404s and CSRF refusals |
-| `magic_link.request` | sign-in form submit; `refused` when the address is not admitted or the rate limit trips |
-| `magic_link.consume` | verification; `refused` on expired/used/foreign token |
-| `customer.merge` | anonymous → verified fold |
-| `listing.create`, `listing.update`, `listing.publish`, `listing.transition` | seller portal; `transition` carries `status_from`/`status_to` |
-| `listing.view` | the storefront listing page, once per (listing, customer, hour) collapse — log the collapse as `refused` at `debug` |
-| `cart.add`, `cart.update`, `cart.remove` | storefront |
-| `order.place` | checkout; `refused` carries the blocked lines |
-| `order.pay` | card submit; `did` on approval, `refused` on decline with `decline_reason` |
-| `order.cancel` | customer cancel, admin cancel, and the stale sweep (`actor_type` says which) |
-| `order.sweep` | the stale-order sweep run (`doing` per order, `did` with the count) |
-| `fulfillment.ship`, `fulfillment.deliver`, `fulfillment.decline` | seller / customer / seller |
-| `refund.issue` | seller decline and admin refund; `data` names `refund_id`, `fulfillment_id`, `amount_cents`, `reason` |
-| `ledger.write` | every ledger entry (`debug`) |
-| `payout.run`, `payout.pay` | the weekly payout: one `run` with the period, one `pay` per seller |
-| `conversation.open`, `message.post`, `faq.publish`, `faq.unpublish` | messaging |
-| `notification.write`, `notification.deliver` | in-app write and transport delivery |
-| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | admin |
-| `rate_limit.exceed` | any limit trip (`warn`), `data` carries `limit`, `key`, `retry_after_seconds` |
-| `migrate.run`, `migrate.apply`, `seed.run` | CLI |
-| `app.boot`, `app.shutdown` | process lifecycle |
+| Event                                                                   | Emitted by                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `http.request`                                                          | every request (will on entry, did on response), including 404s and CSRF  |
+|                                                                         | refusals                                                                 |
+| `magic_link.request`                                                    | sign-in form submit; `refused` when the address is not admitted or the   |
+|                                                                         | rate limit trips                                                         |
+| `magic_link.consume`                                                    | verification; `refused` on expired/used/foreign token                    |
+| `customer.merge`                                                        | anonymous → verified fold                                                |
+| `listing.create`, `listing.update`, `listing.publish`,                  | seller portal; `transition` carries `status_from`/`status_to`            |
+| `listing.transition`                                                    |                                                                          |
+| `listing.view`                                                          | the storefront listing page, once per (listing, customer, hour) collapse |
+|                                                                         | — log the collapse as `refused` at `debug`                               |
+| `cart.add`, `cart.update`, `cart.remove`                                | storefront                                                               |
+| `order.place`                                                           | checkout; `refused` carries the blocked lines                            |
+| `order.pay`                                                             | card submit; `did` on approval, `refused` on decline with                |
+|                                                                         | `decline_reason`                                                         |
+| `order.cancel`                                                          | customer cancel, admin cancel, and the stale sweep (`actor_type` says    |
+|                                                                         | which)                                                                   |
+| `order.sweep`                                                           | the stale-order sweep run (`doing` per order, `did` with the count)      |
+| `fulfillment.ship`, `fulfillment.deliver`, `fulfillment.decline`        | seller / customer / seller                                               |
+| `refund.issue`                                                          | seller decline and admin refund; `data` names `refund_id`,               |
+|                                                                         | `fulfillment_id`, `amount_cents`, `reason`                               |
+| `ledger.write`                                                          | every ledger entry (`debug`)                                             |
+| `payout.run`, `payout.pay`                                              | the weekly payout: one `run` with the period, one `pay` per seller       |
+| `conversation.open`, `message.post`, `faq.publish`, `faq.unpublish`     | messaging                                                                |
+| `notification.write`, `notification.deliver`                            | in-app write and transport delivery                                      |
+| `moderation.remove_listing`, `moderation.lift_listing_removal`,         | admin                                                                    |
+| `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
+| `rate_limit.exceed`                                                     | any limit trip (`warn`), `data` carries `limit`, `key`,                  |
+|                                                                         | `retry_after_seconds`                                                    |
+| `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
+| `app.boot`, `app.shutdown`                                              | process lifecycle                                                        |
 
 The vocabulary is closed: a write with no event above stays silent rather than
 minting a name one prototype has and the others lack. Reserved for a future
@@ -175,15 +195,17 @@ Every limit has a name, an env variable, and a key. Values are
 variable to `off` disables that limit. Defaults apply when the variable is
 unset. Limits are read at boot; a malformed value refuses to boot.
 
-| Name | Env | Default | Keyed by | Guards |
-| --- | --- | --- | --- | --- |
-| `magic_link_request` | `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | email address (lowercased) and, separately, client ip | every sign-in POST on all three sites, and guest checkout's implicit link |
-| `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip | the verification GET |
-| `message_post` | `RATE_LIMIT_MESSAGE_POST` | `30/1h` | actor id | every message POST |
-| `conversation_open` | `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | actor id | listing question, support, fulfillment thread opens |
-| `checkout` | `RATE_LIMIT_CHECKOUT` | `10/1h` | customer id | POST checkout |
-| `payment_attempt` | `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | order id | POST pay |
-| `listing_write` | `RATE_LIMIT_LISTING_WRITE` | `60/1h` | seller id | listing create/update/upload |
+| Name                 | Env                             | Default  | Keyed by                              | Guards                                 |
+| -------------------- | ------------------------------- | -------- | ------------------------------------- | -------------------------------------- |
+| `magic_link_request` | `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m`  | email address (lowercased) and,       | every sign-in POST on all three sites, |
+|                      |                                 |          | separately, client ip                 | and guest checkout's implicit link     |
+| `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip                             | the verification GET                   |
+| `message_post`       | `RATE_LIMIT_MESSAGE_POST`       | `30/1h`  | actor id                              | every message POST                     |
+| `conversation_open`  | `RATE_LIMIT_CONVERSATION_OPEN`  | `10/1h`  | actor id                              | listing question, support, fulfillment |
+|                      |                                 |          |                                       | thread opens                           |
+| `checkout`           | `RATE_LIMIT_CHECKOUT`           | `10/1h`  | customer id                           | POST checkout                          |
+| `payment_attempt`    | `RATE_LIMIT_PAYMENT_ATTEMPT`    | `5/15m`  | order id                              | POST pay                               |
+| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | listing create/update/upload           |
 
 Behaviour on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
 HTML page ("Too many requests — try again in N minutes"; for a form, the form
@@ -318,21 +340,29 @@ The Node admin site (`prototype/node/docs/admin.md`) is the reference. PHP and
 Rails implement the same pages and actions with the same filters; page
 layout is per stack.
 
-| Path | Content |
-| --- | --- |
-| `/admin` | tallies for every listing / order / fulfillment status (zero rows still listed), platform money (held, available, paid out, fees earned, fees refunded, refunded), page views this week |
-| `/admin/sellers`, `/admin/sellers/:id` | list with balances folded once; detail with listings, fulfillments, payouts, ledger balance |
-| `/admin/customers?standing=all\|verified\|anonymous\|blocked`, `/admin/customers/:id` | anonymous rows included; detail with orders, favorites, cart, block history, merge history |
-| `/admin/listings?status=&seller=&removed=any\|removed\|visible`, `/admin/listings/:id` | across sellers |
-| `/admin/orders?status=&customer=`, `/admin/orders/:id` | detail with items, payments, fulfillments, refunds, actions (§4.4) |
-| `/admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id` | detail with refund action |
-| `/admin/accounting` | per-seller reconciliation (held / available / paid out / refunded), fees earned and refunded |
-| `/admin/ledger?seller=&type=` | ledger browser with folded totals for the filtered set |
-| `/admin/payouts?seller=`, `POST /admin/payouts` | payout history; run the weekly payout for every seller (`as_of` optional) |
-| `/admin/stats` | page views by day (7-day window) and by route pattern, listing event tallies |
-| `POST /admin/listings/:id/removals`, `…/removals/lift` | temporary / permanent removal with reason; lift refused for permanent |
-| `POST /admin/customers/:id/blocks`, `…/blocks/lift` | block with reason; block removes cart add, checkout, pay, message post |
-| `/admin/messages`, `/admin/messages/:id` | existing |
+| Path                                                                    | Content                                                                  |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `/admin`                                                                | tallies for every listing / order / fulfillment status (zero rows still  |
+|                                                                         | listed), platform money (held, available, paid out, fees earned, fees    |
+|                                                                         | refunded, refunded), page views this week                                |
+| `/admin/sellers`, `/admin/sellers/:id`                                  | list with balances folded once; detail with listings, fulfillments,      |
+|                                                                         | payouts, ledger balance                                                  |
+| `/admin/customers?standing=all\|verified\|anonymous\|blocked`,          | anonymous rows included; detail with orders, favorites, cart, block      |
+| `/admin/customers/:id`                                                  | history, merge history                                                   |
+| `/admin/listings?status=&seller=&removed=any\|removed\|visible`,        | across sellers                                                           |
+| `/admin/listings/:id`                                                   |                                                                          |
+| `/admin/orders?status=&customer=`, `/admin/orders/:id`                  | detail with items, payments, fulfillments, refunds, actions (§4.4)       |
+| `/admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id`        | detail with refund action                                                |
+| `/admin/accounting`                                                     | per-seller reconciliation (held / available / paid out / refunded), fees |
+|                                                                         | earned and refunded                                                      |
+| `/admin/ledger?seller=&type=`                                           | ledger browser with folded totals for the filtered set                   |
+| `/admin/payouts?seller=`, `POST /admin/payouts`                         | payout history; run the weekly payout for every seller (`as_of`          |
+|                                                                         | optional)                                                                |
+| `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
+|                                                                         | tallies                                                                  |
+| `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
+| `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
+| `/admin/messages`, `/admin/messages/:id`                                | existing                                                                 |
 
 Decisions carried by this table:
 
@@ -357,21 +387,22 @@ Decisions carried by this table:
 Every prototype `Makefile` answers these targets with these meanings. A
 target the stack has no use for still exists and prints one line saying so.
 
-| Target | Meaning |
-| --- | --- |
-| `up`, `down`, `build`, `logs`, `shell` | the compose stack |
-| `test` | the full suite, with the stack's coverage gate |
-| `smoke` | the smoke walk only |
-| `coverage` | the suite with an HTML/LCOV report |
-| `lint` | style + static analysis, read-only (`eslint`+`tsc`; `pint --test`+`phpstan`; `rubocop`) |
-| `lint-fix` | the auto-fixable subset applied |
-| `assets` | build CSS/JS |
-| `check` | `lint` → `assets` → `test`; the commit gate |
-| `migrate`, `fresh`, `seed` | schema and data |
-| `routes` | print the route table |
-| `payouts`, `sweep`, `outbox` | the scheduled jobs, by hand (`AS_OF=`, `DIR=` as today) |
-| `image`, `run-image` | build the production image (the Dockerfile's `runtime` target); run it standalone on a host port that does not collide with `up`'s |
-| `hooks` | (root Makefile) `git config core.hooksPath .githooks` |
+| Target                                 | Meaning                                                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `up`, `down`, `build`, `logs`, `shell` | the compose stack                                                                                         |
+| `test`                                 | the full suite, with the stack's coverage gate                                                            |
+| `smoke`                                | the smoke walk only                                                                                       |
+| `coverage`                             | the suite with an HTML/LCOV report                                                                        |
+| `lint`                                 | style + static analysis, read-only (`eslint`+`tsc`; `pint --test`+`phpstan`; `rubocop`)                   |
+| `lint-fix`                             | the auto-fixable subset applied                                                                           |
+| `assets`                               | build CSS/JS                                                                                              |
+| `check`                                | `lint` → `assets` → `test`; the commit gate                                                               |
+| `migrate`, `fresh`, `seed`             | schema and data                                                                                           |
+| `routes`                               | print the route table                                                                                     |
+| `payouts`, `sweep`, `outbox`           | the scheduled jobs, by hand (`AS_OF=`, `DIR=` as today)                                                   |
+| `image`, `run-image`                   | build the production image (the Dockerfile's `runtime` target); run it standalone on a host port that     |
+|                                        | does not collide with `up`'s                                                                              |
+| `hooks`                                | (root Makefile) `git config core.hooksPath .githooks`                                                     |
 
 `COMPOSE_PROJECT_NAME` is exported by every prototype Makefile as
 `<checkout-dir>-<prototype>` so a worktree and the main checkout never share a

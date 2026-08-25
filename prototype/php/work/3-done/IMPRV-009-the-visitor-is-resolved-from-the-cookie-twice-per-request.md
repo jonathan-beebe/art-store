@@ -17,12 +17,12 @@ and neither middleware knows the other asked it.
 
 Measured (RSRCH-001 M7), returning visitor:
 
-| page | queries |
-|---|---|
-| `/` | 16 |
-| `/cart` | 13 |
-| `/art/{slug}` | 18 |
-| `/favorites` | 13 |
+| page          | queries |
+| ------------- | ------- |
+| `/`           | 16      |
+| `/cart`       | 13      |
+| `/art/{slug}` | 18      |
+| `/favorites`  | 13      |
 
 Two of each of those counts are the duplicate. The SQL for `GET /`, in order,
 with the pair repeated at 4 and 5:
@@ -116,12 +116,12 @@ Both columns measured 2026-08-24 against the same seeded database, the
 `after` column with the change applied and the `before` column with it
 stashed, so the two are the same data.
 
-| page | before | after | ticket target |
-|---|---|---|---|
-| `/` | 16 | **14** | 14 |
-| `/cart` | 13 | **11** | 11 |
-| `/art/{slug}` | 17 | **15** | 16 |
-| `/favorites` | 13 | **11** | 11 |
+| page          | before | after  | ticket target |
+| ------------- | ------ | ------ | ------------- |
+| `/`           | 16     | **14** | 14            |
+| `/cart`       | 13     | **11** | 11            |
+| `/art/{slug}` | 17     | **15** | 16            |
+| `/favorites`  | 13     | **11** | 11            |
 
 `/art/{slug}` measured 17 rather than the 18 RSRCH-001 recorded. The
 unchanged code measures 17 on today's database, which holds 3196 customers

@@ -64,15 +64,15 @@ Read `docs/architecture.md` → Identity.
 
 ### Routes (`routes/auth.php`)
 
-| Name | Method | Path |
-| --- | --- | --- |
-| `auth.seller.login` | GET | `/seller/login` |
-| `auth.seller.send` | POST | `/seller/login` |
-| `auth.seller.logout` | POST | `/seller/logout` |
-| `auth.customer.login` | GET | `/login` |
-| `auth.customer.send` | POST | `/login` |
-| `auth.customer.logout` | POST | `/logout` |
-| `auth.magic.verify` | GET | `/auth/magic/{token}` |
+| Name                   | Method | Path                  |
+| ---------------------- | ------ | --------------------- |
+| `auth.seller.login`    | GET    | `/seller/login`       |
+| `auth.seller.send`     | POST   | `/seller/login`       |
+| `auth.seller.logout`   | POST   | `/seller/logout`      |
+| `auth.customer.login`  | GET    | `/login`              |
+| `auth.customer.send`   | POST   | `/login`              |
+| `auth.customer.logout` | POST   | `/logout`             |
+| `auth.magic.verify`    | GET    | `/auth/magic/{token}` |
 
 ### Decisions
 

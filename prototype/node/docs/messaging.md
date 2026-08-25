@@ -18,12 +18,13 @@ subject column, if any, names what the thread is about
 
 ## Conversation kinds
 
-| `kind` | Participants | Subject column | Opened by |
-| --- | --- | --- | --- |
-| `admin_seller` | `adminId` ↔ `sellerId` | — | `GET /seller/support`, `POST /admin/sellers/:id/messages` |
-| `admin_customer` | `adminId` ↔ `customerId` | — | `GET /support`, `POST /admin/customers/:id/messages` |
-| `fulfillment` | `sellerId` ↔ `customerId` | `fulfillmentId` | `POST /seller/orders/:id/messages`, `POST /orders/:id/fulfillments/:fulfillmentId/messages` |
-| `listing_question` | `sellerId` ↔ `customerId` | `listingId` | `POST /art/:slug/questions` |
+| `kind`             | Participants              | Subject column  | Opened by                                                                       |
+| ------------------ | ------------------------- | --------------- | ------------------------------------------------------------------------------- |
+| `admin_seller`     | `adminId` ↔ `sellerId`    | —               | `GET /seller/support`, `POST /admin/sellers/:id/messages`                       |
+| `admin_customer`   | `adminId` ↔ `customerId`  | —               | `GET /support`, `POST /admin/customers/:id/messages`                            |
+| `fulfillment`      | `sellerId` ↔ `customerId` | `fulfillmentId` | `POST /seller/orders/:id/messages`,                                             |
+|                    |                           |                 | `POST /orders/:id/fulfillments/:fulfillmentId/messages`                         |
+| `listing_question` | `sellerId` ↔ `customerId` | `listingId`     | `POST /art/:slug/questions`                                                     |
 
 Every kind has exactly two participants. That is the invariant the rest of the
 design rests on: one `read_at` per message is unambiguous, because the reader is

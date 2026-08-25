@@ -7,20 +7,34 @@ Rules (see CLAUDE.md "Markdown Table Formatting"):
 - Keep the whole table within a width budget (default 150 characters).
 - A cell that will not fit wraps onto continuation rows — extra physical
   ``|`` rows with the other columns left empty — rather than moving content
-  out of the table. Markdown links are never split across rows.
+  out of the table. Markdown links and inline code spans are never split
+  across rows.
 - Fenced code blocks pass through untouched.
 
 Formatting is idempotent: continuation rows are re-joined into logical rows
 before measuring, so re-running (or re-running with a different width)
-re-flows tables instead of compounding old wraps.
+re-flows tables instead of compounding old wraps. Wrapping only ever
+happens when a table is squeezed to the width budget, so a table whose
+separator row spans less than the budget cannot contain continuation rows
+and is parsed row-for-row. In a budget-wide table, a continuation is
+recognized by the greedy-wrap invariant — none of the row's cells' first
+tokens would have fit at the end of the previous physical line within the
+separator's column widths — which covers wraps in any column, the first
+included. Without a separator row, only the empty-first-cell shape is
+recognized.
 
 Known limitations, deliberate:
 
 - Cell width is ``len()`` — double-width characters (CJK, some emoji)
   will misalign in terminals.
-- A hand-written body row whose first cell is intentionally empty is
-  indistinguishable from a continuation row and merges into the row above.
-- One table is expected to be one uninterrupted run of ``|`` lines.
+- In a budget-wide table, a hand-written row that satisfies the
+  continuation test (every cell full to the brim, the next row's first
+  tokens too long to fit) merges into the row above.
+- Re-running with a smaller ``--max-width`` than the one that produced the
+  file re-flows correctly; a larger one can put a previously squeezed
+  table under the gate and freeze its old wraps as rows.
+- One table is expected to be one uninterrupted run of ``|`` lines, and its
+  separator is the first all-dash row after the first physical row.
 
 Usage: format_tables.py [--check] [--max-width N] FILE [FILE...]
 """
@@ -36,9 +50,14 @@ DEFAULT_MAX_WIDTH = 150
 MIN_COLUMN_WIDTH = 12  # never squeeze a column narrower than this
 
 LINK = r"\[[^\]]*\]\([^)]*\)"
-# A token is either a whitespace-delimited run containing a markdown link
-# (link plus anything glued to it stays atomic) or a plain word.
-TOKEN_RE = re.compile(rf"\S*(?:{LINK})\S*|\S+")
+CODE = r"`[^`]+`"
+# A token is either a whitespace-delimited run containing markdown links or
+# inline code spans (the atoms plus anything glued to them stay atomic, a
+# code span's internal spaces included) or a plain word. The glue around an
+# atom excludes backticks so a span always opens at the run's first backtick
+# and closes at the next one — greedy glue could otherwise swallow an
+# opening backtick and pair the remaining ones across the cell.
+TOKEN_RE = re.compile(rf"(?:[^\s`]*(?:{LINK}|{CODE}))+[^\s`]*|\S+")
 SEPARATOR_CELL_RE = re.compile(r":?-{3,}:?")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 
@@ -102,40 +121,109 @@ def parse_alignment(cell: str) -> str:
     return ""
 
 
-def join_continuations(rows: list[list[str]]) -> list[list[str]]:
+def separator_widths(line: str) -> list[int]:
+    """Column widths a separator row encodes in its physical cell widths.
+
+    ``render_separator`` emits each cell at exactly the allocated width, so
+    a formatted table carries its allocation here. A hand-written narrow
+    separator (``|---|``) yields the dash run's own length."""
+    stripped = line.strip()
+    cells = re.split(r"(?<!\\)\|", stripped)
+    if cells and stripped.startswith("|"):
+        cells = cells[1:]
+    if cells and stripped.endswith("|") and not stripped.endswith("\\|"):
+        cells = cells[:-1]
+    return [max(len(cell) - 2, len(cell.strip())) for cell in cells]
+
+
+def continues(last: list[str], row: list[str], widths: list[int]) -> bool:
+    """True when ``row`` is a continuation of the physical row ``last``.
+
+    The greedy-wrap invariant of :func:`render_row`: a continuation chunk
+    exists only because its first token would not fit at the end of the
+    previous physical line. Every non-empty cell must satisfy it; the
+    previous cell must itself be a plausible chunk (within the column
+    width, or a single over-long atomic token). A chunk can also only live
+    in a column that :func:`allocate` squeezed, and squeezed columns always
+    end at the table's widest allocation (±1 remainder), never below
+    ``MIN_COLUMN_WIDTH`` — a non-empty cell anywhere else marks a real
+    row."""
+    if not any(row):
+        return False
+    ceiling = max(widths, default=0)
+    for i, cell in enumerate(row):
+        if not cell:
+            continue
+        prev = last[i] if i < len(last) else ""
+        width = widths[i] if i < len(widths) else 0
+        if width < MIN_COLUMN_WIDTH or width < ceiling - 1:
+            return False
+        if not prev:
+            return False
+        if len(prev) > width and len(tokenize(prev)) > 1:
+            return False
+        if len(prev) + 1 + len(tokenize(cell)[0]) <= width:
+            return False
+    return True
+
+
+def join_continuations(
+    rows: list[list[str]], widths: list[int] | None = None
+) -> list[list[str]]:
     """Re-merge physical continuation rows into logical rows.
 
-    A row whose first cell is empty (and that has any content at all) is a
-    continuation of the previous row — the shape this formatter itself
-    emits. Joining first makes formatting idempotent and lets a table
-    re-flow when the width budget changes.
+    With ``widths`` (the separator row's column widths), a row is a
+    continuation when :func:`continues` says so — the shape this formatter
+    emits, whichever column wrapped. Without widths, only a row whose first
+    cell is empty (and that has any content) is treated as a continuation.
+    Joining first makes formatting idempotent and lets a table re-flow when
+    the width budget changes.
     """
     logical: list[list[str]] = []
+    last_physical: list[str] = []
     for row in rows:
-        if logical and row and row[0] == "" and any(row):
+        if logical and row and (
+            continues(last_physical, row, widths)
+            if widths is not None
+            else (row[0] == "" and any(row))
+        ):
             previous = logical[-1]
             for i, cell in enumerate(row):
                 if cell:
                     previous[i] = f"{previous[i]} {cell}".strip()
         else:
             logical.append(list(row))
+        last_physical = row
     return logical
 
 
-def parse_table(lines: list[str]) -> Table:
+def parse_table(lines: list[str], max_width: int = DEFAULT_MAX_WIDTH) -> Table:
     """Parse a run of ``|`` lines into a :class:`Table`."""
     parsed = [split_row(line) for line in lines]
     columns = max(len(row) for row in parsed)
     for row in parsed:
         row.extend([""] * (columns - len(row)))
 
-    # Only the second row can be a separator (markdown structure); a body
-    # cell that happens to contain `---` is content, not a separator.
-    if len(parsed) > 1 and is_separator_row(parsed[1]):
+    # The separator is the first all-dash row after the first physical row
+    # (a wrapped header spans several physical rows before it); a body cell
+    # that happens to contain `---` inside a wider row is content.
+    sep_index = next(
+        (i for i, row in enumerate(parsed) if i > 0 and is_separator_row(row)),
+        None,
+    )
+    if sep_index is not None:
+        widths = separator_widths(lines[sep_index])
+        # Wrapping only happens once a table is squeezed to the budget; a
+        # narrower table holds no continuation rows, and running the
+        # invariant test against its narrow columns would merge real rows.
+        if sum(widths) + 3 * len(widths) + 1 < max_width:
+            join = lambda rows: [list(row) for row in rows]  # noqa: E731
+        else:
+            join = lambda rows: join_continuations(rows, widths)  # noqa: E731
         return Table(
-            header_rows=join_continuations(parsed[:1]),
-            alignments=[parse_alignment(cell) for cell in parsed[1]],
-            body_rows=join_continuations(parsed[2:]),
+            header_rows=join(parsed[:sep_index]),
+            alignments=[parse_alignment(cell) for cell in parsed[sep_index]],
+            body_rows=join(parsed[sep_index + 1 :]),
         )
     return Table(body_rows=join_continuations(parsed))
 
@@ -265,7 +353,7 @@ def format_markdown(text: str, max_width: int = DEFAULT_MAX_WIDTH) -> str:
 
     def flush() -> None:
         if table:
-            out.extend(format_table(parse_table(table), max_width))
+            out.extend(format_table(parse_table(table, max_width), max_width))
             table.clear()
 
     for line in text.split("\n"):

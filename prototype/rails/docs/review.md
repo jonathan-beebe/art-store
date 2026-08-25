@@ -10,18 +10,28 @@ a stated gap; **missing** — not built.
 
 ## Seller portal
 
-| Requirement | Status | Route helper | Test |
-| --- | --- | --- | --- |
-| Create an account | done | `seller_login`, `seller_send_magic_link`, `verify_magic_link` | `Auth::SellerSessionsControllerTest`, `Auth::MagicLinksControllerTest` |
-| Add items straight after sign-in | done | `new_seller_listing`, `seller_listings` (POST) | `Seller::ListingsControllerTest` |
-| Manage listings | done | `seller_listings`, `edit_seller_listing`, `seller_listing` (PATCH), `seller_listing_status` | `Seller::ListingsControllerTest`, `Seller::ListingStatusesControllerTest` |
-| Activity per listing: views, favorites, cart adds | done | `seller_listing` | `Seller::ListingsControllerTest`, `ListingTest`, `ListingEventTest` |
-| Reports on sales | done | `seller_earnings` (Sales table) | `Seller::EarningsControllerTest` |
-| Tools for fulfillment | done | `seller_orders`, `seller_order`, `seller_order_shipment` | `Seller::OrdersControllerTest`, `Seller::ShipmentsControllerTest` |
-| Accumulated earnings and payouts | done | `seller_earnings` (balances and history; the payout run is a platform action, `admin_payouts`) | `Seller::EarningsControllerTest`, `Admin::PayoutsControllerTest`, `PayoutTest` |
-| Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `root` | `SmokeTest` |
-| Magic links, no passwords | done | `verify_magic_link` | `Auth::MagicLinksControllerTest` |
-| Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `layouts/seller` | none (visual) |
+| Requirement                                 | Status | Route helper                                 | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Create an account                           | done   | `seller_login`, `seller_send_magic_link`,    | `Auth::SellerSessionsControllerTest`,        |
+|                                             |        | `verify_magic_link`                          | `Auth::MagicLinksControllerTest`             |
+| Add items straight after sign-in            | done   | `new_seller_listing`, `seller_listings`      | `Seller::ListingsControllerTest`             |
+|                                             |        | (POST)                                       |                                              |
+| Manage listings                             | done   | `seller_listings`, `edit_seller_listing`,    | `Seller::ListingsControllerTest`,            |
+|                                             |        | `seller_listing` (PATCH),                    | `Seller::ListingStatusesControllerTest`      |
+|                                             |        | `seller_listing_status`                      |                                              |
+| Activity per listing: views, favorites,     | done   | `seller_listing`                             | `Seller::ListingsControllerTest`,            |
+| cart adds                                   |        |                                              | `ListingTest`, `ListingEventTest`            |
+| Reports on sales                            | done   | `seller_earnings` (Sales table)              | `Seller::EarningsControllerTest`             |
+| Tools for fulfillment                       | done   | `seller_orders`, `seller_order`,             | `Seller::OrdersControllerTest`,              |
+|                                             |        | `seller_order_shipment`                      | `Seller::ShipmentsControllerTest`            |
+| Accumulated earnings and payouts            | done   | `seller_earnings` (balances and history; the | `Seller::EarningsControllerTest`,            |
+|                                             |        | payout run is a platform action,             | `Admin::PayoutsControllerTest`, `PayoutTest` |
+|                                             |        | `admin_payouts`)                             |                                              |
+| Flow: account → add items → `for_sale`      | done   | the chain above plus `root`                  | `SmokeTest`                                  |
+| reaches the storefront                      |        |                                              |                                              |
+| Magic links, no passwords                   | done   | `verify_magic_link`                          | `Auth::MagicLinksControllerTest`             |
+| Theme: vanilla controls, system type,       | done   | `layouts/seller`                             | none (visual)                                |
+| semantic HTML, stock Tailwind               |        |                                              |                                              |
 
 The portal renders `table`, `dl`, `fieldset`/`legend`, `address` and `caption`
 with no component library and no font download. `app/assets/tailwind/application.css`
@@ -29,54 +39,106 @@ is `@import "tailwindcss"` and nothing else.
 
 ## Customer site
 
-| Requirement | Status | Route helper | Test |
-| --- | --- | --- | --- |
-| Browse | done | `root` (search, medium filter, pagination), `shop_listing` | `Shop::StorefrontControllerTest`, `Shop::ListingsControllerTest`, `ListingTest`, `PageTest` |
-| Favorite | done | `shop_favorites`, `shop_toggle_favorite` | `Shop::FavoritesControllerTest`, `CustomerTest` |
-| Cart | done | `shop_cart`, `shop_add_to_cart`, `shop_remove_from_cart` | `Shop::CartsControllerTest`, `Shop::CartItemsControllerTest`, `CartTest`, `CartItemTest` |
-| Purchase | done | `shop_checkout`, `shop_place_order`, `shop_pay_order` | `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest` |
-| Anonymous customer id per visitor | done | every storefront route, via `CustomerIdentity` | `CustomerIdentityConcernTest` |
-| Anonymous ids merge into the account on sign-in | done | `verify_magic_link` | `CustomerTest`, `Auth::MagicLinksControllerTest` |
-| Magic links, no passwords | done | `customer_login`, `customer_send_magic_link` | `Auth::CustomerSessionsControllerTest` |
-| Fake card 4242 4242 4242 4242 | done | `shop_pay_order` | `FakeCardTest` |
-| Failed payments | done | `shop_pay_order`, retry form on `shop_order` | `Shop::OrderPaymentsControllerTest`, `OrderTest`, `OrderLifecycleTest` |
-| Guest checkout, verification before finalizing | done | `shop_place_order` → `verify_magic_link` → `shop_order_payment` | `Shop::CheckoutsControllerTest`, `SmokeTest` |
-| Whole purchase and fulfillment flow mocked | done | the chain above plus `seller_order_shipment`, `shop_confirm_delivery` | `SmokeTest`, `OrderLifecycleTest` |
-| Theme: bright, open, wares over brand | done | `layouts/shop` | none (visual) |
+| Requirement                                 | Status | Route helper                                 | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Browse                                      | done   | `root` (search, medium filter, pagination),  | `Shop::StorefrontControllerTest`,            |
+|                                             |        | `shop_listing`                               | `Shop::ListingsControllerTest`,              |
+|                                             |        |                                              | `ListingTest`, `PageTest`                    |
+| Favorite                                    | done   | `shop_favorites`, `shop_toggle_favorite`     | `Shop::FavoritesControllerTest`,             |
+|                                             |        |                                              | `CustomerTest`                               |
+| Cart                                        | done   | `shop_cart`, `shop_add_to_cart`,             | `Shop::CartsControllerTest`,                 |
+|                                             |        | `shop_remove_from_cart`                      | `Shop::CartItemsControllerTest`, `CartTest`, |
+|                                             |        |                                              | `CartItemTest`                               |
+| Purchase                                    | done   | `shop_checkout`, `shop_place_order`,         | `Shop::CheckoutsControllerTest`,             |
+|                                             |        | `shop_pay_order`                             | `Shop::OrderPaymentsControllerTest`          |
+| Anonymous customer id per visitor           | done   | every storefront route, via                  | `CustomerIdentityConcernTest`                |
+|                                             |        | `CustomerIdentity`                           |                                              |
+| Anonymous ids merge into the account on     | done   | `verify_magic_link`                          | `CustomerTest`,                              |
+| sign-in                                     |        |                                              | `Auth::MagicLinksControllerTest`             |
+| Magic links, no passwords                   | done   | `customer_login`, `customer_send_magic_link` | `Auth::CustomerSessionsControllerTest`       |
+| Fake card 4242 4242 4242 4242               | done   | `shop_pay_order`                             | `FakeCardTest`                               |
+| Failed payments                             | done   | `shop_pay_order`, retry form on `shop_order` | `Shop::OrderPaymentsControllerTest`,         |
+|                                             |        |                                              | `OrderTest`, `OrderLifecycleTest`            |
+| Guest checkout, verification before         | done   | `shop_place_order` → `verify_magic_link` →   | `Shop::CheckoutsControllerTest`, `SmokeTest` |
+| finalizing                                  |        | `shop_order_payment`                         |                                              |
+| Whole purchase and fulfillment flow mocked  | done   | the chain above plus                         | `SmokeTest`, `OrderLifecycleTest`            |
+|                                             |        | `seller_order_shipment`,                     |                                              |
+|                                             |        | `shop_confirm_delivery`                      |                                              |
+| Theme: bright, open, wares over brand       | done   | `layouts/shop`                               | none (visual)                                |
 
 ## Fulfillment, escrow, payout
 
-| Requirement | Status | Route helper | Test |
-| --- | --- | --- | --- |
-| Tell sellers an item sold | done | `seller_notifications` | `Seller::NotificationsControllerTest`, `NotificationTest` |
-| Walk sellers through fulfillment | done | `seller_order`, `seller_order_shipment` | `Seller::ShipmentsControllerTest`, `FulfillmentTest` |
-| Notify customers of shipment | done | `shop_account` inbox, `shop_read_notification` | `Shop::AccountControllerTest`, `Shop::NotificationReadsControllerTest` |
-| Escrow held on payment, released on delivery | done | `shop_confirm_delivery` | `FulfillmentTest`, `LedgerEntryTest` |
-| Report of sold goods and funds due | done | `seller_earnings` | `Seller::EarningsControllerTest` |
-| Pay out at the end of every week | done | `payouts:run`, `admin_payouts` (POST) | `PayoutsTaskTest`, `Admin::PayoutsControllerTest`, `PayoutTest`, `PayoutPeriodTest` |
+| Requirement                                 | Status | Route helper                                 | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Tell sellers an item sold                   | done   | `seller_notifications`                       | `Seller::NotificationsControllerTest`,       |
+|                                             |        |                                              | `NotificationTest`                           |
+| Walk sellers through fulfillment            | done   | `seller_order`, `seller_order_shipment`      | `Seller::ShipmentsControllerTest`,           |
+|                                             |        |                                              | `FulfillmentTest`                            |
+| Notify customers of shipment                | done   | `shop_account` inbox,                        | `Shop::AccountControllerTest`,               |
+|                                             |        | `shop_read_notification`                     | `Shop::NotificationReadsControllerTest`      |
+| Escrow held on payment, released on         | done   | `shop_confirm_delivery`                      | `FulfillmentTest`, `LedgerEntryTest`         |
+| delivery                                    |        |                                              |                                              |
+| Report of sold goods and funds due          | done   | `seller_earnings`                            | `Seller::EarningsControllerTest`             |
+| Pay out at the end of every week            | done   | `payouts:run`, `admin_payouts` (POST)        | `PayoutsTaskTest`,                           |
+|                                             |        |                                              | `Admin::PayoutsControllerTest`,              |
+|                                             |        |                                              | `PayoutTest`, `PayoutPeriodTest`             |
 
 ## Messaging and the admin site
 
 Added after the brief (FEAT-009 … FEAT-014), so these are the feature's own
 claims rather than requirements from `initial-prompt.md`.
 
-| Capability | Status | Route helper | Test |
-| --- | --- | --- | --- |
-| An admin site with a seeded-only account | done | `admin_login`, `admin_root`, `admin_seller`, `admin_customer` | `Auth::AdminSessionsControllerTest`, `Admin::DashboardControllerTest`, `Admin::SellersControllerTest`, `Admin::CustomersControllerTest`, `AdminTest` |
-| A directory over every seller, customer, listing, order and fulfillment | done | `admin_sellers`, `admin_customers`, `admin_listings`, `admin_orders`, `admin_fulfillments` and each `…/:id` — see [`admin.md`](admin.md) | `Admin::SellersControllerTest`, `Admin::CustomersControllerTest`, `Admin::ListingsControllerTest`, `Admin::OrdersControllerTest`, `Admin::FulfillmentsControllerTest` |
-| One conversation record for four kinds | done | — | `ConversationTest`, `MessageTest` |
-| Inbox and thread on all three sites, non-participant answers 404 | done | `shop_conversations`, `seller_conversations`, `admin_conversations` and each `…_conversation` | `Shop::ConversationsControllerTest`, `Seller::ConversationsControllerTest`, `Admin::ConversationsControllerTest` |
-| Reply, with the counterpart notified at their own path | done | each site's `…_conversation_messages` | `Shop::MessagesControllerTest`, `Seller::MessagesControllerTest`, `Admin::MessagesControllerTest`, `NotificationTest` |
-| Support threads against `Admin.on_duty` | done | `shop_support`, `seller_support` | `Shop::SupportsControllerTest`, `Seller::SupportsControllerTest` |
-| The desk opens a thread from either account page | done | `admin_seller_conversation`, `admin_customer_conversation` | `Admin::SellerConversationsControllerTest`, `Admin::CustomerConversationsControllerTest` |
-| Admin removes a listing (temporary or permanent) and lifts a removal; a removal takes the listing off browse, search and its own page whatever its status, and blocks the seller from putting it back on sale | done | `admin_listing_removals` (POST), `lift_admin_listing_removals` (POST) | `Admin::ListingRemovalsControllerTest`, `ListingTest`, `Shop::ListingsControllerTest`, `Shop::StorefrontControllerTest`, `Seller::ListingStatusesControllerTest` |
-| Admin blocks a customer and lifts a block; a block stops cart add, checkout, pay and message post, leaving browsing, favorites and reading threads open | done | `admin_customer_blocks` (POST), `lift_admin_customer_blocks` (POST) | `Admin::CustomerBlocksControllerTest`, `CustomerTest`, `ConversationTest`, `Shop::CartItemsControllerTest`, `Shop::CheckoutsControllerTest`, `Shop::OrderPaymentsControllerTest`, `Shop::MessagesControllerTest`, `Shop::ListingQuestionsControllerTest` |
-| A thread per fulfillment from either order page | done | `shop_fulfillment_conversation`, `seller_order_conversation` | `Shop::FulfillmentConversationsControllerTest`, `Seller::OrderConversationsControllerTest` |
-| Anonymous shopper asks a question on a listing | done | `shop_listing_questions` | `Shop::ListingQuestionsControllerTest`, `CustomerTest` (merge carries the thread) |
-| Seller publishes, edits, unpublishes an FAQ; the storefront shows it | done | `seller_listing_faqs` | `Seller::FaqsControllerTest`, `Shop::ListingsControllerTest`, `ListingFaqTest` |
-| Unread count in every nav, read on opening a thread | done | every layout | `ConversationTest`, the three inbox tests |
-| Live message and badge over Turbo streams | done | `turbo_stream_from` on each thread page | `MessageTest`, `ConversationTest`, the three thread-page tests |
-| A shopper's question through to a published FAQ on the listing page | done | the chain above | `SmokeTest` |
+| Capability                                  | Status | Route helper                                 | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| An admin site with a seeded-only account    | done   | `admin_login`, `admin_root`, `admin_seller`, | `Auth::AdminSessionsControllerTest`,         |
+|                                             |        | `admin_customer`                             | `Admin::DashboardControllerTest`,            |
+|                                             |        |                                              | `Admin::SellersControllerTest`,              |
+|                                             |        |                                              | `Admin::CustomersControllerTest`,            |
+|                                             |        |                                              | `AdminTest`                                  |
+| A directory over every seller, customer,    | done   | `admin_sellers`, `admin_customers`,          | `Admin::SellersControllerTest`,              |
+| listing, order and fulfillment              |        | `admin_listings`, `admin_orders`,            | `Admin::CustomersControllerTest`,            |
+|                                             |        | `admin_fulfillments` and each `…/:id` — see  | `Admin::ListingsControllerTest`,             |
+|                                             |        | [`admin.md`](admin.md)                       | `Admin::OrdersControllerTest`,               |
+|                                             |        |                                              | `Admin::FulfillmentsControllerTest`          |
+| One conversation record for four kinds      | done   | —                                            | `ConversationTest`, `MessageTest`            |
+| Inbox and thread on all three sites,        | done   | `shop_conversations`,                        | `Shop::ConversationsControllerTest`,         |
+| non-participant answers 404                 |        | `seller_conversations`,                      | `Seller::ConversationsControllerTest`,       |
+|                                             |        | `admin_conversations` and each               | `Admin::ConversationsControllerTest`         |
+|                                             |        | `…_conversation`                             |                                              |
+| Reply, with the counterpart notified at     | done   | each site's `…_conversation_messages`        | `Shop::MessagesControllerTest`,              |
+| their own path                              |        |                                              | `Seller::MessagesControllerTest`,            |
+|                                             |        |                                              | `Admin::MessagesControllerTest`,             |
+|                                             |        |                                              | `NotificationTest`                           |
+| Support threads against `Admin.on_duty`     | done   | `shop_support`, `seller_support`             | `Shop::SupportsControllerTest`,              |
+|                                             |        |                                              | `Seller::SupportsControllerTest`             |
+| The desk opens a thread from either account | done   | `admin_seller_conversation`,                 | `Admin::SellerConversationsControllerTest`,  |
+| page                                        |        | `admin_customer_conversation`                | `Admin::CustomerConversationsControllerTest` |
+| Admin removes a listing (temporary or       | done   | `admin_listing_removals` (POST),             | `Admin::ListingRemovalsControllerTest`,      |
+| permanent) and lifts a removal; a removal   |        | `lift_admin_listing_removals` (POST)         | `ListingTest`,                               |
+| takes the listing off browse, search and    |        |                                              | `Shop::ListingsControllerTest`,              |
+| its own page whatever its status, and       |        |                                              | `Shop::StorefrontControllerTest`,            |
+| blocks the seller from putting it back on   |        |                                              | `Seller::ListingStatusesControllerTest`      |
+| sale                                        |        |                                              |                                              |
+| Admin blocks a customer and lifts a block;  | done   | `admin_customer_blocks` (POST),              | `Admin::CustomerBlocksControllerTest`,       |
+| a block stops cart add, checkout, pay and   |        | `lift_admin_customer_blocks` (POST)          | `CustomerTest`, `ConversationTest`,          |
+| message post, leaving browsing, favorites   |        |                                              | `Shop::CartItemsControllerTest`,             |
+| and reading threads open                    |        |                                              | `Shop::CheckoutsControllerTest`,             |
+|                                             |        |                                              | `Shop::OrderPaymentsControllerTest`,         |
+|                                             |        |                                              | `Shop::MessagesControllerTest`,              |
+|                                             |        |                                              | `Shop::ListingQuestionsControllerTest`       |
+| A thread per fulfillment from either order  | done   | `shop_fulfillment_conversation`,             | `Shop::FulfillmentConversationsControllerTest`, |
+| page                                        |        | `seller_order_conversation`                  | `Seller::OrderConversationsControllerTest`   |
+| Anonymous shopper asks a question on a      | done   | `shop_listing_questions`                     | `Shop::ListingQuestionsControllerTest`,      |
+| listing                                     |        |                                              | `CustomerTest` (merge carries the thread)    |
+| Seller publishes, edits, unpublishes an     | done   | `seller_listing_faqs`                        | `Seller::FaqsControllerTest`,                |
+| FAQ; the storefront shows it                |        |                                              | `Shop::ListingsControllerTest`,              |
+|                                             |        |                                              | `ListingFaqTest`                             |
+| Unread count in every nav, read on opening  | done   | every layout                                 | `ConversationTest`, the three inbox tests    |
+| a thread                                    |        |                                              |                                              |
+| Live message and badge over Turbo streams   | done   | `turbo_stream_from` on each thread page      | `MessageTest`, `ConversationTest`, the three |
+|                                             |        |                                              | thread-page tests                            |
+| A shopper's question through to a published | done   | the chain above                              | `SmokeTest`                                  |
+| FAQ on the listing page                     |        |                                              |                                              |
 
 ### The same feature in the Node prototype
 
@@ -104,14 +166,17 @@ half differs:
 
 ## Tech stack
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Modern Rails | done | `Gemfile.lock` — Rails 8.1.3.1 on Ruby 3.3.12 |
-| SQLite | done | `config/database.yml`, `src/storage/development.sqlite3` |
-| Tailwind | done | `tailwindcss-rails` 4.6.0 / tailwindcss 4.3.3, standalone binary, no Node |
-| Semantic HTML + CSS | done | `app/views/**` |
-| No JavaScript required | done | every flow is a form POST that redirects; `app/javascript/application.js` is one `import "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as it did before Turbo |
-| Hotwire | done | `turbo-rails` 2.0.23, `importmap-rails` 2.2.3, `solid_cable` 4.0.2 — thread pages and the nav badge update over Action Cable with the broadcast queue in the app's own SQLite file |
+| Requirement            | Status | Evidence                                                                                                         |
+| ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
+| Modern Rails           | done   | `Gemfile.lock` — Rails 8.1.3.1 on Ruby 3.3.12                                                                    |
+| SQLite                 | done   | `config/database.yml`, `src/storage/development.sqlite3`                                                         |
+| Tailwind               | done   | `tailwindcss-rails` 4.6.0 / tailwindcss 4.3.3, standalone binary, no Node                                        |
+| Semantic HTML + CSS    | done   | `app/views/**`                                                                                                   |
+| No JavaScript required | done   | every flow is a form POST that redirects; `app/javascript/application.js` is one                                 |
+|                        |        | `import "@hotwired/turbo-rails"`, and with it blocked or absent every page, form, link and redirect behaves as   |
+|                        |        | it did before Turbo                                                                                              |
+| Hotwire                | done   | `turbo-rails` 2.0.23, `importmap-rails` 2.2.3, `solid_cable` 4.0.2 — thread pages and the nav badge update over  |
+|                        |        | Action Cable with the broadcast queue in the app's own SQLite file                                               |
 
 ## Cross-prototype comparison
 
@@ -124,31 +189,47 @@ half differs:
 
 ## Development workflow
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Everything dockerized, nothing on the host | done | `Dockerfile`, `docker-compose.yml`, `Makefile` — every target is a `docker compose` wrapper |
-| All source in `src` | done | `prototype/rails/src/` |
-| Tests mirror the code under `test/` | partial | 20 of the 85 files under `app/` have no test of their own (see Known gaps); all are at 100% line coverage through the tests of their callers |
-| `/test*` and `/tdd*` skills | partial | process, not visible in the artifacts; the shape they call for holds — pure core tests, HTTP tests for the shell |
-| `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets |
-| `/write-*` skills | partial | process; the comments in the tree carry reasons, not restatements |
-| TDD flow | partial | process; each ticket's `## Working` notes record it |
-| Measure coverage, keep it high | done | `make test`/`make check` — 100% line coverage, `COVERAGE_MIN=100` enforced; `make coverage` runs the same suite for the HTML report with no minimum of its own |
-| Functional core / imperative shell | done | The value objects in `app/models` (`Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`) are pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller holds a domain `if`: every branch reads a record predicate (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`, `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed in, empty cart, missing row) |
-| `/diagramming` for docs | done | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `messaging.md`, `data-model.md`, `ontology.md` |
+| Requirement                                | Status  | Evidence                                                                                    |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------- |
+| Everything dockerized, nothing on the host | done    | `Dockerfile`, `docker-compose.yml`, `Makefile` — every target is a `docker compose` wrapper |
+| All source in `src`                        | done    | `prototype/rails/src/`                                                                      |
+| Tests mirror the code under `test/`        | partial | 20 of the 85 files under `app/` have no test of their own (see Known gaps); all are at 100% |
+|                                            |         | line coverage through the tests of their callers                                            |
+| `/test*` and `/tdd*` skills                | partial | process, not visible in the artifacts; the shape they call for holds — pure core tests,     |
+|                                            |         | HTTP tests for the shell                                                                    |
+| `/work-*` skills for work items            | done    | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets               |
+| `/write-*` skills                          | partial | process; the comments in the tree carry reasons, not restatements                           |
+| TDD flow                                   | partial | process; each ticket's `## Working` notes record it                                         |
+| Measure coverage, keep it high             | done    | `make test`/`make check` — 100% line coverage, `COVERAGE_MIN=100` enforced; `make coverage` |
+|                                            |         | runs the same suite for the HTML report with no minimum of its own                          |
+| Functional core / imperative shell         | done    | The value objects in `app/models` (`Money`, `Page`, `PayoutPeriod`, `FakeCard`,             |
+|                                            |         | `PlaceholderImage`, `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`)    |
+|                                            |         | are pure — no I/O, no clock, no random; time and ids arrive as arguments. No controller     |
+|                                            |         | holds a domain `if`: every branch reads a record predicate                                  |
+|                                            |         | (`Fulfillment#can_transition_to?`, `Order#unpaid?`, `Order#payable_by?`,                    |
+|                                            |         | `Listing#purchasable?`, `MagicLink#usable?`, `order.persisted?`), or a shell fact (signed   |
+|                                            |         | in, empty cart, missing row)                                                                |
+| `/diagramming` for docs                    | done    | `docs/architecture.md`, `identity.md`, `orders.md`, `escrow.md`, `messaging.md`,            |
+|                                            |         | `data-model.md`, `ontology.md`                                                              |
 
 ## Goal
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
-| Customer site for browsing | done | `/` |
-| Mocked cart and payment with a fake card, success and failure | done | `FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline; anything else is an invalid number |
-| Magic links for both sides, printed to the screen in a debug alert | done | `MagicLinkSender#send_magic_link` → `layouts/_debug_alert` (`MAGIC_LINK_DEBUG_ALERT`) |
-| A hook where email goes later | done | `MagicLinkMailer#sign_in` sends the link; `Notification#deliver_by_email` is still empty |
-| Guest checkout requiring verification before the order finalizes | done | `Shop::CheckoutsController#create` → `Shop::OrderPaymentsController` |
-| Work queued and delivered by agents | done | `work/journal.md` — FEAT-001 … FEAT-014 and RFCTR-001 … RFCTR-013 |
-| Delivered in `./prototype/rails/` with a complete README and a docs folder | done | `README.md`, `docs/` |
+| Requirement                                                         | Status | Evidence                                                            |
+| ------------------------------------------------------------------- | ------ | ------------------------------------------------------------------- |
+| Back-office for artists to create an account, list art, manage      | done   | `/seller/**`                                                        |
+| sales                                                               |        |                                                                     |
+| Customer site for browsing                                          | done   | `/`                                                                 |
+| Mocked cart and payment with a fake card, success and failure       | done   | `FakeCard` — 4242… approves; 4000…0002 and 4000…9995 decline;       |
+|                                                                     |        | anything else is an invalid number                                  |
+| Magic links for both sides, printed to the screen in a debug alert  | done   | `MagicLinkSender#send_magic_link` → `layouts/_debug_alert`          |
+|                                                                     |        | (`MAGIC_LINK_DEBUG_ALERT`)                                          |
+| A hook where email goes later                                       | done   | `MagicLinkMailer#sign_in` sends the link;                           |
+|                                                                     |        | `Notification#deliver_by_email` is still empty                      |
+| Guest checkout requiring verification before the order finalizes    | done   | `Shop::CheckoutsController#create` →                                |
+|                                                                     |        | `Shop::OrderPaymentsController`                                     |
+| Work queued and delivered by agents                                 | done   | `work/journal.md` — FEAT-001 … FEAT-014 and RFCTR-001 … RFCTR-013   |
+| Delivered in `./prototype/rails/` with a complete README and a docs | done   | `README.md`, `docs/`                                                |
+| folder                                                              |        |                                                                     |
 
 ## Verified on FEAT-008
 

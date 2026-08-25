@@ -99,15 +99,15 @@ Fee::platform($subtotal)->cents`). That is the cast boundary, not arithmetic.
 
 ### Relations replacing hand-written foreign keys
 
-| Was | Now |
-| --- | --- |
-| `Order::query()->where('customer_id', ...)` | `$visitor->orders()` |
-| `Notification::query()->for(Customer, id)` | `$visitor->notifications()` |
-| `Favorite::query()->where('customer_id', ...)->where('listing_id', ...)` | `$customer->favorites()->firstWhere('listing_id', ...)` |
-| `Listing::whereIn('id', Favorite::select('listing_id'))` | `$visitor->favoriteListings()` |
-| `$seller->fulfillments()->getQuery()` | `Fulfillment::query()->whereBelongsTo($seller)` |
-| `OrderItem::query()->where('listing_id', ...)` | `$listing->orderItems()` |
-| `$order->payments()->orderByDesc('id')->first()` | `$order->latestPayment` (`latestOfMany()`), eager-loaded |
+| Was                                                                      | Now                                                      |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `Order::query()->where('customer_id', ...)`                              | `$visitor->orders()`                                     |
+| `Notification::query()->for(Customer, id)`                               | `$visitor->notifications()`                              |
+| `Favorite::query()->where('customer_id', ...)->where('listing_id', ...)` | `$customer->favorites()->firstWhere('listing_id', ...)`  |
+| `Listing::whereIn('id', Favorite::select('listing_id'))`                 | `$visitor->favoriteListings()`                           |
+| `$seller->fulfillments()->getQuery()`                                    | `Fulfillment::query()->whereBelongsTo($seller)`          |
+| `OrderItem::query()->where('listing_id', ...)`                           | `$listing->orderItems()`                                 |
+| `$order->payments()->orderByDesc('id')->first()`                         | `$order->latestPayment` (`latestOfMany()`), eager-loaded |
 
 `favoriteListings()` orders by `listings.id`: the join puts two `id` columns in
 scope and an unqualified `orderByDesc('id')` is ambiguous.

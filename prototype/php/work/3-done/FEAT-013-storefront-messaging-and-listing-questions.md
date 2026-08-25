@@ -31,14 +31,15 @@ The question that becomes an FAQ starts here, and it has to start without a sign
 ## Discovery notes
 - Routes go in `routes/shop.php`, inside the `customer.identity` group and **outside** `auth.customer` — an anonymous visitor is a participant:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/messages` | `shop.messages.index` | Inbox |
-| GET | `/messages/{conversation}` | `shop.messages.show` | Thread; marks it read; no reply form while `post` is denied |
-| POST | `/messages/{conversation}` | `shop.messages.store` | Reply |
-| POST | `/art/{listing:slug}/questions` | `shop.listing.questions` | Ask the seller; lands on the thread |
-| GET | `/support` | `shop.support` | Finds or opens the `admin_customer` thread |
-| POST | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages` | Finds or opens the `fulfillment` thread |
+| Method | Path                                                  | Name                     | Purpose                                                |
+| ------ | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------ |
+| GET    | `/messages`                                           | `shop.messages.index`    | Inbox                                                  |
+| GET    | `/messages/{conversation}`                            | `shop.messages.show`     | Thread; marks it read; no reply form while `post` is   |
+|        |                                                       |                          | denied                                                 |
+| POST   | `/messages/{conversation}`                            | `shop.messages.store`    | Reply                                                  |
+| POST   | `/art/{listing:slug}/questions`                       | `shop.listing.questions` | Ask the seller; lands on the thread                    |
+| GET    | `/support`                                            | `shop.support`           | Finds or opens the `admin_customer` thread             |
+| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`    | Finds or opens the `fulfillment` thread                |
 
 - The storefront authorizes through `ShopController::authorizeVisitor()` and `Gate::forUser($this->visitor())`, not `$this->authorize()` — the visitor is middleware-resolved, not signed in on a guard. Blade asks with `@visitorCan('post', $conversation)`; that directive is registered in `AppServiceProvider` already.
 - `/orders/{order}/fulfillments/{fulfillment}/messages` mirrors the existing `order.delivered` route — use `scopeBindings()` the same way so a fulfillment on another order 404s.

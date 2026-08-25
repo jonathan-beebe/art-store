@@ -23,10 +23,10 @@ own command, and `test` pays it once more — **three builds per gate run**.
 
 Measured (RSRCH-001 M3), against a 1.31 s no-op `docker compose run`:
 
-| phase | cost |
-|---|---|
-| `npm run build` | 4.38 s |
-| `php artisan migrate --force` | 1.58 s |
+| phase                              | cost   |
+| ---------------------------------- | ------ |
+| `npm run build`                    | 4.38 s |
+| `php artisan migrate --force`      | 1.58 s |
 | `php artisan storage:link --force` | 1.04 s |
 | M2 warm restart to first `200 /up` | 3.88 s |
 
@@ -112,13 +112,14 @@ nothing pays exactly one build (the one `make assets` is there to run).
 
 ### What counts as an input, and why
 
-| input | why |
-|---|---|
-| `resources/` | the CSS entry point and every Blade template |
-| `app/`, `bootstrap/`, `config/`, `routes/` | Tailwind v4 auto-detects sources across the project, so a class name in a PHP string is an input; none is there today, and the hash is what makes that safe to add |
-| `vite.config.js` | decides what Vite produces |
-| `package.json`, `package-lock.json` | pin the toolchain that produces it |
-| `composer.lock` | pins the vendor pagination views `resources/css/app.css` names with `@source` |
+| input                                      | why                                                                                                   |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `resources/`                               | the CSS entry point and every Blade template                                                          |
+| `app/`, `bootstrap/`, `config/`, `routes/` | Tailwind v4 auto-detects sources across the project, so a class name in a PHP string is an input;     |
+|                                            | none is there today, and the hash is what makes that safe to add                                      |
+| `vite.config.js`                           | decides what Vite produces                                                                            |
+| `package.json`, `package-lock.json`        | pin the toolchain that produces it                                                                    |
+| `composer.lock`                            | pins the vendor pagination views `resources/css/app.css` names with `@source`                         |
 
 Deliberately left out: `storage/framework/views`, the other `@source` target.
 It is a cache compiled from `resources/views`, so its classes are already
@@ -131,18 +132,18 @@ rendered would churn the hash without changing the output. Also out:
 
 M2 warm restart to the first `200 /up`, three samples each side:
 
-| | samples | median |
-|---|---|---|
+|        | samples                | median |
+| ------ | ---------------------- | ------ |
 | before | 6.19 s, 4.73 s, 4.14 s | 4.73 s |
-| after | 1.77 s, 1.87 s, 1.76 s | 1.77 s |
+| after  | 1.77 s, 1.87 s, 1.76 s | 1.77 s |
 
 `make check` wall time (`/usr/bin/time -p`), nothing edited between runs:
 
-| run | wall |
-|---|---|
-| before | 104.42 s |
-| after, first | 98.44 s |
-| after, second | 91.39 s |
+| run           | wall     |
+| ------------- | -------- |
+| before        | 104.42 s |
+| after, first  | 98.44 s  |
+| after, second | 91.39 s  |
 
 Both entrypoint invocations in each post-change run logged
 `bundle inputs unchanged, skipping build`: three Vite builds per gate run

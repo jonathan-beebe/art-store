@@ -113,12 +113,12 @@ these files.
 
 ### Commits
 
-| Commit | What |
-| --- | --- |
-| `eee278f` | `test(smoke)` — the smoke test, `make smoke`, `test` in the test path |
-| `fec2a5c` | `fix(seller)` — `ShipmentDetails`; also carries the scaffolding deletions |
-| `e197e27` | `chore` — the dead predicate and the restating comment |
-| `eeff93d` | `docs(review)` — `docs/review.md` |
+| Commit    | What                                                                               |
+| --------- | ---------------------------------------------------------------------------------- |
+| `eee278f` | `test(smoke)` — the smoke test, `make smoke`, `test` in the test path              |
+| `fec2a5c` | `fix(seller)` — `ShipmentDetails`; also carries the scaffolding deletions          |
+| `e197e27` | `chore` — the dead predicate and the restating comment                             |
+| `eeff93d` | `docs(review)` — `docs/review.md`                                                  |
 | `367cafb` | `docs` — README smoke, card table, email hooks, known gaps; architecture test path |
 
 `fec2a5c` carries the deletions that its message does not name: `git rm` had

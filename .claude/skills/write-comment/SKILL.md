@@ -26,13 +26,13 @@ every comment below has to clear to earn its place.
 Before writing the comment, ask what it is compensating for. Most of the time
 there is a code change that makes it unnecessary — make that change instead:
 
-| The comment would explain… | Do this instead |
-|---|---|
-| What a name means | Rename it (`naming` skill) |
-| What a block of code does | Extract it into a named function |
-| What a bare literal is | Name the constant |
-| What a tangled condition tests | Name the predicate |
-| What each section of a long function does | Split the function |
+| The comment would explain…                | Do this instead                  |
+| ----------------------------------------- | -------------------------------- |
+| What a name means                         | Rename it (`naming` skill)       |
+| What a block of code does                 | Extract it into a named function |
+| What a bare literal is                    | Name the constant                |
+| What a tangled condition tests            | Name the predicate               |
+| What each section of a long function does | Split the function               |
 
 Only when you've done this and the reader would *still* be missing something
 does a comment earn its place.

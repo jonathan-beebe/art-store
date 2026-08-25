@@ -110,12 +110,12 @@ Built in the order the ticket lays out, running `make test` after each step.
 
 ### Numbers
 
-| Gate | Before | After |
-| --- | --- | --- |
-| Pest | 1699 tests, 4655 assertions | 1770 tests, 4796 assertions |
-| Coverage | 100.0% lines | 100.0% lines |
-| PHPStan (level max) | 0 errors | 0 errors |
-| Pint | clean | clean |
+| Gate                | Before                      | After                       |
+| ------------------- | --------------------------- | --------------------------- |
+| Pest                | 1699 tests, 4655 assertions | 1770 tests, 4796 assertions |
+| Coverage            | 100.0% lines                | 100.0% lines                |
+| PHPStan (level max) | 0 errors                    | 0 errors                    |
+| Pint                | clean                       | clean                       |
 
 `make check` green throughout — Pint, PHPStan, asset build, Pest at
 `--min=100`.
@@ -164,10 +164,10 @@ three are closed.
   assert it: the scope's query compiled against `MySqlGrammar` ends with `for
   update`. No fake concurrency test — SQLite serialises writers.
 
-| Gate | Before | After |
-| --- | --- | --- |
-| Pest | 1775 tests, 4829 assertions | 1793 tests, 4865 assertions |
-| Coverage | 100.0% lines | 100.0% lines |
+| Gate     | Before                      | After                       |
+| -------- | --------------------------- | --------------------------- |
+| Pest     | 1775 tests, 4829 assertions | 1793 tests, 4865 assertions |
+| Coverage | 100.0% lines                | 100.0% lines                |
 
 Node and Rails carry the same three gaps if their favorites page, cart add,
 and moderation actions were built from the same shapes; Node's favorites

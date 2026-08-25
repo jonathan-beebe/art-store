@@ -48,16 +48,18 @@ the `schema-fidelity.test.ts` samples follow, including a CHECK test for
 
 **Core (pure, unit-tested with literals).**
 
-| Function | Path | Signature |
-| --- | --- | --- |
-| `isReversed` | `core/orders/fulfillment-status.ts` | `(status: FulfillmentStatus) => boolean` |
-| `orderStatusFromFulfillments` | `core/orders/order-status.ts` | `(statuses: readonly FulfillmentStatus[]) => OrderStatus` — extended to drop reversed halves |
-| `planRefund` | `core/orders/refund.ts` | `(subject: RefundSubject) => RefundPlan` |
-| `parseRefundReason` | `core/orders/refund.ts` | `(input: string \| null \| undefined) => RefundReasonResult` |
-| `refundMovement` | `core/escrow/ledger-movement.ts` | `(netCents: Cents) => LedgerMovement` |
-| `ledgerBalance` | `core/escrow/ledger-balance.ts` | `(movements: readonly BalanceMovement[]) => LedgerBalance` — rewritten as a single walk |
-| `feeTotals` | `core/escrow/fee-totals.ts` | `(subjects: readonly FeeSubject[]) => FeeTotals` |
-| `staleOrderCutoff` | `core/orders/stale-order.ts` | `(now: Date, staleHours: number) => Date` |
+| Function                      | Path                                | Signature                                                                    |
+| ----------------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| `isReversed`                  | `core/orders/fulfillment-status.ts` | `(status: FulfillmentStatus) => boolean`                                     |
+| `orderStatusFromFulfillments` | `core/orders/order-status.ts`       | `(statuses: readonly FulfillmentStatus[]) => OrderStatus` — extended to drop |
+|                               |                                     | reversed halves                                                              |
+| `planRefund`                  | `core/orders/refund.ts`             | `(subject: RefundSubject) => RefundPlan`                                     |
+| `parseRefundReason`           | `core/orders/refund.ts`             | `(input: string \| null \| undefined) => RefundReasonResult`                 |
+| `refundMovement`              | `core/escrow/ledger-movement.ts`    | `(netCents: Cents) => LedgerMovement`                                        |
+| `ledgerBalance`               | `core/escrow/ledger-balance.ts`     | `(movements: readonly BalanceMovement[]) => LedgerBalance` — rewritten as a  |
+|                               |                                     | single walk                                                                  |
+| `feeTotals`                   | `core/escrow/fee-totals.ts`         | `(subjects: readonly FeeSubject[]) => FeeTotals`                             |
+| `staleOrderCutoff`            | `core/orders/stale-order.ts`        | `(now: Date, staleHours: number) => Date`                                    |
 
 **Actions.**
 
@@ -92,31 +94,62 @@ accounting table gains a per-seller Refunded column.
 
 ### The §4.3 sad paths and the test that covers each
 
-| Sad path | Test |
-| --- | --- |
-| Pay a cancelled / refunded / already-paid order | `core/orders/order-status.test.ts` — `a cancelled order cannot be paid`, `an unpaid order is cancelled rather than refunded`, `a paid order cannot be paid twice`; `awaitsCard` reads the same table |
-| Cancel a paid order | `sites/shop/routes/orders.test.ts` — `a paid order can no longer be cancelled`; `sites/admin/routes/orders.test.ts` — `POST /admin/orders/:id/cancel refuses a paid order` |
-| Decline after ship | `core/orders/refund.test.ts` — `a seller cannot decline after shipping`; `actions/refunds/issue-refund.test.ts` — same name; `sites/seller/routes/orders.test.ts` — `declining after shipping is refused rather than applied` |
-| Ship after decline | `core/orders/fulfillment-status.test.ts` — `transition refuses a ship after a decline`; `actions/refunds/issue-refund.test.ts` — `a seller cannot ship after declining` |
-| Refund twice | `actions/refunds/issue-refund.test.ts` — `a fulfillment cannot be refunded twice`, `a declined fulfillment cannot then be refunded`; `sites/admin/routes/fulfillments.test.ts` — `refuses a second refund` |
-| Refund an unpaid order's fulfillment | `core/orders/refund.test.ts` — `an unpaid order has nothing to refund`; `actions/refunds/issue-refund.test.ts` — `an unpaid order has no fulfillment to refund` |
-| Seller declines another seller's fulfillment → 404 | `sites/seller/routes/orders.test.ts` — `declining another seller's order is not found` |
-| Customer cancels another customer's order → 404 | `sites/shop/routes/orders.test.ts` — `someone else's order is not found` (pre-existing) |
-| Sweep never touches `awaiting_payment` or anything younger than the cutoff | `actions/orders/sweep-stale-orders.test.ts` — `it never touches an order that is only awaiting payment`, `it leaves an order younger than the cutoff alone`, `an order placed exactly at the cutoff is not yet stale`; `cli/sweep-stale-orders.test.ts` — `main leaves an order that is only awaiting payment alone` |
-| Stock: decline restores exactly, `sold → for_sale`, admin refund restores nothing | `actions/refunds/issue-refund.test.ts` — `a decline hands exactly the declined quantities back to the storefront`, `a decline leaves the other seller's stock where it is`, `an admin refund restores nothing`, `an admin refunds a fulfillment that has not shipped` |
-| Balance fold in all three timings | `core/escrow/ledger-balance.test.ts` and `actions/refunds/issue-refund.test.ts` (below) |
+| Sad path                                                                | Test                                                                     |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Pay a cancelled / refunded / already-paid order                         | `core/orders/order-status.test.ts` — `a cancelled order cannot be paid`, |
+|                                                                         | `an unpaid order is cancelled rather than refunded`,                     |
+|                                                                         | `a paid order cannot be paid twice`; `awaitsCard` reads the same table   |
+| Cancel a paid order                                                     | `sites/shop/routes/orders.test.ts` —                                     |
+|                                                                         | `a paid order can no longer be cancelled`;                               |
+|                                                                         | `sites/admin/routes/orders.test.ts` —                                    |
+|                                                                         | `POST /admin/orders/:id/cancel refuses a paid order`                     |
+| Decline after ship                                                      | `core/orders/refund.test.ts` — `a seller cannot decline after shipping`; |
+|                                                                         | `actions/refunds/issue-refund.test.ts` — same name;                      |
+|                                                                         | `sites/seller/routes/orders.test.ts` —                                   |
+|                                                                         | `declining after shipping is refused rather than applied`                |
+| Ship after decline                                                      | `core/orders/fulfillment-status.test.ts` —                               |
+|                                                                         | `transition refuses a ship after a decline`;                             |
+|                                                                         | `actions/refunds/issue-refund.test.ts` —                                 |
+|                                                                         | `a seller cannot ship after declining`                                   |
+| Refund twice                                                            | `actions/refunds/issue-refund.test.ts` —                                 |
+|                                                                         | `a fulfillment cannot be refunded twice`,                                |
+|                                                                         | `a declined fulfillment cannot then be refunded`;                        |
+|                                                                         | `sites/admin/routes/fulfillments.test.ts` — `refuses a second refund`    |
+| Refund an unpaid order's fulfillment                                    | `core/orders/refund.test.ts` — `an unpaid order has nothing to refund`;  |
+|                                                                         | `actions/refunds/issue-refund.test.ts` —                                 |
+|                                                                         | `an unpaid order has no fulfillment to refund`                           |
+| Seller declines another seller's fulfillment → 404                      | `sites/seller/routes/orders.test.ts` —                                   |
+|                                                                         | `declining another seller's order is not found`                          |
+| Customer cancels another customer's order → 404                         | `sites/shop/routes/orders.test.ts` — `someone else's order is not found` |
+|                                                                         | (pre-existing)                                                           |
+| Sweep never touches `awaiting_payment` or anything younger than the     | `actions/orders/sweep-stale-orders.test.ts` —                            |
+| cutoff                                                                  | `it never touches an order that is only awaiting payment`,               |
+|                                                                         | `it leaves an order younger than the cutoff alone`,                      |
+|                                                                         | `an order placed exactly at the cutoff is not yet stale`;                |
+|                                                                         | `cli/sweep-stale-orders.test.ts` —                                       |
+|                                                                         | `main leaves an order that is only awaiting payment alone`               |
+| Stock: decline restores exactly, `sold → for_sale`, admin refund        | `actions/refunds/issue-refund.test.ts` —                                 |
+| restores nothing                                                        | `a decline hands exactly the declined quantities back to the storefront`, |
+|                                                                         | `a decline leaves the other seller's stock where it is`,                 |
+|                                                                         | `an admin refund restores nothing`,                                      |
+|                                                                         | `an admin refunds a fulfillment that has not shipped`                    |
+| Balance fold in all three timings                                       | `core/escrow/ledger-balance.test.ts` and                                 |
+|                                                                         | `actions/refunds/issue-refund.test.ts` (below)                           |
 
 ### The §4.2 fold, asserted
 
 Net is 40,500 on a 45,000 subtotal.
 
-| Timing | Entries | held | available | paid out |
-| --- | --- | --- | --- | --- |
-| Before release | `held +40500`, `refunded −40500` | 0 | 0 | 0 |
-| After release | `held +40500`, `released +40500`, `refunded −40500` | 0 | 0 | 0 |
-| After payout | `+ paid_out −40500`, `refunded −40500` | 0 | −40,500 | 40,500 |
-| Negative carried, later sale of 9,000 released | | 0 | −31,500 | 40,500 |
-| Payout of a negative balance | | no `paid_out` row written; `runWeeklyPayout` returns `[]` | | |
+| Timing                                  | Entries                                 | held                                    | available | paid out |
+| --------------------------------------- | --------------------------------------- | --------------------------------------- | --------- | -------- |
+| Before release                          | `held +40500`, `refunded −40500`        | 0                                       | 0         | 0        |
+| After release                           | `held +40500`, `released +40500`,       | 0                                       | 0         | 0        |
+|                                         | `refunded −40500`                       |                                         |           |          |
+| After payout                            | `+ paid_out −40500`, `refunded −40500`  | 0                                       | −40,500   | 40,500   |
+| Negative carried, later sale of 9,000   |                                         | 0                                       | −31,500   | 40,500   |
+| released                                |                                         |                                         |           |          |
+| Payout of a negative balance            |                                         | no `paid_out` row written;              |           |          |
+|                                         |                                         | `runWeeklyPayout` returns `[]`          |           |          |
 
 ### Decisions
 

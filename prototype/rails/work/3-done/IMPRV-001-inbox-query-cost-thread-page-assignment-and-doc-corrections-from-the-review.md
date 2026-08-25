@@ -35,10 +35,10 @@ The inbox is the page every actor opens most; the docs are what the stack compar
 `listing_question` carrying one unread message:
 
 | rows | before | after |
-| --- | --- | --- |
-| 1 | 7 | 7 |
-| 8 | 21 | 7 |
-| 20 | 45 | 7 |
+| ---- | ------ | ----- |
+| 1    | 7      | 7     |
+| 8    | 21     | 7     |
+| 20   | 45     | 7     |
 
 Two queries per extra row before: the `COUNT` behind `unread_count_for` and the
 customer `counterpart_of` loaded through `public_send`.

@@ -41,30 +41,30 @@ An empty database shows an empty storefront. `make fresh` loads the demo data.
 
 Every target is a thin `docker compose` wrapper, so either form works.
 
-| Make | Docker Compose |
-| --- | --- |
-| `make up` | `docker compose up -d` |
-| `make down` | `docker compose down` |
-| `make build` | `docker compose build` |
-| `make assets` | `docker compose run --rm app npm run build` |
-| `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app composer test` (Pest under pcov, gated at 100% of lines) |
-| `make smoke` | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke` |
-| `make coverage` | `docker compose run --rm app composer test:coverage` |
-| `make lint` | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan) |
-| `make lint-fix` | `docker compose run --rm --no-deps --entrypoint composer app lint:fix` |
-| `make analyse` | `docker compose run --rm --no-deps --entrypoint composer app analyse` |
-| `make check` | `lint`, then `assets`, then `test` — the commit gate |
-| `make migrate` | `docker compose run --rm app php artisan migrate` |
-| `make fresh` | `docker compose run --rm app php artisan migrate:fresh --seed` |
-| `make seed` | `docker compose run --rm app php artisan db:seed` |
-| `make routes` | `docker compose run --rm app php artisan route:list` |
-| `make payouts` | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))` |
-| `make sweep` | `docker compose run --rm app php artisan orders:sweep` |
-| `make outbox` | prints a note — this prototype has no outbox; notifications are in-app |
-| `make logs` | `docker compose logs -f` |
-| `make image` | `docker build --target runtime -t art-store-php .` — see Deployment |
-| `make run-image` | runs the production image on port 8100 — see Deployment |
+| Make             | Docker Compose                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `make up`        | `docker compose up -d`                                                                |
+| `make down`      | `docker compose down`                                                                 |
+| `make build`     | `docker compose build`                                                                |
+| `make assets`    | `docker compose run --rm app npm run build`                                           |
+| `make shell`     | `docker compose run --rm app bash`                                                    |
+| `make test`      | `docker compose run --rm app composer test` (Pest under pcov, gated at 100% of lines) |
+| `make smoke`     | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke`                   |
+| `make coverage`  | `docker compose run --rm app composer test:coverage`                                  |
+| `make lint`      | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan)   |
+| `make lint-fix`  | `docker compose run --rm --no-deps --entrypoint composer app lint:fix`                |
+| `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                 |
+| `make check`     | `lint`, then `assets`, then `test` — the commit gate                                  |
+| `make migrate`   | `docker compose run --rm app php artisan migrate`                                     |
+| `make fresh`     | `docker compose run --rm app php artisan migrate:fresh --seed`                        |
+| `make seed`      | `docker compose run --rm app php artisan db:seed`                                     |
+| `make routes`    | `docker compose run --rm app php artisan route:list`                                  |
+| `make payouts`   | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))` |
+| `make sweep`     | `docker compose run --rm app php artisan orders:sweep`                                |
+| `make outbox`    | prints a note — this prototype has no outbox; notifications are in-app                |
+| `make logs`      | `docker compose logs -f`                                                              |
+| `make image`     | `docker build --target runtime -t art-store-php .` — see Deployment                   |
+| `make run-image` | runs the production image on port 8100 — see Deployment                               |
 
 `make check` runs `lint` (style, then static analysis), then the asset build,
 then the coverage-gated test suite, stopping at the first failure. `lint`,
@@ -141,17 +141,17 @@ from scratch.
 orders, one completed payout, and one conversation of each messaging kind.
 Every account signs in through the debug magic link (see below).
 
-| Role | Shop / name | Email |
-| --- | --- | --- |
-| Admin | Jonathan Beebe | jonathan-beebe@outlook.com |
-| Admin | Anna Schmunk | annaschmunk@pm.me |
-| Seller | The Burrow Craftworks | molly@example.com |
-| Seller | Dean Thomas Studio | dean@example.com |
-| Seller | Trelawney's Tower Studio | sybill@example.com |
-| Seller | Creevey Camera Works | colin@example.com |
-| Seller | Longbottom Botanicals | neville@example.com |
-| Seller | Lovegood Curiosities | luna@example.com |
-| Customer | Hermione Granger | hermione@example.com |
+| Role     | Shop / name              | Email                      |
+| -------- | ------------------------ | -------------------------- |
+| Admin    | Jonathan Beebe           | jonathan-beebe@outlook.com |
+| Admin    | Anna Schmunk             | annaschmunk@pm.me          |
+| Seller   | The Burrow Craftworks    | molly@example.com          |
+| Seller   | Dean Thomas Studio       | dean@example.com           |
+| Seller   | Trelawney's Tower Studio | sybill@example.com         |
+| Seller   | Creevey Camera Works     | colin@example.com          |
+| Seller   | Longbottom Botanicals    | neville@example.com        |
+| Seller   | Lovegood Curiosities     | luna@example.com           |
+| Customer | Hermione Granger         | hermione@example.com       |
 
 Hermione has three favorites and order history with two sellers: a paid order
 awaiting shipment and a delivered, paid-out order with Molly, and a shipped
@@ -185,12 +185,12 @@ instead. Seller and customer notifications have their own switch:
 `App\Domain\Payments\FakeCard` decides every charge. Spaces and dashes are
 ignored; only the last four digits are stored.
 
-| Number | Result |
-| --- | --- |
-| `4242 4242 4242 4242` | Approved |
-| `4000 0000 0000 0002` | Declined — "Your card was declined." |
+| Number                | Result                                         |
+| --------------------- | ---------------------------------------------- |
+| `4242 4242 4242 4242` | Approved                                       |
+| `4000 0000 0000 0002` | Declined — "Your card was declined."           |
 | `4000 0000 0000 9995` | Declined — "Your card has insufficient funds." |
-| anything else | Declined — "That card number is not valid." |
+| anything else         | Declined — "That card number is not valid."    |
 
 A declined order keeps a retry form on `/orders/{id}` and puts its stock back on
 the storefront until the retry succeeds.

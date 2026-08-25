@@ -8,30 +8,50 @@ a stated gap; **missing** — not built.
 
 ## Engineering quality
 
-| Measure | Where it is set | Result |
-| --- | --- | --- |
-| Formatting | `src/pint.json` — `laravel` preset plus `strict_comparison`, `strict_param`, `void_return` | `make lint` clean over 615 files |
-| Static analysis | `src/phpstan.neon` — PHPStan/Larastan, `level: max` over `app`, `database`, `routes`, `tests` | 0 errors, no `excludePaths`, no `ignoreErrors`, no baseline |
-| Strict types | Pint's `declare_strict_types`, re-asserted by `tests/Arch.php` | every PHP file |
-| Tests | Pest, sidecars beside the file they cover | 1827 tests, 4934 assertions |
-| Coverage | `make coverage` (pcov) | 100.0% of lines |
-| Architecture rules | `tests/Arch.php` | 8 layer rules plus Pest's `laravel` and `security` presets |
-| Sidecar rule | `tests/SidecarsTest.php` | every non-abstract class under `app/` has one; the exception list is empty |
+| Measure            | Where it is set                                               | Result                                                        |
+| ------------------ | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| Formatting         | `src/pint.json` — `laravel` preset plus `strict_comparison`,  | `make lint` clean over 615 files                              |
+|                    | `strict_param`, `void_return`                                 |                                                               |
+| Static analysis    | `src/phpstan.neon` — PHPStan/Larastan, `level: max` over      | 0 errors, no `excludePaths`, no `ignoreErrors`, no baseline   |
+|                    | `app`, `database`, `routes`, `tests`                          |                                                               |
+| Strict types       | Pint's `declare_strict_types`, re-asserted by                 | every PHP file                                                |
+|                    | `tests/Arch.php`                                              |                                                               |
+| Tests              | Pest, sidecars beside the file they cover                     | 1827 tests, 4934 assertions                                   |
+| Coverage           | `make coverage` (pcov)                                        | 100.0% of lines                                               |
+| Architecture rules | `tests/Arch.php`                                              | 8 layer rules plus Pest's `laravel` and `security` presets    |
+| Sidecar rule       | `tests/SidecarsTest.php`                                      | every non-abstract class under `app/` has one; the exception  |
+|                    |                                                               | list is empty                                                 |
 
 ## Seller portal
 
-| Requirement | Status | Route | Test |
-| --- | --- | --- | --- |
-| Create an account | done | `auth.seller.login`, `auth.seller.send`, `auth.magic.verify` | `Auth\SellerLoginControllerTest`, `Requests\Auth\SendMagicLinkRequestTest`, `Auth\MagicLinkVerificationControllerTest` |
-| Add items straight after sign-in | done | `seller.listings.create`, `seller.listings.store` | `Seller\ListingControllerTest`, `Requests\Seller\ListingRequestTest` |
-| Manage listings | done | `seller.listings.index`, `.edit`, `.update`, `.status` | `Seller\ListingControllerTest`, `Seller\ListingStatusControllerTest`, `Requests\Seller\ListingRequestTest`, `Requests\Seller\ChangeListingStatusRequestTest`, `Models\ListingTest`, `Policies\ListingPolicyTest` |
-| Activity per listing: views, favorites, cart adds | done | `seller.listings.show` | `Seller\ListingControllerTest`, `Domain\Reports\ActivityTimelineTest` |
-| Reports on sales | done | `seller.earnings` (Sales table) | `Seller\EarningsControllerTest` |
-| Tools for fulfillment | done | `seller.orders.index`, `.show`, `.ship` | `Seller\OrderControllerTest`, `Seller\ShipmentControllerTest`, `Requests\Seller\MarkShippedRequestTest`, `Policies\FulfillmentPolicyTest` |
-| Accumulated earnings and payouts | done | `seller.earnings`, `seller.earnings.payout` | `Seller\EarningsControllerTest`, `Seller\PayoutControllerTest`, `Actions\Escrow\RunWeeklyPayoutTest` |
-| Flow: account → add items → `for_sale` reaches the storefront | done | the chain above plus `shop.home` | `Tests\SmokeTest` |
-| Magic links, no passwords | done | `auth.magic.verify` | `Auth\MagicLinkVerificationControllerTest` |
-| Theme: vanilla controls, system type, semantic HTML, stock Tailwind | done | `<x-layouts.seller>` | none (visual) |
+| Requirement                                 | Status | Route                                        | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Create an account                           | done   | `auth.seller.login`, `auth.seller.send`,     | `Auth\SellerLoginControllerTest`,            |
+|                                             |        | `auth.magic.verify`                          | `Requests\Auth\SendMagicLinkRequestTest`,    |
+|                                             |        |                                              | `Auth\MagicLinkVerificationControllerTest`   |
+| Add items straight after sign-in            | done   | `seller.listings.create`,                    | `Seller\ListingControllerTest`,              |
+|                                             |        | `seller.listings.store`                      | `Requests\Seller\ListingRequestTest`         |
+| Manage listings                             | done   | `seller.listings.index`, `.edit`, `.update`, | `Seller\ListingControllerTest`,              |
+|                                             |        | `.status`                                    | `Seller\ListingStatusControllerTest`,        |
+|                                             |        |                                              | `Requests\Seller\ListingRequestTest`,        |
+|                                             |        |                                              | `Requests\Seller\ChangeListingStatusRequestTest`, |
+|                                             |        |                                              | `Models\ListingTest`,                        |
+|                                             |        |                                              | `Policies\ListingPolicyTest`                 |
+| Activity per listing: views, favorites,     | done   | `seller.listings.show`                       | `Seller\ListingControllerTest`,              |
+| cart adds                                   |        |                                              | `Domain\Reports\ActivityTimelineTest`        |
+| Reports on sales                            | done   | `seller.earnings` (Sales table)              | `Seller\EarningsControllerTest`              |
+| Tools for fulfillment                       | done   | `seller.orders.index`, `.show`, `.ship`      | `Seller\OrderControllerTest`,                |
+|                                             |        |                                              | `Seller\ShipmentControllerTest`,             |
+|                                             |        |                                              | `Requests\Seller\MarkShippedRequestTest`,    |
+|                                             |        |                                              | `Policies\FulfillmentPolicyTest`             |
+| Accumulated earnings and payouts            | done   | `seller.earnings`, `seller.earnings.payout`  | `Seller\EarningsControllerTest`,             |
+|                                             |        |                                              | `Seller\PayoutControllerTest`,               |
+|                                             |        |                                              | `Actions\Escrow\RunWeeklyPayoutTest`         |
+| Flow: account → add items → `for_sale`      | done   | the chain above plus `shop.home`             | `Tests\SmokeTest`                            |
+| reaches the storefront                      |        |                                              |                                              |
+| Magic links, no passwords                   | done   | `auth.magic.verify`                          | `Auth\MagicLinkVerificationControllerTest`   |
+| Theme: vanilla controls, system type,       | done   | `<x-layouts.seller>`                         | none (visual)                                |
+| semantic HTML, stock Tailwind               |        |                                              |                                              |
 
 The portal uses `table`, `dl`, `fieldset`/`legend`, `address`, and `caption`
 with no component library and no font download; `Dockerfile` and
@@ -39,111 +59,205 @@ with no component library and no font download; `Dockerfile` and
 
 ## Customer site
 
-| Requirement | Status | Route | Test |
-| --- | --- | --- | --- |
-| Browse | done | `shop.home` (search + medium filter), `shop.listing` | `Shop\StorefrontControllerTest`, `Shop\ListingControllerTest`, `Domain\Shop\ListingSearchTest` |
-| Favorite | done | `shop.favorites`, `shop.favorites.toggle` | `Shop\FavoriteControllerTest`, `Actions\Favorites\ToggleFavoriteTest` |
-| Purchase | done | `shop.cart.add`, `shop.checkout.place`, `shop.order.pay.submit` | `Shop\CartControllerTest`, `Shop\CheckoutControllerTest`, `Shop\OrderPaymentControllerTest`, `Requests\Shop\AddToCartRequestTest`, `Requests\Shop\CheckoutRequestTest`, `Requests\Shop\PayOrderRequestTest`, `Policies\OrderPolicyTest` |
-| Anonymous customer id per visitor | done | every `shop.*` route, via `customer.identity` | `Http\Middleware\ResolveCustomerIdentityTest` |
-| Anonymous ids merge into the account on sign-in | done | `auth.magic.verify` | `Actions\Customers\MergeAnonymousCustomerTest`, `Domain\Customers\CustomerIdentityPlanTest` |
-| Magic links, no passwords | done | `auth.customer.login`, `auth.customer.send` | `Auth\CustomerLoginControllerTest`, `Requests\Auth\SendMagicLinkRequestTest` |
-| Fake card 4242 4242 4242 4242 | done | `shop.order.pay.submit` | `Domain\Payments\FakeCardTest` |
-| Failed payments | done | same route, retry form on `shop.order` | `Shop\OrderPaymentControllerTest`, `Actions\Orders\FinalizeOrderTest` |
-| Guest checkout, verification before finalizing | done | `shop.checkout.place` → `auth.magic.verify` → `shop.order.pay` | `Shop\CheckoutControllerTest`, `Requests\Shop\CheckoutRequestTest`, `Tests\SmokeTest` |
-| Whole purchase and fulfillment flow mocked | done | the chain above plus `seller.orders.ship`, `shop.order.delivered` | `Tests\SmokeTest`, `Actions\Orders\OrderLifecycleTest` |
-| Theme: bright, open, wares over brand | done | `<x-layouts.shop>` | none (visual) |
+| Requirement                                 | Status | Route                                        | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Browse                                      | done   | `shop.home` (search + medium filter),        | `Shop\StorefrontControllerTest`,             |
+|                                             |        | `shop.listing`                               | `Shop\ListingControllerTest`,                |
+|                                             |        |                                              | `Domain\Shop\ListingSearchTest`              |
+| Favorite                                    | done   | `shop.favorites`, `shop.favorites.toggle`    | `Shop\FavoriteControllerTest`,               |
+|                                             |        |                                              | `Actions\Favorites\ToggleFavoriteTest`       |
+| Purchase                                    | done   | `shop.cart.add`, `shop.checkout.place`,      | `Shop\CartControllerTest`,                   |
+|                                             |        | `shop.order.pay.submit`                      | `Shop\CheckoutControllerTest`,               |
+|                                             |        |                                              | `Shop\OrderPaymentControllerTest`,           |
+|                                             |        |                                              | `Requests\Shop\AddToCartRequestTest`,        |
+|                                             |        |                                              | `Requests\Shop\CheckoutRequestTest`,         |
+|                                             |        |                                              | `Requests\Shop\PayOrderRequestTest`,         |
+|                                             |        |                                              | `Policies\OrderPolicyTest`                   |
+| Anonymous customer id per visitor           | done   | every `shop.*` route, via                    | `Http\Middleware\ResolveCustomerIdentityTest` |
+|                                             |        | `customer.identity`                          |                                              |
+| Anonymous ids merge into the account on     | done   | `auth.magic.verify`                          | `Actions\Customers\MergeAnonymousCustomerTest`, |
+| sign-in                                     |        |                                              | `Domain\Customers\CustomerIdentityPlanTest`  |
+| Magic links, no passwords                   | done   | `auth.customer.login`, `auth.customer.send`  | `Auth\CustomerLoginControllerTest`,          |
+|                                             |        |                                              | `Requests\Auth\SendMagicLinkRequestTest`     |
+| Fake card 4242 4242 4242 4242               | done   | `shop.order.pay.submit`                      | `Domain\Payments\FakeCardTest`               |
+| Failed payments                             | done   | same route, retry form on `shop.order`       | `Shop\OrderPaymentControllerTest`,           |
+|                                             |        |                                              | `Actions\Orders\FinalizeOrderTest`           |
+| Guest checkout, verification before         | done   | `shop.checkout.place` → `auth.magic.verify`  | `Shop\CheckoutControllerTest`,               |
+| finalizing                                  |        | → `shop.order.pay`                           | `Requests\Shop\CheckoutRequestTest`,         |
+|                                             |        |                                              | `Tests\SmokeTest`                            |
+| Whole purchase and fulfillment flow mocked  | done   | the chain above plus `seller.orders.ship`,   | `Tests\SmokeTest`,                           |
+|                                             |        | `shop.order.delivered`                       | `Actions\Orders\OrderLifecycleTest`          |
+| Theme: bright, open, wares over brand       | done   | `<x-layouts.shop>`                           | none (visual)                                |
 
 ## Fulfillment, escrow, payout
 
-| Requirement | Status | Route | Test |
-| --- | --- | --- | --- |
-| Tell sellers an item sold | done | `seller.notifications.index` | `Seller\NotificationControllerTest`, `Listeners\NotifySellerOfSaleTest`, `Notifications\ItemSoldTest`, `Policies\NotificationPolicyTest` |
-| Walk sellers through fulfillment | done | `seller.orders.show`, `seller.orders.ship` | `Seller\ShipmentControllerTest`, `Requests\Seller\MarkShippedRequestTest`, `Actions\Fulfillment\MarkShippedTest` |
-| Notify customers of shipment | done | `shop.account` inbox | `Shop\AccountControllerTest`, `Listeners\NotifyCustomerOfShipmentTest`, `Notifications\OrderShippedTest` |
-| Escrow held on payment, released on delivery | done | `shop.order.delivered` | `Actions\Fulfillment\ConfirmDeliveredTest`, `Domain\Escrow\LedgerBalanceTest`, `Policies\FulfillmentPolicyTest` |
-| Report of sold goods and funds due | done | `seller.earnings` | `Seller\EarningsControllerTest` |
-| Pay out at the end of every week | done | `payouts:run`, `admin.payouts.run` | `Console\Commands\RunWeeklyPayoutsTest`, `Domain\Escrow\PayoutPeriodTest`, `Admin\RunPayoutControllerTest` |
-| Customer cancels an unpaid order | done | `shop.order.cancel` | `Actions\Orders\CancelOrderTest`, `Shop\OrderCancellationControllerTest` |
-| Stale unverified orders are swept | done | `orders:sweep` (`make sweep`, hourly on the scheduler) | `Actions\Orders\SweepStaleOrdersTest` |
-| Seller declines a parcel, stock returns | done | `seller.orders.decline` | `Actions\Fulfillment\DeclineFulfillmentTest` |
-| Admin cancels an unpaid order, refunds a fulfillment | done | `admin.orders.cancel`, `admin.fulfillments.refund` | `Actions\Fulfillment\RefundFulfillmentTest`, `Actions\Escrow\IssueRefundTest` |
-| Refund folds through the ledger in all three timings | done | — (domain) | `Domain\Escrow\LedgerBalanceTest`, `Actions\Escrow\RunWeeklyPayoutTest` |
+| Requirement                                 | Status | Route                                        | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Tell sellers an item sold                   | done   | `seller.notifications.index`                 | `Seller\NotificationControllerTest`,         |
+|                                             |        |                                              | `Listeners\NotifySellerOfSaleTest`,          |
+|                                             |        |                                              | `Notifications\ItemSoldTest`,                |
+|                                             |        |                                              | `Policies\NotificationPolicyTest`            |
+| Walk sellers through fulfillment            | done   | `seller.orders.show`, `seller.orders.ship`   | `Seller\ShipmentControllerTest`,             |
+|                                             |        |                                              | `Requests\Seller\MarkShippedRequestTest`,    |
+|                                             |        |                                              | `Actions\Fulfillment\MarkShippedTest`        |
+| Notify customers of shipment                | done   | `shop.account` inbox                         | `Shop\AccountControllerTest`,                |
+|                                             |        |                                              | `Listeners\NotifyCustomerOfShipmentTest`,    |
+|                                             |        |                                              | `Notifications\OrderShippedTest`             |
+| Escrow held on payment, released on         | done   | `shop.order.delivered`                       | `Actions\Fulfillment\ConfirmDeliveredTest`,  |
+| delivery                                    |        |                                              | `Domain\Escrow\LedgerBalanceTest`,           |
+|                                             |        |                                              | `Policies\FulfillmentPolicyTest`             |
+| Report of sold goods and funds due          | done   | `seller.earnings`                            | `Seller\EarningsControllerTest`              |
+| Pay out at the end of every week            | done   | `payouts:run`, `admin.payouts.run`           | `Console\Commands\RunWeeklyPayoutsTest`,     |
+|                                             |        |                                              | `Domain\Escrow\PayoutPeriodTest`,            |
+|                                             |        |                                              | `Admin\RunPayoutControllerTest`              |
+| Customer cancels an unpaid order            | done   | `shop.order.cancel`                          | `Actions\Orders\CancelOrderTest`,            |
+|                                             |        |                                              | `Shop\OrderCancellationControllerTest`       |
+| Stale unverified orders are swept           | done   | `orders:sweep` (`make sweep`, hourly on the  | `Actions\Orders\SweepStaleOrdersTest`        |
+|                                             |        | scheduler)                                   |                                              |
+| Seller declines a parcel, stock returns     | done   | `seller.orders.decline`                      | `Actions\Fulfillment\DeclineFulfillmentTest` |
+| Admin cancels an unpaid order, refunds a    | done   | `admin.orders.cancel`,                       | `Actions\Fulfillment\RefundFulfillmentTest`, |
+| fulfillment                                 |        | `admin.fulfillments.refund`                  | `Actions\Escrow\IssueRefundTest`             |
+| Refund folds through the ledger in all      | done   | — (domain)                                   | `Domain\Escrow\LedgerBalanceTest`,           |
+| three timings                               |        |                                              | `Actions\Escrow\RunWeeklyPayoutTest`         |
 
 ## Admin site and messaging
 
-| Requirement | Status | Route | Test |
-| --- | --- | --- | --- |
-| Admin actor, seeded not signed up, own guard | done | `auth.admin.login`, `auth.admin.send`, `auth.magic.verify` | `Auth\AdminLoginControllerTest`, `Requests\Auth\SendAdminMagicLinkRequestTest`, `Actions\Auth\SignInAdminTest` |
-| Admin dashboard with a tally for every status, including empty ones | done | `admin.dashboard` | `Admin\DashboardControllerTest`, `Domain\Reports\*TallyTest` |
-| Directory: sellers, customers, listings, orders, fulfillments | done | `admin.sellers.*`, `admin.customers.*`, `admin.listings.*`, `admin.orders.*`, `admin.fulfillments.*` | `Admin\SellerControllerTest`, `Admin\CustomerControllerTest`, `Admin\ListingControllerTest`, `Admin\OrderControllerTest`, `Admin\FulfillmentControllerTest` |
-| Accounting, ledger browser, site stats | done | `admin.accounting`, `admin.ledger`, `admin.stats` | `Admin\AccountingControllerTest`, `Admin\LedgerControllerTest`, `Admin\StatsControllerTest` |
-| Listing removals, temporary and permanent | done | `admin.listings.removals.store`/`.lift` | `Actions\Listings\RemoveListingTest`, `Actions\Listings\LiftListingRemovalTest` |
-| Page views rolled up, listing views collapsed per hour | done | — (middleware) | `Http\Middleware\RollUpPageViewsTest`, `Actions\Analytics\RecordPageViewTest`, `Actions\Listings\RecordListingEventTest` |
-| Block a customer from buying; browsing and messaging stay open except posting | done | `admin.customers.blocks.store`, `.blocks.lift` | `Admin\CustomerBlockControllerTest`, `Admin\LiftCustomerBlockControllerTest`, `Actions\Customers\BlockCustomerTest`, `Actions\Customers\LiftCustomerBlockTest`, `Domain\Customers\CustomerStandingTest` |
-| One conversation model for four kinds, one thread per subject under contention | done | — (domain) | `Domain\Messaging\ConversationKindTest`, `Domain\Messaging\ConversationSubjectTest`, `Models\ConversationTest` |
-| Read is ownership-only and denies as not found; post adds standing | done | — (policy) | `Policies\ConversationPolicyTest` |
-| Anonymous shopper asks a seller a question on a listing | done | `shop.listing.questions` | `Shop\ListingQuestionControllerTest` |
-| Seller replies, publishes the answer as a listing FAQ | done | `seller.messages.show`/`.store`, `seller.listings.faqs.store`/`.update`/`.destroy` | `Seller\MessageControllerTest`, `Seller\ListingFaqControllerTest`, `Actions\Messaging\PublishListingFaqTest` |
-| Published FAQ shows on the listing for every visitor | done | `shop.listing` | `Shop\ListingControllerTest` |
-| Fulfillment thread reachable from an order on both sides | done | `seller.orders.messages`, `shop.order.messages` | `Seller\OrderMessageControllerTest`, `Shop\OrderMessageControllerTest` |
-| Support thread from the seller portal and the storefront, admin answers | done | `seller.support`, `shop.support`, `admin.sellers.messages`, `admin.customers.messages`, `admin.messages.show`/`.store` | `Seller\SupportControllerTest`, `Shop\SupportControllerTest`, `Admin\SellerMessageControllerTest`, `Admin\CustomerMessageControllerTest`, `Admin\MessageControllerTest` |
-| Nav badge: per-thread and total unread, one rule | done | every page, all three sites | `Models\MessageTest` (`unreadBy`, `unreadInInboxOf`), `View\Composers\*LayoutComposerTest` |
-| Badge updates live without a page load | done | `seller.events`, `shop.events`, `admin.events` | `Support\UnreadCountStreamTest`, `Seller\EventsControllerTest`, `Shop\EventsControllerTest`, `Admin\EventsControllerTest` |
-| Anonymous customer's threads and sent messages follow them through a merge | done | `auth.magic.verify` | `Actions\Customers\MergeAnonymousCustomerTest`, `Models\ConversationTest` (`moveCustomer`) |
-| Seed data: one thread per kind, one published FAQ, non-zero unread | done | `db:seed --class=MessagingSeeder` | `Database\seeders\MessagingSeederTest`, `Tests\SmokeTest` |
+| Requirement                                 | Status | Route                                        | Test                                         |
+| ------------------------------------------- | ------ | -------------------------------------------- | -------------------------------------------- |
+| Admin actor, seeded not signed up, own      | done   | `auth.admin.login`, `auth.admin.send`,       | `Auth\AdminLoginControllerTest`,             |
+| guard                                       |        | `auth.magic.verify`                          | `Requests\Auth\SendAdminMagicLinkRequestTest`, |
+|                                             |        |                                              | `Actions\Auth\SignInAdminTest`               |
+| Admin dashboard with a tally for every      | done   | `admin.dashboard`                            | `Admin\DashboardControllerTest`,             |
+| status, including empty ones                |        |                                              | `Domain\Reports\*TallyTest`                  |
+| Directory: sellers, customers, listings,    | done   | `admin.sellers.*`, `admin.customers.*`,      | `Admin\SellerControllerTest`,                |
+| orders, fulfillments                        |        | `admin.listings.*`, `admin.orders.*`,        | `Admin\CustomerControllerTest`,              |
+|                                             |        | `admin.fulfillments.*`                       | `Admin\ListingControllerTest`,               |
+|                                             |        |                                              | `Admin\OrderControllerTest`,                 |
+|                                             |        |                                              | `Admin\FulfillmentControllerTest`            |
+| Accounting, ledger browser, site stats      | done   | `admin.accounting`, `admin.ledger`,          | `Admin\AccountingControllerTest`,            |
+|                                             |        | `admin.stats`                                | `Admin\LedgerControllerTest`,                |
+|                                             |        |                                              | `Admin\StatsControllerTest`                  |
+| Listing removals, temporary and permanent   | done   | `admin.listings.removals.store`/`.lift`      | `Actions\Listings\RemoveListingTest`,        |
+|                                             |        |                                              | `Actions\Listings\LiftListingRemovalTest`    |
+| Page views rolled up, listing views         | done   | — (middleware)                               | `Http\Middleware\RollUpPageViewsTest`,       |
+| collapsed per hour                          |        |                                              | `Actions\Analytics\RecordPageViewTest`,      |
+|                                             |        |                                              | `Actions\Listings\RecordListingEventTest`    |
+| Block a customer from buying; browsing and  | done   | `admin.customers.blocks.store`,              | `Admin\CustomerBlockControllerTest`,         |
+| messaging stay open except posting          |        | `.blocks.lift`                               | `Admin\LiftCustomerBlockControllerTest`,     |
+|                                             |        |                                              | `Actions\Customers\BlockCustomerTest`,       |
+|                                             |        |                                              | `Actions\Customers\LiftCustomerBlockTest`,   |
+|                                             |        |                                              | `Domain\Customers\CustomerStandingTest`      |
+| One conversation model for four kinds, one  | done   | — (domain)                                   | `Domain\Messaging\ConversationKindTest`,     |
+| thread per subject under contention         |        |                                              | `Domain\Messaging\ConversationSubjectTest`,  |
+|                                             |        |                                              | `Models\ConversationTest`                    |
+| Read is ownership-only and denies as not    | done   | — (policy)                                   | `Policies\ConversationPolicyTest`            |
+| found; post adds standing                   |        |                                              |                                              |
+| Anonymous shopper asks a seller a question  | done   | `shop.listing.questions`                     | `Shop\ListingQuestionControllerTest`         |
+| on a listing                                |        |                                              |                                              |
+| Seller replies, publishes the answer as a   | done   | `seller.messages.show`/`.store`,             | `Seller\MessageControllerTest`,              |
+| listing FAQ                                 |        | `seller.listings.faqs.store`/`.update`/`.destroy` | `Seller\ListingFaqControllerTest`,           |
+|                                             |        |                                              | `Actions\Messaging\PublishListingFaqTest`    |
+| Published FAQ shows on the listing for      | done   | `shop.listing`                               | `Shop\ListingControllerTest`                 |
+| every visitor                               |        |                                              |                                              |
+| Fulfillment thread reachable from an order  | done   | `seller.orders.messages`,                    | `Seller\OrderMessageControllerTest`,         |
+| on both sides                               |        | `shop.order.messages`                        | `Shop\OrderMessageControllerTest`            |
+| Support thread from the seller portal and   | done   | `seller.support`, `shop.support`,            | `Seller\SupportControllerTest`,              |
+| the storefront, admin answers               |        | `admin.sellers.messages`,                    | `Shop\SupportControllerTest`,                |
+|                                             |        | `admin.customers.messages`,                  | `Admin\SellerMessageControllerTest`,         |
+|                                             |        | `admin.messages.show`/`.store`               | `Admin\CustomerMessageControllerTest`,       |
+|                                             |        |                                              | `Admin\MessageControllerTest`                |
+| Nav badge: per-thread and total unread, one | done   | every page, all three sites                  | `Models\MessageTest` (`unreadBy`,            |
+| rule                                        |        |                                              | `unreadInInboxOf`),                          |
+|                                             |        |                                              | `View\Composers\*LayoutComposerTest`         |
+| Badge updates live without a page load      | done   | `seller.events`, `shop.events`,              | `Support\UnreadCountStreamTest`,             |
+|                                             |        | `admin.events`                               | `Seller\EventsControllerTest`,               |
+|                                             |        |                                              | `Shop\EventsControllerTest`,                 |
+|                                             |        |                                              | `Admin\EventsControllerTest`                 |
+| Anonymous customer's threads and sent       | done   | `auth.magic.verify`                          | `Actions\Customers\MergeAnonymousCustomerTest`, |
+| messages follow them through a merge        |        |                                              | `Models\ConversationTest` (`moveCustomer`)   |
+| Seed data: one thread per kind, one         | done   | `db:seed --class=MessagingSeeder`            | `Database\seeders\MessagingSeederTest`,      |
+| published FAQ, non-zero unread              |        |                                              | `Tests\SmokeTest`                            |
 
 ## Tech stack
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| PHP | done | `Dockerfile` — `php:8.3-cli`, PHP 8.3.33 |
-| Laravel | done | `composer.json` — `laravel/framework ^13.17` |
-| SQLite | done | `config/database.php`, `database/database.sqlite` |
-| Tailwind | done | `package.json` — `tailwindcss` v4 through Vite |
-| Semantic HTML + CSS | done | `resources/views/**` |
-| No JavaScript required | done | every page works and every action completes with JavaScript off; the one `<script defer>` in each layout (`src/public/live-badge.js`, ~20 dependency-free lines) is a progressive enhancement — it keeps the unread-message badge current over the `/events` SSE stream while a page sits open, and returns immediately when `EventSource` is absent |
+| Requirement            | Status | Evidence                                                                                                         |
+| ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
+| PHP                    | done   | `Dockerfile` — `php:8.3-cli`, PHP 8.3.33                                                                         |
+| Laravel                | done   | `composer.json` — `laravel/framework ^13.17`                                                                     |
+| SQLite                 | done   | `config/database.php`, `database/database.sqlite`                                                                |
+| Tailwind               | done   | `package.json` — `tailwindcss` v4 through Vite                                                                   |
+| Semantic HTML + CSS    | done   | `resources/views/**`                                                                                             |
+| No JavaScript required | done   | every page works and every action completes with JavaScript off; the one `<script defer>` in each layout         |
+|                        |        | (`src/public/live-badge.js`, ~20 dependency-free lines) is a progressive enhancement — it keeps the              |
+|                        |        | unread-message badge current over the `/events` SSE stream while a page sits open, and returns immediately when  |
+|                        |        | `EventSource` is absent                                                                                          |
 
 ## Development workflow
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Everything dockerized, nothing on the host | done | `Dockerfile`, `docker-compose.yml`, `Makefile` |
-| All source in `src` | done | `prototype/php/src/` |
-| Tests are sidecars next to the code | done | every non-abstract, non-interface, non-enum, non-trait file under `app/` has a sidecar; `tests/SidecarsTest.php`'s exception list is empty |
-| `/test*` and `/tdd*` skills | partial | process, not visible in the artifacts; the shape they call for (sidecars, pure core tests, HTTP tests for the shell) holds |
-| `/work-*` skills for work items | done | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets |
-| `/write-*` skills | partial | process; comments in the tree are decision records, no restatements, no adverbs |
-| TDD flow | partial | process; each ticket's `## Working` notes record the flow |
-| Measure coverage, keep it high | done | `make coverage` — 100.0% of lines |
-| Functional core / imperative shell | done | `app/Domain/**` is pure (no I/O, no clock, no random); actions and controllers sequence it. No controller holds a domain `if` — every branch reads a domain predicate (`OrderPayment::isPayableBy`, `ListingAvailability::isPurchasable`, `MagicLinkStatus`) or a shell fact (auth, empty cart, missing row) |
-| `/diagramming` for docs | done | Mermaid throughout `docs/`: deployables, layers, ER and notification flow in `architecture.md`; sign-in, admin sign-in, and merge sequences in `identity.md`; the two state machines and the checkout sequence in `orders.md`; the ledger flow in `escrow.md`; the subject-key, FAQ, authorization, block, unread-count, live-badge, and notification flows in `messaging.md`; the concept map in `ontology.md` |
+| Requirement                                | Status  | Evidence                                                                                    |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------- |
+| Everything dockerized, nothing on the host | done    | `Dockerfile`, `docker-compose.yml`, `Makefile`                                              |
+| All source in `src`                        | done    | `prototype/php/src/`                                                                        |
+| Tests are sidecars next to the code        | done    | every non-abstract, non-interface, non-enum, non-trait file under `app/` has a sidecar;     |
+|                                            |         | `tests/SidecarsTest.php`'s exception list is empty                                          |
+| `/test*` and `/tdd*` skills                | partial | process, not visible in the artifacts; the shape they call for (sidecars, pure core tests,  |
+|                                            |         | HTTP tests for the shell) holds                                                             |
+| `/work-*` skills for work items            | done    | `work/1-inbox`, `work/2-doing`, `work/3-done`, `work/journal.md` — 30 tickets               |
+| `/write-*` skills                          | partial | process; comments in the tree are decision records, no restatements, no adverbs             |
+| TDD flow                                   | partial | process; each ticket's `## Working` notes record the flow                                   |
+| Measure coverage, keep it high             | done    | `make coverage` — 100.0% of lines                                                           |
+| Functional core / imperative shell         | done    | `app/Domain/**` is pure (no I/O, no clock, no random); actions and controllers sequence it. |
+|                                            |         | No controller holds a domain `if` — every branch reads a domain predicate                   |
+|                                            |         | (`OrderPayment::isPayableBy`, `ListingAvailability::isPurchasable`, `MagicLinkStatus`) or a |
+|                                            |         | shell fact (auth, empty cart, missing row)                                                  |
+| `/diagramming` for docs                    | done    | Mermaid throughout `docs/`: deployables, layers, ER and notification flow in                |
+|                                            |         | `architecture.md`; sign-in, admin sign-in, and merge sequences in `identity.md`; the two    |
+|                                            |         | state machines and the checkout sequence in `orders.md`; the ledger flow in `escrow.md`;    |
+|                                            |         | the subject-key, FAQ, authorization, block, unread-count, live-badge, and notification      |
+|                                            |         | flows in `messaging.md`; the concept map in `ontology.md`                                   |
 
 ## Goal
 
-| Requirement | Status | Evidence |
-| --- | --- | --- |
-| Back-office for artists to create an account, list art, manage sales | done | `/seller/**` |
-| Customer site for browsing | done | `/` |
-| Mocked cart and payment with a fake card, success and failure | done | `Domain\Payments\FakeCard` — 4242… approves, 4000…0002 and 4000…9995 decline, anything else is an invalid number |
-| Magic links for every actor, printed to the screen in a debug alert | done | `Notifications\MagicLinkIssued` on `Notifications\Channels\SessionFlashChannel` → `<x-debug-alert>` on all three layouts |
-| A hook where email goes later | done | `toMail()` on every notification; `config/magic_links.php` → `delivery=mail` and `config/notifications.php` → `channels` turn it on |
-| Guest checkout requiring verification before the order finalizes | done | `Shop\CheckoutController::place` |
-| Work queued and delivered by agents | done | `work/journal.md` — every ticket in `work/3-done/` |
-| Delivered in `./prototype/php/` with a complete README and a docs folder | done | `README.md`, `docs/` |
+| Requirement                                                         | Status | Evidence                                                            |
+| ------------------------------------------------------------------- | ------ | ------------------------------------------------------------------- |
+| Back-office for artists to create an account, list art, manage      | done   | `/seller/**`                                                        |
+| sales                                                               |        |                                                                     |
+| Customer site for browsing                                          | done   | `/`                                                                 |
+| Mocked cart and payment with a fake card, success and failure       | done   | `Domain\Payments\FakeCard` — 4242… approves, 4000…0002 and          |
+|                                                                     |        | 4000…9995 decline, anything else is an invalid number               |
+| Magic links for every actor, printed to the screen in a debug alert | done   | `Notifications\MagicLinkIssued` on                                  |
+|                                                                     |        | `Notifications\Channels\SessionFlashChannel` → `<x-debug-alert>` on |
+|                                                                     |        | all three layouts                                                   |
+| A hook where email goes later                                       | done   | `toMail()` on every notification; `config/magic_links.php` →        |
+|                                                                     |        | `delivery=mail` and `config/notifications.php` → `channels` turn it |
+|                                                                     |        | on                                                                  |
+| Guest checkout requiring verification before the order finalizes    | done   | `Shop\CheckoutController::place`                                    |
+| Work queued and delivered by agents                                 | done   | `work/journal.md` — every ticket in `work/3-done/`                  |
+| Delivered in `./prototype/php/` with a complete README and a docs   | done   | `README.md`, `docs/`                                                |
+| folder                                                              |        |                                                                     |
 
 ## Against the alignment contract
 
 `docs/alignment.md` fixes the shapes the three prototypes share. What this one
 implements, section by section.
 
-| Contract | Status | Where |
-| --- | --- | --- |
-| §1 Prefixed ULID identifiers | done | `App\Domain\Identifiers\PrefixedId`, `App\Models\Concerns\HasPrefixedUlid`; every domain table plus `notifications`. Two recorded deviations — the minting clock and the ordering tiebreak (gaps 9 and 13) |
-| §2 Structured JSON logs | done | `App\Logging\StoryFormatter`, `App\Support\Story`, `App\Http\Middleware\LogRequestStory`; one `stdout` channel in every environment. 32 of the §2.3 events; one recorded deviation (gap 10) |
-| §3 Rate limits and security headers | done | `App\Domain\RateLimiting\*`, `App\Support\RateLimiting\RateLimitGate`, `App\Http\Middleware\SecurityHeaders`; all seven limits, 429 with `Retry-After`, CSP and nosniff and Referrer-Policy on every response, HSTS in production |
-| §4 Transaction lifecycle | done | `App\Actions\Orders\CancelOrder`, `SweepStaleOrders`, `App\Actions\Fulfillment\DeclineFulfillment`, `RefundFulfillment`, `App\Actions\Escrow\IssueRefund`; the `refunds` table and the `refunded` ledger entry across all three timings. One amendment proposed — the fold groups by fulfillment |
-| §5 Admin feature set | done | `App\Http\Controllers\Admin\*` — directory, dashboard, accounting, ledger, stats, moderation, payouts. See `docs/admin.md` |
-| §6 Workflows | done | the `Makefile`'s target vocabulary, `make check` as the commit gate, `.github/workflows/php.yml` running the same command |
+| Contract                            | Status | Where                                                                                               |
+| ----------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
+| §1 Prefixed ULID identifiers        | done   | `App\Domain\Identifiers\PrefixedId`, `App\Models\Concerns\HasPrefixedUlid`; every domain table plus |
+|                                     |        | `notifications`. Two recorded deviations — the minting clock and the ordering tiebreak (gaps 9 and  |
+|                                     |        | 13)                                                                                                 |
+| §2 Structured JSON logs             | done   | `App\Logging\StoryFormatter`, `App\Support\Story`, `App\Http\Middleware\LogRequestStory`; one       |
+|                                     |        | `stdout` channel in every environment. 32 of the §2.3 events; one recorded deviation (gap 10)       |
+| §3 Rate limits and security headers | done   | `App\Domain\RateLimiting\*`, `App\Support\RateLimiting\RateLimitGate`,                              |
+|                                     |        | `App\Http\Middleware\SecurityHeaders`; all seven limits, 429 with `Retry-After`, CSP and nosniff    |
+|                                     |        | and Referrer-Policy on every response, HSTS in production                                           |
+| §4 Transaction lifecycle            | done   | `App\Actions\Orders\CancelOrder`, `SweepStaleOrders`, `App\Actions\Fulfillment\DeclineFulfillment`, |
+|                                     |        | `RefundFulfillment`, `App\Actions\Escrow\IssueRefund`; the `refunds` table and the `refunded`       |
+|                                     |        | ledger entry across all three timings. One amendment proposed — the fold groups by fulfillment      |
+| §5 Admin feature set                | done   | `App\Http\Controllers\Admin\*` — directory, dashboard, accounting, ledger, stats, moderation,       |
+|                                     |        | payouts. See `docs/admin.md`                                                                        |
+| §6 Workflows                        | done   | the `Makefile`'s target vocabulary, `make check` as the commit gate, `.github/workflows/php.yml`    |
+|                                     |        | running the same command                                                                            |
 
 The full amendment list this prototype proposes against the contract is in the
 alignment tickets' `## Working` sections under `work/3-done/`.

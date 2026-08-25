@@ -44,20 +44,20 @@ flowchart LR
 
 ### Routes
 
-| Name | Verb and path | Controller |
-| --- | --- | --- |
-| `seller_root` | GET `/seller` | `Seller::DashboardController#show` |
-| `seller_listings` | GET `/seller/listings` | `Seller::ListingsController#index` |
-| `new_seller_listing` | GET `/seller/listings/new` | `#new` |
-| `seller_listing` | GET `/seller/listings/:id`, PATCH | `#show`, `#update` |
-| `edit_seller_listing` | GET `/seller/listings/:id/edit` | `#edit` |
-| `seller_listing_status` | POST `/seller/listings/:listing_id/status` | `Seller::ListingStatusesController#create` |
-| `seller_orders` | GET `/seller/orders` | `Seller::OrdersController#index` |
-| `seller_order` | GET `/seller/orders/:id` | `#show` |
-| `seller_order_shipment` | POST `/seller/orders/:order_id/shipment` | `Seller::ShipmentsController#create` |
-| `seller_earnings` | GET `/seller/earnings` | `Seller::EarningsController#show` |
-| `seller_earnings_payout` | POST `/seller/earnings/payout` | `Seller::PayoutsController#create` |
-| `seller_notifications` | GET `/seller/notifications` | `Seller::NotificationsController#index` |
+| Name                       | Verb and path                                      | Controller                                   |
+| -------------------------- | -------------------------------------------------- | -------------------------------------------- |
+| `seller_root`              | GET `/seller`                                      | `Seller::DashboardController#show`           |
+| `seller_listings`          | GET `/seller/listings`                             | `Seller::ListingsController#index`           |
+| `new_seller_listing`       | GET `/seller/listings/new`                         | `#new`                                       |
+| `seller_listing`           | GET `/seller/listings/:id`, PATCH                  | `#show`, `#update`                           |
+| `edit_seller_listing`      | GET `/seller/listings/:id/edit`                    | `#edit`                                      |
+| `seller_listing_status`    | POST `/seller/listings/:listing_id/status`         | `Seller::ListingStatusesController#create`   |
+| `seller_orders`            | GET `/seller/orders`                               | `Seller::OrdersController#index`             |
+| `seller_order`             | GET `/seller/orders/:id`                           | `#show`                                      |
+| `seller_order_shipment`    | POST `/seller/orders/:order_id/shipment`           | `Seller::ShipmentsController#create`         |
+| `seller_earnings`          | GET `/seller/earnings`                             | `Seller::EarningsController#show`            |
+| `seller_earnings_payout`   | POST `/seller/earnings/payout`                     | `Seller::PayoutsController#create`           |
+| `seller_notifications`     | GET `/seller/notifications`                        | `Seller::NotificationsController#index`      |
 | `seller_notification_read` | POST `/seller/notifications/:notification_id/read` | `Seller::NotificationReadsController#create` |
 
 A seller's order **is a fulfillment** — `/seller/orders/:id` takes a

@@ -16,30 +16,44 @@ sign in through the same magic link sellers and customers use
 
 ## Pages
 
-| Path | Reads |
-| --- | --- |
-| `GET /admin` | tallies for every listing / order / fulfillment status (zero rows still listed), platform money, page views this week |
-| `GET /admin/sellers` | every seller with listing and fulfillment counts, and the balance folded from one read of the ledger |
-| `GET /admin/sellers/{seller}` | the seller's listings, fulfillments, payouts, and escrow balance |
-| `GET /admin/customers?standing=all\|verified\|anonymous\|blocked` | every customer, anonymous rows included, with order, favorite and cart-line counts |
-| `GET /admin/customers/{customer}` | orders, favorites, cart, block history, merge history, and the block / lift form |
-| `GET /admin/listings?status=&seller=&removed=any\|removed\|visible` | every listing across every seller |
-| `GET /admin/listings/{listing}` | the listing, its active removal and removal history, its view / favorite / cart-add counts, and every order line it sold on |
-| `GET /admin/orders?status=&customer=` | every order with its customer, item count and total |
-| `GET /admin/orders/{order}` | items, payment attempts, fulfillments, refunds, the cancel action and a refund form per fulfillment |
-| `GET /admin/fulfillments?status=&seller=` | every fulfillment with its order and seller |
-| `GET /admin/fulfillments/{fulfillment}` | the shipment, the lines it carries, its money, its ledger entries, and the refund or the form to issue one |
-| `GET /admin/accounting` | per-seller reconciliation (held / available / paid out / refunded), fees earned and refunded at the platform level |
-| `GET /admin/ledger?seller=&type=` | every ledger entry matching the filter, folded totals for that filtered set |
-| `GET /admin/payouts?seller=`, `POST /admin/payouts` | payout history; run the weekly payout for every seller (`as_of` optional) |
-| `GET /admin/stats` | page views by day (7-day window) and by route pattern, listing event tallies |
-| `GET\|POST /admin/messages`, `/admin/messages/{conversation}` | the admin inbox ([`messaging.md`](messaging.md)) |
-| `POST /admin/orders/{order}/cancel` | cancel an order nothing has been charged for; the stock goes back on the storefront |
-| `POST /admin/fulfillments/{fulfillment}/refund` | refund one fulfillment with a reason; stock stays sold |
-| `POST /admin/listings/{listing}/removals`, `.../removals/lift` | temporary or permanent removal with a reason; lift refused for a permanent one |
-| `POST /admin/customers/{customer}/blocks`, `.../blocks/lift` | block with a reason; lift it |
-| `POST /admin/sellers/{seller}/messages`, `POST /admin/customers/{customer}/messages` | open a thread from the directory |
-| `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
+| Path                                                                    | Reads                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /admin`                                                            | tallies for every listing / order / fulfillment status (zero rows still  |
+|                                                                         | listed), platform money, page views this week                            |
+| `GET /admin/sellers`                                                    | every seller with listing and fulfillment counts, and the balance folded |
+|                                                                         | from one read of the ledger                                              |
+| `GET /admin/sellers/{seller}`                                           | the seller's listings, fulfillments, payouts, and escrow balance         |
+| `GET /admin/customers?standing=all\|verified\|anonymous\|blocked`       | every customer, anonymous rows included, with order, favorite and        |
+|                                                                         | cart-line counts                                                         |
+| `GET /admin/customers/{customer}`                                       | orders, favorites, cart, block history, merge history, and the block /   |
+|                                                                         | lift form                                                                |
+| `GET /admin/listings?status=&seller=&removed=any\|removed\|visible`     | every listing across every seller                                        |
+| `GET /admin/listings/{listing}`                                         | the listing, its active removal and removal history, its view / favorite |
+|                                                                         | / cart-add counts, and every order line it sold on                       |
+| `GET /admin/orders?status=&customer=`                                   | every order with its customer, item count and total                      |
+| `GET /admin/orders/{order}`                                             | items, payment attempts, fulfillments, refunds, the cancel action and a  |
+|                                                                         | refund form per fulfillment                                              |
+| `GET /admin/fulfillments?status=&seller=`                               | every fulfillment with its order and seller                              |
+| `GET /admin/fulfillments/{fulfillment}`                                 | the shipment, the lines it carries, its money, its ledger entries, and   |
+|                                                                         | the refund or the form to issue one                                      |
+| `GET /admin/accounting`                                                 | per-seller reconciliation (held / available / paid out / refunded), fees |
+|                                                                         | earned and refunded at the platform level                                |
+| `GET /admin/ledger?seller=&type=`                                       | every ledger entry matching the filter, folded totals for that filtered  |
+|                                                                         | set                                                                      |
+| `GET /admin/payouts?seller=`, `POST /admin/payouts`                     | payout history; run the weekly payout for every seller (`as_of`          |
+|                                                                         | optional)                                                                |
+| `GET /admin/stats`                                                      | page views by day (7-day window) and by route pattern, listing event     |
+|                                                                         | tallies                                                                  |
+| `GET\|POST /admin/messages`, `/admin/messages/{conversation}`           | the admin inbox ([`messaging.md`](messaging.md))                         |
+| `POST /admin/orders/{order}/cancel`                                     | cancel an order nothing has been charged for; the stock goes back on the |
+|                                                                         | storefront                                                               |
+| `POST /admin/fulfillments/{fulfillment}/refund`                         | refund one fulfillment with a reason; stock stays sold                   |
+| `POST /admin/listings/{listing}/removals`, `.../removals/lift`          | temporary or permanent removal with a reason; lift refused for a         |
+|                                                                         | permanent one                                                            |
+| `POST /admin/customers/{customer}/blocks`, `.../blocks/lift`            | block with a reason; lift it                                             |
+| `POST /admin/sellers/{seller}/messages`,                                | open a thread from the directory                                         |
+| `POST /admin/customers/{customer}/messages`                             |                                                                          |
+| `GET /admin/events`                                                     | the admin's unread-count stream (`text/event-stream`)                    |
 
 Every filter is optional and an empty value means "all": the console submits
 `seller=` for "All sellers", and the controller reads it back with

@@ -39,12 +39,15 @@ Policies and route binding are the parts of Laravel a reviewer looks for first; 
 
 ### Where each question is answered
 
-| Question | Answered by | On a miss |
-| --- | --- | --- |
-| Is this row the actor's? | policy `view` / `update` / `pay` / `markRead`, via `authorize()` | `Response::denyAsNotFound()` → 404 |
-| Is this fulfillment part of this order? | `->scopeBindings()` on the nested route | 404 from binding |
-| Is this move legal right now? | the action, through the domain enum's `transitionTo()` | `DomainRuleViolation` → BUG-001's `back()->withErrors()` |
-| Is the form worth offering? | policy `ship` / `confirmDelivery`, via `@can` / `@visitorCan` | the form is not rendered |
+| Question                                | Answered by                                        | On a miss                                           |
+| --------------------------------------- | -------------------------------------------------- | --------------------------------------------------- |
+| Is this row the actor's?                | policy `view` / `update` / `pay` / `markRead`, via | `Response::denyAsNotFound()` → 404                  |
+|                                         | `authorize()`                                      |                                                     |
+| Is this fulfillment part of this order? | `->scopeBindings()` on the nested route            | 404 from binding                                    |
+| Is this move legal right now?           | the action, through the domain enum's              | `DomainRuleViolation` → BUG-001's                   |
+|                                         | `transitionTo()`                                   | `back()->withErrors()`                              |
+| Is the form worth offering?             | policy `ship` / `confirmDelivery`, via `@can` /    | the form is not rendered                            |
+|                                         | `@visitorCan`                                      |                                                     |
 
 The split is the reason a policy carries two shapes of method. `view` and
 `update` answer ownership alone, so `authorize()` never turns a state refusal

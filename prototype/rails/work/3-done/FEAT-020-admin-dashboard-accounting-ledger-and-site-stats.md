@@ -124,11 +124,11 @@ Accounting/Ledger/Stats in the admin layout.
 
 ### Query counts pinned
 
-| Page | Statements, 1 seller with money | Statements, 5 sellers with money |
-| --- | --- | --- |
-| `/admin` | measured equal via `count_queries`; asserted with `assert_equal one, five` | — |
-| `/admin/accounting` | same | — |
-| `/admin/ledger` | same | — |
+| Page                | Statements, 1 seller with money                                            | Statements, 5 sellers with money |
+| ------------------- | -------------------------------------------------------------------------- | -------------------------------- |
+| `/admin`            | measured equal via `count_queries`; asserted with `assert_equal one, five` | —                                |
+| `/admin/accounting` | same                                                                       | —                                |
+| `/admin/ledger`     | same                                                                       | —                                |
 
 (Exact statement counts are not pinned to a literal number in the tests —
 matching FEAT-019's own tests — only that the count for one seller with money

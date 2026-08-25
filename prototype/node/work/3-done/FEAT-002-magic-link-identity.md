@@ -44,17 +44,20 @@ Port from `prototype/rails/src/app/domain/auth/*`, `domain/customers/*`, `action
 
 Core (pure, sidecar tested, no database):
 
-| Module | Exports |
-| --- | --- |
-| `app/core/auth/actor-type.ts` | `ACTOR_TYPES`, `ActorType` (`seller` \| `customer` \| `admin`), `isActorType`, `ACTOR_SITES` (`homePath`, `loginPath`, `signedOutPath` per actor) |
-| `app/core/auth/email-address.ts` | `normalizeEmail`, `isEmailAddress` |
-| `app/core/auth/magic-link-token.ts` | `digestMagicLinkToken` (sha256 hex) |
-| `app/core/auth/magic-link-status.ts` | `MAGIC_LINK_LIFETIME_MINUTES` (15), `magicLinkStatus(link, now)`, `magicLinkExpiresAt(issuedAt)` |
-| `app/core/auth/local-redirect.ts` | `keepLocalRedirect(requested, origin)`, `resolveLocalRedirect(requested, { fallback, origin })` |
-| `app/core/customers/identity-plan.ts` | `planCustomerIdentity({ anonymousCustomerId, ownerOfEmailId })`, `resultingCustomerId(plan)` |
-| `app/core/customers/customer-merge-plan.ts` | `planCustomerMerge({...})` → `{ cartLines, favoriteListingIds }`, `CartLine` |
-| `app/core/customers/repointed-customer-tables.ts` | `REPOINTED_CUSTOMER_TABLES` |
-| `app/core/customers/customer-verification.ts` | `isVerifiedCustomer`, `isAnonymousCustomer` |
+| Module                                            | Exports                                                                                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `app/core/auth/actor-type.ts`                     | `ACTOR_TYPES`, `ActorType` (`seller` \| `customer` \| `admin`), `isActorType`, `ACTOR_SITES`   |
+|                                                   | (`homePath`, `loginPath`, `signedOutPath` per actor)                                           |
+| `app/core/auth/email-address.ts`                  | `normalizeEmail`, `isEmailAddress`                                                             |
+| `app/core/auth/magic-link-token.ts`               | `digestMagicLinkToken` (sha256 hex)                                                            |
+| `app/core/auth/magic-link-status.ts`              | `MAGIC_LINK_LIFETIME_MINUTES` (15), `magicLinkStatus(link, now)`,                              |
+|                                                   | `magicLinkExpiresAt(issuedAt)`                                                                 |
+| `app/core/auth/local-redirect.ts`                 | `keepLocalRedirect(requested, origin)`,                                                        |
+|                                                   | `resolveLocalRedirect(requested, { fallback, origin })`                                        |
+| `app/core/customers/identity-plan.ts`             | `planCustomerIdentity({ anonymousCustomerId, ownerOfEmailId })`, `resultingCustomerId(plan)`   |
+| `app/core/customers/customer-merge-plan.ts`       | `planCustomerMerge({...})` → `{ cartLines, favoriteListingIds }`, `CartLine`                   |
+| `app/core/customers/repointed-customer-tables.ts` | `REPOINTED_CUSTOMER_TABLES`                                                                    |
+| `app/core/customers/customer-verification.ts`     | `isVerifiedCustomer`, `isAnonymousCustomer`                                                    |
 
 Actions (`{ db, clock }`, integration tested against `:memory:`):
 
@@ -85,15 +88,23 @@ never gets a link.
 
 From `app/plugins/identity.ts`:
 
-| Symbol | What it does |
-| --- | --- |
-| `addIdentity(app)` | Called once in `buildApp`. Decorates `request.currentSeller` / `currentCustomer` / `currentAdmin` / `identity`, `reply.signIn(actorType, id)`, `reply.signOut(actorType)`, and adds the root `preHandler` that resolves the seller and admin from their cookies. |
-| `resolveCustomerIdentity` | `preHandler`. Puts a customer on the request, **creating an anonymous row when the cookie names nobody**, and rewrites the cookie so a merged id rolls forward. Registered in `app/sites/shop/storefront.ts`; every storefront page FEAT-005 adds goes inside that plugin and inherits it. |
-| `rememberCustomerIdentity` | `preHandler`. Same, minus the creation. Used by the storefront's sign-in routes. |
-| `requireSeller`, `requireAdmin`, `requireVerifiedCustomer` | `preHandler` guards. Flash an alert and redirect to that side's `loginPath` with `?redirect_to=<request.url>`. |
-| `ACTOR_GUARDS` | The three guards keyed by `ActorType`. |
-| `signedInActorId(request, actorType)` | The id this request is signed in as, or null. A customer counts only once `email` is set. |
-| `identityCookieValue(request, actorType)` | The raw unsigned cookie value, for code that must not create a row. |
+| Symbol                                                     | What it does                                                                          |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `addIdentity(app)`                                         | Called once in `buildApp`. Decorates `request.currentSeller` / `currentCustomer` /    |
+|                                                            | `currentAdmin` / `identity`, `reply.signIn(actorType, id)`,                           |
+|                                                            | `reply.signOut(actorType)`, and adds the root `preHandler` that resolves the seller   |
+|                                                            | and admin from their cookies.                                                         |
+| `resolveCustomerIdentity`                                  | `preHandler`. Puts a customer on the request, **creating an anonymous row when the    |
+|                                                            | cookie names nobody**, and rewrites the cookie so a merged id rolls forward.          |
+|                                                            | Registered in `app/sites/shop/storefront.ts`; every storefront page FEAT-005 adds     |
+|                                                            | goes inside that plugin and inherits it.                                              |
+| `rememberCustomerIdentity`                                 | `preHandler`. Same, minus the creation. Used by the storefront's sign-in routes.      |
+| `requireSeller`, `requireAdmin`, `requireVerifiedCustomer` | `preHandler` guards. Flash an alert and redirect to that side's `loginPath` with      |
+|                                                            | `?redirect_to=<request.url>`.                                                         |
+| `ACTOR_GUARDS`                                             | The three guards keyed by `ActorType`.                                                |
+| `signedInActorId(request, actorType)`                      | The id this request is signed in as, or null. A customer counts only once `email` is  |
+|                                                            | set.                                                                                  |
+| `identityCookieValue(request, actorType)`                  | The raw unsigned cookie value, for code that must not create a row.                   |
 
 `currentCustomer` is the whole customer row, so `request.currentCustomer.id` is
 the owner for carts, favorites, orders, and listing events.

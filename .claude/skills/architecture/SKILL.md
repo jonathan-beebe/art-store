@@ -20,13 +20,18 @@ Software exists at five altitudes: system ⊃ feature ⊃ module ⊃ unit ⊃ li
 Architecture operates at each one. Know which altitude you're working at, and
 produce the artifacts of that altitude.
 
-| Altitude | Scope | Activities | Artifacts produced |
-| --- | --- | --- | --- |
-| **5 — System** | the whole product | design the architecture, define sub-systems and boundaries, audit system health, scope work | layers, boundaries, sub-systems, tickets |
-| **4 — Feature** | one user-facing capability | design a feature, plan/break down the work, build the feature, verify end-to-end, ship | feature folder, wiring in the composition root, e2e tests |
-| **3 — Module** | one concept / folder | shape a module, define its public API, place files, assign layer membership | files, folders, exports |
-| **2 — Unit** | one function / class / type | write a function, write a class, write a method, design a type, write a unit test | functions, classes, methods, types, tests |
-| **1 — Line** | one statement / expression | name a variable, choose a data structure, shape a conditional, extract a constant | statements, expressions, names |
+| Altitude        | Scope                       | Activities                                      | Artifacts produced                               |
+| --------------- | --------------------------- | ----------------------------------------------- | ------------------------------------------------ |
+| **5 — System**  | the whole product           | design the architecture, define sub-systems and | layers, boundaries, sub-systems, tickets         |
+|                 |                             | boundaries, audit system health, scope work     |                                                  |
+| **4 — Feature** | one user-facing capability  | design a feature, plan/break down the work,     | feature folder, wiring in the composition root,  |
+|                 |                             | build the feature, verify end-to-end, ship      | e2e tests                                        |
+| **3 — Module**  | one concept / folder        | shape a module, define its public API, place    | files, folders, exports                          |
+|                 |                             | files, assign layer membership                  |                                                  |
+| **2 — Unit**    | one function / class / type | write a function, write a class, write a        | functions, classes, methods, types, tests        |
+|                 |                             | method, design a type, write a unit test        |                                                  |
+| **1 — Line**    | one statement / expression  | name a variable, choose a data structure, shape | statements, expressions, names                   |
+|                 |                             | a conditional, extract a constant               |                                                  |
 
 ## System shape
 

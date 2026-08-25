@@ -16,20 +16,20 @@ is the public identifier; there is no second column and no separate order
 number. `docs/alignment.md` §1 fixes the format and the prefix table the three
 prototypes share.
 
-| Table | Prefix | Table | Prefix |
-| --- | --- | --- | --- |
-| admins | `adm` | listing_faqs | `faq` |
-| sellers | `sel` | carts | `crt` |
-| customers | `cus` | cart_items | `cti` |
-| customer_merges | `cmg` | favorites | `fav` |
-| customer_blocks | `blk` | orders | `ord` |
-| magic_links | `mlk` | order_items | `oit` |
-| listings | `lst` | payments | `pay` |
-| listing_events | `lev` | fulfillments | `ful` |
-| conversations | `cnv` | ledger_entries | `led` |
-| messages | `msg` | payouts | `pyt` |
-| notifications | `ntf` | refunds | `rfd` |
-| listing_removals | `rmv` | page_view_counts | `pvc` |
+| Table            | Prefix | Table            | Prefix |
+| ---------------- | ------ | ---------------- | ------ |
+| admins           | `adm`  | listing_faqs     | `faq`  |
+| sellers          | `sel`  | carts            | `crt`  |
+| customers        | `cus`  | cart_items       | `cti`  |
+| customer_merges  | `cmg`  | favorites        | `fav`  |
+| customer_blocks  | `blk`  | orders           | `ord`  |
+| magic_links      | `mlk`  | order_items      | `oit`  |
+| listings         | `lst`  | payments         | `pay`  |
+| listing_events   | `lev`  | fulfillments     | `ful`  |
+| conversations    | `cnv`  | ledger_entries   | `led`  |
+| messages         | `msg`  | payouts          | `pyt`  |
+| notifications    | `ntf`  | refunds          | `rfd`  |
+| listing_removals | `rmv`  | page_view_counts | `pvc`  |
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock

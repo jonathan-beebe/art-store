@@ -13,11 +13,11 @@ One `magic_links` row serves every actor type. `actor_type`
 it is signing in, so the link itself carries the routing and no site owns the
 verification page.
 
-| Actor | Cookie | Sign-in creates a row? |
-| --- | --- | --- |
-| Seller | `seller_id` | Yes — `claimSellerIdentity` on the first link for an address. |
-| Customer | `customer_id` | Yes — but on the first storefront request, not at sign-in. |
-| Admin | `admin_id` | No. `admins` rows are seeded; `adminSite` passes `admits`, so an unseeded address is never sent a link. |
+| Actor    | Cookie        | Sign-in creates a row?                                                                                  |
+| -------- | ------------- | ------------------------------------------------------------------------------------------------------- |
+| Seller   | `seller_id`   | Yes — `claimSellerIdentity` on the first link for an address.                                           |
+| Customer | `customer_id` | Yes — but on the first storefront request, not at sign-in.                                              |
+| Admin    | `admin_id`    | No. `admins` rows are seeded; `adminSite` passes `admits`, so an unseeded address is never sent a link. |
 
 All three cookies are signed, `httpOnly`, `sameSite=lax`, and last a year
 (`app/plugins/identity.ts`). They are independent, so one browser can be all
@@ -276,11 +276,11 @@ of them used to check only that the target stayed on this origin —
 from PHP's `ActorType::allowsPath` (`prototype/php`), naming the path prefixes
 each actor type holds no guard for —
 
-| Actor | Refused |
-| --- | --- |
-| `seller` | `/admin` and anything under it |
+| Actor      | Refused                                           |
+| ---------- | ------------------------------------------------- |
+| `seller`   | `/admin` and anything under it                    |
 | `customer` | `/seller` and `/admin`, and anything under either |
-| `admin` | `/seller` and anything under it |
+| `admin`    | `/seller` and anything under it                   |
 
 — so a seller may still be sent to `/orders/7` (no site owns that prefix) but
 never to `/admin/orders`, and an admin may be sent to a customer path but

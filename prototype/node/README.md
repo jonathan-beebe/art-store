@@ -55,27 +55,37 @@ Then open:
 `src/app/config.ts` parses these from the environment; `docker-compose.yml`
 sets `HOST` and `PORT` for the container.
 
-| Variable | Default | What it decides |
-| --- | --- | --- |
-| `NODE_ENV` | `development` | One of `development`, `test`, `production`. Production is the strict boot: the two rules below, plus `Secure` cookies. |
-| `HOST` | `0.0.0.0` | The interface the server binds. |
-| `PORT` | `4000` | The port it listens on. |
-| `DATABASE_FILE` | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`. |
-| `COOKIE_SECRET` | a development default | Signs the flash and identity cookies; minimum 16 characters. **Required** under `NODE_ENV=production`. |
-| `PUBLIC_URL` | unset | The origin every magic link is built from. Unset, a link carries the request's own origin — which is the `Host` header. |
-| `TRUSTED_PROXIES` | unset | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate limit's client-ip key reads), `request.protocol`, and `request.hostname` trust `X-Forwarded-*` headers only past those hops instead of the raw socket. |
-| `MAGIC_LINK_DELIVERY` | `flash` | `flash` prints the link into the page (development only — production refuses it); `outbox` queues it for the transactional outbox. |
-| `UPLOADS_DIR` | `public/uploads` | Where listing images land, served under `/uploads/`. |
-| `OUTBOX_DIR` | `storage/outbox` | Where draining the outbox writes its `.eml` files. |
-| `STALE_ORDER_HOURS` | `24` | How long an order left unverified holds its stock before `make sweep` cancels it. |
-| `LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds the `listing.view` and `ledger.write` lines. |
-| `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | Sign-in's `POST /login` on every site, and guest checkout's implicit link. Keyed by lowercased email and, separately, client ip. |
-| `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | `GET /auth/magic/:token`. Keyed by client ip. |
-| `RATE_LIMIT_MESSAGE_POST` | `30/1h` | Every message POST. Keyed by actor id. |
-| `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | The listing question box, support, and fulfillment thread opens. Keyed by actor id. |
-| `RATE_LIMIT_CHECKOUT` | `10/1h` | `POST /checkout`. Keyed by customer id. |
-| `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | `POST /orders/:id/pay`. Keyed by order id. |
-| `RATE_LIMIT_LISTING_WRITE` | `60/1h` | Listing create and update. Keyed by seller id. |
+| Variable                        | Default                       | What it decides                                                                  |
+| ------------------------------- | ----------------------------- | -------------------------------------------------------------------------------- |
+| `NODE_ENV`                      | `development`                 | One of `development`, `test`, `production`. Production is the strict boot: the   |
+|                                 |                               | two rules below, plus `Secure` cookies.                                          |
+| `HOST`                          | `0.0.0.0`                     | The interface the server binds.                                                  |
+| `PORT`                          | `4000`                        | The port it listens on.                                                          |
+| `DATABASE_FILE`                 | `storage/development.sqlite3` | The SQLite file. Tests use `:memory:`.                                           |
+| `COOKIE_SECRET`                 | a development default         | Signs the flash and identity cookies; minimum 16 characters. **Required** under  |
+|                                 |                               | `NODE_ENV=production`.                                                           |
+| `PUBLIC_URL`                    | unset                         | The origin every magic link is built from. Unset, a link carries the request's   |
+|                                 |                               | own origin — which is the `Host` header.                                         |
+| `TRUSTED_PROXIES`               | unset                         | Comma-separated proxy addresses/CIDRs. Set, `request.ip` (what every rate        |
+|                                 |                               | limit's client-ip key reads), `request.protocol`, and `request.hostname` trust   |
+|                                 |                               | `X-Forwarded-*` headers only past those hops instead of the raw socket.          |
+| `MAGIC_LINK_DELIVERY`           | `flash`                       | `flash` prints the link into the page (development only — production refuses     |
+|                                 |                               | it); `outbox` queues it for the transactional outbox.                            |
+| `UPLOADS_DIR`                   | `public/uploads`              | Where listing images land, served under `/uploads/`.                             |
+| `OUTBOX_DIR`                    | `storage/outbox`              | Where draining the outbox writes its `.eml` files.                               |
+| `STALE_ORDER_HOURS`             | `24`                          | How long an order left unverified holds its stock before `make sweep` cancels    |
+|                                 |                               | it.                                                                              |
+| `LOG_LEVEL`                     | `info`                        | `fatal`, `error`, `warn`, `info`, `debug`, `trace`, or `silent`. `debug` adds    |
+|                                 |                               | the `listing.view` and `ledger.write` lines.                                     |
+| `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m`                       | Sign-in's `POST /login` on every site, and guest checkout's implicit link. Keyed |
+|                                 |                               | by lowercased email and, separately, client ip.                                  |
+| `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m`                      | `GET /auth/magic/:token`. Keyed by client ip.                                    |
+| `RATE_LIMIT_MESSAGE_POST`       | `30/1h`                       | Every message POST. Keyed by actor id.                                           |
+| `RATE_LIMIT_CONVERSATION_OPEN`  | `10/1h`                       | The listing question box, support, and fulfillment thread opens. Keyed by actor  |
+|                                 |                               | id.                                                                              |
+| `RATE_LIMIT_CHECKOUT`           | `10/1h`                       | `POST /checkout`. Keyed by customer id.                                          |
+| `RATE_LIMIT_PAYMENT_ATTEMPT`    | `5/15m`                       | `POST /orders/:id/pay`. Keyed by order id.                                       |
+| `RATE_LIMIT_LISTING_WRITE`      | `60/1h`                       | Listing create and update. Keyed by seller id.                                   |
 
 Every `RATE_LIMIT_*` value is `<count>/<window>` (`<n>s`, `<n>m`, or `<n>h`) or
 `off`. A malformed value refuses to boot, the same as an unsafe production
@@ -123,11 +133,11 @@ event vocabulary, and how each field reaches a line.
 page, the JSON health check, an uploaded file, and a 404 all answer with the
 same set:
 
-| Header | Value |
-| --- | --- |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| Header                    | Value                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `X-Content-Type-Options`  | `nosniff`                                                                                                              |
+| `X-Frame-Options`         | `DENY`                                                                                                                 |
+| `Referrer-Policy`         | `strict-origin-when-cross-origin`                                                                                      |
 | `Content-Security-Policy` | `default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; form-action 'self'; frame-ancestors 'none'` |
 
 `data:` is in `img-src` for the generated SVG placeholder a listing with no
@@ -240,10 +250,10 @@ alert prints the link on the page that asked; with `outbox` it waits on
 
 **Admins** — seeded only, never created by signing in.
 
-| Email | Name |
-| --- | --- |
+| Email                        | Name           |
+| ---------------------------- | -------------- |
 | `jonathan-beebe@outlook.com` | Jonathan Beebe |
-| `annaschmunk@pm.me` | Anna Schmunk |
+| `annaschmunk@pm.me`          | Anna Schmunk   |
 
 **Sellers** — all four verified, each with a shop and part of a 29-listing
 catalog across six media (painting, print, ceramic, textile, sculpture,
@@ -251,49 +261,51 @@ photography): 24 `for_sale` (one, "Night Freight", carries an admin's
 temporary removal and is off the storefront despite its status), 3 `draft`,
 2 `sold`.
 
-| Email | Name | Shop |
-| --- | --- | --- |
-| `maya@example.com` | Maya Reyes | Terra & Glaze Ceramics |
-| `noah@example.com` | Noah Chen | North Light Editions |
+| Email               | Name        | Shop                       |
+| ------------------- | ----------- | -------------------------- |
+| `maya@example.com`  | Maya Reyes  | Terra & Glaze Ceramics     |
+| `noah@example.com`  | Noah Chen   | North Light Editions       |
 | `priya@example.com` | Priya Anand | Priya Anand Textile Studio |
-| `leo@example.com` | Leo Martins | Leo Martins Photography |
+| `leo@example.com`   | Leo Martins | Leo Martins Photography    |
 
 **Customers**
 
-| Email | State |
-| --- | --- |
-| `casey@example.com` (Casey Whitfield) | Verified. 3 favorites, 6 viewed listings, a standing cart with 2 items, and 3 single-item orders in `paid` (awaiting shipment), `shipped`, and `delivered` states — the delivered one's escrow is released and paid out in the weekly payout run. |
-| `jordan@example.com` | Verified, blocked by an admin (`customer_blocks`, reason "Repeated chargebacks reported by two sellers."). |
-| _(3 anonymous)_ | No address given; each has view history on a few listings. |
+| Email                                 | State                                                                                                      |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `casey@example.com` (Casey Whitfield) | Verified. 3 favorites, 6 viewed listings, a standing cart with 2 items, and 3 single-item orders in `paid` |
+|                                       | (awaiting shipment), `shipped`, and `delivered` states — the delivered one's escrow is released and paid   |
+|                                       | out in the weekly payout run.                                                                              |
+| `jordan@example.com`                  | Verified, blocked by an admin (`customer_blocks`, reason "Repeated chargebacks reported by two sellers."). |
+| _(3 anonymous)_                       | No address given; each has view history on a few listings.                                                 |
 
 ## Commands
 
 Every target is a thin `docker compose` wrapper, so either form works.
 
-| Make | Docker Compose |
-| --- | --- |
-| `make up` | `docker compose up -d` |
-| `make down` | `docker compose down` |
-| `make build` | `docker compose build` |
-| `make assets` | `docker compose run --rm app npm run assets` |
-| `make shell` | `docker compose run --rm app bash` |
-| `make test` | `docker compose run --rm app npm run coverage` |
-| `make smoke` | `docker compose run --rm app node --test app/test/smoke.test.ts` |
-| `make coverage` | `docker compose run --rm app npm run coverage` |
-| `make lint` | `docker compose run --rm app npm run lint` |
-| `make lint-fix` | `docker compose run --rm app npm run lint:fix` |
-| `make check` | `docker compose run --rm app npm run check` |
-| `make sweep` | `docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))` |
-| `make docs-check` | `./docker/docs-check.sh` |
-| `make routes` | `docker compose run --rm app npm run routes` |
-| `make migrate` | `docker compose run --rm app npm run migrate` |
-| `make fresh` | `docker compose stop app`, then `npm run fresh`, then `npm run seed`, then `docker compose start app` |
-| `make seed` | `docker compose run --rm app npm run seed` |
-| `make payouts` | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))` |
-| `make outbox` | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))` |
-| `make logs` | `docker compose logs -f` |
-| `make image` | `docker build --target runtime -t art-store-node .` |
-| `make run-image` | `docker run --rm -p 4100:4000 art-store-node` |
+| Make              | Docker Compose                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `make up`         | `docker compose up -d`                                                                                |
+| `make down`       | `docker compose down`                                                                                 |
+| `make build`      | `docker compose build`                                                                                |
+| `make assets`     | `docker compose run --rm app npm run assets`                                                          |
+| `make shell`      | `docker compose run --rm app bash`                                                                    |
+| `make test`       | `docker compose run --rm app npm run coverage`                                                        |
+| `make smoke`      | `docker compose run --rm app node --test app/test/smoke.test.ts`                                      |
+| `make coverage`   | `docker compose run --rm app npm run coverage`                                                        |
+| `make lint`       | `docker compose run --rm app npm run lint`                                                            |
+| `make lint-fix`   | `docker compose run --rm app npm run lint:fix`                                                        |
+| `make check`      | `docker compose run --rm app npm run check`                                                           |
+| `make sweep`      | `docker compose run --rm app npm run sweep -- $(if $(AS_OF),--as-of=$(AS_OF))`                        |
+| `make docs-check` | `./docker/docs-check.sh`                                                                              |
+| `make routes`     | `docker compose run --rm app npm run routes`                                                          |
+| `make migrate`    | `docker compose run --rm app npm run migrate`                                                         |
+| `make fresh`      | `docker compose stop app`, then `npm run fresh`, then `npm run seed`, then `docker compose start app` |
+| `make seed`       | `docker compose run --rm app npm run seed`                                                            |
+| `make payouts`    | `docker compose run --rm app npm run payouts -- $(if $(AS_OF),--as-of=$(AS_OF))`                      |
+| `make outbox`     | `docker compose run --rm app npm run outbox -- $(if $(DIR),--dir=$(DIR))`                             |
+| `make logs`       | `docker compose logs -f`                                                                              |
+| `make image`      | `docker build --target runtime -t art-store-node .`                                                   |
+| `make run-image`  | `docker run --rm -p 4100:4000 art-store-node`                                                         |
 
 The Makefile exports the host `UID` and `GID`, which `docker-compose.yml`
 reads to run the container as that user, so files the container writes into
@@ -467,10 +479,10 @@ de-duplicate).
 
 `MAGIC_LINK_DELIVERY` chooses how the link reaches its reader:
 
-| Value | What happens |
-| --- | --- |
-| `flash` | The link comes back in the flash and the debug alert prints it on the page that asked. Development only — a production boot refuses it. |
-| `outbox` | The link is queued in `outbox_messages` and nothing is printed. Read it on `/admin/outbox`, or drain it to a file. |
+| Value    | What happens                                                                                                                            |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `flash`  | The link comes back in the flash and the debug alert prints it on the page that asked. Development only — a production boot refuses it. |
+| `outbox` | The link is queued in `outbox_messages` and nothing is printed. Read it on `/admin/outbox`, or drain it to a file.                      |
 
 ## Outbox
 
@@ -502,11 +514,11 @@ make outbox DIR=/tmp/mail        # or: npm run outbox -- --dir=/tmp/mail
 
 …or the **Drain the outbox** button on `/admin/outbox`.
 
-| Page | Route |
-| --- | --- |
-| Queued messages, newest first, with a Pending/Sent column | `GET /admin/outbox` |
-| One message, rendered as it would be sent, with its link clickable | `GET /admin/outbox/:id` |
-| Drain | `POST /admin/outbox/drain` |
+| Page                                                               | Route                      |
+| ------------------------------------------------------------------ | -------------------------- |
+| Queued messages, newest first, with a Pending/Sent column          | `GET /admin/outbox`        |
+| One message, rendered as it would be sent, with its link clickable | `GET /admin/outbox/:id`    |
+| Drain                                                              | `POST /admin/outbox/drain` |
 
 `/admin/outbox/:id` doubles as the mailbox for the demo: with
 `MAGIC_LINK_DELIVERY=outbox` the debug alert is off, and the sign-in link is
@@ -525,12 +537,12 @@ nothing can open a header of its own.
 `decideCard(cardNumber)` (`app/core/payments/fake-card.ts`) is the fake card
 processor:
 
-| Number | Result |
-| --- | --- |
-| `4242 4242 4242 4242` | approved |
-| `4000 0000 0000 0002` | declined — generic decline |
-| `4000 0000 0000 9995` | declined — insufficient funds |
-| anything else | declined — invalid card number |
+| Number                | Result                         |
+| --------------------- | ------------------------------ |
+| `4242 4242 4242 4242` | approved                       |
+| `4000 0000 0000 0002` | declined — generic decline     |
+| `4000 0000 0000 9995` | declined — insufficient funds  |
+| anything else         | declined — invalid card number |
 
 Every non-digit is stripped, so spaces and dashes are ignored. Only the last
 four digits are ever stored, one `payments` row per attempt. A decline
@@ -542,20 +554,20 @@ Sign in at `/admin/login` as either seeded admin; the debug alert prints the
 magic link. The console (everything below `/admin`) sits behind
 `requireAdmin`.
 
-| Page | Route |
-| --- | --- |
-| Dashboard | `GET /admin` |
-| Sellers | `GET /admin/sellers`, `GET /admin/sellers/:id` |
-| Customers | `GET /admin/customers?standing=` (`all` \| `verified` \| `anonymous` \| `blocked`) |
-| Listings | `GET /admin/listings?status=&seller=&removed=` (`removed` is `any` \| `removed` \| `visible`) |
-| Orders | `GET /admin/orders?status=&customer=` |
-| Fulfillments | `GET /admin/fulfillments?status=&seller=` |
-| Accounting | `GET /admin/accounting` |
-| Payouts | `GET /admin/payouts?seller=`, `POST /admin/payouts` |
-| Ledger | `GET /admin/ledger?seller=&type=` |
-| Stats | `GET /admin/stats` |
-| Outbox | `GET /admin/outbox`, `GET /admin/outbox/:id`, `POST /admin/outbox/drain` |
-| Messages | `GET /admin/messages` |
+| Page         | Route                                                                                         |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| Dashboard    | `GET /admin`                                                                                  |
+| Sellers      | `GET /admin/sellers`, `GET /admin/sellers/:id`                                                |
+| Customers    | `GET /admin/customers?standing=` (`all` \| `verified` \| `anonymous` \| `blocked`)            |
+| Listings     | `GET /admin/listings?status=&seller=&removed=` (`removed` is `any` \| `removed` \| `visible`) |
+| Orders       | `GET /admin/orders?status=&customer=`                                                         |
+| Fulfillments | `GET /admin/fulfillments?status=&seller=`                                                     |
+| Accounting   | `GET /admin/accounting`                                                                       |
+| Payouts      | `GET /admin/payouts?seller=`, `POST /admin/payouts`                                           |
+| Ledger       | `GET /admin/ledger?seller=&type=`                                                             |
+| Stats        | `GET /admin/stats`                                                                            |
+| Outbox       | `GET /admin/outbox`, `GET /admin/outbox/:id`, `POST /admin/outbox/drain`                      |
+| Messages     | `GET /admin/messages`                                                                         |
 
 Two moderation tools, both catching a `TransitionError` refusal into a flash:
 
@@ -575,12 +587,12 @@ At most one active removal per listing and one active block per customer.
 One model serves every pairing: a `conversations` row names its `kind` and
 its participants, `messages` rows hang off it.
 
-| `kind` | Participants | Opened from |
-| --- | --- | --- |
-| `admin_seller` | admin ↔ seller | `/seller/support`, or `POST /admin/sellers/:id/messages` |
-| `admin_customer` | admin ↔ customer | `/support`, or `POST /admin/customers/:id/messages` |
-| `fulfillment` | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST /orders/:id/fulfillments/:fulfillmentId/messages` |
-| `listing_question` | customer ↔ seller | `POST /art/:slug/questions` |
+| `kind`             | Participants      | Opened from                                                                                    |
+| ------------------ | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `admin_seller`     | admin ↔ seller    | `/seller/support`, or `POST /admin/sellers/:id/messages`                                       |
+| `admin_customer`   | admin ↔ customer  | `/support`, or `POST /admin/customers/:id/messages`                                            |
+| `fulfillment`      | seller ↔ customer | `POST /seller/orders/:id/messages`, or `POST /orders/:id/fulfillments/:fulfillmentId/messages` |
+| `listing_question` | customer ↔ seller | `POST /art/:slug/questions`                                                                    |
 
 Each site has its own inbox: `/seller/messages`, `/messages`,
 `/admin/messages`, listing conversations newest-first with an unread badge in

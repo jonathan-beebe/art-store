@@ -21,29 +21,35 @@ guard — a check on each action would let the next page forget it.
 
 ## Pages
 
-| Path | Reads |
-| --- | --- |
-| `GET /admin` | seller and customer counts, a tally for every listing/order/fulfillment status, `PlatformMoney.fold`, and page views this week |
-| `GET /admin/sellers` | `Seller.directory` — listing and sale counts beside a balance folded from one ledger read |
-| `GET /admin/sellers/:id` | the seller's listings, fulfillments and payouts, and `Seller#escrow_balance` |
-| `GET /admin/customers?standing=` | `Customer.standing(…).directory` (`all` \| `verified` \| `anonymous` \| `blocked`) — order, favorite and cart-line counts |
-| `GET /admin/customers/:id` | the customer's orders, favorites, cart lines, block history and `Customer#merges` |
-| `GET /admin/listings?status=&seller=&removed=` | `Listing.with_status(…).for_seller(…).removal_standing(…)` (`removed` is `any` \| `removed` \| `visible`) |
-| `GET /admin/listings/:id` | one listing, its seller, and its removal history |
-| `GET /admin/orders?status=&customer=` | `Order.with_status(…).for_customer(…)` with each order's items and fulfillments |
-| `GET /admin/orders/:id` | the order's items, payments, fulfillments and refunds, and its cancel action |
-| `GET /admin/fulfillments?status=&seller=` | `Fulfillment.with_status(…).for_seller(…)` with each fulfillment's seller and order |
-| `GET /admin/fulfillments/:id` | one fulfillment, the lines of the order its seller ships, its refunds, and its refund action |
-| `GET /admin/accounting` | `SellerAccount.for_every_seller` and `PlatformMoney.fold` — every seller reconciled, folded once |
-| `GET /admin/ledger?seller=&type=` | `LedgerEntry.for_seller(…).with_type(…)`, plus `.balance` folded over that same filtered relation |
-| `GET /admin/payouts?seller=` | `Payout.for_seller(…)`, newest first |
-| `POST /admin/payouts` | runs `Payout.run_weekly` (optional `as_of`) — see [`escrow.md`](escrow.md) |
-| `POST /admin/listings/:id/removals` | `Listing#remove!(kind:, reason:, by:)` |
-| `POST /admin/listings/:id/removals/lift` | `Listing#lift_removal!` |
-| `POST /admin/customers/:id/blocks` | `Customer#block!(reason:, by:)` |
-| `POST /admin/customers/:id/blocks/lift` | `Customer#lift_block!` |
-| `GET /admin/stats` | `PageViewCount.by_day`, `PageViewCount.by_pattern`, and a tally of every `listing_events` type |
-| `GET\|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
+| Path                                               | Reads                                                                                         |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `GET /admin`                                       | seller and customer counts, a tally for every listing/order/fulfillment status,               |
+|                                                    | `PlatformMoney.fold`, and page views this week                                                |
+| `GET /admin/sellers`                               | `Seller.directory` — listing and sale counts beside a balance folded from one ledger read     |
+| `GET /admin/sellers/:id`                           | the seller's listings, fulfillments and payouts, and `Seller#escrow_balance`                  |
+| `GET /admin/customers?standing=`                   | `Customer.standing(…).directory` (`all` \| `verified` \| `anonymous` \| `blocked`) — order,   |
+|                                                    | favorite and cart-line counts                                                                 |
+| `GET /admin/customers/:id`                         | the customer's orders, favorites, cart lines, block history and `Customer#merges`             |
+| `GET /admin/listings?status=&seller=&removed=`     | `Listing.with_status(…).for_seller(…).removal_standing(…)` (`removed` is `any` \| `removed`   |
+|                                                    | \| `visible`)                                                                                 |
+| `GET /admin/listings/:id`                          | one listing, its seller, and its removal history                                              |
+| `GET /admin/orders?status=&customer=`              | `Order.with_status(…).for_customer(…)` with each order's items and fulfillments               |
+| `GET /admin/orders/:id`                            | the order's items, payments, fulfillments and refunds, and its cancel action                  |
+| `GET /admin/fulfillments?status=&seller=`          | `Fulfillment.with_status(…).for_seller(…)` with each fulfillment's seller and order           |
+| `GET /admin/fulfillments/:id`                      | one fulfillment, the lines of the order its seller ships, its refunds, and its refund action  |
+| `GET /admin/accounting`                            | `SellerAccount.for_every_seller` and `PlatformMoney.fold` — every seller reconciled, folded   |
+|                                                    | once                                                                                          |
+| `GET /admin/ledger?seller=&type=`                  | `LedgerEntry.for_seller(…).with_type(…)`, plus `.balance` folded over that same filtered      |
+|                                                    | relation                                                                                      |
+| `GET /admin/payouts?seller=`                       | `Payout.for_seller(…)`, newest first                                                          |
+| `POST /admin/payouts`                              | runs `Payout.run_weekly` (optional `as_of`) — see [`escrow.md`](escrow.md)                    |
+| `POST /admin/listings/:id/removals`                | `Listing#remove!(kind:, reason:, by:)`                                                        |
+| `POST /admin/listings/:id/removals/lift`           | `Listing#lift_removal!`                                                                       |
+| `POST /admin/customers/:id/blocks`                 | `Customer#block!(reason:, by:)`                                                               |
+| `POST /admin/customers/:id/blocks/lift`            | `Customer#lift_block!`                                                                        |
+| `GET /admin/stats`                                 | `PageViewCount.by_day`, `PageViewCount.by_pattern`, and a tally of every `listing_events`     |
+|                                                    | type                                                                                          |
+| `GET\|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md))                                          |
 
 Both lists reach across owners: `/admin/listings` shows every seller's
 catalogue and `/admin/orders` every customer's orders, which is the difference
@@ -231,13 +237,14 @@ answer.
 
 Each page carries the section its write hangs from:
 
-| Action | Page and section | Where |
-| --- | --- | --- |
-| Cancel an unpaid order | `/admin/orders/:id`, beside the status | `POST /admin/orders/:id/cancellation` |
-| Refund a fulfillment | `/admin/fulfillments/:id` Refunds, linked from each `/admin/orders/:id` fulfillment row | `POST /admin/fulfillments/:id/refund` |
-| Remove a listing, lift a removal | `/admin/listings/:id` Removal history | `POST /admin/listings/:id/removals`, `…/removals/lift` |
-| Block a customer, lift a block | `/admin/customers/:id` Block history | `POST /admin/customers/:id/blocks`, `…/blocks/lift` |
-| Run the weekly payout | `/admin/payouts` | `POST /admin/payouts` |
+| Action                           | Page and section                                       | Where                                                  |
+| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| Cancel an unpaid order           | `/admin/orders/:id`, beside the status                 | `POST /admin/orders/:id/cancellation`                  |
+| Refund a fulfillment             | `/admin/fulfillments/:id` Refunds, linked from each    | `POST /admin/fulfillments/:id/refund`                  |
+|                                  | `/admin/orders/:id` fulfillment row                    |                                                        |
+| Remove a listing, lift a removal | `/admin/listings/:id` Removal history                  | `POST /admin/listings/:id/removals`, `…/removals/lift` |
+| Block a customer, lift a block   | `/admin/customers/:id` Block history                   | `POST /admin/customers/:id/blocks`, `…/blocks/lift`    |
+| Run the weekly payout            | `/admin/payouts`                                       | `POST /admin/payouts`                                  |
 
 Cancel and Refund are both `Admin::BaseController` actions
 (`Admin::CancellationsController`, `Admin::RefundsController`) that call

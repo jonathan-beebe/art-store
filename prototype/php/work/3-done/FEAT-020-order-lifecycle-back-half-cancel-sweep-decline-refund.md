@@ -75,11 +75,11 @@ refunded after release plus another still held sums to exactly the same three
 numbers as the reverse. Per fulfillment, with `escrow = held − released` and
 `fromEscrow = max(0, min(escrow, −refunded))`:
 
-| Timing | Entries | Held | Available |
-| --- | --- | --- | --- |
-| Before release | `held +net`, `refunded −net` | `0` (nothing releases) | `0` |
-| After release | `held +net`, `released +net`, `refunded −net` | `0` | drops by `net` |
-| After payout | + `paid_out −net` | `0` | `−net`, carried |
+| Timing         | Entries                                       | Held                   | Available       |
+| -------------- | --------------------------------------------- | ---------------------- | --------------- |
+| Before release | `held +net`, `refunded −net`                  | `0` (nothing releases) | `0`             |
+| After release  | `held +net`, `released +net`, `refunded −net` | `0`                    | drops by `net`  |
+| After payout   | + `paid_out −net`                             | `0`                    | `−net`, carried |
 
 `LedgerEntry::totalledByType()` now groups by `(seller_id, fulfillment_id,
 type)` to match. Still one query per page — `SellerControllerTest` and

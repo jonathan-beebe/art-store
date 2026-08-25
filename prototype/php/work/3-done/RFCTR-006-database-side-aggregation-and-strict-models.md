@@ -41,12 +41,15 @@ folding in PHP.
 
 ### What each read became
 
-| Read | Before | After |
-| --- | --- | --- |
-| Status tally | every listing hydrated, `countBy` in PHP | `Listing::countedByStatus()` scope (`select status, count(*)`, `group by status`) read by `Seller::listingCountsByStatus()` |
-| Activity timeline | every event ever recorded, grouped in PHP | `ListingEvent::dailyCountsSince($from)` scope (`date(occurred_at)`, `type`, `count(*)`, bounded by the window) read by `Listing::eventCountsByDateSince()` |
-| Escrow balance | `$this->ledgerEntries` (whole relation, lazy) | `LedgerEntry::totalledByType()` scope, one row per (seller, type) |
-| Payout run | whole ledger table hydrated and grouped in PHP | same scope, bounded by `occurredBy($period->end)` |
+| Read              | Before                                         | After                                                                         |
+| ----------------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| Status tally      | every listing hydrated, `countBy` in PHP       | `Listing::countedByStatus()` scope (`select status, count(*)`,                |
+|                   |                                                | `group by status`) read by `Seller::listingCountsByStatus()`                  |
+| Activity timeline | every event ever recorded, grouped in PHP      | `ListingEvent::dailyCountsSince($from)` scope (`date(occurred_at)`, `type`,   |
+|                   |                                                | `count(*)`, bounded by the window) read by                                    |
+|                   |                                                | `Listing::eventCountsByDateSince()`                                           |
+| Escrow balance    | `$this->ledgerEntries` (whole relation, lazy)  | `LedgerEntry::totalledByType()` scope, one row per (seller, type)             |
+| Payout run        | whole ledger table hydrated and grouped in PHP | same scope, bounded by `occurredBy($period->end)`                             |
 
 `LedgerBalance::from(list<LedgerMovement>)` is unchanged: a ledger fold only
 adds amounts of the same type together, so one summed row per type folds to
@@ -122,12 +125,12 @@ expression `0 2 * * 1`. `tests/Pest.php` gained a `Tests\TestCase` binding for
 
 ### Measured
 
-| Page / run | Queries |
-| --- | --- |
-| Seller dashboard | 5, whatever the listing, ledger and notification counts |
-| Seller earnings | 5, whatever the ledger holds |
-| Listing activity | 4, whatever the event count |
-| `payouts:run` for 3 sellers with 2 delivered sales each | 7 — one ledger read, then 2 writes per payout |
+| Page / run                                              | Queries                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------- |
+| Seller dashboard                                        | 5, whatever the listing, ledger and notification counts |
+| Seller earnings                                         | 5, whatever the ledger holds                            |
+| Listing activity                                        | 4, whatever the event count                             |
+| `payouts:run` for 3 sellers with 2 delivered sales each | 7 — one ledger read, then 2 writes per payout           |
 
 Asserted with `expectsDatabaseQueryCount()` (it counts from the call onward,
 so each assertion sits after its fixtures and before the request).

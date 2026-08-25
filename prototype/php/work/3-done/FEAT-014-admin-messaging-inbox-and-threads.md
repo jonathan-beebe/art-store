@@ -28,13 +28,13 @@ Support is a round trip. Two kinds of conversation exist only to reach an admin,
 ## Discovery notes
 - Routes go in `routes/admin.php`, behind `auth.admin`:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/admin/messages` | `admin.messages.index` | Inbox |
-| GET | `/admin/messages/{conversation}` | `admin.messages.show` | Thread; marks it read |
-| POST | `/admin/messages/{conversation}` | `admin.messages.store` | Reply |
-| POST | `/admin/sellers/{seller}/messages` | `admin.sellers.messages` | "Message seller" from the seller page |
-| POST | `/admin/customers/{customer}/messages` | `admin.customers.messages` | "Message customer" from the customer page |
+| Method | Path                                   | Name                       | Purpose                                   |
+| ------ | -------------------------------------- | -------------------------- | ----------------------------------------- |
+| GET    | `/admin/messages`                      | `admin.messages.index`     | Inbox                                     |
+| GET    | `/admin/messages/{conversation}`       | `admin.messages.show`      | Thread; marks it read                     |
+| POST   | `/admin/messages/{conversation}`       | `admin.messages.store`     | Reply                                     |
+| POST   | `/admin/sellers/{seller}/messages`     | `admin.sellers.messages`   | "Message seller" from the seller page     |
+| POST   | `/admin/customers/{customer}/messages` | `admin.customers.messages` | "Message customer" from the customer page |
 
 - The inbox, the thread page, and the reply are the same three pages the other two sites render — the pairing differs, the page does not. Look hard at what FEAT-012 and FEAT-013 built before writing a third copy: a shared Blade component for a thread and an inbox row, or a shared view model, is the cheaper answer. Which of the three sites owns it is yours **(decided at build time)**; a third divergent copy is the outcome to avoid.
 - The admin holds a real guard, so `$this->authorize(...)` and `@can` work here the way they do in the seller portal — the storefront's `authorizeVisitor` shape is not needed.

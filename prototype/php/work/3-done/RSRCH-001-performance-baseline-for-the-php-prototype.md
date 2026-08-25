@@ -132,17 +132,17 @@ curl -s -o /dev/null -w '%{time_total}s\n' -m 90 http://localhost:8000/
 
 **Startup**
 
-| Metric | Value |
-|---|---|
-| M1 cold start to first `200 /up` | 44 s |
-| — `composer install` | 31 s |
-| — `npm install` | 9 s |
-| — `vite build` | 1.3 s |
-| — `artisan migrate` | 0.2 s |
-| M2 warm restart to first `200 /up` | 3.88 s |
-| M3 `npm run build` | 4.38 s (5.69 s wall − 1.31 s run overhead) |
-| M3 `artisan migrate --force` | 1.58 s |
-| M3 `artisan storage:link --force` | 1.04 s |
+| Metric                             | Value                                      |
+| ---------------------------------- | ------------------------------------------ |
+| M1 cold start to first `200 /up`   | 44 s                                       |
+| — `composer install`               | 31 s                                       |
+| — `npm install`                    | 9 s                                        |
+| — `vite build`                     | 1.3 s                                      |
+| — `artisan migrate`                | 0.2 s                                      |
+| M2 warm restart to first `200 /up` | 3.88 s                                     |
+| M3 `npm run build`                 | 4.38 s (5.69 s wall − 1.31 s run overhead) |
+| M3 `artisan migrate --force`       | 1.58 s                                     |
+| M3 `artisan storage:link --force`  | 1.04 s                                     |
 
 The entrypoint runs on every `docker compose run`, not only on `up`, so
 every `make test`, `make shell`, `make seed`, `make routes` pays M3 in full.
@@ -153,12 +153,12 @@ run**.
 
 **Idle**
 
-| Metric | Value |
-|---|---|
-| M4 CPU, no streams | 0.06 – 0.22 % |
-| M4 memory | 101.8 MiB |
+| Metric                             | Value             |
+| ---------------------------------- | ----------------- |
+| M4 CPU, no streams                 | 0.06 – 0.22 %     |
+| M4 memory                          | 101.8 MiB         |
 | Container CPU over 30 s, 0 streams | 1.4 % of one core |
-| Container CPU over 30 s, 1 stream | 4.5 % of one core |
+| Container CPU over 30 s, 1 stream  | 4.5 % of one core |
 | Container CPU over 30 s, 3 streams | 5.6 % of one core |
 
 `php artisan serve` runs one master plus five workers
@@ -166,32 +166,32 @@ run**.
 
 **Request latency (M6, p50, host curl, seeded data)**
 
-| Page | p50 | min |
-|---|---|---|
-| `/up` | 17 ms | 12 ms |
+| Page                   | p50   | min   |
+| ---------------------- | ----- | ----- |
+| `/up`                  | 17 ms | 12 ms |
 | `/` (storefront index) | 39 ms | 26 ms |
-| `/cart` | 26 ms | 21 ms |
-| `/login` | 20 ms | 16 ms |
-| `/admin` (signed in) | 75 ms | — |
-| `/admin/stats` | 32 ms | — |
-| `/admin/accounting` | 36 ms | — |
-| `/admin/ledger` | 60 ms | — |
+| `/cart`                | 26 ms | 21 ms |
+| `/login`               | 20 ms | 16 ms |
+| `/admin` (signed in)   | 75 ms | —     |
+| `/admin/stats`         | 32 ms | —     |
+| `/admin/accounting`    | 36 ms | —     |
+| `/admin/ledger`        | 60 ms | —     |
 
 **CPU per request (M5, minimum of four rounds)**
 
-| Page | ms CPU/req |
-|---|---|
-| `/` | 24.7 |
-| `/login` | 12.9 |
+| Page     | ms CPU/req |
+| -------- | ---------- |
+| `/`      | 24.7       |
+| `/login` | 12.9       |
 
 **Queries per request (M7, returning visitor)**
 
-| Page | queries |
-|---|---|
-| `/` | 16 |
-| `/cart` | 13 |
-| `/art/{slug}` | 18 |
-| `/favorites` | 13 |
+| Page          | queries |
+| ------------- | ------- |
+| `/`           | 16      |
+| `/cart`       | 13      |
+| `/art/{slug}` | 18      |
+| `/favorites`  | 13      |
 
 A first-ever visitor's `GET /` is 14 queries including four writes: the
 `customers` insert, the `carts` insert, the `sessions` insert, and the
@@ -199,12 +199,12 @@ A first-ever visitor's `GET /` is 14 queries including four writes: the
 
 **Stream occupancy (M8)**
 
-| Concurrent streams | `GET /` |
-|---|---|
-| 5 | 0.06 – 0.12 s |
-| 8 | 0.11 – 0.22 s |
-| 12 | **50.8 s** |
-| 12, clients killed after 3 s | **49.4 s** |
+| Concurrent streams           | `GET /`       |
+| ---------------------------- | ------------- |
+| 5                            | 0.06 – 0.12 s |
+| 8                            | 0.11 – 0.22 s |
+| 12                           | **50.8 s**    |
+| 12, clients killed after 3 s | **49.4 s**    |
 
 ### What the measurements refuted
 
@@ -258,23 +258,23 @@ at demo scale: the missing index on `carts.customer_id`; the per-cart-item
 
 Same host, same commands, seeded demo data, `perf/php` at IMPRV-009.
 
-| metric | baseline | after | ticket |
-|---|---|---|---|
-| M2 warm restart to first `200 /up` | 3.88 s | **1.81 – 2.05 s** | IMPRV-008 |
-| `make check` wall | 104.4 s | **91.4 – 102.9 s** | IMPRV-008 |
-| Vite builds per `make check` | 3 | **1** | IMPRV-008 |
-| M5 CPU per `GET /` (min of 4 rounds) | 24.7 ms | **16.6 ms** | IMPRV-007 |
-| M6 `GET /` p50 | 39 ms | **25 ms** | IMPRV-007 |
-| M6 `GET /cart` p50 | 26 ms | **23 ms** | IMPRV-007 |
-| M6 `GET /login` p50 | 20 ms | **14 ms** | IMPRV-007 |
-| M7 queries, `/` | 16 | **14** | IMPRV-009 |
-| M7 queries, `/cart` | 13 | **11** | IMPRV-009 |
-| M7 queries, `/art/{slug}` | 18 | **16** | IMPRV-009 |
-| M7 queries, `/favorites` | 13 | **11** | IMPRV-009 |
-| M8 12 streams held, then `GET /` | 50.8 s | **0.06 s** | IMPRV-006 |
-| M8 12 streams abandoned, then `GET /` | 49.4 s | **0.06 s** | IMPRV-006 |
-| M4 CPU, 3 live streams over 30 s | 5.6 % of one core | **1.6 % of one core** | IMPRV-006 |
-| M4 memory | 101.8 MiB | 128.7 MiB | IMPRV-006 (5 → 16 workers) |
+| metric                                | baseline          | after                 | ticket                     |
+| ------------------------------------- | ----------------- | --------------------- | -------------------------- |
+| M2 warm restart to first `200 /up`    | 3.88 s            | **1.81 – 2.05 s**     | IMPRV-008                  |
+| `make check` wall                     | 104.4 s           | **91.4 – 102.9 s**    | IMPRV-008                  |
+| Vite builds per `make check`          | 3                 | **1**                 | IMPRV-008                  |
+| M5 CPU per `GET /` (min of 4 rounds)  | 24.7 ms           | **16.6 ms**           | IMPRV-007                  |
+| M6 `GET /` p50                        | 39 ms             | **25 ms**             | IMPRV-007                  |
+| M6 `GET /cart` p50                    | 26 ms             | **23 ms**             | IMPRV-007                  |
+| M6 `GET /login` p50                   | 20 ms             | **14 ms**             | IMPRV-007                  |
+| M7 queries, `/`                       | 16                | **14**                | IMPRV-009                  |
+| M7 queries, `/cart`                   | 13                | **11**                | IMPRV-009                  |
+| M7 queries, `/art/{slug}`             | 18                | **16**                | IMPRV-009                  |
+| M7 queries, `/favorites`              | 13                | **11**                | IMPRV-009                  |
+| M8 12 streams held, then `GET /`      | 50.8 s            | **0.06 s**            | IMPRV-006                  |
+| M8 12 streams abandoned, then `GET /` | 49.4 s            | **0.06 s**            | IMPRV-006                  |
+| M4 CPU, 3 live streams over 30 s      | 5.6 % of one core | **1.6 % of one core** | IMPRV-006                  |
+| M4 memory                             | 101.8 MiB         | 128.7 MiB             | IMPRV-006 (5 → 16 workers) |
 
 Memory is the one number that moved the wrong way, and it is the price of the
 worker pool that answers a page while streams are open.

@@ -643,22 +643,23 @@ Every enumeration is an `as const` string union with a `TRANSITIONS` table
 where it has a lifecycle, plus `canTransition<Thing>` and a throwing
 `transition<Thing>` that raises `TransitionError`.
 
-| Type | Values | Where |
-| --- | --- | --- |
-| `ListingStatus` | `draft`, `for_sale`, `sold`, `archived` | `core/listings/listing-status.ts` |
-| `OrderStatus` | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`, `partially_shipped`, `shipped`, `delivered`, `cancelled`, `refunded` | `core/orders/order-status.ts` |
-| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered`, `declined`, `refunded` | `core/orders/fulfillment-status.ts` |
-| `PaymentStatus` | `approved`, `declined` | `core/payments/payment-status.ts` |
-| `DeclineReason` | `generic_decline`, `insufficient_funds`, `invalid_card_number` | `core/payments/decline-reason.ts` |
-| `LedgerEntryType` | `held`, `released`, `paid_out`, `refunded` | `core/escrow/ledger-entry-type.ts` |
-| `RefundIssuerType` | `seller`, `admin` | `core/orders/refund.ts` |
-| `StockChange` | `take`, `restore`, `keep` | `core/listings/stock-change.ts` |
-| `ListingEventType` | `view`, `favorite`, `unfavorite`, `cart_add` | `core/listings/listing-event-type.ts` |
-| `RemovalKind` | `temporary`, `permanent` | `core/moderation/listing-removal.ts` |
-| `ActorType` | `seller`, `customer`, `admin` | `core/auth/actor-type.ts` |
-| `ConversationKind` | `admin_seller`, `admin_customer`, `fulfillment`, `listing_question` | `core/messaging/conversation-kind.ts` |
-| `PageViewSite` | `shop`, `seller`, `admin` | `core/analytics/page-view-site.ts` |
-| `MagicLinkStatus` | `usable`, `expired`, `consumed` | `core/auth/magic-link-status.ts` |
+| Type                | Values                                                                               | Where                                 |
+| ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
+| `ListingStatus`     | `draft`, `for_sale`, `sold`, `archived`                                              | `core/listings/listing-status.ts`     |
+| `OrderStatus`       | `pending_verification`, `awaiting_payment`, `paid`, `payment_failed`,                | `core/orders/order-status.ts`         |
+|                     | `partially_shipped`, `shipped`, `delivered`, `cancelled`, `refunded`                 |                                       |
+| `FulfillmentStatus` | `awaiting_shipment`, `shipped`, `delivered`, `declined`, `refunded`                  | `core/orders/fulfillment-status.ts`   |
+| `PaymentStatus`     | `approved`, `declined`                                                               | `core/payments/payment-status.ts`     |
+| `DeclineReason`     | `generic_decline`, `insufficient_funds`, `invalid_card_number`                       | `core/payments/decline-reason.ts`     |
+| `LedgerEntryType`   | `held`, `released`, `paid_out`, `refunded`                                           | `core/escrow/ledger-entry-type.ts`    |
+| `RefundIssuerType`  | `seller`, `admin`                                                                    | `core/orders/refund.ts`               |
+| `StockChange`       | `take`, `restore`, `keep`                                                            | `core/listings/stock-change.ts`       |
+| `ListingEventType`  | `view`, `favorite`, `unfavorite`, `cart_add`                                         | `core/listings/listing-event-type.ts` |
+| `RemovalKind`       | `temporary`, `permanent`                                                             | `core/moderation/listing-removal.ts`  |
+| `ActorType`         | `seller`, `customer`, `admin`                                                        | `core/auth/actor-type.ts`             |
+| `ConversationKind`  | `admin_seller`, `admin_customer`, `fulfillment`, `listing_question`                  | `core/messaging/conversation-kind.ts` |
+| `PageViewSite`      | `shop`, `seller`, `admin`                                                            | `core/analytics/page-view-site.ts`    |
+| `MagicLinkStatus`   | `usable`, `expired`, `consumed`                                                      | `core/auth/magic-link-status.ts`      |
 
 ### The plans
 

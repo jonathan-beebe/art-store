@@ -23,12 +23,12 @@ subject column, if any, names what the thread is about
 
 ## Conversation kinds
 
-| `kind` | Participants | Subject column | Opened by |
-| --- | --- | --- | --- |
-| `admin_seller` | `admin_id` ↔ `seller_id` | — | `seller.support`, `admin.sellers.messages` |
-| `admin_customer` | `admin_id` ↔ `customer_id` | — | `shop.support`, `admin.customers.messages` |
-| `fulfillment` | `seller_id` ↔ `customer_id` | `fulfillment_id` | `seller.orders.messages`, `shop.order.messages` |
-| `listing_question` | `seller_id` ↔ `customer_id` | `listing_id` | `shop.listing.questions` |
+| `kind`             | Participants                | Subject column   | Opened by                                       |
+| ------------------ | --------------------------- | ---------------- | ----------------------------------------------- |
+| `admin_seller`     | `admin_id` ↔ `seller_id`    | —                | `seller.support`, `admin.sellers.messages`      |
+| `admin_customer`   | `admin_id` ↔ `customer_id`  | —                | `shop.support`, `admin.customers.messages`      |
+| `fulfillment`      | `seller_id` ↔ `customer_id` | `fulfillment_id` | `seller.orders.messages`, `shop.order.messages` |
+| `listing_question` | `seller_id` ↔ `customer_id` | `listing_id`     | `shop.listing.questions`                        |
 
 Every kind has exactly two participants. That is the invariant the rest of the
 design rests on: one `read_at` per message is unambiguous, because the reader is
@@ -382,42 +382,46 @@ listing's title. The same words fill the inbox row on each site.
 
 Seller portal (`routes/seller.php`), all behind `auth.seller`:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/seller/messages` | `seller.messages.index` | Inbox: counterpart, topic, preview, unread count, newest first |
-| GET | `/seller/messages/{conversation}` | `seller.messages.show` | Thread; marks it read; offers "Publish as FAQ" when the thread has a listing |
-| POST | `/seller/messages/{conversation}` | `seller.messages.store` | Reply |
-| GET | `/seller/support` | `seller.support` | Finds or opens the `admin_seller` thread and redirects to it |
-| POST | `/seller/orders/{fulfillment}/messages` | `seller.orders.messages` | Finds or opens the `fulfillment` thread |
-| GET | `/seller/listings/{listing}/faqs` | `seller.listings.faqs.index` | Published entries with an edit form and an unpublish button |
-| POST | `/seller/listings/{listing}/faqs` | `seller.listings.faqs.store` | Publish |
-| PUT | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.update` | Reword |
-| DELETE | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.destroy` | Unpublish (deletes the row) |
-| GET | `/seller/events` | `seller.events` | The seller's unread-count stream |
+| Method | Path                                    | Name                           | Purpose                                                        |
+| ------ | --------------------------------------- | ------------------------------ | -------------------------------------------------------------- |
+| GET    | `/seller/messages`                      | `seller.messages.index`        | Inbox: counterpart, topic, preview, unread count, newest first |
+| GET    | `/seller/messages/{conversation}`       | `seller.messages.show`         | Thread; marks it read; offers "Publish as FAQ" when the thread |
+|        |                                         |                                | has a listing                                                  |
+| POST   | `/seller/messages/{conversation}`       | `seller.messages.store`        | Reply                                                          |
+| GET    | `/seller/support`                       | `seller.support`               | Finds or opens the `admin_seller` thread and redirects to it   |
+| POST   | `/seller/orders/{fulfillment}/messages` | `seller.orders.messages`       | Finds or opens the `fulfillment` thread                        |
+| GET    | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.index`   | Published entries with an edit form and an unpublish button    |
+| POST   | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.store`   | Publish                                                        |
+| PUT    | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.update`  | Reword                                                         |
+| DELETE | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.destroy` | Unpublish (deletes the row)                                    |
+| GET    | `/seller/events`                        | `seller.events`                | The seller's unread-count stream                               |
 
 Storefront (`routes/shop.php`), inside the `customer.identity` group, no
 `auth.customer`:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/messages` | `shop.messages.index` | Inbox |
-| GET | `/messages/{conversation}` | `shop.messages.show` | Thread; marks it read; no reply form while `post` is denied |
-| POST | `/messages/{conversation}` | `shop.messages.store` | Reply |
-| POST | `/art/{listing:slug}/questions` | `shop.listing.questions` | Ask the seller — anonymous visitors included; lands on the new thread |
-| GET | `/support` | `shop.support` | Finds or opens the `admin_customer` thread |
-| POST | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages` | Finds or opens the `fulfillment` thread (`scopeBindings()`) |
-| GET | `/events` | `shop.events` | The visitor's unread-count stream |
+| Method | Path                                                  | Name                     | Purpose                                                |
+| ------ | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------ |
+| GET    | `/messages`                                           | `shop.messages.index`    | Inbox                                                  |
+| GET    | `/messages/{conversation}`                            | `shop.messages.show`     | Thread; marks it read; no reply form while `post` is   |
+|        |                                                       |                          | denied                                                 |
+| POST   | `/messages/{conversation}`                            | `shop.messages.store`    | Reply                                                  |
+| POST   | `/art/{listing:slug}/questions`                       | `shop.listing.questions` | Ask the seller — anonymous visitors included; lands on |
+|        |                                                       |                          | the new thread                                         |
+| GET    | `/support`                                            | `shop.support`           | Finds or opens the `admin_customer` thread             |
+| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`    | Finds or opens the `fulfillment` thread                |
+|        |                                                       |                          | (`scopeBindings()`)                                    |
+| GET    | `/events`                                             | `shop.events`            | The visitor's unread-count stream                      |
 
 Admin site (`routes/admin.php`), all behind `auth.admin`:
 
-| Method | Path | Name | Purpose |
-| --- | --- | --- | --- |
-| GET | `/admin/messages` | `admin.messages.index` | Inbox |
-| GET | `/admin/messages/{conversation}` | `admin.messages.show` | Thread; marks it read |
-| POST | `/admin/messages/{conversation}` | `admin.messages.store` | Reply |
-| POST | `/admin/sellers/{seller}/messages` | `admin.sellers.messages` | "Message seller" from the seller page |
-| POST | `/admin/customers/{customer}/messages` | `admin.customers.messages` | "Message customer" from the customer page |
-| GET | `/admin/events` | `admin.events` | The admin's unread-count stream |
+| Method | Path                                   | Name                       | Purpose                                   |
+| ------ | -------------------------------------- | -------------------------- | ----------------------------------------- |
+| GET    | `/admin/messages`                      | `admin.messages.index`     | Inbox                                     |
+| GET    | `/admin/messages/{conversation}`       | `admin.messages.show`      | Thread; marks it read                     |
+| POST   | `/admin/messages/{conversation}`       | `admin.messages.store`     | Reply                                     |
+| POST   | `/admin/sellers/{seller}/messages`     | `admin.sellers.messages`   | "Message seller" from the seller page     |
+| POST   | `/admin/customers/{customer}/messages` | `admin.customers.messages` | "Message customer" from the customer page |
+| GET    | `/admin/events`                        | `admin.events`             | The admin's unread-count stream           |
 
 A conversation id naming a thread the actor is not in answers 404 on every read
 and write above, because `ConversationPolicy::view` denies as not found. An id
