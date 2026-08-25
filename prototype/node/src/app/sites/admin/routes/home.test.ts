@@ -28,7 +28,7 @@ test('the admin home page renders in the admin layout', async (t) => {
   assert.equal(response.statusCode, 200)
   assert.match(response.headers['content-type'] ?? '', /text\/html/)
   assert.match(response.body, /<title>Overview — Admin<\/title>/)
-  assert.match(response.body, /href="\/app\.css"/)
+  assert.match(response.body, /href="\/app(\.[0-9a-f]{8})?\.css"/)
 })
 
 test('a visitor with no admin cookie is sent to the admin sign-in page', async (t) => {

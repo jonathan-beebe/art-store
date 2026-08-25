@@ -14,7 +14,7 @@
     "lint": "npm run typecheck && eslint app",
     "lint:fix": "eslint app --fix",
     "check": "npm run lint && npm run assets && npm run coverage",
-    "assets": "tailwindcss --input app/assets/app.css --output public/app.css",
+    "assets": "tailwindcss --input app/assets/app.css --output public/app.css && node --disable-warning=ExperimentalWarning app/cli/build-assets.ts",
     "migrate": "node --disable-warning=ExperimentalWarning app/db/migrate.ts",
     "fresh": "node --disable-warning=ExperimentalWarning app/db/migrate.ts --fresh",
     "seed": "node --disable-warning=ExperimentalWarning app/db/seed.ts",

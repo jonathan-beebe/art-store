@@ -10,6 +10,7 @@ import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
 import type { AppDatabase } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
+import { HASHED_ASSET_NAME, loadAssetManifest } from './http/asset-manifest.ts'
 import { zodValidator } from './http/zod-type-provider.ts'
 import { loggingOptions } from './logging.ts'
 import { errorPages } from './plugins/error-pages.ts'
@@ -95,11 +96,26 @@ export function buildApp({
   // repeated or bracketed field name means, and deciding that by hand is a
   // larger question than the few lines it would save.
   app.register(fastifyFormbody)
-  // app.css and app.js keep their names across deploys, so five minutes is
-  // the window a browser may serve a stale copy after one. Without a max-age
-  // the browser revalidates the render-blocking stylesheet on every
-  // navigation, and the page paints blank white for that round trip.
-  app.register(fastifyStatic, { root: PUBLIC_ROOT, prefix: '/', maxAge: '5m' })
+  // A build names each stylesheet and script after its content hash and
+  // pre-compresses it, so a hashed file is immutable for a year — a new
+  // deploy ships a new name rather than overwriting this one.
+  // preCompressed serves the matching .gz/.br sibling to a client that sent
+  // Accept-Encoding rather than compressing on every request. app.css and
+  // app.js keep those unhashed names as a fallback and stay on the
+  // five-minute window: without a max-age the browser revalidates the
+  // render-blocking stylesheet on every navigation, and the page paints
+  // blank white for that round trip.
+  app.register(fastifyStatic, {
+    root: PUBLIC_ROOT,
+    prefix: '/',
+    maxAge: '5m',
+    preCompressed: true,
+    setHeaders: (reply, filePath) => {
+      if (HASHED_ASSET_NAME.test(path.basename(filePath))) {
+        reply.header('cache-control', 'public, max-age=31536000, immutable')
+      }
+    },
+  })
   // A more specific prefix than the root registration above, so it wins for
   // anything under /uploads/ — the only place a browser-uploaded file is
   // served from. nosniff stops a browser from executing a served file as
@@ -129,6 +145,7 @@ export function buildApp({
   // stays uncached because `node --watch` does not watch `.ejs` files, so a
   // live template edit is only picked up through the re-read.
   const cachesTemplates = config.environment !== 'development'
+  const assets = loadAssetManifest(PUBLIC_ROOT)
   app.register(fastifyView, {
     engine: { ejs },
     root: APP_ROOT,
@@ -136,6 +153,7 @@ export function buildApp({
     production: cachesTemplates,
     maxCache: 500,
     options: { cache: cachesTemplates },
+    defaultContext: { assets },
   })
 
   // Every plugin below decorates or hooks the root instance, and a site

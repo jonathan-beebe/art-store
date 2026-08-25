@@ -13,7 +13,7 @@ test('the storefront home page renders in the storefront layout', async (t) => {
   assert.equal(response.statusCode, 200)
   assert.match(response.headers['content-type'] ?? '', /text\/html/)
   assert.match(response.body, /<title>Original art — Art Store<\/title>/)
-  assert.match(response.body, /href="\/app\.css"/)
+  assert.match(response.body, /href="\/app(\.[0-9a-f]{8})?\.css"/)
 })
 
 test('the storefront layout prints a flashed magic link in the debug alert', async (t) => {
