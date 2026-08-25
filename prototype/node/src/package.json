@@ -21,7 +21,8 @@
     "payouts": "node --disable-warning=ExperimentalWarning app/cli/run-payouts.ts",
     "outbox": "node --disable-warning=ExperimentalWarning app/cli/drain-outbox.ts",
     "sweep": "node --disable-warning=ExperimentalWarning app/cli/sweep-stale-orders.ts",
-    "routes": "node --disable-warning=ExperimentalWarning app/cli/print-routes.ts"
+    "routes": "node --disable-warning=ExperimentalWarning app/cli/print-routes.ts",
+    "deploy": "npm run migrate && npm run seed && npm run start"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
