@@ -13,7 +13,7 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body data-site="seller" class="min-h-screen bg-neutral-100 text-sm text-neutral-900">
+  <body data-site="seller" class="supports-dark min-h-screen bg-neutral-100 dark:bg-neutral-950 text-sm text-neutral-900 dark:text-neutral-100">
     <%= render "layouts/debug_alert" %>
     <%= render "layouts/flash" %>
     <%= turbo_stream_from current_seller, :unread_messages if seller_signed_in? %>

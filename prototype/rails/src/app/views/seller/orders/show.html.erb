@@ -2,17 +2,17 @@
 
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold">Order <%= @fulfillment.order_id %></h1>
-  <p data-cell="status" class="text-neutral-600"><%= status_label(@fulfillment.status) %></p>
+  <p data-cell="status" class="text-neutral-600 dark:text-neutral-400"><%= status_label(@fulfillment.status) %></p>
   <%= button_to "Message the customer", seller_order_conversation_path(@fulfillment),
-        form_class: "ml-auto", class: "rounded border border-neutral-400 bg-white px-3 py-1 font-medium" %>
+        form_class: "ml-auto", class: "rounded border border-neutral-400 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-3 py-1 font-medium" %>
   <%= link_to "All orders", seller_orders_path, class: "underline" %>
 </div>
 
 <div class="mt-6 grid gap-6 lg:grid-cols-2">
   <section aria-labelledby="address-heading">
-    <h2 id="address-heading" class="font-semibold text-neutral-700">Ship to</h2>
+    <h2 id="address-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Ship to</h2>
 
-    <address data-shipping-address class="mt-2 rounded border border-neutral-300 bg-white p-4 not-italic">
+    <address data-shipping-address class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 not-italic">
       <%= @fulfillment.order.shipping_name %><br>
       <%= @fulfillment.order.shipping_line1 %><br>
       <% if @fulfillment.order.shipping_line2.present? %>
@@ -25,19 +25,19 @@
   </section>
 
   <section aria-labelledby="items-heading">
-    <h2 id="items-heading" class="font-semibold text-neutral-700">Your items</h2>
+    <h2 id="items-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Your items</h2>
 
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Items in this order that belong to you</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Item</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% @fulfillment.items.each do |item| %>
             <tr data-item="<%= item.id %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= item.title %></th>
@@ -46,7 +46,7 @@
             </tr>
           <% end %>
         </tbody>
-        <tfoot class="border-t border-neutral-300">
+        <tfoot class="border-t border-neutral-300 dark:border-neutral-700">
           <tr>
             <th scope="row" class="px-4 py-2 text-left font-semibold">Net to you</th>
             <td colspan="2" data-cell="net" class="px-4 py-2 text-right font-semibold tabular-nums"><%= @fulfillment.net.format %></td>
@@ -58,46 +58,46 @@
 </div>
 
 <section aria-labelledby="shipment-heading" class="mt-6 max-w-xl">
-  <h2 id="shipment-heading" class="font-semibold text-neutral-700">Shipment</h2>
+  <h2 id="shipment-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Shipment</h2>
 
   <% if @fulfillment.can_transition_to?(:shipped) %>
     <%= form_with url: seller_order_shipment_path(@fulfillment), method: :post,
-          html: { class: "mt-2 rounded border border-neutral-300 bg-white p-4" } do |form| %>
+          html: { class: "mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4" } do |form| %>
       <fieldset>
-        <legend class="font-medium text-neutral-700">Mark shipped</legend>
+        <legend class="font-medium text-neutral-700 dark:text-neutral-300">Mark shipped</legend>
 
         <div class="mt-2">
-          <%= form.label :carrier, "Carrier", class: "block font-medium text-neutral-700" %>
+          <%= form.label :carrier, "Carrier", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
           <%= form.text_field :carrier, required: true, maxlength: 255,
-                class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+                class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         </div>
 
         <div class="mt-4">
-          <%= form.label :tracking_number, "Tracking number", class: "block font-medium text-neutral-700" %>
+          <%= form.label :tracking_number, "Tracking number", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
           <%= form.text_field :tracking_number, required: true, maxlength: 255,
-                class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+                class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         </div>
       </fieldset>
 
-      <%= form.submit "Mark shipped", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+      <%= form.submit "Mark shipped", class: "mt-4 rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900" %>
     <% end %>
   <% elsif @fulfillment.reversed? %>
-    <dl data-reversal class="mt-2 rounded border border-neutral-300 bg-white p-4">
-      <dt class="text-neutral-600">Outcome</dt>
+    <dl data-reversal class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <dt class="text-neutral-600 dark:text-neutral-400">Outcome</dt>
       <dd data-cell="reversal_status" class="mt-1"><%= status_label(@fulfillment.status) %></dd>
-      <dt class="mt-3 text-neutral-600">Reason</dt>
+      <dt class="mt-3 text-neutral-600 dark:text-neutral-400">Reason</dt>
       <dd data-cell="refund_reason" class="mt-1"><%= @fulfillment.refund_reason %></dd>
     </dl>
   <% else %>
-    <dl data-shipment class="mt-2 rounded border border-neutral-300 bg-white p-4">
-      <dt class="text-neutral-600">Carrier</dt>
+    <dl data-shipment class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <dt class="text-neutral-600 dark:text-neutral-400">Carrier</dt>
       <dd data-cell="carrier" class="mt-1"><%= @fulfillment.carrier %></dd>
-      <dt class="mt-3 text-neutral-600">Tracking number</dt>
+      <dt class="mt-3 text-neutral-600 dark:text-neutral-400">Tracking number</dt>
       <dd data-cell="tracking_number" class="mt-1"><%= @fulfillment.tracking_number %></dd>
-      <dt class="mt-3 text-neutral-600">Shipped</dt>
+      <dt class="mt-3 text-neutral-600 dark:text-neutral-400">Shipped</dt>
       <dd data-cell="shipped_at" class="mt-1"><%= @fulfillment.shipped_at.strftime("%b %-d, %Y %-l:%M%P") %></dd>
       <% if @fulfillment.delivered_at %>
-        <dt class="mt-3 text-neutral-600">Delivered</dt>
+        <dt class="mt-3 text-neutral-600 dark:text-neutral-400">Delivered</dt>
         <dd data-cell="delivered_at" class="mt-1"><%= @fulfillment.delivered_at.strftime("%b %-d, %Y %-l:%M%P") %></dd>
       <% end %>
     </dl>
@@ -106,22 +106,22 @@
 
 <% if @fulfillment.declinable? %>
   <section aria-labelledby="decline-heading" class="mt-6 max-w-xl">
-    <h2 id="decline-heading" class="font-semibold text-neutral-700">Cannot ship this</h2>
+    <h2 id="decline-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Cannot ship this</h2>
 
     <%= form_with url: seller_order_decline_path(@fulfillment), method: :post,
-          html: { class: "mt-2 rounded border border-neutral-300 bg-white p-4" } do |form| %>
-      <p class="text-neutral-600">
+          html: { class: "mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4" } do |form| %>
+      <p class="text-neutral-600 dark:text-neutral-400">
         Declining sends <%= @fulfillment.subtotal.format %> back to the customer and puts your items
         back on the storefront. It cannot be undone.
       </p>
 
       <div class="mt-4">
-        <%= form.label :reason, "Why", class: "block font-medium text-neutral-700" %>
+        <%= form.label :reason, "Why", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
         <%= form.text_area :reason, rows: 3, required: true, maxlength: Refund::REASON_LIMIT,
-              class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+              class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
       </div>
 
-      <%= form.submit "Decline and refund", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+      <%= form.submit "Decline and refund", class: "mt-4 rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900" %>
     <% end %>
   </section>
 <% end %>

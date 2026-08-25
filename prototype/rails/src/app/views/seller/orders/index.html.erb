@@ -4,17 +4,17 @@
 
 <% @groups.each do |status, fulfillments| %>
   <section aria-labelledby="group-<%= status %>" data-group="<%= status %>" class="mt-6">
-    <h2 id="group-<%= status %>" class="font-semibold text-neutral-700">
+    <h2 id="group-<%= status %>" class="font-semibold text-neutral-700 dark:text-neutral-300">
       <%= status_label(status) %> (<%= fulfillments.length %>)
     </h2>
 
     <% if fulfillments.empty? %>
-      <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">Nothing here.</p>
+      <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">Nothing here.</p>
     <% else %>
-      <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+      <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
         <table class="w-full text-left">
           <caption class="sr-only"><%= status_label(status) %> orders</caption>
-          <thead class="border-b border-neutral-300 bg-neutral-50">
+          <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
             <tr>
               <th scope="col" class="px-4 py-2 font-semibold">Order</th>
               <th scope="col" class="px-4 py-2 font-semibold">Buyer</th>
@@ -23,7 +23,7 @@
               <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-neutral-200">
+          <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
             <% fulfillments.each do |fulfillment| %>
               <tr data-fulfillment="<%= fulfillment.id %>">
                 <th scope="row" class="px-4 py-2 font-normal">

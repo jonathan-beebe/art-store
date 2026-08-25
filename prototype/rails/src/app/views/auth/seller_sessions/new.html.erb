@@ -7,7 +7,7 @@
   <%= form_with url: seller_send_magic_link_path, method: :post, class: "mt-6 space-y-3" do |form| %>
     <%= form.label :email, "Email address", class: "block font-medium" %>
     <%= form.email_field :email, value: params[:email], required: true, autofocus: true,
-          class: "w-full border border-neutral-300 bg-white px-3 py-2" %>
-    <%= form.submit "Send sign-in link", class: "bg-neutral-900 px-4 py-2 text-neutral-100" %>
+          class: "w-full border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2" %>
+    <%= form.submit "Send sign-in link", class: "bg-neutral-900 dark:bg-neutral-100 px-4 py-2 text-neutral-100 dark:text-neutral-900" %>
   <% end %>
 </div>

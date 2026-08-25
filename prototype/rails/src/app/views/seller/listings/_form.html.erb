@@ -1,66 +1,66 @@
-<%= form_with model: [:seller, listing], html: { multipart: true, class: "mt-4 max-w-3xl rounded border border-neutral-300 bg-white p-4" } do |form| %>
+<%= form_with model: [:seller, listing], html: { multipart: true, class: "mt-4 max-w-3xl rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4" } do |form| %>
   <fieldset>
-    <legend class="font-semibold text-neutral-700">Listing details</legend>
+    <legend class="font-semibold text-neutral-700 dark:text-neutral-300">Listing details</legend>
 
     <div class="mt-2">
-      <%= form.label :title, "Title", class: "block font-medium text-neutral-700" %>
+      <%= form.label :title, "Title", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
       <%= form.text_field :title, required: true, maxlength: 255,
             "aria-describedby": listing.errors[:title].first && "listing_title-error",
-            class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+            class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
       <%= render "seller/shared/field_error", field: "listing_title", message: listing.errors[:title].first %>
     </div>
 
     <div class="mt-4">
-      <%= form.label :description, "Description", class: "block font-medium text-neutral-700" %>
+      <%= form.label :description, "Description", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
       <%= form.text_area :description, rows: 4, maxlength: 5000,
             "aria-describedby": listing.errors[:description].first && "listing_description-error",
-            class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+            class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
       <%= render "seller/shared/field_error", field: "listing_description",
             message: listing.errors[:description].first %>
     </div>
 
     <div class="mt-4 grid gap-4 sm:grid-cols-2">
       <div>
-        <%= form.label :medium, "Medium", class: "block font-medium text-neutral-700" %>
+        <%= form.label :medium, "Medium", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
         <%= form.text_field :medium, maxlength: 255,
               "aria-describedby": listing.errors[:medium].first && "listing_medium-error",
-              class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+              class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         <%= render "seller/shared/field_error", field: "listing_medium", message: listing.errors[:medium].first %>
       </div>
 
       <div>
-        <%= form.label :dimensions, "Dimensions", class: "block font-medium text-neutral-700" %>
+        <%= form.label :dimensions, "Dimensions", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
         <%= form.text_field :dimensions, maxlength: 255,
               "aria-describedby": listing.errors[:dimensions].first && "listing_dimensions-error",
-              class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+              class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         <%= render "seller/shared/field_error", field: "listing_dimensions",
               message: listing.errors[:dimensions].first %>
       </div>
 
       <div>
-        <%= form.label :price, "Price (dollars)", class: "block font-medium text-neutral-700" %>
+        <%= form.label :price, "Price (dollars)", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
         <%= form.number_field :price, step: "0.01", min: "0", required: true,
               "aria-describedby": listing.errors[:price].first && "listing_price-error",
-              class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+              class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         <%= render "seller/shared/field_error", field: "listing_price", message: listing.errors[:price].first %>
       </div>
 
       <div>
-        <%= form.label :quantity, "Quantity", class: "block font-medium text-neutral-700" %>
+        <%= form.label :quantity, "Quantity", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
         <%= form.number_field :quantity, step: 1, min: 0, max: 999, required: true,
               "aria-describedby": listing.errors[:quantity].first && "listing_quantity-error",
-              class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+              class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
         <%= render "seller/shared/field_error", field: "listing_quantity",
               message: listing.errors[:quantity].first %>
       </div>
     </div>
 
     <div class="mt-4">
-      <%= form.label :image, "Image", class: "block font-medium text-neutral-700" %>
+      <%= form.label :image, "Image", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
       <%= form.file_field :image, accept: "image/png,image/jpeg,image/gif,image/webp",
             "aria-describedby": "listing_image-hint#{" listing_image-error" if listing.errors[:image].any?}",
-            class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
-      <p id="listing_image-hint" class="mt-1 text-neutral-600">
+            class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
+      <p id="listing_image-hint" class="mt-1 text-neutral-600 dark:text-neutral-400">
         PNG, JPEG, GIF, or WebP, up to <%= Listing::MAX_IMAGE_UPLOAD_BYTES / 1.megabyte %> MB.
         Artwork drawn from the title stands in until you upload one.
       </p>
@@ -69,7 +69,7 @@
   </fieldset>
 
   <div class="mt-6 flex items-center gap-3">
-    <%= form.submit submit_label, class: "rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+    <%= form.submit submit_label, class: "rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900" %>
     <%= link_to "Cancel", seller_listings_path, class: "underline" %>
   </div>
 <% end %>

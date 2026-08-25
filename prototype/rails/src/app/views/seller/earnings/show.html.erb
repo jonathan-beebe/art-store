@@ -3,7 +3,7 @@
 <h1 class="text-lg font-semibold">Earnings</h1>
 
 <section aria-labelledby="balances-heading" class="mt-6">
-  <h2 id="balances-heading" class="font-semibold text-neutral-700">Balances</h2>
+  <h2 id="balances-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Balances</h2>
 
   <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
     <%= render "seller/shared/stat", key: "held", label: "Held in escrow", value: @balance.held.format %>
@@ -13,15 +13,15 @@
 </section>
 
 <section aria-labelledby="sales-heading" class="mt-6">
-  <h2 id="sales-heading" class="font-semibold text-neutral-700">Sales</h2>
+  <h2 id="sales-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Sales</h2>
 
   <% if @fulfillments.empty? %>
-    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No sales yet.</p>
+    <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">No sales yet.</p>
   <% else %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Every sale, newest first</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Date</th>
             <th scope="col" class="px-4 py-2 font-semibold">Order</th>
@@ -32,7 +32,7 @@
             <th scope="col" class="px-4 py-2 font-semibold">Status</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% @fulfillments.each do |fulfillment| %>
             <tr data-fulfillment="<%= fulfillment.id %>">
               <td class="px-4 py-2"><%= fulfillment.order.placed_at.strftime("%b %-d, %Y") %></td>
@@ -53,22 +53,22 @@
 </section>
 
 <section aria-labelledby="movements-heading" class="mt-6">
-  <h2 id="movements-heading" class="font-semibold text-neutral-700">Movements</h2>
+  <h2 id="movements-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Movements</h2>
 
   <% if @movements.empty? %>
-    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No movements yet.</p>
+    <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">No movements yet.</p>
   <% else %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Every movement of money on this account, newest first</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Date</th>
             <th scope="col" class="px-4 py-2 font-semibold">Movement</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% @movements.each do |movement| %>
             <tr data-movement="<%= movement.id %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= movement.occurred_at.strftime("%b %-d, %Y") %></th>
@@ -83,22 +83,22 @@
 </section>
 
 <section aria-labelledby="payouts-heading" class="mt-6">
-  <h2 id="payouts-heading" class="font-semibold text-neutral-700">Payouts</h2>
+  <h2 id="payouts-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Payouts</h2>
 
   <% if @payouts.empty? %>
-    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No payouts yet.</p>
+    <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">No payouts yet.</p>
   <% else %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Weekly payouts, newest first</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Period</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
             <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% @payouts.each do |payout| %>
             <tr data-payout="<%= payout.id %>">
               <th scope="row" class="px-4 py-2 font-normal">
