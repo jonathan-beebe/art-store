@@ -2,16 +2,16 @@
 
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold">Listings</h1>
-  <%= link_to "New listing", new_seller_listing_path, class: "ml-auto rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+  <%= link_to "New listing", new_seller_listing_path, class: "ml-auto rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900" %>
 </div>
 
 <% if @listings.empty? %>
-  <p class="mt-4 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No listings yet. Start with a new one.</p>
+  <p class="mt-4 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">No listings yet. Start with a new one.</p>
 <% else %>
-  <div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">Your listings, newest first</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
           <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -23,7 +23,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Actions</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% @listings.each do |listing| %>
           <tr data-listing="<%= listing.id %>">
             <th scope="row" class="px-4 py-3 font-normal">
@@ -40,7 +40,7 @@
             <td data-activity="cart_adds" class="px-4 py-3 text-right tabular-nums"><%= @activity[listing].cart_adds %></td>
             <td class="px-4 py-3">
               <span class="flex flex-wrap items-center gap-2">
-                <%= link_to "Edit", edit_seller_listing_path(listing), class: "rounded border border-neutral-400 px-2 py-1" %>
+                <%= link_to "Edit", edit_seller_listing_path(listing), class: "rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1" %>
                 <%= render "seller/listings/status_buttons", listing: listing %>
               </span>
             </td>

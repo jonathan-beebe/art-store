@@ -13,7 +13,7 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body data-site="admin" class="min-h-screen bg-slate-900 text-sm text-slate-100">
+  <body data-site="admin" class="supports-dark min-h-screen bg-slate-900 text-sm text-slate-100">
     <%= render "layouts/debug_alert" %>
     <%= render "layouts/flash" %>
     <%= turbo_stream_from current_admin, :unread_messages if admin_signed_in? %>

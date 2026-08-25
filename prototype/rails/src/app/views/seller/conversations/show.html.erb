@@ -4,7 +4,7 @@
 
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-lg font-semibold"><%= @conversation.topic %></h1>
-  <p data-cell="counterpart" class="text-neutral-600">
+  <p data-cell="counterpart" class="text-neutral-600 dark:text-neutral-400">
     with <%= @conversation.counterpart_of(current_seller).display_name %>
   </p>
   <%= link_to "All messages", seller_conversations_path, class: "ml-auto underline" %>
@@ -15,14 +15,14 @@
 </ol>
 
 <%= form_with model: @message, url: seller_conversation_messages_path(@conversation),
-      html: { class: "mt-6 max-w-2xl rounded border border-neutral-300 bg-white p-4" } do |form| %>
-  <%= form.label :body, "Reply", class: "block font-medium text-neutral-700" %>
+      html: { class: "mt-6 max-w-2xl rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4" } do |form| %>
+  <%= form.label :body, "Reply", class: "block font-medium text-neutral-700 dark:text-neutral-300" %>
   <%= form.text_area :body, rows: 4, maxlength: Message::BODY_LIMIT,
         "aria-describedby": @message.errors[:body].first && "message_body-error",
-        class: "mt-1 block w-full rounded border border-neutral-400 px-3 py-2" %>
+        class: "mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2" %>
   <%= render "seller/shared/field_error", field: "message_body", message: @message.errors[:body].first %>
 
-  <%= form.submit "Send", class: "mt-4 rounded bg-neutral-900 px-4 py-2 font-medium text-white" %>
+  <%= form.submit "Send", class: "mt-4 rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900" %>
 <% end %>
 
 <%= render "seller/conversations/publish_faq", draft: @faq %>
