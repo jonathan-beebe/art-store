@@ -138,7 +138,10 @@ function logException(
   const described = describeError(error)
 
   if (isDomainRefusal(error)) {
-    const refusal = { msg: described.message, data: { reason: described.type } }
+    const refusal = {
+      msg: described.message,
+      data: { ...(described.data ?? {}), reason: described.reason ?? described.type },
+    }
 
     logLine(log, 'info', event, 'refused', refusal, durationMs, root)
 

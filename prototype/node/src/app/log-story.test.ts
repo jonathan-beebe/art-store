@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { logLine, logStep, SILENT_LOG, tellStory, type AppLogger, type LogData } from './log-story.ts'
 import { TransitionError } from './core/transition-error.ts'
+import { MissingDataError } from './core/defect.ts'
 
 type Written = { level: string; payload: Record<string, unknown>; msg: string }
 
@@ -105,6 +106,31 @@ test('a thrown domain refusal is refused at info, and the caller still sees it',
   assert.deepEqual(written[1]?.payload.data, { reason: 'TransitionError' })
 })
 
+test('a thrown transition error with a reason is refused with the reason folded into its data', async () => {
+  const written: Written[] = []
+
+  await assert.rejects(
+    tellStory(
+      recordingLog(written),
+      {
+        event: 'listing.transition',
+        will: { msg: 'moving the listing to for_sale' },
+        ended: () => ({ phase: 'did', msg: 'moved the listing' }),
+      },
+      async () => {
+        throw new TransitionError('A listing cannot move from archived to for_sale.', {
+          reason: 'stale_status',
+          data: { listing_id: 'lst_1' },
+        })
+      },
+    ),
+    TransitionError,
+  )
+
+  assert.equal(written[1]?.level, 'info')
+  assert.deepEqual(written[1]?.payload.data, { listing_id: 'lst_1', reason: 'stale_status' })
+})
+
 test('an exception nobody expected is failed at error, with the type, message, and stack', async () => {
   const written: Written[] = []
 
@@ -131,6 +157,33 @@ test('an exception nobody expected is failed at error, with the type, message, a
   assert.equal(error.message, 'the database went away')
   assert.equal(typeof error.stack, 'string')
   assert.equal(typeof written[1]?.payload.duration_ms, 'number')
+})
+
+test('a thrown defect is failed at error, with the reason and data it carried', async () => {
+  const written: Written[] = []
+
+  await assert.rejects(
+    tellStory(
+      recordingLog(written),
+      {
+        event: 'order.place',
+        will: { msg: 'placing an order from the cart' },
+        ended: () => ({ phase: 'did', msg: 'placed the order' }),
+      },
+      async () => {
+        throw new MissingDataError('row_not_found', 'No cart matches crt_1.', { cart_id: 'crt_1' })
+      },
+    ),
+    MissingDataError,
+  )
+
+  assert.equal(written[1]?.level, 'error')
+  const error = written[1]?.payload.error as Record<string, unknown>
+  assert.equal(error.type, 'MissingDataError')
+  assert.equal(error.reason, 'row_not_found')
+  assert.equal(error.message, 'No cart matches crt_1.')
+  assert.deepEqual(error.data, { cart_id: 'crt_1' })
+  assert.equal(typeof error.stack, 'string')
 })
 
 test('a root story prefixes its will line with 🎬 and its did line with 🟢', async () => {
