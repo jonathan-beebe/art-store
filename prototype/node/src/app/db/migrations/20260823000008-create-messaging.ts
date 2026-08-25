@@ -86,6 +86,18 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .columns(['conversation_id', 'sent_at'])
     .execute()
 
+  // Partial index for unread lookups and the mark-read update, both of which
+  // filter on `read_at is null` without selecting it, so the index holds only
+  // the unread rows. `sql.ref` is required here because Kysely's `where` on a
+  // create-index builder only accepts a bare column name when that column is
+  // also part of the index itself.
+  await db.schema
+    .createIndex('messages_conversation_id_unread_index')
+    .on('messages')
+    .columns(['conversation_id'])
+    .where(sql.ref('read_at'), 'is', null)
+    .execute()
+
   await db.schema
     .createTable('listing_faqs')
     .addColumn('id', 'text', (column) => column.primaryKey().notNull())

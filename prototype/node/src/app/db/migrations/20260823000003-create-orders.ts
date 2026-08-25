@@ -41,6 +41,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute()
 
   await db.schema
+    .createIndex('orders_status_placed_at_index')
+    .on('orders')
+    .columns(['status', 'placed_at'])
+    .execute()
+
+  await db.schema
     .createTable('order_items')
     .addColumn('id', 'text', (column) => column.primaryKey().notNull())
     .addColumn('order_id', 'text', (column) => column.notNull().references('orders.id'))

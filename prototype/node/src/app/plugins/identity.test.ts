@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import type { FastifyRequest } from 'fastify'
 import { seedAdmins } from '../db/seed-admins.ts'
-import { parseActorId } from './identity.ts'
+import { identityId, parseActorId } from './identity.ts'
 import {
   browseAsAnonymousCustomer,
   buildTestApp,
@@ -136,4 +137,80 @@ test('a cookie value holding this side\'s id names that actor', () => {
   assert.equal(parseActorId('seller', SELLER_ID), SELLER_ID)
   assert.equal(parseActorId('customer', CUSTOMER_ID), CUSTOMER_ID)
   assert.equal(parseActorId('admin', ADMIN_ID), ADMIN_ID)
+})
+
+test('identityId unsigns a cookie at most once per request', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const signed = testApp.app.signCookie(SELLER_ID)
+
+  let unsignCalls = 0
+  const stub = {
+    cookies: { seller_id: signed },
+    unsignCookie(value: string) {
+      unsignCalls += 1
+      return testApp.app.unsignCookie(value)
+    },
+    parsedActorIds: null,
+  } as unknown as FastifyRequest
+
+  const first = identityId(stub, 'seller')
+  const second = identityId(stub, 'seller')
+
+  assert.equal(first, SELLER_ID)
+  assert.equal(second, SELLER_ID)
+  assert.equal(unsignCalls, 1)
+})
+
+test('a storefront visit and a health check trigger no seller or admin lookups', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  await seedAdmins(testApp)
+  const seller = await signInAsSeller(testApp)
+  const admin = await signInAsAdmin(testApp)
+  const cookies = { ...seller.cookies, ...admin.cookies }
+
+  const queriedTables: string[] = []
+  const instrumented = testApp.db as unknown as { selectFrom: (table: unknown) => unknown }
+  const original = testApp.db.selectFrom.bind(testApp.db)
+  instrumented.selectFrom = (table: unknown) => {
+    queriedTables.push(String(table))
+    return original(table as never)
+  }
+
+  await testApp.app.inject({ method: 'GET', url: '/', cookies })
+  await testApp.app.inject({ method: 'GET', url: '/health', cookies })
+
+  assert.equal(queriedTables.includes('sellers'), false)
+  assert.equal(queriedTables.includes('admins'), false)
+})
+
+test('the seller account page names the signed-in seller by email', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp, 'artist@example.com')
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/account',
+    cookies: seller.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /artist@example\.com/)
+})
+
+test('the admin account page names the signed-in admin by email', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp, 'annaschmunk@pm.me')
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/account',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /annaschmunk@pm\.me/)
 })

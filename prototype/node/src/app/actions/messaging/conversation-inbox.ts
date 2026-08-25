@@ -6,11 +6,9 @@ import { conversationTopics } from './conversation-topics.ts'
 import { participantColumn } from '../../core/messaging/conversation-kind.ts'
 import { counterpartName } from '../../core/messaging/participant-name.ts'
 import { conversationPath } from '../../core/messaging/conversation-path.ts'
-import {
-  totalUnreadMessages,
-  unreadCountsByConversation,
-} from '../../core/messaging/unread-messages.ts'
+import { unreadCountsByConversation } from '../../core/messaging/unread-messages.ts'
 import type { Conversation } from '../../db/commerce-schema.ts'
+import { toCount } from '../../db/count.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import type { Timestamp } from '../../db/timestamp.ts'
 
@@ -56,20 +54,33 @@ export async function inboxConversations(
   }))
 }
 
-/** How many messages this actor has waiting across every thread, for the nav. */
+/**
+ * How many messages this actor has waiting across every thread, for the nav.
+ * One aggregate query: the WHERE clause states `isUnreadBy`'s rule directly —
+ * unread is not read and not sent by the reader. The characterization test
+ * that checks this count against `isUnreadBy` over the raw rows keeps the two
+ * in sync.
+ */
 export async function unreadMessageCount(
   { db }: Pick<ActionContext, 'db'>,
   actor: MessagingActor,
 ): Promise<number> {
-  const conversations = await conversationsFor(db, actor)
-  if (conversations.length === 0) return 0
+  const actorColumn = `conversations.${participantColumn(actor.type)}` as const
 
-  const messages = await messagesIn(
-    db,
-    conversations.map((conversation) => conversation.id),
-  )
+  const row = await db
+    .selectFrom('messages')
+    .innerJoin('conversations', 'conversations.id', 'messages.conversationId')
+    .where(actorColumn, '=', actor.id)
+    .where('messages.readAt', 'is', null)
+    .where((eb) =>
+      eb.not(
+        eb.and([eb('messages.senderType', '=', actor.type), eb('messages.senderId', '=', actor.id)]),
+      ),
+    )
+    .select((eb) => eb.fn.countAll<string | number | bigint>().as('count'))
+    .executeTakeFirst()
 
-  return totalUnreadMessages(unreadCountsByConversation(messages, actor))
+  return toCount(row?.count)
 }
 
 async function conversationsFor(

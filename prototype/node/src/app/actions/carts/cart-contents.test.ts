@@ -182,3 +182,26 @@ test('a line still for sale, in stock, and unremoved is not marked unavailable',
   assert.equal(contents.lines[0]?.isUnavailable, false)
   assert.equal(contents.lines[0]?.unavailableNotice, null)
 })
+
+test('hasActiveRemoval is true for a removed line and false for an untouched one', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const customerId = await createCustomer(context)
+  const sellerId = await createSeller(context)
+  const adminId = await createAdmin(context)
+  const removed = await createListing(context, sellerId, { title: 'Harbour at Dusk' })
+  const untouched = await createListing(context, sellerId, { title: 'Low Tide' })
+  const cart = await currentCart(context, customerId)
+  await addToCart(context, { cartId: cart.id, listingId: removed.id, quantity: 1 })
+  await addToCart(context, { cartId: cart.id, listingId: untouched.id, quantity: 1 })
+  await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' })
+
+  const contents = await cartContents(context, cart.id)
+
+  const removedLine = contents.lines.find((line) => line.listingId === removed.id)
+  const untouchedLine = contents.lines.find((line) => line.listingId === untouched.id)
+  assert.equal(removedLine?.hasActiveRemoval, true)
+  assert.equal(untouchedLine?.hasActiveRemoval, false)
+})

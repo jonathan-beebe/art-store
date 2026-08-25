@@ -9,7 +9,7 @@ import type {
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { confirmDelivered } from './confirm-delivered.ts'
 import { markShipped } from './mark-shipped.ts'
-import { sellerBalance } from '../escrow/seller-balance.ts'
+import { sellerBalance } from '../escrow/ledger-balances.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { createCustomer, createListing, createSeller, openCommerceWorld, paidOrder } from '../../test/commerce-world.ts'

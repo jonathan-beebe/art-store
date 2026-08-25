@@ -46,7 +46,6 @@ export async function ledgerRows(
       'ledgerEntries.occurredAt',
     ])
     .orderBy('ledgerEntries.occurredAt', 'desc')
-    .orderBy('ledgerEntries.occurredAt', 'desc')
     .orderBy('ledgerEntries.id', 'desc')
 
   if (filter.sellerId !== undefined) query = query.where('ledgerEntries.sellerId', '=', filter.sellerId)

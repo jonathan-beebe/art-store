@@ -139,6 +139,28 @@ test('the standing filter narrows the table to anonymous customers', async (t) =
   assert.doesNotMatch(response.body, new RegExp(`data-customer="${verified}"`))
 })
 
+test('a full page of customers shows 25 and a link to the next page, which shows the rest', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+
+  for (let i = 0; i < 27; i += 1) {
+    await createCustomer(context)
+  }
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/admin/customers', cookies: admin.cookies })
+  assert.equal((firstPage.body.match(/data-customer="/g) ?? []).length, 25)
+  assert.match(firstPage.body, /page=2/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/customers?page=2',
+    cookies: admin.cookies,
+  })
+  assert.equal((secondPage.body.match(/data-customer="/g) ?? []).length, 2)
+})
+
 test('the customer detail page shows an unblocked customer with a block form', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

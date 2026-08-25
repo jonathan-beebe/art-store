@@ -1,7 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { newId } from '../../ids.ts'
-import { activeListingRemoval } from './active-listing-removal.ts'
+import { activeListingRemoval, listingsUnderActiveRemoval } from './active-listing-removal.ts'
+import { liftListingRemoval } from './lift-listing-removal.ts'
+import { removeListing } from './remove-listing.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
@@ -113,5 +115,60 @@ test('the unlifted one wins when a listing has both', async (t) => {
   const removal = await activeListingRemoval(context, art.id)
 
   assert.equal(removal?.reason, 'Second, still active')
+})
+
+test('listingsUnderActiveRemoval reports a removed listing and leaves out an untouched one', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const sellerId = await createSeller(context)
+  const adminId = await createAdmin(context)
+  const removed = await createListing(context, sellerId)
+  const untouched = await createListing(context, sellerId)
+
+  await removeListing(context, {
+    listingId: removed.id,
+    adminId,
+    kind: 'permanent',
+    reason: 'Reported as counterfeit',
+  })
+
+  const underRemoval = await listingsUnderActiveRemoval(context, [removed.id, untouched.id])
+
+  assert.equal(underRemoval.has(removed.id), true)
+  assert.equal(underRemoval.has(untouched.id), false)
+})
+
+test('listingsUnderActiveRemoval leaves out a listing whose removal was lifted', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const sellerId = await createSeller(context)
+  const adminId = await createAdmin(context)
+  const art = await createListing(context, sellerId)
+
+  await removeListing(context, {
+    listingId: art.id,
+    adminId,
+    kind: 'temporary',
+    reason: 'Retake the photograph.',
+  })
+  await liftListingRemoval(context, { listingId: art.id })
+
+  const underRemoval = await listingsUnderActiveRemoval(context, [art.id])
+
+  assert.equal(underRemoval.has(art.id), false)
+})
+
+test('listingsUnderActiveRemoval returns an empty set for an empty id list', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const underRemoval = await listingsUnderActiveRemoval(context, [])
+
+  assert.equal(underRemoval.size, 0)
 })
 

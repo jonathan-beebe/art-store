@@ -11,6 +11,7 @@ import type { ZodRoutes } from '../../http/zod-type-provider.ts'
 import { logLine } from '../../log-story.ts'
 import { ACTOR_GUARDS, rememberCustomerIdentity, signedInActorId } from '../../plugins/identity.ts'
 import { magicLinkRequestGuard, type RateLimitedFormRender } from '../../plugins/rate-limit.ts'
+import { countUnreadMessages } from '../../plugins/unread-messages.ts'
 import { magicLinkUrl, requestOrigin } from './request-origin.ts'
 
 const NO_ADDRESS = 'Enter an email address to sign in.'
@@ -68,7 +69,10 @@ export function signInRoutes({ actorType, admits, accountView }: SignInRoutesOpt
     })
 
   const signInPages: ZodRoutes = (routes, _options, done) => {
-    if (actorType === 'customer') routes.addHook('preHandler', rememberCustomerIdentity)
+    if (actorType === 'customer') {
+      routes.addHook('preHandler', rememberCustomerIdentity)
+      routes.addHook('preHandler', countUnreadMessages('customer'))
+    }
 
     routes.get('/login', { schema: { querystring: signInQuery } }, async (request, reply) => {
       if (signedInActorId(request, actorType) !== null) return await reply.redirect(site.homePath)

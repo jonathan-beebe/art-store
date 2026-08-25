@@ -50,10 +50,13 @@ export function placeholderImageSvg(title: string): string {
   )
 }
 
-export function placeholderImageDataUri(title: string): string {
-  return `data:image/svg+xml;base64,${Buffer.from(placeholderImageSvg(title), 'utf8').toString('base64')}`
+/** The route a listing's title's generated placeholder renders at. A slash in
+ * the title is encoded along with everything else, so the router reads it as
+ * part of `:title` rather than as a path separator. */
+export function placeholderImagePath(title: string): string {
+  return `/placeholders/${encodeURIComponent(title)}`
 }
 
 export function listingImageSource(imagePath: string | null, title: string): string {
-  return imagePath ?? placeholderImageDataUri(title)
+  return imagePath ?? placeholderImagePath(title)
 }

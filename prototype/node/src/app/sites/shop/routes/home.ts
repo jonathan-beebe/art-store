@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { listingPage } from '../../../core/shop/listing-page.ts'
+import { listPage } from '../../../core/paging/list-page.ts'
 import { filterQuery, parseListingSearch } from '../../../core/shop/listing-search.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import {
@@ -22,7 +22,7 @@ export const homeRoutes: ZodRoutes = (shop, _options, done) => {
   shop.get('/', { schema: { querystring: searchQuery } }, async (request, reply) => {
     const asked = request.query
     const search = parseListingSearch({ term: asked.q, medium: asked.medium })
-    const page = listingPage({
+    const page = listPage({
       requested: asked.page,
       size: LISTINGS_PER_PAGE,
       totalCount: await countStorefrontListings(shop.db, search),

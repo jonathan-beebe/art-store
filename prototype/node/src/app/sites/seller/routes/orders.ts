@@ -9,6 +9,7 @@ import {
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
 import { formatCents } from '../../../core/money.ts'
+import { listPage } from '../../../core/paging/list-page.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH, type RefundReasonErrors } from '../../../core/orders/refund.ts'
 import { parseShipmentDetails, type ShipmentDetailsErrors } from '../../../core/orders/shipment-details.ts'
 import { statusLabel } from '../../../core/status-label.ts'
@@ -21,6 +22,7 @@ import { currentSellerId } from '../current-seller.ts'
 import { formatDate, formatDateTime } from '../format.ts'
 import { sellerNotFound } from '../not-found.ts'
 import {
+  fulfillmentCountsByStatus,
   fulfillmentsForSeller,
   itemTitlesByOrder,
   orderItemsForSeller,
@@ -28,6 +30,11 @@ import {
   refundForFulfillment,
   type FulfillmentWithOrder,
 } from '../queries/fulfillments.ts'
+
+// A page of orders deep enough that most sellers never see a second one.
+const ORDERS_PER_PAGE = 25
+
+const indexQuery = z.object({ page: z.string().optional() })
 
 const shipmentForm = submittedForm({
   carrier: z.string().optional(),
@@ -119,10 +126,13 @@ async function renderOrderShow(
 }
 
 export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
-  portal.get('/orders', async (request, reply) => {
+  portal.get('/orders', { schema: { querystring: indexQuery } }, async (request, reply) => {
     const { db } = request.server
     const sellerId = currentSellerId(request)
-    const fulfillments = await fulfillmentsForSeller(db, sellerId)
+    const counts = await fulfillmentCountsByStatus(db, sellerId)
+    const totalCount = [...counts.values()].reduce((sum, count) => sum + count, 0)
+    const page = listPage({ requested: request.query.page, size: ORDERS_PER_PAGE, totalCount })
+    const fulfillments = await fulfillmentsForSeller(db, sellerId, page)
     const itemTitles = await itemTitlesByOrder(
       db,
       fulfillments.map((fulfillment) => fulfillment.orderId),
@@ -132,6 +142,8 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
     return reply.render('orders/index', {
       title: 'Orders',
       groups: groupByStatus(fulfillments),
+      counts,
+      page,
       itemTitles,
       statusLabel,
       formatCents,

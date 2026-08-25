@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
@@ -12,11 +13,11 @@ import type { AppConfig } from '../config.ts'
 import { CSRF_FIELD_NAME, csrfToken } from '../core/security/csrf-token.ts'
 import type { ActorId, AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/database.ts'
-import { migrateToLatest } from '../db/migrator.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
 import { flashMagicLinkDelivery } from '../delivery/flash-magic-link-delivery.ts'
 import { newId } from '../ids.ts'
 import { flashSchema } from '../plugins/flash.ts'
+import { applySchemaTemplate } from './schema-template.ts'
 
 const STATE_CHANGING_METHODS: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -139,7 +140,8 @@ export const TEST_INSTANT = new Date('2026-08-24T12:00:00.000Z')
 
 /** `uploadsDir` and `outboxDir` here are never read: `buildTestApp` always
  * builds fresh per-test temp directories unless a caller supplies its own
- * `config`. */
+ * `config`, and those directories are named but not created until something
+ * writes into them. */
 export const TEST_CONFIG: AppConfig = {
   environment: 'test',
   host: '127.0.0.1',
@@ -187,12 +189,43 @@ export type TestApp = {
 }
 
 /**
+ * The config and temp root `buildTestApp` uses when no override supplies its
+ * own config: a fresh `temporaryRoot` naming an uploads and an outbox
+ * directory beneath it. Neither directory is created here —
+ * `saveUploadedListingImage` and `drainOutbox` each `mkdir` its directory on
+ * demand, and `@fastify/static` tolerates a missing root — except when the
+ * test surfaces the log, where that static plugin's missing-root warning
+ * would land in the captured stream, so only that case creates `uploadsDir`
+ * up front.
+ */
+async function buildIsolatedTestConfig(
+  overrides: TestAppOverrides,
+): Promise<{ config: AppConfig; temporaryRoot: string }> {
+  const temporaryRoot = path.join(tmpdir(), `art-store-test-${randomUUID()}`)
+  const uploadsDir = path.join(temporaryRoot, 'uploads')
+
+  if (overrides.logLevel !== undefined || overrides.loggerStream !== undefined) {
+    await mkdir(uploadsDir, { recursive: true })
+  }
+
+  return {
+    temporaryRoot,
+    config: {
+      ...TEST_CONFIG,
+      uploadsDir,
+      outboxDir: path.join(temporaryRoot, 'outbox'),
+      logLevel: overrides.logLevel ?? TEST_CONFIG.logLevel,
+    },
+  }
+}
+
+/**
  * Builds the whole application over a migrated in-memory database, ready for
  * `app.inject`. Pass `t.after(close)` so the database goes with the test.
  */
 export async function buildTestApp(overrides: TestAppOverrides = {}): Promise<TestApp> {
   const db = overrides.db ?? openDatabase(IN_MEMORY_DATABASE)
-  await migrateToLatest(db)
+  await applySchemaTemplate(db)
 
   const clock = overrides.clock ?? fixedClock(TEST_INSTANT)
 
@@ -201,15 +234,7 @@ export async function buildTestApp(overrides: TestAppOverrides = {}): Promise<Te
   let temporaryRoot: string | null = null
   let config = overrides.config
   if (config === undefined) {
-    temporaryRoot = await mkdtemp(path.join(tmpdir(), 'art-store-test-'))
-    const uploadsDir = path.join(temporaryRoot, 'uploads')
-    await mkdir(uploadsDir)
-    config = {
-      ...TEST_CONFIG,
-      uploadsDir,
-      outboxDir: path.join(temporaryRoot, 'outbox'),
-      logLevel: overrides.logLevel ?? TEST_CONFIG.logLevel,
-    }
+    ({ config, temporaryRoot } = await buildIsolatedTestConfig(overrides))
   }
 
   const app = buildApp({

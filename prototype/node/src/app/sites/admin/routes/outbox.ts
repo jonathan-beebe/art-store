@@ -1,17 +1,31 @@
+import { z } from 'zod'
 import { drainOutbox, type DrainedMessage } from '../../../actions/outbox/drain-outbox.ts'
 import { renderOutboxMessage } from '../../../delivery/outbox-message.ts'
+import { listPage } from '../../../core/paging/list-page.ts'
 import { idParams } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
-import { outboxRow, outboxRows } from '../queries/outbox-rows.ts'
+import { countOutboxRows, outboxRow, outboxRows } from '../queries/outbox-rows.ts'
+
+// One screen of the outbox table.
+const ROWS_PER_PAGE = 25
+
+const outboxQuery = z.object({
+  page: z.string().optional(),
+})
 
 export const outboxRoutes: ZodRoutes = (admin, _options, done) => {
-  admin.get('/outbox', async (_request, reply) => {
+  admin.get('/outbox', { schema: { querystring: outboxQuery } }, async (request, reply) => {
     const { db, config } = admin
+    const page = listPage({
+      requested: request.query.page,
+      size: ROWS_PER_PAGE,
+      totalCount: await countOutboxRows({ db }),
+    })
 
     return reply.render(
       'outbox',
-      adminPage('Outbox', { rows: await outboxRows({ db }), outboxDir: config.outboxDir }),
+      adminPage('Outbox', { rows: await outboxRows({ db }, page), outboxDir: config.outboxDir, page }),
     )
   })
 

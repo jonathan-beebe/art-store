@@ -79,7 +79,9 @@ export function ledgerBalancesBySeller(
 ): ReadonlyMap<SellerId, LedgerBalance> {
   const bySeller = new Map<SellerId, SellerLedgerMovement[]>()
   for (const movement of movements) {
-    bySeller.set(movement.sellerId, [...(bySeller.get(movement.sellerId) ?? []), movement])
+    const existing = bySeller.get(movement.sellerId) ?? []
+    existing.push(movement)
+    bySeller.set(movement.sellerId, existing)
   }
 
   return new Map([...bySeller].map(([sellerId, own]) => [sellerId, ledgerBalance(own)]))

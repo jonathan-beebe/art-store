@@ -1,8 +1,9 @@
+import { sql } from 'kysely'
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
-import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { sellerBalances } from '../../../actions/escrow/ledger-balances.ts'
+import type { LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import type { SellerId } from '../../../core/ids/entity-ids.ts'
-import { addCents, centsFromColumn, ZERO_CENTS, type Cents } from '../../../core/money.ts'
+import { centsFromColumn, ZERO_CENTS, type Cents } from '../../../core/money.ts'
 import { shopName } from '../../../core/shop/shop-name.ts'
 
 /** A name a table cell can show even for a seller who never set a shop name. */
@@ -36,14 +37,15 @@ const ZERO_LIFETIME: LifetimeSales = {
 
 /**
  * Every seller, whether or not they have moved any money, with their escrow
- * balance folded from one read of the whole ledger and reconciled against the
- * `payouts` rows that are supposed to equal its paid-out figure.
+ * balance and every other total read as a SQL aggregate rather than folded
+ * from a row-by-row read of the ledger, reconciled against the `payouts`
+ * rows that are supposed to equal its paid-out figure.
  */
 export async function sellerAccounts(
   context: Pick<ActionContext, 'db'>,
 ): Promise<readonly SellerAccount[]> {
   const sellers = await sellerOptions(context)
-  const balances = ledgerBalancesBySeller(await ledgerMovements(context))
+  const balances = await sellerBalances(context)
   const payoutTotals = await payoutTotalsBySeller(context)
   const lifetimeSales = await lifetimeSalesBySeller(context)
   const refunded = await refundTotalsBySeller(context)
@@ -98,48 +100,53 @@ async function payoutTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<
   return new Map(rows.map((row) => [row.sellerId, centsFromColumn(row.total)]))
 }
 
-/** What each seller's sales handed back to customers, folded from the refunds themselves. */
+type RawSum = number | string | bigint
+type RefundTotalRow = { sellerId: SellerId; total: RawSum }
+
+/** What each seller's sales handed back to customers, grouped in SQL from the refunds themselves. */
 async function refundTotalsBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<SellerId, Cents>> {
-  const rows = await db
-    .selectFrom('refunds')
-    .innerJoin('fulfillments', 'fulfillments.id', 'refunds.fulfillmentId')
-    .select(['fulfillments.sellerId as sellerId', 'refunds.amountCents as amountCents'])
-    .execute()
+  const { rows } = await sql<RefundTotalRow>`
+    select fulfillments.seller_id as seller_id, coalesce(sum(refunds.amount_cents), 0) as total
+    from refunds
+    inner join fulfillments on fulfillments.id = refunds.fulfillment_id
+    group by fulfillments.seller_id
+  `.execute(db)
 
-  const bySeller = new Map<SellerId, Cents>()
-  for (const row of rows) {
-    bySeller.set(row.sellerId, addCents(bySeller.get(row.sellerId) ?? ZERO_CENTS, row.amountCents))
-  }
+  return new Map(rows.map((row) => [row.sellerId, centsFromColumn(row.total)]))
+}
 
-  return bySeller
+type LifetimeSalesRow = {
+  sellerId: SellerId
+  subtotalCents: RawSum
+  feeCents: RawSum
+  netCents: RawSum
 }
 
 /**
  * A fee is earned when the order pays, which is when the net is held, so
- * lifetime sales fold every fulfillment that has a `held` ledger entry.
+ * lifetime sales sums every fulfillment that has a `held` ledger entry.
  */
 async function lifetimeSalesBySeller({ db }: Pick<ActionContext, 'db'>): Promise<Map<SellerId, LifetimeSales>> {
-  const rows = await db
-    .selectFrom('fulfillments')
-    .innerJoin('ledgerEntries', 'ledgerEntries.fulfillmentId', 'fulfillments.id')
-    .where('ledgerEntries.entryType', '=', 'held')
-    .select([
-      'fulfillments.sellerId',
-      'fulfillments.subtotalCents',
-      'fulfillments.feeCents',
-      'fulfillments.netCents',
-    ])
-    .execute()
+  const { rows } = await sql<LifetimeSalesRow>`
+    select
+      fulfillments.seller_id as seller_id,
+      coalesce(sum(fulfillments.subtotal_cents), 0) as subtotal_cents,
+      coalesce(sum(fulfillments.fee_cents), 0) as fee_cents,
+      coalesce(sum(fulfillments.net_cents), 0) as net_cents
+    from fulfillments
+    inner join ledger_entries on ledger_entries.fulfillment_id = fulfillments.id
+    where ledger_entries.entry_type = 'held'
+    group by fulfillments.seller_id
+  `.execute(db)
 
-  const bySeller = new Map<SellerId, LifetimeSales>()
-  for (const row of rows) {
-    const current = bySeller.get(row.sellerId) ?? ZERO_LIFETIME
-    bySeller.set(row.sellerId, {
-      subtotalCents: addCents(current.subtotalCents, row.subtotalCents),
-      feeCents: addCents(current.feeCents, row.feeCents),
-      netCents: addCents(current.netCents, row.netCents),
-    })
-  }
-
-  return bySeller
+  return new Map(
+    rows.map((row) => [
+      row.sellerId,
+      {
+        subtotalCents: centsFromColumn(row.subtotalCents),
+        feeCents: centsFromColumn(row.feeCents),
+        netCents: centsFromColumn(row.netCents),
+      },
+    ]),
+  )
 }

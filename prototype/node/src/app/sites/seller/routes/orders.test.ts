@@ -47,6 +47,43 @@ test("the index groups the seller's fulfillments by status", async (t) => {
   assert.match(response.body, /data-group="shipped"[\s\S]*Nothing here\./)
 })
 
+test('the index pages at 25, keeps heading counts at the true total, and links the next page', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const delivered = await createDeliveredFulfillment(testApp, seller.id)
+  const fulfillments = []
+  for (let i = 0; i < 26; i += 1) {
+    fulfillments.push(await createFulfillment(testApp, seller.id))
+  }
+  const newest = fulfillments.at(-1)!
+  const oldest = fulfillments[0]!
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/seller/orders', cookies: seller.cookies })
+
+  assert.equal(firstPage.statusCode, 200)
+  assert.equal((firstPage.body.match(/data-fulfillment="/g) ?? []).length, 25)
+  assert.match(firstPage.body, /Awaiting shipment \(26\)/)
+  assert.match(firstPage.body, new RegExp(`data-fulfillment="${newest.id}"`))
+  assert.doesNotMatch(firstPage.body, new RegExp(`data-fulfillment="${oldest.id}"`))
+  assert.match(firstPage.body, /href="\/seller\/orders\?page=2"/)
+  // The delivered fulfillment sits on page 2, but its total is nonzero, so
+  // page 1's delivered group must not claim there is nothing at all.
+  assert.match(firstPage.body, /Delivered \(1\)/)
+  assert.match(firstPage.body, /data-group="delivered"[\s\S]*None on this page\./)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/orders?page=2',
+    cookies: seller.cookies,
+  })
+
+  assert.equal((secondPage.body.match(/data-fulfillment="/g) ?? []).length, 2)
+  assert.match(secondPage.body, new RegExp(`data-fulfillment="${oldest.id}"`))
+  assert.match(secondPage.body, new RegExp(`data-fulfillment="${delivered.id}"`))
+  assert.match(secondPage.body, /Page 2 of 2/)
+})
+
 test("another seller's fulfillments stay off the index", async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

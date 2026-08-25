@@ -257,7 +257,7 @@ test('every layout loads the badge script and the policy still allows only this 
   for (const [url, cookies] of pages) {
     const response = await testApp.app.inject({ url, cookies })
 
-    assert.match(response.body, /<script defer src="\/app\.js"><\/script>/)
+    assert.match(response.body, /<script defer src="\/app(\.[0-9a-f]{8})?\.js"><\/script>/)
     assert.match(String(response.headers['content-security-policy']), /script-src 'self'/)
   }
 

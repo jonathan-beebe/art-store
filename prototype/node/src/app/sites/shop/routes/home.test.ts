@@ -13,7 +13,7 @@ test('the storefront home page renders in the storefront layout', async (t) => {
   assert.equal(response.statusCode, 200)
   assert.match(response.headers['content-type'] ?? '', /text\/html/)
   assert.match(response.body, /<title>Original art — Art Store<\/title>/)
-  assert.match(response.body, /href="\/app\.css"/)
+  assert.match(response.body, /href="\/app(\.[0-9a-f]{8})?\.css"/)
 })
 
 test('the storefront layout prints a flashed magic link in the debug alert', async (t) => {
@@ -43,7 +43,8 @@ test('the grid shows art for sale with its picture, shop, and price', async (t) 
   assert.match(response.body, /href="\/art\/harbour-at-dusk"/)
   assert.match(response.body, /\$240\.00/)
   assert.match(response.body, /ada/)
-  assert.match(response.body, /data:image\/svg\+xml;base64,/)
+  assert.match(response.body, /src="\/placeholders\/Harbour%20at%20dusk"/)
+  assert.doesNotMatch(response.body, /data:image/)
 })
 
 test('the grid leaves out art that is not on the storefront', async (t) => {

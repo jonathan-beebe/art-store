@@ -20,7 +20,7 @@ export const FULFILLMENT_STATUS_TRANSITIONS = {
 const DEPARTED = ['shipped', 'delivered'] as const satisfies readonly FulfillmentStatus[]
 
 /** The two endings that hand the money back rather than earn it. */
-const REVERSED = ['declined', 'refunded'] as const satisfies readonly FulfillmentStatus[]
+export const REVERSED_FULFILLMENT_STATUSES = ['declined', 'refunded'] as const satisfies readonly FulfillmentStatus[]
 
 export function canTransitionFulfillment(from: FulfillmentStatus, to: FulfillmentStatus): boolean {
   const allowed: readonly FulfillmentStatus[] = FULFILLMENT_STATUS_TRANSITIONS[from]
@@ -47,7 +47,7 @@ export function hasDeparted(status: FulfillmentStatus): boolean {
  * counting this half of it and the platform forgoes the fee on it.
  */
 export function isReversed(status: FulfillmentStatus): boolean {
-  const reversed: readonly FulfillmentStatus[] = REVERSED
+  const reversed: readonly FulfillmentStatus[] = REVERSED_FULFILLMENT_STATUSES
 
   return reversed.includes(status)
 }

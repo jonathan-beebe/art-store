@@ -26,10 +26,11 @@ make up
 ```
 
 The entrypoint installs dependencies with `npm ci` when `node_modules` is
-missing or older than `package-lock.json`, runs `node app/db/migrate.ts`,
-seeds the platform admins and demo catalog with `node app/db/seed.ts`, builds
-the Tailwind stylesheet with `npm run assets`, then starts the server with
-`node --watch app/server.ts`.
+missing or older than `package-lock.json`, migrates and seeds the platform
+admins and demo catalog in one process with `node app/cli/prepare-db.ts`,
+builds the assets with `npm run assets` when any output the manifest names is
+missing or any input under `app/` is newer than `public/assets-manifest.json`,
+then starts the server with `node --watch app/server.ts`.
 
 Measured from an empty tree — no `src/node_modules`, no SQLite file, no
 `src/public/app.css`: `make build` and `make up` together took **29 seconds**
@@ -280,7 +281,9 @@ temporary removal and is off the storefront despite its status), 3 `draft`,
 
 ## Commands
 
-Every target is a thin `docker compose` wrapper, so either form works.
+Every target is a thin `docker compose` wrapper, so either form works. Bare
+`make` (or `make help`) prints this list with a one-line description per
+target.
 
 | Make              | Docker Compose                                                                                        |
 | ----------------- | ----------------------------------------------------------------------------------------------------- |
@@ -289,7 +292,7 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make build`      | `docker compose build`                                                                                |
 | `make assets`     | `docker compose run --rm app npm run assets`                                                          |
 | `make shell`      | `docker compose run --rm app bash`                                                                    |
-| `make test`       | `docker compose run --rm app npm run coverage`                                                        |
+| `make test`       | `docker compose run --rm app npm test`                                                                |
 | `make smoke`      | `docker compose run --rm app node --test app/test/smoke.test.ts`                                      |
 | `make coverage`   | `docker compose run --rm app npm run coverage`                                                        |
 | `make lint`       | `docker compose run --rm app npm run lint`                                                            |
@@ -323,12 +326,12 @@ than from a table someone keeps up to date.
 
 Tests are sidecars: `foo.ts` gets `foo.test.ts` beside it. `node:test` and
 `node:assert/strict` — no test framework is installed. `make test` runs the
-coverage-gated suite (see Coverage below). `npm test` on its own runs the
-suite without the coverage gate, for a fast local loop. `make lint` runs
-`tsc --noEmit` then eslint (`recommendedTypeChecked`, `complexity` max 8,
-`max-depth` max 3) — read-only, no gate on the suite itself. `make check`
-runs lint, then `make assets`, then the coverage-gated suite, and is the
-commit gate `.githooks/pre-commit` and CI both run (see CI below).
+full suite, ungated. `make coverage` runs the same suite with the coverage
+gate (see Coverage below). `make lint` runs `tsc --noEmit` then eslint
+(`recommendedTypeChecked`, `complexity` max 8, `max-depth` max 3) —
+read-only, no gate on the suite itself. `make check` runs lint, then
+`make assets`, then the coverage-gated suite, and is the commit gate
+`.githooks/pre-commit` and CI both run (see CI below).
 
 Core tests (`app/core/**`) import only the file under test — no database, no
 doubles. Route tests build the whole app over an in-memory SQLite with
@@ -450,7 +453,9 @@ table.
 Tailwind v4 through `@tailwindcss/cli` in the container. Source is
 `src/app/assets/app.css` (`@import "tailwindcss"` plus an `@source` pointing
 at `app/`); output is `src/public/app.css`, which is not committed and is
-rebuilt on every container start. To rebuild without restarting:
+rebuilt at container start when it is stale — a missing hashed or compressed
+sibling, a missing `assets-manifest.json`, or an input under `app/` newer
+than the manifest. To rebuild without restarting:
 
 ```sh
 make assets
@@ -660,7 +665,7 @@ prototype/node/
                          dev/build/runtime targets — see Deployment
   docker-compose.yml    one service: app, built from the dev target
   docker/
-    entrypoint.sh        dev only: install, migrate, seed, build assets, then the container command
+    entrypoint.sh        dev only: install when stale, migrate+seed in one boot, build assets when stale, then the container command
     docs-check.sh        renders every Mermaid block under docs/ through mermaid-cli
   Makefile               host-side wrappers over docker compose, plus image/run-image
   docs/                  architecture.md (the spec) + feature docs + review.md

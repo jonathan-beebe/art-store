@@ -1,105 +1,102 @@
-.PHONY: up down build assets shell test smoke coverage lint lint-fix check migrate fresh seed routes payouts sweep outbox analyse logs image run-image
+.PHONY: help up down build assets shell test smoke coverage lint lint-fix check migrate fresh seed routes payouts sweep outbox analyse logs image run-image
+
+.DEFAULT_GOAL := help
 
 # Compose names its project after this directory, so two checkouts of the
 # same prototype (the main repo and a worktree) would share one container.
 # Naming it after the checkout as well keeps them apart.
 export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(CURDIR))
 
-# Compose names its project after this directory, so two checkouts of the
-# same prototype (the main repo and a worktree) would share one container.
-# Naming it after the checkout as well keeps them apart.
-export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(CURDIR))
+help: ## list every target with its one-line description
+	@grep -hE '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "%-12s  %s\n", $$1, $$2}'
 
-# Compose names its project after this directory, so two checkouts of the
-# same prototype (the main repo and a worktree) would share one container.
-# Naming it after the checkout as well keeps them apart.
-export COMPOSE_PROJECT_NAME ?= $(notdir $(abspath $(CURDIR)/../..))-$(notdir $(CURDIR))
-
-up:
+up: ## start the compose stack (http://localhost:8000)
 	docker compose up -d
 	@echo "http://localhost:8000"
 
-down:
+down: ## stop the compose stack
 	docker compose down
 
-build:
+build: ## build the compose image
 	docker compose build
 
-assets:
+assets: ## build CSS/JS
 	docker compose run --rm app npm run build
 
-shell:
+shell: ## open a bash shell in the app container
 	docker compose run --rm app bash
 
-# The full suite under pcov, gated at 100% of lines.
-test:
+# The full suite, ungated per docs/alignment.md §6.1: Pest with no pcov and
+# no coverage minimum.
+test: ## the full suite, ungated
 	docker compose run --rm app composer test
 
-# The end-to-end walk alone. Ungated: it exercises one path through the app,
-# not the whole tree, so `test`'s coverage gate does not apply here.
-smoke:
+# The end-to-end walk alone.
+smoke: ## the smoke walk only
 	docker compose run --rm app php vendor/bin/pest --testsuite Smoke
 
-coverage:
+# The suite under pcov, gated at 100% of lines, writing the text summary and
+# the HTML report to coverage/.
+coverage: ## the suite with the coverage gate (100% lines) and its HTML report
 	docker compose run --rm app composer test:coverage
 
 # Style plus static analysis, read-only: Pint's --test mode, then PHPStan.
-lint:
+lint: ## style + static analysis, read-only (pint --test, then phpstan)
 	docker compose run --rm --no-deps --entrypoint composer app lint
 	docker compose run --rm --no-deps --entrypoint composer app analyse
 
 # The auto-fixable subset of `lint`: Pint rewrites files in place.
-lint-fix:
+lint-fix: ## the auto-fixable subset applied (pint)
 	docker compose run --rm --no-deps --entrypoint composer app lint:fix
 
 # PHPStan alone, against the file tree only (no web server needed for a
 # static run). `lint` already runs this; kept as a target for a quicker
 # static-analysis-only pass.
-analyse:
+analyse: ## PHPStan alone
 	docker compose run --rm --no-deps --entrypoint composer app analyse
 
 # The commit gate: lint, then the asset build, then the coverage-gated suite.
-check: lint assets test
+check: lint assets coverage ## lint -> assets -> coverage; the commit gate
 
-migrate:
+migrate: ## apply pending migrations
 	docker compose run --rm app php artisan migrate
 
-fresh:
+fresh: ## drop everything, re-migrate, re-seed the demo data
 	docker compose run --rm app php artisan migrate:fresh --seed
 
-seed:
+seed: ## add the platform admins and demo data
 	docker compose run --rm app php artisan db:seed
 
 # Every route the app answers, printed by Laravel's own introspection.
-routes:
+routes: ## print the route table
 	docker compose run --rm app php artisan route:list
 
 # Settles the Monday-to-Sunday week that just ended. `make payouts AS_OF=2026-08-24`
 # settles the week before that date instead; re-running a period pays nothing.
-payouts:
+payouts: ## settle the payout week just ended (AS_OF= for an earlier week)
 	docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))
 
 # Cancels the orders a guest never verified once they are older than
 # STALE_ORDER_HOURS (default 24) and hands their stock back. Idempotent: a
 # second run finds nothing.
-sweep:
+sweep: ## cancel stale unverified orders
 	docker compose run --rm app php artisan orders:sweep
 
 # The PHP prototype has no outbox: notifications are in-app, rendered from
 # the database channel (app/Notifications/, config/notifications.php).
-outbox:
+outbox: ## print that this prototype has no outbox (notifications are in-app)
 	@echo "outbox: notifications are in-app (app/Notifications/, config/notifications.php); this prototype has no outbox"
 
-logs:
+logs: ## follow the server output
 	docker compose logs -f
 
 # Builds the production image (the `runtime` target): no bind mount, production
 # vendor tree, built assets, USER www-data. `composer run deploy` migrates,
 # seeds, and serves — see the README's Deployment section.
-image:
+image: ## build the production image (the Dockerfile's runtime target)
 	docker build --target runtime -t art-store-php .
 
 # Runs the image built by `make image` standalone, on a host port that does not
 # collide with `make up`'s 8000. APP_KEY must come from the environment.
-run-image:
+run-image: ## run the production image standalone on port 8100
 	docker run --rm -p 8100:8000 -e APP_KEY=$(APP_KEY) art-store-php composer run deploy

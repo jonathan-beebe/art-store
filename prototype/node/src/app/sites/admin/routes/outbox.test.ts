@@ -6,6 +6,8 @@ import { outboxRows } from '../queries/outbox-rows.ts'
 import { buildTestApp, signInAsAdmin, type TestApp } from '../../../test/build-test-app.ts'
 import { fixtureId } from '../../../test/fixture-ids.ts'
 
+const FULL_PAGE = { offset: 0, limit: 100 }
+
 async function queue(testApp: TestApp, subject: string, url: string | null): Promise<void> {
   await enqueueOutboxMessage(
     { db: testApp.db, clock: testApp.clock },
@@ -27,7 +29,7 @@ test('the outbox lists queued messages newest first', async (t) => {
     cookies: admin.cookies,
   })
 
-  const [newest, oldest] = await outboxRows({ db: testApp.db })
+  const [newest, oldest] = await outboxRows({ db: testApp.db }, FULL_PAGE)
 
   assert.equal(response.statusCode, 200)
   assert.equal(newest?.subject, 'Order shipped')
@@ -60,7 +62,7 @@ test('a message page shows the rendered message escaped, with its link clickable
   const admin = await signInAsAdmin(testApp)
 
   await queue(testApp, 'Your Art Store sign-in link', 'http://localhost:4000/auth/magic/abc')
-  const [queued] = await outboxRows({ db: testApp.db })
+  const [queued] = await outboxRows({ db: testApp.db }, FULL_PAGE)
 
   const response = await testApp.app.inject({
     method: 'GET',
@@ -111,7 +113,7 @@ test('draining writes the files, stamps the rows, and says what it sent', async 
   const admin = await signInAsAdmin(testApp)
 
   await queue(testApp, 'Item sold', null)
-  const [queued] = await outboxRows({ db: testApp.db })
+  const [queued] = await outboxRows({ db: testApp.db }, FULL_PAGE)
 
   const response = await testApp.app.inject({
     method: 'POST',
@@ -142,6 +144,33 @@ test('draining an empty outbox says nothing was waiting', async (t) => {
   })
 
   assert.equal(flashNotice(testApp, response), 'The outbox had nothing waiting to send.')
+})
+
+test('a full page of messages shows 25 and a link to the next page, which shows the rest', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  for (let i = 0; i < 27; i += 1) {
+    await queue(testApp, `Message ${i}`, null)
+  }
+
+  const firstPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/outbox',
+    cookies: admin.cookies,
+  })
+
+  assert.equal((firstPage.body.match(/data-outbox-message="/g) ?? []).length, 25)
+  assert.match(firstPage.body, /page=2/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/outbox?page=2',
+    cookies: admin.cookies,
+  })
+
+  assert.equal((secondPage.body.match(/data-outbox-message="/g) ?? []).length, 2)
 })
 
 test('the outbox is behind the admin guard', async (t) => {

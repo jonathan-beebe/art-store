@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import ejs from 'ejs'
 import type { LightMyRequestResponse } from 'fastify'
 import type { AppConfig } from './config.ts'
 import { flashMagicLinkDelivery } from './delivery/flash-magic-link-delivery.ts'
@@ -117,4 +118,93 @@ test('a magic link is built from the public url, not the Host header the request
   const link: unknown = JSON.parse(flash.value ?? '{}')
   assert.ok(link !== null && typeof link === 'object' && 'debugMagicLink' in link)
   assert.match(String(link.debugMagicLink), /^https:\/\/art-store\.example\.com\/auth\/magic\//)
+})
+
+/** What `loadConfig` yields for a developer's own machine, un-deployed. */
+const DEVELOPMENT_CONFIG: AppConfig = {
+  ...TEST_CONFIG,
+  environment: 'development',
+  uploadsDir: path.join(tmpdir(), 'art-store-development-test-uploads-unused'),
+}
+
+function buildDevelopmentApp(): Promise<TestApp> {
+  return buildTestApp({ config: DEVELOPMENT_CONFIG })
+}
+
+type EjsIncludeReadCounter = {
+  readCount: () => number
+  reset: () => void
+  restore: () => void
+}
+
+/**
+ * Wraps ejs's `fileLoader` seam to count reads of `.ejs` include files,
+ * while still delegating every read to the original loader. The page
+ * template itself is read by `@fastify/view` through `fs/promises`, not
+ * through this seam, so the count reflects includes only.
+ */
+function countEjsIncludeReads(): EjsIncludeReadCounter {
+  const originalLoader = ejs.fileLoader
+  let reads = 0
+
+  ejs.fileLoader = (filePath) => {
+    if (String(filePath).endsWith('.ejs')) reads += 1
+    return originalLoader(filePath)
+  }
+
+  return {
+    readCount: () => reads,
+    reset: () => {
+      reads = 0
+    },
+    restore: () => {
+      ejs.fileLoader = originalLoader
+    },
+  }
+}
+
+test('rendering a page a second time reads no template files', async (t) => {
+  const { app, close } = await buildTestApp()
+  t.after(close)
+
+  const counter = countEjsIncludeReads()
+  t.after(counter.restore)
+
+  const warm = await app.inject({ method: 'GET', url: '/' })
+  assert.equal(warm.statusCode, 200)
+
+  counter.reset()
+
+  const cached = await app.inject({ method: 'GET', url: '/' })
+  assert.equal(cached.statusCode, 200)
+  assert.equal(counter.readCount(), 0)
+})
+
+test('development re-reads templates every render', async (t) => {
+  const { app, close } = await buildDevelopmentApp()
+  t.after(close)
+
+  const counter = countEjsIncludeReads()
+  t.after(counter.restore)
+
+  const warm = await app.inject({ method: 'GET', url: '/' })
+  assert.equal(warm.statusCode, 200)
+
+  counter.reset()
+
+  const second = await app.inject({ method: 'GET', url: '/' })
+  assert.equal(second.statusCode, 200)
+  assert.ok(counter.readCount() > 0)
+})
+
+test('repeated renders of the same page are byte-identical', async (t) => {
+  const { app, close } = await buildTestApp()
+  t.after(close)
+
+  const first = await app.inject({ method: 'GET', url: '/' })
+  const second = await app.inject({ method: 'GET', url: '/' })
+
+  assert.equal(first.statusCode, 200)
+  assert.equal(second.statusCode, 200)
+  assert.equal(first.body, second.body)
 })

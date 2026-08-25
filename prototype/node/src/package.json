@@ -9,12 +9,13 @@
     "start": "node --disable-warning=ExperimentalWarning app/server.ts",
     "dev": "node --disable-warning=ExperimentalWarning --watch app/server.ts",
     "test": "NODE_OPTIONS=--disable-warning=ExperimentalWarning node --test 'app/**/*.test.ts'",
-    "coverage": "mkdir -p coverage && NODE_OPTIONS=--disable-warning=ExperimentalWarning node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info 'app/**/*.test.ts'",
+    "//coverage": "NODE_DISABLE_COMPILE_CACHE keeps the gate's numbers deterministic: code restored from the V8 compile cache reports different precise-block-coverage counts than freshly compiled code.",
+    "coverage": "mkdir -p coverage && NODE_DISABLE_COMPILE_CACHE=1 NODE_OPTIONS=--disable-warning=ExperimentalWarning node --test --experimental-test-coverage --test-coverage-include='app/**' --test-coverage-exclude='app/**/*.test.ts' --test-coverage-lines=95 --test-coverage-branches=90 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=coverage/lcov.info 'app/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "lint": "npm run typecheck && eslint app",
-    "lint:fix": "eslint app --fix",
+    "lint": "npm run typecheck && eslint --cache --cache-location .cache/eslint/ app",
+    "lint:fix": "eslint --cache --cache-location .cache/eslint/ app --fix",
     "check": "npm run lint && npm run assets && npm run coverage",
-    "assets": "tailwindcss --input app/assets/app.css --output public/app.css",
+    "assets": "tailwindcss --input app/assets/app.css --output public/app.css && node --disable-warning=ExperimentalWarning app/cli/build-assets.ts",
     "migrate": "node --disable-warning=ExperimentalWarning app/db/migrate.ts",
     "fresh": "node --disable-warning=ExperimentalWarning app/db/migrate.ts --fresh",
     "seed": "node --disable-warning=ExperimentalWarning app/db/seed.ts",
@@ -22,7 +23,7 @@
     "outbox": "node --disable-warning=ExperimentalWarning app/cli/drain-outbox.ts",
     "sweep": "node --disable-warning=ExperimentalWarning app/cli/sweep-stale-orders.ts",
     "routes": "node --disable-warning=ExperimentalWarning app/cli/print-routes.ts",
-    "deploy": "npm run migrate && npm run seed && npm run start"
+    "deploy": "node --disable-warning=ExperimentalWarning app/cli/prepare-db.ts && npm run start"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

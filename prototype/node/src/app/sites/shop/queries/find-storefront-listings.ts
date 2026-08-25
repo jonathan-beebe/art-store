@@ -5,7 +5,7 @@ import { toCount } from '../../../db/count.ts'
 import type { Database } from '../../../db/schema.ts'
 import { BROWSABLE_STATUSES, isPurchasable } from '../../../core/listings/listing-availability.ts'
 import type { ListingStatus } from '../../../core/listings/listing-status.ts'
-import type { ListingPage } from '../../../core/shop/listing-page.ts'
+import type { ListPage } from '../../../core/paging/list-page.ts'
 import { searchLikePattern, type ListingSearch } from '../../../core/shop/listing-search.ts'
 
 /** A listing as the grid draws it: the picture, the price, and whose shop it is. */
@@ -76,7 +76,7 @@ export async function countStorefrontListings(
 
 export async function findStorefrontListings(
   db: AppDatabase,
-  input: { search: ListingSearch; page: ListingPage },
+  input: { search: ListingSearch; page: ListPage },
 ): Promise<readonly StorefrontListing[]> {
   const rows = await db
     .selectFrom('listings')

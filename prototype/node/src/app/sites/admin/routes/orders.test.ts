@@ -95,6 +95,31 @@ test('the "all" options submit empty filters, which the table reads as no filter
   assert.equal(response.statusCode, 200)
 })
 
+test('a full page of orders shows 25 and a link to the next page, which shows the rest', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+  const customerId = await createCustomer(context)
+
+  for (let i = 0; i < 27; i += 1) {
+    const listing = await createListing(context, sellerId)
+    await placedOrder(context, customerId, [listing.id])
+  }
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/admin/orders', cookies: admin.cookies })
+  assert.equal((firstPage.body.match(/data-order="/g) ?? []).length, 25)
+  assert.match(firstPage.body, /page=2/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/orders?page=2',
+    cookies: admin.cookies,
+  })
+  assert.equal((secondPage.body.match(/data-order="/g) ?? []).length, 2)
+})
+
 test('GET /admin/orders/:id shows the customer, items, payments, and fulfillments', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

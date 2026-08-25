@@ -1,6 +1,7 @@
 import type { FastifyPluginCallback } from 'fastify'
 import { unreadEventsRoute } from '../../plugins/events.ts'
 import { resolveCustomerIdentity } from '../../plugins/identity.ts'
+import { countUnreadMessages } from '../../plugins/unread-messages.ts'
 import { cartRoutes } from './routes/carts.ts'
 import { checkoutRoutes } from './routes/checkout.ts'
 import { favoriteRoutes } from './routes/favorites.ts'
@@ -20,6 +21,7 @@ import { orderRoutes } from './routes/orders.ts'
  */
 export const storefrontRoutes: FastifyPluginCallback = (storefront, _options, done) => {
   storefront.addHook('preHandler', resolveCustomerIdentity)
+  storefront.addHook('preHandler', countUnreadMessages('customer'))
 
   storefront.register(homeRoutes)
   storefront.register(listingRoutes)

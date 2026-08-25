@@ -48,6 +48,7 @@ COPY src/package.json src/package-lock.json ./
 RUN npm ci
 
 COPY src/app ./app
+COPY src/public ./public
 RUN npm run assets
 
 # ---------------------------------------------------------------------------
@@ -65,11 +66,11 @@ COPY src/package.json src/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY --chown=node:node src/app ./app
-# The tracked static files (app.js and whatever joins it) — .dockerignore
-# keeps the built app.css, uploads, and storage out of the context, so the
-# build stage's app.css lands separately below.
-COPY --chown=node:node src/public ./public
-COPY --chown=node:node --from=build /var/www/src/public/app.css ./public/app.css
+# .dockerignore keeps generated public output out of the build context, so
+# the whole public dir comes from the build stage instead: the tracked
+# app.js alongside the built app.css, their hashed and pre-compressed
+# siblings, and the manifest mapping between them.
+COPY --chown=node:node --from=build /var/www/src/public ./public
 
 # DATABASE_FILE and UPLOADS_DIR default into these two directories; both must
 # be writable by the user the container actually runs as.

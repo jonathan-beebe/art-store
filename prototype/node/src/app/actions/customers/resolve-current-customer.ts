@@ -11,14 +11,17 @@ import { resolveCustomerFromCookie } from './resolve-customer-from-cookie.ts'
  * cookie names nobody. Only the storefront runs this: an auth route reads the
  * cookie through `resolveCustomerFromCookie` so a seller following a seller
  * link never leaves a customer row behind.
+ *
+ * A remembered customer is a plain read against `context.db`, so it never
+ * waits on SQLite's write lock. Only a first visit, which has to create the
+ * row, opens a transaction.
  */
 export async function resolveCurrentCustomer(
   context: ActionContext,
   cookieId: CustomerId | null,
 ): Promise<Selectable<CustomerTable>> {
-  return runInTransaction(context, async (transacted) => {
-    const remembered = await resolveCustomerFromCookie(transacted, cookieId)
+  const remembered = await resolveCustomerFromCookie(context, cookieId)
+  if (remembered !== null) return remembered
 
-    return remembered ?? (await createAnonymousCustomer(transacted))
-  })
+  return runInTransaction(context, createAnonymousCustomer)
 }

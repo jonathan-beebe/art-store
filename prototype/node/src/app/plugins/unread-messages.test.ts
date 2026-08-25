@@ -1,8 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { CamelCasePlugin, Kysely } from 'kysely'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
 import { postMessage } from '../actions/messaging/post-message.ts'
 import type { AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
+import { IN_MEMORY_DATABASE } from '../db/database.ts'
+import { NodeSqliteDialect } from '../db/node-sqlite-dialect.ts'
+import type { Database } from '../db/schema.ts'
 import {
   buildTestApp,
   browseAsAnonymousCustomer,
@@ -11,6 +15,25 @@ import {
   signInAsSeller,
   type TestApp,
 } from '../test/build-test-app.ts'
+
+type QueryLoggingTestApp = TestApp & { statements: string[] }
+
+/** A test app whose every SQL statement lands in `statements`, for a test that
+ * counts how many times a route touches a given table. */
+async function buildQueryLoggingTestApp(): Promise<QueryLoggingTestApp> {
+  const statements: string[] = []
+  const db = new Kysely<Database>({
+    dialect: new NodeSqliteDialect(IN_MEMORY_DATABASE),
+    plugins: [new CamelCasePlugin()],
+    log(event) {
+      if (event.level === 'query') statements.push(event.query.sql)
+    },
+  })
+
+  const testApp = await buildTestApp({ db })
+
+  return { ...testApp, statements }
+}
 
 /** The operator writing to one side of the marketplace, so that side has something waiting. */
 async function messageFromAdmin(
@@ -97,4 +120,30 @@ test('the account page counts an anonymous visitor the same as any other page', 
   const response = await testApp.app.inject({ url: '/login', cookies: visitor.cookies })
 
   assert.match(response.body, /data-unread-messages="1"/)
+})
+
+test('a storefront page resolves the customer cookie once', async (t) => {
+  const testApp = await buildQueryLoggingTestApp()
+  t.after(testApp.close)
+  const visitor = await browseAsAnonymousCustomer(testApp)
+  testApp.statements.length = 0
+
+  const response = await testApp.app.inject({ url: '/', cookies: visitor.cookies })
+
+  assert.equal(response.statusCode, 200)
+  const mergeLookups = testApp.statements.filter((sql) => sql.includes('customer_merges'))
+  assert.equal(mergeLookups.length, 1)
+})
+
+test('the sign-in page resolves the customer cookie once', async (t) => {
+  const testApp = await buildQueryLoggingTestApp()
+  t.after(testApp.close)
+  const visitor = await browseAsAnonymousCustomer(testApp)
+  testApp.statements.length = 0
+
+  const response = await testApp.app.inject({ url: '/login', cookies: visitor.cookies })
+
+  assert.equal(response.statusCode, 200)
+  const mergeLookups = testApp.statements.filter((sql) => sql.includes('customer_merges'))
+  assert.equal(mergeLookups.length, 1)
 })

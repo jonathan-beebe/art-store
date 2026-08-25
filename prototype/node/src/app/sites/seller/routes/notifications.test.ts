@@ -42,6 +42,35 @@ test('it lists the seller notifications newest first', async (t) => {
   assert.ok(newerIndex < olderIndex, 'the newest notification renders first')
 })
 
+test('the index pages at 25 and links the next page', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const notifications = []
+  for (let i = 0; i < 26; i += 1) {
+    notifications.push(await createTestNotification(testApp, seller.id, { subject: `Notice ${i}` }))
+  }
+  const newest = notifications.at(-1)!
+  const oldest = notifications[0]!
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/seller/notifications', cookies: seller.cookies })
+
+  assert.equal(firstPage.statusCode, 200)
+  assert.equal((firstPage.body.match(/data-notification="/g) ?? []).length, 25)
+  assert.match(firstPage.body, new RegExp(`data-notification="${newest.id}"`))
+  assert.doesNotMatch(firstPage.body, new RegExp(`data-notification="${oldest.id}"`))
+  assert.match(firstPage.body, /href="\/seller\/notifications\?page=2"/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/notifications?page=2',
+    cookies: seller.cookies,
+  })
+
+  assert.equal((secondPage.body.match(/data-notification="/g) ?? []).length, 1)
+  assert.match(secondPage.body, new RegExp(`data-notification="${oldest.id}"`))
+})
+
 test('an unread notification is badged and offers the mark-read form', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

@@ -1,6 +1,14 @@
 src/node_modules/
 src/coverage/
+src/.cache/
 src/public/app.css
+src/public/app.*.css
+src/public/app.*.css.gz
+src/public/app.*.css.br
+src/public/app.*.js
+src/public/app.*.js.gz
+src/public/app.*.js.br
+src/public/assets-manifest.json
 src/public/uploads/
 src/storage/*.sqlite3
 src/storage/outbox/

@@ -3,8 +3,7 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionDid, actionStory } from '../action-story.ts'
 import { writeLedgerEntry } from './write-ledger-entry.ts'
-import { ledgerMovements } from './ledger-movements.ts'
-import { ledgerBalancesBySeller } from '../../core/escrow/ledger-balance.ts'
+import { sellerBalances } from './ledger-balances.ts'
 import { payoutMovement } from '../../core/escrow/ledger-movement.ts'
 import { planWeeklyPayout, payoutTotal, type PayoutIntent } from '../../core/escrow/payout-plan.ts'
 import {
@@ -49,9 +48,8 @@ export async function runWeeklyPayout(
     },
     async (transacted) => {
       const endsAt = toTimestamp(payoutPeriodEndsAt(period))
-      const movements = await ledgerMovements(transacted, endsAt)
+      const balances = await sellerBalances(transacted, endsAt)
       const settledSellerIds = await sellersSettledFor(transacted, period)
-      const balances = ledgerBalancesBySeller(movements)
       const intents = planWeeklyPayout({ balances, settledSellerIds, period })
 
       const payouts: Payout[] = []

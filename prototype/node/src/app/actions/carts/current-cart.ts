@@ -9,28 +9,32 @@ import { toTimestamp } from '../../db/timestamp.ts'
  * The cart a customer is shopping with, opened on first ask. A merge hands the
  * verified customer whatever cart the anonymous visitor was filling, so one
  * customer can own two; the one holding the most items is theirs.
+ *
+ * Finding an existing cart is a plain read against `context.db`, so it never
+ * waits on SQLite's write lock. Only opening a first cart, which has to
+ * insert the row, runs inside a transaction.
  */
 export async function currentCart(context: ActionContext, customerId: CustomerId): Promise<Cart> {
-  return runInTransaction(context, async ({ db, clock }) => {
-    const existing = await db
-      .selectFrom('carts')
-      .leftJoin('cartItems', 'cartItems.cartId', 'carts.id')
-      .select(({ fn }) => ['carts.id', 'carts.customerId', 'carts.createdAt', fn.count<string | number | bigint>('cartItems.id').as('itemCount')])
-      .where('carts.customerId', '=', customerId)
-      .groupBy('carts.id')
-      .orderBy('itemCount', 'desc')
-      .orderBy('carts.createdAt', 'desc')
-      .orderBy('carts.id', 'desc')
-      .executeTakeFirst()
+  const existing = await context.db
+    .selectFrom('carts')
+    .leftJoin('cartItems', 'cartItems.cartId', 'carts.id')
+    .select(({ fn }) => ['carts.id', 'carts.customerId', 'carts.createdAt', fn.count<string | number | bigint>('cartItems.id').as('itemCount')])
+    .where('carts.customerId', '=', customerId)
+    .groupBy('carts.id')
+    .orderBy('itemCount', 'desc')
+    .orderBy('carts.createdAt', 'desc')
+    .orderBy('carts.id', 'desc')
+    .executeTakeFirst()
 
-    if (existing !== undefined) {
-      return { id: existing.id, customerId: existing.customerId, createdAt: existing.createdAt }
-    }
+  if (existing !== undefined) {
+    return { id: existing.id, customerId: existing.customerId, createdAt: existing.createdAt }
+  }
 
-    return db
+  return runInTransaction(context, ({ db, clock }) =>
+    db
       .insertInto('carts')
       .values({ id: newId('crt', clock.now()), customerId, createdAt: toTimestamp(clock.now()) })
       .returningAll()
-      .executeTakeFirstOrThrow()
-  })
+      .executeTakeFirstOrThrow(),
+  )
 }

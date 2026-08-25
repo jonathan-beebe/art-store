@@ -1,7 +1,7 @@
 import type { Selectable } from 'kysely'
 import type { ActionContext } from '../../../actions/action-context.ts'
 import type { ActiveListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
-import { sellerBalance } from '../../../actions/escrow/seller-balance.ts'
+import { sellerBalance } from '../../../actions/escrow/ledger-balances.ts'
 import type { LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Fulfillment, Listing, Payout } from '../../../db/commerce-schema.ts'

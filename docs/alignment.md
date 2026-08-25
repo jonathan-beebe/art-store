@@ -389,14 +389,15 @@ target the stack has no use for still exists and prints one line saying so.
 
 | Target                                 | Meaning                                                                                                   |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `help`                                 | list every target with its one-line description; what bare `make` runs                                    |
 | `up`, `down`, `build`, `logs`, `shell` | the compose stack                                                                                         |
-| `test`                                 | the full suite, with the stack's coverage gate                                                            |
+| `test`                                 | the full suite, ungated                                                                                   |
 | `smoke`                                | the smoke walk only                                                                                       |
-| `coverage`                             | the suite with an HTML/LCOV report                                                                        |
+| `coverage`                             | the suite with the stack's coverage gate and its HTML/LCOV report                                         |
 | `lint`                                 | style + static analysis, read-only (`eslint`+`tsc`; `pint --test`+`phpstan`; `rubocop`)                   |
 | `lint-fix`                             | the auto-fixable subset applied                                                                           |
 | `assets`                               | build CSS/JS                                                                                              |
-| `check`                                | `lint` → `assets` → `test`; the commit gate                                                               |
+| `check`                                | `lint` → `assets` → `coverage`; the commit gate                                                           |
 | `migrate`, `fresh`, `seed`             | schema and data                                                                                           |
 | `routes`                               | print the route table                                                                                     |
 | `payouts`, `sweep`, `outbox`           | the scheduled jobs, by hand (`AS_OF=`, `DIR=` as today)                                                   |
