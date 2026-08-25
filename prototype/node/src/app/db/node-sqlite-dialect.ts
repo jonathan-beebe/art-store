@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import type { StatementSync } from 'node:sqlite'
 import {
   CompiledQuery,
   SqliteAdapter,
@@ -15,6 +16,14 @@ import type {
 
 /** Milliseconds SQLite waits for another writer's lock before giving up. */
 const BUSY_TIMEOUT_MS = 5000
+
+/**
+ * Upper bound on distinct prepared SQL texts a connection keeps cached. The
+ * app's own queries occupy a small, fixed set of shapes well under this; the
+ * bound exists only to stop unbounded ad-hoc SQL from growing the cache
+ * forever.
+ */
+export const STATEMENT_CACHE_LIMIT = 100
 
 type SqlInputValue = null | number | bigint | string | NodeJS.ArrayBufferView
 
@@ -52,7 +61,7 @@ export class NodeSqliteDialect implements Dialect {
 class NodeSqliteDriver implements Driver {
   readonly #file: string
   #database: DatabaseSync | undefined
-  #connection: DatabaseConnection | undefined
+  #connection: NodeSqliteConnection | undefined
 
   constructor(file: string) {
     this.#file = file
@@ -61,11 +70,16 @@ class NodeSqliteDriver implements Driver {
   async init(): Promise<void> {
     const database = new DatabaseSync(this.#file)
 
-    // Both pragmas are per-connection and neither SQLite default suits this app:
-    // foreign keys are off, and a zero busy timeout fails a contended write
-    // immediately instead of waiting for the other writer to finish.
+    // All three pragmas are per-connection and none of the SQLite defaults suit
+    // this app: foreign keys are off, a zero busy timeout fails a contended
+    // write immediately instead of waiting for the other writer to finish, and
+    // synchronous defaults to FULL, which fsyncs on every autocommit write.
+    // journal_mode is WAL (set persistently by migration, not here); under WAL,
+    // NORMAL never risks corruption — a power loss can at most lose the most
+    // recently committed transaction(s), not corrupt the database.
     database.exec('PRAGMA foreign_keys = ON')
     database.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}`)
+    database.exec('PRAGMA synchronous = NORMAL')
 
     this.#database = database
     this.#connection = new NodeSqliteConnection(database)
@@ -97,6 +111,8 @@ class NodeSqliteDriver implements Driver {
   }
 
   async destroy(): Promise<void> {
+    // Cached statements are tied to this database handle; drop them before it closes.
+    this.#connection?.clearStatements()
     this.#database?.close()
     this.#database = undefined
     this.#connection = undefined
@@ -105,13 +121,14 @@ class NodeSqliteDriver implements Driver {
 
 class NodeSqliteConnection implements DatabaseConnection {
   readonly #database: DatabaseSync
+  readonly #statements = new Map<string, StatementSync>()
 
   constructor(database: DatabaseSync) {
     this.#database = database
   }
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
-    const statement = this.#database.prepare(compiledQuery.sql)
+    const statement = this.#preparedStatement(compiledQuery.sql)
     const parameters = bindableParameters(compiledQuery.parameters)
 
     // A statement that describes result columns returns rows; anything else writes.
@@ -129,11 +146,33 @@ class NodeSqliteConnection implements DatabaseConnection {
   }
 
   async *streamQuery<R>(compiledQuery: CompiledQuery): AsyncIterableIterator<QueryResult<R>> {
+    // Prepared fresh, not cached: a streamed statement is iterated lazily, and a
+    // second execution of the same SQL text against a cached statement would
+    // reset it mid-stream.
     const statement = this.#database.prepare(compiledQuery.sql)
 
     for (const row of statement.iterate(...bindableParameters(compiledQuery.parameters))) {
       yield { rows: [asRow<R>(row)] }
     }
+  }
+
+  clearStatements(): void {
+    this.#statements.clear()
+  }
+
+  #preparedStatement(sql: string): StatementSync {
+    const cached = this.#statements.get(sql)
+    if (cached) return cached
+
+    const statement = this.#database.prepare(sql)
+    this.#statements.set(sql, statement)
+
+    if (this.#statements.size > STATEMENT_CACHE_LIMIT) {
+      const oldestKey = this.#statements.keys().next().value as string
+      this.#statements.delete(oldestKey)
+    }
+
+    return statement
   }
 }
 
