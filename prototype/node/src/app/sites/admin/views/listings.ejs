@@ -2,10 +2,10 @@
   <h1 class="text-lg font-semibold">Listings</h1>
 </div>
 
-<form method="get" action="/admin/listings" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-neutral-300 bg-white p-3">
+<form method="get" action="/admin/listings" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3">
   <div>
-    <label for="status" class="block text-neutral-600">Status</label>
-    <select id="status" name="status" class="mt-1 rounded border border-neutral-400 px-2 py-1">
+    <label for="status" class="block text-neutral-600 dark:text-neutral-400">Status</label>
+    <select id="status" name="status" class="mt-1 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
       <option value="">All</option>
       <% statuses.forEach(function (status) { %>
         <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= statusLabel(status) %></option>
@@ -13,27 +13,27 @@
     </select>
   </div>
   <div>
-    <label for="seller" class="block text-neutral-600">Seller id</label>
-    <input id="seller" name="seller" type="text" value="<%= filters.seller %>" class="mt-1 w-48 rounded border border-neutral-400 px-2 py-1">
+    <label for="seller" class="block text-neutral-600 dark:text-neutral-400">Seller id</label>
+    <input id="seller" name="seller" type="text" value="<%= filters.seller %>" class="mt-1 w-48 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
   </div>
   <div>
-    <label for="removed" class="block text-neutral-600">Removal</label>
-    <select id="removed" name="removed" class="mt-1 rounded border border-neutral-400 px-2 py-1">
+    <label for="removed" class="block text-neutral-600 dark:text-neutral-400">Removal</label>
+    <select id="removed" name="removed" class="mt-1 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
       <% removedFilters.forEach(function (option) { %>
         <option value="<%= option %>" <%= filters.removed === option ? 'selected' : '' %>><%= statusLabel(option) %></option>
       <% }) %>
     </select>
   </div>
-  <button type="submit" class="rounded bg-neutral-900 px-4 py-2 font-medium text-white">Filter</button>
+  <button type="submit" class="rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900">Filter</button>
 </form>
 
 <% if (listings.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No listings match these filters.' }) %>
 <% } else { %>
-  <div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">Listings</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
           <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
@@ -44,7 +44,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Removal</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% listings.forEach(function (listing) { %>
           <tr data-listing="<%= listing.id %>">
             <th scope="row" class="px-4 py-3 font-normal">

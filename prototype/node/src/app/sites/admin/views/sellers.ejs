@@ -3,10 +3,10 @@
 <% if (rows.length === 0) { %>
 <%- include('sites/admin/views/partials/empty', { message: 'No sellers yet.' }) %>
 <% } else { %>
-<div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+<div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
   <table class="w-full text-left">
     <caption class="sr-only">Every seller</caption>
-    <thead class="border-b border-neutral-300 bg-neutral-50">
+    <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
       <tr>
         <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
         <th scope="col" class="px-4 py-2 font-semibold">Joined</th>
@@ -18,7 +18,7 @@
         <th scope="col" class="px-4 py-2 text-right font-semibold">Removed</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-neutral-200">
+    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
       <% rows.forEach((row) => { %>
       <tr data-seller="<%= row.id %>">
         <th scope="row" class="px-4 py-3 font-normal">

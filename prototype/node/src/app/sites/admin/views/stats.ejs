@@ -1,11 +1,11 @@
 <h1 class="text-lg font-semibold">Site stats</h1>
-<p class="mt-2 max-w-2xl text-neutral-600">
+<p class="mt-2 max-w-2xl text-neutral-600 dark:text-neutral-400">
   Page views are rolled up per site, route pattern, and day, so a thousand
   listing pages share one row.
 </p>
 
 <section aria-labelledby="events-heading" class="mt-6">
-  <h2 id="events-heading" class="font-semibold text-neutral-700">Listing events</h2>
+  <h2 id="events-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Listing events</h2>
   <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
     <% events.forEach((tally) => { %>
       <%- include('sites/admin/views/partials/stat', { key: `event-${tally.key}`, label: statusLabel(tally.key), value: tally.count }) %>
@@ -14,20 +14,20 @@
 </section>
 
 <section aria-labelledby="days-heading" class="mt-6">
-  <h2 id="days-heading" class="font-semibold text-neutral-700">Page views by day</h2>
+  <h2 id="days-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Page views by day</h2>
   <% if (days.length === 0) { %>
     <%- include('sites/admin/views/partials/empty', { message: 'No page views recorded yet.' }) %>
   <% } else { %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Page views by day, newest first</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Day</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% days.forEach((row) => { %>
             <tr data-day="<%= row.day %>">
               <th scope="row" class="px-4 py-2 font-normal tabular-nums"><%= row.day %></th>
@@ -41,21 +41,21 @@
 </section>
 
 <section aria-labelledby="patterns-heading" class="mt-6">
-  <h2 id="patterns-heading" class="font-semibold text-neutral-700">Page views by path pattern</h2>
+  <h2 id="patterns-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Page views by path pattern</h2>
   <% if (patterns.length === 0) { %>
     <%- include('sites/admin/views/partials/empty', { message: 'No page views recorded yet.' }) %>
   <% } else { %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left">
         <caption class="sr-only">Page views by site and route pattern, busiest first</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Site</th>
             <th scope="col" class="px-4 py-2 font-semibold">Path pattern</th>
             <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% patterns.forEach((row) => { %>
             <tr data-pattern="<%= row.site %> <%= row.pathPattern %>">
               <td class="px-4 py-2"><%= statusLabel(row.site) %></td>

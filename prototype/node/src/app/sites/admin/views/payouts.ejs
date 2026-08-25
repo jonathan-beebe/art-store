@@ -2,24 +2,24 @@
 
 <form method="get" action="/admin/payouts" class="mt-4 flex flex-wrap items-end gap-3">
   <div>
-    <label for="seller" class="block text-neutral-600">Seller</label>
-    <select id="seller" name="seller" class="rounded border border-neutral-400 bg-white px-2 py-1">
+    <label for="seller" class="block text-neutral-600 dark:text-neutral-400">Seller</label>
+    <select id="seller" name="seller" class="rounded border border-neutral-400 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-2 py-1">
       <option value="">All sellers</option>
       <% sellers.forEach((seller) => { %>
       <option value="<%= seller.id %>" <% if (selectedSeller === seller.id) { %>selected<% } %>><%= seller.name %></option>
       <% }) %>
     </select>
   </div>
-  <button type="submit" class="rounded border border-neutral-400 bg-white px-4 py-2 font-medium">Filter</button>
+  <button type="submit" class="rounded border border-neutral-400 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-4 py-2 font-medium">Filter</button>
 </form>
 
 <% if (rows.length === 0) { %>
 <%- include('sites/admin/views/partials/empty', { message: 'No payouts match this filter.' }) %>
 <% } else { %>
-<div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+<div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
   <table class="w-full text-left">
     <caption class="sr-only">Every payout, newest first</caption>
-    <thead class="border-b border-neutral-300 bg-neutral-50">
+    <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
       <tr>
         <th scope="col" class="px-4 py-2 font-semibold">Payout</th>
         <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
@@ -28,7 +28,7 @@
         <th scope="col" class="px-4 py-2 font-semibold">Paid at</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-neutral-200">
+    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
       <% rows.forEach((payout) => { %>
       <tr data-payout="<%= payout.id %>">
         <th scope="row" class="px-4 py-2 font-normal"><%= payout.id %></th>
@@ -44,24 +44,24 @@
 <% } %>
 
 <section aria-labelledby="run-payout-heading" class="mt-6">
-  <h2 id="run-payout-heading" class="font-semibold text-neutral-700">Run weekly payout</h2>
+  <h2 id="run-payout-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Run weekly payout</h2>
   <form method="post" action="/admin/payouts" class="mt-2 flex flex-wrap items-end gap-3">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
     <div>
-      <label for="as_of" class="block text-neutral-600">As of</label>
+      <label for="as_of" class="block text-neutral-600 dark:text-neutral-400">As of</label>
       <input
         type="date"
         id="as_of"
         name="as_of"
         value="<%= asOfDate %>"
-        class="rounded border border-neutral-400 bg-white px-2 py-1"
+        class="rounded border border-neutral-400 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-2 py-1"
       />
     </div>
-    <button type="submit" class="rounded border border-neutral-400 bg-white px-4 py-2 font-medium">
+    <button type="submit" class="rounded border border-neutral-400 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-4 py-2 font-medium">
       Run weekly payout
     </button>
   </form>
-  <p class="mt-2 text-neutral-600">
+  <p class="mt-2 text-neutral-600 dark:text-neutral-400">
     Settles every seller's released escrow for the most recently completed
     Monday–Sunday week as of the date above.
   </p>

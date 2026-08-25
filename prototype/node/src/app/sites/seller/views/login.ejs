@@ -1,5 +1,5 @@
 <h1 class="text-2xl font-semibold">Sign in to the seller portal</h1>
-<p class="mt-2 text-sm text-neutral-600">
+<p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
   There's no password: submit your address and we send a sign-in link. In this
   prototype the link is printed at the top of this page instead of emailed.
 </p>
@@ -15,14 +15,14 @@
     required: true,
     autofocus: true,
     wrapperClass: '',
-    inputClass: 'mt-1 block w-full rounded border border-neutral-300 px-3 py-2 text-sm',
+    inputClass: 'mt-1 block w-full rounded border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm',
   }) %>
   <% if (redirectTo) { %>
   <input type="hidden" name="redirect_to" value="<%= redirectTo %>" />
   <% } %>
   <button
     type="submit"
-    class="cursor-pointer rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
+    class="cursor-pointer rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 text-sm font-medium text-white dark:text-neutral-900"
   >
     Email me a sign-in link
   </button>
