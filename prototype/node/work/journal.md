@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:09:37:33 — IMPRV-018 — done: money-page balances are `SUM(CASE entry_type ...)` aggregates in `ledger-balances.ts` (per-seller, one-seller, platform), the refund bucket keyed by a time-bounded released-EXISTS a new partial index feeds; seller-accounts lifetime/refund sums, platform fee/refund totals, and the verified-customer count moved to SQL too; `ledgerBalance` stays the pure spec with 14 characterization tests pinning the SQL to it; 1942 -> 1952 tests, coverage 99.45/95.86/99.43; reviewer: accept, no defects
+- 2026-08-25:09:04:18 — IMPRV-018 — started
 - 2026-08-25:09:01:29 — IMPRV-017 — done: cart and checkout resolve listing removals in one `listingId in (...)` read; `cartContents` stamps `hasActiveRemoval` on each line and `placeOrder` consumes that answer, dropping `withRemovals` from the checkout transaction
 - 2026-08-25:08:47:39 — IMPRV-017 — started
 - 2026-08-25:08:43:57 — IMPRV-016 — done: connections run WAL with synchronous NORMAL; the dialect reuses prepared statements through a bounded per-connection cache cleared on destroy; streams prepare fresh

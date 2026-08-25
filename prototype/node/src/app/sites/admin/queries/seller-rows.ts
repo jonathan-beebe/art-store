@@ -1,6 +1,6 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { ledgerMovements } from '../../../actions/escrow/ledger-movements.ts'
-import { ledgerBalancesBySeller, type LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
+import { sellerBalances } from '../../../actions/escrow/ledger-balances.ts'
+import type { LedgerBalance } from '../../../core/escrow/ledger-balance.ts'
 import type { SellerId } from '../../../core/ids/entity-ids.ts'
 import { ZERO_CENTS } from '../../../core/money.ts'
 import type { AppDatabase } from '../../../db/database.ts'
@@ -25,7 +25,7 @@ const EMPTY_BALANCE: LedgerBalance = {
 
 /**
  * Every seller with the counts and the balance the table shows. The balance
- * folds one ledger read rather than querying `sellerBalance` per seller.
+ * is one grouped read rather than querying `sellerBalance` per seller.
  */
 export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<readonly SellerRow[]> {
   const { db } = context
@@ -37,8 +37,7 @@ export async function sellerRows(context: Pick<ActionContext, 'db'>): Promise<re
   const listingCounts = await countBySeller(db, 'listings')
   const fulfillmentCounts = await countBySeller(db, 'fulfillments')
   const removedCounts = await removedListingCountsBySeller(db)
-  const movements = await ledgerMovements(context)
-  const balances = ledgerBalancesBySeller(movements)
+  const balances = await sellerBalances(context)
 
   return sellers.map((seller) => ({
     ...seller,

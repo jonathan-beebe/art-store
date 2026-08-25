@@ -1,5 +1,5 @@
 import type { FastifyPluginCallback, FastifyReply, FastifyRequest } from 'fastify'
-import { sellerBalance } from '../../../actions/escrow/seller-balance.ts'
+import { sellerBalance } from '../../../actions/escrow/ledger-balances.ts'
 import { formatCents } from '../../../core/money.ts'
 import { statusLabel } from '../../../core/status-label.ts'
 import { currentSellerId } from '../current-seller.ts'

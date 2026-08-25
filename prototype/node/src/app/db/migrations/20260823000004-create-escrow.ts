@@ -45,6 +45,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .on('ledger_entries')
     .columns(['seller_id', 'occurred_at'])
     .execute()
+
+  // Feeds the balance aggregate's released-fulfillment EXISTS check, which
+  // filters on `entry_type = 'released'` without selecting it, so the index
+  // holds only the rows that check ever matches.
+  await db.schema
+    .createIndex('ledger_entries_released_fulfillment_id_index')
+    .on('ledger_entries')
+    .columns(['fulfillment_id'])
+    .where(sql.ref('entry_type'), '=', 'released')
+    .execute()
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {

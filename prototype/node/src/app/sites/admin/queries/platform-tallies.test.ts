@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { platformTallies } from './platform-tallies.ts'
+import { isVerifiedCustomer } from '../../../core/customers/customer-verification.ts'
 import {
   createCustomer,
   createListing,
@@ -41,6 +42,24 @@ test('customers are split by whether they have given an address', async (t) => {
   assert.deepEqual((await platformTallies(world.context)).customers, {
     verified: 2,
     anonymous: 1,
+  })
+})
+
+test('customer counts are exactly isVerifiedCustomer applied to every customer row', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  await createCustomer(world.context)
+  await createCustomer(world.context, { isVerified: false })
+  await createCustomer(world.context)
+  await createCustomer(world.context, { isVerified: false })
+  await createCustomer(world.context, { isVerified: false })
+
+  const rows = await world.db.selectFrom('customers').select(['id', 'email']).execute()
+
+  assert.deepEqual((await platformTallies(world.context)).customers, {
+    verified: rows.filter(isVerifiedCustomer).length,
+    anonymous: rows.filter((row) => !isVerifiedCustomer(row)).length,
   })
 })
 

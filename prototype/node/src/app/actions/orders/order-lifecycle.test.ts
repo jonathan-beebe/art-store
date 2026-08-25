@@ -13,7 +13,7 @@ import { markAwaitingPayment } from './mark-awaiting-payment.ts'
 import { confirmDelivered } from '../fulfillments/confirm-delivered.ts'
 import { markShipped } from '../fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../escrow/run-weekly-payout.ts'
-import { sellerBalance } from '../escrow/seller-balance.ts'
+import { sellerBalance } from '../escrow/ledger-balances.ts'
 import type { ActionContext } from '../action-context.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import {

@@ -1,6 +1,5 @@
 import type { ActionContext } from '../../../actions/action-context.ts'
 import { tallyOver, type Tally } from '../../../core/analytics/tally.ts'
-import { isVerifiedCustomer } from '../../../core/customers/customer-verification.ts'
 import { LISTING_STATUSES, type ListingStatus } from '../../../core/listings/listing-status.ts'
 import {
   FULFILLMENT_STATUSES,
@@ -29,8 +28,17 @@ export async function platformTallies({
     .select((eb) => eb.fn.countAll<string | number | bigint>().as('count'))
     .executeTakeFirstOrThrow()
 
-  const customers = await db.selectFrom('customers').select(['email']).execute()
-  const verified = customers.filter(isVerifiedCustomer).length
+  // A verified customer is exactly one with an email (`isVerifiedCustomer`),
+  // and `count(email)` counts only its non-null rows — the same rule in SQL.
+  const customers = await db
+    .selectFrom('customers')
+    .select((eb) => [
+      eb.fn.countAll<string | number | bigint>().as('total'),
+      eb.fn.count<string | number | bigint>('email').as('verified'),
+    ])
+    .executeTakeFirstOrThrow()
+  const verified = toCount(customers.verified)
+  const total = toCount(customers.total)
 
   const listings = await db
     .selectFrom('listings')
@@ -55,7 +63,7 @@ export async function platformTallies({
 
   return {
     sellerCount: toCount(sellers.count),
-    customers: { verified, anonymous: customers.length - verified },
+    customers: { verified, anonymous: total - verified },
     listings: tallyOver(LISTING_STATUSES, tallies(listings)),
     orders: tallyOver(ORDER_STATUSES, tallies(orders)),
     fulfillments: tallyOver(FULFILLMENT_STATUSES, tallies(fulfillments)),
