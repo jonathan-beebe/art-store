@@ -2,34 +2,34 @@
     <h1 class="text-xl font-semibold">Earnings</h1>
 
     <section aria-labelledby="balances-heading" class="mt-6">
-        <h2 id="balances-heading" class="font-semibold text-gray-700">Balances</h2>
+        <h2 id="balances-heading" class="font-semibold text-gray-700 dark:text-gray-300">Balances</h2>
 
         <dl class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div class="rounded border border-gray-300 bg-white p-4">
-                <dt class="text-gray-600">Held in escrow</dt>
+            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <dt class="text-gray-600 dark:text-gray-400">Held in escrow</dt>
                 <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $balance->held->format() }}</dd>
             </div>
-            <div class="rounded border border-gray-300 bg-white p-4">
-                <dt class="text-gray-600">Available</dt>
+            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <dt class="text-gray-600 dark:text-gray-400">Available</dt>
                 <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $balance->available->format() }}</dd>
             </div>
-            <div class="rounded border border-gray-300 bg-white p-4">
-                <dt class="text-gray-600">Paid out</dt>
+            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                <dt class="text-gray-600 dark:text-gray-400">Paid out</dt>
                 <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $balance->paidOut->format() }}</dd>
             </div>
         </dl>
     </section>
 
     <section aria-labelledby="sales-heading" class="mt-6">
-        <h2 id="sales-heading" class="font-semibold text-gray-700">Sales</h2>
+        <h2 id="sales-heading" class="font-semibold text-gray-700 dark:text-gray-300">Sales</h2>
 
         @if ($fulfillments->isEmpty())
-            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No sales yet.</p>
+            <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No sales yet.</p>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Every sale, newest first</caption>
-                    <thead class="border-b border-gray-300 bg-gray-50">
+                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Date</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Order</th>
@@ -40,7 +40,7 @@
                             <th scope="col" class="px-4 py-2 font-semibold">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                         @foreach ($fulfillments as $fulfillment)
                             <tr>
                                 <td class="px-4 py-2">{{ $fulfillment->order->placed_at?->format('M j, Y') }}</td>
@@ -61,15 +61,15 @@
     </section>
 
     <section aria-labelledby="refunds-heading" class="mt-6">
-        <h2 id="refunds-heading" class="font-semibold text-gray-700">Refunds</h2>
+        <h2 id="refunds-heading" class="font-semibold text-gray-700 dark:text-gray-300">Refunds</h2>
 
         @if ($refunds->isEmpty())
-            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No refunds.</p>
+            <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No refunds.</p>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Every refund taken back out of your escrow, newest first</caption>
-                    <thead class="border-b border-gray-300 bg-gray-50">
+                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Date</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Order</th>
@@ -77,7 +77,7 @@
                             <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                         @foreach ($refunds as $entry)
                             <tr>
                                 <td class="px-4 py-2">{{ $entry->occurred_at?->format('M j, Y') }}</td>
@@ -95,22 +95,22 @@
     </section>
 
     <section aria-labelledby="payouts-heading" class="mt-6">
-        <h2 id="payouts-heading" class="font-semibold text-gray-700">Payouts</h2>
+        <h2 id="payouts-heading" class="font-semibold text-gray-700 dark:text-gray-300">Payouts</h2>
 
         @if ($payouts->isEmpty())
-            <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">No payouts yet.</p>
+            <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No payouts yet.</p>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Weekly payouts, newest first</caption>
-                    <thead class="border-b border-gray-300 bg-gray-50">
+                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Period</th>
                             <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                         @foreach ($payouts as $payout)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">

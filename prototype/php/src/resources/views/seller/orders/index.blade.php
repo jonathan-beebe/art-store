@@ -3,17 +3,17 @@
 
     @foreach ($groups as $group)
         <section aria-labelledby="group-{{ $group['status']->value }}" class="mt-6">
-            <h2 id="group-{{ $group['status']->value }}" class="font-semibold text-gray-700">
+            <h2 id="group-{{ $group['status']->value }}" class="font-semibold text-gray-700 dark:text-gray-300">
                 {{ $group['label'] }} ({{ $group['fulfillments']->count() }})
             </h2>
 
             @if ($group['fulfillments']->isEmpty())
-                <p class="mt-2 rounded border border-gray-300 bg-white p-4 text-gray-600">Nothing here.</p>
+                <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">Nothing here.</p>
             @else
-                <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+                <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                     <table class="w-full text-left">
                         <caption class="sr-only">{{ $group['label'] }} orders</caption>
-                        <thead class="border-b border-gray-300 bg-gray-50">
+                        <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                             <tr>
                                 <th scope="col" class="px-4 py-2 font-semibold">Order</th>
                                 <th scope="col" class="px-4 py-2 font-semibold">Buyer</th>
@@ -22,7 +22,7 @@
                                 <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200">
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                             @foreach ($group['fulfillments'] as $fulfillment)
                                 <tr>
                                     <th scope="row" class="px-4 py-2 font-normal">

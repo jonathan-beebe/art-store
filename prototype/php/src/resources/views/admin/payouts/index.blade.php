@@ -5,27 +5,27 @@
         <x-admin.seller-filter :sellers="$sellers" :selected="$sellerId" />
     </x-admin.filters>
 
-    <form method="POST" action="{{ route('admin.payouts.run') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-gray-300 bg-white p-4">
+    <form method="POST" action="{{ route('admin.payouts.run') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
         @csrf
         <div>
-            <label for="as-of" class="block font-medium text-gray-700">Settle as of</label>
+            <label for="as-of" class="block font-medium text-gray-700 dark:text-gray-300">Settle as of</label>
             <input id="as-of" name="as_of" type="date" value="{{ old('as_of') }}"
-                   class="mt-1 rounded border border-gray-400 px-3 py-2">
+                   class="mt-1 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
             @error('as_of')
-                <p class="mt-1 text-red-700">{{ $message }}</p>
+                <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
             @enderror
         </div>
-        <button type="submit" class="rounded bg-gray-900 px-4 py-2 font-medium text-white">Run weekly payout</button>
-        <span class="text-gray-600">Settles every seller's released escrow for the week ending before this date, or today when left blank.</span>
+        <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Run weekly payout</button>
+        <span class="text-gray-600 dark:text-gray-400">Settles every seller's released escrow for the week ending before this date, or today when left blank.</span>
     </form>
 
     @if ($payouts->isEmpty())
         <x-admin.nothing class="mt-4">No payouts yet.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 bg-white">
+        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <table class="w-full text-left">
                 <caption class="sr-only">Every weekly payout, newest period first</caption>
-                <thead class="border-b border-gray-300 bg-gray-50">
+                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Period</th>
                         <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
@@ -33,7 +33,7 @@
                         <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                     @foreach ($payouts as $payout)
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">

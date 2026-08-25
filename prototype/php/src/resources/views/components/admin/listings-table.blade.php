@@ -3,10 +3,10 @@
 @if ($listings->isEmpty())
     <x-admin.nothing>No listings.</x-admin.nothing>
 @else
-    <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
         <table class="w-full text-left">
             <caption class="sr-only">{{ $caption }}</caption>
-            <thead class="border-b border-gray-300 bg-gray-50">
+            <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <tr>
                     <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
                     @if ($showSeller)
@@ -18,7 +18,7 @@
                     <th scope="col" class="px-4 py-2 text-right font-semibold">Quantity</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 @foreach ($listings as $listing)
                     <tr>
                         <th scope="row" class="px-4 py-2 font-normal">
@@ -32,9 +32,9 @@
                         <td class="px-4 py-2">{{ $listing->status->label() }}</td>
                         <td class="px-4 py-2">
                             @if ($listing->activeRemoval)
-                                <span class="text-red-700">{{ $listing->activeRemoval->kind->label() }}</span>
+                                <span class="text-red-700 dark:text-red-400">{{ $listing->activeRemoval->kind->label() }}</span>
                             @else
-                                <span class="text-gray-600">—</span>
+                                <span class="text-gray-600 dark:text-gray-400">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-2 text-right tabular-nums">{{ $listing->price()->format() }}</td>

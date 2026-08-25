@@ -1,16 +1,16 @@
 <x-layouts.seller title="Listings — Art Store seller">
     <div class="flex items-center gap-4">
         <h1 class="text-xl font-semibold">Listings</h1>
-        <a href="{{ route('seller.listings.create') }}" class="ml-auto rounded bg-gray-900 px-4 py-2 font-medium text-white">New listing</a>
+        <a href="{{ route('seller.listings.create') }}" class="ml-auto rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">New listing</a>
     </div>
 
     @if ($listings->isEmpty())
-        <p class="mt-4 rounded border border-gray-300 bg-white p-4 text-gray-600">No listings yet. Start with a new one.</p>
+        <p class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No listings yet. Start with a new one.</p>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 bg-white">
+        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <table class="w-full text-left">
                 <caption class="sr-only">Your listings, newest first</caption>
-                <thead class="border-b border-gray-300 bg-gray-50">
+                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
                         <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -22,7 +22,7 @@
                         <th scope="col" class="px-4 py-2 font-semibold">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                     @foreach ($listings as $listing)
                         <tr>
                             <th scope="row" class="px-4 py-3 font-normal">
@@ -39,13 +39,13 @@
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->cart_adds_count }}</td>
                             <td class="px-4 py-3">
                                 <span class="flex flex-wrap items-center gap-2">
-                                    <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 px-2 py-1">Edit</a>
+                                    <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-1">Edit</a>
 
                                     @foreach ($listing->availableTransitions() as $next)
                                         <form method="POST" action="{{ route('seller.listings.status', $listing->id) }}">
                                             @csrf
                                             <input type="hidden" name="status" value="{{ $next->value }}">
-                                            <button type="submit" class="rounded border border-gray-400 px-2 py-1">Mark {{ lcfirst($next->label()) }}</button>
+                                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-1">Mark {{ lcfirst($next->label()) }}</button>
                                         </form>
                                     @endforeach
                                 </span>

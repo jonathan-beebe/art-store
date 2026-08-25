@@ -8,10 +8,10 @@
     @if ($customers->isEmpty())
         <x-admin.nothing class="mt-4">No customers match.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 bg-white">
+        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <table class="w-full text-left">
                 <caption class="sr-only">Every customer on the platform, anonymous visitors included</caption>
-                <thead class="border-b border-gray-300 bg-gray-50">
+                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Customer</th>
                         <th scope="col" class="px-4 py-2 font-semibold">Email</th>
@@ -21,7 +21,7 @@
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Cart lines</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                     @foreach ($customers as $customer)
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
@@ -32,13 +32,13 @@
                             <td class="px-4 py-2">{{ $customer->email ?? '—' }}</td>
                             <td class="px-4 py-2">
                                 @if ($customer->activeBlock)
-                                    <span class="text-red-700">Blocked</span>
+                                    <span class="text-red-700 dark:text-red-400">Blocked</span>
                                 @elseif ($customer->isAnonymous())
-                                    <span class="text-gray-600">Anonymous</span>
+                                    <span class="text-gray-600 dark:text-gray-400">Anonymous</span>
                                 @elseif ($customer->isVerified())
-                                    <span class="text-gray-600">Verified</span>
+                                    <span class="text-gray-600 dark:text-gray-400">Verified</span>
                                 @else
-                                    <span class="text-gray-600">Unverified</span>
+                                    <span class="text-gray-600 dark:text-gray-400">Unverified</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $customer->orders_count }}</td>
