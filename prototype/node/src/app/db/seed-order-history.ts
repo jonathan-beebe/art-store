@@ -13,21 +13,21 @@ import { newId } from '../ids.ts'
 import type { Order, Payout } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
 import { requireListingId } from './seed-catalog.ts'
-import type { SeededCasey } from './seed-customers.ts'
+import type { SeededHermione } from './seed-customers.ts'
 import { toTimestamp } from './timestamp.ts'
 
 const APPROVED_CARD = '4242 4242 4242 4242'
 const FIVE_MINUTES_MS = 5 * 60 * 1000
 const PAYOUT_RUN_AT = new Date('2026-07-16T09:00:00.000Z')
 
-const CASEY_SHIPPING: ShippingAddress = {
-  name: 'Casey Whitfield',
-  line1: '48 Harbor Street',
+const HERMIONE_SHIPPING: ShippingAddress = {
+  name: 'Hermione Granger',
+  line1: '12 Heathgate',
   line2: null,
-  city: 'Portland',
-  region: 'Oregon',
-  postalCode: '97201',
-  country: 'US',
+  city: 'London',
+  region: 'Hampstead',
+  postalCode: 'NW11 7EB',
+  country: 'GB',
 }
 
 export type SeededOrderHistory = {
@@ -39,42 +39,42 @@ export type SeededOrderHistory = {
 }
 
 /**
- * Three single-item orders for Casey, each against a different listing, taken
- * to a different point in the fulfillment lifecycle: one paid and awaiting
- * shipment, one shipped, one delivered. The weekly payout run then settles the
- * escrow the delivered order released, all through the same actions the
- * storefront and seller portal call.
+ * Three single-item orders for Hermione, each against a different listing,
+ * taken to a different point in the fulfillment lifecycle: one paid and
+ * awaiting shipment, one shipped, one delivered. The weekly payout run then
+ * settles the escrow the delivered order released, all through the same
+ * actions the storefront and seller portal call.
  */
 export async function seedOrderHistory(
   db: AppDatabase,
-  casey: SeededCasey,
+  hermione: SeededHermione,
   listingIdsByTitle: Record<string, ListingId>,
 ): Promise<SeededOrderHistory> {
-  const purchaser: Purchaser = { id: casey.id, email: casey.email, isEmailVerified: true }
+  const purchaser: Purchaser = { id: hermione.id, email: hermione.email, isEmailVerified: true }
 
   const paidOrder = await placeAndPay(
     db,
     purchaser,
-    requireListingId(listingIdsByTitle, 'Ash-Glazed Tea Bowl'),
+    requireListingId(listingIdsByTitle, 'Burrow Kitchen Tea Bowl'),
     new Date('2026-07-06T09:00:00.000Z'),
   )
 
   const shippedOrder = await placeAndPay(
     db,
     purchaser,
-    requireListingId(listingIdsByTitle, 'Kitchen Table, Late Morning'),
+    requireListingId(listingIdsByTitle, 'Gryffindor Common Room, Late Morning'),
     new Date('2026-07-07T09:00:00.000Z'),
   )
-  await ship(db, shippedOrder.id, 'UPS', '1Z999AA10123456784', new Date('2026-07-08T09:00:00.000Z'))
+  await ship(db, shippedOrder.id, 'Owl Post', 'OWL-2263-1187-GB', new Date('2026-07-08T09:00:00.000Z'))
   const shippedFulfillmentId = await fulfillmentIdFor(db, shippedOrder.id)
 
   const deliveredOrder = await placeAndPay(
     db,
     purchaser,
-    requireListingId(listingIdsByTitle, 'Standing Figure in Reclaimed Oak'),
+    requireListingId(listingIdsByTitle, 'Garden Gnome in Reclaimed Oak'),
     new Date('2026-07-06T11:00:00.000Z'),
   )
-  await ship(db, deliveredOrder.id, 'USPS', '9400111899223197428490', new Date('2026-07-08T10:00:00.000Z'))
+  await ship(db, deliveredOrder.id, 'Knight Bus Parcel', 'KB-9400-1189-2231', new Date('2026-07-08T10:00:00.000Z'))
   await deliver(db, deliveredOrder.id, new Date('2026-07-10T14:00:00.000Z'))
 
   const payouts = await runWeeklyPayout({ db, clock: fixedClock(PAYOUT_RUN_AT) }, PAYOUT_RUN_AT)
@@ -82,7 +82,7 @@ export async function seedOrderHistory(
   return { paidOrder, shippedOrder, shippedFulfillmentId, deliveredOrder, payouts }
 }
 
-/** A cart of its own, the way a shopper's checkout does — never Casey's
+/** A cart of its own, the way a shopper's checkout does — never Hermione's
  * standing cart, which stays hers to keep shopping in. */
 async function placeAndPay(
   db: AppDatabase,
@@ -102,7 +102,7 @@ async function placeAndPay(
 
   const placingContext: ActionContext = { db, clock: fixedClock(placedAt) }
   await addToCart(placingContext, { cartId: cart.id, listingId, quantity: 1 })
-  const order = await placeOrderOrThrow(placingContext, { cartId: cart.id, purchaser, shipping: CASEY_SHIPPING })
+  const order = await placeOrderOrThrow(placingContext, { cartId: cart.id, purchaser, shipping: HERMIONE_SHIPPING })
 
   const finalizingContext: ActionContext = { db, clock: fixedClock(new Date(placedAt.getTime() + FIVE_MINUTES_MS)) }
   return finalizeOrder(finalizingContext, { orderId: order.id, cardNumber: APPROVED_CARD })

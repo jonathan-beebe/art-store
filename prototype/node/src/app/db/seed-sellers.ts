@@ -9,10 +9,10 @@ export type SeededSeller = { email: string; name: string; shopName: string }
 
 /** Four verified sellers a reviewer can sign in as through the debug magic link. */
 export const SEEDED_SELLERS: readonly SeededSeller[] = [
-  { email: 'maya@example.com', name: 'Maya Reyes', shopName: 'Terra & Glaze Ceramics' },
-  { email: 'noah@example.com', name: 'Noah Chen', shopName: 'North Light Editions' },
-  { email: 'priya@example.com', name: 'Priya Anand', shopName: 'Priya Anand Textile Studio' },
-  { email: 'leo@example.com', name: 'Leo Martins', shopName: 'Leo Martins Photography' },
+  { email: 'molly@example.com', name: 'Molly Weasley', shopName: 'The Burrow Craftworks' },
+  { email: 'dean@example.com', name: 'Dean Thomas', shopName: 'Dean Thomas Studio' },
+  { email: 'sybill@example.com', name: 'Sybill Trelawney', shopName: "Trelawney's Tower Studio" },
+  { email: 'colin@example.com', name: 'Colin Creevey', shopName: 'Creevey Camera Works' },
 ]
 
 /** Claims and profiles every seeded seller, keyed by email for the catalog to join against. */

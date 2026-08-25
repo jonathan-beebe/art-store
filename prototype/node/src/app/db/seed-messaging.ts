@@ -15,18 +15,18 @@ import type {
 import type { Message } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
-import type { SeededCasey } from './seed-customers.ts'
+import type { SeededHermione } from './seed-customers.ts'
 
-const REMOVED_LISTING_SELLER_EMAIL = 'leo@example.com'
-const FULFILLMENT_SELLER_EMAIL = 'noah@example.com'
-const FAQ_LISTING_SELLER_EMAIL = 'priya@example.com'
-export const FAQ_LISTING_TITLE = 'Woodfired Vase, Tall'
+const REMOVED_LISTING_SELLER_EMAIL = 'colin@example.com'
+const FULFILLMENT_SELLER_EMAIL = 'dean@example.com'
+const FAQ_LISTING_SELLER_EMAIL = 'sybill@example.com'
+export const FAQ_LISTING_TITLE = 'Divination Tower Vase, Tall'
 
 const ADMIN_SELLER_OPENED_AT = new Date('2026-07-03T10:00:00.000Z')
 const ADMIN_SELLER_MESSAGE_2_AT = new Date('2026-07-03T15:30:00.000Z')
 const ADMIN_SELLER_MESSAGE_3_AT = new Date('2026-07-04T09:15:00.000Z')
 
-const ADMIN_SELLER_MESSAGE_1 = `Hi Leo, we took "${REMOVED_LISTING_TITLE}" down temporarily on July 2 after a buyer said the print did not match the listed edition size. Can you confirm the edition count on that plate?`
+const ADMIN_SELLER_MESSAGE_1 = `Hi Colin, we took "${REMOVED_LISTING_TITLE}" down temporarily on July 2 after a buyer said the print did not match the listed edition size. Can you confirm the edition count on that plate?`
 const ADMIN_SELLER_MESSAGE_2 =
   'It is a numbered edition of twelve, this print is proof 4/12. I can send over the edition documentation if that helps clear it.'
 const ADMIN_SELLER_MESSAGE_3 =
@@ -36,26 +36,27 @@ const ADMIN_CUSTOMER_OPENED_AT = new Date('2026-07-22T09:00:00.000Z')
 const ADMIN_CUSTOMER_MESSAGE_2_AT = new Date('2026-07-22T09:35:00.000Z')
 const ADMIN_CUSTOMER_MESSAGE_3_AT = new Date('2026-07-22T10:05:00.000Z')
 
-const ADMIN_CUSTOMER_MESSAGE_1 = 'Hi Casey, following up on your recent orders. Anything we can help with?'
+const ADMIN_CUSTOMER_MESSAGE_1 = 'Hi Hermione, following up on your recent orders. Anything we can help with?'
 const ADMIN_CUSTOMER_MESSAGE_2 =
-  'Actually, yes, could I get an itemized receipt for my July orders? I need it for taxes.'
+  'Actually, yes, could I get an itemized receipt for my July orders? I keep complete records of everything.'
 const ADMIN_CUSTOMER_MESSAGE_3 = 'Sure thing, I will have receipts for all three orders sent your way today.'
 
 const FULFILLMENT_OPENED_AT = new Date('2026-07-09T09:00:00.000Z')
 const FULFILLMENT_MESSAGE_2_AT = new Date('2026-07-09T14:00:00.000Z')
 const FULFILLMENT_MESSAGE_3_AT = new Date('2026-07-09T16:30:00.000Z')
 
-const FULFILLMENT_MESSAGE_1 = 'Your Kitchen Table, Late Morning shipped with UPS, tracking 1Z999AA10123456784.'
+const FULFILLMENT_MESSAGE_1 =
+  'Your Gryffindor Common Room, Late Morning shipped with Owl Post, tracking OWL-2263-1187-GB.'
 const FULFILLMENT_MESSAGE_2 = 'Thanks! Any estimate on when it will arrive?'
-const FULFILLMENT_MESSAGE_3 = 'UPS ground from Portland usually runs 4-6 business days.'
+const FULFILLMENT_MESSAGE_3 = 'Owl Post from London usually runs 4-6 business days; a painting takes two owls.'
 
 const LISTING_QUESTION_OPENED_AT = new Date('2026-07-25T10:00:00.000Z')
 const LISTING_QUESTION_ANSWERED_AT = new Date('2026-07-25T13:45:00.000Z')
 const FAQ_PUBLISHED_AT = new Date('2026-07-25T13:50:00.000Z')
 
-const LISTING_QUESTION_TEXT = 'Is this vase food-safe, or can it hold water for fresh flowers?'
+const LISTING_QUESTION_TEXT = 'Is this vase watertight, or is it best kept for dried arrangements?'
 const LISTING_QUESTION_ANSWER_TEXT =
-  'It is fired unglazed, so it is not watertight. Best for dried arrangements, or use a liner if you want fresh-cut flowers.'
+  'It is fired unglazed, so it is not watertight. Best for dried arrangements, or use a liner if you want fresh-cut flowers. The patterns are for reading, not for water.'
 
 export type SeededMessaging = {
   conversationCount: number
@@ -80,18 +81,18 @@ export async function seedMessaging(
     adminId,
     sellerIdsByEmail,
     listingIdsByTitle,
-    casey,
+    hermione,
     fulfillmentId,
   }: {
     adminId: AdminId
     sellerIdsByEmail: Record<string, SellerId>
     listingIdsByTitle: Record<string, ListingId>
-    casey: SeededCasey
+    hermione: SeededHermione
     fulfillmentId: FulfillmentId
   },
 ): Promise<SeededMessaging> {
   const admin: AdminActor = { type: 'admin', id: adminId }
-  const customer: CustomerActor = { type: 'customer', id: casey.id }
+  const customer: CustomerActor = { type: 'customer', id: hermione.id }
 
   const adminSellerMessages = await seedAdminSellerThread(db, {
     admin,
@@ -169,7 +170,7 @@ async function seedAdminSellerThread(
   ])
 }
 
-/** A support thread with Casey; the admin's closing reply is left unread so
+/** A support thread with Hermione; the admin's closing reply is left unread so
  * the storefront shows a badge. */
 async function seedAdminCustomerThread(
   db: AppDatabase,
@@ -190,9 +191,9 @@ async function seedAdminCustomerThread(
   ])
 }
 
-/** Keyed to the fulfillment `seed-order-history.ts` ships for "Kitchen Table,
- * Late Morning", so `FULFILLMENT_SELLER_EMAIL` must stay Noah Chen. Fully
- * read: a demo thread with no badge to show. */
+/** Keyed to the fulfillment `seed-order-history.ts` ships for "Gryffindor
+ * Common Room, Late Morning", so `FULFILLMENT_SELLER_EMAIL` must stay Dean
+ * Thomas. Fully read: a demo thread with no badge to show. */
 async function seedFulfillmentThread(
   db: AppDatabase,
   {
@@ -222,8 +223,8 @@ async function seedFulfillmentThread(
   return messages
 }
 
-/** Casey asks about a for_sale listing and the seller answers; fully read, so
- * the answer is ready to publish as an FAQ. */
+/** Hermione asks about a for_sale listing and the seller answers; fully read,
+ * so the answer is ready to publish as an FAQ. */
 async function seedListingQuestionThread(
   db: AppDatabase,
   {

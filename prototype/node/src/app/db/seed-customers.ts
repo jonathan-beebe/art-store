@@ -15,41 +15,45 @@ import type {
 import type { AppDatabase } from './database.ts'
 import { requireListingId } from './seed-catalog.ts'
 
-export const CASEY_EMAIL = 'casey@example.com'
-const CASEY_NAME = 'Casey Whitfield'
-const CASEY_VERIFIED_AT = new Date('2026-06-01T00:00:00.000Z')
+export const HERMIONE_EMAIL = 'hermione@example.com'
+const HERMIONE_NAME = 'Hermione Granger'
+const HERMIONE_VERIFIED_AT = new Date('2026-06-01T00:00:00.000Z')
 
-/** The listings Casey looked at before favoriting or buying any of them. */
-const CASEY_VIEWED_TITLES = [
-  'Woodfired Vase, Tall',
-  'Quarry at First Light',
-  'Handwoven Mohair Throw',
-  'Ash-Glazed Tea Bowl',
-  'Kitchen Table, Late Morning',
-  'Standing Figure in Reclaimed Oak',
+/** The listings Hermione looked at before favoriting or buying any of them. */
+const HERMIONE_VIEWED_TITLES = [
+  'Divination Tower Vase, Tall',
+  'The Orchard at First Light',
+  'House Scarf Throw, Scarlet and Gold',
+  'Burrow Kitchen Tea Bowl',
+  'Gryffindor Common Room, Late Morning',
+  'Garden Gnome in Reclaimed Oak',
 ] as const
 
-const CASEY_FAVORITE_TITLES = ['Woodfired Vase, Tall', 'Quarry at First Light', 'Handwoven Mohair Throw'] as const
+const HERMIONE_FAVORITE_TITLES = [
+  'Divination Tower Vase, Tall',
+  'The Orchard at First Light',
+  'House Scarf Throw, Scarlet and Gold',
+] as const
 
-/** Left in Casey's cart, unlike the titles the order history checks out. */
-const CASEY_CART_TITLES = ['Nine Herons', 'Salt-Glazed Serving Bowl'] as const
+/** Left in Hermione's cart, unlike the titles the order history checks out. */
+const HERMIONE_CART_TITLES = ['Nine Owls', 'Great Hall Serving Bowl'] as const
 
-const BLOCKED_CUSTOMER_EMAIL = 'jordan@example.com'
-const BLOCKED_REASON = 'Repeated chargebacks reported by two sellers.'
+const BLOCKED_CUSTOMER_EMAIL = 'mundungus@example.com'
+const BLOCKED_REASON = 'Paid two sellers in leprechaun gold that vanished before the payout cleared.'
 const BLOCKED_AT = new Date('2026-07-20T10:00:00.000Z')
 
 /** A few storefront visitors who never gave an address, each browsing a
  * different corner of the catalog. */
 const ANONYMOUS_BROWSING: readonly (readonly string[])[] = [
-  ['Field Study No. 12', 'Marigold Study', 'Cast Bronze Seed Pod'],
-  ['Balanced Stone Cairn', 'Neon After Rain'],
-  ['Rag-Rug Runner, Ochre', 'Terminal, Platform 4', 'Portrait of a Welder'],
+  ['Lavender Fields from the North Tower', 'Tea Leaf Study', 'Cast Bronze Seeing Orb'],
+  ['Standing Stones, Black Lake', 'Diagon Alley After Rain'],
+  ['Patchwork Shawl Runner, Ochre', 'Platform Nine and Three-Quarters', 'Portrait of a Gamekeeper'],
 ]
 
-export type SeededCasey = { id: CustomerId; email: string }
+export type SeededHermione = { id: CustomerId; email: string }
 
 export type SeededCustomers = {
-  casey: SeededCasey
+  hermione: SeededHermione
   blockedCustomerId: CustomerId
   anonymousCustomerIds: readonly CustomerId[]
   count: number
@@ -62,30 +66,33 @@ export async function seedCustomers(
   listingIdsByTitle: Record<string, ListingId>,
   adminId: AdminId,
 ): Promise<SeededCustomers> {
-  const casey = await seedCasey(db, listingIdsByTitle)
+  const hermione = await seedHermione(db, listingIdsByTitle)
   const blockedCustomerId = await seedBlockedCustomer(db, adminId)
   const anonymousCustomerIds = await seedAnonymousBrowsers(db, listingIdsByTitle)
 
   return {
-    casey,
+    hermione,
     blockedCustomerId,
     anonymousCustomerIds,
     count: 2 + anonymousCustomerIds.length,
   }
 }
 
-async function seedCasey(db: AppDatabase, listingIdsByTitle: Record<string, ListingId>): Promise<SeededCasey> {
+async function seedHermione(
+  db: AppDatabase,
+  listingIdsByTitle: Record<string, ListingId>,
+): Promise<SeededHermione> {
   const claimed = await claimCustomerIdentity(
-    { db, clock: fixedClock(CASEY_VERIFIED_AT) },
-    { email: CASEY_EMAIL, currentCustomerId: null },
+    { db, clock: fixedClock(HERMIONE_VERIFIED_AT) },
+    { email: HERMIONE_EMAIL, currentCustomerId: null },
   )
-  await db.updateTable('customers').set({ name: CASEY_NAME }).where('id', '=', claimed.id).execute()
+  await db.updateTable('customers').set({ name: HERMIONE_NAME }).where('id', '=', claimed.id).execute()
 
-  await recordViews(db, claimed.id, listingIdsByTitle, CASEY_VIEWED_TITLES, new Date('2026-07-01T09:00:00.000Z'))
-  await favoriteEach(db, claimed.id, listingIdsByTitle, CASEY_FAVORITE_TITLES, new Date('2026-07-01T09:10:00.000Z'))
-  await fillCart(db, claimed.id, listingIdsByTitle, CASEY_CART_TITLES, new Date('2026-07-15T10:00:00.000Z'))
+  await recordViews(db, claimed.id, listingIdsByTitle, HERMIONE_VIEWED_TITLES, new Date('2026-07-01T09:00:00.000Z'))
+  await favoriteEach(db, claimed.id, listingIdsByTitle, HERMIONE_FAVORITE_TITLES, new Date('2026-07-01T09:10:00.000Z'))
+  await fillCart(db, claimed.id, listingIdsByTitle, HERMIONE_CART_TITLES, new Date('2026-07-15T10:00:00.000Z'))
 
-  return { id: claimed.id, email: CASEY_EMAIL }
+  return { id: claimed.id, email: HERMIONE_EMAIL }
 }
 
 /** Records one view per title, a minute apart so none collapse into the same

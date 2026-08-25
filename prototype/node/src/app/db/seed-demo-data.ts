@@ -47,12 +47,12 @@ export async function seedDemoData({
   const sellerIdsByEmail = await seedSellers(db)
   const { listingIdsByTitle } = await seedCatalog(db, sellerIdsByEmail, admin.id)
   const customers = await seedCustomers(db, listingIdsByTitle, admin.id)
-  const orderHistory = await seedOrderHistory(db, customers.casey, listingIdsByTitle)
+  const orderHistory = await seedOrderHistory(db, customers.hermione, listingIdsByTitle)
   const messaging = await seedMessaging(db, {
     adminId: admin.id,
     sellerIdsByEmail,
     listingIdsByTitle,
-    casey: customers.casey,
+    hermione: customers.hermione,
     fulfillmentId: orderHistory.shippedFulfillmentId,
   })
   const pageViewRowCount = await seedPageViews(db, clock.now())

@@ -2,7 +2,7 @@ import { test, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { fixtureId } from '../test/fixture-ids.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
-import { CASEY_EMAIL } from './seed-customers.ts'
+import { HERMIONE_EMAIL } from './seed-customers.ts'
 import { FAQ_LISTING_TITLE } from './seed-messaging.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from './database.ts'
 import { seedDemoData, type SeedDemoDataSummary } from './seed-demo-data.ts'
@@ -67,25 +67,25 @@ test('one for_sale listing carries an active temporary removal', async (t) => {
   assert.deepEqual(removed, [{ title: REMOVED_LISTING_TITLE, status: 'for_sale', kind: 'temporary', liftedAt: null }])
 })
 
-test('casey is verified with favorites, view history, and a cart', async (t) => {
+test('hermione is verified with favorites, view history, and a cart', async (t) => {
   const db = await withSeededDatabase(t)
 
-  const casey = await db.selectFrom('customers').selectAll().where('email', '=', CASEY_EMAIL).executeTakeFirstOrThrow()
-  assert.ok(casey.emailVerifiedAt !== null)
+  const hermione = await db.selectFrom('customers').selectAll().where('email', '=', HERMIONE_EMAIL).executeTakeFirstOrThrow()
+  assert.ok(hermione.emailVerifiedAt !== null)
 
-  const favorites = await db.selectFrom('favorites').select('id').where('customerId', '=', casey.id).execute()
+  const favorites = await db.selectFrom('favorites').select('id').where('customerId', '=', hermione.id).execute()
   assert.equal(favorites.length, 3)
 
-  // One standing cart casey is still shopping in, plus one spent cart per
+  // One standing cart hermione is still shopping in, plus one spent cart per
   // order placed against it (`placeOrder` empties a cart, never deletes it).
-  const carts = await db.selectFrom('carts').select('id').where('customerId', '=', casey.id).execute()
+  const carts = await db.selectFrom('carts').select('id').where('customerId', '=', hermione.id).execute()
   assert.equal(carts.length, 4)
 
   const cartItems = await db
     .selectFrom('cartItems')
     .innerJoin('carts', 'carts.id', 'cartItems.cartId')
     .select('cartItems.id')
-    .where('carts.customerId', '=', casey.id)
+    .where('carts.customerId', '=', hermione.id)
     .execute()
   assert.equal(cartItems.length, 2)
 })
@@ -108,7 +108,7 @@ test('it seeds a few anonymous customers', async (t) => {
   assert.ok(anonymous.every((customer) => customer.emailVerifiedAt === null))
 })
 
-test('listing events cover casey, the order history, and the anonymous browsers', async (t) => {
+test('listing events cover hermione, the order history, and the anonymous browsers', async (t) => {
   const db = await withSeededDatabase(t)
 
   const events = await db.selectFrom('listingEvents').select('eventType').execute()
@@ -161,7 +161,7 @@ test('escrow holds three, releases one, and pays the delivered order out', async
   assert.equal(payouts[0]?.amountCents, deliveredFulfillment.netCents)
 })
 
-test('sellers, casey, and messaging participants are notified as the seed unfolds', async (t) => {
+test('sellers, hermione, and messaging participants are notified as the seed unfolds', async (t) => {
   const db = await withSeededDatabase(t)
 
   const notifications = await db.selectFrom('notifications').select('subject').execute()
