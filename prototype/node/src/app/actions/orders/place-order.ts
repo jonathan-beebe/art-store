@@ -3,7 +3,6 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { cartContents, toCartLine, type CartLineView } from '../carts/cart-contents.ts'
-import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { checkoutTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
 import { platformFee, sellerNet } from '../../core/escrow/fee.ts'
 import { stockAfterSale } from '../../core/listings/listing-stock.ts'
@@ -24,8 +23,6 @@ export type PlaceOrderInput = {
 export type PlacedOrder =
   | { ok: true; order: Order }
   | { ok: false; unavailable: readonly UnavailableLine[] }
-
-type PlacementLine = CartLineView & { hasActiveRemoval: boolean }
 
 /**
  * Turns a cart into an order: a snapshot of every item, one fulfillment per
@@ -74,7 +71,7 @@ export async function placeOrder(
     },
     async (transacted) => {
       const contents = await cartContents(transacted, input.cartId)
-      const placement = planOrderPlacement(await withRemovals(transacted, contents.lines))
+      const placement = planOrderPlacement(contents.lines)
       if (!placement.ok) return { ok: false, unavailable: placement.unavailable }
 
       const totals = checkoutTotals(placement.lines.map(toCartLine))
@@ -105,21 +102,6 @@ export async function placeOrderOrThrow(
   }
 
   return placement.order
-}
-
-/** Each line beside the admin removal that stands over its listing. */
-async function withRemovals(
-  context: ActionContext,
-  lines: readonly CartLineView[],
-): Promise<readonly PlacementLine[]> {
-  const judged: PlacementLine[] = []
-
-  for (const line of lines) {
-    const removal = await activeListingRemoval(context, line.listingId)
-    judged.push({ ...line, hasActiveRemoval: removal !== null })
-  }
-
-  return judged
 }
 
 async function openOrder(

@@ -37,3 +37,24 @@ export async function activeListingRemoval(
     })),
   )
 }
+
+/**
+ * Which of these listings currently sit under an unlifted removal. The cart
+ * and checkout judge a whole set of lines at once, so this answers the same
+ * question `activeListingRemoval` does per listing, in one query.
+ */
+export async function listingsUnderActiveRemoval(
+  context: Pick<ActionContext, 'db'>,
+  listingIds: readonly ListingId[],
+): Promise<ReadonlySet<ListingId>> {
+  if (listingIds.length === 0) return new Set()
+
+  const rows = await context.db
+    .selectFrom('listingRemovals')
+    .select('listingId')
+    .where('listingId', 'in', listingIds)
+    .where('liftedAt', 'is', null)
+    .execute()
+
+  return new Set(rows.map((row) => row.listingId))
+}

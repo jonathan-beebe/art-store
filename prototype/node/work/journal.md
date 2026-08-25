@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:09:01:29 — IMPRV-017 — done: cart and checkout resolve listing removals in one `listingId in (...)` read; `cartContents` stamps `hasActiveRemoval` on each line and `placeOrder` consumes that answer, dropping `withRemovals` from the checkout transaction
+- 2026-08-25:08:47:39 — IMPRV-017 — started
 - 2026-08-25:08:43:57 — IMPRV-016 — done: connections run WAL with synchronous NORMAL; the dialect reuses prepared statements through a bounded per-connection cache cleared on destroy; streams prepare fresh
 - 2026-08-25:08:30:41 — IMPRV-016 — started
 - 2026-08-25:08:28:00 — IMPRV-015 — done: rendered pages reuse compiled templates outside development; test and production renders skip include re-reads and recompiles

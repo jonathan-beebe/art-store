@@ -5,7 +5,7 @@ import { cartTotals, type CartTotals } from '../../core/cart/cart-totals.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
 import type { Cents } from '../../core/money.ts'
 import { noticeForUnavailableReason, unavailableReason } from '../../core/orders/order-placement.ts'
-import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
+import { listingsUnderActiveRemoval } from '../moderation/active-listing-removal.ts'
 
 /** One line of a cart, with the listing details the page and the order need. */
 export type CartLineView = {
@@ -19,6 +19,7 @@ export type CartLineView = {
   availableQuantity: number
   unitPriceCents: Cents
   quantity: number
+  hasActiveRemoval: boolean
   /** The price a page shows for the line: unit price times quantity. */
   lineTotalCents: Cents
   /** Whether this line could still become part of an order right now. */
@@ -64,25 +65,30 @@ export async function cartContents(
     .orderBy('cartItems.id')
     .execute()
 
-  const lines: CartLineView[] = []
-  for (const row of rows) {
-    const removal = await activeListingRemoval(context, row.listingId)
+  const removedListingIds = await listingsUnderActiveRemoval(
+    context,
+    rows.map((row) => row.listingId),
+  )
+
+  const lines: CartLineView[] = rows.map((row) => {
+    const hasActiveRemoval = removedListingIds.has(row.listingId)
     const reason = unavailableReason({
       listingId: row.listingId,
       title: row.title,
       status: row.status,
       availableQuantity: row.availableQuantity,
       quantity: row.quantity,
-      hasActiveRemoval: removal !== null,
+      hasActiveRemoval,
     })
 
-    lines.push({
+    return {
       ...row,
+      hasActiveRemoval,
       lineTotalCents: cartLineTotal(row),
       isUnavailable: reason !== null,
       unavailableNotice: reason === null ? null : noticeForUnavailableReason(reason),
-    })
-  }
+    }
+  })
 
   const availableLines = lines.filter((line) => !line.isUnavailable)
 
