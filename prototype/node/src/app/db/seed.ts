@@ -7,6 +7,7 @@ import { logStep, tellStory } from '../log-story.ts'
 import { openDatabase } from './database.ts'
 import { seedAdmins } from './seed-admins.ts'
 import { seedDemoData, type SeedDemoDataSummary } from './seed-demo-data.ts'
+import { seedWizardingSellers } from './seed-wizarding-sellers.ts'
 
 /**
  * Seeds admins and demo data into the configured database. A failure is
@@ -45,7 +46,20 @@ export async function main(
           data: { admin_count: adminCount },
         })
 
-        return seedDemoData({ db, clock: systemClock })
+        const demoSummary = await seedDemoData({ db, clock: systemClock })
+
+        // After the demo data: its already-seeded check reads "any seller
+        // exists", so seeding these two first would skip the whole demo.
+        const wizarding = await seedWizardingSellers(db)
+        logStep(log, 'seed.run', {
+          msg:
+            wizarding === null
+              ? 'wizarding sellers already seeded, skipping'
+              : `seeded ${wizarding.sellerCount} wizarding sellers, ${wizarding.listingCount} listings`,
+          data: wizarding === null ? { wizarding_skipped: true } : { ...wizarding },
+        })
+
+        return demoSummary
       },
     )
   } catch {
