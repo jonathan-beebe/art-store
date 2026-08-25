@@ -115,6 +115,38 @@ test('it leaves already-read messages alone and returns 0 the next time', async 
   assert.equal(second, 0)
 })
 
+test('it leaves messages in other conversations untouched', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyerA = await customer(world.context, 'ada@example.test')
+  const buyerB = await customer(world.context, 'grace@example.test')
+  const conversationA = await listingConversation(world.context, shop.id, buyerA.id)
+  const conversationB = await listingConversation(world.context, shop.id, buyerB.id)
+  await postMessage(world.context, {
+    conversationId: conversationA.id,
+    sender: { type: 'customer', id: buyerA.id },
+    body: 'Is this available?',
+  })
+  await postMessage(world.context, {
+    conversationId: conversationB.id,
+    sender: { type: 'customer', id: buyerB.id },
+    body: 'Do you ship to Canada?',
+  })
+
+  await markConversationRead(world.context, {
+    conversationId: conversationA.id,
+    reader: { type: 'seller', id: shop.id },
+  })
+
+  const messagesB = await world.db
+    .selectFrom('messages')
+    .selectAll()
+    .where('conversationId', '=', conversationB.id)
+    .execute()
+  assert.equal(messagesB[0]?.readAt, null)
+})
+
 test('it returns 0 for a conversation with no messages', async (t) => {
   const world = await openWorld()
   t.after(world.close)

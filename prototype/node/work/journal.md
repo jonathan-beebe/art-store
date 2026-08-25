@@ -6,14 +6,30 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 21
-- IMPRV: 13
-- MAINT: 3
+- IMPRV: 23
+- MAINT: 7
 - A11Y: 1
 - RFCTR: 5
 - BUG: 9
 
 ## Log
 
+- 2026-08-25:07:46:35 — IMPRV-013 — done: badge count and mark-read are single SQL statements over a partial unread index; message history stays unloaded
+- 2026-08-25:07:20:01 — IMPRV-013 — started
+- 2026-08-25:07:16:13 — MAINT-006 — defined: container start skips work already done
+- 2026-08-25:07:16:12 — MAINT-005 — defined: test fixtures stop rebuilding the world per test
+- 2026-08-25:07:16:11 — MAINT-004 — defined: everyday test run drops the coverage gate and warms caches
+- 2026-08-25:07:16:10 — MAINT-003 — defined: expired rate-limit windows are pruned
+- 2026-08-25:07:16:09 — IMPRV-022 — defined: placeholder images become cacheable URLs
+- 2026-08-25:07:16:08 — IMPRV-021 — defined: asset requests skip identity and logging work; cookies unsign once
+- 2026-08-25:07:16:07 — IMPRV-020 — defined: static assets ship compressed with long-lived caching
+- 2026-08-25:07:16:06 — IMPRV-019 — defined: admin and seller lists read one page, not the table
+- 2026-08-25:07:16:05 — IMPRV-018 — defined: ledger balances aggregate in SQL
+- 2026-08-25:07:16:04 — IMPRV-017 — defined: cart and checkout resolve listing removals in one batch
+- 2026-08-25:07:16:03 — IMPRV-016 — defined: SQLite connections tuned in the owned dialect
+- 2026-08-25:07:16:02 — IMPRV-015 — defined: rendered pages reuse compiled templates
+- 2026-08-25:07:16:01 — IMPRV-014 — defined: storefront customer resolution reads first and runs once
+- 2026-08-25:07:16:00 — IMPRV-013 — defined: unread badge counts without loading message history
 - 2026-08-24:22:25:00 — BUG-008 — done: runtime stage copies `src/public` (bringing the tracked `app.js` all three layouts load), and the static registrations gained cache headers — `maxAge: '5m'` for the unversioned `app.css`/`app.js` whose `max-age=0` revalidation painted a white flash on every navigation, `7d` immutable for the UUID-named uploads; verified in a built image (`/app.js` 200, cache-control present) and `make check` green
 - 2026-08-24:22:22:00 — BUG-008 — defined: production image ships no /app.js — runtime stage never copies src/public
 - 2026-08-25:02:00:00 — FEAT-018 — done (fix-up): MAINT-002's audit found three admin filter inputs still `type="number"` against `cus_`/`sel_` text ids (orders, fulfillments, and listings — the third unnamed in the report) and the ledger still rendering `#${fulfillmentId}`/`#${payoutId}`; all four fixed, value-echo tests added for the two filters that lacked them. 1915 -> 1917 tests, ec45f4e
