@@ -1,5 +1,5 @@
 <h1 class="text-lg font-semibold" data-order="<%= order.id %>">Order <%= order.id %></h1>
-<dl class="mt-2 text-neutral-600">
+<dl class="mt-2 text-neutral-600 dark:text-neutral-400">
   <div>
     <dt class="inline text-neutral-500">Customer</dt>
     <dd class="inline">
@@ -15,38 +15,38 @@
 
 <% if (canCancel) { %>
 <section class="mt-6 max-w-xl" aria-labelledby="cancel-heading">
-  <h2 id="cancel-heading" class="font-semibold text-neutral-700">Cancel</h2>
+  <h2 id="cancel-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Cancel</h2>
 
-  <form method="post" action="/admin/orders/<%= order.id %>/cancel" class="mt-2 rounded border border-neutral-300 bg-white p-4">
+  <form method="post" action="/admin/orders/<%= order.id %>/cancel" class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
-    <p class="text-sm text-neutral-600">Cancelling puts everything this order holds back on the storefront.</p>
+    <p class="text-sm text-neutral-600 dark:text-neutral-400">Cancelling puts everything this order holds back on the storefront.</p>
 
     <div class="mt-4">
-      <label for="cancel_reason" class="block text-sm font-medium text-neutral-700">Reason</label>
+      <label for="cancel_reason" class="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Reason</label>
       <textarea
         name="reason"
         id="cancel_reason"
         rows="2"
         required
         maxlength="<%= reasonMaxLength %>"
-        class="mt-1 block w-full rounded border border-neutral-400 px-3 py-2 text-sm"
+        class="mt-1 block w-full rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2 text-sm"
       ></textarea>
     </div>
 
-    <button type="submit" class="mt-4 rounded border border-red-700 px-4 py-2 text-sm font-medium text-red-700">Cancel this order</button>
+    <button type="submit" class="mt-4 rounded border border-red-700 dark:border-red-500 px-4 py-2 text-sm font-medium text-red-700 dark:text-red-400">Cancel this order</button>
   </form>
 </section>
 <% } %>
 
 <section class="mt-6" aria-labelledby="items-heading">
-  <h2 id="items-heading" class="font-semibold text-neutral-700">Items</h2>
+  <h2 id="items-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Items</h2>
   <% if (items.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No items on this order.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This order's items</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Item</th>
           <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
@@ -54,7 +54,7 @@
           <th scope="col" class="px-4 py-2 text-right font-semibold">Line total</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% items.forEach((item) => { %>
         <tr data-order-item="<%= item.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
@@ -72,14 +72,14 @@
 </section>
 
 <section class="mt-6" aria-labelledby="payments-heading">
-  <h2 id="payments-heading" class="font-semibold text-neutral-700">Payments</h2>
+  <h2 id="payments-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Payments</h2>
   <% if (payments.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No payment attempts yet.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This order's payments</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Status</th>
           <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
@@ -88,7 +88,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Processed</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% payments.forEach((payment) => { %>
         <tr data-payment="<%= payment.id %>">
           <th scope="row" class="px-4 py-3 font-normal" data-cell="status"><%= statusLabel(payment.status) %></th>
@@ -111,14 +111,14 @@
 </section>
 
 <section class="mt-6" aria-labelledby="fulfillments-heading">
-  <h2 id="fulfillments-heading" class="font-semibold text-neutral-700">Fulfillments</h2>
+  <h2 id="fulfillments-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Fulfillments</h2>
   <% if (fulfillments.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No fulfillments yet.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This order's fulfillments</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
           <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -128,7 +128,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Refund</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% fulfillments.forEach((fulfillment) => { %>
         <tr data-fulfillment="<%= fulfillment.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
@@ -151,9 +151,9 @@
                 required
                 maxlength="<%= reasonMaxLength %>"
                 placeholder="Reason"
-                class="w-48 rounded border border-neutral-400 px-2 py-1 text-sm"
+                class="w-48 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1 text-sm"
               />
-              <button type="submit" class="rounded border border-red-700 px-3 py-1 text-sm font-medium text-red-700">Refund</button>
+              <button type="submit" class="rounded border border-red-700 dark:border-red-500 px-3 py-1 text-sm font-medium text-red-700 dark:text-red-400">Refund</button>
             </form>
             <% } else { %>
             <span class="text-neutral-500">&mdash;</span>
@@ -168,14 +168,14 @@
 </section>
 
 <section class="mt-6" aria-labelledby="refunds-heading">
-  <h2 id="refunds-heading" class="font-semibold text-neutral-700">Refunds</h2>
+  <h2 id="refunds-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Refunds</h2>
   <% if (refunds.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No refunds on this order.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This order's refunds</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Fulfillment</th>
           <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
@@ -184,7 +184,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Issued</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% refunds.forEach((refund) => { %>
         <tr data-refund="<%= refund.id %>">
           <th scope="row" class="px-4 py-3 font-normal">

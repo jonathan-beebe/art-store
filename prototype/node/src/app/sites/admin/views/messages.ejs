@@ -3,10 +3,10 @@
 <% if (conversations.length === 0) { %>
 <%- include('sites/admin/views/partials/empty', { message: 'No conversations yet.' }) %>
 <% } else { %>
-<div class="mt-4 overflow-x-auto rounded border border-neutral-300 bg-white">
+<div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
   <table class="w-full text-left">
     <caption class="sr-only">Admin conversations</caption>
-    <thead class="border-b border-neutral-300 bg-neutral-50">
+    <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
       <tr>
         <th scope="col" class="px-4 py-2 font-semibold">From</th>
         <th scope="col" class="px-4 py-2 font-semibold">Topic</th>
@@ -15,14 +15,14 @@
         <th scope="col" class="px-4 py-2 text-right font-semibold">Unread</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-neutral-200">
+    <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
       <% conversations.forEach((conversation) => { %>
       <tr data-conversation="<%= conversation.id %>">
         <th scope="row" class="px-4 py-3 font-normal">
           <a href="<%= conversation.path %>" class="font-medium underline"><%= conversation.counterpart %></a>
         </th>
         <td data-cell="topic" class="px-4 py-3"><%= conversation.topic %></td>
-        <td data-cell="preview" class="px-4 py-3 text-neutral-600"><%= conversation.preview ?? '—' %></td>
+        <td data-cell="preview" class="px-4 py-3 text-neutral-600 dark:text-neutral-400"><%= conversation.preview ?? '—' %></td>
         <td data-cell="when" class="px-4 py-3"><%= formatMoment(conversation.lastMessageAt) %></td>
         <td
           data-cell="unread"

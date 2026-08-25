@@ -1,12 +1,12 @@
 <h1 class="text-lg font-semibold" data-seller="<%= seller.id %>"><%= seller.shopName ?? seller.email %></h1>
-<dl class="mt-2 text-neutral-600">
+<dl class="mt-2 text-neutral-600 dark:text-neutral-400">
   <div><dt class="inline text-neutral-500">Email</dt> <dd class="inline"><%= seller.email %></dd></div>
   <div><dt class="inline text-neutral-500">Joined</dt> <dd class="inline"><%= formatMoment(seller.createdAt) %></dd></div>
 </dl>
 
 <form method="post" action="/admin/sellers/<%= seller.id %>/messages" class="mt-4">
   <%- include('views/partials/csrf-field', { csrfToken }) %>
-  <button type="submit" class="cursor-pointer rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white">
+  <button type="submit" class="cursor-pointer rounded bg-neutral-900 dark:bg-neutral-100 px-3 py-1.5 text-sm font-medium text-white dark:text-neutral-900">
     Message seller
   </button>
 </form>
@@ -18,14 +18,14 @@
 </dl>
 
 <section class="mt-6" aria-labelledby="listings-heading">
-  <h2 id="listings-heading" class="font-semibold text-neutral-700">Listings</h2>
+  <h2 id="listings-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Listings</h2>
   <% if (listings.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No listings yet.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This seller's listings</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
           <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -34,7 +34,7 @@
           <th scope="col" class="px-4 py-2 font-semibold">Removal</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% listings.forEach((listing) => { %>
         <tr data-listing="<%= listing.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
@@ -60,14 +60,14 @@
 </section>
 
 <section class="mt-6" aria-labelledby="fulfillments-heading">
-  <h2 id="fulfillments-heading" class="font-semibold text-neutral-700">Fulfillments</h2>
+  <h2 id="fulfillments-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Fulfillments</h2>
   <% if (fulfillments.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No fulfillments yet.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This seller's fulfillments</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Order</th>
           <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -76,7 +76,7 @@
           <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% fulfillments.forEach((fulfillment) => { %>
         <tr data-fulfillment="<%= fulfillment.id %>">
           <th scope="row" class="px-4 py-3 font-normal">
@@ -95,21 +95,21 @@
 </section>
 
 <section class="mt-6" aria-labelledby="payouts-heading">
-  <h2 id="payouts-heading" class="font-semibold text-neutral-700">Payouts</h2>
+  <h2 id="payouts-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Payouts</h2>
   <% if (payouts.length === 0) { %>
   <%- include('sites/admin/views/partials/empty', { message: 'No payouts yet.' }) %>
   <% } else { %>
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left">
       <caption class="sr-only">This seller's payouts</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Period</th>
           <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
           <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% payouts.forEach((payout) => { %>
         <tr data-payout="<%= payout.id %>">
           <td class="px-4 py-3"><%= payout.periodStart %> &ndash; <%= payout.periodEnd %></td>

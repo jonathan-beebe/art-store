@@ -1,50 +1,50 @@
 <div class="flex flex-wrap items-center gap-4">
   <h1 class="text-2xl font-semibold"><%= listing.title %></h1>
-  <p class="text-sm text-neutral-600">
+  <p class="text-sm text-neutral-600 dark:text-neutral-400">
     <span data-cell="status"><%= statusLabel(listing.status) %></span>
     &middot; <%= formatCents(listing.priceCents) %>
     &middot; <%= listing.quantity %> in stock
   </p>
   <div class="ml-auto flex items-center gap-2">
-    <a href="/seller/listings/<%= listing.id %>/edit" class="rounded border border-neutral-400 px-3 py-2 text-sm">Edit</a>
-    <a href="/seller/listings/<%= listing.id %>/faqs" class="rounded border border-neutral-400 px-3 py-2 text-sm">Questions &amp; answers</a>
+    <a href="/seller/listings/<%= listing.id %>/edit" class="rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2 text-sm">Edit</a>
+    <a href="/seller/listings/<%= listing.id %>/faqs" class="rounded border border-neutral-400 dark:border-neutral-600 px-3 py-2 text-sm">Questions &amp; answers</a>
     <%- include('../partials/status-buttons', { listing, transitions, statusButtons }) %>
   </div>
 </div>
 
 <% if (removal) { %>
-  <div role="alert" data-removal class="mt-4 rounded border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+  <div role="alert" data-removal class="mt-4 rounded border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-sm text-red-900 dark:text-red-200">
     <p class="font-medium">Removed by an admin (<span data-removal-kind="<%= removal.kind %>"><%= removal.kind %></span>)</p>
     <p class="mt-1" data-removal-reason><%= removal.reason %></p>
   </div>
 <% } %>
 
 <section aria-labelledby="totals-heading" class="mt-6">
-  <h2 id="totals-heading" class="font-semibold text-neutral-700">Totals</h2>
+  <h2 id="totals-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Totals</h2>
 
   <dl class="mt-2 grid grid-cols-3 gap-3">
-    <div class="rounded border border-neutral-300 bg-white p-4">
-      <dt class="text-sm text-neutral-600">Views</dt>
+    <div class="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <dt class="text-sm text-neutral-600 dark:text-neutral-400">Views</dt>
       <dd data-stat="views" class="mt-1 text-2xl font-semibold tabular-nums"><%= totals.views %></dd>
     </div>
-    <div class="rounded border border-neutral-300 bg-white p-4">
-      <dt class="text-sm text-neutral-600">Favorites</dt>
+    <div class="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <dt class="text-sm text-neutral-600 dark:text-neutral-400">Favorites</dt>
       <dd data-stat="favorites" class="mt-1 text-2xl font-semibold tabular-nums"><%= totals.favorites %></dd>
     </div>
-    <div class="rounded border border-neutral-300 bg-white p-4">
-      <dt class="text-sm text-neutral-600">Cart adds</dt>
+    <div class="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4">
+      <dt class="text-sm text-neutral-600 dark:text-neutral-400">Cart adds</dt>
       <dd data-stat="cart_adds" class="mt-1 text-2xl font-semibold tabular-nums"><%= totals.cartAdds %></dd>
     </div>
   </dl>
 </section>
 
 <section aria-labelledby="daily-heading" class="mt-6">
-  <h2 id="daily-heading" class="font-semibold text-neutral-700">Last <%= days.length %> days</h2>
+  <h2 id="daily-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Last <%= days.length %> days</h2>
 
-  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+  <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
     <table class="w-full text-left text-sm">
       <caption class="sr-only">Daily views, favorites, and cart adds</caption>
-      <thead class="border-b border-neutral-300 bg-neutral-50">
+      <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
         <tr>
           <th scope="col" class="px-4 py-2 font-semibold">Day</th>
           <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
@@ -52,7 +52,7 @@
           <th scope="col" class="px-4 py-2 text-right font-semibold">Cart adds</th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-neutral-200">
+      <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
         <% days.forEach(function (day) { %>
           <tr data-day="<%= day.day %>">
             <th scope="row" class="px-4 py-2 font-normal"><%= formatDay(day.day) %></th>
@@ -67,15 +67,15 @@
 </section>
 
 <section aria-labelledby="sales-heading" class="mt-6">
-  <h2 id="sales-heading" class="font-semibold text-neutral-700">Sales</h2>
+  <h2 id="sales-heading" class="font-semibold text-neutral-700 dark:text-neutral-300">Sales</h2>
 
   <% if (sales.length === 0) { %>
-    <p class="mt-2 rounded border border-neutral-300 bg-white p-4 text-neutral-600">No sales yet.</p>
+    <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">No sales yet.</p>
   <% } else { %>
-    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
       <table class="w-full text-left text-sm">
         <caption class="sr-only">Orders containing this listing</caption>
-        <thead class="border-b border-neutral-300 bg-neutral-50">
+        <thead class="border-b border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50">
           <tr>
             <th scope="col" class="px-4 py-2 font-semibold">Order</th>
             <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
@@ -84,7 +84,7 @@
             <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-neutral-200">
+        <tbody class="divide-y divide-neutral-200 dark:divide-neutral-800">
           <% sales.forEach(function (sale) { %>
             <tr data-sale="<%= sale.orderId %>">
               <th scope="row" class="px-4 py-2 font-normal"><%= sale.orderId %></th>
