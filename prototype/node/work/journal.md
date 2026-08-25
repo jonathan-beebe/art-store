@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:08:28:00 — IMPRV-015 — done: rendered pages reuse compiled templates outside development; test and production renders skip include re-reads and recompiles
+- 2026-08-25:08:16:14 — IMPRV-015 — started
 - 2026-08-25:08:13:45 — IMPRV-014 — done: customer and cart reads run outside transactions; the unread hook runs after identity, so the cookie resolves once per request
 - 2026-08-25:07:53:39 — IMPRV-014 — started
 - 2026-08-25:07:46:35 — IMPRV-013 — done: badge count and mark-read are single SQL statements over a partial unread index; message history stays unloaded

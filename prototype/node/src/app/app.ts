@@ -118,7 +118,25 @@ export function buildApp({
 
   // Templates are addressed from the app root, so a site layout reaches the
   // shared partials by the same path every other template uses.
-  app.register(fastifyView, { engine: { ejs }, root: APP_ROOT, viewExt: 'ejs' })
+  //
+  // Caching is keyed off config.environment, not NODE_ENV, so a config that
+  // runs like production (the test config included) caches like it too.
+  // `production` turns on @fastify/view's LRU of compiled pages; `maxCache`
+  // sizes it above the default 100 because each rendered template holds two
+  // cache keys and the app has 71 templates. `options.cache` reaches EJS's
+  // own compiler, which is what makes `include()` reuse its compiled-template
+  // cache instead of re-reading and recompiling on every render. Development
+  // stays uncached because `node --watch` does not watch `.ejs` files, so a
+  // live template edit is only picked up through the re-read.
+  const cachesTemplates = config.environment !== 'development'
+  app.register(fastifyView, {
+    engine: { ejs },
+    root: APP_ROOT,
+    viewExt: 'ejs',
+    production: cachesTemplates,
+    maxCache: 500,
+    options: { cache: cachesTemplates },
+  })
 
   // Every plugin below decorates or hooks the root instance, and a site
   // inherits the root's hooks as they stand when its own context is built —
