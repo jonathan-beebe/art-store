@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:10:11:21 — IMPRV-019 — done: admin orders/customers/listings/outbox and seller orders/earnings/notifications read 25-row pages through `core/paging/list-page.ts` and a shared pager partial; `standing`/`removed` filters run in SQL with equivalence tests; order rows drop shipping columns and outbox rows drop bodies; seller order groups show true per-status totals from one GROUP BY; spread-append groupings and the customer-orders title rollup are single-pass Maps; orders gains a (status, placed_at) index; payouts stay unbounded by choice; reviewer: accept, three minors fixed; `make check` green, coverage 99.44/95.82/99.44
+- 2026-08-25:09:40:18 — IMPRV-019 — started
 - 2026-08-25:09:37:33 — IMPRV-018 — done: money-page balances are `SUM(CASE entry_type ...)` aggregates in `ledger-balances.ts` (per-seller, one-seller, platform), the refund bucket keyed by a time-bounded released-EXISTS a new partial index feeds; seller-accounts lifetime/refund sums, platform fee/refund totals, and the verified-customer count moved to SQL too; `ledgerBalance` stays the pure spec with 14 characterization tests pinning the SQL to it; 1942 -> 1952 tests, coverage 99.45/95.86/99.43; reviewer: accept, no defects
 - 2026-08-25:09:04:18 — IMPRV-018 — started
 - 2026-08-25:09:01:29 — IMPRV-017 — done: cart and checkout resolve listing removals in one `listingId in (...)` read; `cartContents` stamps `hasActiveRemoval` on each line and `placeOrder` consumes that answer, dropping `withRemovals` from the checkout transaction

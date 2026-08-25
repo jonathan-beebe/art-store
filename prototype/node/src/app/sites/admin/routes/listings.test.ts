@@ -120,6 +120,29 @@ test('GET /admin/listings defaults to showing removed and visible listings, and 
   assert.doesNotMatch(visibleOnly.body, /Removed one/)
 })
 
+test('a full page of listings shows 25 and a link to the next page, which shows the rest', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  const context = { db: testApp.db, clock: testApp.clock }
+  const sellerId = await createSeller(context)
+
+  for (let i = 0; i < 27; i += 1) {
+    await createListing(context, sellerId, { title: `Piece ${i}` })
+  }
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/admin/listings', cookies: admin.cookies })
+  assert.equal((firstPage.body.match(/data-listing="/g) ?? []).length, 25)
+  assert.match(firstPage.body, /page=2/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/listings?page=2',
+    cookies: admin.cookies,
+  })
+  assert.equal((secondPage.body.match(/data-listing="/g) ?? []).length, 2)
+})
+
 test('GET /admin/listings/:id shows the listing, its seller, and its removal history', async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

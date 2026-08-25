@@ -3,11 +3,11 @@
 <% groups.forEach(function (group) { %>
   <section aria-labelledby="group-<%= group.status %>" data-group="<%= group.status %>" class="mt-6">
     <h2 id="group-<%= group.status %>" class="font-semibold text-neutral-700 dark:text-neutral-300">
-      <%= statusLabel(group.status) %> (<%= group.fulfillments.length %>)
+      <%= statusLabel(group.status) %> (<%= counts.get(group.status) ?? 0 %>)
     </h2>
 
     <% if (group.fulfillments.length === 0) { %>
-      <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400">Nothing here.</p>
+      <p class="mt-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-4 text-neutral-600 dark:text-neutral-400"><%= (counts.get(group.status) ?? 0) === 0 ? 'Nothing here.' : 'None on this page.' %></p>
     <% } else { %>
       <div class="mt-2 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">
         <table class="w-full text-left text-sm">
@@ -39,3 +39,5 @@
     <% } %>
   </section>
 <% }); %>
+
+<%- include('views/partials/pager', { page, basePath: '/seller/orders', query: '', param: 'page' }) %>

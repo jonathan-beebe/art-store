@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { newId } from '../../../ids.ts'
-import { orderRows } from './order-rows.ts'
+import { countOrderRows, orderRows } from './order-rows.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
 import {
@@ -14,6 +14,8 @@ import {
   SHIPPING_ADDRESS,
 } from '../../../test/commerce-world.ts'
 
+const FULL_PAGE = { offset: 0, limit: 100 }
+
 test('an order rolls up its item count, money, and fulfillment statuses', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
@@ -23,7 +25,7 @@ test('an order rolls up its item count, money, and fulfillment statuses', async 
   const listing = await createListing(world.context, sellerId, { priceCents: 45_000 })
   const order = await paidOrder(world.context, customerId, [listing.id])
 
-  const rows = await orderRows(world.context)
+  const rows = await orderRows(world.context, {}, FULL_PAGE)
 
   assert.deepEqual(rows, [
     {
@@ -67,7 +69,7 @@ test('an order with no email on file carries a null customer email', async (t) =
     })
     .execute()
 
-  const rows = await orderRows(world.context)
+  const rows = await orderRows(world.context, {}, FULL_PAGE)
 
   assert.equal(rows[0]?.customerEmail, null)
 })
@@ -94,7 +96,7 @@ test('a multi-seller order rolls up more than one fulfillment status', async (t)
     trackingNumber: 'RM1',
   })
 
-  const rows = await orderRows(world.context)
+  const rows = await orderRows(world.context, {}, FULL_PAGE)
 
   assert.deepEqual(
     rows[0]?.fulfillmentStatuses.slice().sort(),
@@ -111,7 +113,7 @@ test('an order with several units of one listing counts every unit', async (t) =
   const listing = await createListing(world.context, sellerId, { quantity: 5 })
   const order = await paidOrder(world.context, customerId, [listing.id, listing.id])
 
-  const rows = await orderRows(world.context)
+  const rows = await orderRows(world.context, {}, FULL_PAGE)
 
   assert.equal(rows.find((row) => row.id === order.id)?.itemCount, 2)
 })
@@ -127,7 +129,7 @@ test('filters by status', async (t) => {
   const other = await createListing(world.context, sellerId)
   await placedOrder(world.context, customerId, [other.id])
 
-  const rows = await orderRows(world.context, { status: 'paid' })
+  const rows = await orderRows(world.context, { status: 'paid' }, FULL_PAGE)
 
   assert.deepEqual(rows.map((row) => row.id), [paid.id])
 })
@@ -144,7 +146,7 @@ test('filters by customer', async (t) => {
   const other = await createListing(world.context, sellerId)
   const wanted = await placedOrder(world.context, second, [other.id])
 
-  const rows = await orderRows(world.context, { customerId: second })
+  const rows = await orderRows(world.context, { customerId: second }, FULL_PAGE)
 
   assert.deepEqual(rows.map((row) => row.id), [wanted.id])
 })
@@ -160,7 +162,48 @@ test('newest orders come first', async (t) => {
   const listingB = await createListing(world.context, sellerId)
   const second = await placedOrder(world.context, customerId, [listingB.id])
 
-  const rows = await orderRows(world.context)
+  const rows = await orderRows(world.context, {}, FULL_PAGE)
 
   assert.deepEqual(rows.map((row) => row.id), [second.id, first.id])
+})
+
+test('the page offset and limit slice the ordered rows', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await createSeller(world.context)
+  const customerId = await createCustomer(world.context)
+  const orders = []
+  for (let i = 0; i < 3; i += 1) {
+    const listing = await createListing(world.context, sellerId)
+    orders.push(await placedOrder(world.context, customerId, [listing.id]))
+  }
+  // Newest first, so a page of two holds the last two placed.
+  const [oldest, middle, newest] = orders
+
+  const firstPage = await orderRows(world.context, {}, { offset: 0, limit: 2 })
+  assert.deepEqual(firstPage.map((row) => row.id), [newest?.id, middle?.id])
+
+  const secondPage = await orderRows(world.context, {}, { offset: 2, limit: 2 })
+  assert.deepEqual(secondPage.map((row) => row.id), [oldest?.id])
+})
+
+test('countOrderRows counts every order matching the filters, not just the page', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+
+  const sellerId = await createSeller(world.context)
+  const customerId = await createCustomer(world.context)
+  for (let i = 0; i < 3; i += 1) {
+    const listing = await createListing(world.context, sellerId)
+    await placedOrder(world.context, customerId, [listing.id])
+  }
+  const paidListing = await createListing(world.context, sellerId)
+  await paidOrder(world.context, customerId, [paidListing.id])
+
+  assert.equal(await countOrderRows(world.context), 4)
+  assert.equal(await countOrderRows(world.context, { status: 'paid' }), 1)
+
+  const page = await orderRows(world.context, {}, { offset: 0, limit: 2 })
+  assert.equal(page.length, 2)
 })

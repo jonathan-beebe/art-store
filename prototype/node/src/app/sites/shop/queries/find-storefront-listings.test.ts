@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { listingPage } from '../../../core/shop/listing-page.ts'
+import { listPage } from '../../../core/paging/list-page.ts'
 import type { ListingSearch } from '../../../core/shop/listing-search.ts'
 import {
   createListing,
@@ -16,7 +16,7 @@ import {
 const NO_SEARCH: ListingSearch = { term: null, medium: null }
 
 function pageOf(totalCount: number, requested: string | number | null = null, size = 12) {
-  return listingPage({ requested, size, totalCount })
+  return listPage({ requested, size, totalCount })
 }
 
 test('it shows only for-sale listings with no active removal, newest first', async (t) => {
@@ -106,7 +106,7 @@ test('a page past the end comes back empty', async (t) => {
   const sellerId = await createSeller(world.context)
   await createListing(world.context, sellerId, { title: 'Only One' })
 
-  // `listingPage` clamps an out-of-range request to the last real page, so an
+  // `listPage` clamps an out-of-range request to the last real page, so an
   // offset past the end is reached directly, the way a stale bookmark would.
   const listings = await findStorefrontListings(world.db, {
     search: NO_SEARCH,

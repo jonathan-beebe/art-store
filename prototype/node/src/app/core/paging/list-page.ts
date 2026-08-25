@@ -1,6 +1,6 @@
-/** Which slice of a listing grid a visitor is looking at, and the two numbers a
+/** Which slice of a list or table a viewer is looking at, and the two numbers a
  * query needs to fetch it. */
-export type ListingPage = {
+export type ListPage = {
   number: number
   size: number
   totalCount: number
@@ -26,11 +26,11 @@ function clamp(value: number, low: number, high: number): number {
  * `requested` arrives from a query string, so anything that is not a page of
  * this collection lands on the nearest one that is.
  */
-export function listingPage(input: {
+export function listPage(input: {
   requested: string | number | null | undefined
   size: number
   totalCount: number
-}): ListingPage {
+}): ListPage {
   const { requested, size, totalCount } = input
 
   if (!Number.isInteger(size) || size < 1) {

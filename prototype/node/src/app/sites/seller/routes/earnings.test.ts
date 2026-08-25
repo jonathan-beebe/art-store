@@ -60,6 +60,48 @@ test('each sale carries its subtotal, fee, net, and status', async (t) => {
   assert.match(response.body, row)
 })
 
+test('the sales and movements tables page independently at 25', async (t) => {
+  const testApp = await buildTestApp()
+  t.after(testApp.close)
+  const seller = await signInAsSeller(testApp)
+  const fulfillments = []
+  for (let i = 0; i < 26; i += 1) {
+    fulfillments.push(await createFulfillment(testApp, seller.id))
+  }
+  const newestFulfillment = fulfillments.at(-1)!
+  const oldestFulfillment = fulfillments[0]!
+
+  const firstPage = await testApp.app.inject({ method: 'GET', url: '/seller/earnings', cookies: seller.cookies })
+
+  assert.equal(firstPage.statusCode, 200)
+  assert.equal((firstPage.body.match(/data-fulfillment="/g) ?? []).length, 25)
+  assert.equal((firstPage.body.match(/data-movement="/g) ?? []).length, 25)
+  assert.match(firstPage.body, new RegExp(`data-fulfillment="${newestFulfillment.id}"`))
+  assert.doesNotMatch(firstPage.body, new RegExp(`data-fulfillment="${oldestFulfillment.id}"`))
+  assert.match(firstPage.body, /href="\/seller\/earnings\?movements_page=1&amp;sales_page=2"/)
+  assert.match(firstPage.body, /href="\/seller\/earnings\?sales_page=1&amp;movements_page=2"/)
+
+  const secondSalesPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/earnings?sales_page=2',
+    cookies: seller.cookies,
+  })
+
+  assert.equal((secondSalesPage.body.match(/data-fulfillment="/g) ?? []).length, 1)
+  assert.match(secondSalesPage.body, new RegExp(`data-fulfillment="${oldestFulfillment.id}"`))
+  // The movements table stays on page one while only the sales page moved.
+  assert.equal((secondSalesPage.body.match(/data-movement="/g) ?? []).length, 25)
+
+  const secondMovementsPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/seller/earnings?movements_page=2',
+    cookies: seller.cookies,
+  })
+
+  assert.equal((secondMovementsPage.body.match(/data-movement="/g) ?? []).length, 1)
+  assert.equal((secondMovementsPage.body.match(/data-fulfillment="/g) ?? []).length, 25)
+})
+
 test("another seller's sales and balances stay off the page", async (t) => {
   const testApp = await buildTestApp()
   t.after(testApp.close)

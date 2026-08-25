@@ -1,12 +1,16 @@
 import type { FulfillmentId, OrderId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { AppDatabase } from '../../../db/database.ts'
+import { toCount } from '../../../db/count.ts'
 import type { Fulfillment, Order, OrderItem, Refund } from '../../../db/commerce-schema.ts'
+import type { FulfillmentStatus } from '../../../core/orders/fulfillment-status.ts'
+import type { ListPage } from '../../../core/paging/list-page.ts'
 
 export type FulfillmentWithOrder = Fulfillment & { shippingName: string; placedAt: Order['placedAt'] }
 
 export async function fulfillmentsForSeller(
   db: AppDatabase,
   sellerId: SellerId,
+  page: Pick<ListPage, 'offset' | 'limit'>,
 ): Promise<readonly FulfillmentWithOrder[]> {
   return db
     .selectFrom('fulfillments')
@@ -16,7 +20,25 @@ export async function fulfillmentsForSeller(
     .where('fulfillments.sellerId', '=', sellerId)
     .orderBy('fulfillments.createdAt', 'desc')
     .orderBy('fulfillments.id', 'desc')
+    .offset(page.offset)
+    .limit(page.limit)
     .execute()
+}
+
+/** How many of a seller's fulfillments sit in each status, for a pager total
+ * and for group headings that must count beyond the page in view. */
+export async function fulfillmentCountsByStatus(
+  db: AppDatabase,
+  sellerId: SellerId,
+): Promise<ReadonlyMap<FulfillmentStatus, number>> {
+  const rows = await db
+    .selectFrom('fulfillments')
+    .select(['status', (eb) => eb.fn.countAll<string | number | bigint>().as('count')])
+    .where('sellerId', '=', sellerId)
+    .groupBy('status')
+    .execute()
+
+  return new Map(rows.map((row) => [row.status, toCount(row.count)]))
 }
 
 export async function awaitingShipmentCount(db: AppDatabase, sellerId: SellerId): Promise<number> {
@@ -99,7 +121,12 @@ export async function itemTitlesByOrder(
     .execute()
 
   for (const row of rows) {
-    byOrder.set(row.orderId, [...(byOrder.get(row.orderId) ?? []), row.title])
+    const titles = byOrder.get(row.orderId)
+    if (titles === undefined) {
+      byOrder.set(row.orderId, [row.title])
+    } else {
+      titles.push(row.title)
+    }
   }
 
   return byOrder

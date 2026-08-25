@@ -38,8 +38,18 @@ export async function findCustomerOrders(
     .orderBy('id')
     .execute()
 
+  const titlesByOrder = new Map<OrderId, string[]>()
+  for (const item of items) {
+    const titles = titlesByOrder.get(item.orderId)
+    if (titles === undefined) {
+      titlesByOrder.set(item.orderId, [item.title])
+    } else {
+      titles.push(item.title)
+    }
+  }
+
   return orders.map((order) => ({
     ...order,
-    titles: items.filter((item) => item.orderId === order.id).map((item) => item.title),
+    titles: titlesByOrder.get(order.id) ?? [],
   }))
 }

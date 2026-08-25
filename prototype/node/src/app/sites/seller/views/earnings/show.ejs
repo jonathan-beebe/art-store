@@ -56,6 +56,8 @@
         </tbody>
       </table>
     </div>
+
+    <%- include('views/partials/pager', { page: salesPage, basePath: '/seller/earnings', query: salesQuery, param: 'sales_page' }) %>
   <% } %>
 </section>
 
@@ -86,6 +88,8 @@
         </tbody>
       </table>
     </div>
+
+    <%- include('views/partials/pager', { page: movementsPage, basePath: '/seller/earnings', query: movementsQuery, param: 'movements_page' }) %>
   <% } %>
 </section>
 
