@@ -12,22 +12,36 @@ class SeedsTest < ActiveSupport::TestCase
     assert admins.all? { |admin| admin.email_verified_at.present? }
   end
 
-  test "it seeds four verified sellers" do
-    assert_equal 4, Seller.count
-    assert_equal 4, Seller.where.not(email_verified_at: nil).count
+  test "it seeds six verified sellers" do
+    assert_equal 6, Seller.count
+    assert_equal 6, Seller.where.not(email_verified_at: nil).count
   end
 
   test "it seeds listings across statuses and media" do
     for_sale = Listing.where(status: "for_sale")
 
-    assert_equal 24, for_sale.count
+    assert_equal 32, for_sale.count
     assert_equal 3, Listing.where(status: "draft").count
     assert_equal 2, Listing.where(status: "sold").count
-    assert_equal %w[ceramic painting photography print sculpture textile], for_sale.distinct.order(:medium).pluck(:medium)
+    assert_equal %w[ceramic curio jewelry painting photography plant print publication sculpture textile],
+      for_sale.distinct.order(:medium).pluck(:medium)
+  end
+
+  test "it seeds two wizarding sellers with a live catalog" do
+    sellers = Seller.where(email: [ "neville@example.com", "luna@example.com" ])
+
+    assert_equal 2, sellers.count
+    assert sellers.all? { |seller| seller.email_verified_at.present? && seller.shop_name.present? }
+
+    listings = Listing.where(seller_id: sellers.select(:id))
+
+    assert_equal 8, listings.count
+    assert listings.all? { |listing| listing.status == "for_sale" }
+    assert_equal %w[curio jewelry plant publication], listings.distinct.order(:medium).pluck(:medium)
   end
 
   test "it seeds one verified customer with favorites and view history" do
-    customer = Customer.find_by(email: "casey@example.com")
+    customer = Customer.find_by(email: "hermione@example.com")
 
     assert customer.present?
     assert customer.email_verified_at.present?
@@ -105,6 +119,6 @@ class SeedsTest < ActiveSupport::TestCase
   test "it does not duplicate data on a second run" do
     Rails.application.load_seed
 
-    assert_equal 4, Seller.count
+    assert_equal 6, Seller.count
   end
 end

@@ -8,21 +8,21 @@ module Seeds
     APPROVED_CARD = "4242424242424242"
 
     SHIPPING = {
-      shipping_name: "Casey Whitfield", shipping_line1: "48 Harbor Street", shipping_line2: nil,
-      shipping_city: "Portland", shipping_region: "Oregon", shipping_postal_code: "97201",
-      shipping_country: "US"
+      shipping_name: "Hermione Granger", shipping_line1: "12 Heathgate", shipping_line2: nil,
+      shipping_city: "London", shipping_region: "Hampstead", shipping_postal_code: "NW11 7EB",
+      shipping_country: "GB"
     }.freeze
 
     def create_all
-      customer = Customer.find_by!(email: Seeds::Customers::CASEY_EMAIL)
+      customer = Customer.find_by!(email: Seeds::Customers::HERMIONE_EMAIL)
 
-      place_and_pay(customer, "Ash-Glazed Tea Bowl", Time.utc(2026, 7, 6, 9, 0, 0))
+      place_and_pay(customer, "Burrow Kitchen Tea Bowl", Time.utc(2026, 7, 6, 9, 0, 0))
 
-      shipped = place_and_pay(customer, "Kitchen Table, Late Morning", Time.utc(2026, 7, 7, 9, 0, 0))
-      ship(shipped, "UPS", "1Z999AA10123456784", Time.utc(2026, 7, 8, 9, 0, 0))
+      shipped = place_and_pay(customer, "Gryffindor Common Room, Late Morning", Time.utc(2026, 7, 7, 9, 0, 0))
+      ship(shipped, "Owl Post", "OWL-2263-1187-GB", Time.utc(2026, 7, 8, 9, 0, 0))
 
-      delivered = place_and_pay(customer, "Standing Figure in Reclaimed Oak", Time.utc(2026, 7, 6, 11, 0, 0))
-      ship(delivered, "USPS", "9400111899223197428490", Time.utc(2026, 7, 8, 10, 0, 0))
+      delivered = place_and_pay(customer, "Garden Gnome in Reclaimed Oak", Time.utc(2026, 7, 6, 11, 0, 0))
+      ship(delivered, "Knight Bus Parcel", "KB-9400-1189-2231", Time.utc(2026, 7, 8, 10, 0, 0))
       deliver(delivered, Time.utc(2026, 7, 10, 14, 0, 0))
 
       Payout.run_weekly(as_of: Time.utc(2026, 7, 16, 9, 0, 0))

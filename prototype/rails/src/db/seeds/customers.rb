@@ -5,26 +5,26 @@ module Seeds
   module Customers
     module_function
 
-    CASEY_EMAIL = "casey@example.com"
+    HERMIONE_EMAIL = "hermione@example.com"
     VERIFIED_AT = Time.utc(2026, 6, 1)
 
     FAVORITE_TITLES = [
-      "Woodfired Vase, Tall",
-      "Quarry at First Light",
-      "Handwoven Mohair Throw"
+      "Divination Tower Vase, Tall",
+      "The Orchard at First Light",
+      "House Scarf Throw, Scarlet and Gold"
     ].freeze
 
     VIEWED_TITLES = [
-      "Woodfired Vase, Tall",
-      "Quarry at First Light",
-      "Handwoven Mohair Throw",
-      "Ash-Glazed Tea Bowl",
-      "Kitchen Table, Late Morning",
-      "Standing Figure in Reclaimed Oak"
+      "Divination Tower Vase, Tall",
+      "The Orchard at First Light",
+      "House Scarf Throw, Scarlet and Gold",
+      "Burrow Kitchen Tea Bowl",
+      "Gryffindor Common Room, Late Morning",
+      "Garden Gnome in Reclaimed Oak"
     ].freeze
 
     def create_all
-      customer = Customer.create!(email: CASEY_EMAIL, name: "Casey Whitfield", email_verified_at: VERIFIED_AT)
+      customer = Customer.create!(email: HERMIONE_EMAIL, name: "Hermione Granger", email_verified_at: VERIFIED_AT)
 
       record_views(customer)
       record_favorites(customer)
