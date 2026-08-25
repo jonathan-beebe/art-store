@@ -13,6 +13,11 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
+    // Persists the type-check program graph on the bind mount so repeated
+    // `tsc --noEmit` runs skip files whose dependencies are unchanged.
+    "incremental": true,
+    "tsBuildInfoFile": ".cache/tsconfig.tsbuildinfo",
+
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

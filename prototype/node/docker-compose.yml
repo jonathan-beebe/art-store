@@ -14,6 +14,9 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 4000
+      # On the bind mount so every process — the 252 test-runner children
+      # included — shares V8 compile artifacts across runs and containers.
+      NODE_COMPILE_CACHE: /var/www/src/.cache/node-compile-cache
     command: ["node", "--watch", "app/server.ts"]
     healthcheck:
       # No curl in the image — node:sqlite already requires Node's own fetch.
