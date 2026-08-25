@@ -95,15 +95,22 @@ export function buildApp({
   // repeated or bracketed field name means, and deciding that by hand is a
   // larger question than the few lines it would save.
   app.register(fastifyFormbody)
-  app.register(fastifyStatic, { root: PUBLIC_ROOT, prefix: '/' })
+  // app.css and app.js keep their names across deploys, so five minutes is
+  // the window a browser may serve a stale copy after one. Without a max-age
+  // the browser revalidates the render-blocking stylesheet on every
+  // navigation, and the page paints blank white for that round trip.
+  app.register(fastifyStatic, { root: PUBLIC_ROOT, prefix: '/', maxAge: '5m' })
   // A more specific prefix than the root registration above, so it wins for
   // anything under /uploads/ — the only place a browser-uploaded file is
   // served from. nosniff stops a browser from executing a served file as
-  // script no matter what content type it guesses.
+  // script no matter what content type it guesses. An upload's UUID name is
+  // never rewritten, so a served file can be cached as immutable.
   app.register(fastifyStatic, {
     root: config.uploadsDir,
     prefix: '/uploads/',
     decorateReply: false,
+    maxAge: '7d',
+    immutable: true,
     setHeaders: (reply) => {
       reply.header('X-Content-Type-Options', 'nosniff')
     },

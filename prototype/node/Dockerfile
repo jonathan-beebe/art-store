@@ -65,6 +65,10 @@ COPY src/package.json src/package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY --chown=node:node src/app ./app
+# The tracked static files (app.js and whatever joins it) — .dockerignore
+# keeps the built app.css, uploads, and storage out of the context, so the
+# build stage's app.css lands separately below.
+COPY --chown=node:node src/public ./public
 COPY --chown=node:node --from=build /var/www/src/public/app.css ./public/app.css
 
 # DATABASE_FILE and UPLOADS_DIR default into these two directories; both must

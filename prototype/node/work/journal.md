@@ -10,10 +10,12 @@
 - MAINT: 3
 - A11Y: 1
 - RFCTR: 5
-- BUG: 8
+- BUG: 9
 
 ## Log
 
+- 2026-08-24:22:25:00 — BUG-008 — done: runtime stage copies `src/public` (bringing the tracked `app.js` all three layouts load), and the static registrations gained cache headers — `maxAge: '5m'` for the unversioned `app.css`/`app.js` whose `max-age=0` revalidation painted a white flash on every navigation, `7d` immutable for the UUID-named uploads; verified in a built image (`/app.js` 200, cache-control present) and `make check` green
+- 2026-08-24:22:22:00 — BUG-008 — defined: production image ships no /app.js — runtime stage never copies src/public
 - 2026-08-25:02:00:00 — FEAT-018 — done (fix-up): MAINT-002's audit found three admin filter inputs still `type="number"` against `cus_`/`sel_` text ids (orders, fulfillments, and listings — the third unnamed in the report) and the ledger still rendering `#${fulfillmentId}`/`#${payoutId}`; all four fixed, value-echo tests added for the two filters that lacked them. 1915 -> 1917 tests, ec45f4e
 - 2026-08-25:01:30:00 — MAINT-002 — done: 30 doc mismatches found by an independent per-file audit and fixed across architecture/data-model/admin/messaging/ontology/review and the README; `make fresh` taught to tolerate a stack that was never up; a listing removed after being cart-added now shows as unavailable on the cart and drops out of the total; validation from a clean tree — `make check` 1915 pass 99.43/95.92/99.50, 74 GET routes walked live with zero unexpected non-2xx/3xx and no 5xx or error-level log lines, the hook proved refusing a failing commit, `make smoke` 8/8, `make docs-check` 21/21, sweep/payouts/outbox clean, seeded ids sorting in creation order across 8 tables
 - 2026-08-24:22:10:00 — MAINT-002 — started
