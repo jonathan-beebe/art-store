@@ -40,11 +40,12 @@ Messaging and the FAQ loop are the two features added to this prototype's scope 
 
 ### Tables (migration `20260823000008-create-messaging.ts`, row types in `app/db/commerce-schema.ts`)
 
-| Table | Columns |
-| --- | --- |
-| `conversations` | `id`, `kind` (`admin_seller` \| `admin_customer` \| `fulfillment` \| `listing_question`), `seller_id?`, `customer_id?`, `admin_id?`, `listing_id?`, `fulfillment_id?`, `created_at`, `last_message_at` |
-| `messages` | `id`, `conversation_id`, `sender_type` (`seller` \| `customer` \| `admin`), `sender_id`, `body`, `sent_at`, `read_at?` |
-| `listing_faqs` | `id`, `listing_id`, `question`, `answer`, `source_message_id?`, `published_at` |
+| Table           | Columns                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `conversations` | `id`, `kind` (`admin_seller` \| `admin_customer` \| `fulfillment` \| `listing_question`), `seller_id?`, `customer_id?`,          |
+|                 | `admin_id?`, `listing_id?`, `fulfillment_id?`, `created_at`, `last_message_at`                                                   |
+| `messages`      | `id`, `conversation_id`, `sender_type` (`seller` \| `customer` \| `admin`), `sender_id`, `body`, `sent_at`, `read_at?`           |
+| `listing_faqs`  | `id`, `listing_id`, `question`, `answer`, `source_message_id?`, `published_at`                                                   |
 
 Indexes: one per participant column paired with `last_message_at` (an inbox is
 `where <participant> = ? order by last_message_at desc`), `(kind, listing_id,
@@ -53,18 +54,22 @@ fulfillment_id)` for the find-or-open lookup, `(conversation_id, id)` on
 
 ### Core (`app/core/messaging/`)
 
-| Module | Exports |
-| --- | --- |
-| `conversation-kind.ts` | `CONVERSATION_KINDS`, `ConversationKind`, `isConversationKind`, `participantColumn`, `participantColumnsOf`, `subjectColumnOf`, `admitsActor` |
-| `conversation-subject.ts` | `ConversationSubject`, `ConversationOpening`, `conversationSubject`, `missingConversationParts`, `isSameConversationSubject` |
-| `conversation-access.ts` | `ConversationActor`, `ConversationParticipants`, `ConversationAccess`, `conversationAccess`, `isConversationParticipant`, `otherParticipants` |
-| `conversation-plan.ts` | `ConversationPlan`, `planConversation` |
-| `conversation-path.ts` | `conversationPath`, `inboxPath` |
-| `conversation-topic.ts` | `conversationTopic` |
-| `participant-name.ts` | `customerName` |
-| `unread-messages.ts` | `ReadMarker`, `isUnreadBy`, `unreadCountsByConversation`, `totalUnreadMessages` |
-| `message-body.ts` | `MESSAGE_BODY_MAX_LENGTH` (2000), `messageBodyError`, `parseMessageBody` |
-| `faq-draft.ts` | `FAQ_QUESTION_MAX_LENGTH` (500), `FAQ_ANSWER_MAX_LENGTH` (2000), `FaqDraftFields`, `FaqDraftErrors`, `FaqDraft`, `faqDraftErrors`, `parseFaqDraft` |
+| Module                    | Exports                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `conversation-kind.ts`    | `CONVERSATION_KINDS`, `ConversationKind`, `isConversationKind`, `participantColumn`, `participantColumnsOf`,           |
+|                           | `subjectColumnOf`, `admitsActor`                                                                                       |
+| `conversation-subject.ts` | `ConversationSubject`, `ConversationOpening`, `conversationSubject`, `missingConversationParts`,                       |
+|                           | `isSameConversationSubject`                                                                                            |
+| `conversation-access.ts`  | `ConversationActor`, `ConversationParticipants`, `ConversationAccess`, `conversationAccess`,                           |
+|                           | `isConversationParticipant`, `otherParticipants`                                                                       |
+| `conversation-plan.ts`    | `ConversationPlan`, `planConversation`                                                                                 |
+| `conversation-path.ts`    | `conversationPath`, `inboxPath`                                                                                        |
+| `conversation-topic.ts`   | `conversationTopic`                                                                                                    |
+| `participant-name.ts`     | `customerName`                                                                                                         |
+| `unread-messages.ts`      | `ReadMarker`, `isUnreadBy`, `unreadCountsByConversation`, `totalUnreadMessages`                                        |
+| `message-body.ts`         | `MESSAGE_BODY_MAX_LENGTH` (2000), `messageBodyError`, `parseMessageBody`                                               |
+| `faq-draft.ts`            | `FAQ_QUESTION_MAX_LENGTH` (500), `FAQ_ANSWER_MAX_LENGTH` (2000), `FaqDraftFields`, `FaqDraftErrors`, `FaqDraft`,       |
+|                           | `faqDraftErrors`, `parseFaqDraft`                                                                                      |
 
 ### Action signatures (`app/actions/messaging/`)
 
@@ -93,38 +98,38 @@ senderName(message, names): string
 
 Seller portal (`app/sites/seller/routes/messages.ts`, `faqs.ts`, `orders.ts`), all behind `requireSeller`:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/seller/messages` | Inbox: counterpart, topic, preview, unread count, newest first |
-| GET | `/seller/messages/:id` | Thread; marks it read; offers "Publish as FAQ" when the thread has a listing |
-| POST | `/seller/messages/:id` | Reply |
-| GET | `/seller/support` | Finds or opens the `admin_seller` thread and redirects to it |
-| POST | `/seller/orders/:id/messages` | `:id` is a `fulfillments.id`; finds or opens the `fulfillment` thread |
-| GET | `/seller/listings/:id/faqs` | Published entries with an edit form and an unpublish button |
-| POST | `/seller/listings/:id/faqs` | Publish |
-| POST | `/seller/listings/:id/faqs/:faqId` | Update |
-| POST | `/seller/listings/:id/faqs/:faqId/unpublish` | Unpublish |
+| Method | Path                                         | Purpose                                                                      |
+| ------ | -------------------------------------------- | ---------------------------------------------------------------------------- |
+| GET    | `/seller/messages`                           | Inbox: counterpart, topic, preview, unread count, newest first               |
+| GET    | `/seller/messages/:id`                       | Thread; marks it read; offers "Publish as FAQ" when the thread has a listing |
+| POST   | `/seller/messages/:id`                       | Reply                                                                        |
+| GET    | `/seller/support`                            | Finds or opens the `admin_seller` thread and redirects to it                 |
+| POST   | `/seller/orders/:id/messages`                | `:id` is a `fulfillments.id`; finds or opens the `fulfillment` thread        |
+| GET    | `/seller/listings/:id/faqs`                  | Published entries with an edit form and an unpublish button                  |
+| POST   | `/seller/listings/:id/faqs`                  | Publish                                                                      |
+| POST   | `/seller/listings/:id/faqs/:faqId`           | Update                                                                       |
+| POST   | `/seller/listings/:id/faqs/:faqId/unpublish` | Unpublish                                                                    |
 
 Storefront (`app/sites/shop/routes/messages.ts`), inside `storefrontRoutes`, no verified-customer guard:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/messages` | Inbox |
-| GET | `/messages/:id` | Thread; marks it read; the reply form is absent while `mayPost` is false |
-| POST | `/messages/:id` | Reply |
-| POST | `/art/:slug/questions` | Ask the seller — anonymous customers included; lands on the new thread |
-| GET | `/support` | Finds or opens the `admin_customer` thread |
-| POST | `/orders/:id/fulfillments/:fulfillmentId/messages` | Finds or opens the `fulfillment` thread |
+| Method | Path                                               | Purpose                                                                  |
+| ------ | -------------------------------------------------- | ------------------------------------------------------------------------ |
+| GET    | `/messages`                                        | Inbox                                                                    |
+| GET    | `/messages/:id`                                    | Thread; marks it read; the reply form is absent while `mayPost` is false |
+| POST   | `/messages/:id`                                    | Reply                                                                    |
+| POST   | `/art/:slug/questions`                             | Ask the seller — anonymous customers included; lands on the new thread   |
+| GET    | `/support`                                         | Finds or opens the `admin_customer` thread                               |
+| POST   | `/orders/:id/fulfillments/:fulfillmentId/messages` | Finds or opens the `fulfillment` thread                                  |
 
 Admin site (`app/sites/admin/routes/messages.ts`), inside `adminConsoleRoutes`:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/admin/messages` | Inbox |
-| GET | `/admin/messages/:id` | Thread; marks it read |
-| POST | `/admin/messages/:id` | Reply |
-| POST | `/admin/sellers/:id/messages` | "Message seller" from the seller page |
-| POST | `/admin/customers/:id/messages` | "Message customer" from the customer page |
+| Method | Path                            | Purpose                                   |
+| ------ | ------------------------------- | ----------------------------------------- |
+| GET    | `/admin/messages`               | Inbox                                     |
+| GET    | `/admin/messages/:id`           | Thread; marks it read                     |
+| POST   | `/admin/messages/:id`           | Reply                                     |
+| POST   | `/admin/sellers/:id/messages`   | "Message seller" from the seller page     |
+| POST   | `/admin/customers/:id/messages` | "Message customer" from the customer page |
 
 A conversation id naming a thread the actor is not in, and a non-numeric id, answer 404 on
 every read and write above — the storefront through its shared not-found page, the other two

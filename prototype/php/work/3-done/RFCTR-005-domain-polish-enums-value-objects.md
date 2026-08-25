@@ -55,13 +55,13 @@ Six Blade files dropped their `@use` and call `$status->label()`;
 
 ### Where each question moved
 
-| Question | Was | Now |
-| --- | --- | --- |
-| Does this listing have a public page? | `ListingAvailability::isOnStorefront($status)` | `ListingStatus::isOnStorefront()` |
-| Can a card still carry this order to paid? | `OrderPayment::awaitsPayment($status)` | `OrderStatus::awaitsPayment()` |
-| Does a retry have to take the stock again? | `match` in `FinalizeOrder` | `OrderStatus::retakesStockOnRetry()` |
-| Can this listing be bought right now? | `ListingAvailability::isPurchasable($status, $quantity)` | unchanged — two inputs |
-| May this person pay this order? | `OrderPayment::isPayableBy($status, $verified)` | unchanged — two inputs |
+| Question                                   | Was                                                      | Now                                  |
+| ------------------------------------------ | -------------------------------------------------------- | ------------------------------------ |
+| Does this listing have a public page?      | `ListingAvailability::isOnStorefront($status)`           | `ListingStatus::isOnStorefront()`    |
+| Can a card still carry this order to paid? | `OrderPayment::awaitsPayment($status)`                   | `OrderStatus::awaitsPayment()`       |
+| Does a retry have to take the stock again? | `match` in `FinalizeOrder`                               | `OrderStatus::retakesStockOnRetry()` |
+| Can this listing be bought right now?      | `ListingAvailability::isPurchasable($status, $quantity)` | unchanged — two inputs               |
+| May this person pay this order?            | `OrderPayment::isPayableBy($status, $verified)`          | unchanged — two inputs               |
 
 The retry rule went on the enum rather than into
 `OrderPayment::retakesStockOnRetry(OrderStatus)` as the guidance offered: it
@@ -113,13 +113,13 @@ dependency-injection ones on actions, middleware, and the delivery adapter.
 
 20 sites, each verified against `vendor/laravel/framework` before it was added:
 
-| Site | Parent declaration |
-| --- | --- |
-| `casts()` on 13 models | `HasAttributes::casts()`, inherited through `Model` |
-| `definition()` on 3 factories | `Factory::definition()` (abstract) |
-| `register()` on `AppServiceProvider` | `ServiceProvider::register()` |
-| `deliver()` on both delivery implementations | `MagicLinkDelivery` interface |
-| `messages()` on `ListingRequest` | `FormRequest::messages()` |
+| Site                                         | Parent declaration                                  |
+| -------------------------------------------- | --------------------------------------------------- |
+| `casts()` on 13 models                       | `HasAttributes::casts()`, inherited through `Model` |
+| `definition()` on 3 factories                | `Factory::definition()` (abstract)                  |
+| `register()` on `AppServiceProvider`         | `ServiceProvider::register()`                       |
+| `deliver()` on both delivery implementations | `MagicLinkDelivery` interface                       |
+| `messages()` on `ListingRequest`             | `FormRequest::messages()`                           |
 
 `messages()` is the 20th, past the ticket's count of 19: `FormRequest` declares
 it at `FormRequest.php:372`. Not added, because the parent does not declare

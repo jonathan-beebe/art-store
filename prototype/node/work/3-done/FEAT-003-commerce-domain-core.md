@@ -43,17 +43,29 @@ Port `prototype/rails/src/app/domain/**` (with its sidecar tests — they are th
 
 **Core** (`app/core/**`, pure, sidecar-tested, no database):
 
-| Folder | Modules |
-| --- | --- |
-| `listings/` | `listing-status` (`LISTING_STATUS_TRANSITIONS`, `canTransitionListing`, `transitionListing`), `listing-availability` (`isOnStorefront`, `isPurchasable`), `listing-stock` (`stockAfterSale`, `stockAfterRestock`, `stockAfter`), `stock-change`, `listing-draft` (`listingDraftErrors`, `parseListingDraft`), `listing-slug` (`slugBase`, `firstFreeSlug`), `listing-event-type`, `listing-view-window` (`viewWindowStart`, `isRecordedOncePerHour`), `favorite-change`, `placeholder-image` (`placeholderImageSvg`, `placeholderImageDataUri`, `listingImageSource`) |
-| `cart/` | `cart-line` (`createCartLine`, `cartLineTotal`), `cart-quantity` (`quantityWithinStock`), `cart-totals` (`cartTotals`, `checkoutTotals`) |
-| `orders/` | `order-status` (transitions incl. `cancelled`, `orderStatusForPlacement`, `orderStatusAfterVerification`, `orderStatusFromCardDecision`, `orderStatusFromFulfillments`, `isCancellable`), `fulfillment-status` (+`hasDeparted`), `order-stock` (`holdsStock`, `stockChangeBetween`), `payment-attempt` (`paymentAttemptFor`, `settledFulfillments`), `order-payment` (`awaitsCard`, `isUnpaid`, `isPayable`), `shipment-details`, `shipping-address` (`missingAddressParts`), `purchaser` |
-| `payments/` | `fake-card` (`decideCard`), `card-decision`, `decline-reason`, `payment-status` |
-| `escrow/` | `fee` (`platformFee`, `sellerNet`, 10%), `ledger-entry-type`, `ledger-movement` (`holdMovement`, `releaseMovement`, `payoutMovement`), `ledger-balance` (`ledgerBalance`, `isPayable`), `payout-period` (`payoutPeriodEndingBefore`, `payoutPeriodEndsAt`, `payoutPeriodCovers`, `payoutPeriodLabel`) |
-| `notifications/` | `notification-message` (`itemSoldMessage`, `orderShippedMessage`, `newMessageMessage`), `recipient-type`, `notification-delivery` (port type) |
-| `moderation/` | `listing-removal` (`activeRemoval`, `canLiftRemoval`), `customer-standing` (`customerStanding`, `canShop`) |
-| `analytics/` | `page-view` (`isCountablePageView`, `pageViewDay`) |
-| (root) | `transition-error` (`TransitionError`), `money` (FEAT-001) |
+| Folder           | Modules                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `listings/`      | `listing-status` (`LISTING_STATUS_TRANSITIONS`, `canTransitionListing`, `transitionListing`), `listing-availability`            |
+|                  | (`isOnStorefront`, `isPurchasable`), `listing-stock` (`stockAfterSale`, `stockAfterRestock`, `stockAfter`), `stock-change`,     |
+|                  | `listing-draft` (`listingDraftErrors`, `parseListingDraft`), `listing-slug` (`slugBase`, `firstFreeSlug`),                      |
+|                  | `listing-event-type`, `listing-view-window` (`viewWindowStart`, `isRecordedOncePerHour`), `favorite-change`,                    |
+|                  | `placeholder-image` (`placeholderImageSvg`, `placeholderImageDataUri`, `listingImageSource`)                                    |
+| `cart/`          | `cart-line` (`createCartLine`, `cartLineTotal`), `cart-quantity` (`quantityWithinStock`), `cart-totals` (`cartTotals`,          |
+|                  | `checkoutTotals`)                                                                                                               |
+| `orders/`        | `order-status` (transitions incl. `cancelled`, `orderStatusForPlacement`, `orderStatusAfterVerification`,                       |
+|                  | `orderStatusFromCardDecision`, `orderStatusFromFulfillments`, `isCancellable`), `fulfillment-status` (+`hasDeparted`),          |
+|                  | `order-stock` (`holdsStock`, `stockChangeBetween`), `payment-attempt` (`paymentAttemptFor`, `settledFulfillments`),             |
+|                  | `order-payment` (`awaitsCard`, `isUnpaid`, `isPayable`), `shipment-details`, `shipping-address` (`missingAddressParts`),        |
+|                  | `purchaser`                                                                                                                     |
+| `payments/`      | `fake-card` (`decideCard`), `card-decision`, `decline-reason`, `payment-status`                                                 |
+| `escrow/`        | `fee` (`platformFee`, `sellerNet`, 10%), `ledger-entry-type`, `ledger-movement` (`holdMovement`, `releaseMovement`,             |
+|                  | `payoutMovement`), `ledger-balance` (`ledgerBalance`, `isPayable`), `payout-period` (`payoutPeriodEndingBefore`,                |
+|                  | `payoutPeriodEndsAt`, `payoutPeriodCovers`, `payoutPeriodLabel`)                                                                |
+| `notifications/` | `notification-message` (`itemSoldMessage`, `orderShippedMessage`, `newMessageMessage`), `recipient-type`,                       |
+|                  | `notification-delivery` (port type)                                                                                             |
+| `moderation/`    | `listing-removal` (`activeRemoval`, `canLiftRemoval`), `customer-standing` (`customerStanding`, `canShop`)                      |
+| `analytics/`     | `page-view` (`isCountablePageView`, `pageViewDay`)                                                                              |
+| (root)           | `transition-error` (`TransitionError`), `money` (FEAT-001)                                                                      |
 
 **Tables** (migrations `20260823000001`..`20260823000007`, row types in `app/db/commerce-schema.ts`):
 `listings`, `listing_events`, `favorites`, `listing_removals`, `carts`, `cart_items`,

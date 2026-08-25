@@ -31,23 +31,27 @@ Three site tickets follow and all of them read these rules. Landing the schema, 
 
 Tables:
 
-| Table | Columns |
-| --- | --- |
-| `conversations` | `id`, `kind` (string: `admin_seller` / `admin_customer` / `fulfillment` / `listing_question`), `subject_key` (string), `seller_id` (FK nullable), `customer_id` (FK nullable), `admin_id` (FK nullable), `listing_id` (FK nullable), `fulfillment_id` (FK nullable), `last_message_at` (timestamp), timestamps |
-| `messages` | `id`, `conversation_id` (FK, cascade), `sender_type` (string, morph alias), `sender_id`, `body` (text), `sent_at` (timestamp), `read_at` (timestamp, nullable), timestamps |
-| `listing_faqs` | `id`, `listing_id` (FK, cascade), `question` (string), `answer` (text), `source_message_id` (FK nullable, `nullOnDelete`), `published_at` (timestamp, not null), timestamps |
+| Table           | Columns                                                                                                                          |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `conversations` | `id`, `kind` (string: `admin_seller` / `admin_customer` / `fulfillment` / `listing_question`), `subject_key` (string),           |
+|                 | `seller_id` (FK nullable), `customer_id` (FK nullable), `admin_id` (FK nullable), `listing_id` (FK nullable), `fulfillment_id`   |
+|                 | (FK nullable), `last_message_at` (timestamp), timestamps                                                                         |
+| `messages`      | `id`, `conversation_id` (FK, cascade), `sender_type` (string, morph alias), `sender_id`, `body` (text), `sent_at` (timestamp),   |
+|                 | `read_at` (timestamp, nullable), timestamps                                                                                      |
+| `listing_faqs`  | `id`, `listing_id` (FK, cascade), `question` (string), `answer` (text), `source_message_id` (FK nullable, `nullOnDelete`),       |
+|                 | `published_at` (timestamp, not null), timestamps                                                                                 |
 
 Named indexes:
 
-| Index | Table and columns | Why |
-| --- | --- | --- |
-| `conversations_subject_key_unique` | unique `(subject_key)` | find-or-open under contention |
-| `conversations_seller_inbox_index` | `(seller_id, last_message_at)` | the seller inbox query |
-| `conversations_customer_inbox_index` | `(customer_id, last_message_at)` | the storefront inbox query |
-| `conversations_admin_inbox_index` | `(admin_id, last_message_at)` | the admin inbox query |
-| `messages_thread_index` | `(conversation_id, id)` | a thread read in order |
-| `messages_unread_index` | `(conversation_id, read_at)` | the unread scope |
-| `listing_faqs_listing_index` | `(listing_id, id)` | the published list on a listing |
+| Index                                | Table and columns                | Why                             |
+| ------------------------------------ | -------------------------------- | ------------------------------- |
+| `conversations_subject_key_unique`   | unique `(subject_key)`           | find-or-open under contention   |
+| `conversations_seller_inbox_index`   | `(seller_id, last_message_at)`   | the seller inbox query          |
+| `conversations_customer_inbox_index` | `(customer_id, last_message_at)` | the storefront inbox query      |
+| `conversations_admin_inbox_index`    | `(admin_id, last_message_at)`    | the admin inbox query           |
+| `messages_thread_index`              | `(conversation_id, id)`          | a thread read in order          |
+| `messages_unread_index`              | `(conversation_id, read_at)`     | the unread scope                |
+| `listing_faqs_listing_index`         | `(listing_id, id)`               | the published list on a listing |
 
 - `subject_key` exists because SQL treats `null` as distinct in a unique index, so a composite unique over the five nullable id columns would not stop a duplicate `admin_seller` row. The key is the domain's (`ConversationSubject::subjectKey()`); `Conversation::firstOrCreate(['subject_key' => …], […columns…])` is the write. Keep the id columns populated beside it — the inbox queries and the merge read them.
 - `app/Domain/Messaging/` holds the pure parts: `ConversationKind` (enum: `participantColumns()`, `subjectColumn()`, `admits(ActorType)`, `topic(...)`), `ConversationSubject` (`final readonly`, private constructor, one named factory per kind, `subjectKey()`, `columns()`), `MessageBody` and `FaqDraft` (value objects carrying `MAX_LENGTH` / `QUESTION_MAX_LENGTH` / `ANSWER_MAX_LENGTH`). No `Illuminate`, no clock, no facades — `tests/Arch.php` enforces it.

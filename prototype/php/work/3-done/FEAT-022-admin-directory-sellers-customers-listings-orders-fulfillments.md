@@ -31,18 +31,19 @@ Node's `docs/admin.md` (on `main`) is the reference for pages, filters, and the 
 Built, one page at a time, each with its route, filter scopes, Blade view and
 sidecar test:
 
-| Path | What it shows |
-| --- | --- |
-| `GET /admin/sellers` | counts as before, plus held / available / paid out folded from one read of the ledger |
-| `GET /admin/sellers/{seller}` | listings, fulfillments, payouts, escrow balance |
-| `GET /admin/customers?standing=all\|verified\|anonymous\|blocked` | anonymous rows included; order, favorite and cart-line counts |
-| `GET /admin/customers/{customer}` | orders, favorites, cart, block history, merge history |
-| `GET /admin/listings?status=&seller=` | every listing across every seller |
-| `GET /admin/listings/{listing}` | detail with view / favorite / cart-add counts and every order line it sold on |
-| `GET /admin/orders?status=&customer=` | every order with customer, item count, total |
-| `GET /admin/orders/{order}` | items, payment attempts, fulfillments |
-| `GET /admin/fulfillments?status=&seller=` | every fulfillment with order and seller |
-| `GET /admin/fulfillments/{fulfillment}` | lines, money, ledger entries |
+| Path                                                              | What it shows                                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /admin/sellers`                                              | counts as before, plus held / available / paid out folded from one read of the |
+|                                                                   | ledger                                                                         |
+| `GET /admin/sellers/{seller}`                                     | listings, fulfillments, payouts, escrow balance                                |
+| `GET /admin/customers?standing=all\|verified\|anonymous\|blocked` | anonymous rows included; order, favorite and cart-line counts                  |
+| `GET /admin/customers/{customer}`                                 | orders, favorites, cart, block history, merge history                          |
+| `GET /admin/listings?status=&seller=`                             | every listing across every seller                                              |
+| `GET /admin/listings/{listing}`                                   | detail with view / favorite / cart-add counts and every order line it sold on  |
+| `GET /admin/orders?status=&customer=`                             | every order with customer, item count, total                                   |
+| `GET /admin/orders/{order}`                                       | items, payment attempts, fulfillments                                          |
+| `GET /admin/fulfillments?status=&seller=`                         | every fulfillment with order and seller                                        |
+| `GET /admin/fulfillments/{fulfillment}`                           | lines, money, ledger entries                                                   |
 
 `docs/admin.md` is written and linked from `docs/README.md`; it carries the
 page table, the one-guard / one-404 diagram, and the folded-balance sequence.

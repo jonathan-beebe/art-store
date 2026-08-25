@@ -52,11 +52,11 @@ paid_out  = −paid_out
 The three timings of `docs/alignment.md` §4.2, for one $450.00 sale
 (`net` $405.00), each verified by a test in `test/models/ledger_entry_test.rb`:
 
-| Timing | Entries | held | available | paid out |
-| --- | --- | --- | --- | --- |
-| Refund before release | `held +40500`, `refunded −40500` | $0.00 | $0.00 | $0.00 |
-| Refund after release | `held +40500`, `released +40500`, `refunded −40500` | $0.00 | $0.00 | $0.00 |
-| Refund after payout | the three above plus `paid_out −40500` | $0.00 | **−$405.00** | $405.00 |
+| Timing                | Entries                                             | held  | available    | paid out |
+| --------------------- | --------------------------------------------------- | ----- | ------------ | -------- |
+| Refund before release | `held +40500`, `refunded −40500`                    | $0.00 | $0.00        | $0.00    |
+| Refund after release  | `held +40500`, `released +40500`, `refunded −40500` | $0.00 | $0.00        | $0.00    |
+| Refund after payout   | the three above plus `paid_out −40500`              | $0.00 | **−$405.00** | $405.00  |
 
 A refund before release reverses the hold and nothing becomes available. A
 refund after release takes the money back out of what was available, so a
@@ -118,12 +118,18 @@ held / available / paid-out balance and their payout history only.
 
 A $100.00 listing, one unit, one seller, no other activity that period.
 
-| Step | Action | `ledger_entries` written | Seller balance |
-| --- | --- | --- | --- |
-| Order placed, card approved | `Order#pay!`: `Fulfillment.fee_for($100.00)` = $10.00, `Fulfillment.net_for($100.00)` = $90.00 (computed at placement); `LedgerEntry.hold` | `held +9000` | held $90.00, available $0.00 |
-| Customer confirms delivery | `Fulfillment#deliver!`: `LedgerEntry.release` | `released +9000` | held $0.00, available $90.00 |
-| `payouts:run` (period ends) | `Payout.run_weekly`: balance is payable, pays $90.00; `LedgerEntry.pay_out` | `paid_out -9000` | available $0.00, paid out $90.00 lifetime |
-| An admin refunds the dispute | `Fulfillment#refund!` → `Refund.issue` → `LedgerEntry.refund` | `refunded -9000` | available −$90.00, carried to the next run |
+| Step                         | Action                                      | `ledger_entries` written | Seller balance                             |
+| ---------------------------- | ------------------------------------------- | ------------------------ | ------------------------------------------ |
+| Order placed, card approved  | `Order#pay!`:                               | `held +9000`             | held $90.00, available $0.00               |
+|                              | `Fulfillment.fee_for($100.00)` = $10.00,    |                          |                                            |
+|                              | `Fulfillment.net_for($100.00)` = $90.00     |                          |                                            |
+|                              | (computed at placement); `LedgerEntry.hold` |                          |                                            |
+| Customer confirms delivery   | `Fulfillment#deliver!`:                     | `released +9000`         | held $0.00, available $90.00               |
+|                              | `LedgerEntry.release`                       |                          |                                            |
+| `payouts:run` (period ends)  | `Payout.run_weekly`: balance is payable,    | `paid_out -9000`         | available $0.00, paid out $90.00 lifetime  |
+|                              | pays $90.00; `LedgerEntry.pay_out`          |                          |                                            |
+| An admin refunds the dispute | `Fulfillment#refund!` → `Refund.issue` →    | `refunded -9000`         | available −$90.00, carried to the next run |
+|                              | `LedgerEntry.refund`                        |                          |                                            |
 
 `Fulfillment.fee_for` is 10% of the item subtotal
 (`Fulfillment::PLATFORM_FEE_PERCENT`), taken off the top; `net = subtotal −

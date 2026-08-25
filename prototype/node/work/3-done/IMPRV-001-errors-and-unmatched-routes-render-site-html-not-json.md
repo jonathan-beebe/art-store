@@ -21,12 +21,12 @@ Any anonymous visitor reaches this on the storefront's own sign-in form. No stac
 
 `app.ts` registers no `setErrorHandler` and no `setNotFoundHandler` anywhere in the tree. Verified against the running app:
 
-| Request | Answer |
-| --- | --- |
-| `GET /definitely-not-a-route` | `404 application/json` `{"message":"Route GET:/definitely-not-a-route not found",…}` |
-| `GET /seller/nope` (signed in) | `404 application/json`, same shape |
-| `GET /admin/sellers/99999` (`reply.callNotFound()`) | `404 application/json`, same shape |
-| any 500 | `application/json` |
+| Request                                             | Answer                                                                               |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GET /definitely-not-a-route`                       | `404 application/json` `{"message":"Route GET:/definitely-not-a-route not found",…}` |
+| `GET /seller/nope` (signed in)                      | `404 application/json`, same shape                                                   |
+| `GET /admin/sellers/99999` (`reply.callNotFound()`) | `404 application/json`, same shape                                                   |
+| any 500                                             | `application/json`                                                                   |
 
 `sites/shop/views/not-found.ejs` exists but is only reachable through `renderNotFound` on routes that already matched. Mistyping a storefront URL gets a JSON blob, not the styled page.
 

@@ -52,24 +52,72 @@ flowchart TD
     js["app/javascript/application.js\n(importmap: application, @hotwired/turbo-rails)"] --> cable
 ```
 
-| Lives in | Holds |
-| --- | --- |
-| `app/models/` | Active Record records — associations, scopes, enums, validations, and the behaviour that belongs to a record (`MagicLink.issue`, `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`, `Order.place`, `Order#pay!`, `Order#cancel!`, `Order.sweep_stale`, `Fulfillment#ship!`, `Fulfillment#deliver!`, `Fulfillment#decline!`, `Fulfillment#refund!`, `Refund.issue`, `Listing#remove!`, `Listing#lift_removal!`, `Customer#block!`, `Customer#lift_block!`, `Payout.run_weekly`, `Listing#take_stock!`, `Listing#record_event!`, `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`, `ListingFaq.publish`, `PageViewCount.record!`) — alongside the plain Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`, `FakeCard`, `PlaceholderImage`, `TransitionError`, `PlatformMoney`, `SellerAccount`, `OrderPlacement`, `CustomerMergePlan`, and the nested `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`, `Conversation::Kind`, `Conversation::Side`. `Refund`, `ListingRemoval` and `CustomerBlock` are ordinary Active Record records alongside the rest. A value object takes time and ids as arguments and touches no database. Two modules of plain class methods sit beside them rather than inside any one record: `Tally` folds a `group by` over an enum's full, declared-order key list so a status with no rows still shows as zero, and `PageView` answers what counts as traffic, which day and which of the three sites a route pattern belongs to — kept pure (plain strings and numbers in, an answer out) so `PageViewRollup` and its tests ask it the same three questions. `app/models/concerns/email_address.rb` carries the address normalisation the three accounts share, and `app/models/concerns/messaging.rb` the threads, sent messages and unread count they all carry, and `app/models/concerns/prefixed_id.rb` names the prefix each table mints its ids under. |
-| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/` | Read params, call a model, redirect or render. Own no domain `if`s — a branch reads a record predicate or a shell fact (signed in, empty cart, missing row). `MessagingSite` is the inbox, thread and reply the three sites share, over the assigns `ThreadPage` names; `SellerThreadPage` adds the portal's publish-as-FAQ form to those assigns, which is what lets a refused entry come back on the thread it was lifted from. `PageViewRollup`, included once on `ApplicationController`, rolls one hit into `page_view_counts` after every response — see [`admin.md`](admin.md). |
-| `app/mailers/` | `MagicLinkMailer` and its views. |
-| `app/views/`, `app/helpers/` | ERB templates and the view helpers: `ApplicationHelper` (`status_label`, `money`, `customer_standing`) and `ShopHelper` (the storefront header's cart and notification counts). The partials a broadcast renders live here too, one per site: `{shop,seller,admin}/conversations/_message` and `_unread_badge`. |
-| `app/javascript/` | `application.js` — one `import "@hotwired/turbo-rails"` and nothing else. `config/importmap.rb` pins it and the Turbo the gem ships; `javascript_importmap_tags` in the three layouts serves the map. No bundler, no Node, no Stimulus. |
-| `lib/` | `prefixed_ulid.rb` mints and parses the prefixed ULID every table is keyed by, and hands `config/routes.rb` the segment constraints that turn away a path carrying another table's id. `lib/tasks/` holds the rake tasks. |
-| `config/routes.rb`, `config/initializers/*`, `config/cable.yml`, `config/importmap.rb` | Wiring only. |
+| Lives in                                                                | Holds                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `app/models/`                                                           | Active Record records — associations, scopes, enums, validations, and    |
+|                                                                         | the behaviour that belongs to a record (`MagicLink.issue`,               |
+|                                                                         | `Seller.claim`, `Customer#absorb`, `Cart#add`, `Listing.search`,         |
+|                                                                         | `Order.place`, `Order#pay!`, `Order#cancel!`, `Order.sweep_stale`,       |
+|                                                                         | `Fulfillment#ship!`, `Fulfillment#deliver!`, `Fulfillment#decline!`,     |
+|                                                                         | `Fulfillment#refund!`, `Refund.issue`, `Listing#remove!`,                |
+|                                                                         | `Listing#lift_removal!`, `Customer#block!`, `Customer#lift_block!`,      |
+|                                                                         | `Payout.run_weekly`, `Listing#take_stock!`, `Listing#record_event!`,     |
+|                                                                         | `Conversation.open`, `Conversation#post!`, `Conversation#read_by!`,      |
+|                                                                         | `ListingFaq.publish`, `PageViewCount.record!`) — alongside the plain     |
+|                                                                         | Ruby value objects they fold into: `Money`, `Page`, `PayoutPeriod`,      |
+|                                                                         | `FakeCard`, `PlaceholderImage`, `TransitionError`, `PlatformMoney`,      |
+|                                                                         | `SellerAccount`, `OrderPlacement`, `CustomerMergePlan`, and the nested   |
+|                                                                         | `LedgerEntry::Balance`, `ListingEvent::Totals`, `ListingEvent::Day`,     |
+|                                                                         | `Conversation::Kind`, `Conversation::Side`. `Refund`, `ListingRemoval`   |
+|                                                                         | and `CustomerBlock` are ordinary Active Record records alongside the     |
+|                                                                         | rest. A value object takes time and ids as arguments and touches no      |
+|                                                                         | database. Two modules of plain class methods sit beside them rather than |
+|                                                                         | inside any one record: `Tally` folds a `group by` over an enum's full,   |
+|                                                                         | declared-order key list so a status with no rows still shows as zero,    |
+|                                                                         | and `PageView` answers what counts as traffic, which day and which of    |
+|                                                                         | the three sites a route pattern belongs to — kept pure (plain strings    |
+|                                                                         | and numbers in, an answer out) so `PageViewRollup` and its tests ask it  |
+|                                                                         | the same three questions. `app/models/concerns/email_address.rb` carries |
+|                                                                         | the address normalisation the three accounts share, and                  |
+|                                                                         | `app/models/concerns/messaging.rb` the threads, sent messages and unread |
+|                                                                         | count they all carry, and `app/models/concerns/prefixed_id.rb` names the |
+|                                                                         | prefix each table mints its ids under.                                   |
+| `app/controllers/<site>/`, `app/controllers/concerns/`, `lib/tasks/`    | Read params, call a model, redirect or render. Own no domain `if`s — a   |
+|                                                                         | branch reads a record predicate or a shell fact (signed in, empty cart,  |
+|                                                                         | missing row). `MessagingSite` is the inbox, thread and reply the three   |
+|                                                                         | sites share, over the assigns `ThreadPage` names; `SellerThreadPage`     |
+|                                                                         | adds the portal's publish-as-FAQ form to those assigns, which is what    |
+|                                                                         | lets a refused entry come back on the thread it was lifted from.         |
+|                                                                         | `PageViewRollup`, included once on `ApplicationController`, rolls one    |
+|                                                                         | hit into `page_view_counts` after every response — see                   |
+|                                                                         | [`admin.md`](admin.md).                                                  |
+| `app/mailers/`                                                          | `MagicLinkMailer` and its views.                                         |
+| `app/views/`, `app/helpers/`                                            | ERB templates and the view helpers: `ApplicationHelper` (`status_label`, |
+|                                                                         | `money`, `customer_standing`) and `ShopHelper` (the storefront header's  |
+|                                                                         | cart and notification counts). The partials a broadcast renders live     |
+|                                                                         | here too, one per site: `{shop,seller,admin}/conversations/_message` and |
+|                                                                         | `_unread_badge`.                                                         |
+| `app/javascript/`                                                       | `application.js` — one `import "@hotwired/turbo-rails"` and nothing      |
+|                                                                         | else. `config/importmap.rb` pins it and the Turbo the gem ships;         |
+|                                                                         | `javascript_importmap_tags` in the three layouts serves the map. No      |
+|                                                                         | bundler, no Node, no Stimulus.                                           |
+| `lib/`                                                                  | `prefixed_ulid.rb` mints and parses the prefixed ULID every table is     |
+|                                                                         | keyed by, and hands `config/routes.rb` the segment constraints that turn |
+|                                                                         | away a path carrying another table's id. `lib/tasks/` holds the rake     |
+|                                                                         | tasks.                                                                   |
+| `config/routes.rb`, `config/initializers/*`, `config/cable.yml`,        | Wiring only.                                                             |
+| `config/importmap.rb`                                                   |                                                                          |
 
 The gems outside stock Rails 8.1.3.1 on Ruby 3.3.12:
 
-| Gem | Version | What it brings |
-| --- | --- | --- |
-| `tailwindcss-rails` | 4.6.0 (tailwindcss 4.3.3) | The standalone Tailwind binary, so the image needs no Node. |
-| `turbo-rails` | 2.0.23 | Turbo Drive, `turbo_stream_from`, `broadcast_append_to` / `broadcast_replace_to`, `Turbo::StreamsChannel`, and the broadcast test helper. |
-| `importmap-rails` | 2.2.3 | `config/importmap.rb` and `javascript_importmap_tags`; two pins, no bundler. |
-| `solid_cable` | 4.0.2 | The Action Cable adapter that keeps broadcasts in `solid_cable_messages` in the application's own SQLite database. |
+| Gem                 | Version                   | What it brings                                                                                   |
+| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------ |
+| `tailwindcss-rails` | 4.6.0 (tailwindcss 4.3.3) | The standalone Tailwind binary, so the image needs no Node.                                      |
+| `turbo-rails`       | 2.0.23                    | Turbo Drive, `turbo_stream_from`, `broadcast_append_to` / `broadcast_replace_to`,                |
+|                     |                           | `Turbo::StreamsChannel`, and the broadcast test helper.                                          |
+| `importmap-rails`   | 2.2.3                     | `config/importmap.rb` and `javascript_importmap_tags`; two pins, no bundler.                     |
+| `solid_cable`       | 4.0.2                     | The Action Cable adapter that keeps broadcasts in `solid_cable_messages` in the application's    |
+|                     |                           | own SQLite database.                                                                             |
 
 Naming follows the `naming` skill: model methods are the verb a record answers
 to (`Order#pay!`, `Fulfillment#ship!`, `Payout.run_weekly`,
@@ -91,11 +139,14 @@ control, so an identified connection would add a file with nothing to say.
 
 ## Sites
 
-| Site | URL prefix | Session key | Theme |
-| --- | --- | --- | --- |
-| Seller portal | `/seller` | `session[:seller_id]` | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
-| Storefront | `/` | `session[:customer_id]` + signed cookie `customer_id` for the anonymous identity | Bright, open, white space, large imagery, brand recedes. |
-| Admin site | `/admin` | `session[:admin_id]` | Slate — dark chrome, tabular, the operator's view of both sides. |
+| Site          | URL prefix | Session key                                               | Theme                                                     |
+| ------------- | ---------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| Seller portal | `/seller`  | `session[:seller_id]`                                     | Stock Tailwind, system font, vanilla controls, dense and  |
+|               |            |                                                           | tool-focused.                                             |
+| Storefront    | `/`        | `session[:customer_id]` + signed cookie `customer_id` for | Bright, open, white space, large imagery, brand recedes.  |
+|               |            | the anonymous identity                                    |                                                           |
+| Admin site    | `/admin`   | `session[:admin_id]`                                      | Slate — dark chrome, tabular, the operator's view of both |
+|               |            |                                                           | sides.                                                    |
 
 Controllers: `Seller::*Controller` under `app/controllers/seller/`,
 `Shop::*Controller` under `app/controllers/shop/`, `Admin::*Controller` under
@@ -296,12 +347,12 @@ owns.
 
 `FakeCard.new(number)`:
 
-| Number | Decision |
-| --- | --- |
-| `4242 4242 4242 4242` | approved |
-| `4000 0000 0000 0002` | declined: generic decline |
-| `4000 0000 0000 9995` | declined: insufficient funds |
-| anything else | declined: invalid card number |
+| Number                | Decision                      |
+| --------------------- | ----------------------------- |
+| `4242 4242 4242 4242` | approved                      |
+| `4000 0000 0000 0002` | declined: generic decline     |
+| `4000 0000 0000 9995` | declined: insufficient funds  |
+| anything else         | declined: invalid card number |
 
 Spaces and dashes are ignored. Only the last four digits are stored.
 
@@ -336,15 +387,17 @@ read by name. A value is `<count>/<window>` (window `<n>s`, `<n>m`, or
 default. A value shaped like none of those refuses to boot, naming the
 variable and the value.
 
-| Name | Env | Default | Keyed by | Guards |
-| --- | --- | --- | --- | --- |
-| `magic_link_request` | `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m` | email (lowercased) and, separately, client ip | every sign-in `create` and guest checkout's implicit link |
-| `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip | `Auth::MagicLinksController#show` |
-| `message_post` | `RATE_LIMIT_MESSAGE_POST` | `30/1h` | actor id | `MessagingSite#create`, every site |
-| `conversation_open` | `RATE_LIMIT_CONVERSATION_OPEN` | `10/1h` | actor id | listing question, support, fulfillment thread opens |
-| `checkout` | `RATE_LIMIT_CHECKOUT` | `10/1h` | customer id | `Shop::CheckoutsController#create` |
-| `payment_attempt` | `RATE_LIMIT_PAYMENT_ATTEMPT` | `5/15m` | order id | `Shop::OrderPaymentsController#create` |
-| `listing_write` | `RATE_LIMIT_LISTING_WRITE` | `60/1h` | seller id | `Seller::ListingsController#create`/`#update` |
+| Name                 | Env                             | Default  | Keyed by                              | Guards                                 |
+| -------------------- | ------------------------------- | -------- | ------------------------------------- | -------------------------------------- |
+| `magic_link_request` | `RATE_LIMIT_MAGIC_LINK_REQUEST` | `5/15m`  | email (lowercased) and, separately,   | every sign-in `create` and guest       |
+|                      |                                 |          | client ip                             | checkout's implicit link               |
+| `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip                             | `Auth::MagicLinksController#show`      |
+| `message_post`       | `RATE_LIMIT_MESSAGE_POST`       | `30/1h`  | actor id                              | `MessagingSite#create`, every site     |
+| `conversation_open`  | `RATE_LIMIT_CONVERSATION_OPEN`  | `10/1h`  | actor id                              | listing question, support, fulfillment |
+|                      |                                 |          |                                       | thread opens                           |
+| `checkout`           | `RATE_LIMIT_CHECKOUT`           | `10/1h`  | customer id                           | `Shop::CheckoutsController#create`     |
+| `payment_attempt`    | `RATE_LIMIT_PAYMENT_ATTEMPT`    | `5/15m`  | order id                              | `Shop::OrderPaymentsController#create` |
+| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | `Seller::ListingsController#create`/`#update` |
 
 `conversation_open` guards the five routes that open a thread from the
 customer or seller side: `Shop::ListingQuestionsController#create`,
@@ -427,21 +480,21 @@ from this prototype and a line from the Node or PHP one read the same.
 
 ### Payload
 
-| Field | Type | Always | Meaning |
-| --- | --- | --- | --- |
-| `ts` | string | yes | ISO-8601 UTC with milliseconds, `Z` suffix |
-| `level` | string | yes | `debug` \| `info` \| `warn` \| `error` |
-| `event` | string | yes | dotted name from the vocabulary below |
-| `phase` | string | yes | `will` \| `doing` \| `did` \| `refused` \| `failed` |
-| `msg` | string | yes | one human sentence, present tense for `will`, past for `did` |
-| `request_id` | string | on requests | one per HTTP request, echoed as `X-Request-Id` |
-| `session_id` | string | on requests | value of the `sid` cookie, `ses_<ulid>` |
-| `actor_type` | string | when known | `seller` \| `customer` \| `admin` \| `system` |
-| `actor_id` | string | when known | the actor's prefixed id |
-| `txn_id` | string | inside a unit of work | `txn_<ulid>`, shared by every line of one action |
-| `data` | object | when useful | entity ids and the small facts the line is about |
-| `error` | object | on `failed` | `type`, `message`, and `stack` in development |
-| `duration_ms` | number | on the ending line | wall time since the `will` line |
+| Field         | Type   | Always                | Meaning                                                      |
+| ------------- | ------ | --------------------- | ------------------------------------------------------------ |
+| `ts`          | string | yes                   | ISO-8601 UTC with milliseconds, `Z` suffix                   |
+| `level`       | string | yes                   | `debug` \| `info` \| `warn` \| `error`                       |
+| `event`       | string | yes                   | dotted name from the vocabulary below                        |
+| `phase`       | string | yes                   | `will` \| `doing` \| `did` \| `refused` \| `failed`          |
+| `msg`         | string | yes                   | one human sentence, present tense for `will`, past for `did` |
+| `request_id`  | string | on requests           | one per HTTP request, echoed as `X-Request-Id`               |
+| `session_id`  | string | on requests           | value of the `sid` cookie, `ses_<ulid>`                      |
+| `actor_type`  | string | when known            | `seller` \| `customer` \| `admin` \| `system`                |
+| `actor_id`    | string | when known            | the actor's prefixed id                                      |
+| `txn_id`      | string | inside a unit of work | `txn_<ulid>`, shared by every line of one action             |
+| `data`        | object | when useful           | entity ids and the small facts the line is about             |
+| `error`       | object | on `failed`           | `type`, `message`, and `stack` in development                |
+| `duration_ms` | number | on the ending line    | wall time since the `will` line                              |
 
 Redaction: no cookie values, tokens, card numbers, or email addresses reach
 `data`. An actor's id identifies them. A path segment holding a parameter
@@ -450,13 +503,29 @@ sign-in URL never appears whole.
 
 ### The pieces
 
-| Piece | File | What it does |
-| --- | --- | --- |
-| Formatter | `src/lib/json_log_formatter.rb` | Turns every record into one JSON line and fills in the fields from `Current`. Framework prose arrives as a string and is filed under `app.log`. |
-| Context | `src/app/models/current.rb` | `ActiveSupport::CurrentAttributes` holding `request_id`, `session_id`, `actor_type`, `actor_id`, `txn_id`. |
-| Story | `src/lib/story.rb` | `Story.tell(event, message, **data) { |story| … }` writes the `will` line, mints the `txn_id` if none is open, and writes the ending. `story.did` / `story.refused` say how it ended; a `TransitionError` or a failed validation becomes `refused` at info, anything else `failed` at error. |
-| Request | `src/app/controllers/concerns/request_story.rb` | An `around_action` on `ApplicationController`: resolves the three ids, names the actor, and writes `http.request` `will`/`did`. |
-| Silencing | `src/config/initializers/logging.rb` | Points every framework logger at `File::NULL`; `Rails::Rack::Logger` comes out of the middleware stack in `config/application.rb`. |
+| Piece     | File                                     | What it does                             |       |                                          |
+| --------- | ---------------------------------------- | ---------------------------------------- | ----- | ---------------------------------------- |
+| Formatter | `src/lib/json_log_formatter.rb`          | Turns every record into one JSON line    |       |                                          |
+|           |                                          | and fills in the fields from `Current`.  |       |                                          |
+|           |                                          | Framework prose arrives as a string and  |       |                                          |
+|           |                                          | is filed under `app.log`.                |       |                                          |
+| Context   | `src/app/models/current.rb`              | `ActiveSupport::CurrentAttributes`       |       |                                          |
+|           |                                          | holding `request_id`, `session_id`,      |       |                                          |
+|           |                                          | `actor_type`, `actor_id`, `txn_id`.      |       |                                          |
+| Story     | `src/lib/story.rb`                       | `Story.tell(event, message, **data) {    | story | … }` writes the `will` line, mints the   |
+|           |                                          |                                          |       | `txn_id` if none is open, and writes the |
+|           |                                          |                                          |       | ending. `story.did` / `story.refused`    |
+|           |                                          |                                          |       | say how it ended; a `TransitionError` or |
+|           |                                          |                                          |       | a failed validation becomes `refused` at |
+|           |                                          |                                          |       | info, anything else `failed` at error.   |
+| Request   | `src/app/controllers/concerns/request_story.rb` | An `around_action` on                    |       |                                          |
+|           |                                          | `ApplicationController`: resolves the    |       |                                          |
+|           |                                          | three ids, names the actor, and writes   |       |                                          |
+|           |                                          | `http.request` `will`/`did`.             |       |                                          |
+| Silencing | `src/config/initializers/logging.rb`     | Points every framework logger at         |       |                                          |
+|           |                                          | `File::NULL`; `Rails::Rack::Logger`      |       |                                          |
+|           |                                          | comes out of the middleware stack in     |       |                                          |
+|           |                                          | `config/application.rb`.                 |       |                                          |
 
 `request_id` is taken from an incoming `X-Request-Id` only when it matches
 `^[A-Za-z0-9_-]{1,64}$`; otherwise a `req_<ulid>` is minted. `session_id` is
@@ -493,33 +562,35 @@ wrote share another. All of them share the request's `request_id`.
 
 ### Event vocabulary
 
-| Event | Emitted by |
-| --- | --- |
-| `http.request` | every request (`will` on entry, `did` on response) |
-| `magic_link.request` | `MagicLinkSender#send_magic_link`; `refused` when the address is not an address |
-| `magic_link.consume` | `Auth::MagicLinksController#show`; `refused` on unknown, expired, used, or non-admin |
-| `customer.merge` | `Customer#absorb` |
-| `listing.create`, `listing.update` | `Seller::ListingsController` |
-| `listing.publish`, `listing.transition` | `Listing#transition_to!`; `publish` when the move is to `for_sale`, both carrying `status_from`/`status_to` |
-| `listing.view` | `Shop::ListingsController#show` |
-| `cart.add`, `cart.update`, `cart.remove` | `Cart#add` (`update` when the line is already in the cart) and `Cart#remove` |
-| `order.place` | `Order.place`; `refused` carries `blocked_lines` |
-| `order.pay` | `Order#pay!`; `refused` on a decline with `decline_reason` |
-| `fulfillment.ship`, `fulfillment.deliver` | `Fulfillment#ship!`, `#deliver!` |
-| `ledger.write` | every `LedgerEntry`, at `debug` |
-| `payout.run`, `payout.pay` | `Payout.run_weekly` and one `pay` per seller settled |
-| `conversation.open`, `message.post` | `Conversation.open`, `Conversation#post!` |
-| `faq.publish`, `faq.unpublish` | `ListingFaq.publish`, `ListingFaq#unpublish!` |
-| `notification.write`, `notification.deliver` | `Notification.deliver` and the transport hook |
-| `order.cancel` | `Order#cancel!` |
-| `order.sweep` | `Order.sweep_stale` |
-| `fulfillment.decline` | `Fulfillment#decline!` |
-| `refund.issue` | `Fulfillment#decline!` and `Fulfillment#refund!` |
-| `migrate.run`, `migrate.apply`, `seed.run` | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed` |
-| `app.boot`, `app.shutdown` | `src/config/initializers/logging.rb` |
-| `rate_limit.exceed` | `RateLimiting#render_rate_limit_trip`, at `warn`; see Rate limits above |
-| `moderation.remove_listing`, `moderation.lift_listing_removal` | `Listing#remove!`, `Listing#lift_removal!` |
-| `moderation.block_customer`, `moderation.lift_customer_block` | `Customer#block!`, `Customer#lift_block!` |
+| Event                                                          | Emitted by                                                                        |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `http.request`                                                 | every request (`will` on entry, `did` on response)                                |
+| `magic_link.request`                                           | `MagicLinkSender#send_magic_link`; `refused` when the address is not an address   |
+| `magic_link.consume`                                           | `Auth::MagicLinksController#show`; `refused` on unknown, expired, used, or        |
+|                                                                | non-admin                                                                         |
+| `customer.merge`                                               | `Customer#absorb`                                                                 |
+| `listing.create`, `listing.update`                             | `Seller::ListingsController`                                                      |
+| `listing.publish`, `listing.transition`                        | `Listing#transition_to!`; `publish` when the move is to `for_sale`, both carrying |
+|                                                                | `status_from`/`status_to`                                                         |
+| `listing.view`                                                 | `Shop::ListingsController#show`                                                   |
+| `cart.add`, `cart.update`, `cart.remove`                       | `Cart#add` (`update` when the line is already in the cart) and `Cart#remove`      |
+| `order.place`                                                  | `Order.place`; `refused` carries `blocked_lines`                                  |
+| `order.pay`                                                    | `Order#pay!`; `refused` on a decline with `decline_reason`                        |
+| `fulfillment.ship`, `fulfillment.deliver`                      | `Fulfillment#ship!`, `#deliver!`                                                  |
+| `ledger.write`                                                 | every `LedgerEntry`, at `debug`                                                   |
+| `payout.run`, `payout.pay`                                     | `Payout.run_weekly` and one `pay` per seller settled                              |
+| `conversation.open`, `message.post`                            | `Conversation.open`, `Conversation#post!`                                         |
+| `faq.publish`, `faq.unpublish`                                 | `ListingFaq.publish`, `ListingFaq#unpublish!`                                     |
+| `notification.write`, `notification.deliver`                   | `Notification.deliver` and the transport hook                                     |
+| `order.cancel`                                                 | `Order#cancel!`                                                                   |
+| `order.sweep`                                                  | `Order.sweep_stale`                                                               |
+| `fulfillment.decline`                                          | `Fulfillment#decline!`                                                            |
+| `refund.issue`                                                 | `Fulfillment#decline!` and `Fulfillment#refund!`                                  |
+| `migrate.run`, `migrate.apply`, `seed.run`                     | `src/lib/tasks/logging.rake`, around `db:migrate` and `db:seed`                   |
+| `app.boot`, `app.shutdown`                                     | `src/config/initializers/logging.rb`                                              |
+| `rate_limit.exceed`                                            | `RateLimiting#render_rate_limit_trip`, at `warn`; see Rate limits above           |
+| `moderation.remove_listing`, `moderation.lift_listing_removal` | `Listing#remove!`, `Listing#lift_removal!`                                        |
+| `moderation.block_customer`, `moderation.lift_customer_block`  | `Customer#block!`, `Customer#lift_block!`                                         |
 
 `listing.view` writes its `did` on every storefront view; the once per
 (listing, customer, hour) collapse ends the same story with `story.refused`
@@ -587,9 +658,9 @@ prototype/rails/
 
 ## Mapping the project skills onto this stack
 
-| Skill says | Here it means |
-| --- | --- |
-| `npm run test:run -- <pattern>` | `docker compose run --rm app bin/rails test <path>` |
-| Vitest unit test | Minitest `ActiveSupport::TestCase` under `test/models/` |
+| Skill says                             | Here it means                                               |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `npm run test:run -- <pattern>`        | `docker compose run --rm app bin/rails test <path>`         |
+| Vitest unit test                       | Minitest `ActiveSupport::TestCase` under `test/models/`     |
 | React Testing Library integration test | `ActionDispatch::IntegrationTest` under `test/controllers/` |
-| `src/` | `prototype/rails/src/` |
+| `src/`                                 | `prototype/rails/src/`                                      |

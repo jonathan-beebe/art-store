@@ -35,23 +35,23 @@ Read `docs/architecture.md`. Controllers in `app/Http/Controllers/Seller/`, view
 
 Every route sits under `auth.seller`, prefix `/seller`, name prefix `seller.`.
 
-| Name | Method | Path |
-| --- | --- | --- |
-| `seller.dashboard` | GET | `/seller` |
-| `seller.listings.index` | GET | `/seller/listings` |
-| `seller.listings.create` | GET | `/seller/listings/create` |
-| `seller.listings.store` | POST | `/seller/listings` |
-| `seller.listings.show` | GET | `/seller/listings/{listing}` |
-| `seller.listings.edit` | GET | `/seller/listings/{listing}/edit` |
-| `seller.listings.update` | POST | `/seller/listings/{listing}` |
-| `seller.listings.status` | POST | `/seller/listings/{listing}/status` |
-| `seller.orders.index` | GET | `/seller/orders` |
-| `seller.orders.show` | GET | `/seller/orders/{fulfillment}` |
-| `seller.orders.ship` | POST | `/seller/orders/{fulfillment}/shipment` |
-| `seller.earnings` | GET | `/seller/earnings` |
-| `seller.earnings.payout` | POST | `/seller/earnings/payouts` |
-| `seller.notifications.index` | GET | `/seller/notifications` |
-| `seller.notifications.read` | POST | `/seller/notifications/{notification}/read` |
+| Name                         | Method | Path                                        |
+| ---------------------------- | ------ | ------------------------------------------- |
+| `seller.dashboard`           | GET    | `/seller`                                   |
+| `seller.listings.index`      | GET    | `/seller/listings`                          |
+| `seller.listings.create`     | GET    | `/seller/listings/create`                   |
+| `seller.listings.store`      | POST   | `/seller/listings`                          |
+| `seller.listings.show`       | GET    | `/seller/listings/{listing}`                |
+| `seller.listings.edit`       | GET    | `/seller/listings/{listing}/edit`           |
+| `seller.listings.update`     | POST   | `/seller/listings/{listing}`                |
+| `seller.listings.status`     | POST   | `/seller/listings/{listing}/status`         |
+| `seller.orders.index`        | GET    | `/seller/orders`                            |
+| `seller.orders.show`         | GET    | `/seller/orders/{fulfillment}`              |
+| `seller.orders.ship`         | POST   | `/seller/orders/{fulfillment}/shipment`     |
+| `seller.earnings`            | GET    | `/seller/earnings`                          |
+| `seller.earnings.payout`     | POST   | `/seller/earnings/payouts`                  |
+| `seller.notifications.index` | GET    | `/seller/notifications`                     |
+| `seller.notifications.read`  | POST   | `/seller/notifications/{notification}/read` |
 
 ### Decisions
 

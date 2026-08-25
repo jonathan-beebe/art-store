@@ -33,13 +33,13 @@ Node's `docs/admin.md` (on `main`) is the reference for pages, filters, and the 
 Ten routes under `namespace :admin`, each segment constrained by
 `PrefixedUlid.constraints(...)` for its own table:
 
-| Path | Controller |
-| --- | --- |
-| `/admin/sellers`, `/admin/sellers/:id` | `Admin::SellersController` (index added, show extended) |
-| `/admin/customers?standing=`, `/admin/customers/:id` | `Admin::CustomersController` (index added, show extended) |
-| `/admin/listings?status=&seller=&removed=`, `/admin/listings/:id` | `Admin::ListingsController` (new) |
-| `/admin/orders?status=&customer=`, `/admin/orders/:id` | `Admin::OrdersController` (new) |
-| `/admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id` | `Admin::FulfillmentsController` (new) |
+| Path                                                              | Controller                                                |
+| ----------------------------------------------------------------- | --------------------------------------------------------- |
+| `/admin/sellers`, `/admin/sellers/:id`                            | `Admin::SellersController` (index added, show extended)   |
+| `/admin/customers?standing=`, `/admin/customers/:id`              | `Admin::CustomersController` (index added, show extended) |
+| `/admin/listings?status=&seller=&removed=`, `/admin/listings/:id` | `Admin::ListingsController` (new)                         |
+| `/admin/orders?status=&customer=`, `/admin/orders/:id`            | `Admin::OrdersController` (new)                           |
+| `/admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id`  | `Admin::FulfillmentsController` (new)                     |
 
 Filters are Active Record scopes whose bodies return `nil` for an absent
 value, so the relation falls back to `all`: `Listing.with_status`,
@@ -109,26 +109,26 @@ Every list carries a `count_queries` assertion that renders the page with one
 row and again with five and asserts the counts are equal. Measured (including
 the two the sign-in session costs):
 
-| Page | Statements, 1 row | Statements, 5 rows |
-| --- | --- | --- |
-| `/admin/sellers` | 6 | 6 |
-| `/admin/customers` | 4 | 4 |
-| `/admin/listings` | 4 | 4 |
-| `/admin/orders` | 6 | 6 |
-| `/admin/fulfillments` | 4 | 4 |
+| Page                  | Statements, 1 row | Statements, 5 rows |
+| --------------------- | ----------------- | ------------------ |
+| `/admin/sellers`      | 6                 | 6                  |
+| `/admin/customers`    | 4                 | 4                  |
+| `/admin/listings`     | 4                 | 4                  |
+| `/admin/orders`       | 6                 | 6                  |
+| `/admin/fulfillments` | 4                 | 4                  |
 
 ### Deliberately left out, and where it attaches
 
 No write actions, per the ticket. The sections they hang from are built and
 render an empty state:
 
-| Action | Page, section | Ticket |
-| --- | --- | --- |
-| Cancel an unpaid order | `/admin/orders/:id`, beside the status in the header `dl` | FEAT-017 |
-| Refund a fulfillment | `/admin/orders/:id` Fulfillments rows and `/admin/fulfillments/:id` Refunds | FEAT-017 |
-| Remove a listing / lift a removal | `/admin/listings/:id` Removal history | FEAT-021 |
-| Block a customer / lift a block | `/admin/customers/:id` Block history | FEAT-021 |
-| Run the weekly payout | `/admin/payouts` (not built here) | FEAT-021 |
+| Action                            | Page, section                                                               | Ticket   |
+| --------------------------------- | --------------------------------------------------------------------------- | -------- |
+| Cancel an unpaid order            | `/admin/orders/:id`, beside the status in the header `dl`                   | FEAT-017 |
+| Refund a fulfillment              | `/admin/orders/:id` Fulfillments rows and `/admin/fulfillments/:id` Refunds | FEAT-017 |
+| Remove a listing / lift a removal | `/admin/listings/:id` Removal history                                       | FEAT-021 |
+| Block a customer / lift a block   | `/admin/customers/:id` Block history                                        | FEAT-021 |
+| Run the weekly payout             | `/admin/payouts` (not built here)                                           | FEAT-021 |
 
 The `refunds`, `listing_removals` and `customer_blocks` tables are **not**
 created here. Four one-line model methods and three scopes stand in their

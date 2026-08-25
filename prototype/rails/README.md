@@ -48,17 +48,17 @@ two for hermione on the storefront. After the demo data, two wizarding
 sellers land with eight more `for_sale` listings, guarded on their own first
 email so they seed even against a database the demo seed refuses to re-touch.
 
-| Email | Role | Shop |
-| --- | --- | --- |
-| `jonathan-beebe@outlook.com` | Admin | — (on duty: 2 support threads) |
-| `annaschmunk@pm.me` | Admin | — |
-| `molly@example.com` | Seller | The Burrow Craftworks |
-| `dean@example.com` | Seller | Dean Thomas Studio |
-| `sybill@example.com` | Seller | Trelawney's Tower Studio |
-| `colin@example.com` | Seller | Creevey Camera Works |
-| `neville@example.com` | Seller | Longbottom Botanicals |
-| `luna@example.com` | Seller | Lovegood Curiosities |
-| `hermione@example.com` | Customer | — (3 favorites, view history, 3 orders, 3 threads) |
+| Email                        | Role     | Shop                                               |
+| ---------------------------- | -------- | -------------------------------------------------- |
+| `jonathan-beebe@outlook.com` | Admin    | — (on duty: 2 support threads)                     |
+| `annaschmunk@pm.me`          | Admin    | —                                                  |
+| `molly@example.com`          | Seller   | The Burrow Craftworks                              |
+| `dean@example.com`           | Seller   | Dean Thomas Studio                                 |
+| `sybill@example.com`         | Seller   | Trelawney's Tower Studio                           |
+| `colin@example.com`          | Seller   | Creevey Camera Works                               |
+| `neville@example.com`        | Seller   | Longbottom Botanicals                              |
+| `luna@example.com`           | Seller   | Lovegood Curiosities                               |
+| `hermione@example.com`       | Customer | — (3 favorites, view history, 3 orders, 3 threads) |
 
 Every account is passwordless. Sign in at `/seller/login`, `/login`, or
 `/admin/login` with one of the emails above; the layout's debug alert prints
@@ -71,30 +71,31 @@ so an address with no `admins` row is refused at `/admin/login`.
 Every target runs through `docker compose`; nothing here touches the host.
 `sweep` and `outbox` print a line and exit — see below.
 
-| Make | Runs |
-| --- | --- |
-| `make up` | `docker compose up -d` |
-| `make down` | `docker compose down` |
-| `make build` | `docker compose build` |
-| `make logs` | `docker compose logs -f` |
-| `make shell` | `docker compose run --rm app bash` |
-| `make test` | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`) |
-| `make smoke` | `bin/rails db:test:prepare`, then `bin/rails test test/smoke_test.rb` |
-| `make coverage` | `bin/rails db:test:prepare`, then `bin/rails test`, writing the HTML report with no gate |
-| `make lint` | `bin/rubocop`, read-only |
-| `make lint-fix` | `bin/rubocop -a`, the auto-fixable subset |
-| `make assets` | `docker compose run --rm app bin/rails tailwindcss:build` |
-| `make check` | `lint` → `assets` → `test`; the commit gate and the CI job |
-| `make migrate` | `docker compose run --rm app bin/rails db:migrate` |
-| `make fresh` | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed` |
-| `make seed` | `docker compose run --rm app bin/rails db:seed` |
-| `make routes` | `docker compose run --rm app bin/rails routes` |
-| `make payouts` | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date |
-| `make sweep` | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep AS_OF=2026-08-24` measures the cutoff from that moment instead of now |
-| `make outbox` | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job |
-| `make console` | `docker compose run --rm app bin/rails console` |
-| `make image` | `docker build --target runtime -t art-store-rails .` — see Deployment |
-| `make run-image` | runs the production image on port 3400 — see Deployment |
+| Make             | Runs                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `make up`        | `docker compose up -d`                                                                                                          |
+| `make down`      | `docker compose down`                                                                                                           |
+| `make build`     | `docker compose build`                                                                                                          |
+| `make logs`      | `docker compose logs -f`                                                                                                        |
+| `make shell`     | `docker compose run --rm app bash`                                                                                              |
+| `make test`      | `bin/rails db:test:prepare`, then `bin/rails test` with the coverage gate (`COVERAGE_MIN=100`)                                  |
+| `make smoke`     | `bin/rails db:test:prepare`, then `bin/rails test test/smoke_test.rb`                                                           |
+| `make coverage`  | `bin/rails db:test:prepare`, then `bin/rails test`, writing the HTML report with no gate                                        |
+| `make lint`      | `bin/rubocop`, read-only                                                                                                        |
+| `make lint-fix`  | `bin/rubocop -a`, the auto-fixable subset                                                                                       |
+| `make assets`    | `docker compose run --rm app bin/rails tailwindcss:build`                                                                       |
+| `make check`     | `lint` → `assets` → `test`; the commit gate and the CI job                                                                      |
+| `make migrate`   | `docker compose run --rm app bin/rails db:migrate`                                                                              |
+| `make fresh`     | `docker compose run --rm app bin/rails db:drop db:create db:migrate db:seed`                                                    |
+| `make seed`      | `docker compose run --rm app bin/rails db:seed`                                                                                 |
+| `make routes`    | `docker compose run --rm app bin/rails routes`                                                                                  |
+| `make payouts`   | the weekly payout rake task; `make payouts AS_OF=2026-08-24` settles the week before that date                                  |
+| `make sweep`     | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep                 |
+|                  | AS_OF=2026-08-24` measures the cutoff from that moment instead of now                                                           |
+| `make outbox`    | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job                   |
+| `make console`   | `docker compose run --rm app bin/rails console`                                                                                 |
+| `make image`     | `docker build --target runtime -t art-store-rails .` — see Deployment                                                           |
+| `make run-image` | runs the production image on port 3400 — see Deployment                                                                         |
 
 Run any other command the same way:
 
@@ -299,12 +300,12 @@ notifications, which reach the in-app inbox today.
 
 The card is fake and nothing is stored but the last four digits.
 
-| Number | Result |
-| --- | --- |
-| `4242 4242 4242 4242` | approved |
-| `4000 0000 0000 0002` | declined — generic decline |
-| `4000 0000 0000 9995` | declined — insufficient funds |
-| anything else | declined — invalid card number |
+| Number                | Result                         |
+| --------------------- | ------------------------------ |
+| `4242 4242 4242 4242` | approved                       |
+| `4000 0000 0000 0002` | declined — generic decline     |
+| `4000 0000 0000 9995` | declined — insufficient funds  |
+| anything else         | declined — invalid card number |
 
 Spaces and dashes are ignored. A decline leaves the order on a retry form with
 the stock returned to the listing.

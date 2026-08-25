@@ -48,11 +48,12 @@ resolves its visitor from a cookie and signs nobody in.
 Callers that open a thread and immediately post, all three now routed through
 the new action:
 
-| Route | Controller | Had the bug |
-| --- | --- | --- |
-| `shop.listing.questions` | `Shop\ListingQuestionController` | yes — the blocked-customer refusal |
-| `admin.sellers.messages` | `Admin\SellerMessageController` | the same two transactions; no refusal reaches it, since an admin passes `ConversationPolicy::post` and the body is validated by the form request first |
-| `admin.customers.messages` | `Admin\CustomerMessageController` | as above |
+| Route                      | Controller                        | Had the bug                                                                       |
+| -------------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
+| `shop.listing.questions`   | `Shop\ListingQuestionController`  | yes — the blocked-customer refusal                                                |
+| `admin.sellers.messages`   | `Admin\SellerMessageController`   | the same two transactions; no refusal reaches it, since an admin passes           |
+|                            |                                   | `ConversationPolicy::post` and the body is validated by the form request first    |
+| `admin.customers.messages` | `Admin\CustomerMessageController` | as above                                                                          |
 
 Callers that only open a thread and redirect to it — `shop.support`,
 `seller.support`, `shop.order.messages`, `seller.order.messages` — still call
@@ -99,9 +100,9 @@ stories inside the new transaction, and `magic_link.consume` still ends
 
 ### Numbers
 
-| Gate | Before | After |
-| --- | --- | --- |
-| Pest | 1793 tests, 4865 assertions | 1799 tests, 4886 assertions |
-| Coverage | 100.0% lines | 100.0% lines |
-| PHPStan (level max) | 0 errors | 0 errors |
-| Pint | clean | clean |
+| Gate                | Before                      | After                       |
+| ------------------- | --------------------------- | --------------------------- |
+| Pest                | 1793 tests, 4865 assertions | 1799 tests, 4886 assertions |
+| Coverage            | 100.0% lines                | 100.0% lines                |
+| PHPStan (level max) | 0 errors                    | 0 errors                    |
+| Pint                | clean                       | clean                       |

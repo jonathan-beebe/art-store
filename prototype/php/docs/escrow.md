@@ -55,11 +55,11 @@ fulfillment and fall into a group of their own.
 
 Per fulfillment, with `escrow = held − released` and `refund = −refunded`:
 
-| | | |
-| --- | --- | --- |
-| `fromEscrow` | `max(0, min(escrow, refund))` | what escrow can cover |
-| `held` | `+= escrow − fromEscrow` | |
-| `available` | `+= released + paid_out + refunded + fromEscrow` | |
+|              |                                                  |                       |
+| ------------ | ------------------------------------------------ | --------------------- |
+| `fromEscrow` | `max(0, min(escrow, refund))`                    | what escrow can cover |
+| `held`       | `+= escrow − fromEscrow`                         |                       |
+| `available`  | `+= released + paid_out + refunded + fromEscrow` |                       |
 
 What escrow cannot cover leaves the available balance negative. That is the
 intended reading — the seller owes the platform — and the next payout period
@@ -67,11 +67,14 @@ settles it.
 
 ## The three refund timings
 
-| Timing | Entries for the fulfillment | Held | Available |
-| --- | --- | --- | --- |
-| Refund before release (decline, or an admin refund of an unshipped or shipped parcel) | `held +net`, `refunded −net` | back to `0`; nothing releases | `0` |
-| Refund after release (delivered, then refunded) | `held +net`, `released +net`, `refunded −net` | `0` | drops by `net` |
-| Refund after payout | `held +net`, `released +net`, `paid_out −net`, `refunded −net` | `0` | `−net`, carried |
+| Timing                                         | Entries for the fulfillment                     | Held                          | Available       |
+| ---------------------------------------------- | ----------------------------------------------- | ----------------------------- | --------------- |
+| Refund before release (decline, or an admin    | `held +net`, `refunded −net`                    | back to `0`; nothing releases | `0`             |
+| refund of an unshipped or shipped parcel)      |                                                 |                               |                 |
+| Refund after release (delivered, then          | `held +net`, `released +net`, `refunded −net`   | `0`                           | drops by `net`  |
+| refunded)                                      |                                                 |                               |                 |
+| Refund after payout                            | `held +net`, `released +net`, `paid_out −net`,  | `0`                           | `−net`, carried |
+|                                                | `refunded −net`                                 |                               |                 |
 
 In this prototype escrow is released on **delivery**, so an admin refund of a
 `shipped` fulfillment is still a refund before release. §4.2 of
@@ -121,24 +124,32 @@ nets to zero and `isPayable()` is false). `payouts` also has
 `unique(seller_id, period_start)`. `PayoutPeriod::endingBefore()` is pure —
 Monday–Sunday, `asOf`'s most recently completed week.
 
-| Way in | Command |
-| --- | --- |
+| Way in            | Command                                                      |
+| ----------------- | ------------------------------------------------------------ |
 | CLI, current week | `php artisan payouts:run` — settles the week that just ended |
-| CLI, a named week | `php artisan payouts:run --as-of=2026-08-24` |
-| Make | `make payouts`, or `make payouts AS_OF=2026-08-24` |
-| Admin site | `POST /admin/payouts` with an `as_of` field |
+| CLI, a named week | `php artisan payouts:run --as-of=2026-08-24`                 |
+| Make              | `make payouts`, or `make payouts AS_OF=2026-08-24`           |
+| Admin site        | `POST /admin/payouts` with an `as_of` field                  |
 
 ## Worked example
 
 A $100.00 listing, one unit, one seller, no other activity that period.
 
-| Step | Action | `ledger_entries` written | Seller balance |
-| --- | --- | --- | --- |
-| Order placed, card approved | `FinalizeOrder`: `Fee::platform($100.00)` = $10.00, `Fee::net($100.00)` = $90.00; `LedgerMovement::hold($90.00)` | `held +9000` | held $90.00, available $0.00 |
-| Customer confirms delivery | `ConfirmDelivered`: `LedgerMovement::release($90.00)` | `released +9000` | held $0.00, available $90.00 |
-| `payouts:run` (period ends) | `RunWeeklyPayout`: balance is payable, pays $90.00; `LedgerMovement::payout($90.00)` | `paid_out -9000` | available $0.00, paid out $90.00 lifetime |
-| Admin refunds the dispute a week later | `RefundFulfillment` → `IssueRefund`: `LedgerMovement::refund($90.00)` | `refunded -9000` | available −$90.00, carried |
-| `payouts:run` (next period, no other sales) | balance is not payable, nothing written | — | available −$90.00, still carried |
+| Step                                  | Action                                 | `ledger_entries` written | Seller balance                         |
+| ------------------------------------- | -------------------------------------- | ------------------------ | -------------------------------------- |
+| Order placed, card approved           | `FinalizeOrder`:                       | `held +9000`             | held $90.00, available $0.00           |
+|                                       | `Fee::platform($100.00)` = $10.00,     |                          |                                        |
+|                                       | `Fee::net($100.00)` = $90.00;          |                          |                                        |
+|                                       | `LedgerMovement::hold($90.00)`         |                          |                                        |
+| Customer confirms delivery            | `ConfirmDelivered`:                    | `released +9000`         | held $0.00, available $90.00           |
+|                                       | `LedgerMovement::release($90.00)`      |                          |                                        |
+| `payouts:run` (period ends)           | `RunWeeklyPayout`: balance is payable, | `paid_out -9000`         | available $0.00, paid out $90.00       |
+|                                       | pays $90.00;                           |                          | lifetime                               |
+|                                       | `LedgerMovement::payout($90.00)`       |                          |                                        |
+| Admin refunds the dispute a week      | `RefundFulfillment` → `IssueRefund`:   | `refunded -9000`         | available −$90.00, carried             |
+| later                                 | `LedgerMovement::refund($90.00)`       |                          |                                        |
+| `payouts:run` (next period, no other  | balance is not payable, nothing        | —                        | available −$90.00, still carried       |
+| sales)                                | written                                |                          |                                        |
 
 `Fee::platform()` is 10% of the item subtotal (`Fee::PLATFORM_PERCENT`),
 taken at `held`; `net = subtotal − fee`. The fee is computed once, in

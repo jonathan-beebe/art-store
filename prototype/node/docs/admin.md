@@ -19,26 +19,29 @@ each route would let the next page forget it.
 
 ## Pages
 
-| Path | Reads |
-| --- | --- |
-| `GET /admin` | `platformTallies`, `platformMoney`, `pageViewTotals` |
-| `GET /admin/sellers`, `/admin/sellers/:id` | `sellerRows`, `sellerDetail` |
-| `GET /admin/customers?standing=`, `/admin/customers/:id` | `customerRows` (`all` \| `verified` \| `anonymous` \| `blocked`), `customerDetail` |
-| `GET /admin/listings?status=&seller=&removed=`, `/admin/listings/:id` | `listingRows` (`removed` is `any` \| `removed` \| `visible`), `listingDetail` |
-| `GET /admin/orders?status=&customer=`, `/admin/orders/:id` | `orderRows`, `orderDetail` (items, payments, fulfillments, refunds) |
-| `GET /admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id` | `fulfillmentRows`, `fulfillmentDetail` |
-| `GET /admin/accounting` | `sellerAccounts`, `platformMoney` |
-| `GET /admin/payouts?seller=`, `POST /admin/payouts` | `payoutRows`, `runWeeklyPayout` |
-| `GET /admin/ledger?seller=&type=` | `ledgerRows` plus the folded totals for the filtered set |
-| `GET /admin/stats` | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies` |
-| `GET|POST /admin/messages`, `/admin/messages/:id` | the admin inbox (see [`messaging.md`](messaging.md)) |
-| `POST /admin/sellers/:id/messages`, `POST /admin/customers/:id/messages` | `openConversation` — opens or reuses the admin's thread with that seller or customer and redirects to it |
-| `GET /admin/outbox`, `/admin/outbox/:id`, `POST /admin/outbox/drain` | `outboxRows`, `outboxRow`, `drainOutbox` |
-| `GET /admin/events` | the admin's unread-count stream (`text/event-stream`) |
-| `POST /admin/listings/:id/removals`, `.../removals/lift` | `removeListing`, `liftListingRemoval` |
-| `POST /admin/customers/:id/blocks`, `.../blocks/lift` | `blockCustomer`, `liftCustomerBlock` |
-| `POST /admin/orders/:id/cancel` | `cancelOrderAsAdmin` — unpaid orders only, with a reason |
-| `POST /admin/fulfillments/:id/refund` | `issueRefund` — any live fulfillment, with a reason |
+| Path                                                                    | Reads                                                                    |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET /admin`                                                            | `platformTallies`, `platformMoney`, `pageViewTotals`                     |
+| `GET /admin/sellers`, `/admin/sellers/:id`                              | `sellerRows`, `sellerDetail`                                             |
+| `GET /admin/customers?standing=`, `/admin/customers/:id`                | `customerRows` (`all` \| `verified` \| `anonymous` \| `blocked`),        |
+|                                                                         | `customerDetail`                                                         |
+| `GET /admin/listings?status=&seller=&removed=`, `/admin/listings/:id`   | `listingRows` (`removed` is `any` \| `removed` \| `visible`),            |
+|                                                                         | `listingDetail`                                                          |
+| `GET /admin/orders?status=&customer=`, `/admin/orders/:id`              | `orderRows`, `orderDetail` (items, payments, fulfillments, refunds)      |
+| `GET /admin/fulfillments?status=&seller=`, `/admin/fulfillments/:id`    | `fulfillmentRows`, `fulfillmentDetail`                                   |
+| `GET /admin/accounting`                                                 | `sellerAccounts`, `platformMoney`                                        |
+| `GET /admin/payouts?seller=`, `POST /admin/payouts`                     | `payoutRows`, `runWeeklyPayout`                                          |
+| `GET /admin/ledger?seller=&type=`                                       | `ledgerRows` plus the folded totals for the filtered set                 |
+| `GET /admin/stats`                                                      | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies`            |
+| `GET\|POST /admin/messages`, `/admin/messages/:id`                      | the admin inbox (see [`messaging.md`](messaging.md))                     |
+| `POST /admin/sellers/:id/messages`,                                     | `openConversation` — opens or reuses the admin's thread with that seller |
+| `POST /admin/customers/:id/messages`                                    | or customer and redirects to it                                          |
+| `GET /admin/outbox`, `/admin/outbox/:id`, `POST /admin/outbox/drain`    | `outboxRows`, `outboxRow`, `drainOutbox`                                 |
+| `GET /admin/events`                                                     | the admin's unread-count stream (`text/event-stream`)                    |
+| `POST /admin/listings/:id/removals`, `.../removals/lift`                | `removeListing`, `liftListingRemoval`                                    |
+| `POST /admin/customers/:id/blocks`, `.../blocks/lift`                   | `blockCustomer`, `liftCustomerBlock`                                     |
+| `POST /admin/orders/:id/cancel`                                         | `cancelOrderAsAdmin` — unpaid orders only, with a reason                 |
+| `POST /admin/fulfillments/:id/refund`                                   | `issueRefund` — any live fulfillment, with a reason                      |
 
 Every filter is optional and an empty value means "all": the console submits
 `seller=` for "All sellers", which `optionalFilter`

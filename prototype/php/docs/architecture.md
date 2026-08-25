@@ -43,12 +43,46 @@ flowchart TD
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
-| Layer | Lives in | Rules |
-| --- | --- | --- |
-| Core | `app/Domain/<Concept>/` | Pure functions and immutable value objects. Every value object is `final readonly` with a private constructor and named factories (`Money::fromCents()`, `ShippingAddress::to()`, `CartLine::of()`); every static-only helper has a private constructor so it cannot be instantiated; enums answer questions about themselves (`ListingStatus::isOnStorefront()`, `OrderStatus::awaitsPayment()`, `label()`) rather than being read from outside. Receives time/ids as parameters. Unit tested without doubles. |
-| Adapters | `app/Models/`, `app/Notifications/`, `app/Support/`, `app/View/Composers/`, `resources/views/` | Eloquent models own their relations, casts, scopes, and the writes that keep their own invariants — a model method applies a decision the core made and writes the row (`Listing::sell()`, `Listing::changeStatusTo()`). Counts and sums a page shows are grouped in SQL by a scope or a model method (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`, `Seller::escrowBalance()`), and the domain folds the rows that come back. Notifications and their channels carry a message out of the app; Blade views and the composers that fill a layout render it in. |
-| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`, `app/Http/Requests/<Site>/`, `app/Policies/`, `app/Console/Commands/`, `app/Events/`, `app/Listeners/` | Sequence core + adapters. An action that finishes a business moment dispatches a past-tense event and a listener decides who hears about it. Form requests are the typed entry for input: they authorize the bound model, validate, and hand the controller a domain object. Owns no domain `if`s — if one appears, extract to `app/Domain`. Covered by HTTP feature tests. |
-| Entry | `routes/web.php` → `routes/auth.php`, `routes/seller.php`, `routes/shop.php`, `routes/admin.php`; `routes/console.php`; `app/Providers` | Wiring only. `AppServiceProvider::boot()` turns on `Model::shouldBeStrict()` outside production (a lazy load, a discarded attribute, or a read of an unselected column raises), enforces the notification morph map, registers `NotificationPolicy` for `DatabaseNotification` and the two event/listener pairs, binds `ShopLayoutComposer` to `components.layouts.shop`, `SellerLayoutComposer` to `components.layouts.seller`, and `AdminLayoutComposer` to `components.layouts.admin`, and registers `@visitorCan`. `bootstrap/app.php` turns listener discovery off, because it reflects over every file in `app/Listeners` including each listener's sidecar test. `routes/console.php` holds the schedule. |
+| Layer        | Lives in                                                         | Rules                                                            |
+| ------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Core         | `app/Domain/<Concept>/`                                          | Pure functions and immutable value objects. Every value object   |
+|              |                                                                  | is `final readonly` with a private constructor and named         |
+|              |                                                                  | factories (`Money::fromCents()`, `ShippingAddress::to()`,        |
+|              |                                                                  | `CartLine::of()`); every static-only helper has a private        |
+|              |                                                                  | constructor so it cannot be instantiated; enums answer questions |
+|              |                                                                  | about themselves (`ListingStatus::isOnStorefront()`,             |
+|              |                                                                  | `OrderStatus::awaitsPayment()`, `label()`) rather than being     |
+|              |                                                                  | read from outside. Receives time/ids as parameters. Unit tested  |
+|              |                                                                  | without doubles.                                                 |
+| Adapters     | `app/Models/`, `app/Notifications/`, `app/Support/`,             | Eloquent models own their relations, casts, scopes, and the      |
+|              | `app/View/Composers/`, `resources/views/`                        | writes that keep their own invariants — a model method applies a |
+|              |                                                                  | decision the core made and writes the row (`Listing::sell()`,    |
+|              |                                                                  | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
+|              |                                                                  | grouped in SQL by a scope or a model method                      |
+|              |                                                                  | (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`,  |
+|              |                                                                  | `Seller::escrowBalance()`), and the domain folds the rows that   |
+|              |                                                                  | come back. Notifications and their channels carry a message out  |
+|              |                                                                  | of the app; Blade views and the composers that fill a layout     |
+|              |                                                                  | render it in.                                                    |
+| Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`,        | Sequence core + adapters. An action that finishes a business     |
+|              | `app/Http/Requests/<Site>/`, `app/Policies/`,                    | moment dispatches a past-tense event and a listener decides who  |
+|              | `app/Console/Commands/`, `app/Events/`, `app/Listeners/`         | hears about it. Form requests are the typed entry for input:     |
+|              |                                                                  | they authorize the bound model, validate, and hand the           |
+|              |                                                                  | controller a domain object. Owns no domain `if`s — if one        |
+|              |                                                                  | appears, extract to `app/Domain`. Covered by HTTP feature tests. |
+| Entry        | `routes/web.php` → `routes/auth.php`, `routes/seller.php`,       | Wiring only. `AppServiceProvider::boot()` turns on               |
+|              | `routes/shop.php`, `routes/admin.php`; `routes/console.php`;     | `Model::shouldBeStrict()` outside production (a lazy load, a     |
+|              | `app/Providers`                                                  | discarded attribute, or a read of an unselected column raises),  |
+|              |                                                                  | enforces the notification morph map, registers                   |
+|              |                                                                  | `NotificationPolicy` for `DatabaseNotification` and the two      |
+|              |                                                                  | event/listener pairs, binds `ShopLayoutComposer` to              |
+|              |                                                                  | `components.layouts.shop`, `SellerLayoutComposer` to             |
+|              |                                                                  | `components.layouts.seller`, and `AdminLayoutComposer` to        |
+|              |                                                                  | `components.layouts.admin`, and registers `@visitorCan`.         |
+|              |                                                                  | `bootstrap/app.php` turns listener discovery off, because it     |
+|              |                                                                  | reflects over every file in `app/Listeners` including each       |
+|              |                                                                  | listener's sidecar test. `routes/console.php` holds the          |
+|              |                                                                  | schedule.                                                        |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
@@ -104,20 +138,20 @@ stdout, in every environment: `config/logging.php` has one channel that writes
 lines, `stdout`, and it is the default everywhere. `App\Logging\StoryFormatter`
 is the Monolog formatter that spells the payload.
 
-| Field | Always | Where it comes from |
-| --- | --- | --- |
-| `ts` | yes | the record's time, ISO-8601 UTC with milliseconds |
-| `level` | yes | `debug` \| `info` \| `warn` \| `error` |
-| `event` | yes | `App\Logging\StoryEvent` — the §2.3 vocabulary |
-| `phase` | yes | `App\Logging\StoryPhase` |
-| `msg` | yes | one sentence, present tense for `will`/`doing`, past for `did` |
-| `request_id` | on requests | `LogRequestStory`, through `Log::withContext()` |
-| `session_id` | on requests, from the group inward | `NameRequestVisitor`, the same way |
-| `actor_type`, `actor_id` | when known | the same, plus `ResolveCustomerIdentity` for a brand-new visitor |
-| `txn_id` | inside a unit of work | minted by `Story::will()` |
-| `data` | when useful | the small facts the line is about; every id is a prefixed id |
-| `error` | on `failed` | `{type, message}`, plus `stack` while `APP_DEBUG` is on |
-| `duration_ms` | on `did`/`failed` after a `will` | wall time since the `will` line |
+| Field                    | Always                             | Where it comes from                                              |
+| ------------------------ | ---------------------------------- | ---------------------------------------------------------------- |
+| `ts`                     | yes                                | the record's time, ISO-8601 UTC with milliseconds                |
+| `level`                  | yes                                | `debug` \| `info` \| `warn` \| `error`                           |
+| `event`                  | yes                                | `App\Logging\StoryEvent` — the §2.3 vocabulary                   |
+| `phase`                  | yes                                | `App\Logging\StoryPhase`                                         |
+| `msg`                    | yes                                | one sentence, present tense for `will`/`doing`, past for `did`   |
+| `request_id`             | on requests                        | `LogRequestStory`, through `Log::withContext()`                  |
+| `session_id`             | on requests, from the group inward | `NameRequestVisitor`, the same way                               |
+| `actor_type`, `actor_id` | when known                         | the same, plus `ResolveCustomerIdentity` for a brand-new visitor |
+| `txn_id`                 | inside a unit of work              | minted by `Story::will()`                                        |
+| `data`                   | when useful                        | the small facts the line is about; every id is a prefixed id     |
+| `error`                  | on `failed`                        | `{type, message}`, plus `stack` while `APP_DEBUG` is on          |
+| `duration_ms`            | on `did`/`failed` after a `will`   | wall time since the `will` line                                  |
 
 ### The phases
 
@@ -262,15 +296,18 @@ prefixed id, an ip — is already safe to log under docs/alignment.md §2.1.
 Where each limit is checked runs ahead of the write it guards, inside the
 action that would otherwise perform it, so a trip leaves no side effect:
 
-| Limit | Checked in | Key |
-| --- | --- | --- |
-| `magic_link_request` | the three login `send()` methods; `CheckoutController::place()` for a guest's implicit link | `email:<hash>` and `ip:<ip>`, independently |
-| `magic_link_consume` | `MagicLinkVerificationController` | `ip:<ip>` |
-| `message_post` | every `MessageController::store()`; `Admin\SellerMessageController` and `Admin\CustomerMessageController` | the poster's own id |
-| `conversation_open` | `ListingQuestionController`, `SupportController` (shop and seller), `OrderMessageController` (shop and seller) | the opener's own id |
-| `checkout` | `CheckoutController::place()` | the customer's id |
-| `payment_attempt` | `OrderPaymentController::pay()` | the order's id |
-| `listing_write` | `Seller\ListingController::store()` and `update()` | the seller's id |
+| Limit                | Checked in                                                                    | Key                                         |
+| -------------------- | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| `magic_link_request` | the three login `send()` methods; `CheckoutController::place()` for a guest's | `email:<hash>` and `ip:<ip>`, independently |
+|                      | implicit link                                                                 |                                             |
+| `magic_link_consume` | `MagicLinkVerificationController`                                             | `ip:<ip>`                                   |
+| `message_post`       | every `MessageController::store()`; `Admin\SellerMessageController` and       | the poster's own id                         |
+|                      | `Admin\CustomerMessageController`                                             |                                             |
+| `conversation_open`  | `ListingQuestionController`, `SupportController` (shop and seller),           | the opener's own id                         |
+|                      | `OrderMessageController` (shop and seller)                                    |                                             |
+| `checkout`           | `CheckoutController::place()`                                                 | the customer's id                           |
+| `payment_attempt`    | `OrderPaymentController::pay()`                                               | the order's id                              |
+| `listing_write`      | `Seller\ListingController::store()` and `update()`                            | the seller's id                             |
 
 On a trip: HTTP 429, `Retry-After: <seconds>`, one `rate_limit.exceed` line,
 no side effect. The response body splits two ways. A route the visitor
@@ -310,11 +347,14 @@ sets, on every response: `Content-Security-Policy` (`default-src 'self'`,
 
 ## Sites
 
-| Site | URL prefix | Guard | Theme |
-| --- | --- | --- | --- |
-| Seller portal | `/seller` | `seller` (session, provider `sellers`) | Stock Tailwind, system font, vanilla controls, dense and tool-focused. |
-| Storefront | `/` | `customer` (session, provider `customers`) + anonymous customer cookie | Bright, open, white space, large imagery, brand recedes. |
-| Admin site | `/admin` | `admin` (session, provider `admins`) | Stock Tailwind, system font, tables and forms; the platform's back office. |
+| Site          | URL prefix | Guard                                                     | Theme                                                     |
+| ------------- | ---------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| Seller portal | `/seller`  | `seller` (session, provider `sellers`)                    | Stock Tailwind, system font, vanilla controls, dense and  |
+|               |            |                                                           | tool-focused.                                             |
+| Storefront    | `/`        | `customer` (session, provider `customers`) + anonymous    | Bright, open, white space, large imagery, brand recedes.  |
+|               |            | customer cookie                                           |                                                           |
+| Admin site    | `/admin`   | `admin` (session, provider `admins`)                      | Stock Tailwind, system font, tables and forms; the        |
+|               |            |                                                           | platform's back office.                                   |
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
 `<x-layouts.shop>`, `<x-layouts.admin>` in
@@ -339,14 +379,14 @@ Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
 `DatabaseNotification $notification`, `Order $order`; the storefront listing
 binds by slug) and then authorizes it. `app/Policies` holds the rules:
 
-| Policy | Abilities | Actor |
-| --- | --- | --- |
-| `ListingPolicy` | `view`, `update` | `Seller` |
-| `FulfillmentPolicy` | `view`, `update`, `ship` | `Seller` |
-| `FulfillmentPolicy` | `confirmDelivery` | `Customer` |
-| `OrderPolicy` | `view`, `pay` | `Customer` |
-| `NotificationPolicy` | `markRead` | `Seller` or `Customer` |
-| `ConversationPolicy` | `view`, `post` | `Seller`, `Customer`, or `Admin` |
+| Policy               | Abilities                | Actor                            |
+| -------------------- | ------------------------ | -------------------------------- |
+| `ListingPolicy`      | `view`, `update`         | `Seller`                         |
+| `FulfillmentPolicy`  | `view`, `update`, `ship` | `Seller`                         |
+| `FulfillmentPolicy`  | `confirmDelivery`        | `Customer`                       |
+| `OrderPolicy`        | `view`, `pay`            | `Customer`                       |
+| `NotificationPolicy` | `markRead`               | `Seller` or `Customer`           |
+| `ConversationPolicy` | `view`, `post`           | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -488,12 +528,12 @@ moves `awaiting_shipment → shipped → delivered`.
 
 `App\Domain\Payments\FakeCard::decide(string $number): CardDecision`:
 
-| Number | Decision |
-| --- | --- |
-| `4242 4242 4242 4242` | approved |
-| `4000 0000 0000 0002` | declined: generic decline |
-| `4000 0000 0000 9995` | declined: insufficient funds |
-| anything else | declined: invalid card number |
+| Number                | Decision                      |
+| --------------------- | ----------------------------- |
+| `4242 4242 4242 4242` | approved                      |
+| `4000 0000 0000 0002` | declined: generic decline     |
+| `4000 0000 0000 9995` | declined: insufficient funds  |
+| anything else         | declined: invalid card number |
 
 Spaces and dashes are ignored. Only the last four digits are stored.
 
@@ -649,9 +689,10 @@ prototype/php/
 
 ## Mapping the project skills onto this stack
 
-| Skill says | Here it means |
-| --- | --- |
-| `npm run test:run -- <pattern>` | `docker compose run --rm app composer test -- --filter <pattern>` |
-| Vitest unit test | Pest `it()` in a sidecar file, no app boot |
-| React Testing Library integration test | Pest `it()` bound to `Tests\CommerceTestCase` or `Tests\StorefrontTestCase`, driving `$this->get()/post()` |
-| `src/` | `prototype/php/src/` |
+| Skill says                             | Here it means                                                                                             |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npm run test:run -- <pattern>`        | `docker compose run --rm app composer test -- --filter <pattern>`                                         |
+| Vitest unit test                       | Pest `it()` in a sidecar file, no app boot                                                                |
+| React Testing Library integration test | Pest `it()` bound to `Tests\CommerceTestCase` or `Tests\StorefrontTestCase`, driving                      |
+|                                        | `$this->get()/post()`                                                                                     |
+| `src/`                                 | `prototype/php/src/`                                                                                      |

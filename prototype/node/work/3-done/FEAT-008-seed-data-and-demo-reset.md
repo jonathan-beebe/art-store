@@ -39,13 +39,20 @@ Port the catalog from `prototype/rails/src/db/seeds.rb` (titles, media, prices, 
 modules, all driven through FEAT-003's actions over a fixed historical
 clock — never through a raw ledger, payout, or notification insert:
 
-| Module | Seeds |
-| --- | --- |
-| `app/db/seed-sellers.ts` | 4 verified sellers via `claimSellerIdentity`, profiled with a direct `sellers` update (no action sets `name`/`shopName` yet) |
-| `app/db/seed-catalog.ts` | 29 listings via `createListing` + `changeListingStatus` (24 `for_sale`, 3 `draft`, 2 `sold` reached by two single-hop transitions from a listing created at quantity 0), one `removeListing` (temporary, on "Night Freight") |
-| `app/db/seed-customers.ts` | Casey (verified, 6 `recordListingEvent` views, 3 `toggleFavorite` favorites, a standing cart via `currentCart`/`addToCart`), one blocked customer via `claimCustomerIdentity` + `blockCustomer`, 3 anonymous customers via `createAnonymousCustomer` with view history |
-| `app/db/seed-order-history.ts` | 3 single-item orders for Casey (own `carts` row per order, like a real checkout) via `addToCart`/`placeOrder`/`finalizeOrder`, one `markShipped`, one `markShipped`+`confirmDelivered`, one `runWeeklyPayout` |
-| `app/db/seed-page-views.ts` | 98 `page_view_counts` rows (3 sites × 14 days, 2–3 path patterns each) via the FEAT-006 `recordPageView` action, called once per simulated hit |
+| Module                         | Seeds                                                                                                             |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `app/db/seed-sellers.ts`       | 4 verified sellers via `claimSellerIdentity`, profiled with a direct `sellers` update (no action sets             |
+|                                | `name`/`shopName` yet)                                                                                            |
+| `app/db/seed-catalog.ts`       | 29 listings via `createListing` + `changeListingStatus` (24 `for_sale`, 3 `draft`, 2 `sold` reached by two        |
+|                                | single-hop transitions from a listing created at quantity 0), one `removeListing` (temporary, on "Night Freight") |
+| `app/db/seed-customers.ts`     | Casey (verified, 6 `recordListingEvent` views, 3 `toggleFavorite` favorites, a standing cart via                  |
+|                                | `currentCart`/`addToCart`), one blocked customer via `claimCustomerIdentity` + `blockCustomer`, 3 anonymous       |
+|                                | customers via `createAnonymousCustomer` with view history                                                         |
+| `app/db/seed-order-history.ts` | 3 single-item orders for Casey (own `carts` row per order, like a real checkout) via                              |
+|                                | `addToCart`/`placeOrder`/`finalizeOrder`, one `markShipped`, one `markShipped`+`confirmDelivered`, one            |
+|                                | `runWeeklyPayout`                                                                                                 |
+| `app/db/seed-page-views.ts`    | 98 `page_view_counts` rows (3 sites × 14 days, 2–3 path patterns each) via the FEAT-006 `recordPageView` action,  |
+|                                | called once per simulated hit                                                                                     |
 
 Catalog and order-history dates are hardcoded (June–July 2026), matching the
 Rails source, so the demo reads the same regardless of when `npm run seed`

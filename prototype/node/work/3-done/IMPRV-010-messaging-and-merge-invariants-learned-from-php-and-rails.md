@@ -110,16 +110,19 @@ Rails' `COALESCE` expression index and PHP's `subject_key` both fit Kysely. The 
 
 ### The full left-behind / folded list, with reasons
 
-| Table | Column | Handling | Reason |
-| --- | --- | --- | --- |
-| `orders` | `customer_id` | repointed | blind — no fold needed, one order belongs to one customer |
-| `listing_events` | `customer_id` | repointed | blind |
-| `notifications` | `customer_id` | repointed | blind |
-| `customer_blocks` | `customer_id` | repointed | blind — a block follows the person |
-| `favorites` | `customer_id` | folded | deduplicated against the verified customer's own, so a listing favorited on both sides does not become two rows |
-| `carts` | `customer_id` | folded | folded line-by-line, so the verified customer never ends up with two carts |
-| `conversations` | `customer_id` | folded | folded onto the verified customer's existing thread on the same subject, so a subject never ends up with two threads |
-| `customer_merges` | `customer_id` | left behind | the trail record of the merge itself; it names the anonymous customer on purpose, so a stale cookie resolves forward |
+| Table             | Column        | Handling    | Reason                                                                                           |
+| ----------------- | ------------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| `orders`          | `customer_id` | repointed   | blind — no fold needed, one order belongs to one customer                                        |
+| `listing_events`  | `customer_id` | repointed   | blind                                                                                            |
+| `notifications`   | `customer_id` | repointed   | blind                                                                                            |
+| `customer_blocks` | `customer_id` | repointed   | blind — a block follows the person                                                               |
+| `favorites`       | `customer_id` | folded      | deduplicated against the verified customer's own, so a listing favorited on both sides does not  |
+|                   |               |             | become two rows                                                                                  |
+| `carts`           | `customer_id` | folded      | folded line-by-line, so the verified customer never ends up with two carts                       |
+| `conversations`   | `customer_id` | folded      | folded onto the verified customer's existing thread on the same subject, so a subject never ends |
+|                   |               |             | up with two threads                                                                              |
+| `customer_merges` | `customer_id` | left behind | the trail record of the merge itself; it names the anonymous customer on purpose, so a stale     |
+|                   |               |             | cookie resolves forward                                                                          |
 
 Not scanned by the manifest (not a column literally named `customer_id`, so
 outside decision 2's schema-driven scope) but fixed by decision 3 anyway, with

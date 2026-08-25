@@ -41,22 +41,23 @@ Reference: `prototype/rails/src/app/controllers/seller/**`, `app/views/seller/**
 
 ### Routes (all behind `requireSeller`, all under `/seller`)
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/` | Dashboard: listing status tally, awaiting-shipment count, escrow balance, unread count, 5 most recent notifications. |
-| GET | `/listings` | Index: every listing with per-listing activity totals, price, status, and status buttons. |
-| GET | `/listings/new` | Blank listing form. |
-| POST | `/listings` | Create (multipart) → draft; 422 re-renders the form with field errors on invalid input. |
-| GET | `/listings/:id` | Activity page: totals, 14-day daily breakdown, sales, removal banner if any. |
-| GET | `/listings/:id/edit` | Edit form filled from the listing. |
-| POST | `/listings/:id` | Update (multipart); 422 on invalid input; image omitted keeps the one on file. |
-| POST | `/listings/:id/status` | Status change; refuses (flash + redirect) an illegal lifecycle move or a return to `for_sale` while removed. |
-| GET | `/orders` | Fulfillments grouped by status (`awaiting_shipment`, `shipped`, `delivered`). |
-| GET | `/orders/:id` | One fulfillment: shipping address, the seller's own items, net, mark-shipped form or shipment record. |
-| POST | `/orders/:id/ship` | Marks shipped (carrier + tracking); refuses an incomplete or already-departed shipment. |
-| GET | `/earnings` | Balance (held/available/paid out), sold-goods table, payout history. No payout control. |
-| GET | `/notifications` | Inbox, newest first, unread badge + mark-read form. |
-| POST | `/notifications/:id/read` | Marks one notification read. |
+| Method | Path                      | Purpose                                                                                                       |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| GET    | `/`                       | Dashboard: listing status tally, awaiting-shipment count, escrow balance, unread count, 5 most recent         |
+|        |                           | notifications.                                                                                                |
+| GET    | `/listings`               | Index: every listing with per-listing activity totals, price, status, and status buttons.                     |
+| GET    | `/listings/new`           | Blank listing form.                                                                                           |
+| POST   | `/listings`               | Create (multipart) → draft; 422 re-renders the form with field errors on invalid input.                       |
+| GET    | `/listings/:id`           | Activity page: totals, 14-day daily breakdown, sales, removal banner if any.                                  |
+| GET    | `/listings/:id/edit`      | Edit form filled from the listing.                                                                            |
+| POST   | `/listings/:id`           | Update (multipart); 422 on invalid input; image omitted keeps the one on file.                                |
+| POST   | `/listings/:id/status`    | Status change; refuses (flash + redirect) an illegal lifecycle move or a return to `for_sale` while removed.  |
+| GET    | `/orders`                 | Fulfillments grouped by status (`awaiting_shipment`, `shipped`, `delivered`).                                 |
+| GET    | `/orders/:id`             | One fulfillment: shipping address, the seller's own items, net, mark-shipped form or shipment record.         |
+| POST   | `/orders/:id/ship`        | Marks shipped (carrier + tracking); refuses an incomplete or already-departed shipment.                       |
+| GET    | `/earnings`               | Balance (held/available/paid out), sold-goods table, payout history. No payout control.                       |
+| GET    | `/notifications`          | Inbox, newest first, unread badge + mark-read form.                                                           |
+| POST   | `/notifications/:id/read` | Marks one notification read.                                                                                  |
 
 A listing or fulfillment id naming another seller's row, or a non-numeric id, answers 404 on every route above (read and write).
 

@@ -37,14 +37,16 @@ Reference `prototype/rails/docs/review.md` and `prototype/rails/work/3-done/FEAT
 `app/test/smoke.test.ts` grew from three tests to six, and between them they walk
 everything `docs/architecture.md` → Testing lists.
 
-| Test | What it proves |
-| --- | --- |
-| every site serves its own page and they all share one stylesheet | The three layouts render and `/app.css` answers `text/css`. |
-| a listing travels from the seller signing in to their weekly payout | The whole product in one walk. |
-| a question on a listing becomes an answer and then a published FAQ | Anonymous ask → seller reply → publish → the answer is on the page for the next visitor. |
-| admin removes a listing and it leaves the storefront | Removal takes it to 404 and off the grid; the lift brings it back. |
-| admin blocks the customer and checkout refuses | A blocked customer with a full cart is sent back to `/cart` with the reason; lifting the block lets checkout through. |
-| an admin messages a seller and the seller reads it | The unread badge counts up and clears. |
+| Test                                                                | What it proves                                                               |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| every site serves its own page and they all share one stylesheet    | The three layouts render and `/app.css` answers `text/css`.                  |
+| a listing travels from the seller signing in to their weekly payout | The whole product in one walk.                                               |
+| a question on a listing becomes an answer and then a published FAQ  | Anonymous ask → seller reply → publish → the answer is on the page for the   |
+|                                                                     | next visitor.                                                                |
+| admin removes a listing and it leaves the storefront                | Removal takes it to 404 and off the grid; the lift brings it back.           |
+| admin blocks the customer and checkout refuses                      | A blocked customer with a full cart is sent back to `/cart` with the reason; |
+|                                                                     | lifting the block lets checkout through.                                     |
+| an admin messages a seller and the seller reads it                  | The unread badge counts up and clears.                                       |
 
 The centrepiece follows the Rails spike's `smoke_test.rb`: named step functions in
 the order a person does them, each asserting both the rendered page and the rows
@@ -140,10 +142,10 @@ and dropping that would delete the test that covers the rule.
 `src/public/uploads/` removed (`.gitkeep` kept), then `make build` and `make up`
 alone.
 
-| Step | Time |
-| --- | --- |
-| `make build` (cold image cache, base image already pulled) | 14s |
-| `make up` → `/` answering 200 | 13s |
+| Step                                                       | Time |
+| ---------------------------------------------------------- | ---- |
+| `make build` (cold image cache, base image already pulled) | 14s  |
+| `make up` → `/` answering 200                              | 13s  |
 
 Inside the 13s: `npm ci` installed 230 packages in 9s, ten migrations applied
 from nothing, `seed.ts` wrote `seeded 2 admins` then `seeded 4 sellers, 29
@@ -171,11 +173,11 @@ customer refused at add-to-cart and at checkout.
 
 ### Numbers
 
-| Gate | Result |
-| --- | --- |
-| `make test` | 1,161 tests, 1,161 pass, 0 fail; `tsc --noEmit` and eslint clean |
+| Gate            | Result                                                                           |
+| --------------- | -------------------------------------------------------------------------------- |
+| `make test`     | 1,161 tests, 1,161 pass, 0 fail; `tsc --noEmit` and eslint clean                 |
 | `make coverage` | 99.42% lines, 95.23% branches, 98.85% functions, exit 0 against the 90 / 80 gate |
-| `make smoke` | 6 tests, 0 fail, 0.78s |
+| `make smoke`    | 6 tests, 0 fail, 0.78s                                                           |
 
 248 source `.ts` files (12,710 lines), 190 sidecar test files (18,866 lines),
 57 EJS templates (2,821 lines).

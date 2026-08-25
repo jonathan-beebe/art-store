@@ -33,13 +33,13 @@ The prototype is judged against two others by someone reading docs first; stale 
 
 ### Numbers
 
-| Measure | Before | After |
-| --- | --- | --- |
-| PHPStan errors, `app` + `database` + `routes` (`*Test.php` excluded) | 0 | — |
-| PHPStan errors, `app` + `database` + `routes` + `tests`, nothing excluded | 2915 | 0 |
-| Tests | 721 (1600 assertions) | 733 (1643 assertions) |
-| Line coverage | 100.0% | 100.0% |
-| Pint | clean, 322 files | clean, 322 files |
+| Measure                                                                   | Before                | After                 |
+| ------------------------------------------------------------------------- | --------------------- | --------------------- |
+| PHPStan errors, `app` + `database` + `routes` (`*Test.php` excluded)      | 0                     | —                     |
+| PHPStan errors, `app` + `database` + `routes` + `tests`, nothing excluded | 2915                  | 0                     |
+| Tests                                                                     | 721 (1600 assertions) | 733 (1643 assertions) |
+| Line coverage                                                             | 100.0%                | 100.0%                |
+| Pint                                                                      | clean, 322 files      | clean, 322 files      |
 
 `make check` exits 0 in 32.5s. `make smoke` 4.6s, `make fresh` 3.4s.
 
@@ -53,13 +53,15 @@ case, the expectation API, and the arch DSL through traits and
 `expect()->extend()`, and PHPStan follows neither. `src/phpstan/` holds five
 stub files that name what Pest carries:
 
-| Stub | What it declares |
-| --- | --- |
-| `pest-test-call.stub` | `Pest\PendingCalls\TestCall` — the class Pest declares as the scope of every test closure — mixes in `Tests\StorefrontTestCase` and answers `expect()`, `and()`, `preset()` |
-| `pest-tap-proxy.stub` | `Pest\Support\HigherOrderTapProxy`, what a no-argument `test()` returns, mixes in the same class |
-| `pest-functions.stub` | `@param-closure-this Tests\StorefrontTestCase` on `it`, `test`, `beforeEach`, `afterEach` |
-| `pest-expectation.stub` | `Pest\Expectation` gains `toBeMoney()` and `toHaveStatus()`, the two expectations `tests/Pest.php` registers |
-| `pest-refs.stub` | The classes the four stubs above name. PHPStan validates a stub file against a reflection provider that knows only PHP's own classes and stub-declared ones, so without this every `@mixin` and `@method` in them reads as an unknown class |
+| Stub                    | What it declares                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `pest-test-call.stub`   | `Pest\PendingCalls\TestCall` — the class Pest declares as the scope of every test closure — mixes in                     |
+|                         | `Tests\StorefrontTestCase` and answers `expect()`, `and()`, `preset()`                                                   |
+| `pest-tap-proxy.stub`   | `Pest\Support\HigherOrderTapProxy`, what a no-argument `test()` returns, mixes in the same class                         |
+| `pest-functions.stub`   | `@param-closure-this Tests\StorefrontTestCase` on `it`, `test`, `beforeEach`, `afterEach`                                |
+| `pest-expectation.stub` | `Pest\Expectation` gains `toBeMoney()` and `toHaveStatus()`, the two expectations `tests/Pest.php` registers             |
+| `pest-refs.stub`        | The classes the four stubs above name. PHPStan validates a stub file against a reflection provider that knows only PHP's |
+|                         | own classes and stub-declared ones, so without this every `@mixin` and `@method` in them reads as an unknown class       |
 
 `Tests\StorefrontTestCase` is the deepest of the three base classes
 (`Tests\TestCase` → `Tests\CommerceTestCase` → `Tests\StorefrontTestCase`), so
@@ -125,22 +127,22 @@ all four seeders in 3.4s.
 
 `docker compose up -d`, then:
 
-| URL | Code |
-| --- | --- |
-| `/` | 200 |
-| `/?q=harbour` | 200 |
-| `/?medium=Ceramics` | 200 |
-| `/art/low-tide-at-dusk` | 200 |
-| `/art/not-a-listing` | 404 |
-| `/cart` | 200 |
-| `/favorites` | 200 |
-| `/orders` | 200 |
-| `/login` | 200 |
-| `/checkout` | 302 (empty cart → `/cart`) |
-| `/account` | 302 (no verified customer → `/login`) |
-| `/seller` | 302 (signed out → `/seller/login`) |
-| `/seller/login` | 200 |
-| `/seller/listings`, `/seller/orders`, `/seller/earnings`, `/seller/notifications` | 302 (signed out) |
+| URL                                                                               | Code                                  |
+| --------------------------------------------------------------------------------- | ------------------------------------- |
+| `/`                                                                               | 200                                   |
+| `/?q=harbour`                                                                     | 200                                   |
+| `/?medium=Ceramics`                                                               | 200                                   |
+| `/art/low-tide-at-dusk`                                                           | 200                                   |
+| `/art/not-a-listing`                                                              | 404                                   |
+| `/cart`                                                                           | 200                                   |
+| `/favorites`                                                                      | 200                                   |
+| `/orders`                                                                         | 200                                   |
+| `/login`                                                                          | 200                                   |
+| `/checkout`                                                                       | 302 (empty cart → `/cart`)            |
+| `/account`                                                                        | 302 (no verified customer → `/login`) |
+| `/seller`                                                                         | 302 (signed out → `/seller/login`)    |
+| `/seller/login`                                                                   | 200                                   |
+| `/seller/listings`, `/seller/orders`, `/seller/earnings`, `/seller/notifications` | 302 (signed out)                      |
 
 The home page renders the seeded titles ("Portrait of a Welder", "Salt Flats,
 Noon", …) and `/seller/login` renders its sign-in form. Authenticated pages are

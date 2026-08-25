@@ -102,28 +102,28 @@ contain neither the reason nor the address.
 
 ### Rename map
 
-| Old | New | Phase |
-| --- | --- | --- |
-| `magic_link.requested` | `magic_link.request` | `did` |
-| `magic_link.consumed` | `magic_link.consume` | `did` |
-| `magic_link.refused` | `magic_link.consume` | `refused` |
-| `order.placed` | `order.place` | `did` |
-| `order.paid` | `order.pay` | `did` |
-| `order.declined` | `order.pay` | `refused` |
-| `fulfillment.shipped` | `fulfillment.ship` | `did` |
-| `moderation.listing_removed` | `moderation.remove_listing` | `did` |
-| `moderation.listing_removal_lifted` | `moderation.lift_listing_removal` | `did` |
-| `moderation.customer_blocked` | `moderation.block_customer` | `did` |
-| `moderation.customer_block_lifted` | `moderation.lift_customer_block` | `did` |
-| `payout.paid` | `payout.pay` | `did` |
-| `payout.run` | `payout.run` | `will` + `did` |
-| `outbox.drained` | `notification.deliver` | `doing` |
-| `outbox.drain_run` | `notification.deliver` | `will` + `did` |
-| `migrate.removed` | `migrate.run` | `doing` |
-| `migrate.applied` | `migrate.apply` | `did` |
-| `migrate.run` | `migrate.run` | `will` + `did` |
-| `seed.admins` | `seed.run` | `doing` |
-| `seed.demo_data` | `seed.run` | `did` |
+| Old                                 | New                               | Phase          |
+| ----------------------------------- | --------------------------------- | -------------- |
+| `magic_link.requested`              | `magic_link.request`              | `did`          |
+| `magic_link.consumed`               | `magic_link.consume`              | `did`          |
+| `magic_link.refused`                | `magic_link.consume`              | `refused`      |
+| `order.placed`                      | `order.place`                     | `did`          |
+| `order.paid`                        | `order.pay`                       | `did`          |
+| `order.declined`                    | `order.pay`                       | `refused`      |
+| `fulfillment.shipped`               | `fulfillment.ship`                | `did`          |
+| `moderation.listing_removed`        | `moderation.remove_listing`       | `did`          |
+| `moderation.listing_removal_lifted` | `moderation.lift_listing_removal` | `did`          |
+| `moderation.customer_blocked`       | `moderation.block_customer`       | `did`          |
+| `moderation.customer_block_lifted`  | `moderation.lift_customer_block`  | `did`          |
+| `payout.paid`                       | `payout.pay`                      | `did`          |
+| `payout.run`                        | `payout.run`                      | `will` + `did` |
+| `outbox.drained`                    | `notification.deliver`            | `doing`        |
+| `outbox.drain_run`                  | `notification.deliver`            | `will` + `did` |
+| `migrate.removed`                   | `migrate.run`                     | `doing`        |
+| `migrate.applied`                   | `migrate.apply`                   | `did`          |
+| `migrate.run`                       | `migrate.run`                     | `will` + `did` |
+| `seed.admins`                       | `seed.run`                        | `doing`        |
+| `seed.demo_data`                    | `seed.run`                        | `did`          |
 
 Newly emitted, having had no line before: `http.request`, `customer.merge`,
 `listing.create`, `listing.update`, `listing.publish`, `listing.transition`,

@@ -44,15 +44,16 @@ route binds the model
        └─ controller            redirect decisions, then the action
 ```
 
-| Route | Request | Hands over |
-| --- | --- | --- |
-| `shop.cart.add` | `Shop\AddToCartRequest` | `quantity()` |
-| `shop.checkout.place` | `Shop\CheckoutRequest` | `toShippingAddress()`, `toPurchaser($visitor)`, `email()`, `cardNumber()` |
-| `shop.order.pay.submit` | `Shop\PayOrderRequest` | `cardNumber()` |
-| `auth.customer.send`, `auth.seller.send` | `Auth\SendMagicLinkRequest` | `email()`, `redirectTo()` |
-| `seller.listings.store`, `.update` | `Seller\ListingRequest` | `toDraft()` |
-| `seller.listings.status` | `Seller\ChangeListingStatusRequest` | `status()` |
-| `seller.orders.ship` | `Seller\MarkShippedRequest` | `carrier()`, `trackingNumber()` |
+| Route                                    | Request                             | Hands over                                                        |
+| ---------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| `shop.cart.add`                          | `Shop\AddToCartRequest`             | `quantity()`                                                      |
+| `shop.checkout.place`                    | `Shop\CheckoutRequest`              | `toShippingAddress()`, `toPurchaser($visitor)`, `email()`,        |
+|                                          |                                     | `cardNumber()`                                                    |
+| `shop.order.pay.submit`                  | `Shop\PayOrderRequest`              | `cardNumber()`                                                    |
+| `auth.customer.send`, `auth.seller.send` | `Auth\SendMagicLinkRequest`         | `email()`, `redirectTo()`                                         |
+| `seller.listings.store`, `.update`       | `Seller\ListingRequest`             | `toDraft()`                                                       |
+| `seller.listings.status`                 | `Seller\ChangeListingStatusRequest` | `status()`                                                        |
+| `seller.orders.ship`                     | `Seller\MarkShippedRequest`         | `carrier()`, `trackingNumber()`                                   |
 
 `Shop\ShopRequest` is the storefront base, mirroring `ShopController`: it
 exposes `visitor()` so `CheckoutRequest::rules()` can decide the card rule and
@@ -115,14 +116,14 @@ exceptions (`ListingRequest`, `MarkShippedRequest`, `ShippingAddress`).
 Field-level validation moved out of the controller sidecars into the request
 sidecars as datasets, so each rule is asserted once, where it lives:
 
-| Moved from | To |
-| --- | --- |
-| `Seller\ListingControllerTest` (2 datasets) | `Requests\Seller\ListingRequestTest` |
-| `Seller\ShipmentControllerTest` (2 tests) | `Requests\Seller\MarkShippedRequestTest` (1 dataset) |
-| `Seller\ListingStatusControllerTest` (1 dataset) | `Requests\Seller\ChangeListingStatusRequestTest` |
-| `Shop\CheckoutControllerTest` (1 test) | `Requests\Shop\CheckoutRequestTest` |
-| `Shop\OrderPaymentControllerTest` (1 test) | `Requests\Shop\PayOrderRequestTest` |
-| `Auth\{Customer,Seller}LoginControllerTest` (3 tests) | `Requests\Auth\SendMagicLinkRequestTest` |
+| Moved from                                            | To                                                   |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| `Seller\ListingControllerTest` (2 datasets)           | `Requests\Seller\ListingRequestTest`                 |
+| `Seller\ShipmentControllerTest` (2 tests)             | `Requests\Seller\MarkShippedRequestTest` (1 dataset) |
+| `Seller\ListingStatusControllerTest` (1 dataset)      | `Requests\Seller\ChangeListingStatusRequestTest`     |
+| `Shop\CheckoutControllerTest` (1 test)                | `Requests\Shop\CheckoutRequestTest`                  |
+| `Shop\OrderPaymentControllerTest` (1 test)            | `Requests\Shop\PayOrderRequestTest`                  |
+| `Auth\{Customer,Seller}LoginControllerTest` (3 tests) | `Requests\Auth\SendMagicLinkRequestTest`             |
 
 The `to*()` accessors are tested directly off `Request::create(...)`, which
 needs no middleware; the rules are tested through HTTP.

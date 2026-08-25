@@ -56,11 +56,11 @@ Only a seller with `available > 0` (`isPayable`) gets a payout row. A `held`,
 Question: where does a `refunded` entry land, and what happens when it lands
 after the money is already gone?
 
-| Timing | Entries for that fulfillment | Held | Available | Paid out |
-| --- | --- | --- | --- | --- |
-| Refund before release | `held +net`, `refunded −net` | 0 | 0 | 0 |
-| Refund after release | `held +net`, `released +net`, `refunded −net` | 0 | 0 | 0 |
-| Refund after payout | `held +net`, `released +net`, `paid_out −net`, `refunded −net` | 0 | −net | +net |
+| Timing                | Entries for that fulfillment                                   | Held | Available | Paid out |
+| --------------------- | -------------------------------------------------------------- | ---- | --------- | -------- |
+| Refund before release | `held +net`, `refunded −net`                                   | 0    | 0         | 0        |
+| Refund after release  | `held +net`, `released +net`, `refunded −net`                  | 0    | 0         | 0        |
+| Refund after payout   | `held +net`, `released +net`, `paid_out −net`, `refunded −net` | 0    | −net      | +net     |
 
 A negative `available` is carried rather than clamped. `isPayable` is false
 while it stands, so `planWeeklyPayout` writes no `paid_out` row for that seller
@@ -135,12 +135,12 @@ Two entry points call the same action: the CLI, and `POST /admin/payouts` on
 the admin site. The seller portal shows a seller their balance and payout
 history on `/seller/earnings` and offers no control that runs one.
 
-| Way in | Command |
-| --- | --- |
+| Way in            | Command                                              |
+| ----------------- | ---------------------------------------------------- |
 | CLI, current week | `npm run payouts` — settles the week that just ended |
-| CLI, a named week | `npm run payouts -- --as-of=2026-08-24` |
-| Make | `make payouts`, or `make payouts AS_OF=2026-08-24` |
-| Admin site | `POST /admin/payouts` with an `as_of` field |
+| CLI, a named week | `npm run payouts -- --as-of=2026-08-24`              |
+| Make              | `make payouts`, or `make payouts AS_OF=2026-08-24`   |
+| Admin site        | `POST /admin/payouts` with an `as_of` field          |
 
 ## Worked example
 
@@ -148,14 +148,18 @@ One $100.00 listing, one unit, one seller, no other activity that period.
 `placeOrder` prices it once: `platformFee(10000)` is `1000`,
 `sellerNet(10000)` is `9000`, both stored on the `fulfillments` row.
 
-| Step | Action | Entry written | Seller balance |
-| --- | --- | --- | --- |
-| Card approved | `finalizeOrder` → `holdMovement(9000)` | `held +9000` | held $90.00, available $0.00, paid out $0.00 |
-| Delivery confirmed | `confirmDelivered` → `releaseMovement(9000)` | `released +9000` | held $0.00, available $90.00, paid out $0.00 |
-| Payout run, period closed | `runWeeklyPayout` → `payoutMovement(9000)` | `paid_out −9000` | held $0.00, available $0.00, paid out $90.00 |
-| Same period run again | `runWeeklyPayout` | none | unchanged |
-| Dispute upheld | `issueRefund` → `refundMovement(9000)` | `refunded −9000` | held $0.00, available −$90.00, paid out $90.00 |
-| Next period run | `runWeeklyPayout` | none — `isPayable` is false | unchanged; the −$90.00 carries |
+| Step                      | Action                                     | Entry written               | Seller balance                              |
+| ------------------------- | ------------------------------------------ | --------------------------- | ------------------------------------------- |
+| Card approved             | `finalizeOrder` → `holdMovement(9000)`     | `held +9000`                | held $90.00, available $0.00, paid out      |
+|                           |                                            |                             | $0.00                                       |
+| Delivery confirmed        | `confirmDelivered` →                       | `released +9000`            | held $0.00, available $90.00, paid out      |
+|                           | `releaseMovement(9000)`                    |                             | $0.00                                       |
+| Payout run, period closed | `runWeeklyPayout` → `payoutMovement(9000)` | `paid_out −9000`            | held $0.00, available $0.00, paid out       |
+|                           |                                            |                             | $90.00                                      |
+| Same period run again     | `runWeeklyPayout`                          | none                        | unchanged                                   |
+| Dispute upheld            | `issueRefund` → `refundMovement(9000)`     | `refunded −9000`            | held $0.00, available −$90.00, paid out     |
+|                           |                                            |                             | $90.00                                      |
+| Next period run           | `runWeeklyPayout`                          | none — `isPayable` is false | unchanged; the −$90.00 carries              |
 
 Reading the third row through `ledgerBalance`: the per-type totals are `held`
 9000, `released` 9000, `paid_out` −9000, so `heldCents = 9000 − 9000 = 0`,

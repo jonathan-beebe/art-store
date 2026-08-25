@@ -78,41 +78,42 @@ Idiomatic Laravel: a `stdout`/`stderr` channel with a custom Monolog formatter f
 
 ### Event to action
 
-| Event | Emitted by |
-| --- | --- |
-| `http.request` | `LogRequestStory` |
-| `magic_link.request` | `SendMagicLink` |
-| `magic_link.consume` | `MagicLinkVerificationController` (three refusal paths: no row, expired, used) |
-| `customer.merge` | `MergeAnonymousCustomer` |
-| `listing.create` | `CreateListing` |
-| `listing.update` | `UpdateListing` |
-| `listing.publish`, `listing.transition` | `ListingStatusController` — `transition` carries `status_from`/`status_to`, `publish` when the target is `for_sale` |
-| `listing.view` | `Shop\ListingController` |
-| `cart.add`, `cart.update` | `AddToCart` — `add` for a new line, `update` when an existing line is raised |
-| `cart.remove` | `RemoveFromCart` |
-| `order.place` | `PlaceOrder` |
-| `order.pay` | `FinalizeOrder` — `did` on approval, `refused` with `decline_reason` on decline |
-| `fulfillment.ship` | `MarkShipped` |
-| `fulfillment.deliver` | `ConfirmDelivered` |
-| `ledger.write` | `LedgerEntryObserver` |
-| `payout.run`, `payout.pay` | `RunWeeklyPayout` |
-| `conversation.open` | `OpenConversation` |
-| `message.post` | `PostMessage` |
-| `faq.publish`, `faq.unpublish` | `PublishListingFaq`, `UnpublishListingFaq` |
-| `notification.write`, `notification.deliver` | `LoggingServiceProvider` on `NotificationSent` |
-| `moderation.block_customer` | `BlockCustomer` |
-| `moderation.lift_customer_block` | `LiftCustomerBlock` |
-| `migrate.run`, `migrate.apply` | `LoggingServiceProvider` on the migration events |
-| `seed.run` | `DatabaseSeeder` |
-| `app.boot`, `app.shutdown` | `LoggingServiceProvider` |
+| Event                                        | Emitted by                                                                                          |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `http.request`                               | `LogRequestStory`                                                                                   |
+| `magic_link.request`                         | `SendMagicLink`                                                                                     |
+| `magic_link.consume`                         | `MagicLinkVerificationController` (three refusal paths: no row, expired, used)                      |
+| `customer.merge`                             | `MergeAnonymousCustomer`                                                                            |
+| `listing.create`                             | `CreateListing`                                                                                     |
+| `listing.update`                             | `UpdateListing`                                                                                     |
+| `listing.publish`, `listing.transition`      | `ListingStatusController` — `transition` carries `status_from`/`status_to`, `publish` when the      |
+|                                              | target is `for_sale`                                                                                |
+| `listing.view`                               | `Shop\ListingController`                                                                            |
+| `cart.add`, `cart.update`                    | `AddToCart` — `add` for a new line, `update` when an existing line is raised                        |
+| `cart.remove`                                | `RemoveFromCart`                                                                                    |
+| `order.place`                                | `PlaceOrder`                                                                                        |
+| `order.pay`                                  | `FinalizeOrder` — `did` on approval, `refused` with `decline_reason` on decline                     |
+| `fulfillment.ship`                           | `MarkShipped`                                                                                       |
+| `fulfillment.deliver`                        | `ConfirmDelivered`                                                                                  |
+| `ledger.write`                               | `LedgerEntryObserver`                                                                               |
+| `payout.run`, `payout.pay`                   | `RunWeeklyPayout`                                                                                   |
+| `conversation.open`                          | `OpenConversation`                                                                                  |
+| `message.post`                               | `PostMessage`                                                                                       |
+| `faq.publish`, `faq.unpublish`               | `PublishListingFaq`, `UnpublishListingFaq`                                                          |
+| `notification.write`, `notification.deliver` | `LoggingServiceProvider` on `NotificationSent`                                                      |
+| `moderation.block_customer`                  | `BlockCustomer`                                                                                     |
+| `moderation.lift_customer_block`             | `LiftCustomerBlock`                                                                                 |
+| `migrate.run`, `migrate.apply`               | `LoggingServiceProvider` on the migration events                                                    |
+| `seed.run`                                   | `DatabaseSeeder`                                                                                    |
+| `app.boot`, `app.shutdown`                   | `LoggingServiceProvider`                                                                            |
 
 ### Deferred, with the ticket that emits them
 
-| Event | Ticket |
-| --- | --- |
-| `order.cancel`, `order.sweep`, `fulfillment.decline`, `refund.issue` | FEAT-020 — order lifecycle back half |
-| `rate_limit.exceed` | FEAT-021 — configurable rate limits |
-| `moderation.remove_listing`, `moderation.lift_listing_removal` | FEAT-024 — admin moderation of listings |
+| Event                                                                | Ticket                                  |
+| -------------------------------------------------------------------- | --------------------------------------- |
+| `order.cancel`, `order.sweep`, `fulfillment.decline`, `refund.issue` | FEAT-020 — order lifecycle back half    |
+| `rate_limit.exceed`                                                  | FEAT-021 — configurable rate limits     |
+| `moderation.remove_listing`, `moderation.lift_listing_removal`       | FEAT-024 — admin moderation of listings |
 
 ### Deviations from §2, and why
 

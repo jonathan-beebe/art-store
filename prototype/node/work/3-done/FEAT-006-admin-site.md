@@ -61,12 +61,12 @@ knows the listing or the customer needs nothing else.
 Each refusal is a `TransitionError` (`app/core/transition-error.ts`) the route
 catches:
 
-| Call | Refused when |
-| --- | --- |
-| `removeListing` | the listing already has an active removal |
+| Call                 | Refused when                                            |
+| -------------------- | ------------------------------------------------------- |
+| `removeListing`      | the listing already has an active removal               |
 | `liftListingRemoval` | the listing has no active removal, or it is `permanent` |
-| `blockCustomer` | the customer is already blocked |
-| `liftCustomerBlock` | the customer is not blocked |
+| `blockCustomer`      | the customer is already blocked                         |
+| `liftCustomerBlock`  | the customer is not blocked                             |
 
 ### The page-view rollup
 
@@ -89,26 +89,27 @@ adds `requireAdmin` once. `/admin/login`, `/admin/logout`, and `/admin/account`
 stay outside it: a guard over the sign-in pages would send a signed-out admin
 in a circle.
 
-| Method | Path | Template | Reads / writes |
-| --- | --- | --- | --- |
-| GET | `/admin` | `home.ejs` | `platformTallies`, `platformMoney`, `pageViewTotals` |
-| GET | `/admin/sellers` | `sellers.ejs` | `sellerRows` |
-| GET | `/admin/sellers/:id` | `seller.ejs` | `sellerDetail` (404 when the id names nobody) |
-| GET | `/admin/customers?standing=` | `customers.ejs` | `customerRows`; `standing` is `all` \| `verified` \| `anonymous` \| `blocked` |
-| GET | `/admin/customers/:id` | `customer.ejs` | `customerDetail` (404) |
-| GET | `/admin/listings?status=&seller=&removed=` | `listings.ejs` | `listingRows`; `removed` is `any` \| `removed` \| `visible` |
-| GET | `/admin/listings/:id` | `listing.ejs` | `listingDetail` (404) |
-| GET | `/admin/orders?status=&customer=` | `orders.ejs` | `orderRows` |
-| GET | `/admin/fulfillments?status=&seller=` | `fulfillments.ejs` | `fulfillmentRows` |
-| GET | `/admin/accounting` | `accounting.ejs` | `sellerAccounts`, `platformMoney` |
-| GET | `/admin/payouts?seller=` | `payouts.ejs` | `payoutRows`, `sellerOptions` |
-| POST | `/admin/payouts` | — | `runWeeklyPayout`, flash, redirect |
-| GET | `/admin/ledger?seller=&type=` | `ledger.ejs` | `ledgerRows` (rows plus the folded totals for the filtered set) |
-| GET | `/admin/stats` | `stats.ejs` | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies` |
-| POST | `/admin/listings/:id/removals` | — | `removeListing` (`kind`, `reason`, `redirect_to`) |
-| POST | `/admin/listings/:id/removals/lift` | — | `liftListingRemoval` (`redirect_to`) |
-| POST | `/admin/customers/:id/blocks` | — | `blockCustomer` (`reason`, `redirect_to`) |
-| POST | `/admin/customers/:id/blocks/lift` | — | `liftCustomerBlock` (`redirect_to`) |
+| Method | Path                                       | Template           | Reads / writes                                                          |
+| ------ | ------------------------------------------ | ------------------ | ----------------------------------------------------------------------- |
+| GET    | `/admin`                                   | `home.ejs`         | `platformTallies`, `platformMoney`, `pageViewTotals`                    |
+| GET    | `/admin/sellers`                           | `sellers.ejs`      | `sellerRows`                                                            |
+| GET    | `/admin/sellers/:id`                       | `seller.ejs`       | `sellerDetail` (404 when the id names nobody)                           |
+| GET    | `/admin/customers?standing=`               | `customers.ejs`    | `customerRows`; `standing` is `all` \| `verified` \| `anonymous` \|     |
+|        |                                            |                    | `blocked`                                                               |
+| GET    | `/admin/customers/:id`                     | `customer.ejs`     | `customerDetail` (404)                                                  |
+| GET    | `/admin/listings?status=&seller=&removed=` | `listings.ejs`     | `listingRows`; `removed` is `any` \| `removed` \| `visible`             |
+| GET    | `/admin/listings/:id`                      | `listing.ejs`      | `listingDetail` (404)                                                   |
+| GET    | `/admin/orders?status=&customer=`          | `orders.ejs`       | `orderRows`                                                             |
+| GET    | `/admin/fulfillments?status=&seller=`      | `fulfillments.ejs` | `fulfillmentRows`                                                       |
+| GET    | `/admin/accounting`                        | `accounting.ejs`   | `sellerAccounts`, `platformMoney`                                       |
+| GET    | `/admin/payouts?seller=`                   | `payouts.ejs`      | `payoutRows`, `sellerOptions`                                           |
+| POST   | `/admin/payouts`                           | —                  | `runWeeklyPayout`, flash, redirect                                      |
+| GET    | `/admin/ledger?seller=&type=`              | `ledger.ejs`       | `ledgerRows` (rows plus the folded totals for the filtered set)         |
+| GET    | `/admin/stats`                             | `stats.ejs`        | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies`           |
+| POST   | `/admin/listings/:id/removals`             | —                  | `removeListing` (`kind`, `reason`, `redirect_to`)                       |
+| POST   | `/admin/listings/:id/removals/lift`        | —                  | `liftListingRemoval` (`redirect_to`)                                    |
+| POST   | `/admin/customers/:id/blocks`              | —                  | `blockCustomer` (`reason`, `redirect_to`)                               |
+| POST   | `/admin/customers/:id/blocks/lift`         | —                  | `liftCustomerBlock` (`redirect_to`)                                     |
 
 Reads live in `app/sites/admin/queries/`, one module per table a page shows:
 `platform-tallies`, `platform-money`, `page-view-report`,

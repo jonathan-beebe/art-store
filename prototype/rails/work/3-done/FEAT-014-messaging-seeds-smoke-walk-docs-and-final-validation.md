@@ -56,12 +56,12 @@ same guard the other five seeds sit behind. The counts line now reads:
 
 One thread of each kind:
 
-| kind | Sides | Subject | Messages |
-| --- | --- | --- | --- |
-| `admin_seller` | ops ↔ maya | — | 2, about the payout schedule |
-| `admin_customer` | ops ↔ casey | — | 2, about when a seller is paid |
-| `fulfillment` | noah ↔ casey | `Fulfillment.shipped.sole` (order #2) | 3, about the delivery |
-| `listing_question` | priya ↔ casey | "Woodfired Vase, Tall" | 2, about the vase |
+| kind               | Sides         | Subject                               | Messages                       |
+| ------------------ | ------------- | ------------------------------------- | ------------------------------ |
+| `admin_seller`     | ops ↔ maya    | —                                     | 2, about the payout schedule   |
+| `admin_customer`   | ops ↔ casey   | —                                     | 2, about when a seller is paid |
+| `fulfillment`      | noah ↔ casey  | `Fulfillment.shipped.sole` (order #2) | 3, about the delivery          |
+| `listing_question` | priya ↔ casey | "Woodfired Vase, Tall"                | 2, about the vase              |
 
 The FAQ comes off the listing question through the same call the portal's
 button makes: `ListingFaq.draft_from(conversation)` for the pair and the

@@ -67,24 +67,24 @@ device (sent to `/login` with `redirect_to`), and a stranger (404).
 
 ### Routes (`routes/shop.php`, all behind `customer.identity`)
 
-| Name | Method | Path |
-| --- | --- | --- |
-| `shop.home` | GET | `/` |
-| `shop.listing` | GET | `/art/{listing:slug}` |
-| `shop.favorites` | GET | `/favorites` |
-| `shop.favorites.toggle` | POST | `/art/{listing:slug}/favorite` |
-| `shop.cart` | GET | `/cart` |
-| `shop.cart.add` | POST | `/cart/{listing:slug}` |
-| `shop.cart.remove` | DELETE | `/cart/{listing:slug}` |
-| `shop.checkout` | GET | `/checkout` |
-| `shop.checkout.place` | POST | `/checkout` |
-| `shop.orders` | GET | `/orders` |
-| `shop.order` | GET | `/orders/{order}` |
-| `shop.order.pay` | GET | `/orders/{order}/pay` |
-| `shop.order.pay.submit` | POST | `/orders/{order}/pay` |
-| `shop.order.delivered` | POST | `/orders/{order}/fulfillments/{fulfillment}/delivered` |
-| `shop.account` | GET | `/account` (`auth.customer`) |
-| `shop.account.notifications.read` | POST | `/account/notifications/{notification}/read` (`auth.customer`) |
+| Name                              | Method | Path                                                           |
+| --------------------------------- | ------ | -------------------------------------------------------------- |
+| `shop.home`                       | GET    | `/`                                                            |
+| `shop.listing`                    | GET    | `/art/{listing:slug}`                                          |
+| `shop.favorites`                  | GET    | `/favorites`                                                   |
+| `shop.favorites.toggle`           | POST   | `/art/{listing:slug}/favorite`                                 |
+| `shop.cart`                       | GET    | `/cart`                                                        |
+| `shop.cart.add`                   | POST   | `/cart/{listing:slug}`                                         |
+| `shop.cart.remove`                | DELETE | `/cart/{listing:slug}`                                         |
+| `shop.checkout`                   | GET    | `/checkout`                                                    |
+| `shop.checkout.place`             | POST   | `/checkout`                                                    |
+| `shop.orders`                     | GET    | `/orders`                                                      |
+| `shop.order`                      | GET    | `/orders/{order}`                                              |
+| `shop.order.pay`                  | GET    | `/orders/{order}/pay`                                          |
+| `shop.order.pay.submit`           | POST   | `/orders/{order}/pay`                                          |
+| `shop.order.delivered`            | POST   | `/orders/{order}/fulfillments/{fulfillment}/delivered`         |
+| `shop.account`                    | GET    | `/account` (`auth.customer`)                                   |
+| `shop.account.notifications.read` | POST   | `/account/notifications/{notification}/read` (`auth.customer`) |
 
 ### Domain added (pure, sidecar unit tests)
 

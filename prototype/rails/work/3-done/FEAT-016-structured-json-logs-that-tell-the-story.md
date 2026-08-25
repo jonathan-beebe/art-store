@@ -80,13 +80,14 @@ Vanilla Rails: a custom `ActiveSupport::Logger` formatter emitting the JSON payl
 
 ### Deferred, deliberately
 
-| Event | Ticket that brings it |
-| --- | --- |
-| `order.cancel`, `order.sweep` | FEAT-017 |
-| `fulfillment.decline`, `refund.issue` | FEAT-017 |
-| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`, `moderation.lift_customer_block` | FEAT-021 |
-| `rate_limit.exceed` | the rate-limit ticket (alignment §3) |
-| `listing.view` `refused` at `debug` (the once-per-(listing, customer, hour) collapse) | FEAT-020 |
+| Event                                                                                                       | Ticket that brings it                |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `order.cancel`, `order.sweep`                                                                               | FEAT-017                             |
+| `fulfillment.decline`, `refund.issue`                                                                       | FEAT-017                             |
+| `moderation.remove_listing`, `moderation.lift_listing_removal`, `moderation.block_customer`,                | FEAT-021                             |
+| `moderation.lift_customer_block`                                                                            |                                      |
+| `rate_limit.exceed`                                                                                         | the rate-limit ticket (alignment §3) |
+| `listing.view` `refused` at `debug` (the once-per-(listing, customer, hour) collapse)                       | FEAT-020                             |
 
 The features do not exist yet; the tickets that add them add their events.
 

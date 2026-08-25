@@ -63,13 +63,21 @@ lands under a numeric key, and asserting on the page is the behaviour anyone
 cares about.
 
 ### Status codes the HTTP tests assert now
-| Route | Was | Now | Why |
-| --- | --- | --- | --- |
-| `POST /seller/orders/{id}/shipment`, already shipped | 422 | 302 back, message rendered | A form post's answer is the form's page with the reason on it. A seller who double-clicks Ship got a bare 422 error page. |
-| `POST /orders/{o}/fulfillments/{f}/delivered`, already delivered | 404 | 302 back, message rendered | The fulfillment exists and is theirs; 404 said otherwise. Covered by a new test — the old 404 had none. |
-| `POST /cart/{listing}`, not purchasable | 302 + `session('error')` | 302 + `$errors` | Same shape as every other refusal. |
-| `POST /checkout`, cart line left the storefront | 500 | 302 to `/cart`, message names the item | The bug. |
-| Any route, row is not the visitor's / not the seller's | 404 | 404 | Ownership, not state. Unchanged. |
+| Route                                 | Was                      | Now                                    | Why                                    |
+| ------------------------------------- | ------------------------ | -------------------------------------- | -------------------------------------- |
+| `POST /seller/orders/{id}/shipment`,  | 422                      | 302 back, message rendered             | A form post's answer is the form's     |
+| already shipped                       |                          |                                        | page with the reason on it. A seller   |
+|                                       |                          |                                        | who double-clicks Ship got a bare 422  |
+|                                       |                          |                                        | error page.                            |
+| `POST /orders/{o}/fulfillments/{f}/delivered`, | 404                      | 302 back, message rendered             | The fulfillment exists and is theirs;  |
+| already delivered                     |                          |                                        | 404 said otherwise. Covered by a new   |
+|                                       |                          |                                        | test — the old 404 had none.           |
+| `POST /cart/{listing}`, not           | 302 + `session('error')` | 302 + `$errors`                        | Same shape as every other refusal.     |
+| purchasable                           |                          |                                        |                                        |
+| `POST /checkout`, cart line left the  | 500                      | 302 to `/cart`, message names the item | The bug.                               |
+| storefront                            |                          |                                        |                                        |
+| Any route, row is not the visitor's / | 404                      | 404                                    | Ownership, not state. Unchanged.       |
+| not the seller's                      |                          |                                        |                                        |
 
 ### Naming the item
 `ListingStock::afterSale` takes the listing title and names it:

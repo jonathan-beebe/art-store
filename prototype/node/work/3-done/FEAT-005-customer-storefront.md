@@ -43,25 +43,34 @@ Reference: `prototype/rails/src/app/controllers/shop/**`, `app/views/shop/**`, `
 All of these live in `app/sites/shop/`. Everything under `storefrontRoutes`
 inherits `resolveCustomerIdentity`, so a customer row exists on every request.
 
-| Method | Path | File | Notes |
-| --- | --- | --- | --- |
-| GET | `/` | `routes/home.ts` | Grid of `for_sale`, un-removed listings; `q` searches title/description/medium, `medium` filters, `page` pages at 12 |
-| GET | `/art/:slug` | `routes/listings.ts` | Records a `view`; 404 for draft / archived / removed |
-| POST | `/art/:slug/favorite` | `routes/favorites.ts` | Toggles; returns to the referer when it is local |
-| GET | `/favorites` | `routes/favorites.ts` | |
-| GET | `/cart` | `routes/carts.ts` | |
-| POST | `/cart/:slug` | `routes/carts.ts` | Blocked customers refused; a sold-out piece redirects with an alert |
-| POST | `/cart/:slug/remove` | `routes/carts.ts` | POST, not DELETE: an HTML form sends no other verb |
-| GET | `/checkout` | `routes/checkout.ts` | Empty cart redirects to `/cart` |
-| POST | `/checkout` | `routes/checkout.ts` | Verified buyer pays here; a guest leaves with a magic link |
-| GET | `/orders` | `routes/orders.ts` | |
-| GET | `/orders/:id` | `routes/orders.ts` | Per-seller fulfillments, tracking, confirm-delivery, cancel, retry card |
-| POST | `/orders/:id/cancel` | `routes/orders.ts` | 404 once the order is past cancelling |
-| GET | `/orders/:id/pay` | `routes/order-payments.ts` | Behind `requireVerifiedCustomer`; `markAwaitingPayment` on every hit |
-| POST | `/orders/:id/pay` | `routes/order-payments.ts` | Blocked customers refused |
-| POST | `/orders/:id/fulfillments/:fulfillmentId/delivered` | `routes/fulfillments.ts` | |
-| POST | `/account/notifications/:id/read` | `routes/notifications.ts` | |
-| GET | `/account` | `app/sites/auth/sign-in-routes.ts` | FEAT-002's route, extended through the new `accountView` option |
+| Method | Path                                             | File                               | Notes                                             |
+| ------ | ------------------------------------------------ | ---------------------------------- | ------------------------------------------------- |
+| GET    | `/`                                              | `routes/home.ts`                   | Grid of `for_sale`, un-removed listings; `q`      |
+|        |                                                  |                                    | searches title/description/medium, `medium`       |
+|        |                                                  |                                    | filters, `page` pages at 12                       |
+| GET    | `/art/:slug`                                     | `routes/listings.ts`               | Records a `view`; 404 for draft / archived /      |
+|        |                                                  |                                    | removed                                           |
+| POST   | `/art/:slug/favorite`                            | `routes/favorites.ts`              | Toggles; returns to the referer when it is local  |
+| GET    | `/favorites`                                     | `routes/favorites.ts`              |                                                   |
+| GET    | `/cart`                                          | `routes/carts.ts`                  |                                                   |
+| POST   | `/cart/:slug`                                    | `routes/carts.ts`                  | Blocked customers refused; a sold-out piece       |
+|        |                                                  |                                    | redirects with an alert                           |
+| POST   | `/cart/:slug/remove`                             | `routes/carts.ts`                  | POST, not DELETE: an HTML form sends no other     |
+|        |                                                  |                                    | verb                                              |
+| GET    | `/checkout`                                      | `routes/checkout.ts`               | Empty cart redirects to `/cart`                   |
+| POST   | `/checkout`                                      | `routes/checkout.ts`               | Verified buyer pays here; a guest leaves with a   |
+|        |                                                  |                                    | magic link                                        |
+| GET    | `/orders`                                        | `routes/orders.ts`                 |                                                   |
+| GET    | `/orders/:id`                                    | `routes/orders.ts`                 | Per-seller fulfillments, tracking,                |
+|        |                                                  |                                    | confirm-delivery, cancel, retry card              |
+| POST   | `/orders/:id/cancel`                             | `routes/orders.ts`                 | 404 once the order is past cancelling             |
+| GET    | `/orders/:id/pay`                                | `routes/order-payments.ts`         | Behind `requireVerifiedCustomer`;                 |
+|        |                                                  |                                    | `markAwaitingPayment` on every hit                |
+| POST   | `/orders/:id/pay`                                | `routes/order-payments.ts`         | Blocked customers refused                         |
+| POST   | `/orders/:id/fulfillments/:fulfillmentId/delivered` | `routes/fulfillments.ts`           |                                                   |
+| POST   | `/account/notifications/:id/read`                | `routes/notifications.ts`          |                                                   |
+| GET    | `/account`                                       | `app/sites/auth/sign-in-routes.ts` | FEAT-002's route, extended through the new        |
+|        |                                                  |                                    | `accountView` option                              |
 
 `GET/POST /login`, `POST /logout` stay as FEAT-002 registered them.
 
@@ -69,16 +78,16 @@ inherits `resolveCustomerIdentity`, so a customer row exists on every request.
 
 **Core** (`app/core/shop/`, pure, sidecar tested, no database):
 
-| Module | Exports |
-| --- | --- |
-| `listing-search.ts` | `ListingSearch`, `parseListingSearch`, `searchLikePattern` |
-| `listing-page.ts` | `ListingPage`, `listingPage({ requested, size, totalCount })` |
-| `checkout-form.ts` | `CheckoutForm`, `parseCheckoutForm`, `missingCheckoutParts`, `isCheckoutComplete` |
-| `checkout-purchaser.ts` | `purchaserForCheckout` |
-| `shop-name.ts` | `shopName({ shopName, email })` |
-| `status-label.ts` | `statusLabel` |
-| `day-label.ts` | `dayLabel` |
-| `blocked-shopper-notice.ts` | `blockedShopperNotice` |
+| Module                      | Exports                                                                           |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `listing-search.ts`         | `ListingSearch`, `parseListingSearch`, `searchLikePattern`                        |
+| `listing-page.ts`           | `ListingPage`, `listingPage({ requested, size, totalCount })`                     |
+| `checkout-form.ts`          | `CheckoutForm`, `parseCheckoutForm`, `missingCheckoutParts`, `isCheckoutComplete` |
+| `checkout-purchaser.ts`     | `purchaserForCheckout`                                                            |
+| `shop-name.ts`              | `shopName({ shopName, email })`                                                   |
+| `status-label.ts`           | `statusLabel`                                                                     |
+| `day-label.ts`              | `dayLabel`                                                                        |
+| `blocked-shopper-notice.ts` | `blockedShopperNotice`                                                            |
 
 **Read-only queries** (`app/sites/shop/queries/`): `find-storefront-listings`
 (`countStorefrontListings`, `findStorefrontListings`, `findStorefrontMedia`,
