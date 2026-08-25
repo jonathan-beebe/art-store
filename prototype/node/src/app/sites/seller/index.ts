@@ -3,8 +3,8 @@ import multipart from '@fastify/multipart'
 import { csrfProtection } from '../../plugins/csrf.ts'
 import { addNotFoundPage } from '../../plugins/error-pages.ts'
 import { unreadEventsRoute } from '../../plugins/events.ts'
+import { requireSeller, resolveSellerIdentity } from '../../plugins/identity.ts'
 import { addSiteRender } from '../../plugins/site-render.ts'
-import { requireSeller } from '../../plugins/identity.ts'
 import { countUnreadMessages } from '../../plugins/unread-messages.ts'
 import { signInRoutes } from '../auth/sign-in-routes.ts'
 import { earningsRoutes } from './routes/earnings.ts'
@@ -29,6 +29,7 @@ export const sellerSite: FastifyPluginCallback = (portal, _options, done) => {
   // `preValidation` hook of its own, and a hook registered here runs after
   // one a plugin registered earlier in this same body already added.
   portal.register(csrfProtection)
+  portal.addHook('preHandler', resolveSellerIdentity)
   portal.addHook('preHandler', countUnreadMessages('seller'))
 
   addNotFoundPage(portal, renderPage)

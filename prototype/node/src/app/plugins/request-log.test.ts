@@ -1,8 +1,17 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import path from 'node:path'
 import type { LightMyRequestResponse } from 'fastify'
+import { loadAssetManifest } from '../http/asset-manifest.ts'
 import { buildLoggedTestApp } from '../test/log-lines.ts'
 import { signInAsSeller, type TestApp } from '../test/build-test-app.ts'
+
+const PUBLIC_DIR = path.join(import.meta.dirname, '..', '..', 'public')
+
+// Reads the manifest static-assets.test.ts (or `npm run assets`) already
+// built — not rebuilt here, so this file has nothing to race with another
+// test file also touching the shared public dir at import time.
+const manifest = loadAssetManifest(PUBLIC_DIR)
 
 /** The `sid` cookie a response wrote back, or undefined when it wrote none. */
 function sessionCookie(response: LightMyRequestResponse): string | undefined {
@@ -174,4 +183,46 @@ test('a test app is still a whole app', async (t) => {
   t.after(testApp.close)
 
   assert.equal((await testApp.app.inject({ method: 'GET', url: '/' })).statusCode, 200)
+})
+
+test('a request for an unhashed asset writes no log lines, cookie, or request id', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/app.css' })
+
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(testApp.logLines.lines(), [])
+  assert.equal(sessionCookie(response), undefined)
+  assert.equal(response.headers['x-request-id'], undefined)
+})
+
+test('a request for the hashed stylesheet writes no log lines', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({ method: 'GET', url: manifest['app.css'] })
+
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(testApp.logLines.lines(), [])
+})
+
+test('a missing upload writes no log lines even though it 404s', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/uploads/nothing.png' })
+
+  assert.equal(response.statusCode, 404)
+  assert.deepEqual(testApp.logLines.lines(), [])
+})
+
+test('a page route that matches nothing still tells its story', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/nothing-here' })
+
+  assert.equal(response.statusCode, 404)
+  assert.deepEqual(testApp.logLines.story(), ['http.request will', 'http.request did'])
 })

@@ -4,6 +4,7 @@ import { parsePrefixedId } from '../core/ids/prefixed-id.ts'
 import { loggablePath, pathnameOf } from '../core/logging/loggable-path.ts'
 import { describeError } from '../core/logging/logged-error.ts'
 import { requestActor } from '../core/logging/request-actor.ts'
+import { isAssetPath } from '../http/asset-manifest.ts'
 import { newId } from '../ids.ts'
 import { logLine, type LogData } from '../log-story.ts'
 import { identityId } from './identity.ts'
@@ -35,8 +36,11 @@ declare module 'fastify' {
  * request's child logger here, so an action logging from four calls deep says
  * who asked for it without being handed anything.
  *
- * Registered before the static and site plugins, because a route inherits the
- * root's hooks as they stand when its own context is built.
+ * Registered before the site plugins, because a route inherits the root's
+ * hooks as they stand when its own context is built. `@fastify/static`'s
+ * routes are root-context routes regardless of registration order, so the
+ * asset check inside each hook — not where this plugin sits — is what keeps
+ * an asset request out of the story.
  */
 export const requestLog = rootPlugin(
   { name: 'requestLog', dependencies: ['@fastify/cookie'] },
@@ -45,6 +49,8 @@ export const requestLog = rootPlugin(
     app.decorateRequest('loggedFailure', false)
 
     app.addHook('onRequest', async (request, reply) => {
+      if (isAssetPath(pathnameOf(request.url))) return
+
       const sessionId = rememberSession(request, reply)
       request.sessionId = sessionId
       request.log = request.log.child(requestBindings(request, sessionId))
@@ -59,7 +65,7 @@ export const requestLog = rootPlugin(
     })
 
     app.addHook('onResponse', async (request, reply) => {
-      if (request.loggedFailure) return
+      if (request.loggedFailure || isAssetPath(pathnameOf(request.url))) return
 
       logLine(
         request.log,

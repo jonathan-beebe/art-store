@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { ASSET_MANIFEST_FILENAME, HASHED_ASSET_NAME, loadAssetManifest } from './asset-manifest.ts'
+import { ASSET_MANIFEST_FILENAME, HASHED_ASSET_NAME, isAssetPath, loadAssetManifest } from './asset-manifest.ts'
 
 const FALLBACK = { 'app.css': '/app.css', 'app.js': '/app.js' }
 
@@ -70,4 +70,23 @@ test('HASHED_ASSET_NAME does not match the unhashed names or a short or foreign 
   assert.doesNotMatch('app.css.gz', HASHED_ASSET_NAME)
   assert.doesNotMatch('app.1a2b3c.css', HASHED_ASSET_NAME)
   assert.doesNotMatch('logo.1a2b3c4d.css', HASHED_ASSET_NAME)
+})
+
+test('isAssetPath matches the unhashed names, a hashed asset, its compressed siblings, and uploads', () => {
+  for (const pathname of [
+    '/app.css',
+    '/app.js',
+    '/app.1a2b3c4d.css',
+    '/app.1a2b3c4d.js.gz',
+    '/uploads/photo.png',
+    '/uploads/nothing.png',
+  ]) {
+    assert.equal(isAssetPath(pathname), true, pathname)
+  }
+})
+
+test('isAssetPath rejects a page route, a nested hashed-looking name, and the assets manifest itself', () => {
+  for (const pathname of ['/', '/nothing-here', '/seller/account', '/foo/app.1a2b3c4d.css', '/assets-manifest.json']) {
+    assert.equal(isAssetPath(pathname), false, pathname)
+  }
 })

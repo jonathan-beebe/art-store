@@ -24,7 +24,9 @@ const SITE_ACTORS = {
   admin: async ({ currentAdmin }) =>
     currentAdmin === null ? null : { type: 'admin', id: currentAdmin.id },
   // Every site this hook runs on registers an identity hook first, so the
-  // actor is already on the request (see storefront.ts and sign-in-routes.ts).
+  // actor is already on the request (see resolveSellerIdentity and
+  // resolveAdminIdentity in identity.ts, and resolveCustomerIdentity in
+  // storefront.ts).
   customer: async ({ currentCustomer }) =>
     currentCustomer === null ? null : { type: 'customer', id: currentCustomer.id },
 } satisfies Record<ActorType, (request: FastifyRequest) => Promise<MessagingActor | null>>

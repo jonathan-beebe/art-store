@@ -34,6 +34,11 @@ type ActorPrefix<Type extends ActorType> = (typeof ACTOR_PREFIXES)[Type]
 /** The id type one side of the marketplace names its actors by. */
 export type ActorIdOf = { [Type in ActorType]: PrefixedId<ActorPrefix<Type>> }
 
+/** What `identityId` has already parsed this request's cookies into, one side
+ * of the marketplace at a time. A key holding `null` means that side's cookie
+ * was parsed and named no actor — distinct from a key that is absent. */
+type ParsedActorIds = { [Type in ActorType]?: ActorIdOf[Type] | null }
+
 /** Who a request is, for the layouts and for anything that renders a header. */
 export type Identity = {
   seller: Selectable<SellerTable> | null
@@ -47,6 +52,7 @@ declare module 'fastify' {
     currentCustomer: Selectable<CustomerTable> | null
     currentAdmin: Selectable<AdminTable> | null
     identity: Identity
+    parsedActorIds: ParsedActorIds | null
   }
 
   interface FastifyReply {
@@ -56,9 +62,12 @@ declare module 'fastify' {
 }
 
 /**
- * Puts the signed-in seller and admin on every request and gives replies the
- * cookie writes. The customer is deliberately absent: resolving one can create
- * a row, so only the storefront's own hook does it.
+ * Decorates every request with the current-actor slots and the cookie stash,
+ * and gives replies the cookie writes. It resolves nobody itself: each site
+ * that carries a seller or admin runs `resolveSellerIdentity` or
+ * `resolveAdminIdentity` as its own preHandler, and the storefront resolves
+ * its customer the same way — resolving one can create a row, so only a site
+ * that needs that actor pays for the lookup.
  */
 export const identityCookies = rootPlugin(
   { name: 'identityCookies', dependencies: ['@fastify/cookie'] },
@@ -66,6 +75,7 @@ export const identityCookies = rootPlugin(
     app.decorateRequest('currentSeller', null)
     app.decorateRequest('currentCustomer', null)
     app.decorateRequest('currentAdmin', null)
+    app.decorateRequest('parsedActorIds', null)
     app.decorateRequest('identity', {
       getter(this: FastifyRequest): Identity {
         return {
@@ -97,13 +107,16 @@ export const identityCookies = rootPlugin(
     app.decorateReply('signOut', function (this: FastifyReply, actorType: ActorType): void {
       this.clearCookie(IDENTITY_COOKIES[actorType], { path: '/' })
     })
-
-    app.addHook('preHandler', resolvePortalIdentities)
   },
 )
 
-const resolvePortalIdentities: preHandlerAsyncHookHandler = async (request) => {
+/** Puts the signed-in seller on the request, for a site that carries one. */
+export const resolveSellerIdentity: preHandlerAsyncHookHandler = async (request) => {
   request.currentSeller = await findSeller(request)
+}
+
+/** Puts the signed-in admin on the request, for a site that carries one. */
+export const resolveAdminIdentity: preHandlerAsyncHookHandler = async (request) => {
   request.currentAdmin = await findAdmin(request)
 }
 
@@ -136,12 +149,30 @@ export function parseActorId<Type extends ActorType>(
   return parsed.outcome === 'id' ? parsed.id : null
 }
 
-/** The id this request's cookie for one side of the marketplace names. */
+/**
+ * The id this request's cookie for one side of the marketplace names. Unsigns
+ * the cookie at most once per request: the result is stashed on
+ * `request.parsedActorIds` and returned from there on a later call for the
+ * same side, however many callers ask within the one request.
+ */
 export function identityId<Type extends ActorType>(
   request: FastifyRequest,
   actorType: Type,
-): PrefixedId<ActorPrefix<Type>> | null {
-  return parseActorId(actorType, identityCookieValue(request, actorType))
+): ActorIdOf[Type] | null {
+  request.parsedActorIds ??= {}
+  const cache = request.parsedActorIds
+
+  if (actorType in cache) return cache[actorType] ?? null
+
+  // `parseActorId`'s return is keyed off the same `actorType`, so this is
+  // provably the id `ActorIdOf[Type]` names — a form TS can't confirm through
+  // two different indexed-access spellings of one generic key.
+  const id = parseActorId(actorType, identityCookieValue(request, actorType)) as
+    | ActorIdOf[Type]
+    | null
+  cache[actorType] = id
+
+  return id
 }
 
 async function findSeller(request: FastifyRequest): Promise<Selectable<SellerTable> | null> {
