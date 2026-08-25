@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:08:13:45 — IMPRV-014 — done: customer and cart reads run outside transactions; the unread hook runs after identity, so the cookie resolves once per request
+- 2026-08-25:07:53:39 — IMPRV-014 — started
 - 2026-08-25:07:46:35 — IMPRV-013 — done: badge count and mark-read are single SQL statements over a partial unread index; message history stays unloaded
 - 2026-08-25:07:20:01 — IMPRV-013 — started
 - 2026-08-25:07:16:13 — MAINT-006 — defined: container start skips work already done
