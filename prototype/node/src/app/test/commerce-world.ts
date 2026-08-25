@@ -9,9 +9,9 @@ import type { ListingStatus } from '../core/listings/listing-status.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
 import type { Listing, Order } from '../db/commerce-schema.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../db/database.ts'
-import { migrateToLatest } from '../db/migrator.ts'
 import { toTimestamp } from '../db/timestamp.ts'
 import { newId } from '../ids.ts'
+import { applySchemaTemplate } from './schema-template.ts'
 
 export const APPROVED_CARD = '4242 4242 4242 4242'
 export const DECLINED_CARD = '4000 0000 0000 0002'
@@ -47,7 +47,7 @@ export type CommerceWorld = {
  */
 export async function openCommerceWorld(at: Date = PLACED_AT): Promise<CommerceWorld> {
   const db = openDatabase(IN_MEMORY_DATABASE)
-  await migrateToLatest(db)
+  await applySchemaTemplate(db)
 
   const clock = travellingClock(at)
 
