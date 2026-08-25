@@ -203,9 +203,10 @@ round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`.
 The `msg` prefix marks where a line sits in the process's story. It is derived
 from `(phase, level, root)` in one place per stack; no call site picks an
 emoji. `root` is the story that opens the process — the HTTP request
-(`http.request`) or the CLI run (`payout.run`, `migrate.run`, …). Each process
-has one 🎬 line, and ❌ as its last line when it failed; every other prefix may
-repeat as the functions inside the process tell their own stories.
+(`http.request`) or the CLI run (`payout.run`, `migrate.run`, …). Each request
+or run has one 🎬 line — an OS process that chains runs, such as migrate then
+seed, opens each — and ❌ as its last line when it failed; every other prefix
+may repeat as the functions inside the process tell their own stories.
 
 | Line                                     | Prefix |
 | ---------------------------------------- | ------ |
@@ -215,6 +216,9 @@ repeat as the functions inside the process tell their own stories.
 | nested `failed`                          | 🛑     |
 | any `refused`; any `warn` line           | ⚠️     |
 | nested `will`; `doing` at `debug`/`info` | none   |
+
+Rows are checked top to bottom, and inside a row `warn` wins: a `did` written
+at `warn` (`rate_limit.exceed`) reads ⚠️.
 
 Emoji lives in the log `msg` only. Text shown to a person — flash messages,
 error pages, form errors — carries none.
