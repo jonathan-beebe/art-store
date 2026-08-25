@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# The boot chain for the production image: prepare the schema, seed (the
+# seeds skip themselves once a seller exists), then serve. One executable,
+# because Render's Docker Command field does not pass through a shell — a
+# quoted `sh -c` chain reaches it as one literal token.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+bin/rails db:prepare
+bin/rails db:seed
+
+exec bin/rails server -b 0.0.0.0

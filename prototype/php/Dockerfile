@@ -1,4 +1,5 @@
-FROM php:8.3-cli
+# syntax=docker/dockerfile:1
+FROM php:8.3-cli AS base
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -20,6 +21,22 @@ RUN apt-get update \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" gd intl pdo_sqlite zip
 
+# Composer lives in every stage: dev and build install with it, and the
+# runtime CMD chain (`composer run deploy`) is what Render's shell-less
+# Docker Command field invokes.
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+WORKDIR /var/www/src
+
+# ---------------------------------------------------------------------------
+# dev: today's bind-mount workflow. `make up` builds this target; source
+# arrives through the compose bind mount, not COPY, and the entrypoint
+# installs dependencies, migrates, and builds assets at container start.
+# pcov and Node are dev-time tools (coverage, the Vite build), so they live
+# here rather than in base.
+# ---------------------------------------------------------------------------
+FROM base AS dev
+
 # pcov defaults to instrumenting every request, so it is disabled here and
 # turned back on with -d only for the composer scripts that collect coverage
 # — see docker/pcov.ini.
@@ -30,12 +47,65 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
-
-WORKDIR /var/www/src
-
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+# ---------------------------------------------------------------------------
+# build: installs the production vendor tree and builds the Vite bundle once
+# at image build time rather than on every container start. Based on dev for
+# its Node and Composer.
+# ---------------------------------------------------------------------------
+FROM dev AS build
+
+COPY src/composer.json src/composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-autoloader
+
+COPY src/ ./
+
+# package:discover (normally a post-autoload-dump script) boots the app, so
+# the storage skeleton has to exist first — .dockerignore keeps src/storage
+# out of the build context.
+RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs \
+    && composer dump-autoload --optimize --no-dev \
+    && php artisan package:discover
+
+RUN npm ci --no-audit --no-fund && npm run build
+
+# ---------------------------------------------------------------------------
+# runtime: production configuration, non-root, no bind mount. `composer run
+# deploy` migrates, seeds, and serves; nothing runs at plain container start
+# beyond the server itself. APP_KEY must arrive from the environment.
+# ---------------------------------------------------------------------------
+FROM base AS runtime
+
+# The database lives under storage/ so one persistent volume covers both the
+# SQLite file and the uploaded listing images (storage/app/public).
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    DB_DATABASE=/var/www/src/storage/production.sqlite3 \
+    PHP_CLI_SERVER_WORKERS=16
+
+COPY --chown=www-data:www-data src/ ./
+COPY --chown=www-data:www-data --from=build /var/www/src/vendor ./vendor
+COPY --chown=www-data:www-data --from=build /var/www/src/bootstrap/cache ./bootstrap/cache
+COPY --chown=www-data:www-data --from=build /var/www/src/public/build ./public/build
+
+# The storage skeleton Laravel writes into, and the public/storage symlink
+# that serves uploads (what `artisan storage:link` creates in dev). A volume
+# mounted over storage/ starts empty, so `composer run deploy` recreates the
+# skeleton on every boot.
+RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs \
+    && ln -sfn /var/www/src/storage/app/public public/storage \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+USER www-data
+
+VOLUME ["/var/www/src/storage"]
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
+    CMD ["curl", "-fsS", "http://127.0.0.1:8000/up"]
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]

@@ -28,4 +28,6 @@ test:
 # ensure the database is located in a persisted volume.
 production:
   <<: *default
-  # database: path/to/persistent/storage/production.sqlite3
+  # storage/ is the image's declared volume, so the database and the Active
+  # Storage uploads persist together on one mounted disk.
+  database: storage/production.sqlite3

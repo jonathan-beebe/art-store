@@ -1,0 +1,25 @@
+# Mirrors and extends src/.gitignore: keep the build context small and keep
+# host-only state (installed deps, built assets, the database, uploads, env
+# files) out of every image — the build stage installs and builds its own
+# copies, and the runtime stage recreates the storage skeleton.
+src/vendor/
+src/node_modules/
+src/coverage/
+src/storage/
+src/database/*.sqlite
+src/public/build/
+src/public/hot
+src/public/storage
+src/public/.vite-inputs-hash
+src/public/fonts-manifest.dev.json
+src/.env
+src/.env.backup
+src/.env.production
+src/.phpunit.cache
+src/.phpunit.result.cache
+src/auth.json
+
+docs/
+work/
+__local__/
+.git/

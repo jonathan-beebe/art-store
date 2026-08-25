@@ -137,6 +137,17 @@ it('seeds one conversation of every messaging kind and one published FAQ', funct
         ->and(ListingFaq::count())->toBe(1);
 });
 
+it('keeps the database on a second run, only confirming the admins', function (): void {
+    $log = CapturedStory::capture();
+    $this->seed();
+
+    expect(Seller::count())->toBe(6)
+        ->and(Listing::count())->toBe(37)
+        ->and(Order::count())->toBe(3)
+        ->and(Admin::count())->toBe(2)
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('skipped', true);
+});
+
 it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 

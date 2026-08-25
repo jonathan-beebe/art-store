@@ -93,6 +93,8 @@ Every target runs through `docker compose`; nothing here touches the host.
 | `make sweep` | cancels every `pending_verification` order older than `STALE_ORDER_HOURS` and hands its stock back; `make sweep AS_OF=2026-08-24` measures the cutoff from that moment instead of now |
 | `make outbox` | prints that Rails has no outbox — notifications and mail are written and delivered in the same request or job |
 | `make console` | `docker compose run --rm app bin/rails console` |
+| `make image` | `docker build --target runtime -t art-store-rails .` — see Deployment |
+| `make run-image` | runs the production image on port 3400 — see Deployment |
 
 Run any other command the same way:
 
@@ -332,6 +334,59 @@ cutoff, restoring the stock it held.
 
 ```sh
 STALE_ORDER_HOURS=24
+```
+
+## Deployment
+
+`Dockerfile` has four targets. `dev` is today's bind-mount workflow — `make
+build` and `make up` build this target, unchanged. `build` installs the
+production bundle and precompiles the assets (Propshaft digests, with the
+Tailwind build hooked into `assets:precompile`) at image build time rather
+than at container start. `runtime` is the production image: no bind mount,
+`RAILS_ENV=production`, `USER rails`, a `HEALTHCHECK` against `/up`, and the
+SQLite file at `storage/production.sqlite3` so the one declared volume
+(`/var/www/src/storage`) holds the database and the Active Storage uploads
+together.
+
+Build it:
+
+```sh
+make image
+```
+
+Equivalent to `docker build --target runtime -t art-store-rails .` from
+`prototype/rails`.
+
+The image boots through `bin/deploy`: `db:prepare`, `db:seed` (the seeds skip
+themselves once a seller exists, so the chain re-runs on every boot), then
+Puma on `PORT` (default 3000). On Render, set the Docker Command to
+`bin/deploy` — the field does not pass through a shell, and the script
+carries the chain.
+
+Debug mode for a deploy with no mail service: set
+`MAGIC_LINK_DEBUG_ALERT=true` on the service. Production hides the debug
+banner by default; with the variable set, the sign-in link renders in the
+banner on the page that asked for it. The deploy chain seeds the demo
+catalog and accounts on first boot either way.
+
+Run it locally:
+
+```sh
+make run-image SECRET_KEY_BASE=<hex secret>
+```
+
+Equivalent to
+`docker run --rm -p 3400:3000 -e SECRET_KEY_BASE=<secret> art-store-rails bin/deploy`
+(port 3400, so it never collides with `make up`'s 3300). `SECRET_KEY_BASE` is
+the one variable with no default; mint one with
+`docker run --rm art-store-rails bin/rails secret`. Mount the declared volume
+to persist state across restarts:
+
+```sh
+docker run --rm -p 3400:3000 \
+  -v art-store-rails-storage:/var/www/src/storage \
+  -e SECRET_KEY_BASE=<hex secret> \
+  art-store-rails bin/deploy
 ```
 
 ## Known gaps

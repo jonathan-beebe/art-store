@@ -63,6 +63,8 @@ Every target is a thin `docker compose` wrapper, so either form works.
 | `make sweep` | `docker compose run --rm app php artisan orders:sweep` |
 | `make outbox` | prints a note — this prototype has no outbox; notifications are in-app |
 | `make logs` | `docker compose logs -f` |
+| `make image` | `docker build --target runtime -t art-store-php .` — see Deployment |
+| `make run-image` | runs the production image on port 8100 — see Deployment |
 
 `make check` runs `lint` (style, then static analysis), then the asset build,
 then the coverage-gated test suite, stopping at the first failure. `lint`,
@@ -263,6 +265,60 @@ prototype/php/
     public/            live-badge.js, served directly rather than through Vite
     phpstan/           stub files that type Pest's traits for the analyser
     tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
+```
+
+## Deployment
+
+`Dockerfile` has four targets. `dev` is today's bind-mount workflow — `make
+build` and `make up` build this target, unchanged. `build` installs the
+production vendor tree and compiles the Vite bundle at image build time
+rather than at container start. `runtime` is the production image: no bind
+mount, `APP_ENV=production`, `USER www-data`, a `HEALTHCHECK` against `/up`,
+and the SQLite file at `storage/production.sqlite3` so the one declared
+volume (`/var/www/src/storage`) holds the database and the uploaded listing
+images together.
+
+Build it:
+
+```sh
+make image
+```
+
+Equivalent to `docker build --target runtime -t art-store-php .` from
+`prototype/php`.
+
+The image boots through `composer run deploy`: recreate the storage skeleton
+(a freshly mounted volume starts empty), `migrate --force`, `db:seed --force`
+(the demo half skips itself once a seller row exists, so the chain re-runs on
+every boot), then `artisan serve` on port 8000. On Render, set the Docker
+Command to `composer run deploy` — the field does not pass through a shell,
+and composer supplies the shell for the chain.
+
+Debug mode for a deploy with no mail service: nothing to set. The image
+keeps the default `MAGIC_LINK_DELIVERY=session`, so the sign-in link renders
+in the debug banner on the page that asked for it, and the deploy chain
+seeds the demo catalog and accounts on first boot. Behind Render's proxy,
+set `TRUSTED_PROXIES=*` so generated URLs and cookies follow the forwarded
+https scheme.
+
+Run it locally:
+
+```sh
+make run-image APP_KEY=<base64 key>
+```
+
+Equivalent to
+`docker run --rm -p 8100:8000 -e APP_KEY=<key> art-store-php composer run deploy`
+(port 8100, so it never collides with `make up`'s 8000). `APP_KEY` is the one
+variable with no default; mint one with
+`docker run --rm art-store-php php artisan key:generate --show`. Mount the
+declared volume to persist state across restarts:
+
+```sh
+docker run --rm -p 8100:8000 \
+  -v art-store-php-storage:/var/www/src/storage \
+  -e APP_KEY=<base64 key> \
+  art-store-php composer run deploy
 ```
 
 ## Known gaps

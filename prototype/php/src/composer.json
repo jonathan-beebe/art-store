@@ -50,6 +50,14 @@
             "Composer\\Config::disableProcessTimeout",
             "@php artisan dev"
         ],
+        "deploy": [
+            "Composer\\Config::disableProcessTimeout",
+            "mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs",
+            "touch ${DB_DATABASE:-database/database.sqlite}",
+            "@php artisan migrate --force",
+            "@php artisan db:seed --force",
+            "@php artisan serve --host=0.0.0.0 --port=8000 --no-reload"
+        ],
         "test": [
             "Composer\\Config::disableProcessTimeout",
             "@php -d memory_limit=1G -d pcov.enabled=1 vendor/bin/pest --coverage --min=100"

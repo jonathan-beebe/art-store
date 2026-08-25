@@ -370,6 +370,7 @@ target the stack has no use for still exists and prints one line saying so.
 | `migrate`, `fresh`, `seed` | schema and data |
 | `routes` | print the route table |
 | `payouts`, `sweep`, `outbox` | the scheduled jobs, by hand (`AS_OF=`, `DIR=` as today) |
+| `image`, `run-image` | build the production image (the Dockerfile's `runtime` target); run it standalone on a host port that does not collide with `up`'s |
 | `hooks` | (root Makefile) `git config core.hooksPath .githooks` |
 
 `COMPOSE_PROJECT_NAME` is exported by every prototype Makefile as

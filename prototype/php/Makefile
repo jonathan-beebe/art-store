@@ -1,4 +1,4 @@
-.PHONY: up down build assets shell test smoke coverage lint lint-fix check migrate fresh seed routes payouts sweep outbox analyse logs
+.PHONY: up down build assets shell test smoke coverage lint lint-fix check migrate fresh seed routes payouts sweep outbox analyse logs image run-image
 
 # Compose names its project after this directory, so two checkouts of the
 # same prototype (the main repo and a worktree) would share one container.
@@ -92,3 +92,14 @@ outbox:
 
 logs:
 	docker compose logs -f
+
+# Builds the production image (the `runtime` target): no bind mount, production
+# vendor tree, built assets, USER www-data. `composer run deploy` migrates,
+# seeds, and serves — see the README's Deployment section.
+image:
+	docker build --target runtime -t art-store-php .
+
+# Runs the image built by `make image` standalone, on a host port that does not
+# collide with `make up`'s 8000. APP_KEY must come from the environment.
+run-image:
+	docker run --rm -p 8100:8000 -e APP_KEY=$(APP_KEY) art-store-php composer run deploy

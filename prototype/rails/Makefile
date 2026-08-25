@@ -1,4 +1,4 @@
-.PHONY: up down build logs shell test smoke coverage lint lint-fix assets check migrate fresh seed routes payouts sweep outbox console
+.PHONY: up down build logs shell test smoke coverage lint lint-fix assets check migrate fresh seed routes payouts sweep outbox console image run-image
 
 # Compose names its project after this directory, so two checkouts of the
 # same prototype (the main repo and a worktree) would share one container.
@@ -79,3 +79,14 @@ outbox:
 
 console:
 	docker compose run --rm app bin/rails console
+
+# Builds the production image (the `runtime` target): no bind mount, production
+# bundle, precompiled assets, USER rails. `bin/deploy` prepares the database,
+# seeds, and serves — see the README's Deployment section.
+image:
+	docker build --target runtime -t art-store-rails .
+
+# Runs the image built by `make image` standalone, on a host port that does not
+# collide with `make up`'s 3300. SECRET_KEY_BASE must come from the environment.
+run-image:
+	docker run --rm -p 3400:3000 -e SECRET_KEY_BASE=$(SECRET_KEY_BASE) art-store-rails bin/deploy
