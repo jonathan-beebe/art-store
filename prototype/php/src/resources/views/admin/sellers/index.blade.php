@@ -4,10 +4,10 @@
     @if ($sellers->isEmpty())
         <x-admin.nothing class="mt-4">No sellers yet.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 bg-white">
+        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <table class="w-full text-left">
                 <caption class="sr-only">Every seller on the platform, with the balance folded from the ledger</caption>
-                <thead class="border-b border-gray-300 bg-gray-50">
+                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Shop</th>
                         <th scope="col" class="px-4 py-2 font-semibold">Email</th>
@@ -18,7 +18,7 @@
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Paid out</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                     @foreach ($sellers as $seller)
                         @php($balance = $balances->of($seller->id))
                         <tr>

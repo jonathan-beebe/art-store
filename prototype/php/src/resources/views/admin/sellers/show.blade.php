@@ -1,29 +1,29 @@
 <x-layouts.admin :title="$seller->displayName().' — Art Store admin'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $seller->displayName() }}</h1>
-        <a href="{{ route('admin.sellers.index') }}" class="ml-auto text-gray-700 underline">All sellers</a>
+        <a href="{{ route('admin.sellers.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All sellers</a>
     </div>
 
-    <dl class="mt-4 rounded border border-gray-300 bg-white p-4">
-        <dt class="text-gray-600">Email</dt>
+    <dl class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <dt class="text-gray-600 dark:text-gray-400">Email</dt>
         <dd class="mt-1">{{ $seller->email }}</dd>
-        <dt class="mt-3 text-gray-600">Joined</dt>
+        <dt class="mt-3 text-gray-600 dark:text-gray-400">Joined</dt>
         <dd class="mt-1">{{ $seller->created_at?->format('M j, Y') }}</dd>
     </dl>
 
     <section aria-labelledby="balance-heading" class="mt-6">
-        <h2 id="balance-heading" class="font-semibold text-gray-700">Escrow balance</h2>
+        <h2 id="balance-heading" class="font-semibold text-gray-700 dark:text-gray-300">Escrow balance</h2>
 
         <x-admin.balance :balance="$balance" />
     </section>
 
     <section aria-labelledby="listings-heading" class="mt-6">
-        <h2 id="listings-heading" class="font-semibold text-gray-700">Listings</h2>
+        <h2 id="listings-heading" class="font-semibold text-gray-700 dark:text-gray-300">Listings</h2>
 
         <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             @foreach ($tally as $row)
-                <div class="rounded border border-gray-300 bg-white p-4">
-                    <dt class="text-gray-600">{{ $row->label() }}</dt>
+                <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                    <dt class="text-gray-600 dark:text-gray-400">{{ $row->label() }}</dt>
                     <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $row->count }}</dd>
                 </div>
             @endforeach
@@ -33,28 +33,28 @@
     </section>
 
     <section aria-labelledby="fulfillments-heading" class="mt-6">
-        <h2 id="fulfillments-heading" class="font-semibold text-gray-700">Fulfillments</h2>
+        <h2 id="fulfillments-heading" class="font-semibold text-gray-700 dark:text-gray-300">Fulfillments</h2>
 
         <x-admin.fulfillments-table :fulfillments="$fulfillments" :show-seller="false" caption="Every fulfillment this seller shipped" />
     </section>
 
     <section aria-labelledby="payouts-heading" class="mt-6">
-        <h2 id="payouts-heading" class="font-semibold text-gray-700">Payouts</h2>
+        <h2 id="payouts-heading" class="font-semibold text-gray-700 dark:text-gray-300">Payouts</h2>
 
         @if ($payouts->isEmpty())
             <x-admin.nothing>No payouts yet.</x-admin.nothing>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Every weekly payout this seller has been paid</caption>
-                    <thead class="border-b border-gray-300 bg-gray-50">
+                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Period</th>
                             <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                         @foreach ($payouts as $payout)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">
@@ -71,12 +71,12 @@
     </section>
 
     <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
-        <h2 id="message-heading" class="font-semibold text-gray-700">Message seller</h2>
+        <h2 id="message-heading" class="font-semibold text-gray-700 dark:text-gray-300">Message seller</h2>
 
         <x-messaging.body-form
             :action="route('admin.sellers.messages', $seller)"
             label="Message"
-            class="mt-2 rounded border border-gray-300 bg-white p-4"
+            class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
         />
     </section>
 </x-layouts.admin>

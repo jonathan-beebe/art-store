@@ -3,10 +3,10 @@
 @if ($orders->isEmpty())
     <x-admin.nothing>No orders.</x-admin.nothing>
 @else
-    <div class="mt-2 overflow-x-auto rounded border border-gray-300 bg-white">
+    <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
         <table class="w-full text-left">
             <caption class="sr-only">{{ $caption }}</caption>
-            <thead class="border-b border-gray-300 bg-gray-50">
+            <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <tr>
                     <th scope="col" class="px-4 py-2 font-semibold">Order</th>
                     @if ($showCustomer)
@@ -18,7 +18,7 @@
                     <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200">
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
                 @foreach ($orders as $order)
                     <tr>
                         <th scope="row" class="px-4 py-2 font-normal">

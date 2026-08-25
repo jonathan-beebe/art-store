@@ -2,3 +2,23 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+
+/* Dark styles follow the system preference, but only inside an element that
+   opts in with `supports-dark` — the seller and admin layouts set it on their
+   <body>, the storefront never does, so a `dark:` utility in a shared partial
+   cannot restyle the shop. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(.supports-dark, .supports-dark *) {
+      @slot;
+    }
+  }
+}
+
+/* Native controls (inputs, selects, scrollbars) take their dark palette from
+   color-scheme rather than per-control utilities. */
+@media (prefers-color-scheme: dark) {
+  .supports-dark {
+    color-scheme: dark;
+  }
+}
