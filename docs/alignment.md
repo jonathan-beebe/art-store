@@ -98,7 +98,7 @@ prototype. No prose logs, no per-environment format switch.
 | `event`       | string | yes                                                   | dotted name from §2.3, e.g. `order.place`                         |
 | `phase`       | string | yes                                                   | `will` \| `doing` \| `did` \| `refused` \| `failed`               |
 | `msg`         | string | yes                                                   | one human sentence, present tense for `will`/`doing`, past for    |
-|               |        |                                                       | `did`; prefixed by the story emoji per §2.4                       |
+|               |        |                                                       | `did`; prefixed per §2.4 when the line warns or fails             |
 | `request_id`  | string | on requests                                           | one per HTTP request; echoed as `X-Request-Id` response header;   |
 |               |        |                                                       | honoured from an incoming `X-Request-Id` only when it matches     |
 |               |        |                                                       | `^[A-Za-z0-9_-]{1,64}$`                                           |
@@ -155,10 +155,10 @@ however the connection ends.
 Example, one checkout:
 
 ```json
-{"ts":"2026-08-23T18:00:00.001Z","level":"info","event":"http.request","phase":"will","msg":"🎬 POST /checkout","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","data":{"method":"POST","path":"/checkout"}}
+{"ts":"2026-08-23T18:00:00.001Z","level":"info","event":"http.request","phase":"will","msg":"POST /checkout","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","data":{"method":"POST","path":"/checkout"}}
 {"ts":"2026-08-23T18:00:00.004Z","level":"info","event":"order.place","phase":"will","msg":"placing an order from the cart","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","data":{"cart_id":"crt_01J…","line_count":2}}
 {"ts":"2026-08-23T18:00:00.019Z","level":"info","event":"order.place","phase":"did","msg":"placed the order","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","duration_ms":15,"data":{"order_id":"ord_01J…","total_cents":12000,"status":"awaiting_payment","fulfillment_ids":["ful_01J…","ful_01K…"]}}
-{"ts":"2026-08-23T18:00:00.021Z","level":"info","event":"http.request","phase":"did","msg":"🟢 POST /checkout 303","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","duration_ms":20,"data":{"status":303}}
+{"ts":"2026-08-23T18:00:00.021Z","level":"info","event":"http.request","phase":"did","msg":"POST /checkout 303","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","duration_ms":20,"data":{"status":303}}
 ```
 
 ### 2.3 Event vocabulary
@@ -205,27 +205,17 @@ round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`.
 
 ### 2.4 Emoji prefixes
 
-The `msg` prefix marks where a line sits in the process's story. It is derived
-from `(phase, level, root)` in one place per stack; no call site picks an
-emoji. `root` is the story that opens the process — the HTTP request
-(`http.request`) or the CLI run (`payout.run`, `migrate.run`, …). Each request
-or run has one 🎬 line — an OS process that chains runs, such as migrate then
-seed, opens each — and one closing line: 🟢 when it succeeded, ❌ when it
-failed. The boundary emoji appear once per process; ⚠️ and 🛑 may repeat as
-the functions inside the process tell their own stories, and a nested
-success stays unprefixed so the boundaries stand out.
+The `msg` prefix makes warnings and failures stand out to a person reading
+plain stdout. Every `warn`-level line is prefixed ⚠️, every `failed` line is
+prefixed ❌, and every other line's `msg` is bare. The prefix is derived from
+the line's level and phase in one place per stack; no call site picks an
+emoji.
 
-| Line                                                   | Prefix |
-| ------------------------------------------------------ | ------ |
-| root `will` — one per process                          | 🎬      |
-| root `did` — the process's last line                   | 🟢      |
-| root `failed` — the process's last line                | ❌      |
-| nested `failed`                                        | 🛑      |
-| any `refused`; any `warn` line                         | ⚠️     |
-| nested `will`, nested `did`; `doing` at `debug`/`info` | none   |
-
-Rows are checked top to bottom: a nested `did` written at `warn`
-(`rate_limit.exceed`) reads ⚠️.
+| Line              | Prefix |
+| ----------------- | ------ |
+| any `warn` line   | ⚠️     |
+| any `failed` line | ❌      |
+| everything else   | none   |
 
 Emoji lives in the log `msg` only. Text shown to a person — flash messages,
 error pages, form errors — carries none.
@@ -244,8 +234,8 @@ logging; the store's failure is never the app's failure.
 `LOG_DATABASE_FILE` names the file (default `storage/logs.sqlite3`, `off`
 disables the store). `LOG_RETENTION_DAYS` (default `14`, `off` disables)
 bounds its history: the maintenance sweep prunes stored lines older than the
-window. `prototype/node/docs/log-store.md` is the reference definition —
-schema, ingest semantics, and retention.
+window. `docs/logging.md` is the reference definition — schema, ingest
+semantics, retention, and the viewer.
 
 ## 3. Rate limits
 
@@ -448,6 +438,10 @@ Decisions carried by this table:
   Health-check requests (path `/health`, exact) are hidden unless
   `health=1`; the level tallies count the visible set. The story view
   ignores all of it — a request stays addressable by id.
+- `/admin/logs` tints by severity: a line's row tints yellow when the line
+  is `warn`, red when it is `failed`. A request is a conversation — its
+  `group=1` row and its story view tint from the request's worst line:
+  yellow when any line warns, red when any fails.
 - `path_pattern` is stored bare (`/art/:slug`, no format suffix); HEAD
   requests are not counted as page views.
 - A removed listing leaves every storefront surface: browse, search,
@@ -543,3 +537,12 @@ request's `did` close (`data.disconnected: true`); §5's `/admin/logs` row
 gains `domain=`, `group=`, and `health=` with their decisions bullet; §7
 decision 9 records the client-side stream release on leaving a page. Node
 ships all three on `node/logs-viewer`; PHP and Rails queued as follow-ups.
+
+2026-08-26, logging canon: `docs/logging.md` added — the stack-agnostic
+reference for the log store and viewer, and the definition §2.5 now points
+at. §2.4 retires the boundary emoji: ⚠️ prefixes `warn` lines, ❌ prefixes
+`failed` lines, every other `msg` is bare. §5 gains the severity tint —
+line rows tint yellow on `warn` and red on `failed`, and a request's group
+row and story view tint from the request's worst line. All three
+prototypes queued as follow-ups (Node emits the retired boundary emoji and
+lacks the tint).
