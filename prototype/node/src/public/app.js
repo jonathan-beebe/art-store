@@ -11,6 +11,12 @@
   // /seller/events, /admin/events.
   const source = new EventSource(link.getAttribute('href').replace(/messages$/, 'events'))
 
+  // Left to the browser, an abandoned stream's connection is released lazily
+  // — held slots from left pages queue the next navigation behind them on
+  // HTTP/1.1's six-per-host budget. pagehide also fires entering bfcache, so
+  // a restored page's badge goes static until its next full load.
+  window.addEventListener('pagehide', () => source.close())
+
   source.addEventListener('unread', (event) => {
     const count = Number(event.data)
 

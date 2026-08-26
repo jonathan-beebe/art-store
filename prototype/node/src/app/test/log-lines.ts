@@ -1,5 +1,6 @@
 import type pino from 'pino'
 import type { LogEvent, LogPhase } from '../core/logging/log-event.ts'
+import type { NewLogLine } from '../db/logs-schema.ts'
 import { buildTestApp, type TestApp, type TestAppOverrides } from './build-test-app.ts'
 
 /** One captured line, already parsed out of the stream. */
@@ -67,6 +68,64 @@ export function captureLogLines(): CapturedLogLines {
     story: () => lines().map((entry) => `${String(entry.event)} ${String(entry.phase)}`),
     text: () => raw.join(''),
   }
+}
+
+/**
+ * A row ready for `LogStore.append`, for tests that read the store back.
+ * `raw` defaults to the JSON line the fields would have been parsed from, so
+ * the any-attribute filter sees the same facts the columns mirror; a test
+ * about `raw` itself passes its own.
+ */
+export function storedLogLine(overrides: Partial<NewLogLine> = {}): NewLogLine {
+  const line: NewLogLine = {
+    ts: '2026-08-24T12:00:00.000Z',
+    level: 'info',
+    event: 'order.place',
+    phase: 'did',
+    msg: 'order placed',
+    requestId: 'req-1',
+    sessionId: null,
+    actorType: null,
+    actorId: null,
+    txnId: null,
+    durationMs: null,
+    data: null,
+    error: null,
+    raw: '',
+    ...overrides,
+  }
+
+  if (line.raw === '') line.raw = rawOf(line)
+
+  return line
+}
+
+/** Each stored column and the §2.1 payload field it mirrors. */
+const RAW_FIELD_NAMES = [
+  ['level', 'level'],
+  ['event', 'event'],
+  ['phase', 'phase'],
+  ['msg', 'msg'],
+  ['requestId', 'request_id'],
+  ['sessionId', 'session_id'],
+  ['actorType', 'actor_type'],
+  ['actorId', 'actor_id'],
+  ['txnId', 'txn_id'],
+  ['durationMs', 'duration_ms'],
+] as const satisfies readonly [keyof NewLogLine, string][]
+
+/** The stdout line the stored fields would have arrived on. */
+function rawOf(line: NewLogLine): string {
+  const fields: Record<string, unknown> = { ts: line.ts }
+
+  for (const [column, name] of RAW_FIELD_NAMES) {
+    const value = line[column]
+    if (value !== null) fields[name] = value
+  }
+  if (line.data !== null) fields.data = JSON.parse(line.data)
+  if (line.error !== null) fields.error = JSON.parse(line.error)
+
+  return JSON.stringify(fields)
 }
 
 /**

@@ -60,6 +60,7 @@ FROM base AS runtime
 
 ENV NODE_ENV=production \
     DATABASE_FILE=/var/www/src/storage/production.sqlite3 \
+    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3 \
     UPLOADS_DIR=/var/www/src/public/uploads
 
 COPY src/package.json src/package-lock.json ./

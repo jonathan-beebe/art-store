@@ -14,6 +14,8 @@
 | [`admin.md`](admin.md)               | What an operator can do: moderation and its effects, the page-view rollup, the outbox as the platform's     |
 |                                      | mailbox, and running a payout.                                                                              |
 | [`data-model.md`](data-model.md)     | Every table and column, from the migrations, with the caveats each shape carries.                           |
+| [`log-store.md`](log-store.md)       | Every log line mirrored into a second SQLite file, the admin log viewer and its any-attribute filter, and   |
+|                                      | the retention sweep.                                                                                        |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who or what it is, why it exists, its lifecycle, its relationships, and the    |
 |                                      | vocabulary.                                                                                                 |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it.                           |

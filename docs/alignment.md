@@ -145,7 +145,12 @@ level with the `error` object from §2.1.
 
 `doing` is optional and marks a long step inside the unit of work (a drain
 loop, a sweep over N orders). Requests log `will` on entry (`http.request`)
-and `did` on response with `status` and `duration_ms` in `data`.
+and `did` on response with `status` and `duration_ms` in `data`. A request
+the client abandons mid-response — a navigation away from an open SSE
+stream is the everyday case — still closes with `did`, carrying the status
+that was streaming, the duration since its `will`, and
+`data.disconnected: true`; every request story closes exactly once,
+however the connection ends.
 
 Example, one checkout:
 
@@ -212,10 +217,10 @@ success stays unprefixed so the boundaries stand out.
 
 | Line                                                   | Prefix |
 | ------------------------------------------------------ | ------ |
-| root `will` — one per process                          | 🎬     |
-| root `did` — the process's last line                   | 🟢     |
-| root `failed` — the process's last line                | ❌     |
-| nested `failed`                                        | 🛑     |
+| root `will` — one per process                          | 🎬      |
+| root `did` — the process's last line                   | 🟢      |
+| root `failed` — the process's last line                | ❌      |
+| nested `failed`                                        | 🛑      |
 | any `refused`; any `warn` line                         | ⚠️     |
 | nested `will`, nested `did`; `doing` at `debug`/`info` | none   |
 
@@ -224,6 +229,23 @@ Rows are checked top to bottom: a nested `did` written at `warn`
 
 Emoji lives in the log `msg` only. Text shown to a person — flash messages,
 error pages, form errors — carries none.
+
+### 2.5 Log store
+
+Every stdout line is also written to a `log_lines` store in a SQLite file of
+its own, separate from the commerce database. Stdout stays exactly as this
+section specifies; the store is a mirror of it. The §2.1 payload fields map
+to same-named columns, with `data` and `error` stored as JSON text and the
+verbatim line beside them as `raw`. The store's primary key is the integer
+rowid — log rows are telemetry nothing references, an exception to §1 the
+way the `request_id` already is. A store failure degrades to stdout-only
+logging; the store's failure is never the app's failure.
+
+`LOG_DATABASE_FILE` names the file (default `storage/logs.sqlite3`, `off`
+disables the store). `LOG_RETENTION_DAYS` (default `14`, `off` disables)
+bounds its history: the maintenance sweep prunes stored lines older than the
+window. `prototype/node/docs/log-store.md` is the reference definition —
+schema, ingest semantics, and retention.
 
 ## 3. Rate limits
 
@@ -397,6 +419,11 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
+| `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
+| `&actor=&msg=&key=&value=&from=&to=&group=&health=`                     | `key`/`value` filters on any attribute of the stored line; `group=1`     |
+|                                                                         | collapses to one summarized row per request; health checks hidden by     |
+|                                                                         | default                                                                  |
+| `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
 | `/admin/messages`, `/admin/messages/:id`                                | existing                                                                 |
@@ -411,6 +438,16 @@ Decisions carried by this table:
 - Ownership refusals answer 404 everywhere; admin pages are behind one guard
   hook/middleware/`before_action`, never per route.
 - An empty filter value means "all"; an unrecognised value answers 400.
+- `/admin/logs`'s `key` is a dotted path into the stored line
+  (`data.order_id`); alone it filters for the attribute's existence, with
+  `value` for equality on it.
+- `/admin/logs`'s `domain` selects one site's requests — `shop` | `seller` |
+  `admin`, derived from the request's opening line's path at segment
+  boundaries, the shop bucket excluding `/health` and `/events`. `group=1`
+  renders one summarized row per request and pages count groups.
+  Health-check requests (path `/health`, exact) are hidden unless
+  `health=1`; the level tallies count the visible set. The story view
+  ignores all of it — a request stays addressable by id.
 - `path_pattern` is stored bare (`/art/:slug`, no format suffix); HEAD
   requests are not counted as page views.
 - A removed listing leaves every storefront surface: browse, search,
@@ -472,6 +509,10 @@ From `__local__/prototype-alignment.md` §8:
 8. `customer_blocks` stay behind on merge in all three, so a blocked anonymous
    customer can escape a block by verifying into an unblocked account. Shared
    gap, held for a product decision; no prototype fixes it unilaterally.
+9. The unread stream's client releases its connection when the page is left
+   (Node closes the `EventSource` on `pagehide`) — abandoned streams hold
+   the browser's per-host connection budget and queue the next navigation
+   behind them. PHP and Rails stream clients owe the same release.
 
 ## 8. Reconciliation log
 
@@ -490,3 +531,15 @@ unrecognised filter value, and PHP lacks the `listing_faqs
 `error` object gains `reason` and `data`; §2.2 names `data.reason` on
 `refused` lines and the retry/wait/stop routing; §2.4 added. Node adopts on
 `node/errors`; PHP and Rails queued as follow-ups.
+
+2026-08-26, log store: §2.5 added — every stdout line mirrored into a
+queryable `log_lines` SQLite file beside the commerce database, pruned by
+the maintenance sweep — and §5 gains the `/admin/logs` and
+`/admin/logs/requests/:requestId` rows. Node ships the store and viewer on
+`node/logs-viewer`; PHP and Rails queued as follow-ups.
+
+2026-08-26, viewer filters and stream hygiene: §2.2 names the abandoned
+request's `did` close (`data.disconnected: true`); §5's `/admin/logs` row
+gains `domain=`, `group=`, and `health=` with their decisions bullet; §7
+decision 9 records the client-side stream release on leaving a page. Node
+ships all three on `node/logs-viewer`; PHP and Rails queued as follow-ups.

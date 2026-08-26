@@ -3,12 +3,14 @@ import assert from 'node:assert/strict'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { main } from './sweep-stale-orders.ts'
 import { markAwaitingPayment } from '../actions/orders/mark-awaiting-payment.ts'
 import { fixedClock } from '../clock.ts'
 import { openDatabase, type AppDatabase } from '../db/database.ts'
 import { migrateToLatest } from '../db/migrator.ts'
-import { createCliLogger } from '../logging.ts'
+import { openLogStore } from '../log-store.ts'
+import { createCliLogger, defaultLogStore } from '../logging.ts'
 import { toTimestamp } from '../db/timestamp.ts'
 import { newId } from '../ids.ts'
 import {
@@ -17,7 +19,7 @@ import {
   createSeller,
   placedOrder,
 } from '../test/commerce-world.ts'
-import { captureLogLines } from '../test/log-lines.ts'
+import { captureLogLines, storedLogLine } from '../test/log-lines.ts'
 
 const PLACED_AT = new Date('2026-08-20T09:00:00.000Z')
 
@@ -65,7 +67,7 @@ test('main cancels the stale orders and says how many', async (t) => {
   const stream = captureLogLines()
   const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
 
-  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile }, logger)
+  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off' }, logger)
 
   assert.equal(stream.data('order.sweep', 'did').count, 1)
   assert.equal(stream.data('order.sweep', 'doing').order_id, order.id)
@@ -95,7 +97,7 @@ test('main leaves an order that is only awaiting payment alone', async (t) => {
   const stream = captureLogLines()
   const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
 
-  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile }, logger)
+  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off' }, logger)
 
   assert.equal(stream.data('order.sweep', 'did').count, 0)
   assert.deepEqual(stream.linesFor('order.cancel'), [])
@@ -114,7 +116,7 @@ test('STALE_ORDER_HOURS decides how far back the sweep reaches', async (t) => {
   // The order was placed on the 20th, so a window of 30 days does not reach it.
   await main(
     ['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'],
-    { DATABASE_FILE: databaseFile, STALE_ORDER_HOURS: '720' },
+    { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off', STALE_ORDER_HOURS: '720' },
     logger,
   )
 
@@ -133,7 +135,7 @@ test('main logs the error and sets a failing exit code when the sweep itself fai
     process.exitCode = exitCodeBefore
   })
 
-  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile }, logger)
+  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off' }, logger)
 
   assert.equal(process.exitCode, 1)
   const failed = stream.line('order.sweep', 'failed')
@@ -154,7 +156,7 @@ test('main also prunes rate-limit windows the largest configured limit can no lo
   const stream = captureLogLines()
   const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
 
-  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile }, logger)
+  await main(['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'], { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off' }, logger)
 
   const db = openDatabase(databaseFile)
   const rows = await db.selectFrom('rateLimitWindows').select('windowStart').execute()
@@ -165,10 +167,112 @@ test('main also prunes rate-limit windows the largest configured limit can no lo
   await db.destroy()
 })
 
+/** A logs file beside the commerce one, so each test's store handle is its own. */
+async function temporaryLogsFile(t: { after: (fn: () => unknown) => void }): Promise<string> {
+  return `${await temporaryDatabaseFile(t)}.logs`
+}
+
+/** Stored log rows planted at exact `ts` values, through the store's own writer. */
+function seedLogLines(file: string, tsValues: readonly string[]): void {
+  const store = openLogStore(file)
+  for (const ts of tsValues) store.append(storedLogLine({ ts }))
+  store.flushSync()
+  store.close()
+}
+
+function storedLogTs(file: string): string[] {
+  const db = new DatabaseSync(file)
+  const rows = db.prepare('SELECT ts FROM log_lines ORDER BY ts').all() as Array<{ ts: string }>
+  db.close()
+
+  return rows.map((row) => row.ts)
+}
+
+test('main also prunes stored log lines older than the retention window before as-of', async (t) => {
+  const databaseFile = await temporaryDatabaseFile(t)
+  const logsFile = await temporaryLogsFile(t)
+  const setupDb = openDatabase(databaseFile)
+  await migrateToLatest(setupDb)
+  await setupDb.destroy()
+  // --as-of=2026-08-23 is midnight UTC; the default retention is 14 days, so
+  // 2026-08-09T00:00:00.000Z is the cutoff.
+  seedLogLines(logsFile, ['2026-08-08T23:59:59.999Z', '2026-08-09T00:00:00.000Z'])
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+
+  await main(
+    ['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'],
+    { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: logsFile },
+    logger,
+  )
+
+  assert.deepEqual(storedLogTs(logsFile), ['2026-08-09T00:00:00.000Z'])
+})
+
+test('LOG_RETENTION_DAYS=off leaves every stored log line alone', async (t) => {
+  const databaseFile = await temporaryDatabaseFile(t)
+  const logsFile = await temporaryLogsFile(t)
+  const setupDb = openDatabase(databaseFile)
+  await migrateToLatest(setupDb)
+  await setupDb.destroy()
+  seedLogLines(logsFile, ['2000-01-01T00:00:00.000Z'])
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+
+  await main(
+    ['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'],
+    { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: logsFile, LOG_RETENTION_DAYS: 'off' },
+    logger,
+  )
+
+  assert.deepEqual(storedLogTs(logsFile), ['2000-01-01T00:00:00.000Z'])
+})
+
+test('a failing log prune sets the exit code and the swept orders stay cancelled', async (t) => {
+  const databaseFile = await temporaryDatabaseFile(t)
+  const logsFile = await temporaryLogsFile(t)
+  const setupDb = openDatabase(databaseFile)
+  await migrateToLatest(setupDb)
+  const { order } = await seedUnverifiedOrder(setupDb)
+  await setupDb.destroy()
+
+  // The CLI reuses the per-file store its logger opened; closing that store
+  // first leaves the prune a handle every statement refuses.
+  const store = defaultLogStore({ logLevel: 'info', environment: 'test', logDatabaseFile: logsFile })
+  assert.ok(store !== undefined)
+  store.close()
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+  const exitCodeBefore = process.exitCode
+  t.after(() => {
+    process.exitCode = exitCodeBefore
+  })
+
+  await main(
+    ['node', 'sweep-stale-orders.ts', '--as-of=2026-08-23'],
+    { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: logsFile },
+    logger,
+  )
+
+  assert.equal(process.exitCode, 1)
+  assert.equal(stream.data('order.sweep', 'did').count, 1)
+  const db = openDatabase(databaseFile)
+  const swept = await db
+    .selectFrom('orders')
+    .select('status')
+    .where('id', '=', order.id)
+    .executeTakeFirstOrThrow()
+  assert.equal(swept.status, 'cancelled')
+  await db.destroy()
+})
+
 test('a flag the command does not take is a mistake, not a logged failure', async (t) => {
   const databaseFile = await temporaryDatabaseFile(t)
 
   await assert.rejects(() =>
-    main(['node', 'sweep-stale-orders.ts', '--evrything'], { DATABASE_FILE: databaseFile }),
+    main(['node', 'sweep-stale-orders.ts', '--evrything'], { DATABASE_FILE: databaseFile, LOG_DATABASE_FILE: 'off' }),
   )
 })

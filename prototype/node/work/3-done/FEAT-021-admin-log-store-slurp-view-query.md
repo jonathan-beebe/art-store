@@ -1,7 +1,7 @@
 ---
 id: FEAT-021
 type: feature
-status: open
+status: done
 created: 2026-08-25
 ---
 
@@ -59,6 +59,39 @@ rate-limit-window-prune pattern. In production the store's home is the
 Render volume. `docs/alignment.md` §5 fixes the admin feature set, which is
 why the amendment is part of the outcome; php/rails adoption is follow-up
 work outside this ticket.
+
+## Design (settled 2026-08-26)
+
+The formal definition is `docs/log-store.md` (landed with phase 1); it is
+the spec the phases implement. Decisions ratified by the human: the store
+is a separate SQLite file. Decisions settled by the design round, recorded
+in the doc: ensure-on-open schema versioned by `PRAGMA user_version`
+(`LOG_DATABASE_FILE`, default `storage/logs.sqlite3`, `off` disables);
+one `log_lines` table — rowid PK (stated §1 exception), nullable §2.1
+mirror columns + `data`/`error` JSON text + verbatim `raw`, six indexes,
+no CHECKs; ingest as a pino destination stream at the two choke points
+(`loggingOptions`, `createCliLogger`) — stdout passthrough first,
+setImmediate-batched inserts, `process.once('exit', flushSync)`, stderr
+for the store's own failures, `debug` stored; viewer at `/admin/logs`
+(filters incl. `key`/`value` any-attribute filter via `json_extract` on
+`raw`, level stat tiles, 50 rows/page) and `/admin/logs/requests/:requestId`
+story view; retention `LOG_RETENTION_DAYS` default 14 pruned in the sweep
+CLI in 5000-row batches with `incremental_vacuum`.
+
+## Phases
+
+1. **Ingest and schema** — `app/log-store.ts` (bootstrap DDL, batch
+   writer, stream), `app/db/logs-schema.ts`, config
+   (`LOG_DATABASE_FILE`), wiring at the two choke points,
+   `docs/log-store.md` + README row, tests.
+2. **Admin viewer** — dialect accepts an existing `DatabaseSync`, `logsDb`
+   decoration + `buildTestApp` support,
+   `queries/log-rows.ts`, `routes/logs.ts`, the two views, prefix-link
+   helper, nav link, `docs/admin.md` rows, tests.
+3. **Retention** — `LOG_RETENTION_DAYS` config, prune in the sweep CLI,
+   `docs/alignment.md` §2.5 + §5 rows + §8 changelog line, tests.
+
+One commit per phase.
 
 ## Related work
 

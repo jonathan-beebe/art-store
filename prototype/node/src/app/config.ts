@@ -36,6 +36,14 @@ const environmentVariables = z.object({
   HOST: z.string().min(1).default('0.0.0.0'),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_FILE: z.string().min(1).default('storage/development.sqlite3'),
+  // The second SQLite file every stdout log line is mirrored into
+  // (`docs/log-store.md`); `off` disables the store.
+  LOG_DATABASE_FILE: z.string().min(1).default('storage/logs.sqlite3'),
+  // How many days of stored log lines the maintenance sweep keeps; `off`
+  // disables the prune, a malformed or non-positive value refuses to boot.
+  LOG_RETENTION_DAYS: z
+    .union([z.literal('off'), z.coerce.number().int().positive()])
+    .default(14),
   COOKIE_SECRET: z.string().min(16).optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   MAGIC_LINK_DELIVERY: z.enum(MAGIC_LINK_DELIVERIES).default('flash'),
@@ -132,6 +140,8 @@ function toAppConfig(parsed: ParsedEnvironment) {
     databaseFile: parsed.DATABASE_FILE,
     cookieSecret: parsed.COOKIE_SECRET ?? DEVELOPMENT_COOKIE_SECRET,
     logLevel: parsed.LOG_LEVEL,
+    logDatabaseFile: parsed.LOG_DATABASE_FILE,
+    logRetentionDays: parsed.LOG_RETENTION_DAYS,
     magicLinkDelivery: parsed.MAGIC_LINK_DELIVERY,
     uploadsDir: parsed.UPLOADS_DIR,
     // Where the drain writes `.eml` files.
