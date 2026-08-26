@@ -56,6 +56,7 @@ const logsQuery = z
     key: optionalFilter(z.string().regex(ATTRIBUTE_KEY_PATTERN, 'not a dotted attribute path')),
     value: optionalFilter(z.string()),
     group: optionalFilter(z.literal('1')),
+    health: optionalFilter(z.literal('1')),
     page: z.string().optional(),
   })
   // A value with no key names no attribute to compare it against.
@@ -69,10 +70,41 @@ type LogsQuery = z.output<typeof logsQuery>
 /** The submitted filters, without the page — what round-trips through the
  * form, the pager, and the level tiles. */
 function filterFields(query: LogsQuery): Record<string, string | undefined> {
-  const { domain, level, phase, event, request, txn, session, actor, msg, from, to, key, value, group } =
-    query
+  const {
+    domain,
+    level,
+    phase,
+    event,
+    request,
+    txn,
+    session,
+    actor,
+    msg,
+    from,
+    to,
+    key,
+    value,
+    group,
+    health,
+  } = query
 
-  return { domain, level, phase, event, request, txn, session, actor, msg, from, to, key, value, group }
+  return {
+    domain,
+    level,
+    phase,
+    event,
+    request,
+    txn,
+    session,
+    actor,
+    msg,
+    from,
+    to,
+    key,
+    value,
+    group,
+    health,
+  }
 }
 
 function definedEntries(fields: Record<string, string | undefined>): [string, string][] {
@@ -95,6 +127,7 @@ function filtersOf(query: LogsQuery): LogRowFilters {
     from: query.from,
     to: query.to,
     attribute: query.key === undefined ? undefined : { key: query.key, value: query.value },
+    hideHealth: query.health !== '1',
   }
 }
 

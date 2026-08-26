@@ -583,6 +583,178 @@ test('a grouped result with no matches renders the empty state', async (t) => {
   assert.match(response.body, /No log lines match these filters\./)
 })
 
+test('health-check lines are hidden from the list by default', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      msg: 'the health will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ msg: 'the real traffic line', requestId: 'req-shop' }),
+  ])
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/admin/logs', cookies: admin.cookies })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /the real traffic line/)
+  assert.doesNotMatch(response.body, /the health will line/)
+})
+
+test('health=1 includes the health-check lines again', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      msg: 'the health will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ msg: 'the real traffic line', requestId: 'req-shop' }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?health=1',
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /the health will line/)
+  assert.match(response.body, /the real traffic line/)
+})
+
+test('an empty health value reads as hidden, the default', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      msg: 'the health will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?health=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.doesNotMatch(response.body, /the health will line/)
+})
+
+test('an unrecognised health value answers 400', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?health=yes',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('the health checkbox is unchecked by default and remembers being checked', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const hidden = await testApp.app.inject({ method: 'GET', url: '/admin/logs', cookies: admin.cookies })
+  assert.doesNotMatch(hidden.body, /id="health"[^>]*checked/)
+
+  const shown = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?health=1',
+    cookies: admin.cookies,
+  })
+  assert.match(shown.body, /id="health"[^>]*checked/)
+})
+
+test('the level tiles exclude health-check lines by default', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      level: 'error',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ level: 'info', requestId: 'req-shop' }),
+  ])
+
+  const response = await testApp.app.inject({ method: 'GET', url: '/admin/logs', cookies: admin.cookies })
+
+  assert.match(response.body, /data-stat="level-error"[^]*?data-count[^>]*>0</)
+  assert.match(response.body, /data-stat="level-info"[^]*?data-count[^>]*>1</)
+})
+
+test('a health request\'s story is still addressable by id, list hidden or not', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      msg: 'the health will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs/requests/req-health',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /the health will line/)
+})
+
+test('health=1 round-trips through the pager', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed(
+    Array.from({ length: 51 }, (_, index) =>
+      storedLogLine({
+        ts: `2026-08-24T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+        event: 'http.request',
+        phase: 'will',
+        requestId: `req-health-${index}`,
+        data: JSON.stringify({ method: 'GET', path: '/health' }),
+      }),
+    ),
+  )
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?health=1',
+    cookies: admin.cookies,
+  })
+
+  assert.equal((response.body.match(/data-line="/g) ?? []).length, 50)
+  assert.match(response.body, /href="\/admin\/logs\?health=1&amp;page=2"/)
+})
+
 test('a disabled store renders the unavailable empty state at 200 on both pages', async (t) => {
   // Plain `buildTestApp`: `TEST_CONFIG` keeps `LOG_DATABASE_FILE` off, so the
   // app carries no `logsDb` at all.

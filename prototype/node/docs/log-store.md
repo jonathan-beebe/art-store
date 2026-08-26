@@ -189,17 +189,19 @@ unrecognised answers 400 — and split by value space:
 - `from` / `to` — ISO instants, compared lexically against `ts` (fixed
   ISO-8601 UTC text sorts chronologically), labelled UTC in the form;
 - `key` / `value` — the any-attribute filter, below;
-- `group=1` — one row per request, below.
+- `group=1` — one row per request, below;
+- `health=1` — includes health-check lines, hidden by default, below.
 
 The page opens with four stat tiles (Errors / Warnings / Info / Debug)
-tallied over the current filter set minus `level`; each tile links to the
-same query with `level` set, so the tiles double as the level filter's fast
-path. Rows show `ts` (full ISO — milliseconds matter here), level, `event ·
-phase`, the `msg` with its §2.4 emoji intact, `request_id` linked to the
-story view, the actor, and `duration_ms`. A row whose `data` or `error` is
-present discloses it in a `<details>` block — the page works with
-JavaScript absent, like every admin page. A live tail is out of this cut;
-the newest-first list plus a browser refresh covers it, and the sanctioned
+tallied over the current filter set minus `level`, health-check lines
+excluded the same as the list; each tile links to the same query with
+`level` set, so the tiles double as the level filter's fast path. Rows show
+`ts` (full ISO — milliseconds matter here), level, `event · phase`, the
+`msg` with its §2.4 emoji intact, `request_id` linked to the story view,
+the actor, and `duration_ms`. A row whose `data` or `error` is present
+discloses it in a `<details>` block — the page works with JavaScript
+absent, like every admin page. A live tail is out of this cut; the
+newest-first list plus a browser refresh covers it, and the sanctioned
 future upgrade is client-side polling of the same filtered URL rather than
 a stream.
 
@@ -215,6 +217,28 @@ probe, outside every site) and `/events` (each site's own unread-events
 stream, including the storefront's unprefixed one). A line with no
 `request_id` — a CLI run, a boot line — correlates to nothing and matches no
 domain.
+
+### The health filter
+
+The container orchestrator's healthcheck polls `GET /health` every ~10
+seconds, and each poll's will/did pair otherwise buries the traffic a
+founder came to read. `/admin/logs` hides a health-check request's lines by
+default — the pair and every line between them that shares the request
+id — by the same correlation `?domain=` uses: an `EXISTS` on the request's
+opening `http.request` will-line's `data.path`. The checkbox, unchecked by
+default so an unchecked submit and a fresh visit read the same, is `health`;
+checking it sends `health=1` and includes health-check lines again. An
+empty value reads as the default (hidden), an unrecognised value answers
+400, and — like every filter — the state round-trips through the form, the
+pager, and the level tiles, whose tallies exclude health-check lines the
+same as the list.
+
+The health filter always applies, composing with every other filter as an
+additional `AND`, so it stays independent of `?domain=`: `domain=shop`
+already excludes `/health` by name (above), so `health=1` under
+`domain=shop` still shows nothing new — the domain bucket's own exclusion
+holds regardless. A line with no `request_id` correlates to nothing and is
+never treated as a health check.
 
 ### Grouped by request
 

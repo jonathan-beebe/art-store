@@ -666,6 +666,158 @@ test('a root line whose data never parses summarizes without throwing', async (t
   assert.equal(group.path, null)
 })
 
+test('a health-check request is hidden by default, pair and every line between', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      msg: '🎬 GET /health',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ msg: 'health step', requestId: 'req-health' }),
+    storedLogLine({
+      msg: '🟢 GET /health 200',
+      event: 'http.request',
+      phase: 'did',
+      requestId: 'req-health',
+      durationMs: 1,
+      data: JSON.stringify({ status: 200 }),
+    }),
+    storedLogLine({ msg: 'real traffic', requestId: 'req-shop' }),
+  ])
+
+  assert.deepEqual(await matchedMessages(world.context, {}), ['real traffic'])
+})
+
+test('hideHealth: false includes the health-check lines again', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      msg: '🎬 GET /health',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ msg: 'real traffic', requestId: 'req-shop' }),
+  ])
+
+  assert.deepEqual(await matchedMessages(world.context, { hideHealth: false }), [
+    'real traffic',
+    '🎬 GET /health',
+  ])
+})
+
+test('a request whose path merely starts with /health is not hidden — an exact match, not a prefix', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      msg: 'healthcheck page',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-healthcheck',
+      data: JSON.stringify({ method: 'GET', path: '/healthcheck' }),
+    }),
+    storedLogLine({
+      msg: 'health sub-path',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health-sub',
+      data: JSON.stringify({ method: 'GET', path: '/health/x' }),
+    }),
+  ])
+
+  assert.deepEqual(await matchedMessages(world.context, {}), [
+    'health sub-path',
+    'healthcheck page',
+  ])
+})
+
+test('a line with no request_id is never treated as a health check', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({ msg: 'cli run', requestId: null, event: 'migrate.run', phase: 'did' }),
+  ])
+
+  assert.deepEqual(await matchedMessages(world.context, {}), ['cli run'])
+})
+
+test('domain=shop already excludes health, and hideHealth: false does not undo it', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      msg: 'health',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({
+      msg: 'checkout',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-page',
+      data: JSON.stringify({ method: 'GET', path: '/checkout' }),
+    }),
+  ])
+
+  assert.deepEqual(await matchedMessages(world.context, { domain: 'shop', hideHealth: false }), [
+    'checkout',
+  ])
+})
+
+test('logLevelTallies respects the hidden-by-default rule so counts match the visible list', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      level: 'error',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ level: 'info', requestId: 'req-shop' }),
+  ])
+
+  const tallies = await logLevelTallies(world.context)
+
+  assert.deepEqual(tallies, [
+    { key: 'debug', count: 0 },
+    { key: 'info', count: 1 },
+    { key: 'warn', count: 0 },
+    { key: 'error', count: 0 },
+  ])
+})
+
+test('grouping also hides the health-check request by default', async (t) => {
+  const world = openLogsWorld()
+  t.after(world.close)
+  seed(world.store, [
+    storedLogLine({
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-health',
+      data: JSON.stringify({ method: 'GET', path: '/health' }),
+    }),
+    storedLogLine({ requestId: 'req-shop' }),
+  ])
+
+  const groups = await logRequestGroups(world.context, {}, FULL_PAGE)
+
+  assert.deepEqual(
+    groups.map((group) => group.key),
+    ['req-shop'],
+  )
+})
+
 test('domain and group compose: only the matching request appears, in full', async (t) => {
   const world = openLogsWorld()
   t.after(world.close)

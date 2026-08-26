@@ -54,6 +54,10 @@ export type LogRowFilters = {
   from?: string
   to?: string
   attribute?: LogAttributeFilter
+  /** Health-check request pairs are excluded when this is unset or `true` —
+   * the viewer's default, per `docs/log-store.md` § the health filter.
+   * `false` includes them. */
+  hideHealth?: boolean
 }
 
 /** A stored line as the two pages show it — every mirrored column, without `raw`. */
@@ -128,6 +132,7 @@ export function matchesLogRowFilters(
   if (filters.attribute !== undefined) {
     conditions.push(matchesAttribute(eb, filters.attribute))
   }
+  if (filters.hideHealth ?? true) conditions.push(eb.not(isHealthCheckRequest(eb)))
 
   return conditions
 }
@@ -191,10 +196,46 @@ function matchesDomain(eb: LogLinesFilter, domain: LogDomain): Expression<SqlBoo
   )
 }
 
+/** The orchestrator's healthcheck path — the container polls it every ~10
+ * seconds, and its lines are hidden from the default list per IMPRV-032. */
+const HEALTH_CHECK_PATH = '/health'
+
 /** `shopSite`'s own SSE stream and the orchestrator's health probe sit at
  * the storefront's unprefixed root, but neither is a page a founder means by
  * "shop traffic" — excluded from the shop bucket by name. */
-const SHOP_EXCLUDED_PATHS = ['/health', '/events'] as const
+const SHOP_EXCLUDED_PATHS = [HEALTH_CHECK_PATH, '/events'] as const
+
+/**
+ * A line's request opened on the healthcheck path, by the same correlation
+ * `matchesDomain` uses: the request's opening `http.request` will-line's
+ * `data.path`. Hiding this excludes that will-line, its `did`/`failed`
+ * close, and every line between them that shares the request id — a health
+ * poll's whole pair, not just its two `http.request` lines.
+ *
+ * Applied by default (`matchesLogRowFilters` runs it unless `hideHealth` is
+ * `false`), so — unlike a filter a page only reaches by request — it touches
+ * every row's `data` even when nothing else in the query does. The `case`
+ * guard answers `NULL` rather than throwing when `data` is present but not
+ * valid JSON, per invariant 2's "a line can be stored with text that never
+ * parses."
+ */
+function isHealthCheckRequest(eb: LogLinesFilter): Expression<SqlBool> {
+  return eb.exists(
+    eb
+      .selectFrom('logLines as healthLine')
+      .select('healthLine.id')
+      .whereRef('healthLine.requestId', '=', 'logLines.requestId')
+      .where('healthLine.event', '=', 'http.request')
+      .where('healthLine.phase', '=', 'will')
+      .where(
+        (inner) => sql<SqlBool>`
+          case when json_valid(${inner.ref('healthLine.data')})
+            then json_extract(${inner.ref('healthLine.data')}, '$.path')
+          end = ${HEALTH_CHECK_PATH}
+        `,
+      ),
+  )
+}
 
 function domainPathCondition(eb: DomainLineFilter, domain: LogDomain): Expression<SqlBool> {
   const path = sql<string>`json_extract(${eb.ref('domainLine.data')}, '$.path')`

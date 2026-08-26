@@ -34,7 +34,7 @@ each route would let the next page forget it.
 | `GET /admin/ledger?seller=&type=`                                       | `ledgerRows` plus the folded totals for the filtered set                 |
 | `GET /admin/stats`                                                      | `pageViewsByDay`, `pageViewsByPattern`, `listingEventTallies`            |
 | `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`   | `logRows`, `logLevelTallies`, `logRequestGroups` over the log store      |
-| `&actor=&msg=&from=&to=&key=&value=&group=`                             | (see [`log-store.md`](log-store.md))                                     |
+| `&actor=&msg=&from=&to=&key=&value=&group=&health=`                     | (see [`log-store.md`](log-store.md))                                     |
 | `GET /admin/logs/requests/:requestId`                                   | `requestStoryRows` — one request's lines in order, capped at 1,000       |
 | `GET\|POST /admin/messages`, `/admin/messages/:id`                      | the admin inbox (see [`messaging.md`](messaging.md))                     |
 | `POST /admin/sellers/:id/messages`,                                     | `openConversation` — opens or reuses the admin's thread with that seller |

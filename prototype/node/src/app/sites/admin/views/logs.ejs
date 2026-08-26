@@ -82,6 +82,10 @@
       <input id="group" name="group" type="checkbox" value="1" <%= filters.group === '1' ? 'checked' : '' %>>
       <label for="group" class="text-neutral-600 dark:text-neutral-400">Group by request</label>
     </div>
+    <div class="flex items-center gap-1.5 pb-2">
+      <input id="health" name="health" type="checkbox" value="1" <%= filters.health === '1' ? 'checked' : '' %>>
+      <label for="health" class="text-neutral-600 dark:text-neutral-400">Include health checks</label>
+    </div>
     <button type="submit" class="rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900">Filter</button>
   </form>
 
