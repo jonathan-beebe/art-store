@@ -6,7 +6,7 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 22
-- IMPRV: 31
+- IMPRV: 33
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 9
@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-26:11:52:46 — IMPRV-032 — defined: health checks hidden by default in the log viewer
+- 2026-08-26:11:52:46 — IMPRV-031 — defined: domain filter and group-by-request for the admin log viewer
 - 2026-08-26:10:56:30 — BUG-010 — done: abandoned event streams stall admin navigation — `public/app.js` closes its `EventSource` on `pagehide`, releasing the connection slot at navigation time; measured before (log store): four `/admin/events` streams from left pages held 30–65s past navigation while the server answered `GET /admin/logs` in 24–56ms — Chrome's six-per-host HTTP/1.1 budget queued each filter submit behind them; verified after by driving four storefront navigations and reading the store: one stream in flight at a time, each closing `disconnected: true` 31–48ms after the next page's will; progressive-enhancement contract untouched (one listener, page works with the file absent); `make check` green, 2166 tests, coverage 99.40/95.66/99.55
 - 2026-08-26:10:46:46 — BUG-010 — started
 - 2026-08-26:10:46:46 — BUG-010 — defined: abandoned event streams stall admin navigation
