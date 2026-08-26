@@ -1,8 +1,6 @@
 /**
- * What a `failed` line says about the exception behind it, and which
- * exceptions are not failures at all.
+ * What a `failed` line says about the exception behind it.
  */
-import { TransitionError } from '../transition-error.ts'
 
 /** `docs/alignment.md` §2.1: the `error` object, with `stack` kept for development. */
 export type LoggedError = {
@@ -17,8 +15,8 @@ export type LoggedError = {
  * An exception as the log records it. Anything may be thrown, so a value that
  * is not an `Error` is described by its own type and its text rather than
  * losing the line. `reason` and `data` are read structurally, so any
- * exception carrying them — `Defect`, `TransitionError`, or a foreign error —
- * is described alike.
+ * exception carrying them — a `Defect` or a foreign error — is described
+ * alike.
  */
 export function describeError(error: unknown): LoggedError {
   if (error instanceof Error) {
@@ -49,14 +47,4 @@ function carriedData(error: Error): Record<string, unknown> | undefined {
   return typeof data === 'object' && data !== null && !Array.isArray(data)
     ? (data as Record<string, unknown>)
     : undefined
-}
-
-/**
- * Whether an exception is the domain saying no rather than something going
- * wrong. A refusal leaves the world unchanged and is the answer the person who
- * asked for it gets, so it is `refused` at `info` and never a `failed` line
- * anyone should be paged for.
- */
-export function isDomainRefusal(error: unknown): boolean {
-  return error instanceof TransitionError
 }

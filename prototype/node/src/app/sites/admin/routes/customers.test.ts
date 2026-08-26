@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
+import { blockedCustomer, blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -88,7 +88,7 @@ test('the standing filter narrows the table to blocked customers', async (t) => 
   const unblocked = await createCustomer(context, { isVerified: true })
   const blocked = await createCustomer(context, { isVerified: true })
   const adminId = await createAdmin(context)
-  await blockCustomer(context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' })
+  blockedCustomer(await blockCustomer(context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' }))
 
   const response = await testApp.app.inject({
     method: 'GET',
@@ -236,7 +236,7 @@ test('the customer detail page shows a blocked customer with a lift form and the
 
   const customerId = await createCustomer(context, { isVerified: true })
   const adminId = await createAdmin(context)
-  await blockCustomer(context, { customerId, adminId, reason: 'Chargeback fraud.' })
+  blockedCustomer(await blockCustomer(context, { customerId, adminId, reason: 'Chargeback fraud.' }))
 
   const response = await testApp.app.inject({
     method: 'GET',

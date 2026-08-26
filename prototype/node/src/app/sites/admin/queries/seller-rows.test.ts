@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { sellerRows } from './seller-rows.ts'
-import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
 import {
   createAdmin,
   createCustomer,
@@ -55,12 +55,14 @@ test('listings, fulfillments, removals, and balance fold per seller', async (t) 
   const listingB1 = await createListing(world.context, sellerB, { priceCents: 30_000 })
 
   await paidOrder(world.context, customerId, [listingA1.id])
-  await removeListing(world.context, {
-    listingId: listingB1.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported as counterfeit.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listingB1.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported as counterfeit.',
+    }),
+  )
 
   const rows = await sellerRows(world.context)
   const bySellerId = new Map(rows.map((row) => [row.id, row]))

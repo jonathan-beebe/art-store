@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fixtureId } from '../../../test/fixture-ids.ts'
 import { listingDetail, type ListingDetail, type ListingDetailRemoval } from './listing-detail.ts'
-import { removeListing } from '../../../actions/moderation/remove-listing.ts'
-import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { liftedListingRemoval, liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
 import {
   createAdmin,
   createListing,
@@ -59,12 +59,14 @@ test('an actively removed listing carries the removal and says it can be lifted'
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)
@@ -83,12 +85,14 @@ test('a permanent removal cannot be lifted', async (t) => {
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'permanent',
-    reason: 'Counterfeit.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'permanent',
+      reason: 'Counterfeit.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)
@@ -103,19 +107,23 @@ test('the full removal history is kept in order, lifted removals included', asyn
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'First removal.',
-  })
-  await liftListingRemoval(world.context, { listingId: listing.id })
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'permanent',
-    reason: 'Second removal.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'First removal.',
+    }),
+  )
+  liftedListingRemoval(await liftListingRemoval(world.context, { listingId: listing.id }))
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'permanent',
+      reason: 'Second removal.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)

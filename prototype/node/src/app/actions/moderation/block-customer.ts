@@ -3,7 +3,8 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { activeCustomerBlock } from './active-customer-block.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { CustomerBlock } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -13,6 +14,10 @@ export type BlockCustomerInput = {
   reason: string
 }
 
+export type BlockCustomerResult =
+  | { outcome: 'blocked'; block: CustomerBlock }
+  | Refusal<'already_blocked'>
+
 /**
  * Stops a customer buying and messaging. Browsing is deliberately left alone,
  * which is why one block at a time is enough: the reason a page shows is the
@@ -21,8 +26,8 @@ export type BlockCustomerInput = {
 export async function blockCustomer(
   context: ActionContext,
   input: BlockCustomerInput,
-): Promise<CustomerBlock> {
-  return actionStory<CustomerBlock>(
+): Promise<BlockCustomerResult> {
+  return actionStory<BlockCustomerResult>(
     context,
     {
       event: 'moderation.block_customer',
@@ -30,25 +35,35 @@ export async function blockCustomer(
         msg: 'blocking the customer from buying and messaging',
         data: { customer_id: input.customerId },
       },
-      ended: (block) => ({
-        phase: 'did',
-        msg: 'blocked the customer from buying and messaging',
-        data: {
-          customer_block_id: block.id,
-          customer_id: block.customerId,
-          admin_id: block.adminId,
-        },
-      }),
+      ended: (result) =>
+        result.outcome === 'blocked'
+          ? {
+              phase: 'did',
+              msg: 'blocked the customer from buying and messaging',
+              data: {
+                customer_block_id: result.block.id,
+                customer_id: result.block.customerId,
+                admin_id: result.block.adminId,
+              },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the customer cannot be blocked',
+              data: { reason: result.reason, ...result.data },
+            },
     },
     async (transacted) => {
       const { db, clock } = transacted
       const active = await activeCustomerBlock(transacted, input.customerId)
 
       if (active !== null) {
-        throw new TransitionError(`customer ${input.customerId} is already blocked`)
+        return refused('already_blocked', {
+          customer_id: input.customerId,
+          customer_block_id: active.id,
+        })
       }
 
-      return db
+      const block = await db
         .insertInto('customerBlocks')
         .values({
           id: newId('blk', clock.now()),
@@ -60,6 +75,19 @@ export async function blockCustomer(
         })
         .returningAll()
         .executeTakeFirstOrThrow()
+
+      return { outcome: 'blocked', block }
     },
   )
+}
+
+/**
+ * Unwraps a `BlockCustomerResult` for a caller inside the application that
+ * only ever asks to block a customer who is not already blocked. A refusal
+ * reaching here is a broken contract, not a domain outcome to handle.
+ */
+export function blockedCustomer(result: BlockCustomerResult): CustomerBlock {
+  if (result.outcome === 'blocked') return result.block
+
+  throw new BrokenContractError(result.reason, `a customer block was refused: ${result.reason}`, result.data)
 }

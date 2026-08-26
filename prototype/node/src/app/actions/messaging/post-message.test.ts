@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
 import { messagePostRefusalCopy, postMessage, postedMessage } from './post-message.ts'
 import { openConversation } from './open-conversation.ts'
-import { blockCustomer } from '../moderation/block-customer.ts'
-import { liftCustomerBlock } from '../moderation/lift-customer-block.ts'
+import { blockedCustomer, blockCustomer } from '../moderation/block-customer.ts'
+import { liftedCustomerBlock, liftCustomerBlock } from '../moderation/lift-customer-block.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -236,7 +236,9 @@ test('it refuses a customer with an active block', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
+  blockedCustomer(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
 
   const result = await postMessage(world.context, {
     conversationId: conversation.id,
@@ -295,8 +297,10 @@ test('a customer whose block was lifted may post again', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
-  await liftCustomerBlock(world.context, { customerId: buyer.id })
+  blockedCustomer(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
+  liftedCustomerBlock(await liftCustomerBlock(world.context, { customerId: buyer.id }))
 
   const message = postedMessage(
     await postMessage(world.context, {

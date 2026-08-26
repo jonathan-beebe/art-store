@@ -92,7 +92,7 @@ test('POST /admin/customers/:id/blocks refuses a customer who is already blocked
 
   assert.equal(response.statusCode, 302)
   const flash = flashFrom(testApp, response)
-  assert.match(flash.alert ?? '', /already blocked/)
+  assert.equal(flash.alert, 'This customer is already blocked.')
 })
 
 test('POST /admin/customers/:id/blocks/lift restores shopping', async (t) => {
@@ -134,7 +134,7 @@ test('POST /admin/customers/:id/blocks/lift refuses a customer who is not blocke
   })
 
   const flash = flashFrom(testApp, response)
-  assert.match(flash.alert ?? '', /not blocked/)
+  assert.equal(flash.alert, 'This customer is not blocked.')
 })
 
 test('a reason that is blank after trimming is rejected before the action runs', async (t) => {
@@ -222,7 +222,7 @@ test('POST /admin/listings/:id/removals refuses a listing that is already remove
 
   assert.equal(response.statusCode, 302)
   const flash = flashFrom(testApp, response)
-  assert.match(flash.alert ?? '', /already removed/)
+  assert.equal(flash.alert, 'This listing is already removed.')
 })
 
 test('POST /admin/listings/:id/removals/lift restores a temporary removal', async (t) => {
@@ -273,7 +273,7 @@ test('POST /admin/listings/:id/removals/lift refuses a permanent removal', async
   })
 
   const flash = flashFrom(testApp, response)
-  assert.match(flash.alert ?? '', /cannot be lifted/)
+  assert.equal(flash.alert, 'A permanent removal cannot be lifted.')
   assert.notEqual(await activeListingRemoval({ db: testApp.db }, listing.id), null)
 })
 
@@ -292,7 +292,7 @@ test('POST /admin/listings/:id/removals/lift refuses a listing that is not remov
   })
 
   const flash = flashFrom(testApp, response)
-  assert.match(flash.alert ?? '', /not removed/)
+  assert.equal(flash.alert, 'This listing is not removed.')
 })
 
 test('a bodiless POST to lift a temporary removal still lifts it', async (t) => {
@@ -499,7 +499,8 @@ test('a moderation write the domain refuses is refused rather than failed', asyn
   const refused = log.line('moderation.block_customer', 'refused')
   assert.equal(refused.level, 'info')
   assert.equal(typeof refused.duration_ms, 'number')
-  assert.equal((refused.data as { reason?: string }).reason, 'TransitionError')
+  assert.equal((refused.data as { reason?: string }).reason, 'already_blocked')
+  assert.equal((refused.data as { customer_id?: string }).customer_id, customerId)
   assert.equal(
     log.linesFor('moderation.block_customer').some((line: Record<string, unknown>) => line.phase === 'failed'),
     false,

@@ -9,7 +9,7 @@
  * tell the same story the same way.
  */
 import type { LogEvent, LogLineLevel, LogPhase } from './core/logging/log-event.ts'
-import { describeError, isDomainRefusal } from './core/logging/logged-error.ts'
+import { describeError } from './core/logging/logged-error.ts'
 import { prefixedMsg } from './core/logging/story-emoji.ts'
 
 /** The entity ids and small facts a line is about. Ids are prefixed ids. */
@@ -89,10 +89,10 @@ export function logStep(
 }
 
 /**
- * Runs `work` between the `will` line and the line that closes it. A thrown
- * domain refusal is `refused` at `info` and an unexpected exception is `failed`
- * at `error`; either way the exception goes on to the caller, so logging the
- * story never changes what happens.
+ * Runs `work` between the `will` line and the line that closes it. A domain
+ * refusal is a returned result `ended` maps to the `refused` phase; a thrown
+ * exception always closes the story `failed` at `error`, and either way it
+ * goes on to the caller, so logging the story never changes what happens.
  */
 export async function tellStory<Result>(
   log: AppLogger,
@@ -136,17 +136,6 @@ function logException(
   root: boolean,
 ): void {
   const described = describeError(error)
-
-  if (isDomainRefusal(error)) {
-    const refusal = {
-      msg: described.message,
-      data: { ...(described.data ?? {}), reason: described.reason ?? described.type },
-    }
-
-    logLine(log, 'info', event, 'refused', refusal, durationMs, root)
-
-    return
-  }
 
   log.error(
     { event, phase: 'failed', duration_ms: durationMs, error: described },

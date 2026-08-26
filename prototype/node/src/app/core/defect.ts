@@ -1,8 +1,8 @@
 /**
  * A defect is a bug surfacing — thrown, logged as `failed`, in contrast to a
- * returned `Refusal` (`core/refusal.ts`) or a thrown `TransitionError`, which
- * are the domain saying no. `reason` is the sub-category within the class,
- * `message` is prose for a person, `data` is prefixed ids and other facts.
+ * returned `Refusal` (`core/refusal.ts`), which is the domain saying no.
+ * `reason` is the sub-category within the class, `message` is prose for a
+ * person, `data` is prefixed ids and other facts.
  */
 export abstract class Defect extends Error {
   readonly reason: string

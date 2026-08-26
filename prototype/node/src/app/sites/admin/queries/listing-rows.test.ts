@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { countListingRows, listingRows } from './listing-rows.ts'
-import { removeListing } from '../../../actions/moderation/remove-listing.ts'
-import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { liftedListingRemoval, liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
 import {
   createAdmin,
   createListing,
@@ -88,12 +88,14 @@ test('the default removed filter shows both removed and visible listings', async
   const adminId = await createAdmin(world.context)
   const visible = await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  await removeListing(world.context, {
-    listingId: removed.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: removed.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
 
   const rows = await listingRows(world.context, {}, FULL_PAGE)
 
@@ -111,12 +113,14 @@ test('removed=removed keeps only actively removed listings, with kind and reason
   const adminId = await createAdmin(world.context)
   await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  await removeListing(world.context, {
-    listingId: removed.id,
-    adminId,
-    kind: 'permanent',
-    reason: 'Counterfeit.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: removed.id,
+      adminId,
+      kind: 'permanent',
+      reason: 'Counterfeit.',
+    }),
+  )
 
   const rows = await listingRows(world.context, { removed: 'removed' }, FULL_PAGE)
 
@@ -143,12 +147,14 @@ test('removed=visible excludes actively removed listings', async (t) => {
   const adminId = await createAdmin(world.context)
   const visible = await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  await removeListing(world.context, {
-    listingId: removed.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: removed.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
 
   const rows = await listingRows(world.context, { removed: 'visible' }, FULL_PAGE)
 
@@ -162,13 +168,15 @@ test('a lifted removal no longer counts as active', async (t) => {
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
-  await liftListingRemoval(world.context, { listingId: listing.id })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
+  liftedListingRemoval(await liftListingRemoval(world.context, { listingId: listing.id }))
 
   const rows = await listingRows(world.context, { removed: 'removed' }, FULL_PAGE)
 
@@ -214,12 +222,14 @@ test('countListingRows counts every listing matching the filters, not just the p
   await createListing(world.context, sellerId, { status: 'draft' })
   await createListing(world.context, sellerId, { status: 'for_sale' })
   const removed = await createListing(world.context, sellerId, { status: 'for_sale' })
-  await removeListing(world.context, {
-    listingId: removed.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
+  removedListing(
+    await removeListing(world.context, {
+      listingId: removed.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
 
   assert.equal(await countListingRows(world.context), 3)
   assert.equal(await countListingRows(world.context, { status: 'for_sale' }), 2)

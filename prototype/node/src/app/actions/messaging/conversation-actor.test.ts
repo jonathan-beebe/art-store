@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationActor } from './conversation-actor.ts'
-import { blockCustomer } from '../moderation/block-customer.ts'
+import { blockedCustomer, blockCustomer } from '../moderation/block-customer.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
@@ -53,7 +53,9 @@ test('a blocked customer carries isBlocked true', async (t) => {
   t.after(world.close)
   const support = await admin(world.context)
   const buyer = await customer(world.context)
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
+  blockedCustomer(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
 
   const actor = await conversationActor(world.context, { type: 'customer', id: buyer.id })
 

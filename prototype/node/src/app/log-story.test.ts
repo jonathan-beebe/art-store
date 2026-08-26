@@ -1,7 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { logLine, logStep, SILENT_LOG, tellStory, type AppLogger, type LogData } from './log-story.ts'
-import { TransitionError } from './core/transition-error.ts'
 import { MissingDataError } from './core/defect.ts'
 
 type Written = { level: string; payload: Record<string, unknown>; msg: string }
@@ -82,7 +81,7 @@ test('an outcome the story calls a refusal is refused, not did', async () => {
   assert.equal(written[1]?.payload.phase, 'refused')
 })
 
-test('a thrown domain refusal is refused at info, and the caller still sees it', async () => {
+test('a thrown error carrying a reason and data is failed at error — a throw is a defect, always', async () => {
   const written: Written[] = []
 
   await assert.rejects(
@@ -94,41 +93,20 @@ test('a thrown domain refusal is refused at info, and the caller still sees it',
         ended: () => ({ phase: 'did', msg: 'moved the listing' }),
       },
       async () => {
-        throw new TransitionError('A listing cannot move from archived to for_sale.')
-      },
-    ),
-    TransitionError,
-  )
-
-  assert.equal(written[1]?.level, 'info')
-  assert.equal(written[1]?.payload.phase, 'refused')
-  assert.equal(written[1]?.msg, '⚠️ A listing cannot move from archived to for_sale.')
-  assert.deepEqual(written[1]?.payload.data, { reason: 'TransitionError' })
-})
-
-test('a thrown transition error with a reason is refused with the reason folded into its data', async () => {
-  const written: Written[] = []
-
-  await assert.rejects(
-    tellStory(
-      recordingLog(written),
-      {
-        event: 'listing.transition',
-        will: { msg: 'moving the listing to for_sale' },
-        ended: () => ({ phase: 'did', msg: 'moved the listing' }),
-      },
-      async () => {
-        throw new TransitionError('A listing cannot move from archived to for_sale.', {
-          reason: 'stale_status',
-          data: { listing_id: 'lst_1' },
+        throw new MissingDataError('stale_status', 'A listing cannot move from archived to for_sale.', {
+          listing_id: 'lst_1',
         })
       },
     ),
-    TransitionError,
+    MissingDataError,
   )
 
-  assert.equal(written[1]?.level, 'info')
-  assert.deepEqual(written[1]?.payload.data, { listing_id: 'lst_1', reason: 'stale_status' })
+  assert.equal(written[1]?.level, 'error')
+  assert.equal(written[1]?.payload.phase, 'failed')
+  const error = written[1]?.payload.error as Record<string, unknown>
+  assert.equal(error.type, 'MissingDataError')
+  assert.equal(error.reason, 'stale_status')
+  assert.deepEqual(error.data, { listing_id: 'lst_1' })
 })
 
 test('an exception nobody expected is failed at error, with the type, message, and stack', async () => {

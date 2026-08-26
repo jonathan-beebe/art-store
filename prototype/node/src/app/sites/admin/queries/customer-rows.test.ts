@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { newId } from '../../../ids.ts'
 import { countCustomerRows, customerRows } from './customer-rows.ts'
-import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
+import { blockedCustomer, blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import type { CustomerId } from '../../../core/ids/entity-ids.ts'
 import {
   isAnonymousCustomer,
@@ -49,7 +49,7 @@ test('counts and standing fold per customer', async (t) => {
     .values({ id: newId('fav', new Date()), customerId: verified, listingId: listing.id, createdAt: toTimestamp(new Date()) })
     .execute()
 
-  await blockCustomer(world.context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' })
+  blockedCustomer(await blockCustomer(world.context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' }))
 
   const rows = await customerRows(world.context, 'all', FULL_PAGE)
   const byId = new Map(rows.map((row) => [row.id, row]))
@@ -76,7 +76,7 @@ test('the standing filter narrows to verified, anonymous, or blocked', async (t)
   const anonymous = await createCustomer(world.context, { isVerified: false })
   const blocked = await createCustomer(world.context, { isVerified: true })
   const adminId = await createAdmin(world.context)
-  await blockCustomer(world.context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' })
+  blockedCustomer(await blockCustomer(world.context, { customerId: blocked, adminId, reason: 'Chargeback fraud.' }))
 
   const verifiedRows = await customerRows(world.context, 'verified', FULL_PAGE)
   assert.deepEqual(verifiedRows.map((row) => row.id).sort(), [verified, blocked].sort())

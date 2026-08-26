@@ -11,7 +11,7 @@ import { conversationThread } from './conversation-thread.ts'
 import { openConversation } from './open-conversation.ts'
 import { postedMessage, postMessage } from './post-message.ts'
 import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
-import { blockCustomer } from '../moderation/block-customer.ts'
+import { blockedCustomer, blockCustomer } from '../moderation/block-customer.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -180,7 +180,9 @@ test('mayPost is false for a blocked customer, who may still read', async (t) =>
     customerId: buyer.id,
     listingId: art.id,
   })
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
+  blockedCustomer(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,

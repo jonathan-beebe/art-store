@@ -1,15 +1,21 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import type { ActionContext } from '../../../actions/action-context.ts'
-import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
-import { liftCustomerBlock } from '../../../actions/moderation/lift-customer-block.ts'
-import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
-import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { blockCustomer, type BlockCustomerResult } from '../../../actions/moderation/block-customer.ts'
+import {
+  liftCustomerBlock,
+  type LiftCustomerBlockResult,
+} from '../../../actions/moderation/lift-customer-block.ts'
+import {
+  liftListingRemoval,
+  type LiftListingRemovalResult,
+} from '../../../actions/moderation/lift-listing-removal.ts'
+import { removeListing, type RemoveListingResult } from '../../../actions/moderation/remove-listing.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { AdminId, CustomerId, IdPrefix, ListingId } from '../../../core/ids/entity-ids.ts'
 import type { PrefixedId } from '../../../core/ids/prefixed-id.ts'
 import { REMOVAL_KINDS } from '../../../core/moderation/listing-removal.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
+import type { Refusal } from '../../../core/refusal.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
@@ -25,6 +31,19 @@ const blockForm = submittedForm({ ...RETURN_FIELD, ...REASON_FIELD })
 
 /** What every moderation form carries, whatever else it holds. */
 type ModerationForm = { redirect_to?: string }
+
+/** The refusal a result union can end in, named by its `reason`. */
+type ReasonOf<Result> = Result extends Refusal<infer Reason> ? Reason : never
+
+/** The refusal reasons the four moderation writes can hand back. */
+type ModerationRefusalReason =
+  | ReasonOf<RemoveListingResult>
+  | ReasonOf<LiftListingRemovalResult>
+  | ReasonOf<BlockCustomerResult>
+  | ReasonOf<LiftCustomerBlockResult>
+
+/** What one moderation write settles on: an outcome to flash, or a refusal. */
+type ModerationResult = { outcome: 'removed' | 'lifted' | 'blocked' } | Refusal<ModerationRefusalReason>
 
 /** What one moderation route reads: the subject its url names and its own form. */
 type ModerationRequest<Submitted, Prefix extends IdPrefix> = FastifyRequest & {
@@ -44,7 +63,7 @@ type ModerationCommand<Submitted extends ModerationForm, Prefix extends IdPrefix
   apply(
     context: ActionContext,
     input: { subjectId: PrefixedId<Prefix>; adminId: AdminId; submitted: Submitted },
-  ): Promise<unknown>
+  ): Promise<ModerationResult>
 }
 
 /**
@@ -69,12 +88,10 @@ function moderationRoute<Submitted extends ModerationForm, Prefix extends IdPref
 
     const adminId = currentAdminId(request)
 
-    try {
-      await command.apply(requestActions(request), { subjectId, adminId, submitted })
-    } catch (error) {
-      if (!(error instanceof TransitionError)) throw error
+    const result = await command.apply(requestActions(request), { subjectId, adminId, submitted })
 
-      reply.setFlash({ alert: error.message })
+    if (result.outcome === 'refused') {
+      reply.setFlash({ alert: moderationRefusalCopy(result.reason) })
 
       return reply.redirect(destination)
     }
@@ -85,6 +102,23 @@ function moderationRoute<Submitted extends ModerationForm, Prefix extends IdPref
   }
 
   return { schema: { params: idParams(command.subjectPrefix), body: command.form }, handler }
+}
+
+/** The sentence a refused moderation write shows on the page it sent the admin
+ * back to, the same wherever that reason can be handed back. */
+function moderationRefusalCopy(reason: ModerationRefusalReason): string {
+  switch (reason) {
+    case 'already_removed':
+      return 'This listing is already removed.'
+    case 'not_removed':
+      return 'This listing is not removed.'
+    case 'permanent_removal':
+      return 'A permanent removal cannot be lifted.'
+    case 'already_blocked':
+      return 'This customer is already blocked.'
+    case 'not_blocked':
+      return 'This customer is not blocked.'
+  }
 }
 
 /** `requireAdmin` guards this whole plugin, so this only narrows the type. */

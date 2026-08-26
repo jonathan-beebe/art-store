@@ -1,9 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { activeListingRemoval } from './active-listing-removal.ts'
-import { removeListing } from './remove-listing.ts'
+import { removedListing, removeListing } from './remove-listing.ts'
 import { isOnStorefront } from '../../core/listings/listing-availability.ts'
-import { TransitionError } from '../../core/transition-error.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
 test('a removed listing leaves the storefront and names its reason', async (t) => {
@@ -14,12 +13,14 @@ test('a removed listing leaves the storefront and names its reason', async (t) =
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
 
-  const removal = await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'The photograph is not the work.',
-  })
+  const removal = removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'The photograph is not the work.',
+    }),
+  )
 
   assert.equal(removal.kind, 'temporary')
   assert.equal(removal.adminId, adminId)
@@ -40,23 +41,27 @@ test('a listing already removed is not removed a second time', async (t) => {
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
 
-  await removeListing(world.context, {
+  const first = removedListing(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Retake the photograph.',
+    }),
+  )
+
+  const result = await removeListing(world.context, {
     listingId: listing.id,
     adminId,
-    kind: 'temporary',
-    reason: 'Retake the photograph.',
+    kind: 'permanent',
+    reason: 'Counterfeit.',
   })
 
-  await assert.rejects(
-    () =>
-      removeListing(world.context, {
-        listingId: listing.id,
-        adminId,
-        kind: 'permanent',
-        reason: 'Counterfeit.',
-      }),
-    TransitionError,
-  )
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'already_removed',
+    data: { listing_id: listing.id, listing_removal_id: first.id },
+  })
 
   const removals = await world.db.selectFrom('listingRemovals').selectAll().execute()
 

@@ -1,7 +1,7 @@
 import type { ActionContext } from '../actions/action-context.ts'
 import { changeListingStatus, changedListing } from '../actions/listings/change-listing-status.ts'
 import { createListing } from '../actions/listings/create-listing.ts'
-import { removeListing } from '../actions/moderation/remove-listing.ts'
+import { removedListing, removeListing } from '../actions/moderation/remove-listing.ts'
 import { fixedClock } from '../clock.ts'
 import type {
   AdminId,
@@ -340,14 +340,16 @@ export async function seedCatalog(
     listingIdsByTitle[record.title] = listing.id
   }
 
-  await removeListing(
-    { db, clock: fixedClock(REMOVED_AT) },
-    {
-      listingId: requireListingId(listingIdsByTitle, REMOVED_LISTING_TITLE),
-      adminId,
-      kind: 'temporary',
-      reason: REMOVAL_REASON,
-    },
+  removedListing(
+    await removeListing(
+      { db, clock: fixedClock(REMOVED_AT) },
+      {
+        listingId: requireListingId(listingIdsByTitle, REMOVED_LISTING_TITLE),
+        adminId,
+        kind: 'temporary',
+        reason: REMOVAL_REASON,
+      },
+    ),
   )
 
   return { listingIdsByTitle }
