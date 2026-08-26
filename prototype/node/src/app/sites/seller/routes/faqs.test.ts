@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
-import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
+import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import type { Message } from '../../../db/commerce-schema.ts'
 import { buildTestApp, signInAsCustomer, signInAsSeller, type TestApp } from '../../../test/build-test-app.ts'
 import { createForSaleListing } from '../test-fixtures.ts'
@@ -14,19 +15,19 @@ async function askAndAnswer(testApp: TestApp, sellerId: SellerId, listingId: Lis
     { db, clock },
     { kind: 'listing_question', sellerId, customerId: buyer.id, listingId },
   )
-  postedMessage(
+  mustSucceed(
     await postMessage(
       { db, clock },
       { conversationId: conversation.id, sender: { type: 'customer', id: buyer.id }, body: 'Is this framed?' },
     ),
   )
 
-  return postedMessage(
+  return mustSucceed(
     await postMessage(
       { db, clock },
       { conversationId: conversation.id, sender: { type: 'seller', id: sellerId }, body: 'Yes, in oak.' },
     ),
-  )
+  ).message
 }
 
 test('the FAQ page lists published entries with an edit form and a blank publish form', async (t) => {

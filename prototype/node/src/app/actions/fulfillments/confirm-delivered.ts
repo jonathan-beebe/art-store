@@ -5,7 +5,6 @@ import { writeLedgerEntry } from '../escrow/write-ledger-entry.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
 import { releaseMovement } from '../../core/escrow/ledger-movement.ts'
 import { transitionFulfillment, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -95,19 +94,4 @@ export async function confirmDelivered(
   return delivery.outcome === 'delivered'
     ? { outcome: 'delivered', fulfillment: delivery.fulfillment }
     : delivery
-}
-
-/**
- * Unwraps a `ConfirmDeliveredResult` for a caller inside the application that
- * only ever asks for a legal move. A refusal reaching here is a broken
- * contract, not a domain outcome to handle.
- */
-export function deliveredFulfillment(result: ConfirmDeliveredResult): Fulfillment {
-  if (result.outcome === 'delivered') return result.fulfillment
-
-  throw new BrokenContractError(
-    result.reason,
-    `confirming a fulfillment delivered was refused: ${result.reason}`,
-    result.data,
-  )
 }

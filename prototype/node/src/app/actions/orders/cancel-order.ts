@@ -4,7 +4,6 @@ import { actionStory } from '../action-story.ts'
 import { moveOrderStock } from './move-order-stock.ts'
 import { stockChangeBetween } from '../../core/orders/order-stock.ts'
 import { transitionOrder, type OrderStatus } from '../../core/orders/order-status.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -76,15 +75,4 @@ async function cancel(transacted: ActionContext, orderId: OrderId): Promise<Canc
     .executeTakeFirstOrThrow()
 
   return { outcome: 'cancelled', order: cancelled, statusFrom: order.status }
-}
-
-/**
- * Unwraps a `CancelOrderResult` for a caller inside the application that only
- * ever asks for a legal move. A refusal reaching here is a broken contract,
- * not a domain outcome to handle.
- */
-export function cancelledOrder(result: CancelOrderResult): Order {
-  if (result.outcome === 'cancelled') return result.order
-
-  throw new BrokenContractError(result.reason, `cancelling an order was refused: ${result.reason}`, result.data)
 }

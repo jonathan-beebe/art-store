@@ -3,12 +3,13 @@ import assert from 'node:assert/strict'
 import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
 import { markConversationRead } from './mark-conversation-read.ts'
 import { openConversation } from './open-conversation.ts'
-import { postedMessage, postMessage } from './post-message.ts'
+import { postMessage } from './post-message.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
@@ -56,21 +57,21 @@ test('it marks only the messages the reader did not send and returns how many', 
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  postedMessage(
+  mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'seller', id: shop.id },
       body: 'Still available.',
     }),
   )
-  const mine = postedMessage(
+  const mine = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Great, I will take it.',
     }),
-  )
-  postedMessage(
+  ).message
+  mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'seller', id: shop.id },
@@ -102,7 +103,7 @@ test('it leaves already-read messages alone and returns 0 the next time', async 
   const shop = await seller(world.context)
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  postedMessage(
+  mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'seller', id: shop.id },
@@ -131,14 +132,14 @@ test('it leaves messages in other conversations untouched', async (t) => {
   const buyerB = await customer(world.context, 'grace@example.test')
   const conversationA = await listingConversation(world.context, shop.id, buyerA.id)
   const conversationB = await listingConversation(world.context, shop.id, buyerB.id)
-  postedMessage(
+  mustSucceed(
     await postMessage(world.context, {
       conversationId: conversationA.id,
       sender: { type: 'customer', id: buyerA.id },
       body: 'Is this available?',
     }),
   )
-  postedMessage(
+  mustSucceed(
     await postMessage(world.context, {
       conversationId: conversationB.id,
       sender: { type: 'customer', id: buyerB.id },

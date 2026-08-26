@@ -7,8 +7,9 @@ import type {
   SellerId,
 } from '../../core/ids/entity-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
-import { confirmDelivered, deliveredFulfillment } from './confirm-delivered.ts'
+import { confirmDelivered } from './confirm-delivered.ts'
 import { markShipped } from './mark-shipped.ts'
 import { sellerBalance } from '../escrow/ledger-balances.ts'
 import type { ActionContext } from '../action-context.ts'
@@ -24,7 +25,7 @@ test('it records when the order arrived', async (t) => {
   const buyer = await createCustomer(context)
   const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
 
-  const delivered = deliveredFulfillment(await confirmDelivered(context, fulfillmentId))
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
 
   assert.equal(delivered.status, 'delivered')
   assert.notEqual(delivered.deliveredAt, null)
@@ -39,7 +40,7 @@ test('delivery releases the escrow the sale held', async (t) => {
   const buyer = await createCustomer(context)
   const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
 
-  const delivered = deliveredFulfillment(await confirmDelivered(context, fulfillmentId))
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
   const entry = await readReleasedEntry(world.db)
 
   assert.equal(entry?.amountCents, 40_500)
@@ -99,7 +100,7 @@ test('it refuses a fulfillment that has not shipped', async (t) => {
   assert.equal(await readReleasedEntry(world.db), undefined)
 })
 
-test('deliveredFulfillment unwraps a delivered result, and throws BrokenContractError carrying reason and data for a refusal', async (t) => {
+test('mustSucceed unwraps a delivered result, and throws BrokenContractError carrying reason and data for a refusal', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
@@ -108,13 +109,13 @@ test('deliveredFulfillment unwraps a delivered result, and throws BrokenContract
   const buyer = await createCustomer(context)
   const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
 
-  const delivered = deliveredFulfillment(await confirmDelivered(context, fulfillmentId))
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
   assert.equal(delivered.status, 'delivered')
 
   const refusal = await confirmDelivered(context, fulfillmentId)
 
   assert.throws(
-    () => deliveredFulfillment(refusal),
+    () => mustSucceed(refusal),
     (error: unknown) =>
       error instanceof BrokenContractError &&
       error.reason === 'illegal_transition' &&

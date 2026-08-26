@@ -8,7 +8,8 @@ import type {
 } from '../../core/ids/entity-ids.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { cancelOrder, cancelledOrder } from './cancel-order.ts'
+import { mustSucceed } from '../../core/refusal.ts'
+import { cancelOrder } from './cancel-order.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import { markAwaitingPayment } from './mark-awaiting-payment.ts'
 import { confirmDelivered } from '../fulfillments/confirm-delivered.ts'
@@ -170,7 +171,7 @@ test('cancelling an unpaid order hands the stock back to the storefront', async 
   assert.equal(order.status, 'pending_verification')
   assert.deepEqual(await readStock(world.db, art.id), { quantity: 0, status: 'sold' })
 
-  const cancelled = cancelledOrder(await cancelOrder(context, order.id))
+  const cancelled = mustSucceed(await cancelOrder(context, order.id)).order
 
   assert.equal(cancelled.status, 'cancelled')
   assert.notEqual(cancelled.cancelledAt, null)

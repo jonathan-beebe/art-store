@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
-import { confirmDelivered, deliveredFulfillment } from '../../actions/fulfillments/confirm-delivered.ts'
-import { markShipped, shippedFulfillment } from '../../actions/fulfillments/mark-shipped.ts'
-import { changeListingStatus, changedListing } from '../../actions/listings/change-listing-status.ts'
+import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
+import { markShipped } from '../../actions/fulfillments/mark-shipped.ts'
+import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
 import { notify } from '../../actions/notifications/notify.ts'
@@ -13,6 +13,7 @@ import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { cents } from '../../core/money.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
 import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
 import { APPROVED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
@@ -44,7 +45,7 @@ export async function createForSaleListing(
   const listing = await createTestListing(testApp, sellerId, overrides)
   const { db, clock } = testApp
 
-  return changedListing(await changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' }))
+  return mustSucceed(await changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' })).listing
 }
 
 /**
@@ -87,14 +88,14 @@ export async function createDeliveredFulfillment(
   const { db, clock } = testApp
   const fulfillment = await createFulfillment(testApp, sellerId, listing)
 
-  shippedFulfillment(
+  mustSucceed(
     await markShipped(
       { db, clock },
       { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
     ),
   )
 
-  return deliveredFulfillment(await confirmDelivered({ db, clock }, fulfillment.id))
+  return mustSucceed(await confirmDelivered({ db, clock }, fulfillment.id)).fulfillment
 }
 
 export async function createTestNotification(

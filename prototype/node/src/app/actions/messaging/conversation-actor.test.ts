@@ -2,11 +2,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationActor } from './conversation-actor.ts'
-import { blockedCustomer, blockCustomer } from '../moderation/block-customer.ts'
+import { blockCustomer } from '../moderation/block-customer.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
@@ -53,7 +54,7 @@ test('a blocked customer carries isBlocked true', async (t) => {
   t.after(world.close)
   const support = await admin(world.context)
   const buyer = await customer(world.context)
-  blockedCustomer(
+  mustSucceed(
     await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
   )
 

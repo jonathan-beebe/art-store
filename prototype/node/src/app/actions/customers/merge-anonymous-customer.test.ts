@@ -23,8 +23,9 @@ import { captureLogLines } from '../../test/log-lines.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
 import { openConversation } from '../messaging/open-conversation.ts'
-import { postedMessage, postMessage } from '../messaging/post-message.ts'
+import { postMessage } from '../messaging/post-message.ts'
 import { markConversationRead } from '../messaging/mark-conversation-read.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 
 const NOW = TEST_INSTANT.toISOString()
 
@@ -246,13 +247,13 @@ test('a duplicate thread on the same subject folds into the verified customer’
     adminId: admin.id,
     customerId: merging.verifiedCustomerId,
   })
-  const readMessage = postedMessage(
+  const readMessage = mustSucceed(
     await postMessage(merging, {
       conversationId: standing.id,
       sender: { type: 'customer', id: merging.verifiedCustomerId },
       body: 'From the verified side, already read.',
     }),
-  )
+  ).message
   await markConversationRead(merging, {
     conversationId: standing.id,
     reader: { type: 'admin', id: admin.id },
@@ -265,13 +266,13 @@ test('a duplicate thread on the same subject folds into the verified customer’
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  const unreadMessage = postedMessage(
+  const unreadMessage = mustSucceed(
     await postMessage(merging, {
       conversationId: moving.id,
       sender: { type: 'customer', id: merging.anonymousCustomerId },
       body: 'From the anonymous side, still unread.',
     }),
-  )
+  ).message
   assert.ok(unreadMessage.sentAt > readMessage.sentAt)
 
   await merge(merging)
@@ -345,14 +346,14 @@ test('a message the anonymous customer sent re-points to the verified customer, 
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  const sent = postedMessage(
+  const sent = mustSucceed(
     await postMessage(merging, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: merging.anonymousCustomerId },
       body: 'From the anonymous customer.',
     }),
-  )
-  postedMessage(
+  ).message
+  mustSucceed(
     await postMessage(merging, {
       conversationId: conversation.id,
       sender: { type: 'admin', id: admin.id },
@@ -364,13 +365,13 @@ test('a message the anonymous customer sent re-points to the verified customer, 
     adminId: admin.id,
     customerId: bystander.id,
   })
-  const bystanderMessage = postedMessage(
+  const bystanderMessage = mustSucceed(
     await postMessage(merging, {
       conversationId: bystanderConversation.id,
       sender: { type: 'customer', id: bystander.id },
       body: 'From a customer this merge has nothing to do with.',
     }),
-  )
+  ).message
 
   await merge(merging)
 
@@ -404,7 +405,7 @@ test('it does not read the verified customer’s own merged message as unread to
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(merging, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: merging.anonymousCustomerId },

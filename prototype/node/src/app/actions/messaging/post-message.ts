@@ -10,7 +10,6 @@ import { conversationAccess, otherParticipants } from '../../core/messaging/conv
 import { conversationPath } from '../../core/messaging/conversation-path.ts'
 import { messageBodyError, parseMessageBody } from '../../core/messaging/message-body.ts'
 import { newMessageMessage } from '../../core/notifications/notification-message.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal } from '../../core/refusal.ts'
 import type { Conversation, Message } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -129,17 +128,6 @@ async function notifyOtherSide(
       message: newMessageMessage(topic, conversationPath(recipient.type, conversation.id)),
     })
   }
-}
-
-/**
- * Unwraps a `PostMessageResult` for a caller inside the application that only
- * ever asks for a legal post. A refusal reaching here is a broken contract,
- * not a domain outcome to handle.
- */
-export function postedMessage(result: PostMessageResult): Message {
-  if (result.outcome === 'posted') return result.message
-
-  throw new BrokenContractError(result.reason, `a message post was refused: ${result.reason}`, result.data)
 }
 
 /** The sentence a refused post shows beside the reply form, the same on

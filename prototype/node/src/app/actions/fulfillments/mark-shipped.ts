@@ -5,7 +5,6 @@ import { notify } from '../notifications/notify.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
 import { orderShippedMessage } from '../../core/notifications/notification-message.ts'
 import { transitionFulfillment, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -95,19 +94,4 @@ export async function markShipped(
   )
 
   return shipping.outcome === 'shipped' ? { outcome: 'shipped', fulfillment: shipping.fulfillment } : shipping
-}
-
-/**
- * Unwraps a `MarkShippedResult` for a caller inside the application that only
- * ever asks for a legal move. A refusal reaching here is a broken contract,
- * not a domain outcome to handle.
- */
-export function shippedFulfillment(result: MarkShippedResult): Fulfillment {
-  if (result.outcome === 'shipped') return result.fulfillment
-
-  throw new BrokenContractError(
-    result.reason,
-    `marking a fulfillment shipped was refused: ${result.reason}`,
-    result.data,
-  )
 }

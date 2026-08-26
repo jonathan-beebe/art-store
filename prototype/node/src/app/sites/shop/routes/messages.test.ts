@@ -1,11 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
+import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type {
   ConversationId,
   CustomerId,
 } from '../../../core/ids/entity-ids.ts'
 import { parsePrefixedId } from '../../../core/ids/prefixed-id.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -83,7 +84,7 @@ test('the inbox lists the customer’s threads newest first with the unread coun
     body: 'What clay is this?',
     cookies: customer.cookies,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(testApp, {
       conversationId: kilnConversationId,
       sender: { type: 'seller', id: seller.id },
@@ -125,7 +126,7 @@ test('the thread page renders the messages and clears the unread count on the ne
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(testApp, {
       conversationId,
       sender: { type: 'seller', id: seller.id },
@@ -474,13 +475,13 @@ test('the customer thread shows a published FAQ answer with a link to the listin
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  const answer = postedMessage(
+  const answer = mustSucceed(
     await postMessage(testApp, {
       conversationId,
       sender: { type: 'seller', id: seller.id },
       body: 'Yes, in oak.',
     }),
-  )
+  ).message
   const listing = await testApp.db
     .selectFrom('listings')
     .selectAll()

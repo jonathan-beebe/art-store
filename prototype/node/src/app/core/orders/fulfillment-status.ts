@@ -1,5 +1,4 @@
-import { BrokenContractError } from '../defect.ts'
-import { refused, type IllegalTransition } from '../refusal.ts'
+import { mustSucceed, refused, type IllegalTransition } from '../refusal.ts'
 
 export const FULFILLMENT_STATUSES = [
   'awaiting_shipment',
@@ -48,9 +47,9 @@ export function transitionFulfillment(from: FulfillmentStatus, to: FulfillmentSt
  */
 export function fulfillmentMovedTo(from: FulfillmentStatus, to: FulfillmentStatus): FulfillmentStatus {
   const transition = transitionFulfillment(from, to)
-  if (transition.outcome === 'allowed') return transition.status
+  const message = transition.outcome === 'refused' ? fulfillmentTransitionRefusalCopy(transition) : undefined
 
-  throw new BrokenContractError(transition.reason, fulfillmentTransitionRefusalCopy(transition), transition.data)
+  return mustSucceed(transition, message).status
 }
 
 /** The sentence a refused fulfillment move shows, worded from the refusal's

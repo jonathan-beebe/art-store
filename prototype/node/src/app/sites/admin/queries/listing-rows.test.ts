@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { countListingRows, listingRows } from './listing-rows.ts'
-import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
-import { liftedListingRemoval, liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   createAdmin,
   createListing,
@@ -88,7 +89,7 @@ test('the default removed filter shows both removed and visible listings', async
   const adminId = await createAdmin(world.context)
   const visible = await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: removed.id,
       adminId,
@@ -113,7 +114,7 @@ test('removed=removed keeps only actively removed listings, with kind and reason
   const adminId = await createAdmin(world.context)
   await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: removed.id,
       adminId,
@@ -147,7 +148,7 @@ test('removed=visible excludes actively removed listings', async (t) => {
   const adminId = await createAdmin(world.context)
   const visible = await createListing(world.context, sellerId, { title: 'Visible' })
   const removed = await createListing(world.context, sellerId, { title: 'Removed' })
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: removed.id,
       adminId,
@@ -168,7 +169,7 @@ test('a lifted removal no longer counts as active', async (t) => {
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
@@ -176,7 +177,7 @@ test('a lifted removal no longer counts as active', async (t) => {
       reason: 'Reported artwork.',
     }),
   )
-  liftedListingRemoval(await liftListingRemoval(world.context, { listingId: listing.id }))
+  mustSucceed(await liftListingRemoval(world.context, { listingId: listing.id }))
 
   const rows = await listingRows(world.context, { removed: 'removed' }, FULL_PAGE)
 
@@ -222,7 +223,7 @@ test('countListingRows counts every listing matching the filters, not just the p
   await createListing(world.context, sellerId, { status: 'draft' })
   await createListing(world.context, sellerId, { status: 'for_sale' })
   const removed = await createListing(world.context, sellerId, { status: 'for_sale' })
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: removed.id,
       adminId,

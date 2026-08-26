@@ -1,5 +1,4 @@
-import { BrokenContractError } from '../defect.ts'
-import { refused, type IllegalTransition } from '../refusal.ts'
+import { mustSucceed, refused, type IllegalTransition } from '../refusal.ts'
 
 export const LISTING_STATUSES = ['draft', 'for_sale', 'sold', 'archived'] as const
 export type ListingStatus = (typeof LISTING_STATUSES)[number]
@@ -36,14 +35,7 @@ export function transitionListing(from: ListingStatus, to: ListingStatus): Listi
  * a broken contract, not a domain outcome to handle.
  */
 export function listingMovedTo(from: ListingStatus, to: ListingStatus): ListingStatus {
-  const transition = transitionListing(from, to)
-  if (transition.outcome === 'allowed') return transition.status
-
-  throw new BrokenContractError(
-    transition.reason,
-    `A listing cannot move from ${from} to ${to}.`,
-    transition.data,
-  )
+  return mustSucceed(transitionListing(from, to), `A listing cannot move from ${from} to ${to}.`).status
 }
 
 // A listing under an active admin removal stays off the storefront whatever its

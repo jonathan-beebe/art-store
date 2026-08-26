@@ -1,10 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
-import { messagePostRefusalCopy, postMessage, postedMessage } from './post-message.ts'
+import { messagePostRefusalCopy, postMessage } from './post-message.ts'
 import { openConversation } from './open-conversation.ts'
-import { blockedCustomer, blockCustomer } from '../moderation/block-customer.ts'
-import { liftedCustomerBlock, liftCustomerBlock } from '../moderation/lift-customer-block.ts'
+import { blockCustomer } from '../moderation/block-customer.ts'
+import { liftCustomerBlock } from '../moderation/lift-customer-block.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -12,6 +12,7 @@ import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
 import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
@@ -68,13 +69,13 @@ test("it appends a message with the sender's type and id and no read marker", as
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  const message = postedMessage(
+  const message = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Is this still available?',
     }),
-  )
+  ).message
 
   assert.equal(message.senderType, 'customer')
   assert.equal(message.senderId, buyer.id)
@@ -236,7 +237,7 @@ test('it refuses a customer with an active block', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  blockedCustomer(
+  mustSucceed(
     await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
   )
 
@@ -255,7 +256,7 @@ test('it refuses a customer with an active block', async (t) => {
   })
 })
 
-test('postedMessage throws for a refusal, carrying its reason', async (t) => {
+test('mustSucceed throws for a refusal, carrying its reason', async (t) => {
   const world = await openWorld()
   t.after(world.close)
   const shop = await seller(world.context)
@@ -269,7 +270,7 @@ test('postedMessage throws for a refusal, carrying its reason', async (t) => {
   })
 
   assert.throws(
-    () => postedMessage(result),
+    () => mustSucceed(result),
     (error: unknown) => error instanceof BrokenContractError && error.reason === 'invalid_body',
   )
 })
@@ -297,18 +298,18 @@ test('a customer whose block was lifted may post again', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  blockedCustomer(
+  mustSucceed(
     await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
   )
-  liftedCustomerBlock(await liftCustomerBlock(world.context, { customerId: buyer.id }))
+  mustSucceed(await liftCustomerBlock(world.context, { customerId: buyer.id }))
 
-  const message = postedMessage(
+  const message = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Back again.',
     }),
-  )
+  ).message
 
   assert.equal(message.body, 'Back again.')
 })

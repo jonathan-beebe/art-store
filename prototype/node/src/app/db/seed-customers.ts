@@ -5,13 +5,14 @@ import { claimCustomerIdentity } from '../actions/customers/claim-customer-ident
 import { createAnonymousCustomer } from '../actions/customers/create-anonymous-customer.ts'
 import { toggleFavorite } from '../actions/favorites/toggle-favorite.ts'
 import { recordListingEvent } from '../actions/listings/record-listing-event.ts'
-import { blockCustomer, blockedCustomer } from '../actions/moderation/block-customer.ts'
+import { blockCustomer } from '../actions/moderation/block-customer.ts'
 import { fixedClock } from '../clock.ts'
 import type {
   AdminId,
   CustomerId,
   ListingId,
 } from '../core/ids/entity-ids.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { AppDatabase } from './database.ts'
 import { requireListingId } from './seed-catalog.ts'
 
@@ -157,7 +158,7 @@ async function seedBlockedCustomer(db: AppDatabase, adminId: AdminId): Promise<C
     currentCustomerId: null,
   })
 
-  blockedCustomer(await blockCustomer(context, { customerId: blocked.id, adminId, reason: BLOCKED_REASON }))
+  mustSucceed(await blockCustomer(context, { customerId: blocked.id, adminId, reason: BLOCKED_REASON }))
 
   return blocked.id
 }

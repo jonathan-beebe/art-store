@@ -2,8 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { fixtureId } from '../../../test/fixture-ids.ts'
 import { listingDetail, type ListingDetail, type ListingDetailRemoval } from './listing-detail.ts'
-import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
-import { liftedListingRemoval, liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   createAdmin,
   createListing,
@@ -59,7 +60,7 @@ test('an actively removed listing carries the removal and says it can be lifted'
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
@@ -85,7 +86,7 @@ test('a permanent removal cannot be lifted', async (t) => {
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
@@ -107,7 +108,7 @@ test('the full removal history is kept in order, lifted removals included', asyn
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
@@ -115,8 +116,8 @@ test('the full removal history is kept in order, lifted removals included', asyn
       reason: 'First removal.',
     }),
   )
-  liftedListingRemoval(await liftListingRemoval(world.context, { listingId: listing.id }))
-  removedListing(
+  mustSucceed(await liftListingRemoval(world.context, { listingId: listing.id }))
+  mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,

@@ -1,13 +1,14 @@
 import type { ActionContext } from '../actions/action-context.ts'
 import { addToCart } from '../actions/carts/add-to-cart.ts'
-import { confirmDelivered, deliveredFulfillment } from '../actions/fulfillments/confirm-delivered.ts'
-import { markShipped, shippedFulfillment } from '../actions/fulfillments/mark-shipped.ts'
+import { confirmDelivered } from '../actions/fulfillments/confirm-delivered.ts'
+import { markShipped } from '../actions/fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../actions/escrow/run-weekly-payout.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import { fixedClock } from '../clock.ts'
 import type { FulfillmentId, ListingId, OrderId } from '../core/ids/entity-ids.ts'
 import type { Purchaser } from '../core/orders/purchaser.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
 import { newId } from '../ids.ts'
 import type { Order, Payout } from './commerce-schema.ts'
@@ -125,7 +126,7 @@ async function ship(
   trackingNumber: string,
   shippedAt: Date,
 ): Promise<void> {
-  shippedFulfillment(
+  mustSucceed(
     await markShipped(
       { db, clock: fixedClock(shippedAt) },
       { fulfillmentId: await fulfillmentIdFor(db, orderId), carrier, trackingNumber },
@@ -134,7 +135,7 @@ async function ship(
 }
 
 async function deliver(db: AppDatabase, orderId: OrderId, deliveredAt: Date): Promise<void> {
-  deliveredFulfillment(
+  mustSucceed(
     await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId)),
   )
 }

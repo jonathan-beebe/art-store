@@ -2,9 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ListingId } from '../../core/ids/entity-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused } from '../../core/refusal.ts'
+import { mustSucceed, refused } from '../../core/refusal.ts'
 import { newId } from '../../ids.ts'
-import { changeListingStatus, changedListing, listingStatusRefusalCopy } from './change-listing-status.ts'
+import { changeListingStatus, listingStatusRefusalCopy } from './change-listing-status.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
@@ -20,7 +20,7 @@ test('a draft goes on sale', async (t) => {
   const result = await changeListingStatus(context, { listingId: art.id, status: 'for_sale' })
 
   assert.equal(result.outcome, 'changed')
-  assert.equal(changedListing(result).status, 'for_sale')
+  assert.equal(mustSucceed(result).listing.status, 'for_sale')
 })
 
 test('a listing on sale is archived', async (t) => {
@@ -34,7 +34,7 @@ test('a listing on sale is archived', async (t) => {
   const result = await changeListingStatus(context, { listingId: art.id, status: 'archived' })
 
   assert.equal(result.outcome, 'changed')
-  assert.equal(changedListing(result).status, 'archived')
+  assert.equal(mustSucceed(result).listing.status, 'archived')
 })
 
 test('a move the lifecycle refuses is a refusal, and leaves the row where it was', async (t) => {
@@ -94,7 +94,7 @@ test('a removed listing refuses to go back on sale, even through a transition th
   assert.equal(await readStatus(world.db, art.id), 'sold')
 })
 
-test('changedListing unwraps a changed result to its listing', async (t) => {
+test('mustSucceed unwraps a changed result to its listing', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
@@ -104,10 +104,10 @@ test('changedListing unwraps a changed result to its listing', async (t) => {
 
   const result = await changeListingStatus(context, { listingId: art.id, status: 'for_sale' })
 
-  assert.equal(changedListing(result).id, art.id)
+  assert.equal(mustSucceed(result).listing.id, art.id)
 })
 
-test('changedListing throws for a refusal, carrying its reason', async (t) => {
+test('mustSucceed throws for a refusal, carrying its reason', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
@@ -118,7 +118,7 @@ test('changedListing throws for a refusal, carrying its reason', async (t) => {
   const result = await changeListingStatus(context, { listingId: art.id, status: 'sold' })
 
   assert.throws(
-    () => changedListing(result),
+    () => mustSucceed(result),
     (error: unknown) => error instanceof BrokenContractError && error.reason === 'illegal_transition',
   )
 })

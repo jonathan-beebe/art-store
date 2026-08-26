@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -83,7 +84,7 @@ test('the seller detail page shows listings, an active removal, fulfillments, an
   const contestedListing = await createListing(context, sellerId, { title: 'Contested Piece' })
   const okListing = await createListing(context, sellerId, { title: 'Harbour at Dusk', priceCents: 45_000 })
 
-  removedListing(
+  mustSucceed(
     await removeListing(context, {
       listingId: contestedListing.id,
       adminId,

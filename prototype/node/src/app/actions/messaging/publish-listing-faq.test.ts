@@ -1,14 +1,15 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { publishListingFaq, publishedFaq } from './publish-listing-faq.ts'
+import { publishListingFaq } from './publish-listing-faq.ts'
 import { openConversation } from './open-conversation.ts'
-import { postMessage, postedMessage } from './post-message.ts'
+import { postMessage } from './post-message.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
 import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
@@ -51,21 +52,21 @@ test('it publishes a question and answer, recording the source message', async (
     customerId: buyer.id,
     listingId: art.id,
   })
-  const question = postedMessage(
+  const question = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Is this framed?',
     }),
-  )
+  ).message
 
-  const faq = publishedFaq(
+  const faq = mustSucceed(
     await publishListingFaq(world.context, {
       listingId: art.id,
       draft: { question: 'Is this framed?', answer: 'Yes, in a natural oak frame.' },
       sourceMessageId: question.id,
     }),
-  )
+  ).faq
 
   assert.equal(faq.listingId, art.id)
   assert.equal(faq.question, 'Is this framed?')
@@ -80,12 +81,12 @@ test('it publishes with no source message', async (t) => {
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
 
-  const faq = publishedFaq(
+  const faq = mustSucceed(
     await publishListingFaq(world.context, {
       listingId: art.id,
       draft: { question: 'Does it ship internationally?', answer: 'Yes, worldwide.' },
     }),
-  )
+  ).faq
 
   assert.equal(faq.sourceMessageId, null)
 })
@@ -102,20 +103,20 @@ test('publishing the same source message twice refuses the second attempt', asyn
     customerId: buyer.id,
     listingId: art.id,
   })
-  const question = postedMessage(
+  const question = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Is this framed?',
     }),
-  )
-  const firstFaq = publishedFaq(
+  ).message
+  const firstFaq = mustSucceed(
     await publishListingFaq(world.context, {
       listingId: art.id,
       draft: { question: 'Is this framed?', answer: 'Yes, in a natural oak frame.' },
       sourceMessageId: question.id,
     }),
-  )
+  ).faq
 
   const result = await publishListingFaq(world.context, {
     listingId: art.id,
@@ -139,7 +140,7 @@ test('publishing the same source message twice refuses the second attempt', asyn
   assert.equal(rows.length, 1)
 })
 
-test('publishedFaq throws for a refusal, carrying its reason', async (t) => {
+test('mustSucceed throws for a refusal, carrying its reason', async (t) => {
   const world = await openWorld()
   t.after(world.close)
   const shop = await seller(world.context)
@@ -151,14 +152,14 @@ test('publishedFaq throws for a refusal, carrying its reason', async (t) => {
     customerId: buyer.id,
     listingId: art.id,
   })
-  const question = postedMessage(
+  const question = mustSucceed(
     await postMessage(world.context, {
       conversationId: conversation.id,
       sender: { type: 'customer', id: buyer.id },
       body: 'Is this framed?',
     }),
-  )
-  publishedFaq(
+  ).message
+  mustSucceed(
     await publishListingFaq(world.context, {
       listingId: art.id,
       draft: { question: 'Is this framed?', answer: 'Yes, in a natural oak frame.' },
@@ -173,7 +174,7 @@ test('publishedFaq throws for a refusal, carrying its reason', async (t) => {
   })
 
   assert.throws(
-    () => publishedFaq(result),
+    () => mustSucceed(result),
     (error: unknown) => error instanceof BrokenContractError && error.reason === 'already_published',
   )
 })

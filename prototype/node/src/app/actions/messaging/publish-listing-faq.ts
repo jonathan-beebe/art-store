@@ -3,7 +3,6 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import type { FaqDraft } from '../../core/messaging/faq-draft.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal } from '../../core/refusal.ts'
 import type { ListingFaq } from '../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -91,19 +90,4 @@ async function alreadyPublishedRefusal(
     source_message_id: sourceMessageId,
     listing_faq_id: already.id,
   })
-}
-
-/**
- * Unwraps a `PublishListingFaqResult` for a caller inside the application
- * that only ever asks for a legal publish. A refusal reaching here is a
- * broken contract, not a domain outcome to handle.
- */
-export function publishedFaq(result: PublishListingFaqResult): ListingFaq {
-  if (result.outcome === 'published') return result.faq
-
-  throw new BrokenContractError(
-    result.reason,
-    `publishing a question was refused: ${result.reason}`,
-    result.data,
-  )
 }

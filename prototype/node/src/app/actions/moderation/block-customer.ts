@@ -3,7 +3,6 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { activeCustomerBlock } from './active-customer-block.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal } from '../../core/refusal.ts'
 import type { CustomerBlock } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -73,15 +72,4 @@ export async function blockCustomer(
       return { outcome: 'blocked', block }
     },
   )
-}
-
-/**
- * Unwraps a `BlockCustomerResult` for a caller inside the application that
- * only ever asks to block a customer who is not already blocked. A refusal
- * reaching here is a broken contract, not a domain outcome to handle.
- */
-export function blockedCustomer(result: BlockCustomerResult): CustomerBlock {
-  if (result.outcome === 'blocked') return result.block
-
-  throw new BrokenContractError(result.reason, `a customer block was refused: ${result.reason}`, result.data)
 }

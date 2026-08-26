@@ -2,8 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { newId } from '../../ids.ts'
 import { activeListingRemoval, listingsUnderActiveRemoval } from './active-listing-removal.ts'
-import { liftedListingRemoval, liftListingRemoval } from './lift-listing-removal.ts'
-import { removedListing, removeListing } from './remove-listing.ts'
+import { liftListingRemoval } from './lift-listing-removal.ts'
+import { removeListing } from './remove-listing.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
@@ -127,7 +128,7 @@ test('listingsUnderActiveRemoval reports a removed listing and leaves out an unt
   const removed = await createListing(context, sellerId)
   const untouched = await createListing(context, sellerId)
 
-  removedListing(
+  mustSucceed(
     await removeListing(context, {
       listingId: removed.id,
       adminId,
@@ -151,7 +152,7 @@ test('listingsUnderActiveRemoval leaves out a listing whose removal was lifted',
   const adminId = await createAdmin(context)
   const art = await createListing(context, sellerId)
 
-  removedListing(
+  mustSucceed(
     await removeListing(context, {
       listingId: art.id,
       adminId,
@@ -159,7 +160,7 @@ test('listingsUnderActiveRemoval leaves out a listing whose removal was lifted',
       reason: 'Retake the photograph.',
     }),
   )
-  liftedListingRemoval(await liftListingRemoval(context, { listingId: art.id }))
+  mustSucceed(await liftListingRemoval(context, { listingId: art.id }))
 
   const underRemoval = await listingsUnderActiveRemoval(context, [art.id])
 

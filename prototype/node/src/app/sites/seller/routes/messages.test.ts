@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
-import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
+import { postMessage } from '../../../actions/messaging/post-message.ts'
 import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -19,7 +20,7 @@ async function openListingQuestion(testApp: TestApp, sellerId: SellerId, listing
     { db, clock },
     { kind: 'listing_question', sellerId, customerId: buyer.id, listingId },
   )
-  postedMessage(
+  mustSucceed(
     await postMessage(
       { db, clock },
       { conversationId: conversation.id, sender: { type: 'customer', id: buyer.id }, body: 'Is this framed?' },

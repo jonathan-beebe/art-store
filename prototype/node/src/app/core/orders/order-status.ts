@@ -1,5 +1,4 @@
-import { BrokenContractError } from '../defect.ts'
-import { refused, type IllegalTransition } from '../refusal.ts'
+import { mustSucceed, refused, type IllegalTransition } from '../refusal.ts'
 import { hasDeparted, isReversed, type FulfillmentStatus } from './fulfillment-status.ts'
 import { isCardApproved, type CardDecision } from '../payments/card-decision.ts'
 
@@ -58,9 +57,9 @@ export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderTransi
  */
 export function orderMovedTo(from: OrderStatus, to: OrderStatus): OrderStatus {
   const transition = transitionOrder(from, to)
-  if (transition.outcome === 'allowed') return transition.status
+  const message = transition.outcome === 'refused' ? orderTransitionRefusalCopy(transition) : undefined
 
-  throw new BrokenContractError(transition.reason, orderTransitionRefusalCopy(transition), transition.data)
+  return mustSucceed(transition, message).status
 }
 
 /** The sentence a refused order move shows, worded from the refusal's own

@@ -2,8 +2,8 @@ import type { ActionContext } from '../actions/action-context.ts'
 import type { MessagingActor } from '../actions/messaging/conversation-actor.ts'
 import { markConversationRead } from '../actions/messaging/mark-conversation-read.ts'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
-import { postedMessage, postMessage } from '../actions/messaging/post-message.ts'
-import { publishedFaq, publishListingFaq } from '../actions/messaging/publish-listing-faq.ts'
+import { postMessage } from '../actions/messaging/post-message.ts'
+import { publishListingFaq } from '../actions/messaging/publish-listing-faq.ts'
 import { fixedClock } from '../clock.ts'
 import type {
   AdminId,
@@ -12,6 +12,7 @@ import type {
   ListingId,
   SellerId,
 } from '../core/ids/entity-ids.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { Message } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
@@ -141,7 +142,9 @@ async function runConversationSteps(
   for (const step of steps) {
     const context = actionContext(db, step.at)
     if (step.kind === 'message') {
-      messages.push(postedMessage(await postMessage(context, { conversationId, sender: step.sender, body: step.body })))
+      messages.push(
+        mustSucceed(await postMessage(context, { conversationId, sender: step.sender, body: step.body })).message,
+      )
     } else {
       await markConversationRead(context, { conversationId, reader: step.reader })
     }
@@ -259,7 +262,7 @@ async function publishFaq(db: AppDatabase, listingId: ListingId, threadMessages:
     throw new Error('seedMessaging: the listing-question thread has no seller answer to publish')
   }
 
-  publishedFaq(
+  mustSucceed(
     await publishListingFaq(actionContext(db, FAQ_PUBLISHED_AT), {
       listingId,
       draft: { question: LISTING_QUESTION_TEXT, answer: LISTING_QUESTION_ANSWER_TEXT },

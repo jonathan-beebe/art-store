@@ -4,13 +4,14 @@ import { inboxConversations, unreadMessageCount } from './conversation-inbox.ts'
 import { markConversationRead } from './mark-conversation-read.ts'
 import { openConversation } from './open-conversation.ts'
 import { openSupportConversation } from './open-support-conversation.ts'
-import { postedMessage, postMessage } from './post-message.ts'
+import { postMessage } from './post-message.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { totalUnreadMessages, unreadCountsByConversation } from '../../core/messaging/unread-messages.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
@@ -77,7 +78,7 @@ async function seedTwoThreads(db: AppDatabase) {
     customerId: buyerA.id,
     listingId: listingA.id,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(ctx1, {
       conversationId: conversationA.id,
       sender: { type: 'customer', id: buyerA.id },
@@ -92,7 +93,7 @@ async function seedTwoThreads(db: AppDatabase) {
     customerId: buyerB.id,
     listingId: listingB.id,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(ctx2, {
       conversationId: conversationB.id,
       sender: { type: 'customer', id: buyerB.id },
@@ -101,7 +102,7 @@ async function seedTwoThreads(db: AppDatabase) {
   )
 
   const ctx3 = contextAt(db, T3)
-  postedMessage(
+  mustSucceed(
     await postMessage(ctx3, {
       conversationId: conversationA.id,
       sender: { type: 'seller', id: shop.id },
@@ -214,7 +215,7 @@ test('unreadMessageCount for an admin counts what is waiting in a support thread
   const opened = await openSupportConversation(ctx, { actorType: 'seller', actorId: shop.id })
   assert.equal(opened.outcome, 'opened')
   if (opened.outcome !== 'opened') return
-  postedMessage(
+  mustSucceed(
     await postMessage(ctx, {
       conversationId: opened.conversation.id,
       sender: { type: 'seller', id: shop.id },

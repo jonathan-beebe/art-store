@@ -1,6 +1,6 @@
 import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
-import { changeListingStatus, changedListing } from '../../actions/listings/change-listing-status.ts'
+import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { finalizeOrder } from '../../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../../actions/orders/place-order.ts'
@@ -17,6 +17,7 @@ import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import type { ListingStatus } from '../../core/listings/listing-status.ts'
 import { cents, type Cents } from '../../core/money.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { Listing, Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { newId } from '../../ids.ts'
@@ -68,7 +69,7 @@ export async function listArtwork(context: ActionContext, input: ArtworkInput): 
   })
 
   for (const status of ROUTE_TO_STATUS[input.status ?? 'for_sale']) {
-    listing = changedListing(await changeListingStatus(context, { listingId: listing.id, status }))
+    listing = mustSucceed(await changeListingStatus(context, { listingId: listing.id, status })).listing
   }
 
   return listing

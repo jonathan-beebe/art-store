@@ -1,7 +1,7 @@
 ---
 id: RFCTR-007
 type: refactor
-status: open
+status: resolved
 created: 2026-08-25
 ---
 
@@ -49,3 +49,23 @@ after RFCTR-006 since both touch the actions.
 
 - RFCTR-005, RFCTR-006 — the same support-cost sweep
 - IMPRV-025..028 — where the unwrappers accumulated
+
+## Working
+
+- 2026-08-25 — re-validated: ten per-action unwrappers exist (mark-shipped:105,
+  confirm-delivered:105, cancel-order:86, change-listing-status:117,
+  post-message:139, publish-listing-faq:101, remove-listing:88,
+  lift-listing-removal:67, block-customer:83, lift-customer-block:52), each the
+  same check/throw/return shape. Three transition unwrappers (orderMovedTo,
+  fulfillmentMovedTo, listingMovedTo) wrap a call plus the unwrap.
+- No test pins a per-action defect message (grep "was refused:" in *.test.ts is
+  empty); tests pin `error.reason` and sometimes `error.data`. The transition
+  sentences ARE pinned (order-status.test.ts:100, fulfillment-status.test.ts:94,
+  order-lifecycle.test.ts:193, finalize-order.test.ts:170/187,
+  seller/routes/listings.test.ts:541) — those keep their bytes via the sentence
+  each *MovedTo passes to the helper.
+- Plan: `mustSucceed(result, message?)` in core/refusal.ts returning
+  `Exclude<Result, Refusal>`; structural refusal detection (`refusalOf`) moves
+  from log-story.ts to core/refusal.ts and log-story imports it. The ten
+  per-action unwrappers are deleted; call sites read the success field off
+  `mustSucceed(...)`. The three *MovedTo keep their names on the helper.

@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ListingId, OrderId } from '../../core/ids/entity-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { cancelOrder, cancelledOrder } from './cancel-order.ts'
+import { mustSucceed } from '../../core/refusal.ts'
+import { cancelOrder } from './cancel-order.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import {
@@ -28,7 +29,7 @@ test('it cancels from awaiting_payment and restores stock', async (t) => {
   const result = await cancelOrder(context, order.id)
 
   assert.equal(result.outcome, 'cancelled')
-  const cancelled = cancelledOrder(result)
+  const cancelled = mustSucceed(result).order
   assert.equal(cancelled.status, 'cancelled')
   assert.notEqual(cancelled.cancelledAt, null)
   assert.deepEqual(await readStock(world.db, art.id), { quantity: 1, status: 'for_sale' })
@@ -45,7 +46,7 @@ test('it cancels from payment_failed and leaves the stock alone', async (t) => {
   const order = await placedOrder(context, buyer, [art.id])
   await finalizeOrder(context, { orderId: order.id, cardNumber: DECLINED_CARD })
 
-  const cancelled = cancelledOrder(await cancelOrder(context, order.id))
+  const cancelled = mustSucceed(await cancelOrder(context, order.id)).order
 
   assert.equal(cancelled.status, 'cancelled')
   assert.deepEqual(await readStock(world.db, art.id), { quantity: 1, status: 'for_sale' })
@@ -72,7 +73,7 @@ test('it refuses a paid order, and leaves the row where it was', async (t) => {
   assert.equal(await readOrderStatus(world.db, order.id), 'paid')
 })
 
-test('cancelledOrder unwraps a cancelled result, and throws BrokenContractError carrying reason and data for a refusal', async (t) => {
+test('mustSucceed unwraps a cancelled result, and throws BrokenContractError carrying reason and data for a refusal', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
@@ -82,13 +83,13 @@ test('cancelledOrder unwraps a cancelled result, and throws BrokenContractError 
   const art = await createListing(context, shop)
   const order = await placedOrder(context, buyer, [art.id])
 
-  const cancelled = cancelledOrder(await cancelOrder(context, order.id))
+  const cancelled = mustSucceed(await cancelOrder(context, order.id)).order
   assert.equal(cancelled.status, 'cancelled')
 
   const refusal = await cancelOrder(context, order.id)
 
   assert.throws(
-    () => cancelledOrder(refusal),
+    () => mustSucceed(refusal),
     (error: unknown) =>
       error instanceof BrokenContractError &&
       error.reason === 'illegal_transition' &&

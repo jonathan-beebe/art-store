@@ -2,9 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { CamelCasePlugin, Kysely } from 'kysely'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
-import { postedMessage, postMessage } from '../actions/messaging/post-message.ts'
+import { postMessage } from '../actions/messaging/post-message.ts'
 import type { AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import { IN_MEMORY_DATABASE } from '../db/database.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import { NodeSqliteDialect } from '../db/node-sqlite-dialect.ts'
 import type { Database } from '../db/schema.ts'
 import {
@@ -44,7 +45,7 @@ async function messageFromAdmin(
   const context = { db: testApp.db, clock: testApp.clock }
   const conversation = await openConversation(context, { ...opening, adminId })
 
-  postedMessage(
+  mustSucceed(
     await postMessage(context, {
       conversationId: conversation.id,
       sender: { type: 'admin', id: adminId },
@@ -89,7 +90,7 @@ test('the admin nav carries what the operator has waiting', async (t) => {
     adminId: operator.id,
     sellerId: seller.id,
   })
-  postedMessage(
+  mustSucceed(
     await postMessage(context, {
       conversationId: conversation.id,
       sender: { type: 'seller', id: seller.id },

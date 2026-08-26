@@ -1,9 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { blockedCustomer, blockCustomer } from './block-customer.ts'
+import { blockCustomer } from './block-customer.ts'
 import { currentCustomerStanding } from './current-customer-standing.ts'
-import { liftedCustomerBlock, liftCustomerBlock } from './lift-customer-block.ts'
+import { liftCustomerBlock } from './lift-customer-block.ts'
 import { canShop } from '../../core/moderation/customer-standing.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { createAdmin, createCustomer, openCommerceWorld } from '../../test/commerce-world.ts'
 
 test('a blocked customer keeps browsing and loses shopping', async (t) => {
@@ -13,13 +14,13 @@ test('a blocked customer keeps browsing and loses shopping', async (t) => {
   const adminId = await createAdmin(world.context)
   const customerId = await createCustomer(world.context)
 
-  const block = blockedCustomer(
+  const block = mustSucceed(
     await blockCustomer(world.context, {
       customerId,
       adminId,
       reason: 'Chargeback fraud.',
     }),
-  )
+  ).block
 
   assert.equal(block.adminId, adminId)
   assert.equal(block.liftedAt, null)
@@ -37,9 +38,9 @@ test('a customer already blocked is not blocked a second time', async (t) => {
   const adminId = await createAdmin(world.context)
   const customerId = await createCustomer(world.context)
 
-  const first = blockedCustomer(
+  const first = mustSucceed(
     await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' }),
-  )
+  ).block
 
   const result = await blockCustomer(world.context, { customerId, adminId, reason: 'Again.' })
 
@@ -61,9 +62,9 @@ test('a lifted block leaves the customer blockable again, on a new reason', asyn
   const adminId = await createAdmin(world.context)
   const customerId = await createCustomer(world.context)
 
-  blockedCustomer(await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' }))
-  liftedCustomerBlock(await liftCustomerBlock(world.context, { customerId }))
-  blockedCustomer(await blockCustomer(world.context, { customerId, adminId, reason: 'It happened again.' }))
+  mustSucceed(await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' }))
+  mustSucceed(await liftCustomerBlock(world.context, { customerId }))
+  mustSucceed(await blockCustomer(world.context, { customerId, adminId, reason: 'It happened again.' }))
 
   assert.deepEqual(await currentCustomerStanding(world.context, customerId), {
     isBlocked: true,

@@ -6,8 +6,9 @@ import type {
   OrderId,
 } from '../../core/ids/entity-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
-import { markShipped, shippedFulfillment } from './mark-shipped.ts'
+import { markShipped } from './mark-shipped.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { createCustomer, createListing, createSeller, openCommerceWorld, paidOrder } from '../../test/commerce-world.ts'
 
@@ -22,13 +23,13 @@ test('it records the carrier, the tracking number, and shippedAt', async (t) => 
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
-  const shipped = shippedFulfillment(
+  const shipped = mustSucceed(
     await markShipped(context, {
       fulfillmentId: fulfillmentId ?? fixtureId('ful', 0),
       carrier: 'USPS',
       trackingNumber: '9400111899',
     }),
-  )
+  ).fulfillment
 
   assert.equal(shipped.carrier, 'USPS')
   assert.equal(shipped.trackingNumber, '9400111899')
@@ -111,7 +112,7 @@ test('it refuses to ship the same fulfillment twice', async (t) => {
   assert.equal(await readStatus(world.db, resolvedId), 'shipped')
 })
 
-test('shippedFulfillment throws BrokenContractError for a refusal and unwraps a shipped result', async (t) => {
+test('mustSucceed throws BrokenContractError for a refusal and unwraps a shipped result', async (t) => {
   const world = await openCommerceWorld()
   t.after(world.close)
   const { context } = world
@@ -123,15 +124,15 @@ test('shippedFulfillment throws BrokenContractError for a refusal and unwraps a 
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
   const resolvedId = fulfillmentId ?? fixtureId('ful', 0)
 
-  const shipped = shippedFulfillment(
+  const shipped = mustSucceed(
     await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' }),
-  )
+  ).fulfillment
   assert.equal(shipped.status, 'shipped')
 
   const refusal = await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' })
 
   assert.throws(
-    () => shippedFulfillment(refusal),
+    () => mustSucceed(refusal),
     (error: unknown) => error instanceof BrokenContractError && error.reason === 'illegal_transition',
   )
 })

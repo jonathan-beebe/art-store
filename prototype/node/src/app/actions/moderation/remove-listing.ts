@@ -4,7 +4,6 @@ import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
 import type { RemovalKind } from '../../core/moderation/listing-removal.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import { refused, type Refusal } from '../../core/refusal.ts'
 import type { ListingRemoval } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -77,20 +76,5 @@ export async function removeListing(
 
       return { outcome: 'removed', removal }
     },
-  )
-}
-
-/**
- * Unwraps a `RemoveListingResult` for a caller inside the application that
- * only ever asks to remove a listing that is not already removed. A refusal
- * reaching here is a broken contract, not a domain outcome to handle.
- */
-export function removedListing(result: RemoveListingResult): ListingRemoval {
-  if (result.outcome === 'removed') return result.removal
-
-  throw new BrokenContractError(
-    result.reason,
-    `a listing removal was refused: ${result.reason}`,
-    result.data,
   )
 }

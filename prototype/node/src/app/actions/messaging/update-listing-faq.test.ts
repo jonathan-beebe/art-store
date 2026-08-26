@@ -1,11 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { updateListingFaq } from './update-listing-faq.ts'
-import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
+import { publishListingFaq } from './publish-listing-faq.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
@@ -37,12 +38,12 @@ test('it rewords a published entry and keeps its listing', async (t) => {
   t.after(world.close)
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = publishedFaq(
+  const faq = mustSucceed(
     await publishListingFaq(world.context, {
       listingId: art.id,
       draft: { question: 'Is this framed?', answer: 'Not yet.' },
     }),
-  )
+  ).faq
 
   const updated = await updateListingFaq(world.context, {
     faqId: faq.id,

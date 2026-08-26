@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { activeListingRemoval } from './active-listing-removal.ts'
-import { removedListing, removeListing } from './remove-listing.ts'
+import { removeListing } from './remove-listing.ts'
 import { isOnStorefront } from '../../core/listings/listing-availability.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
 
 test('a removed listing leaves the storefront and names its reason', async (t) => {
@@ -13,14 +14,14 @@ test('a removed listing leaves the storefront and names its reason', async (t) =
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
 
-  const removal = removedListing(
+  const removal = mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
       kind: 'temporary',
       reason: 'The photograph is not the work.',
     }),
-  )
+  ).removal
 
   assert.equal(removal.kind, 'temporary')
   assert.equal(removal.adminId, adminId)
@@ -41,14 +42,14 @@ test('a listing already removed is not removed a second time', async (t) => {
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
 
-  const first = removedListing(
+  const first = mustSucceed(
     await removeListing(world.context, {
       listingId: listing.id,
       adminId,
       kind: 'temporary',
       reason: 'Retake the photograph.',
     }),
-  )
+  ).removal
 
   const result = await removeListing(world.context, {
     listingId: listing.id,

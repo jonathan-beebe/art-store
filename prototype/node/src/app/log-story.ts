@@ -11,7 +11,8 @@
 import type { LogEvent, LogLineLevel, LogPhase } from './core/logging/log-event.ts'
 import { describeError } from './core/logging/logged-error.ts'
 import { prefixedMsg } from './core/logging/story-emoji.ts'
-import type { Refusal, RefusalData } from './core/refusal.ts'
+import type { Refusal } from './core/refusal.ts'
+import { refusalOf } from './core/refusal.ts'
 import { BrokenContractError } from './core/defect.ts'
 
 /** The entity ids and small facts a line is about. Ids are prefixed ids. */
@@ -158,29 +159,6 @@ function storyEnding<Result>(story: Story<Result>, result: Result): StoryEnding 
 /** True when the result is anything but a returned refusal — the shape no success arm uses. */
 function told<Result>(result: Result): result is Told<Result> {
   return refusalOf(result) === null
-}
-
-/** The reason and data of a returned refusal, or `null` for any other result. */
-function refusalOf(result: unknown): { reason: string; data?: RefusalData } | null {
-  if (typeof result !== 'object' || result === null) return null
-
-  const reason = refusedReasonOf(result)
-  if (reason === null) return null
-
-  const data = 'data' in result ? result.data : undefined
-  return isRefusalData(data) ? { reason, data } : { reason }
-}
-
-/** The `reason` an object carries when it is a returned refusal, or `null` otherwise. */
-function refusedReasonOf(result: object): string | null {
-  if (!('outcome' in result) || result.outcome !== 'refused') return null
-
-  const reason = 'reason' in result ? result.reason : undefined
-  return typeof reason === 'string' ? reason : null
-}
-
-function isRefusalData(value: unknown): value is RefusalData {
-  return typeof value === 'object' && value !== null
 }
 
 function elapsedMs(startedAt: number): number {

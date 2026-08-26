@@ -4,7 +4,6 @@ import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
 import { isBlockedByRemoval, transitionListing, type ListingStatus } from '../../core/listings/listing-status.ts'
-import { BrokenContractError } from '../../core/defect.ts'
 import {
   refused,
   type IllegalTransition,
@@ -107,21 +106,6 @@ async function moveTo(
     .executeTakeFirstOrThrow()
 
   return { outcome: 'changed', listing: updated }
-}
-
-/**
- * Unwraps a `ListingStatusChange` for a caller inside the application that
- * only ever asks for a legal, unblocked move. A refusal reaching here is a
- * broken contract, not a domain outcome to handle.
- */
-export function changedListing(change: ListingStatusChange): Listing {
-  if (change.outcome === 'changed') return change.listing
-
-  throw new BrokenContractError(
-    change.reason,
-    `a listing status change was refused: ${change.reason}`,
-    change.data,
-  )
 }
 
 /** The sentence a refused status change shows beside the button, the same on

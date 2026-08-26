@@ -5,7 +5,8 @@ import { sellerDetail } from './seller-detail.ts'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../../../actions/escrow/run-weekly-payout.ts'
-import { removedListing, removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   createAdmin,
   createCustomer,
@@ -47,7 +48,7 @@ test('listings carry their active removal, fulfillments carry money, payouts app
 
   const removedArtwork = await createListing(world.context, sellerId, { priceCents: 10_000 })
   const okListing = await createListing(world.context, sellerId, { priceCents: 45_000 })
-  removedListing(
+  mustSucceed(
     await removeListing(world.context, {
       listingId: removedArtwork.id,
       adminId,
