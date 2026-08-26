@@ -5,7 +5,7 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 21
+- FEAT: 22
 - IMPRV: 30
 - MAINT: 9
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-25:21:09:31 — FEAT-021 — defined: admin log store — slurp, view, query
 - 2026-08-25:21:07:37 — IMPRV-029 — done: refusal copy renders from the refusal's data — the six non-conforming sites (seller listing status `listings.ts:372`, seller ship/decline `orders.ts:199/235`, shop delivered `fulfillments.ts:30`, admin cancel `orders.ts:86`, admin refund `fulfillments.ts:98`) stop interpolating the pre-action row read; new `transitionFacts(refusal)` (`core/refusal.ts`, throws `BrokenContractError('missing_transition_statuses')`) feeds four mappers — `fulfillmentTransitionRefusalCopy` (`core/orders/fulfillment-status.ts`, takes a bare `Refusal`, reused by `fulfillmentMovedTo`), `orderTransitionRefusalCopy` (`core/orders/order-status.ts`, reused by `orderMovedTo`), `listingStatusRefusalCopy` (beside `changeListingStatus`), `refundRefusalCopy` (beside `issueRefund`, serves seller decline + admin refund, delegates illegal_transition to the fulfillment sentence) — and every route words its refusal from the mapper alone; no refusal data added (every action already carries `status_from`/`status_to`, `order_unpaid` stays static); non-race bytes identical, race pinned at the mappers (refusal's status renders, stale route read asserted absent); messaging/moderation verified conforming, `listingMovedTo` keeps its inline sentence (core does not import actions); TDD red 5 files at load → green, 2076 → 2083 tests, coverage 99.33/95.75/99.46, `make check` green; reviewer: accept-with-nits, both landed
 - 2026-08-25:20:37:39 — IMPRV-028 — done: moderation refusals travel as returned values with named reasons and `TransitionError` is retired — the four actions answer result unions (`removeListing` → `{outcome:'removed'} | Refusal<'already_removed'>` with `{listing_id, listing_removal_id}`, `liftListingRemoval` → `{outcome:'lifted'} | Refusal<'not_removed'|'permanent_removal'>`, `blockCustomer` → `{outcome:'blocked'} | Refusal<'already_blocked'>` with `{customer_id, customer_block_id}`, `liftCustomerBlock` → `{outcome:'lifted'} | Refusal<'not_blocked'>`), each `ended` maps a refusal to the refused line with `data.reason`; the admin `moderationRoute` drops its try/catch, branches on outcome, and flashes `moderationRefusalCopy(reason)` on the same 302 ("This listing is already removed." et al. — copy rendered from the refusal per IMPRV-029), with `ModerationRefusalReason` derived from the actions' result types via a distributive `ReasonOf` infer; internal callers (seed-catalog, seed-customers, 14 test files) unwrap via `removedListing`/`liftedListingRemoval`/`blockedCustomer`/`liftedCustomerBlock`, which throw `BrokenContractError`; retirement: `core/transition-error.ts` (+ test) deleted, `isDomainRefusal` and `logException`'s thrown-refusal branch removed from `logged-error.ts`/`log-story.ts` so a throw always logs `failed`, zero `TransitionError` references left in `src/`; TDD red (4 action suites + route + 14 setup callers) → green, 2076 → 2069 tests, coverage 99.32/95.71/99.46, `make check` green; reviewer: accept, no defects — `docs/alignment.md` §2.2 unchanged (php/rails still throw)
 - 2026-08-25:20:15:45 — IMPRV-029 — defined: refusal copy renders from the refusal's data
