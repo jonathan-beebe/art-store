@@ -6,7 +6,7 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 21
-- IMPRV: 29
+- IMPRV: 30
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 5
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-25:20:15:45 — IMPRV-029 — defined: refusal copy renders from the refusal's data
 - 2026-08-25:20:13:36 — IMPRV-027 — done: messaging and FAQ refusals travel as returned values with named reasons — `postMessage` answers `{outcome:'posted'} | Refusal<'invalid_body'|'foreign_conversation'|'account_blocked'>` (data: conversation_id + sender_type/sender_id) and `publishListingFaq` answers `{outcome:'published'} | Refusal<'already_published'>` (data: listing_id, source_message_id, listing_faq_id of the row already there), each `ended` maps a refusal to the refused line with `data.reason`; the five catching routes (seller/shop/admin thread replies, shop listing question, seller FAQ publish) branch on outcome with byte-identical copy/422/redirects, the per-reason sentence lives once in `messagePostRefusalCopy`, and the shop question route rolls its freshly opened conversation back through a module-local `FirstMessageRefused` sentinel; internal callers (seed-messaging, 14 test files) unwrap via `postedMessage`/`publishedFaq`, which throw `BrokenContractError`; TDD red 2 files at load → green, 2073 → 2076 tests, coverage 99.41/95.81/99.46, `make check` green; reviewer: accept, no drift, both coverage nits landed — moderation keeps `TransitionError` for IMPRV-028
 - 2026-08-25:19:54:33 — IMPRV-027 — started
 - 2026-08-25:19:49:45 — IMPRV-026 — done: order, fulfillment, and refund refusals travel as returned values with named reasons — `transitionOrder`/`transitionFulfillment` answer `{outcome:'allowed'} | Refusal<'illegal_transition'>` with `{status_from, status_to}` and `orderMovedTo`/`fulfillmentMovedTo` unwrappers, `planRefund` answers `{outcome:'planned'} | Refusal<'order_unpaid'|'illegal_transition'>`, the six actions (`markShipped`, `confirmDelivered`, `cancelOrder`, `cancelOrderAsAdmin`, `issueRefund`, `declineFulfillment`) return result unions whose `ended` maps a refusal to the refused line with `data.reason` + ids, five routes branch on outcome with byte-identical copy/codes/redirects, and the internal paths (payment-attempt, stale-order sweep, seed, fixtures) unwrap via `BrokenContractError`; TDD red 65 → green, 2064 → 2072 tests, coverage 99.36/95.70/99.46, `make check` green; reviewer: accept with nits, both test-coverage nits landed — messaging and moderation keep `TransitionError` for IMPRV-027/028
