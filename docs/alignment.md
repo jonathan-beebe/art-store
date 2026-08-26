@@ -152,7 +152,7 @@ Example, one checkout:
 ```json
 {"ts":"2026-08-23T18:00:00.001Z","level":"info","event":"http.request","phase":"will","msg":"🎬 POST /checkout","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","data":{"method":"POST","path":"/checkout"}}
 {"ts":"2026-08-23T18:00:00.004Z","level":"info","event":"order.place","phase":"will","msg":"placing an order from the cart","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","data":{"cart_id":"crt_01J…","line_count":2}}
-{"ts":"2026-08-23T18:00:00.019Z","level":"info","event":"order.place","phase":"did","msg":"🟢 placed the order","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","duration_ms":15,"data":{"order_id":"ord_01J…","total_cents":12000,"status":"awaiting_payment","fulfillment_ids":["ful_01J…","ful_01K…"]}}
+{"ts":"2026-08-23T18:00:00.019Z","level":"info","event":"order.place","phase":"did","msg":"placed the order","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","duration_ms":15,"data":{"order_id":"ord_01J…","total_cents":12000,"status":"awaiting_payment","fulfillment_ids":["ful_01J…","ful_01K…"]}}
 {"ts":"2026-08-23T18:00:00.021Z","level":"info","event":"http.request","phase":"did","msg":"🟢 POST /checkout 303","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","duration_ms":20,"data":{"status":303}}
 ```
 
@@ -205,20 +205,22 @@ from `(phase, level, root)` in one place per stack; no call site picks an
 emoji. `root` is the story that opens the process — the HTTP request
 (`http.request`) or the CLI run (`payout.run`, `migrate.run`, …). Each request
 or run has one 🎬 line — an OS process that chains runs, such as migrate then
-seed, opens each — and ❌ as its last line when it failed; every other prefix
-may repeat as the functions inside the process tell their own stories.
+seed, opens each — and one closing line: 🟢 when it succeeded, ❌ when it
+failed. The boundary emoji appear once per process; ⚠️ and 🛑 may repeat as
+the functions inside the process tell their own stories, and a nested
+success stays unprefixed so the boundaries stand out.
 
-| Line                                     | Prefix |
-| ---------------------------------------- | ------ |
-| root `will` — one per process            | 🎬     |
-| root `failed` — the process's last line  | ❌     |
-| any `did`                                | 🟢     |
-| nested `failed`                          | 🛑     |
-| any `refused`; any `warn` line           | ⚠️     |
-| nested `will`; `doing` at `debug`/`info` | none   |
+| Line                                                   | Prefix |
+| ------------------------------------------------------ | ------ |
+| root `will` — one per process                          | 🎬     |
+| root `did` — the process's last line                   | 🟢     |
+| root `failed` — the process's last line                | ❌     |
+| nested `failed`                                        | 🛑     |
+| any `refused`; any `warn` line                         | ⚠️     |
+| nested `will`, nested `did`; `doing` at `debug`/`info` | none   |
 
-Rows are checked top to bottom, and inside a row `warn` wins: a `did` written
-at `warn` (`rate_limit.exceed`) reads ⚠️.
+Rows are checked top to bottom: a nested `did` written at `warn`
+(`rate_limit.exceed`) reads ⚠️.
 
 Emoji lives in the log `msg` only. Text shown to a person — flash messages,
 error pages, form errors — carries none.
