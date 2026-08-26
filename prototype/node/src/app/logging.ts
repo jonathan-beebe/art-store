@@ -9,13 +9,37 @@ import { LogController, type FastifyServerOptions } from 'fastify'
 import pino from 'pino'
 import type { AppConfig } from './config.ts'
 import { isAcceptableRequestId } from './core/logging/request-id.ts'
+import { logStoreStream, openLogStore } from './log-store.ts'
 
 const REQUEST_ID_HEADER = 'x-request-id'
 
 /** A stack trace is a development aid, so it is dropped everywhere else. */
 const STACK_PATH = 'error.stack'
 
-type LoggingConfig = Pick<AppConfig, 'logLevel' | 'environment'>
+/** `logDatabaseFile` is optional so a caller wiring only a level and an
+ * environment mirrors nothing; the full `AppConfig` always carries it. */
+type LoggingConfig = Pick<AppConfig, 'logLevel' | 'environment'> &
+  Partial<Pick<AppConfig, 'logDatabaseFile'>>
+
+/** One store per file per process, created the first time a logger defaults
+ * to it, so the server and any CLI run in the same process share one handle
+ * and one batch writer. */
+const defaultStreams = new Map<string, pino.DestinationStream>()
+
+/** The log-store stream for the configured file, or undefined — `off`, or no
+ * file named — to leave pino writing to stdout alone. */
+function defaultStream(config: LoggingConfig): pino.DestinationStream | undefined {
+  const file = config.logDatabaseFile
+  if (file === undefined || file === 'off') return undefined
+
+  let stream = defaultStreams.get(file)
+  if (stream === undefined) {
+    stream = logStoreStream(openLogStore(file))
+    defaultStreams.set(file, stream)
+  }
+
+  return stream
+}
 
 /**
  * `ts` in place of pino's epoch `time`, the level as its own name rather than
@@ -44,14 +68,15 @@ type LoggingServerOptions = Pick<
 
 /**
  * The logging half of Fastify's server options. `stream` lets a test capture
- * what was logged; the running app leaves it unset, so pino writes to stdout.
+ * what was logged; the running app leaves it unset, so every line goes to
+ * stdout and — when the config names a log database — into the store.
  */
 export function loggingOptions(
   config: LoggingConfig,
   { stream }: { stream?: pino.DestinationStream } = {},
 ): LoggingServerOptions {
   return {
-    logger: { ...payloadOptions(config), stream },
+    logger: { ...payloadOptions(config), stream: stream ?? defaultStream(config) },
     // `requestIdHeader` would take the header as it arrived, whatever it holds.
     // `genReqId` reads it instead, so an id that is not the accepted shape is
     // replaced rather than written into the log and echoed back.
@@ -69,14 +94,16 @@ export function loggingOptions(
 /**
  * A pino instance for a CLI entrypoint, in the payload the server writes.
  * Nobody asked for a CLI run, so every line it writes is the system's.
- * `stream` lets a test capture what was logged.
+ * `stream` lets a test capture what was logged; unset, lines go to stdout
+ * and — when the config names a log database — into the store.
  */
 export function createCliLogger(
   config: LoggingConfig,
   { stream }: { stream?: pino.DestinationStream } = {},
 ): pino.Logger {
   const options = payloadOptions(config)
-  const logger = stream === undefined ? pino(options) : pino(options, stream)
+  const destination = stream ?? defaultStream(config)
+  const logger = destination === undefined ? pino(options) : pino(options, destination)
 
   return logger.child({ actor_type: 'system' })
 }

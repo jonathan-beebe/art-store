@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-26:09:16:04 — FEAT-021 — started
 - 2026-08-26:06:49:56 — IMPRV-030 — done: the green dot marks only the process close — `storyEmoji` (`app/core/logging/story-emoji.ts`) moves the `did` arm into the `root` block so the arms read in §2.4's row order (root will 🎬, root did 🟢, root failed ❌, then warn/refused ⚠️, nested failed 🛑, else null); a nested `did` falls through unprefixed and `rate_limit.exceed` — a `did` at warn — still reads ⚠️; the reorder exposed `closeStory`'s `did` branch in `plugins/request-log.ts` passing no `root` where its `will`/`failed` writes do (the unconditional 🟢 had masked it) — `root: true` added so the `http.request` close keeps its 🟢; six test pins swept: four shed the prefix (`story-emoji.test.ts` unit + table rows, `prepare-db.test.ts` `migrate.apply`, `run-payouts.test.ts` `payout.pay`, `checkout.test.ts` `order.place` → `doesNotMatch`/plain-msg pins), two keep it (`log-story.test.ts` root story, `request-log.test.ts` `http.request`); TDD red-first (6 failing, all changed pins), 2093 tests, coverage 99.40/95.74/99.53, `make check` green; reviewer: accept — noted pre-existing and inert: warn is checked before nested `failed`, so a hypothetical `failed` at warn would read ⚠️ over 🛑 (no such call site exists)
 - 2026-08-26:06:37:37 — IMPRV-030 — started
 - 2026-08-26:06:36:42 — IMPRV-030 — defined: the green dot marks only the process close

@@ -91,3 +91,42 @@ test('createCliLogger writes to stdout when no stream is given', () => {
 
   assert.equal(typeof log.info, 'function')
 })
+
+test('loggingOptions defaults its stream to one shared log store per file', () => {
+  const config = { logLevel: 'silent', environment: 'test', logDatabaseFile: ':memory:' } as const
+
+  const first = loggingOptions(config).logger as { stream?: unknown }
+  const second = loggingOptions(config).logger as { stream?: unknown }
+
+  assert.notEqual(first.stream, undefined)
+  assert.equal(first.stream, second.stream)
+})
+
+test('an injected stream wins over the configured store', () => {
+  const stream = captureLogLines()
+
+  const options = loggingOptions(
+    { logLevel: 'silent', environment: 'test', logDatabaseFile: ':memory:' },
+    { stream },
+  )
+
+  assert.equal((options.logger as { stream?: unknown }).stream, stream)
+})
+
+test('logDatabaseFile off leaves pino writing to stdout alone', () => {
+  const options = loggingOptions({ logLevel: 'silent', environment: 'test', logDatabaseFile: 'off' })
+
+  assert.equal((options.logger as { stream?: unknown }).stream, undefined)
+})
+
+test('a CLI logger with an injected stream keeps exactly that stream', () => {
+  const stream = captureLogLines()
+  const log = createCliLogger(
+    { logLevel: 'info', environment: 'test', logDatabaseFile: ':memory:' },
+    { stream },
+  )
+
+  log.info({ event: 'seed.run', phase: 'did' }, 'seeded')
+
+  assert.equal(stream.lines().length, 1)
+})

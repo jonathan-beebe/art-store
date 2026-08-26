@@ -24,6 +24,7 @@ test('an empty environment yields the development defaults', () => {
     databaseFile: 'storage/development.sqlite3',
     cookieSecret: 'art-store-prototype-cookie-secret',
     logLevel: 'info',
+    logDatabaseFile: 'storage/logs.sqlite3',
     magicLinkDelivery: 'flash',
     uploadsDir: DEFAULT_UPLOADS_DIR,
     outboxDir: 'storage/outbox',
@@ -52,6 +53,7 @@ test('the environment overrides every default', () => {
     DATABASE_FILE: 'storage/test.sqlite3',
     COOKIE_SECRET: 'a-secret-long-enough-to-sign',
     LOG_LEVEL: 'silent',
+    LOG_DATABASE_FILE: 'off',
     MAGIC_LINK_DELIVERY: 'outbox',
     UPLOADS_DIR: '/var/data/uploads',
     OUTBOX_DIR: '/var/data/outbox',
@@ -72,6 +74,7 @@ test('the environment overrides every default', () => {
   assert.equal(config.databaseFile, 'storage/test.sqlite3')
   assert.equal(config.cookieSecret, 'a-secret-long-enough-to-sign')
   assert.equal(config.logLevel, 'silent')
+  assert.equal(config.logDatabaseFile, 'off')
   assert.equal(config.magicLinkDelivery, 'outbox')
   assert.equal(config.uploadsDir, '/var/data/uploads')
   assert.equal(config.outboxDir, '/var/data/outbox')
@@ -105,6 +108,10 @@ test('a cookie secret too short to sign is refused', () => {
 
 test('an unknown log level is refused', () => {
   assert.throws(() => loadConfig({ LOG_LEVEL: 'chatty' }))
+})
+
+test('an empty log database file is refused', () => {
+  assert.throws(() => loadConfig({ LOG_DATABASE_FILE: '' }))
 })
 
 test('an unknown magic link delivery is refused rather than silently dropping links', () => {

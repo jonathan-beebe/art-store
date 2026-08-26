@@ -34,8 +34,8 @@ export type AppDependencies = {
   config: AppConfig
   magicLinkDelivery: MagicLinkDelivery
   /** Overrides where the request logger writes. Unset in the running app, so
-   * Fastify's own logger writes to stdout; a test passes one to capture what
-   * was logged. */
+   * every line goes to stdout and into the log store the config names; a test
+   * passes one to capture what was logged. */
   loggerStream?: pino.DestinationStream
 }
 
