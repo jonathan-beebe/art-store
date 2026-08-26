@@ -1,7 +1,7 @@
 ---
 id: FEAT-021
 type: feature
-status: doing
+status: done
 created: 2026-08-25
 ---
 

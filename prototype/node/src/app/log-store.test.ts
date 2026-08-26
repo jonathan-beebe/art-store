@@ -6,7 +6,7 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { removeDatabaseFile } from './db/database.ts'
 import type { NewLogLine } from './db/logs-schema.ts'
-import { logStoreStream, openLogStore, type LogStore } from './log-store.ts'
+import { logStoreStream, openLogStore, pruneLogLines, type LogStore } from './log-store.ts'
 
 /** Matches the constant in `log-store.ts`; past it new lines are dropped. */
 const BUFFER_CAP = 10_000
@@ -362,6 +362,66 @@ test('a bootstrap that fails midway disables the store rather than throwing', as
 
   assert.equal(store.database, null)
   assert.equal(stdout.chunks.some((chunk) => chunk.includes('log store disabled')), true)
+})
+
+const PRUNE_CUTOFF = new Date('2026-08-10T00:00:00.000Z')
+
+/** A line at an exact `ts`, for planting rows around the retention cutoff. */
+function lineAt(ts: string): NewLogLine {
+  return { ...bufferedLine(`line at ${ts}`), ts }
+}
+
+test('the prune deletes a line just under the cutoff and keeps one exactly at it', async (t) => {
+  const store = openLogStore(':memory:')
+  t.after(store.close)
+
+  store.append(lineAt('2026-08-09T23:59:59.999Z'))
+  store.append(lineAt('2026-08-10T00:00:00.000Z'))
+  store.append(lineAt('2026-08-10T12:00:00.000Z'))
+  store.flushSync()
+
+  const deleted = pruneLogLines(store, PRUNE_CUTOFF)
+
+  assert.equal(deleted, 1)
+  assert.deepEqual(storedRows(store).map((row) => row.ts), [
+    '2026-08-10T00:00:00.000Z',
+    '2026-08-10T12:00:00.000Z',
+  ])
+})
+
+test('the prune loops over batches until no stale row is left', async (t) => {
+  const store = openLogStore(':memory:')
+  t.after(store.close)
+
+  for (let i = 0; i < 7; i += 1) {
+    store.append(lineAt(`2026-08-09T00:00:0${i}.000Z`))
+  }
+  store.append(lineAt('2026-08-11T00:00:00.000Z'))
+  store.flushSync()
+
+  const deleted = pruneLogLines(store, PRUNE_CUTOFF, { batchSize: 3 })
+
+  assert.equal(deleted, 7)
+  assert.deepEqual(storedRows(store).map((row) => row.ts), ['2026-08-11T00:00:00.000Z'])
+})
+
+test('a prune with nothing stale deletes nothing and says so', async (t) => {
+  const store = openLogStore(':memory:')
+  t.after(store.close)
+
+  store.append(lineAt('2026-08-10T00:00:01.000Z'))
+  store.flushSync()
+
+  assert.equal(pruneLogLines(store, PRUNE_CUTOFF), 0)
+  assert.equal(rowCount(store), 1)
+})
+
+test('a disabled store prunes nothing', async () => {
+  const file = path.join(tmpdir(), randomUUID(), 'missing', 'logs.sqlite3')
+  const store = openLogStore(file, { stdout: captureSink() })
+
+  assert.equal(store.database, null)
+  assert.equal(pruneLogLines(store, PRUNE_CUTOFF), 0)
 })
 
 test('open registers a final flush on process exit and close unregisters it', async () => {

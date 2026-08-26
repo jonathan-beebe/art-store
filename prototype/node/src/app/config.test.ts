@@ -25,6 +25,7 @@ test('an empty environment yields the development defaults', () => {
     cookieSecret: 'art-store-prototype-cookie-secret',
     logLevel: 'info',
     logDatabaseFile: 'storage/logs.sqlite3',
+    logRetentionDays: 14,
     magicLinkDelivery: 'flash',
     uploadsDir: DEFAULT_UPLOADS_DIR,
     outboxDir: 'storage/outbox',
@@ -54,6 +55,7 @@ test('the environment overrides every default', () => {
     COOKIE_SECRET: 'a-secret-long-enough-to-sign',
     LOG_LEVEL: 'silent',
     LOG_DATABASE_FILE: 'off',
+    LOG_RETENTION_DAYS: '30',
     MAGIC_LINK_DELIVERY: 'outbox',
     UPLOADS_DIR: '/var/data/uploads',
     OUTBOX_DIR: '/var/data/outbox',
@@ -75,6 +77,7 @@ test('the environment overrides every default', () => {
   assert.equal(config.cookieSecret, 'a-secret-long-enough-to-sign')
   assert.equal(config.logLevel, 'silent')
   assert.equal(config.logDatabaseFile, 'off')
+  assert.equal(config.logRetentionDays, 30)
   assert.equal(config.magicLinkDelivery, 'outbox')
   assert.equal(config.uploadsDir, '/var/data/uploads')
   assert.equal(config.outboxDir, '/var/data/outbox')
@@ -112,6 +115,17 @@ test('an unknown log level is refused', () => {
 
 test('an empty log database file is refused', () => {
   assert.throws(() => loadConfig({ LOG_DATABASE_FILE: '' }))
+})
+
+test('off disables log retention', () => {
+  assert.equal(loadConfig({ LOG_RETENTION_DAYS: 'off' }).logRetentionDays, 'off')
+})
+
+test('a malformed or non-positive log retention is refused', () => {
+  assert.throws(() => loadConfig({ LOG_RETENTION_DAYS: 'forever' }))
+  assert.throws(() => loadConfig({ LOG_RETENTION_DAYS: '0' }))
+  assert.throws(() => loadConfig({ LOG_RETENTION_DAYS: '-3' }))
+  assert.throws(() => loadConfig({ LOG_RETENTION_DAYS: '1.5' }))
 })
 
 test('an unknown magic link delivery is refused rather than silently dropping links', () => {

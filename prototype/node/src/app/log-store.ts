@@ -32,6 +32,15 @@ const BUFFER_CAP = 10_000
  * from the full line first, so a pathological payload keeps its queryable facts. */
 const RAW_CAP_BYTES = 64 * 1024
 
+/** Rows one retention DELETE takes at most, so the write lock is held for
+ * milliseconds per batch and a concurrently flushing server re-buffers at
+ * most one tick. */
+const PRUNE_BATCH = 5000
+
+/** Freed pages `incremental_vacuum` hands back per sweep; the bootstrap's
+ * `auto_vacuum = INCREMENTAL` is what makes the pragma work at all. */
+const VACUUM_PAGES = 1000
+
 const DDL = `
   CREATE TABLE IF NOT EXISTS log_lines (
     id          INTEGER PRIMARY KEY,
@@ -103,6 +112,40 @@ export function openLogStore(
   }
 
   return openedLogStore(database)
+}
+
+/**
+ * Deletes every stored line whose `ts` is strictly before the cutoff, in
+ * `batchSize`-row batches looped until no rows change, then hands freed pages
+ * back with `PRAGMA incremental_vacuum`. `docs/alignment.md` §2.3 has no
+ * event for this write, so — like the rate-limit prune it sits beside in the
+ * sweep CLI — it stays silent. A disabled store prunes nothing. Returns the
+ * rows deleted. `batchSize` is injectable so a test can watch the loop
+ * without seeding thousands of rows.
+ */
+export function pruneLogLines(
+  store: LogStore,
+  cutoff: Date,
+  { batchSize = PRUNE_BATCH }: { batchSize?: number } = {},
+): number {
+  if (store.database === null) return 0
+
+  const batch = store.database.prepare(
+    'DELETE FROM log_lines WHERE id IN (SELECT id FROM log_lines WHERE ts < ? LIMIT ?)',
+  )
+  const cutoffTs = cutoff.toISOString()
+  let deleted = 0
+
+  for (;;) {
+    const changes = Number(batch.run(cutoffTs, batchSize).changes)
+    if (changes === 0) break
+
+    deleted += changes
+  }
+
+  store.database.exec(`PRAGMA incremental_vacuum(${VACUUM_PAGES})`)
+
+  return deleted
 }
 
 /**

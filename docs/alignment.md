@@ -225,6 +225,23 @@ Rows are checked top to bottom: a nested `did` written at `warn`
 Emoji lives in the log `msg` only. Text shown to a person — flash messages,
 error pages, form errors — carries none.
 
+### 2.5 Log store
+
+Every stdout line is also written to a `log_lines` store in a SQLite file of
+its own, separate from the commerce database. Stdout stays exactly as this
+section specifies; the store is a mirror of it. The §2.1 payload fields map
+to same-named columns, with `data` and `error` stored as JSON text and the
+verbatim line beside them as `raw`. The store's primary key is the integer
+rowid — log rows are telemetry nothing references, an exception to §1 the
+way the `request_id` already is. A store failure degrades to stdout-only
+logging; the store's failure is never the app's failure.
+
+`LOG_DATABASE_FILE` names the file (default `storage/logs.sqlite3`, `off`
+disables the store). `LOG_RETENTION_DAYS` (default `14`, `off` disables)
+bounds its history: the maintenance sweep prunes stored lines older than the
+window. `prototype/node/docs/log-store.md` is the reference definition —
+schema, ingest semantics, and retention.
+
 ## 3. Rate limits
 
 Every limit has a name, an env variable, and a key. Values are
@@ -397,6 +414,9 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
+| `/admin/logs?level=&phase=&event=&request=&txn=&session=&actor=&msg=`   | every stored log line, newest first, with level tallies and filters;     |
+| `&key=&value=&from=&to=`                                                | `key`/`value` filters on any attribute of the stored line                |
+| `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
 | `/admin/messages`, `/admin/messages/:id`                                | existing                                                                 |
@@ -411,6 +431,9 @@ Decisions carried by this table:
 - Ownership refusals answer 404 everywhere; admin pages are behind one guard
   hook/middleware/`before_action`, never per route.
 - An empty filter value means "all"; an unrecognised value answers 400.
+- `/admin/logs`'s `key` is a dotted path into the stored line
+  (`data.order_id`); alone it filters for the attribute's existence, with
+  `value` for equality on it.
 - `path_pattern` is stored bare (`/art/:slug`, no format suffix); HEAD
   requests are not counted as page views.
 - A removed listing leaves every storefront surface: browse, search,
@@ -490,3 +513,9 @@ unrecognised filter value, and PHP lacks the `listing_faqs
 `error` object gains `reason` and `data`; §2.2 names `data.reason` on
 `refused` lines and the retry/wait/stop routing; §2.4 added. Node adopts on
 `node/errors`; PHP and Rails queued as follow-ups.
+
+2026-08-26, log store: §2.5 added — every stdout line mirrored into a
+queryable `log_lines` SQLite file beside the commerce database, pruned by
+the maintenance sweep — and §5 gains the `/admin/logs` and
+`/admin/logs/requests/:requestId` rows. Node ships the store and viewer on
+`node/logs-viewer`; PHP and Rails queued as follow-ups.

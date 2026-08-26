@@ -152,6 +152,7 @@ export const TEST_CONFIG: AppConfig = {
   // Off so a test that injects no stream still opens no log-store file; a
   // test about the store builds its own over `:memory:`.
   logDatabaseFile: 'off',
+  logRetentionDays: 14,
   magicLinkDelivery: 'flash',
   uploadsDir: path.join(tmpdir(), 'art-store-test-uploads-unused'),
   outboxDir: path.join(tmpdir(), 'art-store-test-outbox-unused'),
