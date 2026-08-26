@@ -40,7 +40,7 @@ test('migrate.run and seed.run are root stories, and migrate.apply rides along u
   await main(['node', 'prepare-db.ts'], { DATABASE_FILE: databaseFile }, logger)
 
   assert.match(String(stream.line('migrate.run', 'will').msg), /^🎬 /)
-  assert.match(String(stream.line('migrate.apply', 'did').msg), /^🟢 /)
+  assert.doesNotMatch(String(stream.line('migrate.apply', 'did').msg), /^(🎬|🟢|⚠️|🛑|❌)/)
   assert.match(String(stream.line('seed.run', 'will').msg), /^🎬 /)
 })
 

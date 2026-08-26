@@ -164,7 +164,7 @@ function closeStory(request: FastifyRequest, close: StoryClose): void {
     'http.request',
     'did',
     { msg, data: { status: close.status, ...close.facts } },
-    { durationMs: close.durationMs },
+    { durationMs: close.durationMs, root: true },
   )
 }
 

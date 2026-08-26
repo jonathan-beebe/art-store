@@ -446,7 +446,7 @@ test('an http.request line carries every always-present field and nothing rename
   assert.match(String(placed.ts), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
   assert.equal(placed.level, 'info')
   assert.equal(placed.phase, 'did')
-  assert.equal(placed.msg, '🟢 placed the order')
+  assert.equal(placed.msg, 'placed the order')
   assert.equal(placed.request_id, will.request_id)
   assert.equal(placed.session_id, will.session_id)
   assert.equal(placed.actor_type, 'customer')

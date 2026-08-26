@@ -65,7 +65,7 @@ test('main logs one line per seller paid and a summary', async (t) => {
   assert.equal(paid.seller_id, sellerId)
   assert.equal(paid.amount_cents, 40_500)
   assert.equal(paid.period, '2026-08-17 to 2026-08-23')
-  assert.match(String(stream.line('payout.pay', 'did').msg), /^🟢 /)
+  assert.doesNotMatch(String(stream.line('payout.pay', 'did').msg), /^(🎬|🟢|⚠️|🛑|❌)/)
 
   const run = stream.data('payout.run', 'did')
   assert.equal(run.count, 1)

@@ -19,15 +19,15 @@ test('a nested failed line is 🛑, not ❌', () => {
   assert.equal(storyEmoji('failed', 'error', false), '🛑')
 })
 
-test('a did line is 🟢 at info', () => {
-  assert.equal(storyEmoji('did', 'info', false), '🟢')
+test('a nested did line at info carries no prefix', () => {
+  assert.equal(storyEmoji('did', 'info', false), null)
 })
 
-test('a did line is 🟢 at debug', () => {
-  assert.equal(storyEmoji('did', 'debug', false), '🟢')
+test('a nested did line at debug carries no prefix', () => {
+  assert.equal(storyEmoji('did', 'debug', false), null)
 })
 
-test('a root did line is 🟢, the same as a nested one', () => {
+test('only the root did line is 🟢', () => {
   assert.equal(storyEmoji('did', 'info', true), '🟢')
 })
 
@@ -65,8 +65,9 @@ test('every phase and level combination resolves to the documented emoji', () =>
     ['will', 'debug', true, '🎬'],
     ['failed', 'error', true, '❌'],
     ['failed', 'error', false, '🛑'],
-    ['did', 'info', false, '🟢'],
-    ['did', 'debug', false, '🟢'],
+    ['did', 'info', false, null],
+    ['did', 'debug', false, null],
+    ['did', 'info', true, '🟢'],
     ['did', 'warn', false, '⚠️'],
     ['refused', 'info', false, '⚠️'],
     ['refused', 'debug', false, '⚠️'],
