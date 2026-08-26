@@ -15,7 +15,7 @@ import {
 } from '../../../core/logging/log-event.ts'
 import { toCount } from '../../../db/count.ts'
 import type { LogsDb } from '../../../db/database.ts'
-import type { LogsDatabase } from '../../../db/logs-schema.ts'
+import type { LogLinesTable, LogsDatabase } from '../../../db/logs-schema.ts'
 import type { ListPage } from '../../../core/paging/list-page.ts'
 
 /** The story view stops here and says so; `?txn=` on the list covers the rest. */
@@ -25,6 +25,13 @@ export const STORY_LINE_CAP = 1000
  * answers 400 for anything else. */
 export const ATTRIBUTE_KEY_PATTERN = /^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+){0,3}$/
 
+/** The three sites `docs/alignment.md` names. A stored line carries no site
+ * field of its own — `matchesDomain` derives it from its request's opening
+ * `http.request` line, prefix-matching that line's `data.path`. */
+export const LOG_DOMAINS = ['shop', 'seller', 'admin'] as const
+
+export type LogDomain = (typeof LOG_DOMAINS)[number]
+
 export type LogsContext = { logsDb: LogsDb }
 
 /** The `?key=&value=` pair, already validated by the route. A missing value
@@ -32,6 +39,7 @@ export type LogsContext = { logsDb: LogsDb }
 export type LogAttributeFilter = { key: string; value?: string }
 
 export type LogRowFilters = {
+  domain?: LogDomain
   level?: LogLineLevel
   phase?: LogPhase
   event?: LogEvent
@@ -113,6 +121,7 @@ export function matchesLogRowFilters(
 ): Expression<SqlBool>[] {
   const conditions = columnEqualities(eb, filters)
 
+  if (filters.domain !== undefined) conditions.push(matchesDomain(eb, filters.domain))
   if (filters.msg !== undefined) conditions.push(msgContains(eb, filters.msg))
   if (filters.from !== undefined) conditions.push(eb('logLines.ts', '>=', filters.from))
   if (filters.to !== undefined) conditions.push(eb('logLines.ts', '<=', filters.to))
@@ -156,6 +165,48 @@ function msgContains(eb: LogLinesFilter, text: string): Expression<SqlBool> {
   const pattern = `%${text.replace(LIKE_ESCAPED, (wildcard) => `\\${wildcard}`)}%`
 
   return sql<SqlBool>`${eb.ref('logLines.msg')} like ${pattern} escape '\\'`
+}
+
+type DomainLineFilter = ExpressionBuilder<
+  LogsDatabase & { domainLine: LogLinesTable },
+  'logLines' | 'domainLine'
+>
+
+/**
+ * A line's domain is its request's site, so this correlates on `request_id`
+ * to the request's opening `http.request` line and prefix-matches that line's
+ * `data.path` — the same rule `siteActorType` applies live. A line with no
+ * `request_id` (a CLI run, a boot line) correlates to nothing and matches no
+ * domain.
+ */
+function matchesDomain(eb: LogLinesFilter, domain: LogDomain): Expression<SqlBool> {
+  return eb.exists(
+    eb
+      .selectFrom('logLines as domainLine')
+      .select('domainLine.id')
+      .whereRef('domainLine.requestId', '=', 'logLines.requestId')
+      .where('domainLine.event', '=', 'http.request')
+      .where('domainLine.phase', '=', 'will')
+      .where((inner) => domainPathCondition(inner, domain)),
+  )
+}
+
+/** `shopSite`'s own SSE stream and the orchestrator's health probe sit at
+ * the storefront's unprefixed root, but neither is a page a founder means by
+ * "shop traffic" — excluded from the shop bucket by name. */
+const SHOP_EXCLUDED_PATHS = ['/health', '/events'] as const
+
+function domainPathCondition(eb: DomainLineFilter, domain: LogDomain): Expression<SqlBool> {
+  const path = sql<string>`json_extract(${eb.ref('domainLine.data')}, '$.path')`
+
+  if (domain === 'admin') return sql<SqlBool>`(${path} = '/admin' or ${path} like '/admin/%')`
+  if (domain === 'seller') return sql<SqlBool>`(${path} = '/seller' or ${path} like '/seller/%')`
+
+  return sql<SqlBool>`
+    ${path} <> ${SHOP_EXCLUDED_PATHS[0]} and ${path} <> ${SHOP_EXCLUDED_PATHS[1]}
+    and ${path} <> '/admin' and ${path} not like '/admin/%'
+    and ${path} <> '/seller' and ${path} not like '/seller/%'
+  `
 }
 
 /**
@@ -266,4 +317,215 @@ export async function requestStoryRows(
     .orderBy('id', 'asc')
     .limit(STORY_LINE_CAP)
     .execute()
+}
+
+/** How a group is keyed: a shared `request_id` groups every line of that
+ * request; a line with none groups alone rather than by `txn_id` — a CLI or
+ * boot line rarely shares a business id with another run, and grouping on
+ * one would fold unrelated invocations into a single row. */
+export type LogGroupKind = 'request' | 'line'
+
+const LINE_GROUP_PREFIX = 'line:'
+
+/** One row of the grouped view — a request's whole story, summarized the way
+ * its opening and closing `http.request` lines describe it: method, path,
+ * status, and duration. An orphan line summarizes itself. */
+export type LogRequestGroup = {
+  key: string
+  kind: LogGroupKind
+  lineCount: number
+  lastTs: string
+  method: string | null
+  path: string | null
+  status: number | null
+  durationMs: number | null
+  level: string | null
+  msg: string | null
+  lines: readonly LogRow[]
+}
+
+function groupKeyOf(line: Pick<LogRow, 'id' | 'requestId'>): string {
+  return line.requestId ?? `${LINE_GROUP_PREFIX}${line.id}`
+}
+
+/** Every group's key and most recent line's `ts`, across the whole filtered
+ * set — what `countLogGroups` counts and `logRequestGroups` pages. Reads the
+ * filtered set once and groups it in memory; retention bounds the table the
+ * same way the `msg` scan already relies on. */
+async function groupActivity(
+  context: LogsContext,
+  filters: LogRowFilters,
+): Promise<{ key: string; lastTs: string }[]> {
+  const rows = await context.logsDb
+    .selectFrom('logLines')
+    .select(['id', 'ts', 'requestId'])
+    .where((eb) => eb.and(matchesLogRowFilters(eb, filters)))
+    .execute()
+
+  const lastTsByKey = new Map<string, string>()
+  for (const row of rows) {
+    const key = groupKeyOf(row)
+    const current = lastTsByKey.get(key)
+    if (current === undefined || row.ts > current) lastTsByKey.set(key, row.ts)
+  }
+
+  return [...lastTsByKey.entries()]
+    .map(([key, lastTs]) => ({ key, lastTs }))
+    .sort((a, b) => {
+      if (a.lastTs !== b.lastTs) return a.lastTs < b.lastTs ? 1 : -1
+      return a.key < b.key ? 1 : -1
+    })
+}
+
+/** How many groups the current filters hold — a request counts once no
+ * matter how many of its lines match. */
+export async function countLogGroups(
+  context: LogsContext,
+  filters: LogRowFilters = {},
+): Promise<number> {
+  return (await groupActivity(context, filters)).length
+}
+
+/**
+ * One page of groups, newest activity first. Each group opens into its whole
+ * request — every line the request logged, not only the ones that matched
+ * the filter that surfaced it, the way opening a found Gmail thread shows the
+ * whole conversation rather than just the message the search matched.
+ */
+export async function logRequestGroups(
+  context: LogsContext,
+  filters: LogRowFilters,
+  page: Pick<ListPage, 'offset' | 'limit'>,
+): Promise<LogRequestGroup[]> {
+  const activity = await groupActivity(context, filters)
+  const pageKeys = activity.slice(page.offset, page.offset + page.limit)
+  if (pageKeys.length === 0) return []
+
+  const lines = await linesForGroupKeys(context, pageKeys.map((entry) => entry.key))
+  const linesByKey = new Map<string, LogRow[]>()
+  for (const line of lines) {
+    const key = groupKeyOf(line)
+    const bucket = linesByKey.get(key)
+    if (bucket === undefined) linesByKey.set(key, [line])
+    else bucket.push(line)
+  }
+
+  return pageKeys.map(({ key }) => summarizeGroup(key, linesByKey.get(key) ?? []))
+}
+
+/** Every stored line belonging to one page of group keys, in the order a
+ * group opens into: `ts asc, id asc` within each request. */
+async function linesForGroupKeys(
+  context: LogsContext,
+  keys: readonly string[],
+): Promise<LogRow[]> {
+  const requestIds = keys.filter((key) => !key.startsWith(LINE_GROUP_PREFIX))
+  const lineIds = keys
+    .filter((key) => key.startsWith(LINE_GROUP_PREFIX))
+    .map((key) => Number(key.slice(LINE_GROUP_PREFIX.length)))
+
+  return context.logsDb
+    .selectFrom('logLines')
+    .select(ROW_COLUMNS)
+    .where((eb) =>
+      eb.or([
+        ...(requestIds.length > 0 ? [eb('logLines.requestId', 'in', requestIds)] : []),
+        ...(lineIds.length > 0 ? [eb('logLines.id', 'in', lineIds)] : []),
+      ]),
+    )
+    .orderBy('ts', 'asc')
+    .orderBy('id', 'asc')
+    .execute()
+}
+
+/** The group row's summary: the root `http.request` will/did pair's method,
+ * path, status, and duration for a request group; a lone line's own facts for
+ * an orphan one. */
+function summarizeGroup(key: string, lines: readonly LogRow[]): LogRequestGroup {
+  return key.startsWith(LINE_GROUP_PREFIX)
+    ? summarizeLineGroup(key, lines)
+    : summarizeRequestGroup(key, lines)
+}
+
+/** A possibly-absent line's own column, read without an optional chain at
+ * every call site. */
+function fieldOf<Field extends keyof LogRow>(
+  line: LogRow | undefined,
+  field: Field,
+): LogRow[Field] | null {
+  return line === undefined ? null : line[field]
+}
+
+function summarizeLineGroup(key: string, lines: readonly LogRow[]): LogRequestGroup {
+  const line = lines.at(0)
+
+  return {
+    key,
+    kind: 'line',
+    lineCount: lines.length,
+    lastTs: fieldOf(line, 'ts') ?? '',
+    method: null,
+    path: null,
+    status: null,
+    durationMs: null,
+    level: fieldOf(line, 'level'),
+    msg: fieldOf(line, 'msg'),
+    lines,
+  }
+}
+
+function isRootWill(line: LogRow): boolean {
+  return line.event === 'http.request' && line.phase === 'will'
+}
+
+function isRootClose(line: LogRow): boolean {
+  return line.event === 'http.request' && (line.phase === 'did' || line.phase === 'failed')
+}
+
+/** The root pair's headline: the closing line's, falling back to the
+ * opening line's when the request has not closed within the cap. */
+function rootMsg(opened: LogRow | undefined, closed: LogRow | undefined): string | null {
+  return fieldOf(closed, 'msg') ?? fieldOf(opened, 'msg')
+}
+
+function summarizeRequestGroup(key: string, lines: readonly LogRow[]): LogRequestGroup {
+  const opened = lines.find(isRootWill)
+  const closed = lines.find(isRootClose)
+  const openedData = parsedData(fieldOf(opened, 'data'))
+  const closedData = parsedData(fieldOf(closed, 'data'))
+
+  return {
+    key,
+    kind: 'request',
+    lineCount: lines.length,
+    lastTs: fieldOf(lines.at(-1), 'ts') ?? '',
+    method: stringField(openedData, 'method'),
+    path: stringField(openedData, 'path'),
+    status: numberField(closedData, 'status'),
+    durationMs: fieldOf(closed, 'durationMs'),
+    level: fieldOf(closed, 'level'),
+    msg: rootMsg(opened, closed),
+    lines,
+  }
+}
+
+/** Stored `data`, parsed for the fields a group summary reads off it. The
+ * mirror invariant means a line can be stored with text that never parses. */
+function parsedData(text: string | null): Record<string, unknown> {
+  if (text === null) return {}
+  try {
+    return JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
+function stringField(data: Record<string, unknown>, field: string): string | null {
+  const value = data[field]
+  return typeof value === 'string' ? value : null
+}
+
+function numberField(data: Record<string, unknown>, field: string): number | null {
+  const value = data[field]
+  return typeof value === 'number' ? value : null
 }

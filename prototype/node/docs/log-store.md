@@ -179,6 +179,8 @@ Two GET routes inside `adminConsoleRoutes`, behind the existing
 `filterQuery`. Filters follow the console's rules — empty means all,
 unrecognised answers 400 — and split by value space:
 
+- `domain` — a select, placed first, over the three sites (`shop`,
+  `seller`, `admin`), below;
 - selects, built from the const arrays: `level`, `phase`, `event`;
 - text inputs, equality on indexed or mirrored columns: `request`, `txn`,
   `session`, `actor`;
@@ -186,7 +188,8 @@ unrecognised answers 400 — and split by value space:
   retention-bounded table's size;
 - `from` / `to` — ISO instants, compared lexically against `ts` (fixed
   ISO-8601 UTC text sorts chronologically), labelled UTC in the form;
-- `key` / `value` — the any-attribute filter, below.
+- `key` / `value` — the any-attribute filter, below;
+- `group=1` — one row per request, below.
 
 The page opens with four stat tiles (Errors / Warnings / Info / Debug)
 tallied over the current filter set minus `level`; each tile links to the
@@ -199,6 +202,34 @@ JavaScript absent, like every admin page. A live tail is out of this cut;
 the newest-first list plus a browser refresh covers it, and the sanctioned
 future upgrade is client-side polling of the same filtered URL rather than
 a stream.
+
+### The domain filter
+
+A stored line carries no site field of its own. `?domain=` derives one from
+the line's request: an `EXISTS` correlated on `request_id` against that
+request's opening `http.request` line, prefix-matching its `data.path` —
+`/admin*` and `/seller*` claim their site, `shopSite` claims what's left — its
+unprefixed root. Two unprefixed paths are excluded from the `shop` bucket by
+name rather than counted as storefront pages: `/health` (the orchestrator's
+probe, outside every site) and `/events` (each site's own unread-events
+stream, including the storefront's unprefixed one). A line with no
+`request_id` — a CLI run, a boot line — correlates to nothing and matches no
+domain.
+
+### Grouped by request
+
+The `group=1` checkbox switches the list from one row per line to one row per
+request, newest activity first, composing with every other filter: a filter
+narrows which requests appear (any one matching line is enough), and opening
+a group — a native `<details>`, no JavaScript — shows that request's whole
+story, every line it logged, the way opening a found Gmail thread shows the
+whole conversation rather than just the message the search matched. A page
+counts groups rather than lines. The group row summarizes the request's root
+`http.request` will/did pair: method, path, status, and duration, plus its
+line count and last activity time; a line with no `request_id` groups alone
+rather than by `txn_id` — grouping orphan CLI or boot lines by a shared
+transaction would fold unrelated invocations into one row, and each such line
+already stands as its own line in the ungrouped view.
 
 ### The any-attribute filter
 

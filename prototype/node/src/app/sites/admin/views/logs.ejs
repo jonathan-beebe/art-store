@@ -7,6 +7,15 @@
 <% } else { %>
   <form method="get" action="/admin/logs" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3">
     <div>
+      <label for="domain" class="block text-neutral-600 dark:text-neutral-400">Domain</label>
+      <select id="domain" name="domain" class="mt-1 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
+        <option value="">All</option>
+        <% domains.forEach(function (domain) { %>
+          <option value="<%= domain %>" <%= filters.domain === domain ? 'selected' : '' %>><%= domain %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div>
       <label for="level" class="block text-neutral-600 dark:text-neutral-400">Level</label>
       <select id="level" name="level" class="mt-1 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
         <option value="">All</option>
@@ -69,6 +78,10 @@
       <label for="value" class="block text-neutral-600 dark:text-neutral-400">Attribute value</label>
       <input id="value" name="value" type="text" value="<%= filters.value ?? '' %>" class="mt-1 w-48 rounded border border-neutral-400 dark:border-neutral-600 px-2 py-1">
     </div>
+    <div class="flex items-center gap-1.5 pb-2">
+      <input id="group" name="group" type="checkbox" value="1" <%= filters.group === '1' ? 'checked' : '' %>>
+      <label for="group" class="text-neutral-600 dark:text-neutral-400">Group by request</label>
+    </div>
     <button type="submit" class="rounded bg-neutral-900 dark:bg-neutral-100 px-4 py-2 font-medium text-white dark:text-neutral-900">Filter</button>
   </form>
 
@@ -81,7 +94,38 @@
     <% }) %>
   </div>
 
-  <% if (lines.length === 0) { %>
+  <% if (grouped) { %>
+    <% if (groups.length === 0) { %>
+      <%- include('sites/admin/views/partials/empty', { message: 'No log lines match these filters.' }) %>
+    <% } else { %>
+      <div class="mt-4 space-y-3">
+        <% groups.forEach(function (group) { %>
+          <details data-group="<%= group.key %>" class="rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-3">
+            <summary class="cursor-pointer">
+              <span data-cell="ts" class="tabular-nums text-neutral-500"><%= group.lastTs %></span>
+              <span data-cell="level" class="ml-2 rounded bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 text-xs"><%= group.level ?? '—' %></span>
+              <span data-cell="msg" class="ml-2 font-medium"><%= group.msg ?? '—' %></span>
+              <% if (group.method !== null || group.path !== null) { %>
+                <span data-cell="method-path" class="ml-2 text-neutral-600 dark:text-neutral-400"><%= group.method ?? '' %> <%= group.path ?? '' %></span>
+              <% } %>
+              <% if (group.status !== null) { %>
+                <span data-cell="status" class="ml-2 text-neutral-600 dark:text-neutral-400"><%= group.status %></span>
+              <% } %>
+              <% if (group.durationMs !== null) { %>
+                <span data-cell="duration" class="ml-2 tabular-nums text-neutral-500"><%= group.durationMs %> ms</span>
+              <% } %>
+              <span data-cell="line-count" class="ml-2 text-neutral-500"><%= group.lineCount %> line<%= group.lineCount === 1 ? '' : 's' %></span>
+              <% if (group.kind === 'request') { %>
+                <a href="/admin/logs/requests/<%= encodeURIComponent(group.key) %>" class="ml-2 underline">Open story</a>
+              <% } %>
+            </summary>
+            <%- include('sites/admin/views/partials/log-lines', { lines: group.lines, openDetails: false }) %>
+          </details>
+        <% }) %>
+      </div>
+      <%- include('views/partials/pager', { page, basePath: '/admin/logs', query: filterQuery, param: 'page' }) %>
+    <% } %>
+  <% } else if (lines.length === 0) { %>
     <%- include('sites/admin/views/partials/empty', { message: 'No log lines match these filters.' }) %>
   <% } else { %>
     <div class="mt-4 overflow-x-auto rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900">

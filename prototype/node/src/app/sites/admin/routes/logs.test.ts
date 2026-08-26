@@ -374,6 +374,215 @@ test('an empty result renders the empty state, not an empty table', async (t) =>
   assert.match(response.body, /No log lines match these filters\./)
 })
 
+test('the domain filter narrows the list to one site\'s requests', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      msg: 'the admin will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-admin',
+      data: JSON.stringify({ method: 'GET', path: '/admin/orders' }),
+    }),
+    storedLogLine({ msg: 'the admin step', requestId: 'req-admin' }),
+    storedLogLine({
+      msg: 'the shop will line',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-shop',
+      data: JSON.stringify({ method: 'GET', path: '/checkout' }),
+    }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?domain=admin',
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /the admin step/)
+  assert.doesNotMatch(response.body, /the shop will line/)
+})
+
+test('an unrecognised domain value answers 400', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?domain=wholesale',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('an empty domain value reads as no filter', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([storedLogLine({ msg: 'shown either way' })])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?domain=',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /shown either way/)
+})
+
+test('the domain filter is placed before level and remembers the submitted value', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?domain=seller',
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /<option value="seller" selected>/)
+  const domainIndex = response.body.indexOf('id="domain"')
+  const levelIndex = response.body.indexOf('id="level"')
+  assert.ok(domainIndex !== -1 && domainIndex < levelIndex)
+})
+
+test('the group checkbox shows one row per request, newest first', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({
+      ts: '2026-08-24T12:00:00.000Z',
+      msg: '🎬 GET /checkout',
+      event: 'http.request',
+      phase: 'will',
+      requestId: 'req-group',
+      data: JSON.stringify({ method: 'GET', path: '/checkout' }),
+    }),
+    storedLogLine({
+      ts: '2026-08-24T12:00:01.000Z',
+      msg: '🟢 GET /checkout 200',
+      event: 'http.request',
+      phase: 'did',
+      requestId: 'req-group',
+      durationMs: 12,
+      data: JSON.stringify({ status: 200 }),
+    }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.equal((response.body.match(/data-group="/g) ?? []).length, 1)
+  assert.match(response.body, /🎬 GET \/checkout/)
+  assert.match(response.body, /🟢 GET \/checkout 200/)
+})
+
+test('the group checkbox remembers its checked state', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1',
+    cookies: admin.cookies,
+  })
+
+  assert.match(response.body, /id="group"[^>]*checked/)
+})
+
+test('an unrecognised group value answers 400', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=yes',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 400)
+})
+
+test('grouped paging counts groups and the pager preserves group=1', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed(
+    Array.from({ length: 51 }, (_, index) =>
+      storedLogLine({
+        ts: `2026-08-24T12:00:${String(index % 60).padStart(2, '0')}.000Z`,
+        requestId: `req-${index}`,
+      }),
+    ),
+  )
+
+  const firstPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1',
+    cookies: admin.cookies,
+  })
+  assert.equal((firstPage.body.match(/data-group="/g) ?? []).length, 50)
+  assert.match(firstPage.body, /href="\/admin\/logs\?group=1&amp;page=2"/)
+
+  const secondPage = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1&page=2',
+    cookies: admin.cookies,
+  })
+  assert.equal((secondPage.body.match(/data-group="/g) ?? []).length, 1)
+})
+
+test('group composes with an existing filter: only matching requests group, in full', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+  testApp.seed([
+    storedLogLine({ requestId: 'req-mixed', level: 'info', msg: 'the quiet step' }),
+    storedLogLine({ requestId: 'req-mixed', level: 'error', msg: 'the error line' }),
+    storedLogLine({ requestId: 'req-quiet', level: 'info', msg: 'never shown' }),
+  ])
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1&level=error',
+    cookies: admin.cookies,
+  })
+
+  assert.equal((response.body.match(/data-group="/g) ?? []).length, 1)
+  assert.match(response.body, /the quiet step/)
+  assert.match(response.body, /the error line/)
+  assert.doesNotMatch(response.body, /never shown/)
+})
+
+test('a grouped result with no matches renders the empty state', async (t) => {
+  const testApp = await buildLogsTestApp()
+  t.after(testApp.close)
+  const admin = await signInAsAdmin(testApp)
+
+  const response = await testApp.app.inject({
+    method: 'GET',
+    url: '/admin/logs?group=1',
+    cookies: admin.cookies,
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.match(response.body, /No log lines match these filters\./)
+})
+
 test('a disabled store renders the unavailable empty state at 200 on both pages', async (t) => {
   // Plain `buildTestApp`: `TEST_CONFIG` keeps `LOG_DATABASE_FILE` off, so the
   // app carries no `logsDb` at all.

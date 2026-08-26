@@ -12,8 +12,11 @@ import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { adminPage } from '../page.ts'
 import {
   ATTRIBUTE_KEY_PATTERN,
+  countLogGroups,
   countLogRows,
+  LOG_DOMAINS,
   logLevelTallies,
+  logRequestGroups,
   logRows,
   requestStoryRows,
   STORY_LINE_CAP,
@@ -39,6 +42,7 @@ const requestIdValue = z
 
 const logsQuery = z
   .object({
+    domain: optionalFilter(z.enum(LOG_DOMAINS)),
     level: optionalFilter(z.enum(LOG_LINE_LEVELS)),
     phase: optionalFilter(z.enum(LOG_PHASES)),
     event: optionalFilter(z.enum(LOG_EVENTS)),
@@ -51,6 +55,7 @@ const logsQuery = z
     to: optionalFilter(z.iso.datetime({ message: 'not an ISO instant' })),
     key: optionalFilter(z.string().regex(ATTRIBUTE_KEY_PATTERN, 'not a dotted attribute path')),
     value: optionalFilter(z.string()),
+    group: optionalFilter(z.literal('1')),
     page: z.string().optional(),
   })
   // A value with no key names no attribute to compare it against.
@@ -64,9 +69,10 @@ type LogsQuery = z.output<typeof logsQuery>
 /** The submitted filters, without the page — what round-trips through the
  * form, the pager, and the level tiles. */
 function filterFields(query: LogsQuery): Record<string, string | undefined> {
-  const { level, phase, event, request, txn, session, actor, msg, from, to, key, value } = query
+  const { domain, level, phase, event, request, txn, session, actor, msg, from, to, key, value, group } =
+    query
 
-  return { level, phase, event, request, txn, session, actor, msg, from, to, key, value }
+  return { domain, level, phase, event, request, txn, session, actor, msg, from, to, key, value, group }
 }
 
 function definedEntries(fields: Record<string, string | undefined>): [string, string][] {
@@ -77,6 +83,7 @@ function definedEntries(fields: Record<string, string | undefined>): [string, st
 
 function filtersOf(query: LogsQuery): LogRowFilters {
   return {
+    domain: query.domain,
     level: query.level,
     phase: query.phase,
     event: query.event,
@@ -158,19 +165,25 @@ export const logRoutes: ZodRoutes = (admin, _options, done) => {
 
     const context = { logsDb }
     const rowFilters = filtersOf(query)
+    const grouped = query.group === '1'
     const page = listPage({
       requested: query.page,
       size: ROWS_PER_PAGE,
-      totalCount: await countLogRows(context, rowFilters),
+      totalCount: grouped
+        ? await countLogGroups(context, rowFilters)
+        : await countLogRows(context, rowFilters),
     })
 
     return reply.render(
       'logs',
       adminPage('Logs', {
         storeAvailable: true,
-        lines: await logRows(context, rowFilters, page),
+        grouped,
+        lines: grouped ? [] : await logRows(context, rowFilters, page),
+        groups: grouped ? await logRequestGroups(context, rowFilters, page) : [],
         tiles: await levelTiles(context, query, rowFilters),
         filters,
+        domains: LOG_DOMAINS,
         levels: LOG_LINE_LEVELS,
         phases: LOG_PHASES,
         events: LOG_EVENTS,
