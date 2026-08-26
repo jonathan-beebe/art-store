@@ -14,10 +14,14 @@ import type { AppLogger } from '../log-story.ts'
  *
  * `notificationDelivery` overrides where a notification goes beyond the in-app
  * inbox; left out, `notify` queues it for the outbox.
+ *
+ * `rootStory` is set by a CLI entrypoint so the story the action tells for it
+ * opens the process; consumed by `actionStory`.
  */
 export type ActionContext = {
   db: AppDatabase
   clock: Clock
   log?: AppLogger
   notificationDelivery?: NotificationDelivery
+  rootStory?: boolean
 }

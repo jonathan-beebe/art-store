@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
+import { refundRefusalCopy } from '../../../actions/refunds/issue-refund.ts'
 import {
   canTransitionFulfillment,
   FULFILLMENT_STATUSES,
+  fulfillmentTransitionRefusalCopy,
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
 import { formatCents } from '../../../core/money.ts'
@@ -13,7 +15,6 @@ import { listPage } from '../../../core/paging/list-page.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH, type RefundReasonErrors } from '../../../core/orders/refund.ts'
 import { parseShipmentDetails, type ShipmentDetailsErrors } from '../../../core/orders/shipment-details.ts'
 import { statusLabel } from '../../../core/status-label.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import type { Fulfillment, Order } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
@@ -183,20 +184,23 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
         )
       }
 
-      try {
-        await markShipped(requestActions(request), {
-          fulfillmentId,
-          carrier: details.value.carrier,
-          trackingNumber: details.value.trackingNumber,
-        })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
+      const result = await markShipped(requestActions(request), {
+        fulfillmentId,
+        carrier: details.value.carrier,
+        trackingNumber: details.value.trackingNumber,
+      })
+      if (result.outcome === 'refused') {
         return renderOrderShow(
           request,
           reply,
           owned,
-          { ship: { carrier: details.value.carrier, trackingNumber: details.value.trackingNumber, formError: error.message } },
+          {
+            ship: {
+              carrier: details.value.carrier,
+              trackingNumber: details.value.trackingNumber,
+              formError: fulfillmentTransitionRefusalCopy(result),
+            },
+          },
           422,
         )
       }
@@ -221,16 +225,19 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
         return renderOrderShow(request, reply, owned, { decline: { reason: request.body.reason ?? '', errors: reason.errors } }, 422)
       }
 
-      try {
-        await declineFulfillment(requestActions(request), {
-          fulfillmentId,
-          sellerId,
-          reason: reason.value,
-        })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
-        return renderOrderShow(request, reply, owned, { decline: { reason: reason.value, formError: error.message } }, 422)
+      const result = await declineFulfillment(requestActions(request), {
+        fulfillmentId,
+        sellerId,
+        reason: reason.value,
+      })
+      if (result.outcome === 'refused') {
+        return renderOrderShow(
+          request,
+          reply,
+          owned,
+          { decline: { reason: reason.value, formError: refundRefusalCopy(result) } },
+          422,
+        )
       }
 
       reply.setFlash({ notice: 'Declined. The customer has been refunded.' })

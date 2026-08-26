@@ -5,6 +5,8 @@ import type {
   FulfillmentId,
   OrderId,
 } from '../../core/ids/entity-ids.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { markShipped } from './mark-shipped.ts'
 import type { AppDatabase } from '../../db/database.ts'
@@ -21,11 +23,13 @@ test('it records the carrier, the tracking number, and shippedAt', async (t) => 
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
 
-  const shipped = await markShipped(context, {
-    fulfillmentId: fulfillmentId ?? fixtureId('ful', 0),
-    carrier: 'USPS',
-    trackingNumber: '9400111899',
-  })
+  const shipped = mustSucceed(
+    await markShipped(context, {
+      fulfillmentId: fulfillmentId ?? fixtureId('ful', 0),
+      carrier: 'USPS',
+      trackingNumber: '9400111899',
+    }),
+  ).fulfillment
 
   assert.equal(shipped.carrier, 'USPS')
   assert.equal(shipped.trackingNumber, '9400111899')
@@ -94,12 +98,42 @@ test('it refuses to ship the same fulfillment twice', async (t) => {
   const art = await createListing(context, shop)
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
+  const resolvedId = fulfillmentId ?? fixtureId('ful', 0)
 
-  await markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' })
+  await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' })
 
-  await assert.rejects(
-    () => markShipped(context, { fulfillmentId: fulfillmentId ?? fixtureId('ful', 0), carrier: 'USPS', trackingNumber: '9400111899' }),
-    /cannot move from shipped to shipped/,
+  const result = await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: resolvedId, status_from: 'shipped', status_to: 'shipped' },
+  })
+  assert.equal(await readStatus(world.db, resolvedId), 'shipped')
+})
+
+test('mustSucceed throws BrokenContractError for a refusal and unwraps a shipped result', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const buyer = await createCustomer(context)
+  const art = await createListing(context, shop)
+  const order = await paidOrder(context, buyer, [art.id])
+  const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
+  const resolvedId = fulfillmentId ?? fixtureId('ful', 0)
+
+  const shipped = mustSucceed(
+    await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' }),
+  ).fulfillment
+  assert.equal(shipped.status, 'shipped')
+
+  const refusal = await markShipped(context, { fulfillmentId: resolvedId, carrier: 'USPS', trackingNumber: '9400111899' })
+
+  assert.throws(
+    () => mustSucceed(refusal),
+    (error: unknown) => error instanceof BrokenContractError && error.reason === 'illegal_transition',
   )
 })
 
@@ -126,4 +160,14 @@ async function readOrderStatus(db: AppDatabase, orderId: OrderId): Promise<strin
 
 async function readNotifications(db: AppDatabase, customerId: CustomerId) {
   return db.selectFrom('notifications').selectAll().where('customerId', '=', customerId).execute()
+}
+
+async function readStatus(db: AppDatabase, fulfillmentId: FulfillmentId): Promise<string> {
+  const fulfillment = await db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillmentId)
+    .executeTakeFirstOrThrow()
+
+  return fulfillment.status
 }

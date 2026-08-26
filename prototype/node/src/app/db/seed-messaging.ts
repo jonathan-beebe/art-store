@@ -12,6 +12,7 @@ import type {
   ListingId,
   SellerId,
 } from '../core/ids/entity-ids.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { Message } from './commerce-schema.ts'
 import type { AppDatabase } from './database.ts'
 import { REMOVED_LISTING_TITLE } from './seed-catalog.ts'
@@ -141,7 +142,9 @@ async function runConversationSteps(
   for (const step of steps) {
     const context = actionContext(db, step.at)
     if (step.kind === 'message') {
-      messages.push(await postMessage(context, { conversationId, sender: step.sender, body: step.body }))
+      messages.push(
+        mustSucceed(await postMessage(context, { conversationId, sender: step.sender, body: step.body })).message,
+      )
     } else {
       await markConversationRead(context, { conversationId, reader: step.reader })
     }
@@ -259,11 +262,13 @@ async function publishFaq(db: AppDatabase, listingId: ListingId, threadMessages:
     throw new Error('seedMessaging: the listing-question thread has no seller answer to publish')
   }
 
-  await publishListingFaq(actionContext(db, FAQ_PUBLISHED_AT), {
-    listingId,
-    draft: { question: LISTING_QUESTION_TEXT, answer: LISTING_QUESTION_ANSWER_TEXT },
-    sourceMessageId: sellerAnswer.id,
-  })
+  mustSucceed(
+    await publishListingFaq(actionContext(db, FAQ_PUBLISHED_AT), {
+      listingId,
+      draft: { question: LISTING_QUESTION_TEXT, answer: LISTING_QUESTION_ANSWER_TEXT },
+      sourceMessageId: sellerAnswer.id,
+    }),
+  )
 }
 
 function requireSellerId(sellerIdsByEmail: Record<string, SellerId>, email: string): SellerId {

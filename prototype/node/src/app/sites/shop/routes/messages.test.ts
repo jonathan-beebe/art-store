@@ -6,6 +6,7 @@ import type {
   CustomerId,
 } from '../../../core/ids/entity-ids.ts'
 import { parsePrefixedId } from '../../../core/ids/prefixed-id.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import { cents } from '../../../core/money.ts'
 import {
   browseAsAnonymousCustomer,
@@ -83,11 +84,13 @@ test('the inbox lists the customer’s threads newest first with the unread coun
     body: 'What clay is this?',
     cookies: customer.cookies,
   })
-  await postMessage(testApp, {
-    conversationId: kilnConversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'Stoneware.',
-  })
+  mustSucceed(
+    await postMessage(testApp, {
+      conversationId: kilnConversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'Stoneware.',
+    }),
+  )
 
   const strangerResponse = await testApp.app.inject({
     method: 'GET',
@@ -123,11 +126,13 @@ test('the thread page renders the messages and clears the unread count on the ne
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  await postMessage(testApp, {
-    conversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'No, it ships unframed.',
-  })
+  mustSucceed(
+    await postMessage(testApp, {
+      conversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'No, it ships unframed.',
+    }),
+  )
 
   const threadResponse = await testApp.app.inject({
     method: 'GET',
@@ -470,11 +475,13 @@ test('the customer thread shows a published FAQ answer with a link to the listin
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  const answer = await postMessage(testApp, {
-    conversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'Yes, in oak.',
-  })
+  const answer = mustSucceed(
+    await postMessage(testApp, {
+      conversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'Yes, in oak.',
+    }),
+  ).message
   const listing = await testApp.db
     .selectFrom('listings')
     .selectAll()

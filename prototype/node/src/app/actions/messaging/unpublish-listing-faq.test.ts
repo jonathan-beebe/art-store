@@ -7,6 +7,7 @@ import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { migrateToLatest } from '../../db/migrator.ts'
@@ -38,10 +39,12 @@ test('it deletes the row so listingFaqs no longer returns it', async (t) => {
   t.after(world.close)
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is this framed?', answer: 'Yes.' },
-  })
+  const faq = mustSucceed(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is this framed?', answer: 'Yes.' },
+    }),
+  ).faq
 
   await unpublishListingFaq(world.context, faq.id)
 

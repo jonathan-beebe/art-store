@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ListingId, OrderId } from '../../core/ids/entity-ids.ts'
+import { BrokenContractError } from '../../core/defect.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import type { DeliveryContext } from '../../delivery/delivery-context.ts'
 import type { DeliverableNotification } from '../../delivery/notification-delivery.ts'
@@ -166,7 +167,7 @@ test('it refuses to charge an order that is already paid', async (t) => {
 
   await assert.rejects(
     () => finalizeOrder(context, { orderId: order.id, cardNumber: APPROVED_CARD }),
-    /cannot move from paid to paid/,
+    (error: unknown) => error instanceof BrokenContractError && /cannot move from paid to paid/.test(error.message),
   )
 })
 
@@ -182,7 +183,8 @@ test('it refuses to charge an order that has not been verified', async (t) => {
 
   await assert.rejects(
     () => finalizeOrder(context, { orderId: order.id, cardNumber: APPROVED_CARD }),
-    /cannot move from pending_verification to paid/,
+    (error: unknown) =>
+      error instanceof BrokenContractError && /cannot move from pending_verification to paid/.test(error.message),
   )
 })
 

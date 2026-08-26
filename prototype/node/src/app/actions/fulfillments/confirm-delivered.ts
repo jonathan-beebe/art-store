@@ -4,9 +4,20 @@ import { actionStory } from '../action-story.ts'
 import { writeLedgerEntry } from '../escrow/write-ledger-entry.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
 import { releaseMovement } from '../../core/escrow/ledger-movement.ts'
-import { transitionFulfillment } from '../../core/orders/fulfillment-status.ts'
+import { transitionFulfillment, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
+import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+
+export type ConfirmDeliveredResult =
+  | { outcome: 'delivered'; fulfillment: Fulfillment }
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
+
+/** The internal result `deliver` reports: the delivered fulfillment beside the
+ * status it moved from, or a refusal. */
+type Delivery =
+  | { outcome: 'delivered'; fulfillment: Fulfillment; statusFrom: FulfillmentStatus }
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
 
 /**
  * The customer confirms the piece arrived, which is what releases the seller's
@@ -15,8 +26,8 @@ import { toTimestamp } from '../../db/timestamp.ts'
 export async function confirmDelivered(
   context: ActionContext,
   fulfillmentId: FulfillmentId,
-): Promise<Fulfillment> {
-  return actionStory<Fulfillment>(
+): Promise<ConfirmDeliveredResult> {
+  const delivery = await actionStory<Delivery>(
     context,
     {
       event: 'fulfillment.deliver',
@@ -24,16 +35,17 @@ export async function confirmDelivered(
         msg: 'confirming the fulfillment delivered',
         data: { fulfillment_id: fulfillmentId },
       },
-      ended: (delivered) => ({
+      refusedMsg: 'the fulfillment cannot move to delivered',
+      ended: (result) => ({
         phase: 'did',
         msg: 'confirmed the fulfillment delivered',
         data: {
-          fulfillment_id: delivered.id,
-          order_id: delivered.orderId,
-          seller_id: delivered.sellerId,
-          status_from: 'shipped',
-          status_to: delivered.status,
-          net_cents: delivered.netCents,
+          fulfillment_id: result.fulfillment.id,
+          order_id: result.fulfillment.orderId,
+          seller_id: result.fulfillment.sellerId,
+          status_from: result.statusFrom,
+          status_to: result.fulfillment.status,
+          net_cents: result.fulfillment.netCents,
         },
       }),
     },
@@ -46,10 +58,15 @@ export async function confirmDelivered(
         .where('id', '=', fulfillmentId)
         .executeTakeFirstOrThrow()
 
+      const transition = transitionFulfillment(fulfillment.status, 'delivered')
+      if (transition.outcome === 'refused') {
+        return refused('illegal_transition', { fulfillment_id: fulfillment.id, ...transition.data })
+      }
+
       const delivered = await db
         .updateTable('fulfillments')
         .set({
-          status: transitionFulfillment(fulfillment.status, 'delivered'),
+          status: transition.status,
           deliveredAt: now,
         })
         .where('id', '=', fulfillment.id)
@@ -70,7 +87,11 @@ export async function confirmDelivered(
 
       await rollUpOrderStatus(transacted, fulfillment.orderId)
 
-      return delivered
+      return { outcome: 'delivered', fulfillment: delivered, statusFrom: fulfillment.status }
     },
   )
+
+  return delivery.outcome === 'delivered'
+    ? { outcome: 'delivered', fulfillment: delivery.fulfillment }
+    : delivery
 }

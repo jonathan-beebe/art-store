@@ -4,6 +4,7 @@ import { addToCart } from './add-to-cart.ts'
 import { cartContents } from './cart-contents.ts'
 import { currentCart } from './current-cart.ts'
 import { removeListing } from '../moderation/remove-listing.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import {
   createAdmin,
   createCustomer,
@@ -118,7 +119,7 @@ test('a listing an admin removed after it was carted stays on the cart, marked u
   const art = await createListing(context, sellerId, { title: 'Harbour at Dusk' })
   const cart = await currentCart(context, customerId)
   await addToCart(context, { cartId: cart.id, listingId: art.id, quantity: 1 })
-  await removeListing(context, { listingId: art.id, adminId, kind: 'permanent', reason: 'reported' })
+  mustSucceed(await removeListing(context, { listingId: art.id, adminId, kind: 'permanent', reason: 'reported' }))
 
   const contents = await cartContents(context, cart.id)
 
@@ -140,7 +141,7 @@ test('an unavailable line is left out of the cart total', async (t) => {
   const cart = await currentCart(context, customerId)
   await addToCart(context, { cartId: cart.id, listingId: removed.id, quantity: 1 })
   await addToCart(context, { cartId: cart.id, listingId: kept.id, quantity: 1 })
-  await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' })
+  mustSucceed(await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' }))
 
   const contents = await cartContents(context, cart.id)
 
@@ -196,7 +197,7 @@ test('hasActiveRemoval is true for a removed line and false for an untouched one
   const cart = await currentCart(context, customerId)
   await addToCart(context, { cartId: cart.id, listingId: removed.id, quantity: 1 })
   await addToCart(context, { cartId: cart.id, listingId: untouched.id, quantity: 1 })
-  await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' })
+  mustSucceed(await removeListing(context, { listingId: removed.id, adminId, kind: 'permanent', reason: 'reported' }))
 
   const contents = await cartContents(context, cart.id)
 

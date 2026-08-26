@@ -1,4 +1,4 @@
-import { transitionOrder, orderStatusFromCardDecision, type OrderStatus } from './order-status.ts'
+import { orderMovedTo, orderStatusFromCardDecision, type OrderStatus } from './order-status.ts'
 import { stockChangeBetween } from './order-stock.ts'
 import type { CardDecision } from '../payments/card-decision.ts'
 import type { DeclineReason } from '../payments/decline-reason.ts'
@@ -18,7 +18,7 @@ export type PaymentAttempt = {
 
 export function paymentAttemptFor(input: { status: OrderStatus; decision: CardDecision; now: Date }): PaymentAttempt {
   const { status, decision, now } = input
-  const orderStatus = transitionOrder(status, orderStatusFromCardDecision(decision))
+  const orderStatus = orderMovedTo(status, orderStatusFromCardDecision(decision))
 
   return {
     orderStatus,

@@ -1,6 +1,7 @@
 import type { ActionContext } from '../action-context.ts'
 import { actionStep, actionStory } from '../action-story.ts'
 import { cancelOrder } from './cancel-order.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { SWEEPABLE_ORDER_STATUS, staleOrderCutoff } from '../../core/orders/stale-order.ts'
 import type { Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -57,7 +58,7 @@ export async function sweepStaleOrders(
           msg: 'cancelling a stale order',
           data: { order_id: row.id },
         })
-        cancelled.push(await cancelOrder(transacted, row.id))
+        cancelled.push(mustSucceed(await cancelOrder(transacted, row.id)).order)
       }
 
       return cancelled

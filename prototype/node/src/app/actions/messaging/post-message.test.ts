@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { CustomerId, SellerId } from '../../core/ids/entity-ids.ts'
-import { postMessage } from './post-message.ts'
+import { messagePostRefusalCopy, postMessage } from './post-message.ts'
 import { openConversation } from './open-conversation.ts'
 import { blockCustomer } from '../moderation/block-customer.ts'
 import { liftCustomerBlock } from '../moderation/lift-customer-block.ts'
@@ -11,7 +11,8 @@ import { createListing } from '../listings/create-listing.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
@@ -68,11 +69,13 @@ test("it appends a message with the sender's type and id and no read marker", as
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  const message = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Is this still available?',
-  })
+  const message = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Is this still available?',
+    }),
+  ).message
 
   assert.equal(message.senderType, 'customer')
   assert.equal(message.senderId, buyer.id)
@@ -175,15 +178,15 @@ test('it refuses an empty body', async (t) => {
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  await assert.rejects(
-    () =>
-      postMessage(world.context, {
-        conversationId: conversation.id,
-        sender: { type: 'customer', id: buyer.id },
-        body: '   ',
-      }),
-    TransitionError,
-  )
+  const result = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: buyer.id },
+    body: '   ',
+  })
+
+  assert.equal(result.outcome, 'refused')
+  assert.equal(result.reason, 'invalid_body')
+  assert.deepEqual(result.data, { conversation_id: conversation.id })
 })
 
 test('it refuses a body over 2000 characters', async (t) => {
@@ -193,15 +196,15 @@ test('it refuses a body over 2000 characters', async (t) => {
   const buyer = await customer(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  await assert.rejects(
-    () =>
-      postMessage(world.context, {
-        conversationId: conversation.id,
-        sender: { type: 'customer', id: buyer.id },
-        body: 'x'.repeat(2_001),
-      }),
-    TransitionError,
-  )
+  const result = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: buyer.id },
+    body: 'x'.repeat(2_001),
+  })
+
+  assert.equal(result.outcome, 'refused')
+  assert.equal(result.reason, 'invalid_body')
+  assert.deepEqual(result.data, { conversation_id: conversation.id })
 })
 
 test('it refuses a sender who is not a participant', async (t) => {
@@ -212,15 +215,19 @@ test('it refuses a sender who is not a participant', async (t) => {
   const outsider = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
 
-  await assert.rejects(
-    () =>
-      postMessage(world.context, {
-        conversationId: conversation.id,
-        sender: { type: 'admin', id: outsider.id },
-        body: 'Hello?',
-      }),
-    TransitionError,
-  )
+  const result = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'admin', id: outsider.id },
+    body: 'Hello?',
+  })
+
+  assert.equal(result.outcome, 'refused')
+  assert.equal(result.reason, 'foreign_conversation')
+  assert.deepEqual(result.data, {
+    conversation_id: conversation.id,
+    sender_type: 'admin',
+    sender_id: outsider.id,
+  })
 })
 
 test('it refuses a customer with an active block', async (t) => {
@@ -230,16 +237,57 @@ test('it refuses a customer with an active block', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
+  mustSucceed(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
 
-  await assert.rejects(
-    () =>
-      postMessage(world.context, {
-        conversationId: conversation.id,
-        sender: { type: 'customer', id: buyer.id },
-        body: 'Still there?',
-      }),
-    TransitionError,
+  const result = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: buyer.id },
+    body: 'Still there?',
+  })
+
+  assert.equal(result.outcome, 'refused')
+  assert.equal(result.reason, 'account_blocked')
+  assert.deepEqual(result.data, {
+    conversation_id: conversation.id,
+    sender_type: 'customer',
+    sender_id: buyer.id,
+  })
+})
+
+test('mustSucceed throws for a refusal, carrying its reason', async (t) => {
+  const world = await openWorld()
+  t.after(world.close)
+  const shop = await seller(world.context)
+  const buyer = await customer(world.context)
+  const conversation = await listingConversation(world.context, shop.id, buyer.id)
+
+  const result = await postMessage(world.context, {
+    conversationId: conversation.id,
+    sender: { type: 'customer', id: buyer.id },
+    body: '   ',
+  })
+
+  assert.throws(
+    () => mustSucceed(result),
+    (error: unknown) => error instanceof BrokenContractError && error.reason === 'invalid_body',
+  )
+})
+
+test('messagePostRefusalCopy gives the sentence for each reason', () => {
+  assert.equal(messagePostRefusalCopy('invalid_body', ''), 'Write a message before sending.')
+  assert.equal(
+    messagePostRefusalCopy('invalid_body', 'x'.repeat(2_001)),
+    'A message is at most 2000 characters.',
+  )
+  assert.equal(
+    messagePostRefusalCopy('foreign_conversation', 'Hello?'),
+    'That conversation belongs to someone else.',
+  )
+  assert.equal(
+    messagePostRefusalCopy('account_blocked', 'Still there?'),
+    'This account is blocked and cannot send messages.',
   )
 })
 
@@ -250,14 +298,18 @@ test('a customer whose block was lifted may post again', async (t) => {
   const buyer = await customer(world.context)
   const support = await admin(world.context)
   const conversation = await listingConversation(world.context, shop.id, buyer.id)
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
-  await liftCustomerBlock(world.context, { customerId: buyer.id })
+  mustSucceed(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
+  mustSucceed(await liftCustomerBlock(world.context, { customerId: buyer.id }))
 
-  const message = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Back again.',
-  })
+  const message = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Back again.',
+    }),
+  ).message
 
   assert.equal(message.body, 'Back again.')
 })

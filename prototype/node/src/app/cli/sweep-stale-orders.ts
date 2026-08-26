@@ -30,7 +30,7 @@ export async function main(
 
   try {
     await sweepStaleOrders(
-      { db, clock: systemClock, log },
+      { db, clock: systemClock, log, rootStory: true },
       { staleHours: config.staleOrderHours, asOf },
     )
     await pruneRateLimitWindows({ db }, { limits: Object.values(config.rateLimits), asOf })

@@ -33,6 +33,7 @@ export async function main(
       log,
       {
         event: 'migrate.run',
+        root: true,
         will: {
           msg: `migrating ${config.databaseFile}`,
           data: { database_file: config.databaseFile, fresh: values.fresh },

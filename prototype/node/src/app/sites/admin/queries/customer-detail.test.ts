@@ -5,6 +5,7 @@ import { fixtureId } from '../../../test/fixture-ids.ts'
 import { customerDetail } from './customer-detail.ts'
 import { blockCustomer } from '../../../actions/moderation/block-customer.ts'
 import { mergeAnonymousCustomer } from '../../../actions/customers/merge-anonymous-customer.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import { toTimestamp } from '../../../db/timestamp.ts'
 import {
   cartHolding,
@@ -81,7 +82,7 @@ test('a block shows its reason, and merges show both directions', async (t) => {
     anonymousCustomerId: other,
     verifiedCustomerId: verified,
   })
-  await blockCustomer(world.context, { customerId: verified, adminId, reason: 'Chargeback fraud.' })
+  mustSucceed(await blockCustomer(world.context, { customerId: verified, adminId, reason: 'Chargeback fraud.' }))
 
   const detail = await customerDetail(world.context, verified)
   assert.ok(detail)

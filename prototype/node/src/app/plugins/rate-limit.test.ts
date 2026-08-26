@@ -9,6 +9,7 @@ import type { AppConfig } from '../config.ts'
 import type { CustomerId, ListingId } from '../core/ids/entity-ids.ts'
 import type { RateLimitName } from '../core/rate-limit/rate-limit-name.ts'
 import type { RateLimit } from '../core/rate-limit/rate-limit-value.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import { seedAdmins } from '../db/seed-admins.ts'
 import { cartWithArtwork, listArtwork, placeCustomerOrder } from '../sites/shop/storefront-fixtures.ts'
 import {
@@ -111,6 +112,7 @@ test('magic_link_request trips per email address, and sends no further link once
 
   const line = testApp.logLines.line('rate_limit.exceed', 'did')
   assert.equal(line.level, 'warn')
+  assert.match(String(line.msg), /^⚠️ /)
   const data = testApp.logLines.data('rate_limit.exceed', 'did')
   assert.equal(data.limit, 'magic_link_request')
   assert.equal(typeof data.retry_after_seconds, 'number')
@@ -391,11 +393,13 @@ test('message_post trips the seller thread reply and re-renders the thread with 
     customerId: customer.id,
     listingId: listing.id,
   })
-  await postMessage(context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: customer.id },
-    body: 'Is this framed?',
-  })
+  mustSucceed(
+    await postMessage(context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: customer.id },
+      body: 'Is this framed?',
+    }),
+  )
 
   const first = await testApp.app.inject({
     method: 'POST',

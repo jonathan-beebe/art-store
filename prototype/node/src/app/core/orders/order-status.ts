@@ -1,4 +1,4 @@
-import { TransitionError } from '../transition-error.ts'
+import { mustSucceed, refused, type IllegalTransition } from '../refusal.ts'
 import { hasDeparted, isReversed, type FulfillmentStatus } from './fulfillment-status.ts'
 import { isCardApproved, type CardDecision } from '../payments/card-decision.ts'
 
@@ -40,12 +40,34 @@ export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean 
   return allowed.includes(to)
 }
 
-export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderStatus {
+export type OrderTransition = { outcome: 'allowed'; status: OrderStatus } | IllegalTransition<OrderStatus>
+
+export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderTransition {
   if (canTransitionOrder(from, to)) {
-    return to
+    return { outcome: 'allowed', status: to }
   }
 
-  throw new TransitionError(`An order cannot move from ${from} to ${to}.`)
+  return refused('illegal_transition', { status_from: from, status_to: to })
+}
+
+/**
+ * Unwraps `transitionOrder` for a caller inside the application that only
+ * ever asks for a move the lifecycle table allows. A refusal reaching here is
+ * a broken contract, not a domain outcome to handle.
+ */
+export function orderMovedTo(from: OrderStatus, to: OrderStatus): OrderStatus {
+  const transition = transitionOrder(from, to)
+  const message = transition.outcome === 'refused' ? orderTransitionRefusalCopy(transition) : undefined
+
+  return mustSucceed(transition, message).status
+}
+
+/** The sentence a refused order move shows, worded from the refusal's own
+ * data rather than a status the caller read before the write. */
+export function orderTransitionRefusalCopy(refusal: IllegalTransition<OrderStatus>): string {
+  const { status_from, status_to } = refusal.data
+
+  return `An order cannot move from ${status_from} to ${status_to}.`
 }
 
 export function orderStatusForPlacement(isPurchaserVerified: boolean): OrderStatus {

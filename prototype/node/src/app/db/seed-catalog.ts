@@ -9,6 +9,7 @@ import type {
   SellerId,
 } from '../core/ids/entity-ids.ts'
 import { cents } from '../core/money.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { AppDatabase } from './database.ts'
 
 const CREATED_AT = new Date('2026-06-05T00:00:00.000Z')
@@ -340,14 +341,16 @@ export async function seedCatalog(
     listingIdsByTitle[record.title] = listing.id
   }
 
-  await removeListing(
-    { db, clock: fixedClock(REMOVED_AT) },
-    {
-      listingId: requireListingId(listingIdsByTitle, REMOVED_LISTING_TITLE),
-      adminId,
-      kind: 'temporary',
-      reason: REMOVAL_REASON,
-    },
+  mustSucceed(
+    await removeListing(
+      { db, clock: fixedClock(REMOVED_AT) },
+      {
+        listingId: requireListingId(listingIdsByTitle, REMOVED_LISTING_TITLE),
+        adminId,
+        kind: 'temporary',
+        reason: REMOVAL_REASON,
+      },
+    ),
   )
 
   return { listingIdsByTitle }
@@ -362,9 +365,9 @@ async function advanceToStatus(
 ): Promise<void> {
   if (target === 'draft') return
 
-  await changeListingStatus(context, { listingId, status: 'for_sale' })
+  mustSucceed(await changeListingStatus(context, { listingId, status: 'for_sale' }))
   if (target === 'sold') {
-    await changeListingStatus(context, { listingId, status: 'sold' })
+    mustSucceed(await changeListingStatus(context, { listingId, status: 'sold' }))
   }
 }
 

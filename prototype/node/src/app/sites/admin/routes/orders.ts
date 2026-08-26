@@ -1,9 +1,8 @@
 import { z } from 'zod'
 import { cancelOrderAsAdmin } from '../../../actions/orders/cancel-order-as-admin.ts'
-import { isCancellable, ORDER_STATUSES } from '../../../core/orders/order-status.ts'
+import { isCancellable, ORDER_STATUSES, orderTransitionRefusalCopy } from '../../../core/orders/order-status.ts'
 import { listPage } from '../../../core/paging/list-page.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH } from '../../../core/orders/refund.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -70,7 +69,7 @@ export const orderRoutes: ZodRoutes = (admin, _options, done) => {
       const destination = `/admin/orders/${orderId}`
       const order = await admin.db
         .selectFrom('orders')
-        .select('id')
+        .select(['id', 'status'])
         .where('id', '=', orderId)
         .executeTakeFirst()
       if (order === undefined) return reply.callNotFound()
@@ -82,12 +81,9 @@ export const orderRoutes: ZodRoutes = (admin, _options, done) => {
         return reply.redirect(destination)
       }
 
-      try {
-        await cancelOrderAsAdmin(requestActions(request), { orderId, reason: reason.value })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
-        reply.setFlash({ alert: error.message })
+      const result = await cancelOrderAsAdmin(requestActions(request), { orderId, reason: reason.value })
+      if (result.outcome === 'refused') {
+        reply.setFlash({ alert: orderTransitionRefusalCopy(result) })
 
         return reply.redirect(destination)
       }

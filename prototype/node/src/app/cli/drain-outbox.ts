@@ -35,6 +35,7 @@ export async function main(
       log,
       {
         event: 'notification.deliver',
+        root: true,
         will: { msg: `draining the outbox into ${outboxDir}`, data: { outbox_dir: outboxDir } },
         ended: (drained) => ({
           phase: 'did',

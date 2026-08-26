@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { removeListing } from '../../../actions/moderation/remove-listing.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   buildTestApp,
   signInAsAdmin,
@@ -80,15 +81,17 @@ test('the seller detail page shows listings, an active removal, fulfillments, an
   const sellerId = await createSeller(context, 'Blue Kiln Studio')
   const customerId = await createCustomer(context)
   const adminId = await createAdmin(context)
-  const removedListing = await createListing(context, sellerId, { title: 'Contested Piece' })
+  const contestedListing = await createListing(context, sellerId, { title: 'Contested Piece' })
   const okListing = await createListing(context, sellerId, { title: 'Harbour at Dusk', priceCents: 45_000 })
 
-  await removeListing(context, {
-    listingId: removedListing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported as counterfeit.',
-  })
+  mustSucceed(
+    await removeListing(context, {
+      listingId: contestedListing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported as counterfeit.',
+    }),
+  )
   await paidOrder(context, customerId, [okListing.id])
 
   const response = await testApp.app.inject({
@@ -99,7 +102,7 @@ test('the seller detail page shows listings, an active removal, fulfillments, an
 
   assert.equal(response.statusCode, 200)
   assert.match(response.body, /Blue Kiln Studio/)
-  assert.match(response.body, new RegExp(`data-listing="${removedListing.id}"[^]*?Reported as counterfeit\\.`))
+  assert.match(response.body, new RegExp(`data-listing="${contestedListing.id}"[^]*?Reported as counterfeit\\.`))
   assert.match(response.body, new RegExp(`data-listing="${okListing.id}"`))
   assert.match(response.body, /data-cell="net"[^]*?\$405\.00</)
   assert.match(response.body, /href="\/admin\/listings\/lst_[0-9A-HJKMNP-TV-Z]{26}"/)

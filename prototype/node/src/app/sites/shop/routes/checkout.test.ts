@@ -433,7 +433,7 @@ test('an http.request line carries every always-present field and nothing rename
   assert.equal(will.level, 'info')
   assert.equal(will.event, 'http.request')
   assert.equal(will.phase, 'will')
-  assert.equal(will.msg, 'POST /checkout')
+  assert.equal(will.msg, '🎬 POST /checkout')
   assert.equal(typeof will.request_id, 'string')
   assert.match(String(will.session_id), /^ses_[0-9A-HJKMNP-TV-Z]{26}$/)
   assert.equal(will.actor_type, 'customer')

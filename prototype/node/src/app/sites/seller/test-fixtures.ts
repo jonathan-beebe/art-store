@@ -13,6 +13,7 @@ import type { SellerId } from '../../core/ids/entity-ids.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { cents } from '../../core/money.ts'
 import type { NotificationMessage } from '../../core/notifications/notification-message.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { Fulfillment, Listing, Notification } from '../../db/commerce-schema.ts'
 import { signInAsCustomer, type TestApp } from '../../test/build-test-app.ts'
 import { APPROVED_CARD, SHIPPING_ADDRESS } from '../../test/commerce-world.ts'
@@ -44,7 +45,7 @@ export async function createForSaleListing(
   const listing = await createTestListing(testApp, sellerId, overrides)
   const { db, clock } = testApp
 
-  return changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' })
+  return mustSucceed(await changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' })).listing
 }
 
 /**
@@ -87,12 +88,14 @@ export async function createDeliveredFulfillment(
   const { db, clock } = testApp
   const fulfillment = await createFulfillment(testApp, sellerId, listing)
 
-  await markShipped(
-    { db, clock },
-    { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
+  mustSucceed(
+    await markShipped(
+      { db, clock },
+      { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
+    ),
   )
 
-  return confirmDelivered({ db, clock }, fulfillment.id)
+  return mustSucceed(await confirmDelivered({ db, clock }, fulfillment.id)).fulfillment
 }
 
 export async function createTestNotification(

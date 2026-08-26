@@ -18,6 +18,7 @@ import { createListing } from '../listings/create-listing.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
 import type { ActionContext } from '../action-context.ts'
 import { fixedClock } from '../../clock.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import type { ListingDraft } from '../../core/listings/listing-draft.ts'
 import { IN_MEMORY_DATABASE, openDatabase, type AppDatabase } from '../../db/database.ts'
 import { seedAdmins } from '../../db/seed-admins.ts'
@@ -118,16 +119,20 @@ test('it returns messages oldest first with isMine set for the actor', async (t)
     customerId: buyer.id,
     listingId: art.id,
   })
-  const first = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Is this still available?',
-  })
-  const second = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Yes!',
-  })
+  const first = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Is this still available?',
+    }),
+  ).message
+  const second = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Yes!',
+    }),
+  ).message
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,
@@ -176,7 +181,9 @@ test('mayPost is false for a blocked customer, who may still read', async (t) =>
     customerId: buyer.id,
     listingId: art.id,
   })
-  await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' })
+  mustSucceed(
+    await blockCustomer(world.context, { customerId: buyer.id, adminId: support.id, reason: 'Chargeback fraud.' }),
+  )
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,
@@ -278,21 +285,27 @@ test('a message published to the listing carries the FAQ id it was published as;
     customerId: buyer.id,
     listingId: art.id,
   })
-  const question = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Is this framed?',
-  })
-  const answer = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Yes, in oak.',
-  })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is this framed?', answer: 'Yes, in oak.' },
-    sourceMessageId: answer.id,
-  })
+  const question = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Is this framed?',
+    }),
+  ).message
+  const answer = mustSucceed(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Yes, in oak.',
+    }),
+  ).message
+  const faq = mustSucceed(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+      sourceMessageId: answer.id,
+    }),
+  ).faq
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,

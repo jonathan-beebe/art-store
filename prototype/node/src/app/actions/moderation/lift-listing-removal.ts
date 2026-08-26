@@ -3,9 +3,13 @@ import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from './active-listing-removal.ts'
 import { canLiftRemoval } from '../../core/moderation/listing-removal.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { ListingRemoval } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
+
+export type LiftListingRemovalResult =
+  | { outcome: 'lifted'; removal: ListingRemoval }
+  | Refusal<'not_removed' | 'permanent_removal'>
 
 /**
  * Puts a temporarily removed listing back under its own status. A permanent
@@ -15,19 +19,20 @@ import { toTimestamp } from '../../db/timestamp.ts'
 export async function liftListingRemoval(
   context: ActionContext,
   { listingId }: { listingId: ListingId },
-): Promise<ListingRemoval> {
-  return actionStory<ListingRemoval>(
+): Promise<LiftListingRemovalResult> {
+  return actionStory<LiftListingRemovalResult>(
     context,
     {
       event: 'moderation.lift_listing_removal',
       will: { msg: 'putting the listing back under its own status', data: { listing_id: listingId } },
-      ended: (removal) => ({
+      refusedMsg: 'the removal cannot be lifted',
+      ended: (result) => ({
         phase: 'did',
         msg: 'put the listing back under its own status',
         data: {
-          listing_removal_id: removal.id,
-          listing_id: removal.listingId,
-          kind: removal.kind,
+          listing_removal_id: result.removal.id,
+          listing_id: result.removal.listingId,
+          kind: result.removal.kind,
         },
       }),
     },
@@ -35,17 +40,19 @@ export async function liftListingRemoval(
       const { db, clock } = transacted
       const active = await activeListingRemoval(transacted, listingId)
 
-      if (active === null) throw new TransitionError(`listing ${listingId} is not removed`)
+      if (active === null) return refused('not_removed', { listing_id: listingId })
       if (!canLiftRemoval(active.kind)) {
-        throw new TransitionError(`a permanent removal cannot be lifted`)
+        return refused('permanent_removal', { listing_id: listingId, listing_removal_id: active.id })
       }
 
-      return db
+      const removal = await db
         .updateTable('listingRemovals')
         .set({ liftedAt: toTimestamp(clock.now()) })
         .where('id', '=', active.id)
         .returningAll()
         .executeTakeFirstOrThrow()
+
+      return { outcome: 'lifted', removal }
     },
   )
 }

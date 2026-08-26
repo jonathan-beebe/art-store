@@ -8,6 +8,7 @@ import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
 import { fixedClock } from '../clock.ts'
 import type { FulfillmentId, ListingId, OrderId } from '../core/ids/entity-ids.ts'
 import type { Purchaser } from '../core/orders/purchaser.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { ShippingAddress } from '../core/orders/shipping-address.ts'
 import { newId } from '../ids.ts'
 import type { Order, Payout } from './commerce-schema.ts'
@@ -125,12 +126,16 @@ async function ship(
   trackingNumber: string,
   shippedAt: Date,
 ): Promise<void> {
-  await markShipped(
-    { db, clock: fixedClock(shippedAt) },
-    { fulfillmentId: await fulfillmentIdFor(db, orderId), carrier, trackingNumber },
+  mustSucceed(
+    await markShipped(
+      { db, clock: fixedClock(shippedAt) },
+      { fulfillmentId: await fulfillmentIdFor(db, orderId), carrier, trackingNumber },
+    ),
   )
 }
 
 async function deliver(db: AppDatabase, orderId: OrderId, deliveredAt: Date): Promise<void> {
-  await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId))
+  mustSucceed(
+    await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId)),
+  )
 }

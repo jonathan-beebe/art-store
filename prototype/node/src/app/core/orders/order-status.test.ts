@@ -1,11 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused } from '../refusal.ts'
 import {
   ORDER_STATUSES,
   ORDER_STATUS_TRANSITIONS,
   canTransitionOrder,
   transitionOrder,
+  orderMovedTo,
+  orderTransitionRefusalCopy,
   orderStatusForPlacement,
   orderStatusAfterVerification,
   orderStatusFromCardDecision,
@@ -73,11 +76,48 @@ test('a cancelled order goes nowhere', () => {
   assert.deepEqual(ORDER_STATUS_TRANSITIONS.cancelled, [])
 })
 
+test('transition returns the next status', () => {
+  assert.deepEqual(transitionOrder('awaiting_payment', 'paid'), { outcome: 'allowed', status: 'paid' })
+})
+
 test('a paid order cannot be paid twice', () => {
-  assert.throws(
-    () => transitionOrder('paid', 'paid'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'An order cannot move from paid to paid.',
+  assert.deepEqual(
+    transitionOrder('paid', 'paid'),
+    refused('illegal_transition', { status_from: 'paid', status_to: 'paid' }),
   )
+})
+
+test('orderMovedTo returns the status for a legal move', () => {
+  assert.equal(orderMovedTo('awaiting_payment', 'paid'), 'paid')
+})
+
+test('orderMovedTo throws for a move the table does not allow', () => {
+  assert.throws(
+    () => orderMovedTo('paid', 'paid'),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      error.message === 'An order cannot move from paid to paid.' &&
+      JSON.stringify(error.data) === JSON.stringify({ status_from: 'paid', status_to: 'paid' }),
+  )
+})
+
+test('orderTransitionRefusalCopy words the illegal move from the refusal data', () => {
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'paid' } as const)
+
+  assert.equal(orderTransitionRefusalCopy(refusal), 'An order cannot move from paid to paid.')
+})
+
+test('orderTransitionRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'awaiting_payment'
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'shipped' } as const)
+
+  const sentence = orderTransitionRefusalCopy(refusal)
+
+  assert.match(sentence, /paid/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 
 test('a verified purchaser places an order that awaits payment', () => {

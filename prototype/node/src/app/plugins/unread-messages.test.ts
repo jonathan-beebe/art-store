@@ -5,6 +5,7 @@ import { openConversation } from '../actions/messaging/open-conversation.ts'
 import { postMessage } from '../actions/messaging/post-message.ts'
 import type { AdminId, CustomerId, SellerId } from '../core/ids/entity-ids.ts'
 import { IN_MEMORY_DATABASE } from '../db/database.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import { NodeSqliteDialect } from '../db/node-sqlite-dialect.ts'
 import type { Database } from '../db/schema.ts'
 import {
@@ -44,11 +45,13 @@ async function messageFromAdmin(
   const context = { db: testApp.db, clock: testApp.clock }
   const conversation = await openConversation(context, { ...opening, adminId })
 
-  await postMessage(context, {
-    conversationId: conversation.id,
-    sender: { type: 'admin', id: adminId },
-    body: 'A quick question about your account.',
-  })
+  mustSucceed(
+    await postMessage(context, {
+      conversationId: conversation.id,
+      sender: { type: 'admin', id: adminId },
+      body: 'A quick question about your account.',
+    }),
+  )
 }
 
 test('the seller portal nav carries what the seller has waiting', async (t) => {
@@ -87,11 +90,13 @@ test('the admin nav carries what the operator has waiting', async (t) => {
     adminId: operator.id,
     sellerId: seller.id,
   })
-  await postMessage(context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: seller.id },
-    body: 'Thanks, that answers it.',
-  })
+  mustSucceed(
+    await postMessage(context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: seller.id },
+      body: 'Thanks, that answers it.',
+    }),
+  )
 
   const response = await testApp.app.inject({ url: '/admin', cookies: operator.cookies })
 

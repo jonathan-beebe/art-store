@@ -4,6 +4,7 @@ import { fixtureId } from '../../../test/fixture-ids.ts'
 import { listingDetail, type ListingDetail, type ListingDetailRemoval } from './listing-detail.ts'
 import { removeListing } from '../../../actions/moderation/remove-listing.ts'
 import { liftListingRemoval } from '../../../actions/moderation/lift-listing-removal.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import {
   createAdmin,
   createListing,
@@ -59,12 +60,14 @@ test('an actively removed listing carries the removal and says it can be lifted'
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'Reported artwork.',
-  })
+  mustSucceed(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'Reported artwork.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)
@@ -83,12 +86,14 @@ test('a permanent removal cannot be lifted', async (t) => {
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'permanent',
-    reason: 'Counterfeit.',
-  })
+  mustSucceed(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'permanent',
+      reason: 'Counterfeit.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)
@@ -103,19 +108,23 @@ test('the full removal history is kept in order, lifted removals included', asyn
   const sellerId = await createSeller(world.context)
   const adminId = await createAdmin(world.context)
   const listing = await createListing(world.context, sellerId)
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'temporary',
-    reason: 'First removal.',
-  })
-  await liftListingRemoval(world.context, { listingId: listing.id })
-  await removeListing(world.context, {
-    listingId: listing.id,
-    adminId,
-    kind: 'permanent',
-    reason: 'Second removal.',
-  })
+  mustSucceed(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'temporary',
+      reason: 'First removal.',
+    }),
+  )
+  mustSucceed(await liftListingRemoval(world.context, { listingId: listing.id }))
+  mustSucceed(
+    await removeListing(world.context, {
+      listingId: listing.id,
+      adminId,
+      kind: 'permanent',
+      reason: 'Second removal.',
+    }),
+  )
 
   const detail = requireDetail(await listingDetail(world.context, listing.id))
   const active = requireActiveRemoval(detail)

@@ -1,11 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused } from '../refusal.ts'
 import {
   FULFILLMENT_STATUSES,
   FULFILLMENT_STATUS_TRANSITIONS,
   canTransitionFulfillment,
   transitionFulfillment,
+  fulfillmentMovedTo,
+  fulfillmentTransitionRefusalCopy,
   hasDeparted,
   isReversed,
 } from './fulfillment-status.ts'
@@ -61,21 +64,64 @@ test('a refunded fulfillment cannot be refunded again', () => {
 })
 
 test('transition returns the next status', () => {
-  assert.equal(transitionFulfillment('awaiting_shipment', 'shipped'), 'shipped')
+  assert.deepEqual(transitionFulfillment('awaiting_shipment', 'shipped'), { outcome: 'allowed', status: 'shipped' })
 })
 
 test('transition refuses a second delivery', () => {
-  assert.throws(
-    () => transitionFulfillment('delivered', 'delivered'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'A fulfillment cannot move from delivered to delivered.',
+  assert.deepEqual(
+    transitionFulfillment('delivered', 'delivered'),
+    refused('illegal_transition', { status_from: 'delivered', status_to: 'delivered' }),
   )
 })
 
 test('transition refuses a ship after a decline', () => {
-  assert.throws(
-    () => transitionFulfillment('declined', 'shipped'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'A fulfillment cannot move from declined to shipped.',
+  assert.deepEqual(
+    transitionFulfillment('declined', 'shipped'),
+    refused('illegal_transition', { status_from: 'declined', status_to: 'shipped' }),
   )
+})
+
+test('fulfillmentMovedTo returns the status for a legal move', () => {
+  assert.equal(fulfillmentMovedTo('awaiting_shipment', 'shipped'), 'shipped')
+})
+
+test('fulfillmentMovedTo throws for a move the table does not allow', () => {
+  assert.throws(
+    () => fulfillmentMovedTo('delivered', 'delivered'),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      error.message === 'A fulfillment cannot move from delivered to delivered.' &&
+      JSON.stringify(error.data) === JSON.stringify({ status_from: 'delivered', status_to: 'delivered' }),
+  )
+})
+
+test('fulfillmentTransitionRefusalCopy words the illegal move from the refusal data', () => {
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' } as const)
+
+  assert.equal(fulfillmentTransitionRefusalCopy(refusal), 'A fulfillment cannot move from delivered to shipped.')
+})
+
+test('fulfillmentTransitionRefusalCopy takes only the refusal whose reason it words', () => {
+  // Never run — the assertion is the compile step's.
+  const rejectsTheWrongReason = () => {
+    // @ts-expect-error -- a refusal of another reason carries no transition facts to word
+    fulfillmentTransitionRefusalCopy(refused('order_unpaid'))
+  }
+
+  assert.equal(typeof rejectsTheWrongReason, 'function')
+})
+
+test('fulfillmentTransitionRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'awaiting_shipment'
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' } as const)
+
+  const sentence = fulfillmentTransitionRefusalCopy(refusal)
+
+  assert.match(sentence, /delivered/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 
 test('a shipped or delivered fulfillment has departed', () => {

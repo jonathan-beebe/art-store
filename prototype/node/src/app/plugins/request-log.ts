@@ -7,6 +7,7 @@ import { requestActor } from '../core/logging/request-actor.ts'
 import { isAssetPath } from '../http/asset-manifest.ts'
 import { newId } from '../ids.ts'
 import { logLine, type LogData } from '../log-story.ts'
+import { prefixedMsg } from '../core/logging/story-emoji.ts'
 import { identityId } from './identity.ts'
 import { rootPlugin } from './root-plugin.ts'
 
@@ -24,8 +25,15 @@ declare module 'fastify' {
     /** The `sid` cookie's value, minted on the first response a browser gets.
      * Null only before the request-log hook has run. */
     sessionId: SessionId | null
-    /** Set once the error handler has closed this request's story with `failed`. */
-    loggedFailure: boolean
+    /** Set once this request's story has closed with `did`, `failed`, or an abort. */
+    storyClosed: boolean
+    /** `performance.now()` when the story opened; the abort closer has no `reply`
+     * to read `elapsedTime` from, so it measures duration against this instead. */
+    storyStartedAt: number
+    /** The status code last handed to the client, captured before a streamed
+     * response's body goes out; the abort closer reports this since a response
+     * that never reached `onResponse` has no final `reply.statusCode` to read. */
+    sentStatus: number
   }
 }
 
@@ -46,38 +54,58 @@ export const requestLog = rootPlugin(
   { name: 'requestLog', dependencies: ['@fastify/cookie'] },
   (app) => {
     app.decorateRequest('sessionId', null)
-    app.decorateRequest('loggedFailure', false)
+    app.decorateRequest('storyClosed', false)
+    app.decorateRequest('storyStartedAt', 0)
+    app.decorateRequest('sentStatus', 0)
 
     app.addHook('onRequest', async (request, reply) => {
       if (isAssetPath(pathnameOf(request.url))) return
 
       const sessionId = rememberSession(request, reply)
       request.sessionId = sessionId
+      request.storyStartedAt = performance.now()
       request.log = request.log.child(requestBindings(request, sessionId))
       reply.header(REQUEST_ID_HEADER, request.id)
 
       const path = loggedPath(request)
 
-      logLine(request.log, 'info', 'http.request', 'will', {
-        msg: `${request.method} ${path}`,
-        data: { method: request.method, path },
-      })
-    })
-
-    app.addHook('onResponse', async (request, reply) => {
-      if (request.loggedFailure || isAssetPath(pathnameOf(request.url))) return
-
       logLine(
         request.log,
         'info',
         'http.request',
-        'did',
+        'will',
         {
-          msg: `${request.method} ${loggedPath(request)} ${reply.statusCode}`,
-          data: { status: reply.statusCode },
+          msg: `${request.method} ${path}`,
+          data: { method: request.method, path },
         },
-        Math.round(reply.elapsedTime),
+        { root: true },
       )
+    })
+
+    app.addHook('onSend', async (request, reply, payload) => {
+      if (!isAssetPath(pathnameOf(request.url))) request.sentStatus = reply.statusCode
+      return payload
+    })
+
+    app.addHook('onResponse', async (request, reply) => {
+      if (isAssetPath(pathnameOf(request.url))) return
+
+      closeStory(request, {
+        phase: 'did',
+        status: reply.statusCode,
+        durationMs: Math.round(reply.elapsedTime),
+      })
+    })
+
+    app.addHook('onRequestAbort', async (request) => {
+      if (isAssetPath(pathnameOf(request.url))) return
+
+      closeStory(request, {
+        phase: 'did',
+        status: request.sentStatus,
+        durationMs: Math.round(performance.now() - request.storyStartedAt),
+        facts: { disconnected: true },
+      })
     })
   },
 )
@@ -93,17 +121,50 @@ export function logRequestFailure(
   error: unknown,
   statusCode: number,
 ): void {
-  request.loggedFailure = true
+  closeStory(request, {
+    phase: 'failed',
+    status: statusCode,
+    durationMs: Math.round(reply.elapsedTime),
+    error,
+  })
+}
 
-  request.log.error(
-    {
-      event: 'http.request',
-      phase: 'failed',
-      duration_ms: Math.round(reply.elapsedTime),
-      error: describeError(error),
-      data: { status: statusCode },
-    },
-    `${request.method} ${loggedPath(request)} ${statusCode}`,
+type StoryClose =
+  | { phase: 'did'; status: number; durationMs: number; facts?: LogData }
+  | { phase: 'failed'; status: number; durationMs: number; error: unknown }
+
+/**
+ * The one seam that closes a request's story, exactly once, whichever ender
+ * fires first — a normal response, an abort, or an uncaught error. Later
+ * callers are a no-op against `request.storyClosed`.
+ */
+function closeStory(request: FastifyRequest, close: StoryClose): void {
+  if (request.storyClosed) return
+  request.storyClosed = true
+
+  const msg = `${request.method} ${loggedPath(request)} ${close.status}`
+
+  if (close.phase === 'failed') {
+    request.log.error(
+      {
+        event: 'http.request',
+        phase: 'failed',
+        duration_ms: close.durationMs,
+        error: describeError(close.error),
+        data: { status: close.status },
+      },
+      prefixedMsg(msg, 'failed', 'error', true),
+    )
+    return
+  }
+
+  logLine(
+    request.log,
+    'info',
+    'http.request',
+    'did',
+    { msg, data: { status: close.status, ...close.facts } },
+    { durationMs: close.durationMs, root: true },
   )
 }
 

@@ -45,6 +45,7 @@ test('main logs one structured line per drained message and says where they land
   assert.equal(stream.data('notification.deliver', 'doing').file, path.join(outboxDir, written ?? ''))
   assert.match(written ?? '', /^obx_[0-9A-HJKMNP-TV-Z]{26}\.eml$/)
   assert.equal(stream.data('notification.deliver', 'did').count, 1)
+  assert.match(String(stream.line('notification.deliver', 'will').msg), /^🎬 /)
 })
 
 test('a drained message never puts the recipient address in the log', async (t) => {
@@ -105,6 +106,7 @@ test('main logs the error and sets a failing exit code when the drain itself fai
   assert.equal(failed.level, 'error')
   assert.equal(typeof failed.duration_ms, 'number')
   assert.deepEqual(Object.keys(failed.error as object).sort(), ['message', 'type'])
+  assert.match(String(failed.msg), /^❌ /)
 })
 
 test('a flag the command does not take is a mistake, not silence', async (t) => {

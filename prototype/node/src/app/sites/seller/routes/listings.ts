@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { changeListingStatus } from '../../../actions/listings/change-listing-status.ts'
+import { changeListingStatus, listingStatusRefusalCopy } from '../../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../../actions/listings/create-listing.ts'
 import { updateListing } from '../../../actions/listings/update-listing.ts'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
@@ -21,7 +21,6 @@ import { dollarsInputValue, formatCents } from '../../../core/money.ts'
 import { activityTimeline, activityWindow } from '../../../core/reports/activity-timeline.ts'
 import { activityTotals } from '../../../core/reports/activity-totals.ts'
 import { statusButtons, statusLabel } from '../../../core/status-label.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import type { Listing } from '../../../db/commerce-schema.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -361,18 +360,19 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
       const { status } = request.body
       if (status === undefined) return refuseStatusChange(reply, 'Choose a status to change to.')
 
-      try {
-        const updated = await changeListingStatus(requestActions(request), {
-          listingId: listing.id,
-          status,
-        })
-        reply.setFlash({ notice: `"${updated.title}" is now ${statusLabel(updated.status).toLowerCase()}.` })
+      const result = await changeListingStatus(requestActions(request), {
+        listingId: listing.id,
+        status,
+      })
 
-        return reply.redirect('/seller/listings')
-      } catch (error) {
-        if (error instanceof TransitionError) return refuseStatusChange(reply, error.message)
-        throw error
+      if (result.outcome === 'refused') {
+        return refuseStatusChange(reply, listingStatusRefusalCopy(result))
       }
+
+      const { listing: updated } = result
+      reply.setFlash({ notice: `"${updated.title}" is now ${statusLabel(updated.status).toLowerCase()}.` })
+
+      return reply.redirect('/seller/listings')
     },
   )
 

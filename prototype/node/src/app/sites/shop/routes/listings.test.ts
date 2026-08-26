@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
+import { mustSucceed } from '../../../core/refusal.ts'
 import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import {
   browseAsAnonymousCustomer,
@@ -52,10 +53,12 @@ test('a published FAQ appears on the listing page', async (t) => {
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
   const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
-  await publishListingFaq(testApp, {
-    listingId: listing.id,
-    draft: { question: 'Is this framed?', answer: 'No, it ships unframed.' },
-  })
+  mustSucceed(
+    await publishListingFaq(testApp, {
+      listingId: listing.id,
+      draft: { question: 'Is this framed?', answer: 'No, it ships unframed.' },
+    }),
+  )
 
   const response = await testApp.app.inject({ method: 'GET', url: '/art/harbour-at-dusk' })
 
@@ -116,7 +119,7 @@ test('a second look inside the hour is refused rather than counted again', async
 
   const refused = testApp.logLines.line('listing.view', 'refused')
   assert.equal(refused.level, 'debug')
-  assert.equal(refused.msg, 'this customer already viewed the listing this hour')
+  assert.equal(refused.msg, '⚠️ this customer already viewed the listing this hour')
 })
 
 test('a sold listing keeps its page and says it is sold out', async (t) => {

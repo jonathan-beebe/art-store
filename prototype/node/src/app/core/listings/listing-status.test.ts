@@ -1,12 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused } from '../refusal.ts'
 import {
   LISTING_STATUSES,
   LISTING_STATUS_TRANSITIONS,
   availableListingTransitions,
   canTransitionListing,
   isBlockedByRemoval,
+  listingMovedTo,
   transitionListing,
 } from './listing-status.ts'
 
@@ -44,13 +46,27 @@ test('a draft does not sell', () => {
 })
 
 test('transition returns the next status', () => {
-  assert.equal(transitionListing('for_sale', 'sold'), 'sold')
+  assert.deepEqual(transitionListing('for_sale', 'sold'), { outcome: 'allowed', status: 'sold' })
 })
 
 test('transition refuses a move the table does not allow', () => {
+  assert.deepEqual(
+    transitionListing('draft', 'sold'),
+    refused('illegal_transition', { status_from: 'draft', status_to: 'sold' }),
+  )
+})
+
+test('listingMovedTo returns the status for a legal move', () => {
+  assert.equal(listingMovedTo('for_sale', 'sold'), 'sold')
+})
+
+test('listingMovedTo throws for a move the table does not allow', () => {
   assert.throws(
-    () => transitionListing('draft', 'sold'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'A listing cannot move from draft to sold.',
+    () => listingMovedTo('draft', 'sold'),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      JSON.stringify(error.data) === JSON.stringify({ status_from: 'draft', status_to: 'sold' }),
   )
 })
 

@@ -29,6 +29,21 @@ test('main migrates then seeds a fresh database in one call', async (t) => {
   assert.equal(sellers.length, 6)
 })
 
+test('migrate.run and seed.run are root stories, and migrate.apply rides along under one', async (t) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'art-store-prepare-db-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const databaseFile = path.join(dir, 'db.sqlite3')
+
+  const stream = captureLogLines()
+  const logger = createCliLogger({ logLevel: 'info', environment: 'test' }, { stream })
+
+  await main(['node', 'prepare-db.ts'], { DATABASE_FILE: databaseFile }, logger)
+
+  assert.match(String(stream.line('migrate.run', 'will').msg), /^🎬 /)
+  assert.doesNotMatch(String(stream.line('migrate.apply', 'did').msg), /^(🎬|🟢|⚠️|🛑|❌)/)
+  assert.match(String(stream.line('seed.run', 'will').msg), /^🎬 /)
+})
+
 test('main skips seeding when the migrate step fails', async (t) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'art-store-prepare-db-'))
   t.after(() => rm(dir, { recursive: true, force: true }))

@@ -65,11 +65,13 @@ test('main logs one line per seller paid and a summary', async (t) => {
   assert.equal(paid.seller_id, sellerId)
   assert.equal(paid.amount_cents, 40_500)
   assert.equal(paid.period, '2026-08-17 to 2026-08-23')
+  assert.doesNotMatch(String(stream.line('payout.pay', 'did').msg), /^(🎬|🟢|⚠️|🛑|❌)/)
 
   const run = stream.data('payout.run', 'did')
   assert.equal(run.count, 1)
   assert.equal(run.total_cents, 40_500)
   assert.equal(stream.line('payout.run', 'did').actor_type, 'system')
+  assert.match(String(stream.line('payout.run', 'will').msg), /^🎬 /)
 })
 
 test('main logs a zero-count summary when nothing has released escrow', async (t) => {
@@ -112,6 +114,7 @@ test('main logs the error and sets a failing exit code when the run itself fails
   const failed = stream.line('payout.run', 'failed')
   assert.equal(failed.level, 'error')
   assert.equal(typeof failed.duration_ms, 'number')
+  assert.match(String(failed.msg), /^❌ /)
 })
 
 test('a flag the command does not take is a mistake, not a logged failure', async (t) => {

@@ -6,6 +6,8 @@ import type {
   OrderId,
   SellerId,
 } from '../../core/ids/entity-ids.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { confirmDelivered } from './confirm-delivered.ts'
 import { markShipped } from './mark-shipped.ts'
@@ -23,7 +25,7 @@ test('it records when the order arrived', async (t) => {
   const buyer = await createCustomer(context)
   const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
 
-  const delivered = await confirmDelivered(context, fulfillmentId)
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
 
   assert.equal(delivered.status, 'delivered')
   assert.notEqual(delivered.deliveredAt, null)
@@ -38,7 +40,7 @@ test('delivery releases the escrow the sale held', async (t) => {
   const buyer = await createCustomer(context)
   const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
 
-  const delivered = await confirmDelivered(context, fulfillmentId)
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
   const entry = await readReleasedEntry(world.db)
 
   assert.equal(entry?.amountCents, 40_500)
@@ -86,10 +88,39 @@ test('it refuses a fulfillment that has not shipped', async (t) => {
   const art = await createListing(context, shop)
   const order = await paidOrder(context, buyer, [art.id])
   const [fulfillmentId] = await fulfillmentIds(world.db, order.id)
+  const resolvedId = fulfillmentId ?? fixtureId('ful', 0)
 
-  await assert.rejects(
-    () => confirmDelivered(context, fulfillmentId ?? fixtureId('ful', 0)),
-    /cannot move from awaiting_shipment to delivered/,
+  const result = await confirmDelivered(context, resolvedId)
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: resolvedId, status_from: 'awaiting_shipment', status_to: 'delivered' },
+  })
+  assert.equal(await readReleasedEntry(world.db), undefined)
+})
+
+test('mustSucceed unwraps a delivered result, and throws BrokenContractError carrying reason and data for a refusal', async (t) => {
+  const world = await openCommerceWorld()
+  t.after(world.close)
+  const { context } = world
+
+  const shop = await createSeller(context)
+  const buyer = await createCustomer(context)
+  const fulfillmentId = await shippedFulfillmentId(context, world.db, buyer, shop)
+
+  const delivered = mustSucceed(await confirmDelivered(context, fulfillmentId)).fulfillment
+  assert.equal(delivered.status, 'delivered')
+
+  const refusal = await confirmDelivered(context, fulfillmentId)
+
+  assert.throws(
+    () => mustSucceed(refusal),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      JSON.stringify(error.data) ===
+        JSON.stringify({ fulfillment_id: fulfillmentId, status_from: 'delivered', status_to: 'delivered' }),
   )
 })
 

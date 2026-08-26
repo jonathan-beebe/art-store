@@ -56,7 +56,7 @@ test('a token no link was issued for signs nobody in', async (t) => {
     currentCustomerId: null,
   })
 
-  assert.deepEqual(signIn, { outcome: 'unknown' })
+  assert.deepEqual(signIn, { outcome: 'refused', reason: 'unknown_token' })
 })
 
 test("a seller's first link creates the account and signs it in", async (t) => {
@@ -85,7 +85,7 @@ test('a link works only once', async (t) => {
   const second = await signInWithMagicLink(testApp, { token, currentCustomerId: null })
 
   assert.equal(first.outcome, 'signedIn')
-  assert.deepEqual(second, { outcome: 'refused', actorType: 'seller', refusal: 'consumed' })
+  assert.deepEqual(second, { outcome: 'refused', reason: 'consumed', data: { actor_type: 'seller' } })
 })
 
 test('spending a link stamps when it was spent', async (t) => {
@@ -107,7 +107,7 @@ test('a link past its expiry signs nobody in', async (t) => {
 
   const signIn = await signInWithMagicLink(testApp, { token, currentCustomerId: null })
 
-  assert.deepEqual(signIn, { outcome: 'refused', actorType: 'seller', refusal: 'expired' })
+  assert.deepEqual(signIn, { outcome: 'refused', reason: 'expired', data: { actor_type: 'seller' } })
   assert.equal((await testApp.db.selectFrom('sellers').selectAll().execute()).length, 0)
 })
 
@@ -118,7 +118,7 @@ test('a refusal names the side of the marketplace that asked', async (t) => {
 
   const signIn = await signInWithMagicLink(testApp, { token, currentCustomerId: null })
 
-  assert.equal(signIn.outcome === 'refused' && signIn.actorType, 'customer')
+  assert.deepEqual(signIn, { outcome: 'refused', reason: 'expired', data: { actor_type: 'customer' } })
 })
 
 test('a link still inside its window works', async (t) => {
@@ -181,7 +181,7 @@ test('an admin link for an address nobody seeded creates no admin', async (t) =>
 
   const signIn = await signInWithMagicLink(testApp, { token, currentCustomerId: null })
 
-  assert.deepEqual(signIn, { outcome: 'refused', actorType: 'admin', refusal: 'unrecognized' })
+  assert.deepEqual(signIn, { outcome: 'refused', reason: 'unrecognized', data: { actor_type: 'admin' } })
   assert.equal((await testApp.db.selectFrom('admins').selectAll().execute()).length, 0)
 })
 

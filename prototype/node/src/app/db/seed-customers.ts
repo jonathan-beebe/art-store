@@ -12,6 +12,7 @@ import type {
   CustomerId,
   ListingId,
 } from '../core/ids/entity-ids.ts'
+import { mustSucceed } from '../core/refusal.ts'
 import type { AppDatabase } from './database.ts'
 import { requireListingId } from './seed-catalog.ts'
 
@@ -157,7 +158,7 @@ async function seedBlockedCustomer(db: AppDatabase, adminId: AdminId): Promise<C
     currentCustomerId: null,
   })
 
-  await blockCustomer(context, { customerId: blocked.id, adminId, reason: BLOCKED_REASON })
+  mustSucceed(await blockCustomer(context, { customerId: blocked.id, adminId, reason: BLOCKED_REASON }))
 
   return blocked.id
 }

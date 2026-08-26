@@ -10,7 +10,7 @@ import { conversationAccess, otherParticipants } from '../../core/messaging/conv
 import { conversationPath } from '../../core/messaging/conversation-path.ts'
 import { messageBodyError, parseMessageBody } from '../../core/messaging/message-body.ts'
 import { newMessageMessage } from '../../core/notifications/notification-message.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { Conversation, Message } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -20,6 +20,10 @@ export type PostMessageInput = {
   body: string
 }
 
+export type PostMessageRefusalReason = 'invalid_body' | 'foreign_conversation' | 'account_blocked'
+
+export type PostMessageResult = { outcome: 'posted'; message: Message } | Refusal<PostMessageRefusalReason>
+
 /**
  * Appends one message, moves the thread to the top of every inbox holding it,
  * and tells the other side. A message a participant may not send is refused
@@ -28,11 +32,13 @@ export type PostMessageInput = {
 export async function postMessage(
   context: ActionContext,
   input: PostMessageInput,
-): Promise<Message> {
+): Promise<PostMessageResult> {
   const bodyError = messageBodyError(input.body)
-  if (bodyError !== null) throw new TransitionError(bodyError)
+  if (bodyError !== null) {
+    return refused('invalid_body', { conversation_id: input.conversationId })
+  }
 
-  return actionStory<Message>(
+  return actionStory<PostMessageResult>(
     context,
     {
       event: 'message.post',
@@ -44,14 +50,15 @@ export async function postMessage(
           sender_id: input.sender.id,
         },
       },
-      ended: (message) => ({
+      refusedMsg: 'the message may not be posted',
+      ended: (result) => ({
         phase: 'did',
         msg: 'posted the message',
         data: {
-          message_id: message.id,
-          conversation_id: message.conversationId,
-          sender_type: message.senderType,
-          sender_id: message.senderId,
+          message_id: result.message.id,
+          conversation_id: result.message.conversationId,
+          sender_type: result.message.senderType,
+          sender_id: result.message.senderId,
         },
       }),
     },
@@ -63,7 +70,8 @@ export async function postMessage(
         .where('id', '=', input.conversationId)
         .executeTakeFirstOrThrow()
 
-      await refuseUnlessSendable(transaction, conversation, input.sender)
+      const refusal = await sendRefusal(transaction, conversation, input.sender)
+      if (refusal !== null) return refusal
 
       const sentAt = toTimestamp(clock.now())
       const message = await db
@@ -88,22 +96,23 @@ export async function postMessage(
 
       await notifyOtherSide(transaction, conversation, input.sender)
 
-      return message
+      return { outcome: 'posted', message }
     },
   )
 }
 
-async function refuseUnlessSendable(
+async function sendRefusal(
   context: ActionContext,
   conversation: Conversation,
   sender: MessagingActor,
-): Promise<void> {
+): Promise<Refusal<'foreign_conversation' | 'account_blocked'> | null> {
   const access = conversationAccess(conversation, await conversationActor(context, sender))
+  const data = { conversation_id: conversation.id, sender_type: sender.type, sender_id: sender.id }
 
-  if (!access.mayRead) throw new TransitionError('That conversation belongs to someone else.')
-  if (!access.mayPost) {
-    throw new TransitionError('This account is blocked and cannot send messages.')
-  }
+  if (!access.mayRead) return refused('foreign_conversation', data)
+  if (!access.mayPost) return refused('account_blocked', data)
+
+  return null
 }
 
 async function notifyOtherSide(
@@ -118,5 +127,18 @@ async function notifyOtherSide(
       ...notificationRecipient(recipient),
       message: newMessageMessage(topic, conversationPath(recipient.type, conversation.id)),
     })
+  }
+}
+
+/** The sentence a refused post shows beside the reply form, the same on
+ * every site that takes one. */
+export function messagePostRefusalCopy(reason: PostMessageRefusalReason, body: string | undefined): string {
+  switch (reason) {
+    case 'invalid_body':
+      return messageBodyError(body) ?? 'Write a message before sending.'
+    case 'foreign_conversation':
+      return 'That conversation belongs to someone else.'
+    case 'account_blocked':
+      return 'This account is blocked and cannot send messages.'
   }
 }

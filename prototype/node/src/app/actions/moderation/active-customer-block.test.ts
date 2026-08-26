@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { activeCustomerBlock } from './active-customer-block.ts'
 import { blockCustomer } from './block-customer.ts'
 import { liftCustomerBlock } from './lift-customer-block.ts'
+import { mustSucceed } from '../../core/refusal.ts'
 import { createAdmin, createCustomer, openCommerceWorld } from '../../test/commerce-world.ts'
 
 test('the active block carries its reason and when it was issued', async (t) => {
@@ -12,7 +13,7 @@ test('the active block carries its reason and when it was issued', async (t) => 
   const adminId = await createAdmin(world.context)
   const customerId = await createCustomer(world.context)
 
-  await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' })
+  mustSucceed(await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' }))
 
   const active = await activeCustomerBlock(world.context, customerId)
 
@@ -30,8 +31,8 @@ test('a customer with no block, and one whose block was lifted, have none', asyn
 
   assert.equal(await activeCustomerBlock(world.context, customerId), null)
 
-  await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' })
-  await liftCustomerBlock(world.context, { customerId })
+  mustSucceed(await blockCustomer(world.context, { customerId, adminId, reason: 'Chargeback fraud.' }))
+  mustSucceed(await liftCustomerBlock(world.context, { customerId }))
 
   assert.equal(await activeCustomerBlock(world.context, customerId), null)
 })

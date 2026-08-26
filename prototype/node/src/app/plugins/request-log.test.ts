@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import type { LightMyRequestResponse } from 'fastify'
 import { loadAssetManifest } from '../http/asset-manifest.ts'
-import { buildLoggedTestApp } from '../test/log-lines.ts'
-import { signInAsSeller, type TestApp } from '../test/build-test-app.ts'
+import { buildLoggedTestApp, type LogLine } from '../test/log-lines.ts'
+import { signInAsSeller, type SignedInActor, type TestApp } from '../test/build-test-app.ts'
 
 const PUBLIC_DIR = path.join(import.meta.dirname, '..', '..', 'public')
 
@@ -152,7 +152,8 @@ test('a response closes the story with did, its status, and how long it took', a
   const did = testApp.logLines.line('http.request', 'did')
   assert.deepEqual(did.data, { status: 200 })
   assert.equal(typeof did.duration_ms, 'number')
-  assert.equal(did.msg, 'GET / 200')
+  assert.equal(did.msg, '🟢 GET / 200')
+  assert.equal(testApp.logLines.line('http.request', 'will').msg, '🎬 GET /')
 })
 
 test('a request that throws closes the story with failed instead of did', async (t) => {
@@ -172,6 +173,7 @@ test('a request that throws closes the story with failed instead of did', async 
   assert.deepEqual(failed.data, { status: 500 })
   assert.equal(typeof failed.duration_ms, 'number')
   assert.equal(typeof (failed.error as { message?: string }).message, 'string')
+  assert.match(String(failed.msg), /^❌ /)
   assert.equal(
     log.linesFor('http.request').some((line) => line.phase === 'did'),
     false,
@@ -225,4 +227,89 @@ test('a page route that matches nothing still tells its story', async (t) => {
 
   assert.equal(response.statusCode, 404)
   assert.deepEqual(testApp.logLines.story(), ['http.request will', 'http.request did'])
+})
+
+/** Cookie header a real `fetch()` needs to carry one signed-in actor. */
+function actorCookieHeader({ cookies }: SignedInActor): string {
+  return Object.entries(cookies)
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ')
+}
+
+/** The `will` line naming a path, among lines a test app has captured so far. */
+function willLineFor(lines: LogLine[], path: string): LogLine | undefined {
+  return lines.find(
+    (line) => line.phase === 'will' && typeof line.msg === 'string' && line.msg.includes(path),
+  )
+}
+
+/**
+ * Every `http.request` line sharing a request id, other than the `will` that
+ * opened its story — polled for, since a closing line written from an
+ * `onResponse` or abort hook lands asynchronously after the client aborts.
+ */
+async function closingLinesFor(
+  testApp: TestApp & { logLines: { linesFor: (event: 'http.request') => LogLine[] } },
+  requestId: unknown,
+  timeoutMs: number,
+): Promise<LogLine[]> {
+  const deadline = Date.now() + timeoutMs
+
+  for (;;) {
+    const closing = testApp.logLines
+      .linesFor('http.request')
+      .filter((line) => line.request_id === requestId && line.phase !== 'will')
+    if (closing.length > 0 || Date.now() > deadline) return closing
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
+
+test('a client abort on an open stream still closes the story with exactly one did', async (t) => {
+  const testApp = await buildLoggedTestApp()
+  t.after(testApp.close)
+  const baseUrl = await testApp.app.listen({ host: '127.0.0.1', port: 0 })
+  const seller = await signInAsSeller(testApp)
+
+  const controller = new AbortController()
+  const response = await fetch(`${baseUrl}/seller/events`, {
+    headers: { cookie: actorCookieHeader(seller) },
+    signal: controller.signal,
+  })
+  assert.equal(response.status, 200)
+  assert.ok(response.body !== null)
+
+  const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
+  const decoder = new TextDecoder()
+  let received = ''
+  try {
+    while (!received.includes('event: unread')) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      received += decoder.decode(chunk.value, { stream: true })
+    }
+  } catch {
+    // The stream ended or aborted before the first frame; the assertions
+    // below fail on their own if no `will` line ever named this request.
+  }
+
+  const opened = willLineFor(testApp.logLines.linesFor('http.request'), '/seller/events')
+  assert.notEqual(opened, undefined, 'expected a will line naming /seller/events')
+  const requestId = opened?.request_id
+
+  controller.abort()
+
+  const closing = await closingLinesFor(testApp, requestId, 2000)
+
+  assert.equal(
+    closing.length,
+    1,
+    `expected exactly one closing line for request ${String(requestId)}, got ${JSON.stringify(closing)}`,
+  )
+  const [line] = closing
+  assert.ok(line !== undefined)
+  assert.equal(line.phase, 'did')
+  assert.deepEqual(line.data, { status: 200, disconnected: true })
+  assert.equal(typeof line.duration_ms, 'number')
+  const durationMs = line.duration_ms as number
+  assert.ok(durationMs >= 0 && durationMs < 10000, `duration_ms ${durationMs} is out of range`)
 })

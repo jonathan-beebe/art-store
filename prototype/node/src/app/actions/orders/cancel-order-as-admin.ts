@@ -1,10 +1,9 @@
 import type { OrderId, SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { runInTransaction } from '../transaction.ts'
-import { cancelOrder } from './cancel-order.ts'
+import { cancelOrder, type CancelOrderResult } from './cancel-order.ts'
 import { notify } from '../notifications/notify.ts'
 import { orderCancelledMessage } from '../../core/notifications/notification-message.ts'
-import type { Order } from '../../db/commerce-schema.ts'
 
 export type CancelOrderAsAdminInput = {
   orderId: OrderId
@@ -19,9 +18,12 @@ export type CancelOrderAsAdminInput = {
 export async function cancelOrderAsAdmin(
   context: ActionContext,
   input: CancelOrderAsAdminInput,
-): Promise<Order> {
+): Promise<CancelOrderResult> {
   return runInTransaction(context, async (transacted) => {
-    const order = await cancelOrder(transacted, input.orderId)
+    const result = await cancelOrder(transacted, input.orderId)
+    if (result.outcome === 'refused') return result
+
+    const { order } = result
 
     await notify(transacted, {
       recipientType: 'customer',
@@ -37,7 +39,7 @@ export async function cancelOrderAsAdmin(
       })
     }
 
-    return order
+    return result
   })
 }
 

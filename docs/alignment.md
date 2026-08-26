@@ -98,7 +98,7 @@ prototype. No prose logs, no per-environment format switch.
 | `event`       | string | yes                                                   | dotted name from §2.3, e.g. `order.place`                         |
 | `phase`       | string | yes                                                   | `will` \| `doing` \| `did` \| `refused` \| `failed`               |
 | `msg`         | string | yes                                                   | one human sentence, present tense for `will`/`doing`, past for    |
-|               |        |                                                       | `did`                                                             |
+|               |        |                                                       | `did`; prefixed by the story emoji per §2.4                       |
 | `request_id`  | string | on requests                                           | one per HTTP request; echoed as `X-Request-Id` response header;   |
 |               |        |                                                       | honoured from an incoming `X-Request-Id` only when it matches     |
 |               |        |                                                       | `^[A-Za-z0-9_-]{1,64}$`                                           |
@@ -114,8 +114,9 @@ prototype. No prose logs, no per-environment format switch.
 | `data`        | object | when useful                                           | entity ids and the small facts the line is about (`order_id`,     |
 |               |        |                                                       | `amount_cents`, `status_from`, `status_to`, …). Ids are prefixed  |
 |               |        |                                                       | ids.                                                              |
-| `error`       | object | on `failed`                                           | `{ "type": "<class or code>", "message": "<text>" }` and, in      |
-|               |        |                                                       | development, `"stack"`                                            |
+| `error`       | object | on `failed`                                           | `{ "type": "<class or code>", "message": "<text>" }`; `"reason"`  |
+|               |        |                                                       | (the sub-category within the type) and `"data"` (entity ids and   |
+|               |        |                                                       | facts) when the exception carries them; `"stack"` in development  |
 | `duration_ms` | number | on `did`/`refused`/`failed` when a `will` preceded it | wall time since the `will` line                                   |
 
 Additional keys are allowed at the top level for framework-native fields the
@@ -130,20 +131,29 @@ appear. A line the framework writes with no event of its own uses the event
 ### 2.2 The story
 
 Every action that writes goes through `will` → `did` (or `refused` / `failed`).
-`refused` is a domain refusal (a `TransitionError`, `DomainRuleViolation`,
-validation failure) — the world is unchanged and the line is `info`. `failed`
-is an exception the action did not expect — `error` level. `doing` is optional
-and marks a long step inside the unit of work (a drain loop, a sweep over N
-orders). Requests log `will` on entry (`http.request`) and `did` on response
-with `status` and `duration_ms` in `data`.
+
+`refused` is a domain refusal — an expected "no": a stale form, a declined
+card, a rate limit, a validation failure. The world is unchanged, the line is
+`info`, and `data.reason` names the refusal within the event's category (e.g.
+`order.pay` refused with `reason: "card_declined"`). Each stack models the
+refusal its own way — a returned result or a thrown refusal class — but the
+line is the same. A refusal routes the person who hit it to a defined flow:
+retry, wait, or stop (see `docs/principles.md`).
+
+`failed` is an exception the action did not expect — a defect — at `error`
+level with the `error` object from §2.1.
+
+`doing` is optional and marks a long step inside the unit of work (a drain
+loop, a sweep over N orders). Requests log `will` on entry (`http.request`)
+and `did` on response with `status` and `duration_ms` in `data`.
 
 Example, one checkout:
 
 ```json
-{"ts":"2026-08-23T18:00:00.001Z","level":"info","event":"http.request","phase":"will","msg":"POST /checkout","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","data":{"method":"POST","path":"/checkout"}}
+{"ts":"2026-08-23T18:00:00.001Z","level":"info","event":"http.request","phase":"will","msg":"🎬 POST /checkout","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","data":{"method":"POST","path":"/checkout"}}
 {"ts":"2026-08-23T18:00:00.004Z","level":"info","event":"order.place","phase":"will","msg":"placing an order from the cart","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","data":{"cart_id":"crt_01J…","line_count":2}}
 {"ts":"2026-08-23T18:00:00.019Z","level":"info","event":"order.place","phase":"did","msg":"placed the order","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","txn_id":"txn_01J…","duration_ms":15,"data":{"order_id":"ord_01J…","total_cents":12000,"status":"awaiting_payment","fulfillment_ids":["ful_01J…","ful_01K…"]}}
-{"ts":"2026-08-23T18:00:00.021Z","level":"info","event":"http.request","phase":"did","msg":"POST /checkout 303","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","duration_ms":20,"data":{"status":303}}
+{"ts":"2026-08-23T18:00:00.021Z","level":"info","event":"http.request","phase":"did","msg":"🟢 POST /checkout 303","request_id":"req_1","session_id":"ses_01J…","actor_type":"customer","actor_id":"cus_01J…","duration_ms":20,"data":{"status":303}}
 ```
 
 ### 2.3 Event vocabulary
@@ -187,6 +197,33 @@ prototype emits every event below that its features support.
 The vocabulary is closed: a write with no event above stays silent rather than
 minting a name one prototype has and the others lack. Reserved for a future
 round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`.
+
+### 2.4 Emoji prefixes
+
+The `msg` prefix marks where a line sits in the process's story. It is derived
+from `(phase, level, root)` in one place per stack; no call site picks an
+emoji. `root` is the story that opens the process — the HTTP request
+(`http.request`) or the CLI run (`payout.run`, `migrate.run`, …). Each request
+or run has one 🎬 line — an OS process that chains runs, such as migrate then
+seed, opens each — and one closing line: 🟢 when it succeeded, ❌ when it
+failed. The boundary emoji appear once per process; ⚠️ and 🛑 may repeat as
+the functions inside the process tell their own stories, and a nested
+success stays unprefixed so the boundaries stand out.
+
+| Line                                                   | Prefix |
+| ------------------------------------------------------ | ------ |
+| root `will` — one per process                          | 🎬     |
+| root `did` — the process's last line                   | 🟢     |
+| root `failed` — the process's last line                | ❌     |
+| nested `failed`                                        | 🛑     |
+| any `refused`; any `warn` line                         | ⚠️     |
+| nested `will`, nested `did`; `doing` at `debug`/`info` | none   |
+
+Rows are checked top to bottom: a nested `did` written at `warn`
+(`rate_limit.exceed`) reads ⚠️.
+
+Emoji lives in the log `msg` only. Text shown to a person — flash messages,
+error pages, form errors — carries none.
 
 ## 3. Rate limits
 
@@ -448,3 +485,8 @@ timing, unique refund per fulfillment), §5 (400 on unknown filters, bare
 outstanding: PHP answers "treat as absent" where §5 now says 400 on an
 unrecognised filter value, and PHP lacks the `listing_faqs
 (listing_id, source_message_id)` uniqueness — both queued as PHP follow-ups.
+
+2026-08-25, error-story round: §2.1 `msg` gains the emoji prefix and the
+`error` object gains `reason` and `data`; §2.2 names `data.reason` on
+`refused` lines and the retry/wait/stop routing; §2.4 added. Node adopts on
+`node/errors`; PHP and Rails queued as follow-ups.
