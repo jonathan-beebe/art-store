@@ -4,7 +4,7 @@ import type { ListingId } from '../../core/ids/entity-ids.ts'
 import { BrokenContractError } from '../../core/defect.ts'
 import { refused } from '../../core/refusal.ts'
 import { newId } from '../../ids.ts'
-import { changeListingStatus, changedListing } from './change-listing-status.ts'
+import { changeListingStatus, changedListing, listingStatusRefusalCopy } from './change-listing-status.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 import { createAdmin, createListing, createSeller, openCommerceWorld } from '../../test/commerce-world.ts'
@@ -111,6 +111,33 @@ test('changedListing throws for a refusal, carrying its reason', async (t) => {
     () => changedListing(result),
     (error: unknown) => error instanceof BrokenContractError && error.reason === 'illegal_transition',
   )
+})
+
+test('listingStatusRefusalCopy words a removal regardless of the transition data', () => {
+  const refusal = refused('listing_removed', { listing_id: 'lst_1', status_from: 'sold', status_to: 'for_sale' })
+
+  assert.equal(
+    listingStatusRefusalCopy(refusal),
+    'This listing was removed by an admin and cannot be put back on sale.',
+  )
+})
+
+test('listingStatusRefusalCopy words an illegal transition from the refusal data', () => {
+  const refusal = refused('illegal_transition', { listing_id: 'lst_1', status_from: 'draft', status_to: 'sold' })
+
+  assert.equal(listingStatusRefusalCopy(refusal), 'A listing cannot move from draft to sold.')
+})
+
+test('listingStatusRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'draft'
+  const refusal = refused('illegal_transition', { status_from: 'sold_out', status_to: 'for_sale' })
+
+  const sentence = listingStatusRefusalCopy(refusal)
+
+  assert.match(sentence, /sold_out/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 
 async function readStatus(db: AppDatabase, listingId: ListingId): Promise<string> {

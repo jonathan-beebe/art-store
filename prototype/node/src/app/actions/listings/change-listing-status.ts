@@ -5,7 +5,7 @@ import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
 import { isBlockedByRemoval, transitionListing, type ListingStatus } from '../../core/listings/listing-status.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused, type Refusal } from '../../core/refusal.ts'
+import { refused, transitionFacts, type Refusal } from '../../core/refusal.ts'
 import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -117,4 +117,16 @@ export function changedListing(change: ListingStatusChange): Listing {
     `a listing status change was refused: ${change.reason}`,
     change.data,
   )
+}
+
+/** The sentence a refused status change shows beside the button, the same on
+ * every site that takes one. */
+export function listingStatusRefusalCopy(refusal: Refusal<'illegal_transition' | 'listing_removed'>): string {
+  if (refusal.reason === 'listing_removed') {
+    return 'This listing was removed by an admin and cannot be put back on sale.'
+  }
+
+  const { status_from, status_to } = transitionFacts(refusal)
+
+  return `A listing cannot move from ${status_from} to ${status_to}.`
 }

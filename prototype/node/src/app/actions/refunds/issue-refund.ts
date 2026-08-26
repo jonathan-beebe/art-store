@@ -11,6 +11,7 @@ import {
   fulfillmentDeclinedMessage,
   refundIssuedMessage,
 } from '../../core/notifications/notification-message.ts'
+import { fulfillmentTransitionRefusalCopy } from '../../core/orders/fulfillment-status.ts'
 import { planRefund } from '../../core/orders/refund.ts'
 import { refused, type Refusal } from '../../core/refusal.ts'
 import type { Fulfillment, Order, Refund } from '../../db/commerce-schema.ts'
@@ -216,4 +217,14 @@ async function tellTheCounterparts(
     recipientId: fulfillment.sellerId,
     message: refundIssuedMessage(order.id, refund.amountCents, refund.reason, sellerPath),
   })
+}
+
+/** The sentence a refused refund shows, the same on every site that takes
+ * one. */
+export function refundRefusalCopy(refusal: Refusal<'order_unpaid' | 'illegal_transition'>): string {
+  if (refusal.reason === 'order_unpaid') {
+    return 'An order that has not been paid cannot be refunded.'
+  }
+
+  return fulfillmentTransitionRefusalCopy(refusal)
 }

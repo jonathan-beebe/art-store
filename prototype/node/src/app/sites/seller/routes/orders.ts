@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { declineFulfillment } from '../../../actions/fulfillments/decline-fulfillment.ts'
 import { markShipped } from '../../../actions/fulfillments/mark-shipped.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
+import { refundRefusalCopy } from '../../../actions/refunds/issue-refund.ts'
 import {
   canTransitionFulfillment,
   FULFILLMENT_STATUSES,
+  fulfillmentTransitionRefusalCopy,
   type FulfillmentStatus,
 } from '../../../core/orders/fulfillment-status.ts'
 import { formatCents } from '../../../core/money.ts'
@@ -196,7 +198,7 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
             ship: {
               carrier: details.value.carrier,
               trackingNumber: details.value.trackingNumber,
-              formError: `A fulfillment cannot move from ${owned.fulfillment.status} to shipped.`,
+              formError: fulfillmentTransitionRefusalCopy(result),
             },
           },
           422,
@@ -229,12 +231,13 @@ export const ordersRoutes: ZodRoutes = (portal, _options, done) => {
         reason: reason.value,
       })
       if (result.outcome === 'refused') {
-        const message =
-          result.reason === 'order_unpaid'
-            ? 'An order that has not been paid cannot be refunded.'
-            : `A fulfillment cannot move from ${owned.fulfillment.status} to declined.`
-
-        return renderOrderShow(request, reply, owned, { decline: { reason: reason.value, formError: message } }, 422)
+        return renderOrderShow(
+          request,
+          reply,
+          owned,
+          { decline: { reason: reason.value, formError: refundRefusalCopy(result) } },
+          422,
+        )
       }
 
       reply.setFlash({ notice: 'Declined. The customer has been refunded.' })

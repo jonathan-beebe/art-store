@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { confirmDelivered } from '../../../actions/fulfillments/confirm-delivered.ts'
+import { fulfillmentTransitionRefusalCopy } from '../../../core/orders/fulfillment-status.ts'
 import { idValue } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
 import { requestActions } from '../../../http/request-actions.ts'
@@ -27,7 +28,7 @@ export const fulfillmentRoutes: ZodRoutes = (shop, _options, done) => {
 
       const result = await confirmDelivered(requestActions(request), fulfillment.id)
       if (result.outcome === 'refused') {
-        reply.setFlash({ alert: `A fulfillment cannot move from ${fulfillment.status} to delivered.` })
+        reply.setFlash({ alert: fulfillmentTransitionRefusalCopy(result) })
 
         return await reply.redirect(`/orders/${found.order.id}`)
       }

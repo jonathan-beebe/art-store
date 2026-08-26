@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { changeListingStatus } from '../../../actions/listings/change-listing-status.ts'
+import { changeListingStatus, listingStatusRefusalCopy } from '../../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../../actions/listings/create-listing.ts'
 import { updateListing } from '../../../actions/listings/update-listing.ts'
 import { activeListingRemoval } from '../../../actions/moderation/active-listing-removal.ts'
@@ -366,12 +366,7 @@ export const listingsRoutes: ZodRoutes = (portal, _options, done) => {
       })
 
       if (result.outcome === 'refused') {
-        const message =
-          result.reason === 'listing_removed'
-            ? 'This listing was removed by an admin and cannot be put back on sale.'
-            : `A listing cannot move from ${listing.status} to ${status}.`
-
-        return refuseStatusChange(reply, message)
+        return refuseStatusChange(reply, listingStatusRefusalCopy(result))
       }
 
       const { listing: updated } = result

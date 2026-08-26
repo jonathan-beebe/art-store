@@ -8,6 +8,7 @@ import {
   canTransitionFulfillment,
   transitionFulfillment,
   fulfillmentMovedTo,
+  fulfillmentTransitionRefusalCopy,
   hasDeparted,
   isReversed,
 } from './fulfillment-status.ts'
@@ -93,6 +94,24 @@ test('fulfillmentMovedTo throws for a move the table does not allow', () => {
       error.message === 'A fulfillment cannot move from delivered to delivered.' &&
       JSON.stringify(error.data) === JSON.stringify({ status_from: 'delivered', status_to: 'delivered' }),
   )
+})
+
+test('fulfillmentTransitionRefusalCopy words the illegal move from the refusal data', () => {
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' })
+
+  assert.equal(fulfillmentTransitionRefusalCopy(refusal), 'A fulfillment cannot move from delivered to shipped.')
+})
+
+test('fulfillmentTransitionRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'awaiting_shipment'
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' })
+
+  const sentence = fulfillmentTransitionRefusalCopy(refusal)
+
+  assert.match(sentence, /delivered/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 
 test('a shipped or delivered fulfillment has departed', () => {

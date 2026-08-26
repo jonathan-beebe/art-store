@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { cancelOrderAsAdmin } from '../../../actions/orders/cancel-order-as-admin.ts'
-import { isCancellable, ORDER_STATUSES } from '../../../core/orders/order-status.ts'
+import { isCancellable, ORDER_STATUSES, orderTransitionRefusalCopy } from '../../../core/orders/order-status.ts'
 import { listPage } from '../../../core/paging/list-page.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH } from '../../../core/orders/refund.ts'
 import { idParams, idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
@@ -83,7 +83,7 @@ export const orderRoutes: ZodRoutes = (admin, _options, done) => {
 
       const result = await cancelOrderAsAdmin(requestActions(request), { orderId, reason: reason.value })
       if (result.outcome === 'refused') {
-        reply.setFlash({ alert: `An order cannot move from ${order.status} to cancelled.` })
+        reply.setFlash({ alert: orderTransitionRefusalCopy(result) })
 
         return reply.redirect(destination)
       }

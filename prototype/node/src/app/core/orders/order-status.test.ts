@@ -8,6 +8,7 @@ import {
   canTransitionOrder,
   transitionOrder,
   orderMovedTo,
+  orderTransitionRefusalCopy,
   orderStatusForPlacement,
   orderStatusAfterVerification,
   orderStatusFromCardDecision,
@@ -99,6 +100,24 @@ test('orderMovedTo throws for a move the table does not allow', () => {
       error.message === 'An order cannot move from paid to paid.' &&
       JSON.stringify(error.data) === JSON.stringify({ status_from: 'paid', status_to: 'paid' }),
   )
+})
+
+test('orderTransitionRefusalCopy words the illegal move from the refusal data', () => {
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'paid' })
+
+  assert.equal(orderTransitionRefusalCopy(refusal), 'An order cannot move from paid to paid.')
+})
+
+test('orderTransitionRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'awaiting_payment'
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'shipped' })
+
+  const sentence = orderTransitionRefusalCopy(refusal)
+
+  assert.match(sentence, /paid/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 
 test('a verified purchaser places an order that awaits payment', () => {

@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { issueRefund } from './issue-refund.ts'
+import { issueRefund, refundRefusalCopy } from './issue-refund.ts'
+import { refused } from '../../core/refusal.ts'
 import { declineFulfillment } from '../fulfillments/decline-fulfillment.ts'
 import { confirmDelivered } from '../fulfillments/confirm-delivered.ts'
 import { markShipped } from '../fulfillments/mark-shipped.ts'
@@ -100,6 +101,40 @@ async function shippedSale(context: ActionContext, db: AppDatabase) {
 
   return { sellerId, buyerId, listing, order, fulfillmentId }
 }
+
+test('refundRefusalCopy words an unpaid order plainly', () => {
+  const refusal = refused('order_unpaid', { fulfillment_id: 'flm_1', order_id: 'ord_1' })
+
+  assert.equal(refundRefusalCopy(refusal), 'An order that has not been paid cannot be refunded.')
+})
+
+test('refundRefusalCopy words an illegal fulfillment transition from the refusal data', () => {
+  const refusal = refused('illegal_transition', {
+    fulfillment_id: 'flm_1',
+    order_id: 'ord_1',
+    status_from: 'declined',
+    status_to: 'refunded',
+  })
+
+  assert.equal(refundRefusalCopy(refusal), 'A fulfillment cannot move from declined to refunded.')
+})
+
+test('refundRefusalCopy renders the refusal data, not a status a route read before the race', () => {
+  // The action's refusal carries the status as of the write; the route's earlier
+  // row read is stale by the time a concurrent move lands first.
+  const routeReadBeforeTheRace = 'awaiting_shipment'
+  const refusal = refused('illegal_transition', {
+    fulfillment_id: 'flm_1',
+    order_id: 'ord_1',
+    status_from: 'refunded',
+    status_to: 'declined',
+  })
+
+  const sentence = refundRefusalCopy(refusal)
+
+  assert.match(sentence, /refunded/)
+  assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
+})
 
 test('a seller decline records the refund against the order', async (t) => {
   const world = await openCommerceWorld()

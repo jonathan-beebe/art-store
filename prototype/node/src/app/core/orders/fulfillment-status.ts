@@ -1,5 +1,5 @@
 import { BrokenContractError } from '../defect.ts'
-import { refused, type Refusal } from '../refusal.ts'
+import { refused, transitionFacts, type Refusal } from '../refusal.ts'
 
 export const FULFILLMENT_STATUSES = [
   'awaiting_shipment',
@@ -50,11 +50,15 @@ export function fulfillmentMovedTo(from: FulfillmentStatus, to: FulfillmentStatu
   const transition = transitionFulfillment(from, to)
   if (transition.outcome === 'allowed') return transition.status
 
-  throw new BrokenContractError(
-    transition.reason,
-    `A fulfillment cannot move from ${from} to ${to}.`,
-    transition.data,
-  )
+  throw new BrokenContractError(transition.reason, fulfillmentTransitionRefusalCopy(transition), transition.data)
+}
+
+/** The sentence a refused fulfillment move shows, worded from the refusal's
+ * own data rather than a status the caller read before the write. */
+export function fulfillmentTransitionRefusalCopy(refusal: Refusal): string {
+  const { status_from, status_to } = transitionFacts(refusal)
+
+  return `A fulfillment cannot move from ${status_from} to ${status_to}.`
 }
 
 export function hasDeparted(status: FulfillmentStatus): boolean {

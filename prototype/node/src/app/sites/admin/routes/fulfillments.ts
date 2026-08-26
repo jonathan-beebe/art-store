@@ -1,6 +1,6 @@
 import type { FastifyRequest } from 'fastify'
 import { z } from 'zod'
-import { issueRefund } from '../../../actions/refunds/issue-refund.ts'
+import { issueRefund, refundRefusalCopy } from '../../../actions/refunds/issue-refund.ts'
 import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { AdminId } from '../../../core/ids/entity-ids.ts'
 import { FULFILLMENT_STATUSES } from '../../../core/orders/fulfillment-status.ts'
@@ -92,12 +92,7 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
         issuedBy: { type: 'admin', id: currentAdminId(request) },
       })
       if (result.outcome === 'refused') {
-        const alert =
-          result.reason === 'order_unpaid'
-            ? 'An order that has not been paid cannot be refunded.'
-            : `A fulfillment cannot move from ${found.status} to refunded.`
-
-        reply.setFlash({ alert })
+        reply.setFlash({ alert: refundRefusalCopy(result) })
 
         return reply.redirect(destination)
       }
