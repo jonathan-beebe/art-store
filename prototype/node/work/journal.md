@@ -10,10 +10,13 @@
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 9
-- BUG: 10
+- BUG: 11
 
 ## Log
 
+- 2026-08-26:10:56:30 — BUG-010 — done: abandoned event streams stall admin navigation — `public/app.js` closes its `EventSource` on `pagehide`, releasing the connection slot at navigation time; measured before (log store): four `/admin/events` streams from left pages held 30–65s past navigation while the server answered `GET /admin/logs` in 24–56ms — Chrome's six-per-host HTTP/1.1 budget queued each filter submit behind them; verified after by driving four storefront navigations and reading the store: one stream in flight at a time, each closing `disconnected: true` 31–48ms after the next page's will; progressive-enhancement contract untouched (one listener, page works with the file absent); `make check` green, 2166 tests, coverage 99.40/95.66/99.55
+- 2026-08-26:10:46:46 — BUG-010 — started
+- 2026-08-26:10:46:46 — BUG-010 — defined: abandoned event streams stall admin navigation
 - 2026-08-26:10:10:47 — FEAT-021 — done: admin log store — slurp, view, query — phase 1 (e74d9d9): `openLogStore`/`logStoreStream` (`app/log-store.ts`) mirror every stdout line into `LOG_DATABASE_FILE` (own WAL `DatabaseSync`, ensure-on-open DDL versioned by `user_version`, stdout-first verbatim passthrough, setImmediate-batched multi-row INSERTs, `exit` flushSync, any store failure degrades to stdout-only) wired at the two choke points; phase 2 (0ab2f5f): `/admin/logs` (level/phase/event/request/txn/session/actor/msg/from/to filters + the `key`/`value` any-attribute filter over `json_extract(raw)`, four linked level tiles, 50 rows/page) and the `/admin/logs/requests/:requestId` story view reading the writer's own handle through the dialect's borrowed-`DatabaseSync` form; phase 3: `LOG_RETENTION_DAYS` (default 14, `off` disables, malformed refuses boot) and `pruneLogLines` — 5000-row DELETE batches looped to zero changes then `incremental_vacuum(1000)` — silent in the sweep CLI beside the rate-limit prune, `--as-of` honoured, a prune failure sets the exit code and leaves the sweep's result standing; `docs/log-store.md` is the reference definition and `docs/alignment.md` gains §2.5, the two §5 rows + a `key`/`value` decision bullet, and the 2026-08-26 §8 entry (php/rails queued as follow-ups); 2166 tests, coverage 99.40/95.66/99.55, `make check` green
 - 2026-08-26:09:58:02 — FEAT-021 — phase 2 done: the admin viewer — `/admin/logs` (filters incl. the `key`/`value` any-attribute filter, four linked level tiles, 50 rows/page) and `/admin/logs/requests/:requestId` (ts asc story, 1,000-line cap with notice, header facts), `logsDb` reader wrapping the ingest writer's own handle via the dialect's borrowed-`DatabaseSync` form, prefix→route link helper in `page.ts`; 2157 tests, coverage 99.39/95.65/99.55
 - 2026-08-26:09:16:04 — FEAT-021 — started
