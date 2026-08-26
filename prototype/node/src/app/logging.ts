@@ -9,7 +9,7 @@ import { LogController, type FastifyServerOptions } from 'fastify'
 import pino from 'pino'
 import type { AppConfig } from './config.ts'
 import { isAcceptableRequestId } from './core/logging/request-id.ts'
-import { logStoreStream, openLogStore } from './log-store.ts'
+import { logStoreStream, openLogStore, type LogStore } from './log-store.ts'
 
 const REQUEST_ID_HEADER = 'x-request-id'
 
@@ -23,22 +23,37 @@ type LoggingConfig = Pick<AppConfig, 'logLevel' | 'environment'> &
 
 /** One store per file per process, created the first time a logger defaults
  * to it, so the server and any CLI run in the same process share one handle
- * and one batch writer. */
-const defaultStreams = new Map<string, pino.DestinationStream>()
+ * and one batch writer. The store rides along so the admin reader can wrap
+ * the same handle. */
+const defaultDestinations = new Map<string, { store: LogStore; stream: pino.DestinationStream }>()
 
-/** The log-store stream for the configured file, or undefined — `off`, or no
- * file named — to leave pino writing to stdout alone. */
-function defaultStream(config: LoggingConfig): pino.DestinationStream | undefined {
+/** The log-store destination for the configured file, or undefined — `off`,
+ * or no file named — to leave pino writing to stdout alone. */
+function defaultDestination(
+  config: LoggingConfig,
+): { store: LogStore; stream: pino.DestinationStream } | undefined {
   const file = config.logDatabaseFile
   if (file === undefined || file === 'off') return undefined
 
-  let stream = defaultStreams.get(file)
-  if (stream === undefined) {
-    stream = logStoreStream(openLogStore(file))
-    defaultStreams.set(file, stream)
+  let destination = defaultDestinations.get(file)
+  if (destination === undefined) {
+    const store = openLogStore(file)
+    destination = { store, stream: logStoreStream(store) }
+    defaultDestinations.set(file, destination)
   }
 
-  return stream
+  return destination
+}
+
+function defaultStream(config: LoggingConfig): pino.DestinationStream | undefined {
+  return defaultDestination(config)?.stream
+}
+
+/** The store the default stream writes into, for the admin reader to wrap —
+ * the same handle per file per process, so reads and the batch writer
+ * serialize. Undefined when the config names no store. */
+export function defaultLogStore(config: LoggingConfig): LogStore | undefined {
+  return defaultDestination(config)?.store
 }
 
 /**

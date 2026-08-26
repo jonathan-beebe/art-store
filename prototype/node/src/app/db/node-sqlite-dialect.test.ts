@@ -283,3 +283,23 @@ test('a new connection on the same file works after the previous one is destroye
   ])
   await second.destroy()
 })
+
+test('an existing DatabaseSync is borrowed: shared with its owner and left open on destroy', async () => {
+  const handle = new DatabaseSync(':memory:')
+  handle.exec('create table things (id integer primary key autoincrement, name text not null)')
+  handle.prepare('insert into things (name) values (?)').run('kettle')
+
+  const db = new Kysely<TestDatabase>({ dialect: new NodeSqliteDialect(handle) })
+  const things = await db.selectFrom('things').selectAll().execute()
+  assert.deepEqual(things, [{ id: 1, name: 'kettle' }])
+
+  // A write through Kysely lands on the owner's handle.
+  await db.insertInto('things').values({ name: 'teapot' }).execute()
+  const counted = handle.prepare('select count(*) as total from things').get() as { total: number }
+  assert.equal(counted.total, 2)
+
+  // The handle is its owner's to close: destroy leaves it usable.
+  await db.destroy()
+  handle.exec('insert into things (name) values (\'tray\')')
+  handle.close()
+})

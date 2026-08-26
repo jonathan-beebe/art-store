@@ -8,11 +8,12 @@ import ejs from 'ejs'
 import type pino from 'pino'
 import type { Clock } from './clock.ts'
 import type { AppConfig } from './config.ts'
-import type { AppDatabase } from './db/database.ts'
+import { openLogsDatabase, type AppDatabase, type LogsDb } from './db/database.ts'
 import type { MagicLinkDelivery } from './delivery/magic-link-delivery.ts'
 import { HASHED_ASSET_NAME, loadAssetManifest } from './http/asset-manifest.ts'
 import { zodValidator } from './http/zod-type-provider.ts'
-import { loggingOptions } from './logging.ts'
+import type { LogStore } from './log-store.ts'
+import { defaultLogStore, loggingOptions } from './logging.ts'
 import { errorPages } from './plugins/error-pages.ts'
 import { eventBus } from './plugins/events.ts'
 import { flashCookie } from './plugins/flash.ts'
@@ -37,11 +38,19 @@ export type AppDependencies = {
    * every line goes to stdout and into the log store the config names; a test
    * passes one to capture what was logged. */
   loggerStream?: pino.DestinationStream
+  /** Overrides which log store the admin viewer reads. Unset in the running
+   * app, where the reader wraps the store the config names — the same handle
+   * the ingest writer holds; a viewer test passes the store its injected
+   * `loggerStream` writes into. */
+  logStore?: LogStore
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
     db: AppDatabase
+    /** The admin viewer's reader over the log store's own handle. Null when
+     * the store is disabled — `/admin/logs` renders its empty state instead. */
+    logsDb: LogsDb | null
     clock: Clock
     config: AppConfig
     magicLinkDelivery: MagicLinkDelivery
@@ -65,6 +74,7 @@ export function buildApp({
   config,
   magicLinkDelivery,
   loggerStream,
+  logStore,
 }: AppDependencies): FastifyInstance {
   // trustProxy is what makes request.protocol, request.host, and request.ip
   // read forwarded headers rather than the raw socket. `trustedProxies` names
@@ -82,6 +92,16 @@ export function buildApp({
   app.setValidatorCompiler(zodValidator)
 
   app.decorate('db', db)
+  // The reader and the ingest writer share one handle per process, which is
+  // what lets them serialize — and null (the store is disabled) is a page
+  // state, never a crash.
+  const openStore = logStore ?? defaultLogStore(config)
+  app.decorate(
+    'logsDb',
+    openStore !== undefined && openStore.database !== null
+      ? openLogsDatabase(openStore.database)
+      : null,
+  )
   app.decorate('clock', clock)
   app.decorate('config', config)
   app.decorate('magicLinkDelivery', magicLinkDelivery)

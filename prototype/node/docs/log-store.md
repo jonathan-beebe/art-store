@@ -236,14 +236,17 @@ phase`, and its `data`/`error` fully expanded — a founder on this page
 wants everything open. A well-formed id with no stored lines renders the
 empty state at 200 ("outside the retention window?") — a request id is
 correlation, and the 404 rule in alignment §5 covers ownership. A
-malformed id answers 400. The transaction story needs no second route:
-`?txn=` on the list is the same lines.
+malformed id is a url segment the route's `params` schema refused, and
+answers the site's 404 page the way every refused segment does. The
+transaction story needs no second route: `?txn=` on the list is the same
+lines.
 
 Prefixed ids rendered anywhere in the viewer link where a detail page
 exists — `ord_` to `/admin/orders/:id`, `cus_`, `sel_`, `lst_`, `ful_`,
-`obx_`, `cnv_`/`msg_` likewise; `txn_` and `ses_` link back into
-`/admin/logs` as filters — one pure helper mapping prefix to route, drawn
-from the pages table in [`admin.md`](admin.md) so a link never 404s.
+`obx_`, `cnv_` likewise; `txn_` and `ses_` link back into `/admin/logs`
+as filters — one pure helper mapping prefix to route, drawn from the
+pages table in [`admin.md`](admin.md) so a link never 404s. A `msg_` id
+renders plain: messages have no detail page of their own.
 
 ## Retention
 

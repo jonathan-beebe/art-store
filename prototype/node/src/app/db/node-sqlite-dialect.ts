@@ -31,16 +31,21 @@ type SqlInputValue = null | number | bigint | string | NodeJS.ArrayBufferView
  * Kysely dialect over the SQLite that ships with Node, holding one connection.
  * `SqliteAdapter` reports that the dialect cannot open a second one, which is
  * what makes Kysely serialize every query and transaction through it.
+ *
+ * Given a file path, the driver opens the handle, sets its pragmas, and closes
+ * it on destroy. Given an existing `DatabaseSync` — the log store's, whose
+ * reads must serialize with its batch writer — the handle is borrowed as it
+ * stands: its owner already set its pragmas and keeps the right to close it.
  */
 export class NodeSqliteDialect implements Dialect {
-  readonly #file: string
+  readonly #source: string | DatabaseSync
 
-  constructor(file: string) {
-    this.#file = file
+  constructor(source: string | DatabaseSync) {
+    this.#source = source
   }
 
   createDriver(): Driver {
-    return new NodeSqliteDriver(this.#file)
+    return new NodeSqliteDriver(this.#source)
   }
 
   createQueryCompiler(): SqliteQueryCompiler {
@@ -59,16 +64,24 @@ export class NodeSqliteDialect implements Dialect {
 }
 
 class NodeSqliteDriver implements Driver {
-  readonly #file: string
+  readonly #source: string | DatabaseSync
   #database: DatabaseSync | undefined
   #connection: NodeSqliteConnection | undefined
 
-  constructor(file: string) {
-    this.#file = file
+  constructor(source: string | DatabaseSync) {
+    this.#source = source
   }
 
   async init(): Promise<void> {
-    const database = new DatabaseSync(this.#file)
+    // A borrowed handle keeps its owner's pragmas.
+    const database = typeof this.#source === 'string' ? this.#opened(this.#source) : this.#source
+
+    this.#database = database
+    this.#connection = new NodeSqliteConnection(database)
+  }
+
+  #opened(file: string): DatabaseSync {
+    const database = new DatabaseSync(file)
 
     // All three pragmas are per-connection and none of the SQLite defaults suit
     // this app: foreign keys are off, a zero busy timeout fails a contended
@@ -81,8 +94,7 @@ class NodeSqliteDriver implements Driver {
     database.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}`)
     database.exec('PRAGMA synchronous = NORMAL')
 
-    this.#database = database
-    this.#connection = new NodeSqliteConnection(database)
+    return database
   }
 
   async acquireConnection(): Promise<DatabaseConnection> {
@@ -113,7 +125,8 @@ class NodeSqliteDriver implements Driver {
   async destroy(): Promise<void> {
     // Cached statements are tied to this database handle; drop them before it closes.
     this.#connection?.clearStatements()
-    this.#database?.close()
+    // A borrowed handle is its owner's to close.
+    if (typeof this.#source === 'string') this.#database?.close()
     this.#database = undefined
     this.#connection = undefined
   }

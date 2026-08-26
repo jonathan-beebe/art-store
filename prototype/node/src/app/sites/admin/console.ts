@@ -5,6 +5,7 @@ import { fulfillmentRoutes } from './routes/fulfillments.ts'
 import { homeRoutes } from './routes/home.ts'
 import { ledgerRoutes } from './routes/ledger.ts'
 import { listingRoutes } from './routes/listings.ts'
+import { logRoutes } from './routes/logs.ts'
 import { messageRoutes } from './routes/messages.ts'
 import { moderationRoutes } from './routes/moderation.ts'
 import { orderRoutes } from './routes/orders.ts'
@@ -32,6 +33,7 @@ export const adminConsoleRoutes: FastifyPluginCallback = (operations, _options, 
   operations.register(payoutRoutes)
   operations.register(ledgerRoutes)
   operations.register(statsRoutes)
+  operations.register(logRoutes)
   operations.register(moderationRoutes)
   operations.register(messageRoutes)
   operations.register(outboxRoutes)

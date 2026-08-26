@@ -246,6 +246,7 @@ export async function buildTestApp(overrides: TestAppOverrides = {}): Promise<Te
     config,
     magicLinkDelivery: overrides.magicLinkDelivery ?? flashMagicLinkDelivery,
     loggerStream: overrides.loggerStream,
+    logStore: overrides.logStore,
   })
   await app.ready()
 
