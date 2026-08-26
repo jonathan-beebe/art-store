@@ -237,6 +237,9 @@ docker run --rm -p 4100:4000 \
 See Configuration above for every variable `app/config.ts` reads;
 `COOKIE_SECRET` is the one worth setting explicitly outside development.
 
+Render builds a PR preview of this prototype when a pull request carries the
+`render-preview` label or `[render preview]` in its title.
+
 ## Seeded accounts
 
 `make seed` (and the entrypoint on every start) adds the two platform admins,
