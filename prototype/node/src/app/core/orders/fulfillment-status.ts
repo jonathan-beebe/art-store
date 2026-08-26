@@ -1,4 +1,5 @@
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused, type Refusal } from '../refusal.ts'
 
 export const FULFILLMENT_STATUSES = [
   'awaiting_shipment',
@@ -28,12 +29,32 @@ export function canTransitionFulfillment(from: FulfillmentStatus, to: Fulfillmen
   return allowed.includes(to)
 }
 
-export function transitionFulfillment(from: FulfillmentStatus, to: FulfillmentStatus): FulfillmentStatus {
+export type FulfillmentTransition =
+  | { outcome: 'allowed'; status: FulfillmentStatus }
+  | Refusal<'illegal_transition'>
+
+export function transitionFulfillment(from: FulfillmentStatus, to: FulfillmentStatus): FulfillmentTransition {
   if (canTransitionFulfillment(from, to)) {
-    return to
+    return { outcome: 'allowed', status: to }
   }
 
-  throw new TransitionError(`A fulfillment cannot move from ${from} to ${to}.`)
+  return refused('illegal_transition', { status_from: from, status_to: to })
+}
+
+/**
+ * Unwraps `transitionFulfillment` for a caller inside the application that
+ * only ever asks for a move the lifecycle table allows. A refusal reaching
+ * here is a broken contract, not a domain outcome to handle.
+ */
+export function fulfillmentMovedTo(from: FulfillmentStatus, to: FulfillmentStatus): FulfillmentStatus {
+  const transition = transitionFulfillment(from, to)
+  if (transition.outcome === 'allowed') return transition.status
+
+  throw new BrokenContractError(
+    transition.reason,
+    `A fulfillment cannot move from ${from} to ${to}.`,
+    transition.data,
+  )
 }
 
 export function hasDeparted(status: FulfillmentStatus): boolean {

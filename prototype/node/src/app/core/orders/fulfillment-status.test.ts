@@ -1,11 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused } from '../refusal.ts'
 import {
   FULFILLMENT_STATUSES,
   FULFILLMENT_STATUS_TRANSITIONS,
   canTransitionFulfillment,
   transitionFulfillment,
+  fulfillmentMovedTo,
   hasDeparted,
   isReversed,
 } from './fulfillment-status.ts'
@@ -61,20 +63,35 @@ test('a refunded fulfillment cannot be refunded again', () => {
 })
 
 test('transition returns the next status', () => {
-  assert.equal(transitionFulfillment('awaiting_shipment', 'shipped'), 'shipped')
+  assert.deepEqual(transitionFulfillment('awaiting_shipment', 'shipped'), { outcome: 'allowed', status: 'shipped' })
 })
 
 test('transition refuses a second delivery', () => {
-  assert.throws(
-    () => transitionFulfillment('delivered', 'delivered'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'A fulfillment cannot move from delivered to delivered.',
+  assert.deepEqual(
+    transitionFulfillment('delivered', 'delivered'),
+    refused('illegal_transition', { status_from: 'delivered', status_to: 'delivered' }),
   )
 })
 
 test('transition refuses a ship after a decline', () => {
+  assert.deepEqual(
+    transitionFulfillment('declined', 'shipped'),
+    refused('illegal_transition', { status_from: 'declined', status_to: 'shipped' }),
+  )
+})
+
+test('fulfillmentMovedTo returns the status for a legal move', () => {
+  assert.equal(fulfillmentMovedTo('awaiting_shipment', 'shipped'), 'shipped')
+})
+
+test('fulfillmentMovedTo throws for a move the table does not allow', () => {
   assert.throws(
-    () => transitionFulfillment('declined', 'shipped'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'A fulfillment cannot move from declined to shipped.',
+    () => fulfillmentMovedTo('delivered', 'delivered'),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      error.message === 'A fulfillment cannot move from delivered to delivered.' &&
+      JSON.stringify(error.data) === JSON.stringify({ status_from: 'delivered', status_to: 'delivered' }),
   )
 })
 

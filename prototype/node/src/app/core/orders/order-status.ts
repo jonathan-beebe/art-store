@@ -1,4 +1,5 @@
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused, type Refusal } from '../refusal.ts'
 import { hasDeparted, isReversed, type FulfillmentStatus } from './fulfillment-status.ts'
 import { isCardApproved, type CardDecision } from '../payments/card-decision.ts'
 
@@ -40,12 +41,30 @@ export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean 
   return allowed.includes(to)
 }
 
-export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderStatus {
+export type OrderTransition = { outcome: 'allowed'; status: OrderStatus } | Refusal<'illegal_transition'>
+
+export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderTransition {
   if (canTransitionOrder(from, to)) {
-    return to
+    return { outcome: 'allowed', status: to }
   }
 
-  throw new TransitionError(`An order cannot move from ${from} to ${to}.`)
+  return refused('illegal_transition', { status_from: from, status_to: to })
+}
+
+/**
+ * Unwraps `transitionOrder` for a caller inside the application that only
+ * ever asks for a move the lifecycle table allows. A refusal reaching here is
+ * a broken contract, not a domain outcome to handle.
+ */
+export function orderMovedTo(from: OrderStatus, to: OrderStatus): OrderStatus {
+  const transition = transitionOrder(from, to)
+  if (transition.outcome === 'allowed') return transition.status
+
+  throw new BrokenContractError(
+    transition.reason,
+    `An order cannot move from ${from} to ${to}.`,
+    transition.data,
+  )
 }
 
 export function orderStatusForPlacement(isPurchaserVerified: boolean): OrderStatus {

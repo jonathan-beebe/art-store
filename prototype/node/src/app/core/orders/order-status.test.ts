@@ -1,11 +1,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused } from '../refusal.ts'
 import {
   ORDER_STATUSES,
   ORDER_STATUS_TRANSITIONS,
   canTransitionOrder,
   transitionOrder,
+  orderMovedTo,
   orderStatusForPlacement,
   orderStatusAfterVerification,
   orderStatusFromCardDecision,
@@ -73,10 +75,29 @@ test('a cancelled order goes nowhere', () => {
   assert.deepEqual(ORDER_STATUS_TRANSITIONS.cancelled, [])
 })
 
+test('transition returns the next status', () => {
+  assert.deepEqual(transitionOrder('awaiting_payment', 'paid'), { outcome: 'allowed', status: 'paid' })
+})
+
 test('a paid order cannot be paid twice', () => {
+  assert.deepEqual(
+    transitionOrder('paid', 'paid'),
+    refused('illegal_transition', { status_from: 'paid', status_to: 'paid' }),
+  )
+})
+
+test('orderMovedTo returns the status for a legal move', () => {
+  assert.equal(orderMovedTo('awaiting_payment', 'paid'), 'paid')
+})
+
+test('orderMovedTo throws for a move the table does not allow', () => {
   assert.throws(
-    () => transitionOrder('paid', 'paid'),
-    (error: unknown) => error instanceof TransitionError && error.message === 'An order cannot move from paid to paid.',
+    () => orderMovedTo('paid', 'paid'),
+    (error: unknown) =>
+      error instanceof BrokenContractError &&
+      error.reason === 'illegal_transition' &&
+      error.message === 'An order cannot move from paid to paid.' &&
+      JSON.stringify(error.data) === JSON.stringify({ status_from: 'paid', status_to: 'paid' }),
   )
 })
 

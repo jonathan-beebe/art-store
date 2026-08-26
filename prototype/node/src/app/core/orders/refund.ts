@@ -1,8 +1,9 @@
+import { refused, type Refusal } from '../refusal.ts'
 import { refundMovement, type LedgerMovement } from '../escrow/ledger-movement.ts'
 import type { PaymentId } from '../ids/entity-ids.ts'
 import type { Cents } from '../money.ts'
 import type { StockChange } from '../listings/stock-change.ts'
-import { canTransitionFulfillment, type FulfillmentStatus } from './fulfillment-status.ts'
+import { canTransitionFulfillment, transitionFulfillment, type FulfillmentStatus } from './fulfillment-status.ts'
 
 /** Who reversed the sale, which is what decides how it reverses. */
 export const REFUND_ISSUER_TYPES = ['seller', 'admin'] as const
@@ -43,7 +44,9 @@ export type RefundSubject = {
   paymentId: PaymentId | null
 }
 
-export type RefundPlan = { ok: true; intent: RefundIntent } | { ok: false; refusal: string }
+export type RefundPlan =
+  | { outcome: 'planned'; intent: RefundIntent }
+  | Refusal<'order_unpaid' | 'illegal_transition'>
 
 /**
  * Whether an admin's refund would go through, against the same two gates
@@ -66,16 +69,18 @@ export function planRefund(subject: RefundSubject): RefundPlan {
   const reversal = REVERSALS[issuedByType]
 
   if (paymentId === null) {
-    return { ok: false, refusal: 'An order that has not been paid cannot be refunded.' }
+    return refused('order_unpaid')
   }
-  if (!canTransitionFulfillment(status, reversal.status)) {
-    return { ok: false, refusal: `A fulfillment cannot move from ${status} to ${reversal.status}.` }
+
+  const transition = transitionFulfillment(status, reversal.status)
+  if (transition.outcome === 'refused') {
+    return refused('illegal_transition', { status_from: status, status_to: reversal.status })
   }
 
   return {
-    ok: true,
+    outcome: 'planned',
     intent: {
-      status: reversal.status,
+      status: transition.status,
       amountCents: subtotalCents,
       movement: refundMovement(netCents),
       stockChange: reversal.stockChange,

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
-import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
-import { markShipped } from '../../actions/fulfillments/mark-shipped.ts'
+import { confirmDelivered, deliveredFulfillment } from '../../actions/fulfillments/confirm-delivered.ts'
+import { markShipped, shippedFulfillment } from '../../actions/fulfillments/mark-shipped.ts'
 import { changeListingStatus, changedListing } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
@@ -87,12 +87,14 @@ export async function createDeliveredFulfillment(
   const { db, clock } = testApp
   const fulfillment = await createFulfillment(testApp, sellerId, listing)
 
-  await markShipped(
-    { db, clock },
-    { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
+  shippedFulfillment(
+    await markShipped(
+      { db, clock },
+      { fulfillmentId: fulfillment.id, carrier: 'Royal Mail', trackingNumber: 'RM123456789GB' },
+    ),
   )
 
-  return confirmDelivered({ db, clock }, fulfillment.id)
+  return deliveredFulfillment(await confirmDelivered({ db, clock }, fulfillment.id))
 }
 
 export async function createTestNotification(

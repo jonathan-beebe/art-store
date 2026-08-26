@@ -7,7 +7,8 @@ import type {
   SellerId,
 } from '../../core/ids/entity-ids.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
-import { cancelOrder } from './cancel-order.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { cancelOrder, cancelledOrder } from './cancel-order.ts'
 import { finalizeOrder } from './finalize-order.ts'
 import { markAwaitingPayment } from './mark-awaiting-payment.ts'
 import { confirmDelivered } from '../fulfillments/confirm-delivered.ts'
@@ -169,7 +170,7 @@ test('cancelling an unpaid order hands the stock back to the storefront', async 
   assert.equal(order.status, 'pending_verification')
   assert.deepEqual(await readStock(world.db, art.id), { quantity: 0, status: 'sold' })
 
-  const cancelled = await cancelOrder(context, order.id)
+  const cancelled = cancelledOrder(await cancelOrder(context, order.id))
 
   assert.equal(cancelled.status, 'cancelled')
   assert.notEqual(cancelled.cancelledAt, null)
@@ -189,9 +190,13 @@ test('a cancelled order cannot be verified, charged, or cancelled again', async 
 
   await assert.rejects(
     () => finalizeOrder(context, { orderId: order.id, cardNumber: APPROVED_CARD }),
-    /cannot move from cancelled to paid/,
+    (error: unknown) => error instanceof BrokenContractError && /cannot move from cancelled to paid/.test(error.message),
   )
-  await assert.rejects(() => cancelOrder(context, order.id), /cannot move from cancelled to cancelled/)
+  assert.deepEqual(await cancelOrder(context, order.id), {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { order_id: order.id, status_from: 'cancelled', status_to: 'cancelled' },
+  })
   assert.equal((await markAwaitingPayment(context, order.id)).status, 'cancelled')
 })
 

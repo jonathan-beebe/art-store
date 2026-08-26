@@ -1,7 +1,7 @@
 import type { ActionContext } from '../actions/action-context.ts'
 import { addToCart } from '../actions/carts/add-to-cart.ts'
-import { confirmDelivered } from '../actions/fulfillments/confirm-delivered.ts'
-import { markShipped } from '../actions/fulfillments/mark-shipped.ts'
+import { confirmDelivered, deliveredFulfillment } from '../actions/fulfillments/confirm-delivered.ts'
+import { markShipped, shippedFulfillment } from '../actions/fulfillments/mark-shipped.ts'
 import { runWeeklyPayout } from '../actions/escrow/run-weekly-payout.ts'
 import { finalizeOrder } from '../actions/orders/finalize-order.ts'
 import { placeOrderOrThrow } from '../actions/orders/place-order.ts'
@@ -125,12 +125,16 @@ async function ship(
   trackingNumber: string,
   shippedAt: Date,
 ): Promise<void> {
-  await markShipped(
-    { db, clock: fixedClock(shippedAt) },
-    { fulfillmentId: await fulfillmentIdFor(db, orderId), carrier, trackingNumber },
+  shippedFulfillment(
+    await markShipped(
+      { db, clock: fixedClock(shippedAt) },
+      { fulfillmentId: await fulfillmentIdFor(db, orderId), carrier, trackingNumber },
+    ),
   )
 }
 
 async function deliver(db: AppDatabase, orderId: OrderId, deliveredAt: Date): Promise<void> {
-  await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId))
+  deliveredFulfillment(
+    await confirmDelivered({ db, clock: fixedClock(deliveredAt) }, await fulfillmentIdFor(db, orderId)),
+  )
 }

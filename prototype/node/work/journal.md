@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:19:49:45 — IMPRV-026 — done: order, fulfillment, and refund refusals travel as returned values with named reasons — `transitionOrder`/`transitionFulfillment` answer `{outcome:'allowed'} | Refusal<'illegal_transition'>` with `{status_from, status_to}` and `orderMovedTo`/`fulfillmentMovedTo` unwrappers, `planRefund` answers `{outcome:'planned'} | Refusal<'order_unpaid'|'illegal_transition'>`, the six actions (`markShipped`, `confirmDelivered`, `cancelOrder`, `cancelOrderAsAdmin`, `issueRefund`, `declineFulfillment`) return result unions whose `ended` maps a refusal to the refused line with `data.reason` + ids, five routes branch on outcome with byte-identical copy/codes/redirects, and the internal paths (payment-attempt, stale-order sweep, seed, fixtures) unwrap via `BrokenContractError`; TDD red 65 → green, 2064 → 2072 tests, coverage 99.36/95.70/99.46, `make check` green; reviewer: accept with nits, both test-coverage nits landed — messaging and moderation keep `TransitionError` for IMPRV-027/028
+- 2026-08-25:19:18:33 — IMPRV-026 — started
 - 2026-08-25:19:16:06 — IMPRV-025 — done: listing status refusals travel as returned values with named reasons; no listing path throws TransitionError
 - 2026-08-25:19:02:43 — IMPRV-025 — started
 

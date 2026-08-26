@@ -22,10 +22,13 @@ export const orderRoutes: ZodRoutes = (shop, _options, done) => {
 
   shop.post('/orders/:id/cancel', { schema: { params: idParams('ord') } }, async (request, reply) => {
     const found = await loadCustomerOrder(shop, request, request.params.id)
-    // Fast 404 for a status cancelOrder would refuse anyway — transitionOrder is the authority.
+    // Fast 404 for a status cancelOrder would refuse anyway — the lifecycle
+    // table in core/orders/order-status.ts is the authority.
     if (found === null || !isCancellable(found.order.status)) return renderNotFound(reply)
 
-    await cancelOrder(requestActions(request), found.order.id)
+    const result = await cancelOrder(requestActions(request), found.order.id)
+    if (result.outcome === 'refused') return renderNotFound(reply)
+
     reply.setFlash({ notice: 'Order cancelled. Anything it held is back on the storefront.' })
 
     return await reply.redirect(`/orders/${found.order.id}`)

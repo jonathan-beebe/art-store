@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
 import { paymentAttemptFor, settledFulfillments, isPaidAttempt } from './payment-attempt.ts'
 import { decideCard } from '../payments/fake-card.ts'
 import type { OrderStatus } from './order-status.ts'
@@ -47,7 +47,7 @@ test('it keeps only the last four digits', () => {
 })
 
 test('it refuses to charge an order that cannot be paid', () => {
-  assert.throws(() => attemptWith('4242424242424242', 'paid'), TransitionError)
+  assert.throws(() => attemptWith('4242424242424242', 'paid'), BrokenContractError)
 })
 
 test('a paid attempt settles every fulfillment', () => {

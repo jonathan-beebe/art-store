@@ -71,6 +71,24 @@ async function readOrderStatus(db: AppDatabase, orderId: OrderId) {
     .executeTakeFirstOrThrow()
 }
 
+async function readFulfillmentStatus(db: AppDatabase, fulfillmentId: FulfillmentId): Promise<string> {
+  const row = await db
+    .selectFrom('fulfillments')
+    .select('status')
+    .where('id', '=', fulfillmentId)
+    .executeTakeFirstOrThrow()
+
+  return row.status
+}
+
+/** How many `refunds` rows a fulfillment has, so a refused reversal can be
+ * checked for writing none. */
+async function refundCount(db: AppDatabase, fulfillmentId: FulfillmentId): Promise<number> {
+  const rows = await db.selectFrom('refunds').select('id').where('fulfillmentId', '=', fulfillmentId).execute()
+
+  return rows.length
+}
+
 /** A shipped fulfillment on a paid order, the state an admin refund starts from. */
 async function shippedSale(context: ActionContext, db: AppDatabase) {
   const sellerId = await createSeller(context)
@@ -94,11 +112,15 @@ test('a seller decline records the refund against the order', async (t) => {
   const order = await paidOrder(context, buyerId, [listing.id])
   const fulfillmentId = await onlyFulfillmentId(db, order.id)
 
-  const { refund, fulfillment } = await issueRefund(context, {
+  const result = await issueRefund(context, {
     fulfillmentId,
     reason: REASON,
     issuedBy: bySeller(sellerId),
   })
+
+  assert.equal(result.outcome, 'issued')
+  assert(result.outcome === 'issued')
+  const { refund, fulfillment } = result
 
   assert.equal(fulfillment.status, 'declined')
   assert.equal(refund.amountCents, 45_000)
@@ -158,13 +180,15 @@ test('an admin refund restores nothing', async (t) => {
   const adminId = await createAdmin(context)
   const { listing, fulfillmentId } = await shippedSale(context, db)
 
-  const { fulfillment } = await issueRefund(context, {
+  const result = await issueRefund(context, {
     fulfillmentId,
     reason: 'The customer never received it.',
     issuedBy: byAdmin(adminId),
   })
 
-  assert.equal(fulfillment.status, 'refunded')
+  assert.equal(result.outcome, 'issued')
+  assert(result.outcome === 'issued')
+  assert.equal(result.fulfillment.status, 'refunded')
   assert.deepEqual(await readListing(db, listing.id), { quantity: 0, status: 'sold' })
 })
 
@@ -179,13 +203,15 @@ test('an admin refunds a fulfillment that has not shipped', async (t) => {
   const listing = await createListing(context, sellerId)
   const order = await paidOrder(context, buyerId, [listing.id])
 
-  const { fulfillment } = await issueRefund(context, {
+  const result = await issueRefund(context, {
     fulfillmentId: await onlyFulfillmentId(db, order.id),
     reason: 'The seller has gone silent.',
     issuedBy: byAdmin(adminId),
   })
 
-  assert.equal(fulfillment.status, 'refunded')
+  assert.equal(result.outcome, 'issued')
+  assert(result.outcome === 'issued')
+  assert.equal(result.fulfillment.status, 'refunded')
   assert.deepEqual(await readListing(db, listing.id), { quantity: 0, status: 'sold' })
 })
 
@@ -198,13 +224,15 @@ test('an admin refunds a delivered fulfillment as a dispute outcome', async (t) 
   const { fulfillmentId } = await shippedSale(context, db)
   await confirmDelivered(context, fulfillmentId)
 
-  const { fulfillment } = await issueRefund(context, {
+  const result = await issueRefund(context, {
     fulfillmentId,
     reason: 'It arrived broken.',
     issuedBy: byAdmin(adminId),
   })
 
-  assert.equal(fulfillment.status, 'refunded')
+  assert.equal(result.outcome, 'issued')
+  assert(result.outcome === 'issued')
+  assert.equal(result.fulfillment.status, 'refunded')
 })
 
 test('an order whose every fulfillment is reversed is refunded', async (t) => {
@@ -343,12 +371,17 @@ test('a seller cannot decline after shipping', async (t) => {
   t.after(world.close)
   const { context, db } = world
 
-  const { sellerId, fulfillmentId } = await shippedSale(context, db)
+  const { sellerId, fulfillmentId, order } = await shippedSale(context, db)
 
-  await assert.rejects(
-    () => declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON }),
-    /A fulfillment cannot move from shipped to declined\./,
-  )
+  const result = await declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: fulfillmentId, order_id: order.id, status_from: 'shipped', status_to: 'declined' },
+  })
+  assert.equal(await readFulfillmentStatus(db, fulfillmentId), 'shipped')
+  assert.equal(await refundCount(db, fulfillmentId), 0)
 })
 
 test('a seller cannot ship after declining', async (t) => {
@@ -362,11 +395,17 @@ test('a seller cannot ship after declining', async (t) => {
   const order = await paidOrder(context, buyerId, [listing.id])
   const fulfillmentId = await onlyFulfillmentId(db, order.id)
   await declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON })
+  const refundsBefore = await refundCount(db, fulfillmentId)
 
-  await assert.rejects(
-    () => markShipped(context, { fulfillmentId, carrier: 'USPS', trackingNumber: '9400111899' }),
-    /A fulfillment cannot move from declined to shipped\./,
-  )
+  const result = await markShipped(context, { fulfillmentId, carrier: 'USPS', trackingNumber: '9400111899' })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: fulfillmentId, status_from: 'declined', status_to: 'shipped' },
+  })
+  assert.equal(await readFulfillmentStatus(db, fulfillmentId), 'declined')
+  assert.equal(await refundCount(db, fulfillmentId), refundsBefore)
 })
 
 test('a fulfillment cannot be refunded twice', async (t) => {
@@ -375,13 +414,19 @@ test('a fulfillment cannot be refunded twice', async (t) => {
   const { context, db } = world
 
   const adminId = await createAdmin(context)
-  const { fulfillmentId } = await shippedSale(context, db)
+  const { fulfillmentId, order } = await shippedSale(context, db)
   await issueRefund(context, { fulfillmentId, reason: 'Broken.', issuedBy: byAdmin(adminId) })
+  const refundsBefore = await refundCount(db, fulfillmentId)
 
-  await assert.rejects(
-    () => issueRefund(context, { fulfillmentId, reason: 'Broken again.', issuedBy: byAdmin(adminId) }),
-    /A fulfillment cannot move from refunded to refunded\./,
-  )
+  const result = await issueRefund(context, { fulfillmentId, reason: 'Broken again.', issuedBy: byAdmin(adminId) })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: fulfillmentId, order_id: order.id, status_from: 'refunded', status_to: 'refunded' },
+  })
+  assert.equal(await readFulfillmentStatus(db, fulfillmentId), 'refunded')
+  assert.equal(await refundCount(db, fulfillmentId), refundsBefore)
 })
 
 test('a declined fulfillment cannot then be refunded', async (t) => {
@@ -396,11 +441,17 @@ test('a declined fulfillment cannot then be refunded', async (t) => {
   const order = await paidOrder(context, buyerId, [listing.id])
   const fulfillmentId = await onlyFulfillmentId(db, order.id)
   await declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON })
+  const refundsBefore = await refundCount(db, fulfillmentId)
 
-  await assert.rejects(
-    () => issueRefund(context, { fulfillmentId, reason: 'Also broken.', issuedBy: byAdmin(adminId) }),
-    /A fulfillment cannot move from declined to refunded\./,
-  )
+  const result = await issueRefund(context, { fulfillmentId, reason: 'Also broken.', issuedBy: byAdmin(adminId) })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'illegal_transition',
+    data: { fulfillment_id: fulfillmentId, order_id: order.id, status_from: 'declined', status_to: 'refunded' },
+  })
+  assert.equal(await readFulfillmentStatus(db, fulfillmentId), 'declined')
+  assert.equal(await refundCount(db, fulfillmentId), refundsBefore)
 })
 
 test('an unpaid order has no fulfillment to refund', async (t) => {
@@ -414,10 +465,15 @@ test('an unpaid order has no fulfillment to refund', async (t) => {
   const order = await placedOrder(context, buyerId, [listing.id])
   const fulfillmentId = await onlyFulfillmentId(db, order.id)
 
-  await assert.rejects(
-    () => declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON }),
-    /An order that has not been paid cannot be refunded\./,
-  )
+  const result = await declineFulfillment(context, { fulfillmentId, sellerId, reason: REASON })
+
+  assert.deepEqual(result, {
+    outcome: 'refused',
+    reason: 'order_unpaid',
+    data: { fulfillment_id: fulfillmentId, order_id: order.id },
+  })
+  assert.equal(await readFulfillmentStatus(db, fulfillmentId), 'awaiting_shipment')
+  assert.equal(await refundCount(db, fulfillmentId), 0)
 })
 
 test('a decline tells the customer, and a platform refund tells both sides', async (t) => {
@@ -471,11 +527,15 @@ test('a refund names the approved charge it goes back against', async (t) => {
   const listing = await createListing(context, sellerId)
   const order = await paidOrder(context, buyerId, [listing.id])
 
-  const { refund } = await declineFulfillment(context, {
+  const declineResult = await declineFulfillment(context, {
     fulfillmentId: await onlyFulfillmentId(db, order.id),
     sellerId,
     reason: REASON,
   })
+
+  assert.equal(declineResult.outcome, 'issued')
+  assert(declineResult.outcome === 'issued')
+  const { refund } = declineResult
 
   const payment = await db
     .selectFrom('payments')

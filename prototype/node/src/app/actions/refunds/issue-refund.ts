@@ -12,7 +12,7 @@ import {
   refundIssuedMessage,
 } from '../../core/notifications/notification-message.ts'
 import { planRefund } from '../../core/orders/refund.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { Fulfillment, Order, Refund } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -28,6 +28,10 @@ export type IssueRefundInput = {
 /** What the reversal left behind: the row, the fulfillment, and the order it rolled up to. */
 export type IssuedRefund = { refund: Refund; fulfillment: Fulfillment; order: Order }
 
+export type IssueRefundResult =
+  | ({ outcome: 'issued' } & IssuedRefund)
+  | Refusal<'order_unpaid' | 'illegal_transition'>
+
 /**
  * Reverses one seller's half of a paid order. A seller's decline puts the
  * pieces back on the storefront; the platform's refund does not, because they
@@ -40,8 +44,8 @@ export type IssuedRefund = { refund: Refund; fulfillment: Fulfillment; order: Or
 export async function issueRefund(
   context: ActionContext,
   input: IssueRefundInput,
-): Promise<IssuedRefund> {
-  return actionStory<IssuedRefund>(
+): Promise<IssueRefundResult> {
+  return actionStory<IssueRefundResult>(
     context,
     {
       event: 'refund.issue',
@@ -49,22 +53,29 @@ export async function issueRefund(
         msg: 'issuing a refund',
         data: { fulfillment_id: input.fulfillmentId, issued_by_type: input.issuedBy.type },
       },
-      ended: ({ refund }) => ({
-        phase: 'did',
-        msg: 'issued the refund',
-        data: {
-          refund_id: refund.id,
-          fulfillment_id: refund.fulfillmentId,
-          amount_cents: refund.amountCents,
-          reason: refund.reason,
-        },
-      }),
+      ended: (result) =>
+        result.outcome === 'issued'
+          ? {
+              phase: 'did',
+              msg: 'issued the refund',
+              data: {
+                refund_id: result.refund.id,
+                fulfillment_id: result.refund.fulfillmentId,
+                amount_cents: result.refund.amountCents,
+                reason: result.refund.reason,
+              },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the refund cannot be issued',
+              data: { reason: result.reason, ...result.data },
+            },
     },
     (transacted) => reverse(transacted, input),
   )
 }
 
-async function reverse(transacted: ActionContext, input: IssueRefundInput): Promise<IssuedRefund> {
+async function reverse(transacted: ActionContext, input: IssueRefundInput): Promise<IssueRefundResult> {
   const { db, clock } = transacted
   const now = clock.now()
   const fulfillment = await db
@@ -80,7 +91,13 @@ async function reverse(transacted: ActionContext, input: IssueRefundInput): Prom
     netCents: fulfillment.netCents,
     paymentId: await approvedPaymentId(transacted, fulfillment),
   })
-  if (!plan.ok) throw new TransitionError(plan.refusal)
+  if (plan.outcome === 'refused') {
+    return refused(plan.reason, {
+      fulfillment_id: fulfillment.id,
+      order_id: fulfillment.orderId,
+      ...plan.data,
+    })
+  }
 
   const { intent } = plan
   const reversed = await db
@@ -127,7 +144,7 @@ async function reverse(transacted: ActionContext, input: IssueRefundInput): Prom
 
   await tellTheCounterparts(transacted, { refund, fulfillment: reversed, order: settled }, input.issuedBy)
 
-  return { refund, fulfillment: reversed, order: settled }
+  return { outcome: 'issued', refund, fulfillment: reversed, order: settled }
 }
 
 /** The charge the money came in on: without one there is nothing to refund. */

@@ -5,7 +5,6 @@ import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { AdminId } from '../../../core/ids/entity-ids.ts'
 import { FULFILLMENT_STATUSES } from '../../../core/orders/fulfillment-status.ts'
 import { parseRefundReason, REFUND_REASON_MAX_LENGTH } from '../../../core/orders/refund.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import { idParams, idValue, optionalFilter, submittedForm } from '../../../http/request-schema.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -75,7 +74,7 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
       })
       const found = await admin.db
         .selectFrom('fulfillments')
-        .select('id')
+        .select(['id', 'status'])
         .where('id', '=', fulfillmentId)
         .executeTakeFirst()
       if (found === undefined) return reply.callNotFound()
@@ -87,16 +86,18 @@ export const fulfillmentRoutes: ZodRoutes = (admin, _options, done) => {
         return reply.redirect(destination)
       }
 
-      try {
-        await issueRefund(requestActions(request), {
-          fulfillmentId,
-          reason: reason.value,
-          issuedBy: { type: 'admin', id: currentAdminId(request) },
-        })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
+      const result = await issueRefund(requestActions(request), {
+        fulfillmentId,
+        reason: reason.value,
+        issuedBy: { type: 'admin', id: currentAdminId(request) },
+      })
+      if (result.outcome === 'refused') {
+        const alert =
+          result.reason === 'order_unpaid'
+            ? 'An order that has not been paid cannot be refunded.'
+            : `A fulfillment cannot move from ${found.status} to refunded.`
 
-        reply.setFlash({ alert: error.message })
+        reply.setFlash({ alert })
 
         return reply.redirect(destination)
       }

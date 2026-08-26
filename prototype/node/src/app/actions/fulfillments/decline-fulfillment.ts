@@ -1,7 +1,7 @@
 import type { FulfillmentId, SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
-import { issueRefund, type IssuedRefund } from '../refunds/issue-refund.ts'
+import { issueRefund, type IssueRefundResult } from '../refunds/issue-refund.ts'
 
 export type DeclineFulfillmentInput = {
   fulfillmentId: FulfillmentId
@@ -18,8 +18,8 @@ export type DeclineFulfillmentInput = {
 export async function declineFulfillment(
   context: ActionContext,
   input: DeclineFulfillmentInput,
-): Promise<IssuedRefund> {
-  return actionStory<IssuedRefund>(
+): Promise<IssueRefundResult> {
+  return actionStory<IssueRefundResult>(
     context,
     {
       event: 'fulfillment.decline',
@@ -27,20 +27,27 @@ export async function declineFulfillment(
         msg: 'declining the fulfillment',
         data: { fulfillment_id: input.fulfillmentId, seller_id: input.sellerId },
       },
-      ended: ({ fulfillment, refund }) => ({
-        phase: 'did',
-        msg: 'declined the fulfillment',
-        data: {
-          fulfillment_id: fulfillment.id,
-          order_id: fulfillment.orderId,
-          seller_id: fulfillment.sellerId,
-          status_from: 'awaiting_shipment',
-          status_to: fulfillment.status,
-          refund_id: refund.id,
-          amount_cents: refund.amountCents,
-          reason: refund.reason,
-        },
-      }),
+      ended: (result) =>
+        result.outcome === 'issued'
+          ? {
+              phase: 'did',
+              msg: 'declined the fulfillment',
+              data: {
+                fulfillment_id: result.fulfillment.id,
+                order_id: result.fulfillment.orderId,
+                seller_id: result.fulfillment.sellerId,
+                status_from: 'awaiting_shipment',
+                status_to: result.fulfillment.status,
+                refund_id: result.refund.id,
+                amount_cents: result.refund.amountCents,
+                reason: result.refund.reason,
+              },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the fulfillment cannot be declined',
+              data: { reason: result.reason, ...result.data },
+            },
     },
     (transacted) =>
       issueRefund(transacted, {
