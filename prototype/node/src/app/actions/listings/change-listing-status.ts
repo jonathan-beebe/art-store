@@ -4,7 +4,8 @@ import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
 import { isBlockedByRemoval, transitionListing, type ListingStatus } from '../../core/listings/listing-status.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -13,7 +14,9 @@ export type ChangeListingStatusInput = {
   status: ListingStatus
 }
 
-const REMOVED_LISTING_MESSAGE = 'This listing was removed by an admin and cannot be put back on sale.'
+export type ListingStatusChange =
+  | { outcome: 'changed'; listing: Listing }
+  | Refusal<'illegal_transition' | 'listing_removed'>
 
 /** Putting a piece on the storefront is the move worth its own name. */
 const PUBLISHED_STATUS: ListingStatus = 'for_sale'
@@ -29,7 +32,7 @@ const PUBLISHED_STATUS: ListingStatus = 'for_sale'
 export async function changeListingStatus(
   context: ActionContext,
   input: ChangeListingStatusInput,
-): Promise<Listing> {
+): Promise<ListingStatusChange> {
   return runInTransaction(context, async (transacted) => {
     const { db } = transacted
     const listing = await db
@@ -45,16 +48,23 @@ export async function changeListingStatus(
       status_to: input.status,
     }
 
-    return actionStory<Listing>(
+    return actionStory<ListingStatusChange>(
       transacted,
       {
         event: input.status === PUBLISHED_STATUS ? 'listing.publish' : 'listing.transition',
         will: { msg: `moving the listing to ${input.status}`, data: transition },
-        ended: (moved) => ({
-          phase: 'did',
-          msg: `moved the listing to ${moved.status}`,
-          data: transition,
-        }),
+        ended: (result) =>
+          result.outcome === 'changed'
+            ? {
+                phase: 'did',
+                msg: `moved the listing to ${result.listing.status}`,
+                data: transition,
+              }
+            : {
+                phase: 'refused',
+                msg: `the listing cannot move to ${input.status}`,
+                data: { reason: result.reason, ...transition },
+              },
       },
       (writing) => moveTo(writing, listing, input.status),
     )
@@ -65,20 +75,46 @@ async function moveTo(
   context: ActionContext,
   listing: Listing,
   status: ListingStatus,
-): Promise<Listing> {
+): Promise<ListingStatusChange> {
   const { db, clock } = context
   const removal = await activeListingRemoval(context, listing.id)
   if (isBlockedByRemoval(status, removal !== null)) {
-    throw new TransitionError(REMOVED_LISTING_MESSAGE)
+    return refused('listing_removed', {
+      listing_id: listing.id,
+      status_from: listing.status,
+      status_to: status,
+    })
   }
 
-  return db
+  const transition = transitionListing(listing.status, status)
+  if (transition.outcome === 'refused') {
+    return refused('illegal_transition', { listing_id: listing.id, ...transition.data })
+  }
+
+  const updated = await db
     .updateTable('listings')
     .set({
-      status: transitionListing(listing.status, status),
+      status: transition.status,
       updatedAt: toTimestamp(clock.now()),
     })
     .where('id', '=', listing.id)
     .returningAll()
     .executeTakeFirstOrThrow()
+
+  return { outcome: 'changed', listing: updated }
+}
+
+/**
+ * Unwraps a `ListingStatusChange` for a caller inside the application that
+ * only ever asks for a legal, unblocked move. A refusal reaching here is a
+ * broken contract, not a domain outcome to handle.
+ */
+export function changedListing(change: ListingStatusChange): Listing {
+  if (change.outcome === 'changed') return change.listing
+
+  throw new BrokenContractError(
+    change.reason,
+    `a listing status change was refused: ${change.reason}`,
+    change.data,
+  )
 }

@@ -3,7 +3,7 @@ import { addToCart } from '../../actions/carts/add-to-cart.ts'
 import { currentCart } from '../../actions/carts/current-cart.ts'
 import { confirmDelivered } from '../../actions/fulfillments/confirm-delivered.ts'
 import { markShipped } from '../../actions/fulfillments/mark-shipped.ts'
-import { changeListingStatus } from '../../actions/listings/change-listing-status.ts'
+import { changeListingStatus, changedListing } from '../../actions/listings/change-listing-status.ts'
 import { createListing } from '../../actions/listings/create-listing.ts'
 import { markNotificationRead } from '../../actions/notifications/mark-notification-read.ts'
 import { notify } from '../../actions/notifications/notify.ts'
@@ -44,7 +44,7 @@ export async function createForSaleListing(
   const listing = await createTestListing(testApp, sellerId, overrides)
   const { db, clock } = testApp
 
-  return changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' })
+  return changedListing(await changeListingStatus({ db, clock }, { listingId: listing.id, status: 'for_sale' }))
 }
 
 /**

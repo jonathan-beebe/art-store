@@ -1,4 +1,4 @@
-import { transitionListing, type ListingStatus } from './listing-status.ts'
+import { listingMovedTo, type ListingStatus } from './listing-status.ts'
 import type { StockChange } from './stock-change.ts'
 
 export type ListingStock = { quantity: number; status: ListingStatus }
@@ -23,7 +23,7 @@ export function stockAfterSale(input: { quantity: number; status: ListingStatus;
   }
 
   const remaining = quantity - sold
-  return { quantity: remaining, status: remaining === 0 ? transitionListing(status, 'sold') : status }
+  return { quantity: remaining, status: remaining === 0 ? listingMovedTo(status, 'sold') : status }
 }
 
 export function stockAfterRestock(input: { quantity: number; status: ListingStatus; restored: number }): ListingStock {
@@ -32,7 +32,7 @@ export function stockAfterRestock(input: { quantity: number; status: ListingStat
 
   return {
     quantity: quantity + restored,
-    status: status === 'sold' ? transitionListing(status, 'for_sale') : status,
+    status: status === 'sold' ? listingMovedTo(status, 'for_sale') : status,
   }
 }
 

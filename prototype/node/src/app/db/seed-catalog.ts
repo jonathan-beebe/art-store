@@ -1,5 +1,5 @@
 import type { ActionContext } from '../actions/action-context.ts'
-import { changeListingStatus } from '../actions/listings/change-listing-status.ts'
+import { changeListingStatus, changedListing } from '../actions/listings/change-listing-status.ts'
 import { createListing } from '../actions/listings/create-listing.ts'
 import { removeListing } from '../actions/moderation/remove-listing.ts'
 import { fixedClock } from '../clock.ts'
@@ -362,9 +362,9 @@ async function advanceToStatus(
 ): Promise<void> {
   if (target === 'draft') return
 
-  await changeListingStatus(context, { listingId, status: 'for_sale' })
+  changedListing(await changeListingStatus(context, { listingId, status: 'for_sale' }))
   if (target === 'sold') {
-    await changeListingStatus(context, { listingId, status: 'sold' })
+    changedListing(await changeListingStatus(context, { listingId, status: 'sold' }))
   }
 }
 

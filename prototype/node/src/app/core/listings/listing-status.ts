@@ -1,4 +1,5 @@
-import { TransitionError } from '../transition-error.ts'
+import { BrokenContractError } from '../defect.ts'
+import { refused, type Refusal } from '../refusal.ts'
 
 export const LISTING_STATUSES = ['draft', 'for_sale', 'sold', 'archived'] as const
 export type ListingStatus = (typeof LISTING_STATUSES)[number]
@@ -17,12 +18,32 @@ export function canTransitionListing(from: ListingStatus, to: ListingStatus): bo
   return allowed.includes(to)
 }
 
-export function transitionListing(from: ListingStatus, to: ListingStatus): ListingStatus {
+export type ListingTransition =
+  | { outcome: 'allowed'; status: ListingStatus }
+  | Refusal<'illegal_transition'>
+
+export function transitionListing(from: ListingStatus, to: ListingStatus): ListingTransition {
   if (canTransitionListing(from, to)) {
-    return to
+    return { outcome: 'allowed', status: to }
   }
 
-  throw new TransitionError(`A listing cannot move from ${from} to ${to}.`)
+  return refused('illegal_transition', { status_from: from, status_to: to })
+}
+
+/**
+ * Unwraps `transitionListing` for a caller inside the application that only
+ * ever asks for a move the lifecycle table allows. A refusal reaching here is
+ * a broken contract, not a domain outcome to handle.
+ */
+export function listingMovedTo(from: ListingStatus, to: ListingStatus): ListingStatus {
+  const transition = transitionListing(from, to)
+  if (transition.outcome === 'allowed') return transition.status
+
+  throw new BrokenContractError(
+    transition.reason,
+    `A listing cannot move from ${from} to ${to}.`,
+    transition.data,
+  )
 }
 
 // A listing under an active admin removal stays off the storefront whatever its

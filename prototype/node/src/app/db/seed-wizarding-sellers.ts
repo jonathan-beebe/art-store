@@ -1,5 +1,5 @@
 import { claimSellerIdentity } from '../actions/auth/claim-seller-identity.ts'
-import { changeListingStatus } from '../actions/listings/change-listing-status.ts'
+import { changeListingStatus, changedListing } from '../actions/listings/change-listing-status.ts'
 import { createListing } from '../actions/listings/create-listing.ts'
 import type { ActionContext } from '../actions/action-context.ts'
 import { fixedClock } from '../clock.ts'
@@ -160,7 +160,7 @@ export async function seedWizardingSellers(db: AppDatabase): Promise<SeedWizardi
           quantity: record.quantity,
         },
       })
-      await changeListingStatus(context, { listingId: listing.id, status: 'for_sale' })
+      changedListing(await changeListingStatus(context, { listingId: listing.id, status: 'for_sale' }))
       listingCount += 1
     }
   }
