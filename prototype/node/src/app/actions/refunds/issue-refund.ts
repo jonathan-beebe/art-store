@@ -38,7 +38,7 @@ export type IssuedRefund = { refund: Refund; fulfillment: Fulfillment; order: Or
 type RefundSubjectFacts = { fulfillment_id: FulfillmentId; order_id: OrderId }
 
 export type IssueRefundResult =
-  | ({ outcome: 'issued' } & IssuedRefund)
+  | ({ outcome: 'issued'; statusFrom: FulfillmentStatus } & IssuedRefund)
   | Refusal<'order_unpaid', RefundSubjectFacts>
   | Refusal<'illegal_transition', RefundSubjectFacts & TransitionFacts<FulfillmentStatus>>
 
@@ -63,23 +63,17 @@ export async function issueRefund(
         msg: 'issuing a refund',
         data: { fulfillment_id: input.fulfillmentId, issued_by_type: input.issuedBy.type },
       },
-      ended: (result) =>
-        result.outcome === 'issued'
-          ? {
-              phase: 'did',
-              msg: 'issued the refund',
-              data: {
-                refund_id: result.refund.id,
-                fulfillment_id: result.refund.fulfillmentId,
-                amount_cents: result.refund.amountCents,
-                reason: result.refund.reason,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the refund cannot be issued',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the refund cannot be issued',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'issued the refund',
+        data: {
+          refund_id: result.refund.id,
+          fulfillment_id: result.refund.fulfillmentId,
+          amount_cents: result.refund.amountCents,
+          reason: result.refund.reason,
+        },
+      }),
     },
     (transacted) => reverse(transacted, input),
   )
@@ -154,7 +148,7 @@ async function reverse(transacted: ActionContext, input: IssueRefundInput): Prom
 
   await tellTheCounterparts(transacted, { refund, fulfillment: reversed, order: settled }, input.issuedBy)
 
-  return { outcome: 'issued', refund, fulfillment: reversed, order: settled }
+  return { outcome: 'issued', statusFrom: fulfillment.status, refund, fulfillment: reversed, order: settled }
 }
 
 /** The charge the money came in on: without one there is nothing to refund. */

@@ -35,22 +35,16 @@ export async function blockCustomer(
         msg: 'blocking the customer from buying and messaging',
         data: { customer_id: input.customerId },
       },
-      ended: (result) =>
-        result.outcome === 'blocked'
-          ? {
-              phase: 'did',
-              msg: 'blocked the customer from buying and messaging',
-              data: {
-                customer_block_id: result.block.id,
-                customer_id: result.block.customerId,
-                admin_id: result.block.adminId,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the customer cannot be blocked',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the customer cannot be blocked',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'blocked the customer from buying and messaging',
+        data: {
+          customer_block_id: result.block.id,
+          customer_id: result.block.customerId,
+          admin_id: result.block.adminId,
+        },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted

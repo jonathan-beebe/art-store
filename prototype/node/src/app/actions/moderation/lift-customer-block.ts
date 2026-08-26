@@ -19,18 +19,12 @@ export async function liftCustomerBlock(
     {
       event: 'moderation.lift_customer_block',
       will: { msg: 'lifting the block on the customer', data: { customer_id: customerId } },
-      ended: (result) =>
-        result.outcome === 'lifted'
-          ? {
-              phase: 'did',
-              msg: 'lifted the block on the customer',
-              data: { customer_block_id: result.block.id, customer_id: result.block.customerId },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the block cannot be lifted',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the block cannot be lifted',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'lifted the block on the customer',
+        data: { customer_block_id: result.block.id, customer_id: result.block.customerId },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted

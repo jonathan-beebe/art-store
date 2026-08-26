@@ -11,6 +11,8 @@
 import type { LogEvent, LogLineLevel, LogPhase } from './core/logging/log-event.ts'
 import { describeError } from './core/logging/logged-error.ts'
 import { prefixedMsg } from './core/logging/story-emoji.ts'
+import type { Refusal, RefusalData } from './core/refusal.ts'
+import { BrokenContractError } from './core/defect.ts'
 
 /** The entity ids and small facts a line is about. Ids are prefixed ids. */
 export type LogData = Record<string, unknown>
@@ -46,16 +48,29 @@ export type StoryLine = {
 /** How a unit of work ended: the world changed, or the domain said no. */
 export type StoryEnding = StoryLine & { phase: 'did' | 'refused' }
 
-export type Story<Result> = {
+/** The results `ended` can be handed: everything the work returns that is not a returned refusal. */
+export type Told<Result> = Exclude<Result, Refusal>
+
+type StorySpec<Result> = {
   event: LogEvent
   /** What `will`, `doing`, `did`, and `refused` are written at. `failed` is always `error`. */
   level?: LogLineLevel
   /** Marks the story that opens the process (§2.4); exactly one per request or CLI run. */
   root?: boolean
   will: StoryLine
-  /** Reads the outcome off the result the work returned. */
-  ended: (result: Result) => StoryEnding
+  /** The one sentence the refused line reads when the work returns a refusal; the machinery adds `data.reason` and the refusal's facts. */
+  refusedMsg?: string
+  /** Reads the outcome off the result the work returned. A returned refusal never reaches it. */
+  ended: (result: Told<Result>) => StoryEnding
 }
+
+/**
+ * `refusedMsg` is required whenever `Result` carries a `Refusal` arm — the
+ * only way the machinery has a sentence to write when the work refuses — and
+ * stays optional for a `Result` that never does.
+ */
+export type Story<Result> = StorySpec<Result> &
+  ([Extract<Result, Refusal>] extends [never] ? unknown : { refusedMsg: string })
 
 /** One line, in the payload `docs/alignment.md` §2.1 fixes. */
 export function logLine(
@@ -107,7 +122,7 @@ export async function tellStory<Result>(
 
   try {
     const result = await work()
-    const ending = story.ended(result)
+    const ending = storyEnding(story, result)
 
     logLine(log, level, story.event, ending.phase, ending, elapsedMs(startedAt), root)
 
@@ -117,6 +132,55 @@ export async function tellStory<Result>(
 
     throw error
   }
+}
+
+/**
+ * The refused line writes itself off a returned refusal wherever the story
+ * carries a sentence for one; everything else is the story's own `ended` to
+ * read. A refusal with nowhere to be told is a caller that promised a
+ * sentence and did not supply one, or a result union that should never have
+ * carried a `Refusal` arm at all — either way, a defect.
+ */
+function storyEnding<Result>(story: Story<Result>, result: Result): StoryEnding {
+  const refusal = refusalOf(result)
+  if (refusal !== null && story.refusedMsg !== undefined) {
+    return { phase: 'refused', msg: story.refusedMsg, data: { reason: refusal.reason, ...refusal.data } }
+  }
+  if (told(result)) return story.ended(result)
+
+  throw new BrokenContractError(
+    'unended_refusal',
+    `the ${story.event} story has no sentence for the refusal that ended it`,
+    { reason: refusal?.reason },
+  )
+}
+
+/** True when the result is anything but a returned refusal — the shape no success arm uses. */
+function told<Result>(result: Result): result is Told<Result> {
+  return refusalOf(result) === null
+}
+
+/** The reason and data of a returned refusal, or `null` for any other result. */
+function refusalOf(result: unknown): { reason: string; data?: RefusalData } | null {
+  if (typeof result !== 'object' || result === null) return null
+
+  const reason = refusedReasonOf(result)
+  if (reason === null) return null
+
+  const data = 'data' in result ? result.data : undefined
+  return isRefusalData(data) ? { reason, data } : { reason }
+}
+
+/** The `reason` an object carries when it is a returned refusal, or `null` otherwise. */
+function refusedReasonOf(result: object): string | null {
+  if (!('outcome' in result) || result.outcome !== 'refused') return null
+
+  const reason = 'reason' in result ? result.reason : undefined
+  return typeof reason === 'string' ? reason : null
+}
+
+function isRefusalData(value: unknown): value is RefusalData {
+  return typeof value === 'object' && value !== null
 }
 
 function elapsedMs(startedAt: number): number {

@@ -1,4 +1,4 @@
-import type { ListingId } from '../../core/ids/entity-ids.ts'
+import type { ListingId, SellerId } from '../../core/ids/entity-ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
@@ -19,8 +19,9 @@ export type ChangeListingStatusInput = {
   status: ListingStatus
 }
 
-/** The facts a refused status change carries: the listing and the move it asked for. */
-type ListingMoveFacts = { listing_id: ListingId } & TransitionFacts<ListingStatus>
+/** The facts a refused status change carries: the listing, its seller, and the
+ * move it asked for. */
+type ListingMoveFacts = { listing_id: ListingId; seller_id: SellerId } & TransitionFacts<ListingStatus>
 
 export type ListingStatusChange =
   | { outcome: 'changed'; listing: Listing }
@@ -62,18 +63,12 @@ export async function changeListingStatus(
       {
         event: input.status === PUBLISHED_STATUS ? 'listing.publish' : 'listing.transition',
         will: { msg: `moving the listing to ${input.status}`, data: transition },
-        ended: (result) =>
-          result.outcome === 'changed'
-            ? {
-                phase: 'did',
-                msg: `moved the listing to ${result.listing.status}`,
-                data: transition,
-              }
-            : {
-                phase: 'refused',
-                msg: `the listing cannot move to ${input.status}`,
-                data: { reason: result.reason, ...transition },
-              },
+        refusedMsg: `the listing cannot move to ${input.status}`,
+        ended: (result) => ({
+          phase: 'did',
+          msg: `moved the listing to ${result.listing.status}`,
+          data: transition,
+        }),
       },
       (writing) => moveTo(writing, listing, input.status),
     )
@@ -90,6 +85,7 @@ async function moveTo(
   if (isBlockedByRemoval(status, removal !== null)) {
     return refused('listing_removed', {
       listing_id: listing.id,
+      seller_id: listing.sellerId,
       status_from: listing.status,
       status_to: status,
     })
@@ -97,7 +93,7 @@ async function moveTo(
 
   const transition = transitionListing(listing.status, status)
   if (transition.outcome === 'refused') {
-    return refused('illegal_transition', { listing_id: listing.id, ...transition.data })
+    return refused('illegal_transition', { listing_id: listing.id, seller_id: listing.sellerId, ...transition.data })
   }
 
   const updated = await db

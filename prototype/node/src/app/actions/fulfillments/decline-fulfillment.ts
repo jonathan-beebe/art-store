@@ -27,27 +27,21 @@ export async function declineFulfillment(
         msg: 'declining the fulfillment',
         data: { fulfillment_id: input.fulfillmentId, seller_id: input.sellerId },
       },
-      ended: (result) =>
-        result.outcome === 'issued'
-          ? {
-              phase: 'did',
-              msg: 'declined the fulfillment',
-              data: {
-                fulfillment_id: result.fulfillment.id,
-                order_id: result.fulfillment.orderId,
-                seller_id: result.fulfillment.sellerId,
-                status_from: 'awaiting_shipment',
-                status_to: result.fulfillment.status,
-                refund_id: result.refund.id,
-                amount_cents: result.refund.amountCents,
-                reason: result.refund.reason,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the fulfillment cannot be declined',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the fulfillment cannot be declined',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'declined the fulfillment',
+        data: {
+          fulfillment_id: result.fulfillment.id,
+          order_id: result.fulfillment.orderId,
+          seller_id: result.fulfillment.sellerId,
+          status_from: result.statusFrom,
+          status_to: result.fulfillment.status,
+          refund_id: result.refund.id,
+          amount_cents: result.refund.amountCents,
+          reason: result.refund.reason,
+        },
+      }),
     },
     (transacted) =>
       issueRefund(transacted, {

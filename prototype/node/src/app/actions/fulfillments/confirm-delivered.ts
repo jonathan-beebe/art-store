@@ -14,6 +14,12 @@ export type ConfirmDeliveredResult =
   | { outcome: 'delivered'; fulfillment: Fulfillment }
   | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
 
+/** The internal result `deliver` reports: the delivered fulfillment beside the
+ * status it moved from, or a refusal. */
+type Delivery =
+  | { outcome: 'delivered'; fulfillment: Fulfillment; statusFrom: FulfillmentStatus }
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
+
 /**
  * The customer confirms the piece arrived, which is what releases the seller's
  * escrow. The released money is available to the next weekly payout.
@@ -22,7 +28,7 @@ export async function confirmDelivered(
   context: ActionContext,
   fulfillmentId: FulfillmentId,
 ): Promise<ConfirmDeliveredResult> {
-  return actionStory<ConfirmDeliveredResult>(
+  const delivery = await actionStory<Delivery>(
     context,
     {
       event: 'fulfillment.deliver',
@@ -30,25 +36,19 @@ export async function confirmDelivered(
         msg: 'confirming the fulfillment delivered',
         data: { fulfillment_id: fulfillmentId },
       },
-      ended: (result) =>
-        result.outcome === 'delivered'
-          ? {
-              phase: 'did',
-              msg: 'confirmed the fulfillment delivered',
-              data: {
-                fulfillment_id: result.fulfillment.id,
-                order_id: result.fulfillment.orderId,
-                seller_id: result.fulfillment.sellerId,
-                status_from: 'shipped',
-                status_to: result.fulfillment.status,
-                net_cents: result.fulfillment.netCents,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the fulfillment cannot move to delivered',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the fulfillment cannot move to delivered',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'confirmed the fulfillment delivered',
+        data: {
+          fulfillment_id: result.fulfillment.id,
+          order_id: result.fulfillment.orderId,
+          seller_id: result.fulfillment.sellerId,
+          status_from: result.statusFrom,
+          status_to: result.fulfillment.status,
+          net_cents: result.fulfillment.netCents,
+        },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted
@@ -88,9 +88,13 @@ export async function confirmDelivered(
 
       await rollUpOrderStatus(transacted, fulfillment.orderId)
 
-      return { outcome: 'delivered', fulfillment: delivered }
+      return { outcome: 'delivered', fulfillment: delivered, statusFrom: fulfillment.status }
     },
   )
+
+  return delivery.outcome === 'delivered'
+    ? { outcome: 'delivered', fulfillment: delivery.fulfillment }
+    : delivery
 }
 
 /**

@@ -49,7 +49,12 @@ test('a move the lifecycle refuses is a refusal, and leaves the row where it was
 
   assert.deepEqual(
     result,
-    refused('illegal_transition', { listing_id: art.id, status_from: 'draft', status_to: 'sold' }),
+    refused('illegal_transition', {
+      listing_id: art.id,
+      seller_id: sellerId,
+      status_from: 'draft',
+      status_to: 'sold',
+    }),
   )
   assert.equal(await readStatus(world.db, art.id), 'draft')
 })
@@ -79,7 +84,12 @@ test('a removed listing refuses to go back on sale, even through a transition th
 
   assert.deepEqual(
     result,
-    refused('listing_removed', { listing_id: art.id, status_from: 'sold', status_to: 'for_sale' }),
+    refused('listing_removed', {
+      listing_id: art.id,
+      seller_id: sellerId,
+      status_from: 'sold',
+      status_to: 'for_sale',
+    }),
   )
   assert.equal(await readStatus(world.db, art.id), 'sold')
 })

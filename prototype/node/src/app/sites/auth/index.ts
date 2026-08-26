@@ -43,9 +43,9 @@ export const authSite: ZodRoutes = (auth, _options, done) => {
         currentCustomerId: remembered?.id ?? null,
       })
 
-      if (signIn.outcome === 'unknown') return refuse(reply, 'customer', UNKNOWN_LINK)
       if (signIn.outcome === 'refused') {
-        return refuse(reply, signIn.actorType, REFUSALS[signIn.refusal])
+        if (signIn.reason === 'unknown_token') return refuse(reply, 'customer', UNKNOWN_LINK)
+        return refuse(reply, signIn.data.actor_type, REFUSALS[signIn.reason])
       }
 
       reply.signIn(signIn.actorType, signIn.actorId)

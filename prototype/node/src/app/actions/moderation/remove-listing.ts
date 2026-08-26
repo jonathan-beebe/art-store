@@ -38,23 +38,17 @@ export async function removeListing(
         msg: 'removing the listing from the storefront',
         data: { listing_id: input.listingId, kind: input.kind },
       },
-      ended: (result) =>
-        result.outcome === 'removed'
-          ? {
-              phase: 'did',
-              msg: 'removed the listing from the storefront',
-              data: {
-                listing_removal_id: result.removal.id,
-                listing_id: result.removal.listingId,
-                admin_id: result.removal.adminId,
-                kind: result.removal.kind,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the listing cannot be removed',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the listing cannot be removed',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'removed the listing from the storefront',
+        data: {
+          listing_removal_id: result.removal.id,
+          listing_id: result.removal.listingId,
+          admin_id: result.removal.adminId,
+          kind: result.removal.kind,
+        },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted

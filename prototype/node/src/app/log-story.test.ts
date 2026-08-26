@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { logLine, logStep, SILENT_LOG, tellStory, type AppLogger, type LogData } from './log-story.ts'
-import { MissingDataError } from './core/defect.ts'
+import { BrokenContractError, MissingDataError } from './core/defect.ts'
+import { refused, type Refusal } from './core/refusal.ts'
 
 type Written = { level: string; payload: Record<string, unknown>; msg: string }
 
@@ -289,4 +290,124 @@ test('the silent logger writes nowhere and its children write nowhere either', a
   )
 
   assert.equal(result, 'done')
+})
+
+type ShipResult =
+  | { outcome: 'shipped'; id: string }
+  | Refusal<'illegal_transition', { fulfillment_id: string; status_from: string; status_to: string }>
+
+test('the machinery writes the refused line from a returned refusal', async () => {
+  const written: Written[] = []
+
+  await tellStory(
+    recordingLog(written),
+    {
+      event: 'fulfillment.ship',
+      will: { msg: 'moving the fulfillment to shipped' },
+      refusedMsg: 'the fulfillment cannot move to shipped',
+      ended: () => {
+        assert.fail('ended must not run for a returned refusal')
+      },
+    },
+    async (): Promise<ShipResult> =>
+      refused('illegal_transition', { fulfillment_id: 'flm_1', status_from: 'delivered', status_to: 'shipped' }),
+  )
+
+  assert.equal(written[1]?.level, 'info')
+  assert.equal(written[1]?.payload.phase, 'refused')
+  assert.equal(written[1]?.msg, '⚠️ the fulfillment cannot move to shipped')
+  assert.deepEqual(written[1]?.payload.data, {
+    reason: 'illegal_transition',
+    fulfillment_id: 'flm_1',
+    status_from: 'delivered',
+    status_to: 'shipped',
+  })
+  assert.deepEqual(Object.keys(written[1]?.payload.data as object), [
+    'reason',
+    'fulfillment_id',
+    'status_from',
+    'status_to',
+  ])
+  assert.equal(typeof written[1]?.payload.duration_ms, 'number')
+})
+
+test('a refusal with no facts still names its reason', async () => {
+  const written: Written[] = []
+
+  await tellStory(
+    recordingLog(written),
+    {
+      event: 'magic_link.consume',
+      will: { msg: 'signing in with a magic link' },
+      refusedMsg: 'the magic link is not recognized',
+      ended: () => {
+        assert.fail('ended must not run for a returned refusal')
+      },
+    },
+    async (): Promise<{ outcome: 'signed-in' } | Refusal<'unknown_token'>> => refused('unknown_token'),
+  )
+
+  assert.deepEqual(written[1]?.payload.data, { reason: 'unknown_token' })
+})
+
+test('a success result still reaches ended when the story carries a refusal sentence', async () => {
+  const written: Written[] = []
+
+  await tellStory(
+    recordingLog(written),
+    {
+      event: 'fulfillment.ship',
+      will: { msg: 'moving the fulfillment to shipped' },
+      refusedMsg: 'the fulfillment cannot move to shipped',
+      ended: (result) => ({ phase: 'did', msg: 'shipped the fulfillment', data: { id: result.id } }),
+    },
+    async (): Promise<ShipResult> => ({ outcome: 'shipped', id: 'flm_1' }),
+  )
+
+  assert.equal(written[1]?.payload.phase, 'did')
+  assert.deepEqual(written[1]?.payload.data, { id: 'flm_1' })
+})
+
+test('a null result is an outcome, not a refusal', async () => {
+  const written: Written[] = []
+
+  await tellStory(
+    recordingLog(written),
+    {
+      event: 'listing.view',
+      will: { msg: 'recording a view of the listing' },
+      ended: (result: string | null) =>
+        result === null
+          ? { phase: 'refused', msg: 'already viewed this hour' }
+          : { phase: 'did', msg: 'recorded the view', data: { view_id: result } },
+    },
+    async (): Promise<string | null> => null,
+  )
+
+  assert.equal(written[1]?.payload.phase, 'refused')
+  assert.equal(written[1]?.msg, '⚠️ already viewed this hour')
+})
+
+test('a refusal that ends a story with no sentence is a defect', async () => {
+  const written: Written[] = []
+
+  await assert.rejects(
+    tellStory(
+      recordingLog(written),
+      {
+        event: 'order.place',
+        will: { msg: 'placing an order from the cart' },
+        ended: (result: { outcome: string; reason: string }) => ({
+          phase: 'did',
+          msg: 'placed the order',
+          data: { outcome: result.outcome },
+        }),
+      },
+      async (): Promise<{ outcome: string; reason: string }> => ({ outcome: 'refused', reason: 'x' }),
+    ),
+    BrokenContractError,
+  )
+
+  assert.equal(written[1]?.level, 'error')
+  assert.equal(written[1]?.payload.phase, 'failed')
 })

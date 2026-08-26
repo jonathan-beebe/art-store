@@ -51,23 +51,17 @@ export async function postMessage(
           sender_id: input.sender.id,
         },
       },
-      ended: (result) =>
-        result.outcome === 'posted'
-          ? {
-              phase: 'did',
-              msg: 'posted the message',
-              data: {
-                message_id: result.message.id,
-                conversation_id: result.message.conversationId,
-                sender_type: result.message.senderType,
-                sender_id: result.message.senderId,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the message may not be posted',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the message may not be posted',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'posted the message',
+        data: {
+          message_id: result.message.id,
+          conversation_id: result.message.conversationId,
+          sender_type: result.message.senderType,
+          sender_id: result.message.senderId,
+        },
+      }),
     },
     async (transaction) => {
       const { db, clock } = transaction

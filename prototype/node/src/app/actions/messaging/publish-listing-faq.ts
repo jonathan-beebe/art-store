@@ -41,18 +41,12 @@ export async function publishListingFaq(
         msg: 'publishing an answered question on the listing',
         data: { listing_id: input.listingId, source_message_id: input.sourceMessageId ?? null },
       },
-      ended: (result) =>
-        result.outcome === 'published'
-          ? {
-              phase: 'did',
-              msg: 'published the answered question',
-              data: { listing_faq_id: result.faq.id, listing_id: result.faq.listingId },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the question is already published to the listing',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the question is already published to the listing',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'published the answered question',
+        data: { listing_faq_id: result.faq.id, listing_id: result.faq.listingId },
+      }),
     },
     async ({ db, clock }) => {
       if (input.sourceMessageId !== undefined) {

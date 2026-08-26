@@ -26,22 +26,16 @@ export async function liftListingRemoval(
     {
       event: 'moderation.lift_listing_removal',
       will: { msg: 'putting the listing back under its own status', data: { listing_id: listingId } },
-      ended: (result) =>
-        result.outcome === 'lifted'
-          ? {
-              phase: 'did',
-              msg: 'put the listing back under its own status',
-              data: {
-                listing_removal_id: result.removal.id,
-                listing_id: result.removal.listingId,
-                kind: result.removal.kind,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the removal cannot be lifted',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the removal cannot be lifted',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'put the listing back under its own status',
+        data: {
+          listing_removal_id: result.removal.id,
+          listing_id: result.removal.listingId,
+          kind: result.removal.kind,
+        },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted

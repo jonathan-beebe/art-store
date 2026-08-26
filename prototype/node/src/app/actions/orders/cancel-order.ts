@@ -34,18 +34,12 @@ export async function cancelOrder(context: ActionContext, orderId: OrderId): Pro
     {
       event: 'order.cancel',
       will: { msg: 'cancelling the order', data: { order_id: orderId } },
-      ended: (result) =>
-        result.outcome === 'cancelled'
-          ? {
-              phase: 'did',
-              msg: 'cancelled the order',
-              data: { order_id: result.order.id, status_from: result.statusFrom, status_to: result.order.status },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the order cannot move to cancelled',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the order cannot move to cancelled',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'cancelled the order',
+        data: { order_id: result.order.id, status_from: result.statusFrom, status_to: result.order.status },
+      }),
     },
     (transacted) => cancel(transacted, orderId),
   )

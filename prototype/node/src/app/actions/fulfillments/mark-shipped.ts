@@ -20,6 +20,12 @@ export type MarkShippedResult =
   | { outcome: 'shipped'; fulfillment: Fulfillment }
   | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
 
+/** The internal result `ship` reports: the shipped fulfillment beside the
+ * status it moved from, or a refusal. */
+type Shipping =
+  | { outcome: 'shipped'; fulfillment: Fulfillment; statusFrom: FulfillmentStatus }
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
+
 /**
  * A seller's slice of an order leaves the studio. The order rolls up from every
  * fulfillment, so one of two shipping leaves the order partially shipped.
@@ -28,7 +34,7 @@ export async function markShipped(
   context: ActionContext,
   input: MarkShippedInput,
 ): Promise<MarkShippedResult> {
-  return actionStory<MarkShippedResult>(
+  const shipping = await actionStory<Shipping>(
     context,
     {
       event: 'fulfillment.ship',
@@ -36,26 +42,20 @@ export async function markShipped(
         msg: 'marking the fulfillment shipped',
         data: { fulfillment_id: input.fulfillmentId, carrier: input.carrier },
       },
-      ended: (result) =>
-        result.outcome === 'shipped'
-          ? {
-              phase: 'did',
-              msg: 'marked the fulfillment shipped',
-              data: {
-                fulfillment_id: result.fulfillment.id,
-                order_id: result.fulfillment.orderId,
-                seller_id: result.fulfillment.sellerId,
-                status_from: 'awaiting_shipment',
-                status_to: result.fulfillment.status,
-                carrier: result.fulfillment.carrier,
-                tracking_number: result.fulfillment.trackingNumber,
-              },
-            }
-          : {
-              phase: 'refused',
-              msg: 'the fulfillment cannot move to shipped',
-              data: { reason: result.reason, ...result.data },
-            },
+      refusedMsg: 'the fulfillment cannot move to shipped',
+      ended: (result) => ({
+        phase: 'did',
+        msg: 'marked the fulfillment shipped',
+        data: {
+          fulfillment_id: result.fulfillment.id,
+          order_id: result.fulfillment.orderId,
+          seller_id: result.fulfillment.sellerId,
+          status_from: result.statusFrom,
+          status_to: result.fulfillment.status,
+          carrier: result.fulfillment.carrier,
+          tracking_number: result.fulfillment.trackingNumber,
+        },
+      }),
     },
     async (transacted) => {
       const { db, clock } = transacted
@@ -90,9 +90,11 @@ export async function markShipped(
         message: orderShippedMessage(order.id, input.carrier, input.trackingNumber, `/orders/${order.id}`),
       })
 
-      return { outcome: 'shipped', fulfillment: shipped }
+      return { outcome: 'shipped', fulfillment: shipped, statusFrom: fulfillment.status }
     },
   )
+
+  return shipping.outcome === 'shipped' ? { outcome: 'shipped', fulfillment: shipping.fulfillment } : shipping
 }
 
 /**
