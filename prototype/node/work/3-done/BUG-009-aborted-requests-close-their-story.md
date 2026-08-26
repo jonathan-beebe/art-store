@@ -1,7 +1,7 @@
 ---
 id: BUG-009
 type: bug
-status: open
+status: resolved
 created: 2026-08-25
 ---
 
@@ -51,6 +51,37 @@ closes exactly once whichever hook runs first (the `loggedFailure` flag is
 the existing shape for that). PHP and Rails likely share the gap; a §2.2
 note on long-lived requests can ride the next alignment pass rather than
 this ticket.
+
+## Working
+
+- 2026-08-25 — re-validated: `request-log.ts` registers `onRequest` (will) and
+  `onResponse` (did) only; no `onRequestAbort`. `events.ts` streams SSE until
+  `request.raw` closes, so a navigation aborts the request mid-response.
+- Red first: a test opens `GET /seller/events` over a real socket via
+  `buildLoggedTestApp` + `app.listen`, reads the first frame, aborts, and
+  asserts a `did` line with `data.status`, `data.disconnected: true`, and a
+  sane `duration_ms` under the will line's `request_id`.
+- Fix shape: `onRequestAbort` hook closing the story with `did`; a single
+  closed-once guard shared with `onResponse` and `logRequestFailure` so
+  whichever hook runs first closes the story exactly once; asset paths stay
+  excluded. §2.1 payload unchanged (`data` keys are free-form).
+- Red confirmed: after aborting the SSE fetch, a 2s poll found zero closing
+  lines for the request's `request_id` — `onResponse` does not fire on abort
+  in Fastify 5.12.1. Fastify wires `onRequestAbort` to `req.on('close')`
+  guarded by `req.aborted` (`lib/route.js:572`).
+- Resolved: `request-log.ts` renames `loggedFailure` → `storyClosed` (checked
+  and set by `onResponse`, `onRequestAbort`, and `logRequestFailure`), stamps
+  `storyStartedAt` in `onRequest` for the abort-path duration (the abort hook
+  receives no `reply`), and captures `sentStatus` in an `onSend` hook so the
+  abort closer reports the status that was streaming. The aborted request
+  logs `did` with `data: { status, disconnected: true }` and `duration_ms`.
+  Test pins it: abort a live `GET /seller/events` fetch, exactly one closing
+  line under the will line's `request_id`. 2084 tests green, `make check`
+  green at 99.33/95.70 coverage.
+- Noted for a later pass: the aborted `did` carries the 🟢 prefix like any
+  completed response — `data.disconnected` is the marker. The three closers
+  share a repeated guard-set-log shape; a single close-once helper is a
+  refactor candidate.
 
 ## Related work
 

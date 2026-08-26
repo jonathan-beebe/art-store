@@ -25,8 +25,15 @@ declare module 'fastify' {
     /** The `sid` cookie's value, minted on the first response a browser gets.
      * Null only before the request-log hook has run. */
     sessionId: SessionId | null
-    /** Set once the error handler has closed this request's story with `failed`. */
-    loggedFailure: boolean
+    /** Set once this request's story has closed with `did`, `failed`, or an abort. */
+    storyClosed: boolean
+    /** `performance.now()` when the story opened; the abort closer has no `reply`
+     * to read `elapsedTime` from, so it measures duration against this instead. */
+    storyStartedAt: number
+    /** The status code last handed to the client, captured before a streamed
+     * response's body goes out; the abort closer reports this since a response
+     * that never reached `onResponse` has no final `reply.statusCode` to read. */
+    sentStatus: number
   }
 }
 
@@ -47,13 +54,16 @@ export const requestLog = rootPlugin(
   { name: 'requestLog', dependencies: ['@fastify/cookie'] },
   (app) => {
     app.decorateRequest('sessionId', null)
-    app.decorateRequest('loggedFailure', false)
+    app.decorateRequest('storyClosed', false)
+    app.decorateRequest('storyStartedAt', 0)
+    app.decorateRequest('sentStatus', 0)
 
     app.addHook('onRequest', async (request, reply) => {
       if (isAssetPath(pathnameOf(request.url))) return
 
       const sessionId = rememberSession(request, reply)
       request.sessionId = sessionId
+      request.storyStartedAt = performance.now()
       request.log = request.log.child(requestBindings(request, sessionId))
       reply.header(REQUEST_ID_HEADER, request.id)
 
@@ -73,8 +83,14 @@ export const requestLog = rootPlugin(
       )
     })
 
+    app.addHook('onSend', async (request, reply, payload) => {
+      if (!isAssetPath(pathnameOf(request.url))) request.sentStatus = reply.statusCode
+      return payload
+    })
+
     app.addHook('onResponse', async (request, reply) => {
-      if (request.loggedFailure || isAssetPath(pathnameOf(request.url))) return
+      if (request.storyClosed || isAssetPath(pathnameOf(request.url))) return
+      request.storyClosed = true
 
       logLine(
         request.log,
@@ -86,6 +102,23 @@ export const requestLog = rootPlugin(
           data: { status: reply.statusCode },
         },
         Math.round(reply.elapsedTime),
+      )
+    })
+
+    app.addHook('onRequestAbort', async (request) => {
+      if (request.storyClosed || isAssetPath(pathnameOf(request.url))) return
+      request.storyClosed = true
+
+      logLine(
+        request.log,
+        'info',
+        'http.request',
+        'did',
+        {
+          msg: `${request.method} ${loggedPath(request)} ${request.sentStatus}`,
+          data: { status: request.sentStatus, disconnected: true },
+        },
+        Math.round(performance.now() - request.storyStartedAt),
       )
     })
   },
@@ -102,7 +135,8 @@ export function logRequestFailure(
   error: unknown,
   statusCode: number,
 ): void {
-  request.loggedFailure = true
+  if (request.storyClosed) return
+  request.storyClosed = true
 
   request.log.error(
     {
