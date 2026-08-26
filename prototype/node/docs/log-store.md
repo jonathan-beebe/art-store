@@ -26,7 +26,11 @@ Three invariants govern the design:
 
 The store is its own SQLite file, opened on its own `DatabaseSync` handle.
 `LOG_DATABASE_FILE` names it (default `storage/logs.sqlite3`, beside the
-commerce file; the Render volume in production; `off` disables the store).
+commerce file; the runtime image pins it beside `production.sqlite3` in the
+same `storage/` directory; `off` disables the store). Log history shares
+the commerce database's durability: on a host with no persistent disk —
+the free Render tier — both reset on deploy, and that is accepted for the
+prototype.
 Two hazards make the separate file load-bearing rather than tidy:
 
 - A log INSERT on the commerce connection issued inside `begin immediate`
