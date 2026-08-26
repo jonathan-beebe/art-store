@@ -5,7 +5,11 @@ import { conversationThread, type ConversationThread } from '../../../actions/me
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
 import { openSupportConversation } from '../../../actions/messaging/open-support-conversation.ts'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import {
+  messagePostRefusalCopy,
+  postMessage,
+  type PostMessageRefusalReason,
+} from '../../../actions/messaging/post-message.ts'
 import { runInTransaction } from '../../../actions/transaction.ts'
 import type {
   ConversationId,
@@ -14,7 +18,6 @@ import type {
   SellerId,
 } from '../../../core/ids/entity-ids.ts'
 import { messageBodyError } from '../../../core/messaging/message-body.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import type { Conversation } from '../../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../../db/database.ts'
 import { idParams, idValue, slugParams, submittedForm } from '../../../http/request-schema.ts'
@@ -32,6 +35,19 @@ import { storefrontCustomer } from '../storefront-customer.ts'
 const fulfillmentParams = z.object({ id: idValue('ord'), fulfillmentId: idValue('ful') })
 const replyForm = submittedForm({ body: z.string().optional() })
 const questionForm = submittedForm({ body: z.string().optional() })
+
+/** Thrown inside the `POST /art/:slug/questions` transaction to roll back a
+ * listing question's conversation open when the first message posted into it
+ * is refused. Carries the refusal's reason out to the catch that renders it. */
+class FirstMessageRefused extends Error {
+  readonly reason: PostMessageRefusalReason
+
+  constructor(reason: PostMessageRefusalReason) {
+    super(`first message refused: ${reason}`)
+    this.name = 'FirstMessageRefused'
+    this.reason = reason
+  }
+}
 
 /** What the reply form on a thread page shows back: the body as typed, a
  * field error for it, or a field-less refusal for the shared slot. */
@@ -186,12 +202,9 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
         return renderThread(reply, thread, { body: body ?? '', error: bodyError }, 422)
       }
 
-      try {
-        await postMessage(requestActions(request), { conversationId, sender: actor, body: body ?? '' })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
-        return renderThread(reply, thread, { body: body ?? '', formError: error.message }, 422)
+      const posted = await postMessage(requestActions(request), { conversationId, sender: actor, body: body ?? '' })
+      if (posted.outcome === 'refused') {
+        return renderThread(reply, thread, { body: body ?? '', formError: messagePostRefusalCopy(posted.reason, body) }, 422)
       }
 
       return await reply.redirect(`/messages/${conversationId}`)
@@ -219,8 +232,10 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
       let conversation: Conversation
       try {
         // A refused first message must leave no conversation behind, so the open
-        // and the post run as one transaction: `postMessage`'s `TransitionError`
-        // escapes it uncaught here, which is what rolls the open back too.
+        // and the post run as one transaction. Kysely rolls a transaction back
+        // only on a throw, and `postMessage` returns its refusal rather than
+        // throwing one, so the refusal is re-thrown as this sentinel to drive
+        // the rollback and is unwrapped again once it escapes the transaction.
         conversation = await runInTransaction(requestActions(request), async (transacted) => {
           const opened = await openConversation(transacted, {
             kind: 'listing_question',
@@ -229,23 +244,24 @@ export const messageRoutes: ZodRoutes = (shop, _options, done) => {
             listingId: found.listing.id,
           })
 
-          await postMessage(transacted, {
+          const posted = await postMessage(transacted, {
             conversationId: opened.id,
             sender: { type: 'customer', id: customer.id },
             body: body ?? '',
           })
+          if (posted.outcome === 'refused') throw new FirstMessageRefused(posted.reason)
 
           return opened
         })
       } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
+        if (!(error instanceof FirstMessageRefused)) throw error
 
         return renderListingPage(
           shop,
           request,
           reply,
           slug,
-          { questionBody: body ?? '', questionFormError: error.message },
+          { questionBody: body ?? '', questionFormError: messagePostRefusalCopy(error.reason, body) },
           422,
         )
       }

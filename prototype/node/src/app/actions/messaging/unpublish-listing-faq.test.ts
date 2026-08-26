@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { unpublishListingFaq } from './unpublish-listing-faq.ts'
-import { publishListingFaq } from './publish-listing-faq.ts'
+import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
 import { listingFaqs } from './listing-faqs.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
@@ -38,10 +38,12 @@ test('it deletes the row so listingFaqs no longer returns it', async (t) => {
   t.after(world.close)
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is this framed?', answer: 'Yes.' },
-  })
+  const faq = publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is this framed?', answer: 'Yes.' },
+    }),
+  )
 
   await unpublishListingFaq(world.context, faq.id)
 

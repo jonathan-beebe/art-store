@@ -4,7 +4,7 @@ import { inboxConversations, unreadMessageCount } from './conversation-inbox.ts'
 import { markConversationRead } from './mark-conversation-read.ts'
 import { openConversation } from './open-conversation.ts'
 import { openSupportConversation } from './open-support-conversation.ts'
-import { postMessage } from './post-message.ts'
+import { postedMessage, postMessage } from './post-message.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
 import { findAdminByEmail } from '../auth/find-admin-by-email.ts'
@@ -77,11 +77,13 @@ async function seedTwoThreads(db: AppDatabase) {
     customerId: buyerA.id,
     listingId: listingA.id,
   })
-  await postMessage(ctx1, {
-    conversationId: conversationA.id,
-    sender: { type: 'customer', id: buyerA.id },
-    body: 'Is this available?',
-  })
+  postedMessage(
+    await postMessage(ctx1, {
+      conversationId: conversationA.id,
+      sender: { type: 'customer', id: buyerA.id },
+      body: 'Is this available?',
+    }),
+  )
 
   const ctx2 = contextAt(db, T2)
   const conversationB = await openConversation(ctx2, {
@@ -90,18 +92,22 @@ async function seedTwoThreads(db: AppDatabase) {
     customerId: buyerB.id,
     listingId: listingB.id,
   })
-  await postMessage(ctx2, {
-    conversationId: conversationB.id,
-    sender: { type: 'customer', id: buyerB.id },
-    body: 'Do you ship to Canada?',
-  })
+  postedMessage(
+    await postMessage(ctx2, {
+      conversationId: conversationB.id,
+      sender: { type: 'customer', id: buyerB.id },
+      body: 'Do you ship to Canada?',
+    }),
+  )
 
   const ctx3 = contextAt(db, T3)
-  await postMessage(ctx3, {
-    conversationId: conversationA.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Yes, still available!',
-  })
+  postedMessage(
+    await postMessage(ctx3, {
+      conversationId: conversationA.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Yes, still available!',
+    }),
+  )
 
   return { shop, buyerA, buyerB, conversationA, conversationB, ctx3 }
 }
@@ -208,11 +214,13 @@ test('unreadMessageCount for an admin counts what is waiting in a support thread
   const opened = await openSupportConversation(ctx, { actorType: 'seller', actorId: shop.id })
   assert.equal(opened.outcome, 'opened')
   if (opened.outcome !== 'opened') return
-  await postMessage(ctx, {
-    conversationId: opened.conversation.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Need help with a listing.',
-  })
+  postedMessage(
+    await postMessage(ctx, {
+      conversationId: opened.conversation.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Need help with a listing.',
+    }),
+  )
 
   const total = await unreadMessageCount(ctx, { type: 'admin', id: support.id })
 

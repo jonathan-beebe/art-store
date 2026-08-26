@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
 import type { ListingId, SellerId } from '../../../core/ids/entity-ids.ts'
 import type { Message } from '../../../db/commerce-schema.ts'
 import { buildTestApp, signInAsCustomer, signInAsSeller, type TestApp } from '../../../test/build-test-app.ts'
@@ -14,14 +14,18 @@ async function askAndAnswer(testApp: TestApp, sellerId: SellerId, listingId: Lis
     { db, clock },
     { kind: 'listing_question', sellerId, customerId: buyer.id, listingId },
   )
-  await postMessage(
-    { db, clock },
-    { conversationId: conversation.id, sender: { type: 'customer', id: buyer.id }, body: 'Is this framed?' },
+  postedMessage(
+    await postMessage(
+      { db, clock },
+      { conversationId: conversation.id, sender: { type: 'customer', id: buyer.id }, body: 'Is this framed?' },
+    ),
   )
 
-  return postMessage(
-    { db, clock },
-    { conversationId: conversation.id, sender: { type: 'seller', id: sellerId }, body: 'Yes, in oak.' },
+  return postedMessage(
+    await postMessage(
+      { db, clock },
+      { conversationId: conversation.id, sender: { type: 'seller', id: sellerId }, body: 'Yes, in oak.' },
+    ),
   )
 }
 

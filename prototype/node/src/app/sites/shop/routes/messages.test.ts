@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
 import type {
   ConversationId,
   CustomerId,
@@ -83,11 +83,13 @@ test('the inbox lists the customer’s threads newest first with the unread coun
     body: 'What clay is this?',
     cookies: customer.cookies,
   })
-  await postMessage(testApp, {
-    conversationId: kilnConversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'Stoneware.',
-  })
+  postedMessage(
+    await postMessage(testApp, {
+      conversationId: kilnConversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'Stoneware.',
+    }),
+  )
 
   const strangerResponse = await testApp.app.inject({
     method: 'GET',
@@ -123,11 +125,13 @@ test('the thread page renders the messages and clears the unread count on the ne
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  await postMessage(testApp, {
-    conversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'No, it ships unframed.',
-  })
+  postedMessage(
+    await postMessage(testApp, {
+      conversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'No, it ships unframed.',
+    }),
+  )
 
   const threadResponse = await testApp.app.inject({
     method: 'GET',
@@ -470,11 +474,13 @@ test('the customer thread shows a published FAQ answer with a link to the listin
     body: 'Is this framed?',
     cookies: customer.cookies,
   })
-  const answer = await postMessage(testApp, {
-    conversationId,
-    sender: { type: 'seller', id: seller.id },
-    body: 'Yes, in oak.',
-  })
+  const answer = postedMessage(
+    await postMessage(testApp, {
+      conversationId,
+      sender: { type: 'seller', id: seller.id },
+      body: 'Yes, in oak.',
+    }),
+  )
   const listing = await testApp.db
     .selectFrom('listings')
     .selectAll()

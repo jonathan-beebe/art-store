@@ -4,10 +4,9 @@ import { conversationThread, type ConversationThread } from '../../../actions/me
 import { inboxConversations } from '../../../actions/messaging/conversation-inbox.ts'
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { messagePostRefusalCopy, postMessage } from '../../../actions/messaging/post-message.ts'
 import type { AdminId, ConversationId } from '../../../core/ids/entity-ids.ts'
 import { messageBodyError } from '../../../core/messaging/message-body.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -114,12 +113,9 @@ export const messageRoutes: ZodRoutes = (admin, _options, done) => {
         return renderThread(reply, thread, { body: body ?? '', error: bodyError }, 422)
       }
 
-      try {
-        await postMessage(context, { conversationId, sender: actor, body: body ?? '' })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
-        return renderThread(reply, thread, { body: body ?? '', formError: error.message }, 422)
+      const posted = await postMessage(context, { conversationId, sender: actor, body: body ?? '' })
+      if (posted.outcome === 'refused') {
+        return renderThread(reply, thread, { body: body ?? '', formError: messagePostRefusalCopy(posted.reason, body) }, 422)
       }
 
       return reply.redirect(`/admin/messages/${conversationId}`)

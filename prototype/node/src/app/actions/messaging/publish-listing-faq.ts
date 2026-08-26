@@ -3,7 +3,8 @@ import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
 import type { FaqDraft } from '../../core/messaging/faq-draft.ts'
-import { TransitionError } from '../../core/transition-error.ts'
+import { BrokenContractError } from '../../core/defect.ts'
+import { refused, type Refusal } from '../../core/refusal.ts'
 import type { ListingFaq } from '../../db/commerce-schema.ts'
 import type { AppDatabase } from '../../db/database.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
@@ -14,6 +15,8 @@ export type PublishListingFaqInput = {
   /** The answer this entry was lifted from, when a thread is where it came from. */
   sourceMessageId?: MessageId
 }
+
+export type PublishListingFaqResult = { outcome: 'published'; faq: ListingFaq } | Refusal<'already_published'>
 
 /**
  * Puts one answered question on the listing page for everyone. A row exists
@@ -29,8 +32,8 @@ export type PublishListingFaqInput = {
 export async function publishListingFaq(
   context: ActionContext,
   input: PublishListingFaqInput,
-): Promise<ListingFaq> {
-  return actionStory<ListingFaq>(
+): Promise<PublishListingFaqResult> {
+  return actionStory<PublishListingFaqResult>(
     context,
     {
       event: 'faq.publish',
@@ -38,18 +41,26 @@ export async function publishListingFaq(
         msg: 'publishing an answered question on the listing',
         data: { listing_id: input.listingId, source_message_id: input.sourceMessageId ?? null },
       },
-      ended: (faq) => ({
-        phase: 'did',
-        msg: 'published the answered question',
-        data: { listing_faq_id: faq.id, listing_id: faq.listingId },
-      }),
+      ended: (result) =>
+        result.outcome === 'published'
+          ? {
+              phase: 'did',
+              msg: 'published the answered question',
+              data: { listing_faq_id: result.faq.id, listing_id: result.faq.listingId },
+            }
+          : {
+              phase: 'refused',
+              msg: 'the question is already published to the listing',
+              data: { reason: result.reason, ...result.data },
+            },
     },
     async ({ db, clock }) => {
       if (input.sourceMessageId !== undefined) {
-        await refuseUnlessUnpublished(db, input.listingId, input.sourceMessageId)
+        const refusal = await alreadyPublishedRefusal(db, input.listingId, input.sourceMessageId)
+        if (refusal !== null) return refusal
       }
 
-      return db
+      const faq = await db
         .insertInto('listingFaqs')
         .values({
           id: newId('faq', clock.now()),
@@ -61,15 +72,17 @@ export async function publishListingFaq(
         })
         .returningAll()
         .executeTakeFirstOrThrow()
+
+      return { outcome: 'published', faq }
     },
   )
 }
 
-async function refuseUnlessUnpublished(
+async function alreadyPublishedRefusal(
   db: AppDatabase,
   listingId: ListingId,
   sourceMessageId: MessageId,
-): Promise<void> {
+): Promise<Refusal<'already_published'> | null> {
   const already = await db
     .selectFrom('listingFaqs')
     .select('id')
@@ -77,7 +90,26 @@ async function refuseUnlessUnpublished(
     .where('sourceMessageId', '=', sourceMessageId)
     .executeTakeFirst()
 
-  if (already !== undefined) {
-    throw new TransitionError('That question is already published to the listing.')
-  }
+  if (already === undefined) return null
+
+  return refused('already_published', {
+    listing_id: listingId,
+    source_message_id: sourceMessageId,
+    listing_faq_id: already.id,
+  })
+}
+
+/**
+ * Unwraps a `PublishListingFaqResult` for a caller inside the application
+ * that only ever asks for a legal publish. A refusal reaching here is a
+ * broken contract, not a domain outcome to handle.
+ */
+export function publishedFaq(result: PublishListingFaqResult): ListingFaq {
+  if (result.outcome === 'published') return result.faq
+
+  throw new BrokenContractError(
+    result.reason,
+    `publishing a question was refused: ${result.reason}`,
+    result.data,
+  )
 }

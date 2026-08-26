@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
+import { publishedFaq, publishListingFaq } from '../../../actions/messaging/publish-listing-faq.ts'
 import { buildLoggedTestApp } from '../../../test/log-lines.ts'
 import {
   browseAsAnonymousCustomer,
@@ -52,10 +52,12 @@ test('a published FAQ appears on the listing page', async (t) => {
   t.after(testApp.close)
   const seller = await signInAsSeller(testApp)
   const listing = await listArtwork(testApp, { sellerId: seller.id, title: 'Harbour at dusk' })
-  await publishListingFaq(testApp, {
-    listingId: listing.id,
-    draft: { question: 'Is this framed?', answer: 'No, it ships unframed.' },
-  })
+  publishedFaq(
+    await publishListingFaq(testApp, {
+      listingId: listing.id,
+      draft: { question: 'Is this framed?', answer: 'No, it ships unframed.' },
+    }),
+  )
 
   const response = await testApp.app.inject({ method: 'GET', url: '/art/harbour-at-dusk' })
 

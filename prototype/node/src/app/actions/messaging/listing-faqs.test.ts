@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { findListingFaq, listingFaqs } from './listing-faqs.ts'
-import { publishListingFaq } from './publish-listing-faq.ts'
+import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
@@ -41,14 +41,18 @@ test("listingFaqs returns a listing's entries oldest first", async (t) => {
   const earlyContext: ActionContext = { db: world.db, clock: fixedClock(NOW) }
   const laterContext: ActionContext = { db: world.db, clock: fixedClock(LATER) }
 
-  const first = await publishListingFaq(earlyContext, {
-    listingId: art.id,
-    draft: { question: 'Is it framed?', answer: 'Yes.' },
-  })
-  const second = await publishListingFaq(laterContext, {
-    listingId: art.id,
-    draft: { question: 'Does it ship?', answer: 'Yes, worldwide.' },
-  })
+  const first = publishedFaq(
+    await publishListingFaq(earlyContext, {
+      listingId: art.id,
+      draft: { question: 'Is it framed?', answer: 'Yes.' },
+    }),
+  )
+  const second = publishedFaq(
+    await publishListingFaq(laterContext, {
+      listingId: art.id,
+      draft: { question: 'Does it ship?', answer: 'Yes, worldwide.' },
+    }),
+  )
 
   const entries = await listingFaqs(world.context, art.id)
 
@@ -64,10 +68,12 @@ test('listingFaqs returns nothing from another listing', async (t) => {
   const shop = await seller(world.context)
   const artOne = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
   const artTwo = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  await publishListingFaq(world.context, {
-    listingId: artOne.id,
-    draft: { question: 'Is it framed?', answer: 'Yes.' },
-  })
+  publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: artOne.id,
+      draft: { question: 'Is it framed?', answer: 'Yes.' },
+    }),
+  )
 
   const entries = await listingFaqs(world.context, artTwo.id)
 
@@ -79,10 +85,12 @@ test('findListingFaq returns the entry that belongs to the listing', async (t) =
   t.after(world.close)
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is it framed?', answer: 'Yes.' },
-  })
+  const faq = publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is it framed?', answer: 'Yes.' },
+    }),
+  )
 
   const found = await findListingFaq(world.context, { faqId: faq.id, listingId: art.id })
 
@@ -95,10 +103,12 @@ test('findListingFaq returns null for an id on a different listing', async (t) =
   const shop = await seller(world.context)
   const artOne = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
   const artTwo = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = await publishListingFaq(world.context, {
-    listingId: artOne.id,
-    draft: { question: 'Is it framed?', answer: 'Yes.' },
-  })
+  const faq = publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: artOne.id,
+      draft: { question: 'Is it framed?', answer: 'Yes.' },
+    }),
+  )
 
   const found = await findListingFaq(world.context, { faqId: faq.id, listingId: artTwo.id })
 

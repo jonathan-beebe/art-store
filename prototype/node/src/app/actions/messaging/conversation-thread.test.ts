@@ -9,8 +9,8 @@ import { newId } from '../../ids.ts'
 import { fixtureId } from '../../test/fixture-ids.ts'
 import { conversationThread } from './conversation-thread.ts'
 import { openConversation } from './open-conversation.ts'
-import { postMessage } from './post-message.ts'
-import { publishListingFaq } from './publish-listing-faq.ts'
+import { postedMessage, postMessage } from './post-message.ts'
+import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
 import { blockCustomer } from '../moderation/block-customer.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { claimCustomerIdentity } from '../customers/claim-customer-identity.ts'
@@ -118,16 +118,20 @@ test('it returns messages oldest first with isMine set for the actor', async (t)
     customerId: buyer.id,
     listingId: art.id,
   })
-  const first = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Is this still available?',
-  })
-  const second = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Yes!',
-  })
+  const first = postedMessage(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Is this still available?',
+    }),
+  )
+  const second = postedMessage(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Yes!',
+    }),
+  )
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,
@@ -278,21 +282,27 @@ test('a message published to the listing carries the FAQ id it was published as;
     customerId: buyer.id,
     listingId: art.id,
   })
-  const question = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: buyer.id },
-    body: 'Is this framed?',
-  })
-  const answer = await postMessage(world.context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: shop.id },
-    body: 'Yes, in oak.',
-  })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is this framed?', answer: 'Yes, in oak.' },
-    sourceMessageId: answer.id,
-  })
+  const question = postedMessage(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: buyer.id },
+      body: 'Is this framed?',
+    }),
+  )
+  const answer = postedMessage(
+    await postMessage(world.context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: shop.id },
+      body: 'Yes, in oak.',
+    }),
+  )
+  const faq = publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is this framed?', answer: 'Yes, in oak.' },
+      sourceMessageId: answer.id,
+    }),
+  )
 
   const thread = await conversationThread(world.context, {
     conversationId: conversation.id,

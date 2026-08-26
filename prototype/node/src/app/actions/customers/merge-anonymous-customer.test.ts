@@ -23,7 +23,7 @@ import { captureLogLines } from '../../test/log-lines.ts'
 import { mergeAnonymousCustomer } from './merge-anonymous-customer.ts'
 import { runInTransaction } from '../transaction.ts'
 import { openConversation } from '../messaging/open-conversation.ts'
-import { postMessage } from '../messaging/post-message.ts'
+import { postedMessage, postMessage } from '../messaging/post-message.ts'
 import { markConversationRead } from '../messaging/mark-conversation-read.ts'
 
 const NOW = TEST_INSTANT.toISOString()
@@ -246,11 +246,13 @@ test('a duplicate thread on the same subject folds into the verified customer’
     adminId: admin.id,
     customerId: merging.verifiedCustomerId,
   })
-  const readMessage = await postMessage(merging, {
-    conversationId: standing.id,
-    sender: { type: 'customer', id: merging.verifiedCustomerId },
-    body: 'From the verified side, already read.',
-  })
+  const readMessage = postedMessage(
+    await postMessage(merging, {
+      conversationId: standing.id,
+      sender: { type: 'customer', id: merging.verifiedCustomerId },
+      body: 'From the verified side, already read.',
+    }),
+  )
   await markConversationRead(merging, {
     conversationId: standing.id,
     reader: { type: 'admin', id: admin.id },
@@ -263,11 +265,13 @@ test('a duplicate thread on the same subject folds into the verified customer’
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  const unreadMessage = await postMessage(merging, {
-    conversationId: moving.id,
-    sender: { type: 'customer', id: merging.anonymousCustomerId },
-    body: 'From the anonymous side, still unread.',
-  })
+  const unreadMessage = postedMessage(
+    await postMessage(merging, {
+      conversationId: moving.id,
+      sender: { type: 'customer', id: merging.anonymousCustomerId },
+      body: 'From the anonymous side, still unread.',
+    }),
+  )
   assert.ok(unreadMessage.sentAt > readMessage.sentAt)
 
   await merge(merging)
@@ -341,26 +345,32 @@ test('a message the anonymous customer sent re-points to the verified customer, 
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  const sent = await postMessage(merging, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: merging.anonymousCustomerId },
-    body: 'From the anonymous customer.',
-  })
-  await postMessage(merging, {
-    conversationId: conversation.id,
-    sender: { type: 'admin', id: admin.id },
-    body: 'From the admin, unaffected by the merge.',
-  })
+  const sent = postedMessage(
+    await postMessage(merging, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: merging.anonymousCustomerId },
+      body: 'From the anonymous customer.',
+    }),
+  )
+  postedMessage(
+    await postMessage(merging, {
+      conversationId: conversation.id,
+      sender: { type: 'admin', id: admin.id },
+      body: 'From the admin, unaffected by the merge.',
+    }),
+  )
   const bystanderConversation = await openConversation(merging, {
     kind: 'admin_customer',
     adminId: admin.id,
     customerId: bystander.id,
   })
-  const bystanderMessage = await postMessage(merging, {
-    conversationId: bystanderConversation.id,
-    sender: { type: 'customer', id: bystander.id },
-    body: 'From a customer this merge has nothing to do with.',
-  })
+  const bystanderMessage = postedMessage(
+    await postMessage(merging, {
+      conversationId: bystanderConversation.id,
+      sender: { type: 'customer', id: bystander.id },
+      body: 'From a customer this merge has nothing to do with.',
+    }),
+  )
 
   await merge(merging)
 
@@ -394,11 +404,13 @@ test('it does not read the verified customer’s own merged message as unread to
     adminId: admin.id,
     customerId: merging.anonymousCustomerId,
   })
-  await postMessage(merging, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: merging.anonymousCustomerId },
-    body: 'From the anonymous customer.',
-  })
+  postedMessage(
+    await postMessage(merging, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: merging.anonymousCustomerId },
+      body: 'From the anonymous customer.',
+    }),
+  )
 
   await merge(merging)
 

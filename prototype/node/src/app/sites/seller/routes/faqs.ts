@@ -9,7 +9,6 @@ import { resolveLocalRedirect } from '../../../core/auth/local-redirect.ts'
 import type { ConversationId, ListingFaqId, ListingId } from '../../../core/ids/entity-ids.ts'
 import { faqPrefill } from '../../../core/messaging/faq-prefill.ts'
 import { parseFaqDraft, type FaqDraftErrors, type FaqDraftFields } from '../../../core/messaging/faq-draft.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import type { Listing, ListingFaq } from '../../../db/commerce-schema.ts'
 import { idParams, idValue, submittedForm } from '../../../http/request-schema.ts'
 import type { ZodRoutes } from '../../../http/zod-type-provider.ts'
@@ -162,19 +161,16 @@ export const faqsRoutes: ZodRoutes = (portal, _options, done) => {
         })
       }
 
-      try {
-        await publishListingFaq(requestActions(request), {
-          listingId,
-          draft: draft.value,
-          sourceMessageId: submitted.source_message_id,
-        })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
+      const published = await publishListingFaq(requestActions(request), {
+        listingId,
+        draft: draft.value,
+        sourceMessageId: submitted.source_message_id,
+      })
+      if (published.outcome === 'refused') {
         return refusePublish(request, reply, listing, submitted.conversation_id, {
           fields: submitted,
           errors: {},
-          formError: error.message,
+          formError: 'That question is already published to the listing.',
         })
       }
 

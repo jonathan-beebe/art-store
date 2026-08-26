@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { openConversation } from '../../../actions/messaging/open-conversation.ts'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { postedMessage, postMessage } from '../../../actions/messaging/post-message.ts'
 import type { Clock } from '../../../clock.ts'
 import { buildTestApp, signInAsAdmin, TEST_INSTANT } from '../../../test/build-test-app.ts'
 import { createCustomer, createSeller } from '../../../test/commerce-world.ts'
@@ -44,11 +44,13 @@ test('the inbox lists this admin threads newest first with the unread count, and
     adminId: admin.id,
     sellerId: sellerB,
   })
-  await postMessage(context, {
-    conversationId: conversationB.id,
-    sender: { type: 'seller', id: sellerB },
-    body: 'Any chance of a discount?',
-  })
+  postedMessage(
+    await postMessage(context, {
+      conversationId: conversationB.id,
+      sender: { type: 'seller', id: sellerB },
+      body: 'Any chance of a discount?',
+    }),
+  )
 
   await openConversation(context, { kind: 'admin_seller', adminId: otherAdmin.id, sellerId: sellerC })
 
@@ -83,11 +85,13 @@ test('the thread page renders the messages and clears the unread count on the ne
     adminId: admin.id,
     sellerId,
   })
-  await postMessage(context, {
-    conversationId: conversation.id,
-    sender: { type: 'seller', id: sellerId },
-    body: 'Is this available in a larger size?',
-  })
+  postedMessage(
+    await postMessage(context, {
+      conversationId: conversation.id,
+      sender: { type: 'seller', id: sellerId },
+      body: 'Is this available in a larger size?',
+    }),
+  )
 
   const before = await testApp.app.inject({
     method: 'GET',

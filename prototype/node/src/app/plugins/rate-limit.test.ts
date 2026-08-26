@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { addToCart } from '../actions/carts/add-to-cart.ts'
 import { currentCart } from '../actions/carts/current-cart.ts'
 import { openConversation } from '../actions/messaging/open-conversation.ts'
-import { postMessage } from '../actions/messaging/post-message.ts'
+import { postedMessage, postMessage } from '../actions/messaging/post-message.ts'
 import type { Clock } from '../clock.ts'
 import type { AppConfig } from '../config.ts'
 import type { CustomerId, ListingId } from '../core/ids/entity-ids.ts'
@@ -392,11 +392,13 @@ test('message_post trips the seller thread reply and re-renders the thread with 
     customerId: customer.id,
     listingId: listing.id,
   })
-  await postMessage(context, {
-    conversationId: conversation.id,
-    sender: { type: 'customer', id: customer.id },
-    body: 'Is this framed?',
-  })
+  postedMessage(
+    await postMessage(context, {
+      conversationId: conversation.id,
+      sender: { type: 'customer', id: customer.id },
+      body: 'Is this framed?',
+    }),
+  )
 
   const first = await testApp.app.inject({
     method: 'POST',

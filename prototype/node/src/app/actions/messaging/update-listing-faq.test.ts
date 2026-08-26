@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { updateListingFaq } from './update-listing-faq.ts'
-import { publishListingFaq } from './publish-listing-faq.ts'
+import { publishedFaq, publishListingFaq } from './publish-listing-faq.ts'
 import { claimSellerIdentity } from '../auth/claim-seller-identity.ts'
 import { createListing } from '../listings/create-listing.ts'
 import type { ActionContext } from '../action-context.ts'
@@ -37,10 +37,12 @@ test('it rewords a published entry and keeps its listing', async (t) => {
   t.after(world.close)
   const shop = await seller(world.context)
   const art = await createListing(world.context, { sellerId: shop.id, draft: DEFAULT_DRAFT })
-  const faq = await publishListingFaq(world.context, {
-    listingId: art.id,
-    draft: { question: 'Is this framed?', answer: 'Not yet.' },
-  })
+  const faq = publishedFaq(
+    await publishListingFaq(world.context, {
+      listingId: art.id,
+      draft: { question: 'Is this framed?', answer: 'Not yet.' },
+    }),
+  )
 
   const updated = await updateListingFaq(world.context, {
     faqId: faq.id,

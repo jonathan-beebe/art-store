@@ -3,11 +3,10 @@ import { inboxConversations } from '../../../actions/messaging/conversation-inbo
 import { conversationThread, type ConversationThread } from '../../../actions/messaging/conversation-thread.ts'
 import { markConversationRead } from '../../../actions/messaging/mark-conversation-read.ts'
 import { openSupportConversation } from '../../../actions/messaging/open-support-conversation.ts'
-import { postMessage } from '../../../actions/messaging/post-message.ts'
+import { messagePostRefusalCopy, postMessage } from '../../../actions/messaging/post-message.ts'
 import type { ConversationId } from '../../../core/ids/entity-ids.ts'
 import { faqPrefill } from '../../../core/messaging/faq-prefill.ts'
 import { messageBodyError } from '../../../core/messaging/message-body.ts'
-import { TransitionError } from '../../../core/transition-error.ts'
 import type { FastifyReply } from 'fastify'
 import { requestActions } from '../../../http/request-actions.ts'
 import { idParams, submittedForm } from '../../../http/request-schema.ts'
@@ -103,12 +102,9 @@ export const messagesRoutes: ZodRoutes = (portal, _options, done) => {
         return renderThread(reply, thread, { body: body ?? '', error: bodyError }, 422)
       }
 
-      try {
-        await postMessage(requestActions(request), { conversationId, sender: actor, body: body ?? '' })
-      } catch (error) {
-        if (!(error instanceof TransitionError)) throw error
-
-        return renderThread(reply, thread, { body: body ?? '', formError: error.message }, 422)
+      const posted = await postMessage(requestActions(request), { conversationId, sender: actor, body: body ?? '' })
+      if (posted.outcome === 'refused') {
+        return renderThread(reply, thread, { body: body ?? '', formError: messagePostRefusalCopy(posted.reason, body) }, 422)
       }
 
       return reply.redirect(`/seller/messages/${conversationId}`)
