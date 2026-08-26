@@ -50,6 +50,7 @@ DEFAULT_MAX_WIDTH = 150
 MIN_COLUMN_WIDTH = 12  # never squeeze a column narrower than this
 
 LINK = r"\[[^\]]*\]\([^)]*\)"
+REF_LINK = r"\[[^\]]*\]\[[^\]]*\]"
 CODE = r"`[^`]+`"
 # A token is either a whitespace-delimited run containing markdown links or
 # inline code spans (the atoms plus anything glued to them stay atomic, a
@@ -57,7 +58,7 @@ CODE = r"`[^`]+`"
 # atom excludes backticks so a span always opens at the run's first backtick
 # and closes at the next one — greedy glue could otherwise swallow an
 # opening backtick and pair the remaining ones across the cell.
-TOKEN_RE = re.compile(rf"(?:[^\s`]*(?:{LINK}|{CODE}))+[^\s`]*|\S+")
+TOKEN_RE = re.compile(rf"(?:[^\s`]*(?:{LINK}|{REF_LINK}|{CODE}))+[^\s`]*|\S+")
 SEPARATOR_CELL_RE = re.compile(r":?-{3,}:?")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 
