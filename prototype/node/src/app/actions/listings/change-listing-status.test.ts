@@ -123,7 +123,11 @@ test('listingStatusRefusalCopy words a removal regardless of the transition data
 })
 
 test('listingStatusRefusalCopy words an illegal transition from the refusal data', () => {
-  const refusal = refused('illegal_transition', { listing_id: 'lst_1', status_from: 'draft', status_to: 'sold' })
+  const refusal = refused('illegal_transition', {
+    listing_id: 'lst_1',
+    status_from: 'draft',
+    status_to: 'sold',
+  } as const)
 
   assert.equal(listingStatusRefusalCopy(refusal), 'A listing cannot move from draft to sold.')
 })
@@ -132,11 +136,11 @@ test('listingStatusRefusalCopy renders the refusal data, not a status a route re
   // The action's refusal carries the status as of the write; the route's earlier
   // row read is stale by the time a concurrent move lands first.
   const routeReadBeforeTheRace = 'draft'
-  const refusal = refused('illegal_transition', { status_from: 'sold_out', status_to: 'for_sale' })
+  const refusal = refused('illegal_transition', { status_from: 'archived', status_to: 'for_sale' } as const)
 
   const sentence = listingStatusRefusalCopy(refusal)
 
-  assert.match(sentence, /sold_out/)
+  assert.match(sentence, /archived/)
   assert.doesNotMatch(sentence, new RegExp(routeReadBeforeTheRace))
 })
 

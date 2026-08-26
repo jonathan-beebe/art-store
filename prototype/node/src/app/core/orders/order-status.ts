@@ -1,5 +1,5 @@
 import { BrokenContractError } from '../defect.ts'
-import { refused, transitionFacts, type Refusal } from '../refusal.ts'
+import { refused, type IllegalTransition } from '../refusal.ts'
 import { hasDeparted, isReversed, type FulfillmentStatus } from './fulfillment-status.ts'
 import { isCardApproved, type CardDecision } from '../payments/card-decision.ts'
 
@@ -41,7 +41,7 @@ export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean 
   return allowed.includes(to)
 }
 
-export type OrderTransition = { outcome: 'allowed'; status: OrderStatus } | Refusal<'illegal_transition'>
+export type OrderTransition = { outcome: 'allowed'; status: OrderStatus } | IllegalTransition<OrderStatus>
 
 export function transitionOrder(from: OrderStatus, to: OrderStatus): OrderTransition {
   if (canTransitionOrder(from, to)) {
@@ -65,8 +65,8 @@ export function orderMovedTo(from: OrderStatus, to: OrderStatus): OrderStatus {
 
 /** The sentence a refused order move shows, worded from the refusal's own
  * data rather than a status the caller read before the write. */
-export function orderTransitionRefusalCopy(refusal: Refusal<'illegal_transition'>): string {
-  const { status_from, status_to } = transitionFacts(refusal)
+export function orderTransitionRefusalCopy(refusal: IllegalTransition<OrderStatus>): string {
+  const { status_from, status_to } = refusal.data
 
   return `An order cannot move from ${status_from} to ${status_to}.`
 }

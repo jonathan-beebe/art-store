@@ -4,15 +4,15 @@ import { actionStory } from '../action-story.ts'
 import { writeLedgerEntry } from '../escrow/write-ledger-entry.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
 import { releaseMovement } from '../../core/escrow/ledger-movement.ts'
-import { transitionFulfillment } from '../../core/orders/fulfillment-status.ts'
+import { transitionFulfillment, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused, type Refusal } from '../../core/refusal.ts'
+import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
 export type ConfirmDeliveredResult =
   | { outcome: 'delivered'; fulfillment: Fulfillment }
-  | Refusal<'illegal_transition'>
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
 
 /**
  * The customer confirms the piece arrived, which is what releases the seller's

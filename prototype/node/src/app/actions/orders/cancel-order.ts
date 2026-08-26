@@ -5,17 +5,22 @@ import { moveOrderStock } from './move-order-stock.ts'
 import { stockChangeBetween } from '../../core/orders/order-stock.ts'
 import { transitionOrder, type OrderStatus } from '../../core/orders/order-status.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused, type Refusal } from '../../core/refusal.ts'
+import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Order } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
-export type CancelOrderResult = { outcome: 'cancelled'; order: Order } | Refusal<'illegal_transition'>
+/** The facts a refused cancellation carries: the order and the move it asked for. */
+type CancelRefusalFacts = { order_id: OrderId } & TransitionFacts<OrderStatus>
+
+export type CancelOrderResult =
+  | { outcome: 'cancelled'; order: Order }
+  | Refusal<'illegal_transition', CancelRefusalFacts>
 
 /** The internal result `cancel` reports: the cancelled order beside the
  * status it was cancelled from, or a refusal. */
 type Cancellation =
   | { outcome: 'cancelled'; order: Order; statusFrom: OrderStatus }
-  | Refusal<'illegal_transition'>
+  | Refusal<'illegal_transition', CancelRefusalFacts>
 
 /**
  * Cancels an order that has not been paid, handing back the stock placement
@@ -60,11 +65,7 @@ async function cancel(transacted: ActionContext, orderId: OrderId): Promise<Canc
 
   const transition = transitionOrder(order.status, 'cancelled')
   if (transition.outcome === 'refused') {
-    return refused('illegal_transition', {
-      order_id: order.id,
-      status_from: order.status,
-      status_to: 'cancelled',
-    })
+    return refused('illegal_transition', { order_id: order.id, ...transition.data })
   }
 
   await moveOrderStock(

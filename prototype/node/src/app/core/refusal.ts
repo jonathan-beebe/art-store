@@ -1,41 +1,36 @@
-import { BrokenContractError } from './defect.ts'
+/** The facts behind a refusal: prefixed ids and the values the rule read. */
+export type RefusalData = Record<string, unknown>
 
 /**
  * The shape an action returns when the domain says no — see
  * `actions/auth/sign-in-with-magic-link.ts`. `reason` is the sub-category
  * `data.reason` names on the log line and the UX branches on; `data` is the
- * facts behind it (prefixed ids). A refusal is `refused` at `info`, never
- * `failed`.
+ * facts behind it, typed per reason so a consumer wording the refusal reads
+ * them straight off the type. A reason that promises facts makes `data`
+ * required. A refusal is `refused` at `info`, never `failed`.
  */
-export type Refusal<Reason extends string = string> = {
-  outcome: 'refused'
-  reason: Reason
-  data?: Record<string, unknown>
-}
+export type Refusal<
+  Reason extends string = string,
+  Data extends RefusalData | undefined = RefusalData | undefined,
+> = undefined extends Data
+  ? { outcome: 'refused'; reason: Reason; data?: Data }
+  : { outcome: 'refused'; reason: Reason; data: Data }
 
-export function refused<Reason extends string>(
+export function refused<Reason extends string>(reason: Reason): Refusal<Reason, undefined>
+export function refused<Reason extends string, Data extends RefusalData>(
   reason: Reason,
-  data?: Record<string, unknown>,
-): Refusal<Reason> {
+  data: Data,
+): Refusal<Reason, Data>
+export function refused(reason: string, data?: RefusalData): Refusal<string> {
   return { outcome: 'refused', reason, ...(data === undefined ? {} : { data }) }
 }
 
-/**
- * Reads the two statuses a transition refusal carries, for a copy mapper to
- * word without a pre-action row read of its own. A refusal reaching here
- * without both is a broken contract, same vocabulary as the unwrappers.
- */
-export function transitionFacts(refusal: Refusal): { status_from: string; status_to: string } {
-  const { data } = refusal
-  const statusFrom = data?.status_from
-  const statusTo = data?.status_to
-  if (typeof statusFrom !== 'string' || typeof statusTo !== 'string') {
-    throw new BrokenContractError(
-      'missing_transition_statuses',
-      'A transition refusal is missing status_from or status_to.',
-      data,
-    )
-  }
-
-  return { status_from: statusFrom, status_to: statusTo }
+/** The facts every refused transition carries: the status the row held and
+ * the one asked for. */
+export type TransitionFacts<Status extends string> = {
+  status_from: Status
+  status_to: Status
 }
+
+/** The refusal a lifecycle table hands back for a move its rows forbid. */
+export type IllegalTransition<Status extends string> = Refusal<'illegal_transition', TransitionFacts<Status>>

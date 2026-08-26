@@ -1,5 +1,5 @@
 import { BrokenContractError } from '../defect.ts'
-import { refused, type Refusal } from '../refusal.ts'
+import { refused, type IllegalTransition } from '../refusal.ts'
 
 export const LISTING_STATUSES = ['draft', 'for_sale', 'sold', 'archived'] as const
 export type ListingStatus = (typeof LISTING_STATUSES)[number]
@@ -20,7 +20,7 @@ export function canTransitionListing(from: ListingStatus, to: ListingStatus): bo
 
 export type ListingTransition =
   | { outcome: 'allowed'; status: ListingStatus }
-  | Refusal<'illegal_transition'>
+  | IllegalTransition<ListingStatus>
 
 export function transitionListing(from: ListingStatus, to: ListingStatus): ListingTransition {
   if (canTransitionListing(from, to)) {

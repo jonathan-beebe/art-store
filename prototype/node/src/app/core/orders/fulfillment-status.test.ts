@@ -97,16 +97,26 @@ test('fulfillmentMovedTo throws for a move the table does not allow', () => {
 })
 
 test('fulfillmentTransitionRefusalCopy words the illegal move from the refusal data', () => {
-  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' })
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' } as const)
 
   assert.equal(fulfillmentTransitionRefusalCopy(refusal), 'A fulfillment cannot move from delivered to shipped.')
+})
+
+test('fulfillmentTransitionRefusalCopy takes only the refusal whose reason it words', () => {
+  // Never run — the assertion is the compile step's.
+  const rejectsTheWrongReason = () => {
+    // @ts-expect-error -- a refusal of another reason carries no transition facts to word
+    fulfillmentTransitionRefusalCopy(refused('order_unpaid'))
+  }
+
+  assert.equal(typeof rejectsTheWrongReason, 'function')
 })
 
 test('fulfillmentTransitionRefusalCopy renders the refusal data, not a status a route read before the race', () => {
   // The action's refusal carries the status as of the write; the route's earlier
   // row read is stale by the time a concurrent move lands first.
   const routeReadBeforeTheRace = 'awaiting_shipment'
-  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' })
+  const refusal = refused('illegal_transition', { status_from: 'delivered', status_to: 'shipped' } as const)
 
   const sentence = fulfillmentTransitionRefusalCopy(refusal)
 

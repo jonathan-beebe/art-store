@@ -4,9 +4,9 @@ import { actionStory } from '../action-story.ts'
 import { notify } from '../notifications/notify.ts'
 import { rollUpOrderStatus } from '../orders/roll-up-order-status.ts'
 import { orderShippedMessage } from '../../core/notifications/notification-message.ts'
-import { transitionFulfillment } from '../../core/orders/fulfillment-status.ts'
+import { transitionFulfillment, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused, type Refusal } from '../../core/refusal.ts'
+import { refused, type Refusal, type TransitionFacts } from '../../core/refusal.ts'
 import type { Fulfillment } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -16,7 +16,9 @@ export type MarkShippedInput = {
   trackingNumber: string
 }
 
-export type MarkShippedResult = { outcome: 'shipped'; fulfillment: Fulfillment } | Refusal<'illegal_transition'>
+export type MarkShippedResult =
+  | { outcome: 'shipped'; fulfillment: Fulfillment }
+  | Refusal<'illegal_transition', { fulfillment_id: FulfillmentId } & TransitionFacts<FulfillmentStatus>>
 
 /**
  * A seller's slice of an order leaves the studio. The order rolls up from every

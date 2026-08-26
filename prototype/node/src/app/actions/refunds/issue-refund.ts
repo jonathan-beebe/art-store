@@ -1,4 +1,4 @@
-import type { AdminId, FulfillmentId, PaymentId, SellerId } from '../../core/ids/entity-ids.ts'
+import type { AdminId, FulfillmentId, OrderId, PaymentId, SellerId } from '../../core/ids/entity-ids.ts'
 import { newId } from '../../ids.ts'
 import type { ActionContext } from '../action-context.ts'
 import { actionStory } from '../action-story.ts'
@@ -11,9 +11,14 @@ import {
   fulfillmentDeclinedMessage,
   refundIssuedMessage,
 } from '../../core/notifications/notification-message.ts'
-import { fulfillmentTransitionRefusalCopy } from '../../core/orders/fulfillment-status.ts'
+import { fulfillmentTransitionRefusalCopy, type FulfillmentStatus } from '../../core/orders/fulfillment-status.ts'
 import { planRefund } from '../../core/orders/refund.ts'
-import { refused, type Refusal } from '../../core/refusal.ts'
+import {
+  refused,
+  type IllegalTransition,
+  type Refusal,
+  type TransitionFacts,
+} from '../../core/refusal.ts'
 import type { Fulfillment, Order, Refund } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -29,9 +34,13 @@ export type IssueRefundInput = {
 /** What the reversal left behind: the row, the fulfillment, and the order it rolled up to. */
 export type IssuedRefund = { refund: Refund; fulfillment: Fulfillment; order: Order }
 
+/** The rows a refused refund names, whatever the reason. */
+type RefundSubjectFacts = { fulfillment_id: FulfillmentId; order_id: OrderId }
+
 export type IssueRefundResult =
   | ({ outcome: 'issued' } & IssuedRefund)
-  | Refusal<'order_unpaid' | 'illegal_transition'>
+  | Refusal<'order_unpaid', RefundSubjectFacts>
+  | Refusal<'illegal_transition', RefundSubjectFacts & TransitionFacts<FulfillmentStatus>>
 
 /**
  * Reverses one seller's half of a paid order. A seller's decline puts the
@@ -93,11 +102,11 @@ async function reverse(transacted: ActionContext, input: IssueRefundInput): Prom
     paymentId: await approvedPaymentId(transacted, fulfillment),
   })
   if (plan.outcome === 'refused') {
-    return refused(plan.reason, {
-      fulfillment_id: fulfillment.id,
-      order_id: fulfillment.orderId,
-      ...plan.data,
-    })
+    const subject = { fulfillment_id: fulfillment.id, order_id: fulfillment.orderId }
+
+    return plan.reason === 'order_unpaid'
+      ? refused('order_unpaid', subject)
+      : refused('illegal_transition', { ...subject, ...plan.data })
   }
 
   const { intent } = plan
@@ -221,7 +230,9 @@ async function tellTheCounterparts(
 
 /** The sentence a refused refund shows, the same on every site that takes
  * one. */
-export function refundRefusalCopy(refusal: Refusal<'order_unpaid' | 'illegal_transition'>): string {
+export function refundRefusalCopy(
+  refusal: Refusal<'order_unpaid'> | IllegalTransition<FulfillmentStatus>,
+): string {
   if (refusal.reason === 'order_unpaid') {
     return 'An order that has not been paid cannot be refunded.'
   }

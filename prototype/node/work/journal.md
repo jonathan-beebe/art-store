@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-25:21:45:42 — RFCTR-005 — done: refusal data is typed per reason — `Refusal<Reason, Data>` (`core/refusal.ts`) makes `data` required whenever `Data` excludes `undefined`, `refused()` overloads infer both parameters, and `TransitionFacts<Status>`/`IllegalTransition<Status>` name the transition shape the three lifecycle tables, `RefundPlan`, and the six typed action results share (listings add `listing_id`, cancel adds `order_id`, ship/deliver add `fulfillment_id`, refunds add `{fulfillment_id, order_id}`); the four copy mappers accept only the refusals whose reasons they word (`IllegalTransition<their status union>`, plus `Refusal<'listing_removed'>`/`Refusal<'order_unpaid'>` where worded) and read `refusal.data` directly, with `@ts-expect-error` tests pinning that a wrong-reason refusal fails to compile; `transitionFacts` and its `BrokenContractError('missing_transition_statuses')` guard deleted with their 4 tests; two construction sites reshaped bytes-identical (`cancelOrder` spreads `transition.data`, `issueRefund` branches on `plan.reason`), every log line and sentence unchanged; test fixtures gain `as const` and the listing race fixture's impossible `sold_out` becomes `archived`; 2084 → 2083 tests, coverage 99.33/95.69/99.53, `make check` green; reviewer: accept, no defects
+- 2026-08-25:21:38:42 — RFCTR-005 — started
 - 2026-08-25:21:30:30 — RFCTR-008 — defined: logging seams take options, not positions
 - 2026-08-25:21:30:30 — RFCTR-007 — defined: one generic unwrap for refusable results
 - 2026-08-25:21:30:30 — RFCTR-006 — defined: the machinery tells the refusal's story

@@ -5,7 +5,12 @@ import { activeListingRemoval } from '../moderation/active-listing-removal.ts'
 import { runInTransaction } from '../transaction.ts'
 import { isBlockedByRemoval, transitionListing, type ListingStatus } from '../../core/listings/listing-status.ts'
 import { BrokenContractError } from '../../core/defect.ts'
-import { refused, transitionFacts, type Refusal } from '../../core/refusal.ts'
+import {
+  refused,
+  type IllegalTransition,
+  type Refusal,
+  type TransitionFacts,
+} from '../../core/refusal.ts'
 import type { Listing } from '../../db/commerce-schema.ts'
 import { toTimestamp } from '../../db/timestamp.ts'
 
@@ -14,9 +19,13 @@ export type ChangeListingStatusInput = {
   status: ListingStatus
 }
 
+/** The facts a refused status change carries: the listing and the move it asked for. */
+type ListingMoveFacts = { listing_id: ListingId } & TransitionFacts<ListingStatus>
+
 export type ListingStatusChange =
   | { outcome: 'changed'; listing: Listing }
-  | Refusal<'illegal_transition' | 'listing_removed'>
+  | Refusal<'illegal_transition', ListingMoveFacts>
+  | Refusal<'listing_removed', ListingMoveFacts>
 
 /** Putting a piece on the storefront is the move worth its own name. */
 const PUBLISHED_STATUS: ListingStatus = 'for_sale'
@@ -121,12 +130,14 @@ export function changedListing(change: ListingStatusChange): Listing {
 
 /** The sentence a refused status change shows beside the button, the same on
  * every site that takes one. */
-export function listingStatusRefusalCopy(refusal: Refusal<'illegal_transition' | 'listing_removed'>): string {
+export function listingStatusRefusalCopy(
+  refusal: IllegalTransition<ListingStatus> | Refusal<'listing_removed'>,
+): string {
   if (refusal.reason === 'listing_removed') {
     return 'This listing was removed by an admin and cannot be put back on sale.'
   }
 
-  const { status_from, status_to } = transitionFacts(refusal)
+  const { status_from, status_to } = refusal.data
 
   return `A listing cannot move from ${status_from} to ${status_to}.`
 }

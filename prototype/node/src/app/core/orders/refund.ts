@@ -1,4 +1,4 @@
-import { refused, type Refusal } from '../refusal.ts'
+import { refused, type IllegalTransition, type Refusal } from '../refusal.ts'
 import { refundMovement, type LedgerMovement } from '../escrow/ledger-movement.ts'
 import type { PaymentId } from '../ids/entity-ids.ts'
 import type { Cents } from '../money.ts'
@@ -46,7 +46,8 @@ export type RefundSubject = {
 
 export type RefundPlan =
   | { outcome: 'planned'; intent: RefundIntent }
-  | Refusal<'order_unpaid' | 'illegal_transition'>
+  | Refusal<'order_unpaid', undefined>
+  | IllegalTransition<FulfillmentStatus>
 
 /**
  * Whether an admin's refund would go through, against the same two gates

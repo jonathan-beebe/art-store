@@ -103,7 +103,7 @@ test('orderMovedTo throws for a move the table does not allow', () => {
 })
 
 test('orderTransitionRefusalCopy words the illegal move from the refusal data', () => {
-  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'paid' })
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'paid' } as const)
 
   assert.equal(orderTransitionRefusalCopy(refusal), 'An order cannot move from paid to paid.')
 })
@@ -112,7 +112,7 @@ test('orderTransitionRefusalCopy renders the refusal data, not a status a route 
   // The action's refusal carries the status as of the write; the route's earlier
   // row read is stale by the time a concurrent move lands first.
   const routeReadBeforeTheRace = 'awaiting_payment'
-  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'shipped' })
+  const refusal = refused('illegal_transition', { status_from: 'paid', status_to: 'shipped' } as const)
 
   const sentence = orderTransitionRefusalCopy(refusal)
 

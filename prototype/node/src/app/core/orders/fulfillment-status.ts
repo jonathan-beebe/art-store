@@ -1,5 +1,5 @@
 import { BrokenContractError } from '../defect.ts'
-import { refused, transitionFacts, type Refusal } from '../refusal.ts'
+import { refused, type IllegalTransition } from '../refusal.ts'
 
 export const FULFILLMENT_STATUSES = [
   'awaiting_shipment',
@@ -31,7 +31,7 @@ export function canTransitionFulfillment(from: FulfillmentStatus, to: Fulfillmen
 
 export type FulfillmentTransition =
   | { outcome: 'allowed'; status: FulfillmentStatus }
-  | Refusal<'illegal_transition'>
+  | IllegalTransition<FulfillmentStatus>
 
 export function transitionFulfillment(from: FulfillmentStatus, to: FulfillmentStatus): FulfillmentTransition {
   if (canTransitionFulfillment(from, to)) {
@@ -55,8 +55,8 @@ export function fulfillmentMovedTo(from: FulfillmentStatus, to: FulfillmentStatu
 
 /** The sentence a refused fulfillment move shows, worded from the refusal's
  * own data rather than a status the caller read before the write. */
-export function fulfillmentTransitionRefusalCopy(refusal: Refusal): string {
-  const { status_from, status_to } = transitionFacts(refusal)
+export function fulfillmentTransitionRefusalCopy(refusal: IllegalTransition<FulfillmentStatus>): string {
+  const { status_from, status_to } = refusal.data
 
   return `A fulfillment cannot move from ${status_from} to ${status_to}.`
 }

@@ -114,7 +114,7 @@ test('refundRefusalCopy words an illegal fulfillment transition from the refusal
     order_id: 'ord_1',
     status_from: 'declined',
     status_to: 'refunded',
-  })
+  } as const)
 
   assert.equal(refundRefusalCopy(refusal), 'A fulfillment cannot move from declined to refunded.')
 })
@@ -128,7 +128,7 @@ test('refundRefusalCopy renders the refusal data, not a status a route read befo
     order_id: 'ord_1',
     status_from: 'refunded',
     status_to: 'declined',
-  })
+  } as const)
 
   const sentence = refundRefusalCopy(refusal)
 
