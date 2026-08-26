@@ -80,8 +80,7 @@ export function logLine(
   event: LogEvent,
   phase: LogPhase,
   line: StoryLine,
-  durationMs?: number,
-  root = false,
+  { durationMs, root = false }: { durationMs?: number; root?: boolean } = {},
 ): void {
   log[level](
     {
@@ -117,7 +116,7 @@ export async function tellStory<Result>(
 ): Promise<Result> {
   const level = story.level ?? 'info'
   const root = story.root ?? false
-  logLine(log, level, story.event, 'will', story.will, undefined, root)
+  logLine(log, level, story.event, 'will', story.will, { root })
 
   const startedAt = performance.now()
 
@@ -125,7 +124,7 @@ export async function tellStory<Result>(
     const result = await work()
     const ending = storyEnding(story, result)
 
-    logLine(log, level, story.event, ending.phase, ending, elapsedMs(startedAt), root)
+    logLine(log, level, story.event, ending.phase, ending, { durationMs: elapsedMs(startedAt), root })
 
     return result
   } catch (error) {
