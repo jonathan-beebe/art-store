@@ -9,11 +9,15 @@
 - IMPRV: 30
 - MAINT: 9
 - A11Y: 1
-- RFCTR: 5
+- RFCTR: 9
 - BUG: 10
 
 ## Log
 
+- 2026-08-25:21:30:30 — RFCTR-008 — defined: logging seams take options, not positions
+- 2026-08-25:21:30:30 — RFCTR-007 — defined: one generic unwrap for refusable results
+- 2026-08-25:21:30:30 — RFCTR-006 — defined: the machinery tells the refusal's story
+- 2026-08-25:21:30:30 — RFCTR-005 — defined: refusal data is typed per reason
 - 2026-08-25:21:28:39 — BUG-009 — done: aborted requests close their story — request-log.ts registers onRequestAbort closing http.request with did, data { status, disconnected: true }, duration_ms measured from a storyStartedAt stamped at onRequest (the abort hook has no reply) and the streamed status captured by an onSend hook; loggedFailure generalizes to storyClosed so onResponse, onRequestAbort, and logRequestFailure each close the story exactly once whichever fires first; asset paths stay excluded; test aborts a live GET /seller/events fetch and pins exactly one closing line under the will line's request_id; 2083 → 2084 tests, coverage 99.33/95.70/99.53, make check green — follow-ups: aborted did keeps the 🟢 prefix (data.disconnected is the marker), the three closers repeat a guard-set-log shape a close-once helper could own
 - 2026-08-25:21:17:23 — BUG-009 — started
 - 2026-08-25:21:16:32 — BUG-009 — defined: aborted requests close their story
