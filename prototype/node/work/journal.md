@@ -6,7 +6,7 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 22
-- IMPRV: 30
+- IMPRV: 31
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 9
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-26:06:36:42 — IMPRV-030 — defined: the green dot marks only the process close
 - 2026-08-25:22:57:09 — RFCTR-008 — done: logging seams take options, not positions — `logLine` (`app/log-story.ts`) ends in one trailing `{ durationMs?, root? }` options value (default `{}`), payload key order unchanged, and no call site passes a positional `undefined` (two `tellStory` lines and `request-log.ts`'s `will` line reshaped; the six five-argument callers untouched); `request-log.ts` closes the request story through one module-private `closeStory(request, close)` owning the `storyClosed` guard-and-set and the line, `close` a discriminated union `{ phase: 'did', status, durationMs, facts? } | { phase: 'failed', status, durationMs, error }` — `onResponse`, `onRequestAbort`, and `logRequestFailure` all route through it, asset-path early returns stay in the hooks, `logRequestFailure` keeps its no-asset-check guard, and the `failed` branch stays a raw `log.error` to preserve its `event, phase, duration_ms, error, data` key order; log output byte-identical, 2093 tests, coverage 99.40/95.74/99.53, `make check` green; reviewer: accept-with-nits — the nit (`root: true` on the helper's `did` line, inert) fixed by dropping it; noted for later: `logLine` could learn the `error`-carrying `failed` shape so `closeStory` has one write path
 - 2026-08-25:22:49:18 — RFCTR-008 — started
 - 2026-08-25:22:47:20 — RFCTR-007 — done: one generic unwrap for refusable results — `mustSucceed(result, message?)` (`core/refusal.ts`) returns `Exclude<Result, Refusal>` via a private `told` type predicate (no casts) and throws `BrokenContractError(reason, message ?? `the action was refused: ${reason}`, data)` on a refusal; the structural detection (`refusalOf` + private `refusedReasonOf`/`isRefusalData`) moves from `log-story.ts` to `core/refusal.ts` and log-story imports it; the ten per-action unwrappers (shippedFulfillment, deliveredFulfillment, cancelledOrder, changedListing, postedMessage, publishedFaq, removedListing, liftedListingRemoval, blockedCustomer, liftedCustomerBlock) are deleted with zero surviving aliases and ~103 call sites across ~35 files (tests, fixtures, seeds, sweep) read the success field off `mustSucceed(...)`; the three transition unwrappers keep their names on the helper — `listingMovedTo` one-lines its sentence, `orderMovedTo`/`fulfillmentMovedTo` word theirs from the refusal-copy mappers only when refused — with every pinned "cannot move from" sentence byte-identical; per-action defect messages fold into the default (no test pinned them; reason/data pins unchanged); 2093 tests, coverage 99.40/95.71/99.53, `make check` green; reviewer: accept-with-nits — the one nit, `mustSucceed` reads `refusalOf` twice with an unreachable guard, is the cost of narrowing without a cast, left as-is
