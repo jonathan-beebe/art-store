@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 3
+- DSGN: 4
 - ARCH: 1
 - FEAT: 33
 - IMPRV: 15
@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-27:18:44:00 — DSGN-003 — design canvas published for human review (create question + three ramp landings + flow map); implementation waits on review
+- 2026-08-27:18:31:40 — DSGN-003 — started (canvas round next)
+- 2026-08-27:18:31:22 — DSGN-003 — defined: Guided new listing — three pricing on-ramps
 - 2026-08-27:18:25:06 — BUG-012 — defined: A standalone choice's selected option hides its price in the buyer dropdown
 - 2026-08-27:18:25:06 — BUG-011 — defined: The Basics screen lacks the buyer-view panel
 - 2026-08-27:18:25:06 — BUG-010 — defined: Uploaded listing images render broken under the CSP

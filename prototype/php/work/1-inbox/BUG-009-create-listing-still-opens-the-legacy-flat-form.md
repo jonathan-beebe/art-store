@@ -40,3 +40,8 @@ slimmer create already exists.
 
 ## Related work
 - prototype/php/work/3-done/DSGN-002-retire-legacy-form-unify-editor-into-rows.md
+
+## Working
+
+2026-08-27 — Design owned by DSGN-003 (guided new listing, three pricing
+on-ramps); this ticket closes with DSGN-003's implementation.
