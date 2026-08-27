@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\DeleteOptionAxis;
 use App\Actions\Configurator\UpdateOptionAxis;
@@ -29,15 +30,31 @@ final class OptionAxisController extends SellerController
         return view('seller.listings.option-axes.index', $this->indexData($listing));
     }
 
-    public function store(OptionAxisRequest $request, Listing $listing, CreateOptionAxis $create, RateLimitGate $rateLimit): RedirectResponse|Response
-    {
+    public function store(
+        OptionAxisRequest $request,
+        Listing $listing,
+        CreateOptionAxis $create,
+        AddOptionValue $addValue,
+        RateLimitGate $rateLimit,
+    ): RedirectResponse|Response {
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $create($listing, $request->name(), $request->property(), $request->position());
+        $property = $request->property();
+        $axis = $create($listing, $request->name(), $property, $request->position());
+
+        // Catalog axes first (doc §4): a catalog property pre-fills the
+        // axis's option values from the property's own values — staged as
+        // ordinary, editable/removable rows the seller can adjust before the
+        // axis is put to use, not a JS behavior.
+        if ($property !== null) {
+            foreach ($property->values()->orderBy('position')->get() as $index => $value) {
+                $addValue($axis, $value->label, 0, $index === 0, $index, $value);
+            }
+        }
 
         return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Axis added.');
     }

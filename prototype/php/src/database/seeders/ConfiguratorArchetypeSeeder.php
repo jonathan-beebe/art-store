@@ -26,6 +26,7 @@ use App\Models\ListingAttribute;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Property;
+use App\Models\PropertyValue;
 use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Database\Seeder;
@@ -225,9 +226,13 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         // Which wood is the buyer's choice, not a second attribute vocabulary
         // (FEAT-031): the attribute below says Wood, this axis says which.
-        $wood = $this->axis($listing, 'Wood');
-        $walnut = $this->value($wood, 'Walnut', 0, isDefault: true);
-        $oak = $this->value($wood, 'Oak', 0);
+        // Catalog-backed (FEAT-032): the axis references Wood Species and
+        // each option value references its catalog property_value_id, so
+        // the walnut variant is structurally the walnut one (§2.1).
+        $woodSpeciesProperty = Property::where('name', 'Wood Species')->sole();
+        $wood = $this->axis($listing, 'Wood', $woodSpeciesProperty);
+        $walnut = $this->value($wood, 'Walnut', 0, isDefault: true, propertyValue: $this->propertyValue($woodSpeciesProperty, 'Walnut'));
+        $oak = $this->value($wood, 'Oak', 0, propertyValue: $this->propertyValue($woodSpeciesProperty, 'Oak'));
 
         $createVariant = app(CreateVariant::class);
         // Sparse: four of the six possible Length x Width cells, each
@@ -394,14 +399,23 @@ class ConfiguratorArchetypeSeeder extends Seeder
         return $listing;
     }
 
-    private function axis(Listing $listing, string $name): OptionAxis
+    private function axis(Listing $listing, string $name, ?Property $property = null): OptionAxis
     {
-        return app(CreateOptionAxis::class)($listing, $name);
+        return app(CreateOptionAxis::class)($listing, $name, $property);
     }
 
-    private function value(OptionAxis $axis, string $label, int $surchargeCents, bool $isDefault = false): OptionValue
+    private function value(OptionAxis $axis, string $label, int $surchargeCents, bool $isDefault = false, ?PropertyValue $propertyValue = null): OptionValue
     {
-        return app(AddOptionValue::class)($axis, $label, $surchargeCents, $isDefault);
+        return app(AddOptionValue::class)($axis, $label, $surchargeCents, $isDefault, propertyValue: $propertyValue);
+    }
+
+    /**
+     * A catalog property's value by label — the link {@see AddOptionValue}
+     * stores as `option_values.property_value_id`.
+     */
+    private function propertyValue(Property $property, string $label): PropertyValue
+    {
+        return $property->values()->where('label', $label)->sole();
     }
 
     /**

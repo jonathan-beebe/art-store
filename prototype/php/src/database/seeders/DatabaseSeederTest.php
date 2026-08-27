@@ -25,6 +25,7 @@ use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Property;
 use App\Models\Seller;
+use App\Support\Configurator\ListingHighlights;
 use Illuminate\Notifications\DatabaseNotification;
 use RuntimeException;
 use Tests\CapturedStory;
@@ -72,6 +73,19 @@ it('mirrors listing_attributes to the storefront media vocabulary, every listing
         'apparel', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
         'photograph', 'plant', 'print', 'publication', 'sculpture', 'textile', 'wood',
     ]);
+});
+
+it('gives the garden gnome a fixed Wood Species attribute beside its Medium — the no-choice case', function (): void {
+    $gnome = Listing::where('title', 'Garden Gnome in Reclaimed Oak')->sole();
+    $woodSpecies = Property::where('name', 'Wood Species')->sole();
+
+    $attribute = $gnome->listingAttributes()
+        ->with('propertyValue')
+        ->where('property_id', $woodSpecies->id)
+        ->sole();
+
+    expect($attribute->propertyValue->label)->toBe('Oak')
+        ->and(ListingHighlights::forStorefront($gnome))->toContain(['name' => 'Wood Species', 'values' => ['Oak']]);
 });
 
 it('seeds each listing through CreateListing, so every slug is a plain collision-free slug', function (): void {

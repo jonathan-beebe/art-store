@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Configurator\PublishIssue;
 use App\Models\Category;
 use App\Models\CategoryProperty;
+use App\Models\Listing;
 use App\Models\Property;
 
 it('seeds a category tree with grants exercising attribute, axis, and required', function (): void {
@@ -38,7 +40,18 @@ it('seeds a category tree with grants exercising attribute, axis, and required',
         ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
         ->sole();
 
-    expect($furnitureMediumGrant->multivalued)->toBeFalse();
+    expect($furnitureMediumGrant->multivalued)->toBeFalse()
+        ->and($furnitureMediumGrant->required)->toBeTrue();
+
+    $woodSpeciesGrant = CategoryProperty::query()
+        ->whereHas('category', fn ($q) => $q->where('name', 'Furniture'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Wood Species'))
+        ->sole();
+
+    expect($woodSpeciesGrant->usable_as_attribute)->toBeTrue()
+        ->and($woodSpeciesGrant->usable_as_axis)->toBeTrue()
+        ->and(Property::where('name', 'Wood Species')->sole()->values()->pluck('label')->all())
+        ->toBe(['Walnut', 'Oak', 'Maple']);
 
     $mediumGrant = CategoryProperty::query()
         ->whereHas('category', fn ($q) => $q->where('name', 'Art'))
@@ -77,5 +90,17 @@ it('changes nothing on a second run', function (): void {
     $this->seed(TaxonomySeeder::class);
 
     expect(Category::count())->toBe(7)
-        ->and(Property::count())->toBe(6);
+        ->and(Property::count())->toBe(7);
+});
+
+it('publishes an uncategorized furniture-shaped listing but refuses a categorized one with no Medium', function (): void {
+    $this->seed(TaxonomySeeder::class);
+    $furniture = Category::where('name', 'Furniture')->sole();
+
+    $uncategorized = Listing::factory()->create(['category_id' => null]);
+    $categorized = Listing::factory()->create(['category_id' => $furniture->id]);
+
+    expect($uncategorized->publishIssues())->toBe([])
+        ->and(array_map(fn (PublishIssue $issue): string => $issue->code, $categorized->publishIssues()))
+        ->toBe(['missing_required_attribute']);
 });

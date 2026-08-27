@@ -37,6 +37,14 @@ class TaxonomySeeder extends Seeder
         $metal = $this->property('Metal', ['Gold', 'Silver', 'Rose Gold']);
         $this->grant($jewelry, $metal, usableAsAttribute: true, usableAsAxis: true);
 
+        // A specific-type property (§2.1 "Attribute altitude"): no buyer
+        // choice states it as an attribute (the garden gnome's fixed
+        // reclaimed oak), a buyer choice builds an axis referencing it (the
+        // walnut table's Wood axis) — same grant, both flags meaningful,
+        // matching Metal above.
+        $woodSpecies = $this->property('Wood Species', ['Walnut', 'Oak', 'Maple']);
+        $this->grant($furniture, $woodSpecies, usableAsAttribute: true, usableAsAxis: true);
+
         $ringSize = $this->property('Ring Size', ['6', '7', '8', '9']);
         $this->grant($rings, $ringSize, usableAsAttribute: false, usableAsAxis: true, required: true);
 
@@ -64,7 +72,10 @@ class TaxonomySeeder extends Seeder
         // Furniture's grant on the same property stays single-valued — the
         // walnut table's specific wood lives on its own axis instead.
         $this->grant($homeGoods, $medium, usableAsAttribute: true, usableAsAxis: false, multivalued: true);
-        $this->grant($furniture, $medium, usableAsAttribute: true, usableAsAxis: false);
+        // Required (FEAT-032): Furniture also grants Wood Species, so the
+        // "species implies wood" curation rule holds — a table can never
+        // state Walnut without also stating Wood.
+        $this->grant($furniture, $medium, usableAsAttribute: true, usableAsAxis: false, required: true);
         $this->grant($apparel, $medium, usableAsAttribute: true, usableAsAxis: false);
         $this->grant($stationery, $medium, usableAsAttribute: true, usableAsAxis: false);
 

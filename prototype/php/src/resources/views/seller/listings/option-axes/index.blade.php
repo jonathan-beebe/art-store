@@ -19,10 +19,10 @@
                         <div>
                             <label for="property_id-{{ $axis->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Catalog property</label>
                             <select id="property_id-{{ $axis->id }}" name="property_id" class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                <option value="">Custom label</option>
                                 @foreach ($properties as $property)
                                     <option value="{{ $property->id }}" @selected($axis->property_id === $property->id)>{{ $property->name }}</option>
                                 @endforeach
+                                <option value="" @selected($axis->property_id === null)>Custom label</option>
                             </select>
                         </div>
 
@@ -102,10 +102,10 @@
         <div>
             <label for="property_id" class="block font-medium text-gray-700 dark:text-gray-300">Catalog property</label>
             <select id="property_id" name="property_id" class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                <option value="">Custom label</option>
                 @foreach ($properties as $property)
                     <option value="{{ $property->id }}">{{ $property->name }}</option>
                 @endforeach
+                <option value="">Custom label</option>
             </select>
         </div>
 

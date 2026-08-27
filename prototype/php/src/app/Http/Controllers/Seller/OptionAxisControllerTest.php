@@ -10,6 +10,7 @@ use App\Models\CategoryProperty;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Property;
+use App\Models\PropertyValue;
 use App\Models\Variant;
 use App\Models\VariantOption;
 use Illuminate\Support\Facades\Config;
@@ -89,6 +90,62 @@ it('adds an axis backed by a catalog property', function (): void {
     ]);
 
     expect(OptionAxis::where('listing_id', $listing->id)->sole()->property_id)->toBe($property->id);
+});
+
+it('pre-fills a catalog axis’s option values from the property’s own catalog values', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $property = Property::factory()->create();
+    $gold = PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Gold', 'position' => 0]);
+    $silver = PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Silver', 'position' => 1]);
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
+        'name' => 'Metal',
+        'property_id' => $property->id,
+        'position' => 0,
+    ]);
+
+    $axis = OptionAxis::where('listing_id', $listing->id)->sole();
+
+    expect($axis->optionValues()->count())->toBe(2);
+
+    $goldValue = $axis->optionValues()->where('label', 'Gold')->sole();
+    $silverValue = $axis->optionValues()->where('label', 'Silver')->sole();
+
+    expect($goldValue->property_value_id)->toBe($gold->id)
+        ->and($goldValue->is_default)->toBeTrue()
+        ->and($silverValue->property_value_id)->toBe($silver->id)
+        ->and($silverValue->is_default)->toBeFalse();
+});
+
+it('adds no option values for a custom, non-catalog axis', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
+        'name' => 'Engraving Placement',
+        'position' => 0,
+    ]);
+
+    expect(OptionAxis::where('listing_id', $listing->id)->sole()->optionValues()->count())->toBe(0);
+});
+
+it('lists the picker’s catalog properties before the custom-label option', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create(['name' => 'Ring Size']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_axis' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $content = $response->getContent() ?: '';
+    $ringSizePosition = strpos($content, 'Ring Size');
+    $customLabelPosition = strpos($content, 'Custom label');
+
+    expect($ringSizePosition)->not->toBeFalse()
+        ->and($customLabelPosition)->not->toBeFalse()
+        ->and((int) $ringSizePosition)->toBeLessThan((int) $customLabelPosition);
 });
 
 it('refuses adding an axis to another sellers listing', function (): void {

@@ -53,11 +53,16 @@ class ListingSeeder extends Seeder
      * The one listing that exercises Home Goods' multivalued Medium grant
      * (FEAT-031): a sculpture carved from a reclaimed beam is genuinely both
      * Sculpture and Wood at once, matching this title to a second Medium
-     * value beyond the one every listing gets automatically.
+     * value beyond the one every listing gets automatically. It also
+     * demonstrates the no-choice case for a specific-type property
+     * (FEAT-032, §2.1 "Attribute altitude"): a fixed-species piece states
+     * Wood Species as an attribute rather than building an axis for it.
      */
     private const MULTIVALUED_MEDIUM_TITLE = 'Garden Gnome in Reclaimed Oak';
 
     private const ADDITIONAL_MEDIUM_VALUE = 'Wood';
+
+    private const FIXED_WOOD_SPECIES_VALUE = 'Oak';
 
     public function run(): void
     {
@@ -85,6 +90,7 @@ class ListingSeeder extends Seeder
             // (above) and Wood at once.
             if ($entry['title'] === self::MULTIVALUED_MEDIUM_TITLE) {
                 $this->attributeMedium($listing, self::ADDITIONAL_MEDIUM_VALUE);
+                $this->attribute($listing, 'Wood Species', self::FIXED_WOOD_SPECIES_VALUE);
             }
         }
     }
@@ -94,7 +100,17 @@ class ListingSeeder extends Seeder
      */
     private function attributeMedium(Listing $listing, string $label): void
     {
-        $property = Property::where('name', 'Medium')->sole();
+        $this->attribute($listing, 'Medium', $label);
+    }
+
+    /**
+     * Writes one listing_attributes row directly — reference data, the same
+     * way {@see TaxonomySeeder} writes its own rows rather than going
+     * through the seller-facing {@see \App\Actions\Configurator\SetListingAttributes}.
+     */
+    private function attribute(Listing $listing, string $propertyName, string $label): void
+    {
+        $property = Property::where('name', $propertyName)->sole();
 
         ListingAttribute::create([
             'listing_id' => $listing->id,

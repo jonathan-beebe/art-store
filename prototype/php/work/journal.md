@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines
+- 2026-08-27:09:00:00 — FEAT-032 — started
 - 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
 - 2026-08-27:08:12:59 — BUG-006 — done: Error pages render styled in debug and out — `SecurityHeaders` widens the CSP to `style-src`/`script-src 'self' 'unsafe-inline'` only when `app.debug` is on (production CSP byte-for-byte unchanged); branded `404`/`419`/`500` views under one neutral shared layout (no per-site variant — Laravel resolves error views by status code alone, no site context available); 2329 tests, 6714 assertions, 100% lines
 - 2026-08-27:07:50:51 — BUG-006 — started

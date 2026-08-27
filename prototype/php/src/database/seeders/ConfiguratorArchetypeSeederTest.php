@@ -8,6 +8,7 @@ use App\Domain\Configurator\ModifierKind;
 use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\Modifier;
+use App\Models\Property;
 use App\Models\Seller;
 use App\Models\Variant;
 use LogicException;
@@ -108,6 +109,21 @@ it('gives the walnut table sparse variants with price overrides crossed with a f
     $attributes = $listing->listingAttributes()->with(['property', 'propertyValue'])->get();
 
     expect($attributes->where('property.name', 'Medium')->sole()->propertyValue->label)->toBe('Wood');
+});
+
+it('catalog-backs the walnut table’s Wood axis against the Wood Species property', function (): void {
+    $listing = archetypeListing('Live-Edge Walnut Dining Table');
+    $woodSpecies = Property::where('name', 'Wood Species')->sole();
+    $wood = $listing->optionAxes()->where('name', 'Wood')->sole();
+
+    expect($wood->property_id)->toBe($woodSpecies->id);
+
+    foreach (['Walnut', 'Oak'] as $label) {
+        $value = $wood->optionValues()->where('label', $label)->sole();
+        $catalogValue = $woodSpecies->values()->where('label', $label)->sole();
+
+        expect($value->property_value_id)->toBe($catalogValue->id);
+    }
 });
 
 it('derives the candlestick variant’s available quantity from its twelve units', function (): void {
