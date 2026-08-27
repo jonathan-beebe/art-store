@@ -28,5 +28,56 @@ Raised while reviewing the DSGN-001 delivery, prompted by walking through how a 
 - prototype/php/work/3-done/DSGN-001-seller-problem-driven-configurator-ui.md
 - prototype/php/docs/item-configurator.md (§2 Data model, §3 Price and availability resolution, §4 Seller flow — to be updated by this ticket's design)
 
-## Related work
-- prototype/php/work/3-done/DSGN-001-seller-problem-driven-configurator-ui.md
+## Working
+
+2026-08-27 — Started. Re-validated against current code: the legacy form
+(prototype/php/src/resources/views/seller/listings/form.blade.php, embedded
+in edit.blade.php) still opens the hub with raw title/description/dimensions/
+price/quantity fields; OptionValue's only price field is `surcharge_cents`
+(app/Models/OptionValue.php), which is always relative to the listing's base
+`price_cents` — there is no standalone-price mode for a choice's options, so
+the problem as stated still holds.
+
+`.claude/skills/work-start/types/design.md` — the type-specific workflow this
+ticket type would normally read next — is an unfilled stub ("TO BE DEFINED —
+owner: human"). Proceeded on this ticket's own recorded expectation instead
+(Discovery notes above, and DSGN-001's own precedent: a /design canvas,
+published for human review, before any implementation).
+
+2026-08-27 — Design canvas published for human review at
+https://claude.ai/code/artifact/4f42ef84-0724-46f6-a2f3-98d1978bb159 (6
+artboards, 2 pages). Implementation waits on that review, the same gate
+DSGN-001 held to.
+
+Covers: the row-based hub in both its configured state (a poster listing
+with a Size choice and a Frame choice) and its unconfigured state (no
+choices yet — price and stock stay on "Your item" until a first choice is
+added, then move there); new detail screens for "Your item" (basics) and
+"Images" (plural, replacing the single-image field); and the Choices screen
+carrying the pricing-mode mechanism directly — a choice declares "each
+option priced on its own" or "adds to your price" once, at creation
+(mirroring how a Question already declares its kind at creation), each
+option row's field labeled and priced accordingly. A second page shows that
+mechanism as two directions — the creation-time choice (built out, leading
+candidate) against a same-choice mode toggle (alternate, with its
+unresolved value-conversion problem named as the reason it's not the
+lead) — for the human to confirm or overrule.
+
+Not yet touched: prototype/php/docs/item-configurator.md and the
+Combinations & stock / Questions / Individual pieces / Quantity discounts /
+Listing page sections rows' own detail screens, which this canvas leaves as
+the existing DSGN-001 screens — the ticket's outcome only asked the row
+shape and the pricing mechanism to be settled, not those screens redrawn.
+
+2026-08-27 — Second pass against the real app (edit.blade.php,
+option-axes/index.blade.php, buyer-view.blade.php) found and fixed: the page
+background was plain white instead of the seller layout's gray-100 field;
+the standalone-pricing tag used a blue accent the app's palette (gray plus
+red/green only) never uses, replaced with a dark-fill vs light-border
+distinction; the buyer-preview panel's controls looked live and clickable
+instead of the real component's disabled/inert treatment, and was missing
+its itemized Price/Total breakdown — rebuilt to match buyer-view.blade.php
+exactly; the Images detail screen showed 3 images while the hub row claimed
+5; an "Individual pieces" row was missing from both hub states; and two
+screens used different wording for the same pricing-mode tag. Republished to
+the same link.
