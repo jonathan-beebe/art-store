@@ -13,7 +13,16 @@ it('overrides a variant’s price, quantity, serialization, and enablement', fun
 
     expect($updated->price_override_cents)->toBe(15000)
         ->and($updated->quantity)->toBe(4)
-        ->and($updated->enabled)->toBeTrue();
+        ->and($updated->enabled)->toBeTrue()
+        ->and($updated->sku)->toBeNull();
+});
+
+it('sets a sku', function (): void {
+    $variant = Variant::factory()->withSku('OLD-SKU')->create();
+
+    $updated = app(UpdateVariant::class)($variant, null, 1, false, true, 'RING-GOLD-BOTH');
+
+    expect($updated->sku)->toBe('RING-GOLD-BOTH');
 });
 
 it('clears quantity when the update turns a variant serialized', function (): void {

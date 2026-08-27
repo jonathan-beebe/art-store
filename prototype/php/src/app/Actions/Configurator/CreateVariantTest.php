@@ -21,6 +21,14 @@ it('creates one sparse variant with its combo key and option links', function ()
         ->and($variant->options()->pluck('option_value_id')->all())->toBe([$value->id]);
 });
 
+it('carries an optional sku', function (): void {
+    $withSku = app(CreateVariant::class)($this->listing($this->seller()), [], sku: 'RING-GOLD-BOTH');
+    $withoutSku = app(CreateVariant::class)($this->listing($this->seller()), []);
+
+    expect($withSku->sku)->toBe('RING-GOLD-BOTH')
+        ->and($withoutSku->sku)->toBeNull();
+});
+
 it('creates the axis-free variant with the empty combo key', function (): void {
     $variant = app(CreateVariant::class)($this->listing($this->seller()), []);
 

@@ -21,12 +21,14 @@ final readonly class UpdateVariant
         ?int $quantity,
         bool $isSerialized,
         bool $enabled,
+        ?string $sku = null,
     ): Variant {
         return Story::for(StoryEvent::ListingUpdate)->tell('updating a variant', [
             'listing_id' => $variant->listing_id,
             'variant_id' => $variant->id,
-        ], function (Story $story) use ($variant, $priceOverrideCents, $quantity, $isSerialized, $enabled): Variant {
+        ], function (Story $story) use ($variant, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
             $variant->update([
+                'sku' => $sku,
                 'price_override_cents' => $priceOverrideCents,
                 'quantity' => $isSerialized ? null : $quantity,
                 'is_serialized' => $isSerialized,

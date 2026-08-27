@@ -23,7 +23,7 @@ use Override;
  * seller creates only the combinations that actually sell rather than every
  * cell of the full cross product.
  */
-#[Fillable(['listing_id', 'combo_key', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
+#[Fillable(['listing_id', 'combo_key', 'sku', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
 class Variant extends Model
 {
     /** @use HasFactory<VariantFactory> */

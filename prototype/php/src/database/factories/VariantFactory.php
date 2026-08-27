@@ -23,11 +23,17 @@ class VariantFactory extends Factory
         return [
             'listing_id' => Listing::factory(),
             'combo_key' => '',
+            'sku' => null,
             'price_override_cents' => null,
             'quantity' => 1,
             'is_serialized' => false,
             'enabled' => true,
         ];
+    }
+
+    public function withSku(string $sku): static
+    {
+        return $this->state(fn (array $attributes) => ['sku' => $sku]);
     }
 
     public function serialized(): static

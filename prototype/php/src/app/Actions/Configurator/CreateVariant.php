@@ -30,14 +30,16 @@ final readonly class CreateVariant
         ?int $quantity = 1,
         bool $isSerialized = false,
         bool $enabled = true,
+        ?string $sku = null,
     ): Variant {
         return Story::for(StoryEvent::ListingUpdate)->tell('creating a variant', [
             'listing_id' => $listing->id,
-        ], function (Story $story) use ($listing, $optionValues, $priceOverrideCents, $quantity, $isSerialized, $enabled): Variant {
+        ], function (Story $story) use ($listing, $optionValues, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
             $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $optionValues));
 
             $variant = $listing->variants()->create([
                 'combo_key' => $comboKey->value,
+                'sku' => $sku,
                 'price_override_cents' => $priceOverrideCents,
                 'quantity' => $isSerialized ? null : $quantity,
                 'is_serialized' => $isSerialized,

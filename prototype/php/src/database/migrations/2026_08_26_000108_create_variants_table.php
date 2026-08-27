@@ -16,6 +16,7 @@ return new class extends Migration
             // Sorted option-value ids, '/'-joined; '' for an axis-free listing
             // (at most one such row — the legacy, single-variant path).
             $table->string('combo_key')->default('');
+            $table->string('sku')->nullable();
             $table->integer('price_override_cents')->nullable();
             // Null: serialized (derived from its units) or otherwise uncapped.
             $table->unsignedInteger('quantity')->nullable();

@@ -58,6 +58,9 @@ Landed the full configurator schema, domain, actions, and seed data:
 Before: 1836 tests, 5010 assertions, 100% lines.
 After: 1948 tests, 5628 assertions, 100% lines.
 
+### Follow-up
+Review caught that the ticket's variants bullet specifies a `sku` column and it had been omitted from the schema; added nullable `variants.sku` (migration, model, factory) and an optional `sku` parameter on `CreateVariant`/`UpdateVariant` so FEAT-026's variant grid has a column to render. 1950 tests, 5632 assertions, 100% lines after the fix.
+
 ## Related work
 - FEAT-026 (seller configurator UI, built on this schema)
 - FEAT-027 (buyer configurator + cart)
