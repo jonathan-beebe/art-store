@@ -100,7 +100,7 @@ A category whitelists properties for the listings under it; each grant says
 whether the property is a fixed attribute (`category_properties.usable_as_attribute`,
 feeds `listing_attributes`, not buyer-selectable), a configurator axis
 (`usable_as_axis`, feeds `option_axes`), or both. `required` gates publish
-validation (§5). One tree, no separate seller/buyer taxonomy split. Scales and
+validation (§6). One tree, no separate seller/buyer taxonomy split. Scales and
 cross-scale value equivalence (ring size 7 US ↔ 54 EU) are out of scope — see
 §7.
 
@@ -387,8 +387,9 @@ Behavior this enforces:
 The draft → `for_sale` transition (`ListingStatus::transitions()`) gains
 gates when the listing has configurator data:
 
-- Every `required` `category_properties` grant has a matching
-  `listing_attributes` row.
+- Every `required` `category_properties` grant that is `usable_as_attribute`
+  has a matching `listing_attributes` row (an axis-only grant can never hold
+  one by construction).
 - Every `enabled` variant resolves to a price ≥ 0.
 - Every variant has exactly one `variant_options` row per `option_axes` row
   on the listing.
