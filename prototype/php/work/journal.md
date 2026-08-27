@@ -3,10 +3,10 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 1
+- DSGN: 2
 - ARCH: 1
 - FEAT: 33
-- IMPRV: 10
+- IMPRV: 12
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:08:38:42 — DSGN-001 — defined: Seller-problem-driven configurator UI
+- 2026-08-27:08:38:42 — IMPRV-011 — defined: The configurator auto-updates on change
 - 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines
 - 2026-08-27:09:00:00 — FEAT-032 — started
 - 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
