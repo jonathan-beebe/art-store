@@ -154,6 +154,21 @@ it('renders a serialized variant as a unit picker excluding sold units', functio
     expect($withUnitTwo->breakdown->total()->cents)->toBe(4500);
 });
 
+it('orders units naturally by label, numeric-aware, and humanizes their specs', function (): void {
+    $listing = $this->listing($this->seller());
+    $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
+    $addUnit = app(AddUnit::class);
+    $addUnit($variant, '#10');
+    $addUnit($variant, '#2', specs: ['height_mm' => 205, 'weight_g' => 310]);
+    $addUnit($variant, '#1');
+
+    $configuration = ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::of([], null, [], 1));
+    $specLinesByLabel = collect($configuration->units)->pluck('specLines', 'label');
+
+    expect(collect($configuration->units)->pluck('label')->all())->toBe(['#1', '#2', '#10'])
+        ->and($specLinesByLabel['#2'])->toBe(['Height: 205 mm', 'Weight: 310 g']);
+});
+
 it('reports out of stock once every unit is sold', function (): void {
     $listing = $this->listing($this->seller());
     $variant = app(CreateVariant::class)($listing, [], isSerialized: true);

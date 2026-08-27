@@ -326,9 +326,11 @@ class ConfiguratorArchetypeSeeder extends Seeder
     }
 
     /**
-     * A pets-and-pose axis kept as one deliberate creative choice rather than
-     * a cross product of pet count and pose, alongside a size/framing axis —
-     * two axes, generated as their full cross product.
+     * Pet count and pose as two independent axes — each option label carries
+     * one decision, rather than the "1 Pet, Sitting" / "2 Pets, Sitting
+     * Together" compound-string hack (IMPRV-010) — alongside a size/framing
+     * axis where the two values are genuinely distinct products. Three axes,
+     * generated as their full cross product.
      */
     private function petPortrait(Seller $seller): Listing
     {
@@ -343,10 +345,13 @@ class ConfiguratorArchetypeSeeder extends Seeder
             category: Category::where('name', 'Art')->sole(),
         );
 
-        $petsAndPose = $this->axis($listing, 'Pets & Pose');
-        $this->value($petsAndPose, '1 Pet, Sitting', 0, isDefault: true);
-        $this->value($petsAndPose, '1 Pet, Playful', 0);
-        $this->value($petsAndPose, '2 Pets, Sitting Together', 1500);
+        $pets = $this->axis($listing, 'Pets');
+        $this->value($pets, '1 Pet', 0, isDefault: true);
+        $this->value($pets, '2 Pets', 1500);
+
+        $pose = $this->axis($listing, 'Pose');
+        $this->value($pose, 'Sitting', 0, isDefault: true);
+        $this->value($pose, 'Playful', 0);
 
         $sizeAndFraming = $this->axis($listing, 'Size & Framing');
         $this->value($sizeAndFraming, '8x10 Print', 0, isDefault: true);

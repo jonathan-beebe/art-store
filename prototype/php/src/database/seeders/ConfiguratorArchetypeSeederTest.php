@@ -123,11 +123,17 @@ it('prices the invitation’s paper stock per option and offers quantity breaks'
         ->and($listing->quantityBreaks()->where('min_qty', 200)->sole()->discount_bps)->toBe(1500);
 });
 
-it('generates the pet portrait’s two-axis grid', function (): void {
+it('generates the pet portrait’s three-axis grid, pets and pose split from the compound-option hack', function (): void {
     $listing = archetypeListing('Custom Pet Portrait');
 
-    expect($listing->optionAxes()->count())->toBe(2)
-        ->and($listing->variants()->count())->toBe(6);
+    expect($listing->optionAxes()->count())->toBe(3)
+        ->and($listing->optionAxes()->pluck('name')->all())->toEqualCanonicalizing(['Pets', 'Pose', 'Size & Framing'])
+        ->and($listing->variants()->count())->toBe(8);
+
+    $pets = $listing->optionAxes()->where('name', 'Pets')->sole();
+    $twoPets = $pets->optionValues()->where('label', '2 Pets')->sole();
+
+    expect($twoPets->surcharge_cents)->toBe(1500);
 });
 
 it('carries the pet portraits required Medium attribute', function (): void {

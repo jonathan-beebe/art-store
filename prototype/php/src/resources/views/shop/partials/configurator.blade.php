@@ -29,16 +29,16 @@
             @else
                 <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     @foreach ($configuration->units as $unit)
-                        <label class="block cursor-pointer rounded-2xl border p-4 {{ $unit['selected'] ? 'border-neutral-900' : 'border-neutral-200' }}">
+                        <label class="block cursor-pointer rounded-2xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-neutral-900 {{ $unit['selected'] ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200' }}">
                             <input type="radio" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) class="sr-only">
                             <span class="block font-medium">{{ $unit['label'] }}</span>
                             @if ($unit['conditionNote'] !== null)
                                 <span class="mt-1 block text-sm text-neutral-500">{{ $unit['conditionNote'] }}</span>
                             @endif
-                            @if ($unit['specs'] !== null)
+                            @if ($unit['specLines'] !== [])
                                 <span class="mt-1 block text-sm text-neutral-500">
-                                    @foreach ($unit['specs'] as $key => $value)
-                                        {{ $key }}: {{ $value }}@if (! $loop->last), @endif
+                                    @foreach ($unit['specLines'] as $line)
+                                        {{ $line }}@if (! $loop->last), @endif
                                     @endforeach
                                 </span>
                             @endif

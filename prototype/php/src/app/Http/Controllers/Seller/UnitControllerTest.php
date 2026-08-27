@@ -24,6 +24,21 @@ it('lists a variant’s units and its derived available count', function (): voi
     $response->assertSee('1'); // the derived available count
 });
 
+it('orders units naturally by label and shows humanized specs', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#10']);
+    Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#2', 'specs_json' => ['height_mm' => 205]]);
+    Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#1']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units");
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['#1', '#2', '#10']);
+    $response->assertSee('Height: 205 mm');
+});
+
 it('refuses another sellers variant units page', function (): void {
     $listing = $this->listing($this->seller('Other Studio'));
     $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);

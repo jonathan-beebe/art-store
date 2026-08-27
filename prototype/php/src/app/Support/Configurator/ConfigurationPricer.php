@@ -6,6 +6,7 @@ namespace App\Support\Configurator;
 
 use App\Domain\Configurator\ModifierAnswerPrice;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\OverridePriceLabel;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Domain\Configurator\PriceBreakdownAssembler;
 use App\Domain\Configurator\PriceBreakdownLine;
@@ -47,7 +48,7 @@ final class ConfigurationPricer
         $effectiveOverride = $unitOverride ?? $variantOverride;
 
         $perUnitLines = $effectiveOverride !== null
-            ? [PriceBreakdownLine::of('Base price', $effectiveOverride)]
+            ? [PriceBreakdownLine::of(self::combinationLabel($selectedOptionValues), $effectiveOverride)]
             : self::baseAndSurchargeLines($listing, $selectedOptionValues);
 
         $selectedIds = array_map(fn (OptionValue $value): string => $value->id, $selectedOptionValues);
@@ -76,6 +77,14 @@ final class ConfigurationPricer
         );
 
         return PriceBreakdownAssembler::assemble($perUnitLines, $quantity, $tier);
+    }
+
+    /**
+     * @param  list<OptionValue>  $selectedOptionValues
+     */
+    private static function combinationLabel(array $selectedOptionValues): string
+    {
+        return OverridePriceLabel::forCombination(array_map(fn (OptionValue $value): string => $value->label, $selectedOptionValues));
     }
 
     /**

@@ -252,21 +252,40 @@ it('greys out a sparse combination the table seller never priced, with a not-off
     $response->assertSee('disabled', escape: false);
 });
 
-it('renders the candlesticks as a unit picker excluding sold pieces', function (): void {
+it('renders the candlesticks as a unit picker excluding sold pieces, naturally ordered with humanized specs', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'candlesticks', 'price_cents' => 4500]);
     $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
     $addUnit = app(AddUnit::class);
-    $addUnit($variant, '#1', conditionNote: 'Excellent estate condition');
+    $addUnit($variant, '#10');
+    $addUnit($variant, '#1', conditionNote: 'Excellent estate condition', specs: ['height_mm' => 205, 'weight_g' => 310]);
     $sold = $addUnit($variant, '#2', priceOverrideCents: 3500);
     $sold->update(['state' => 'sold']);
 
     $response = $this->get('/art/candlesticks');
 
     $response->assertOk();
-    $response->assertSee('#1');
     $response->assertSee('Excellent estate condition');
+    $response->assertSee('Height: 205 mm');
+    $response->assertSee('Weight: 310 g');
+    $response->assertSeeInOrder(['#1', '#10']);
     $response->assertDontSee('#2');
+});
+
+it('labels an overridden variant’s breakdown with its combination instead of "Base price"', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 80000]);
+    $length = app(CreateOptionAxis::class)($listing, 'Length');
+    $l48 = app(AddOptionValue::class)($length, '48 in', 0, isDefault: true);
+    $width = app(CreateOptionAxis::class)($listing, 'Width');
+    $w30 = app(AddOptionValue::class)($width, '30 in', 0, isDefault: true);
+    app(CreateVariant::class)($listing, [$l48, $w30], priceOverrideCents: 110000);
+
+    $response = $this->get('/art/table');
+
+    $response->assertOk();
+    $response->assertSee('48 in / 30 in');
+    $response->assertDontSee('Base price');
 });
 
 it('shows the wedding invitations quantity-break table and applies the tier live', function (): void {

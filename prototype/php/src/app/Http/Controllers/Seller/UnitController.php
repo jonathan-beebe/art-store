@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\AddUnit;
 use App\Actions\Configurator\UpdateUnit;
+use App\Domain\Configurator\UnitLabelOrder;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\CreateUnitRequest;
@@ -67,7 +68,7 @@ final class UnitController extends SellerController
         return [
             'listing' => $listing,
             'variant' => $variant,
-            'units' => $variant->units()->orderBy('label')->get(),
+            'units' => $variant->units()->get()->sort(fn (Unit $a, Unit $b): int => UnitLabelOrder::compare($a->label, $b->label))->values(),
         ];
     }
 }

@@ -1,3 +1,7 @@
+@php
+    use App\Domain\Configurator\UnitSpecLabel;
+@endphp
+
 <x-layouts.seller :title="'Units — '.$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Units</h1>
@@ -28,6 +32,15 @@
                         </div>
 
                         <x-form.field name="condition_note" label="Condition note" :value="$unit->condition_note" />
+
+                        @if ($unit->specs_json !== null)
+                            <p class="w-full text-sm text-gray-600 dark:text-gray-400">
+                                @foreach ($unit->specs_json as $key => $value)
+                                    {{ UnitSpecLabel::format($key, $value) }}@if (! $loop->last), @endif
+                                @endforeach
+                            </p>
+                        @endif
+
                         <x-form.field name="specs" label="Specs (JSON)" :value="$unit->specs_json === null ? null : json_encode($unit->specs_json)" />
                         <x-form.field name="price_override" label="Price override (dollars)" :value="$unit->price_override_cents === null ? null : number_format($unit->price_override_cents / 100, 2, '.', '')" />
 

@@ -39,26 +39,41 @@ it('adds a line for each selected option value that surcharges', function (): vo
     expect($breakdownNoSurcharge->lines)->toHaveCount(1);
 });
 
-it('uses the variant override instead of base plus surcharges', function (): void {
+it('uses the variant override instead of base plus surcharges, labeling the first line with the combination', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 2000]);
     $variant = Variant::factory()->overriddenAt(9500)->create(['listing_id' => $listing->id]);
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'surcharge_cents' => 500]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '48 in', 'surcharge_cents' => 500]);
 
     $breakdown = ConfigurationPricer::price($listing, [$value], $variant, null, [], 1);
 
     expect($breakdown->lines)->toHaveCount(1)
+        ->and($breakdown->lines[0]->label)->toBe('48 in')
         ->and($breakdown->total()->cents)->toBe(9500);
 });
 
-it('uses the unit override before the variant override', function (): void {
+it('names a multi-axis override combination with a slash', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 2000]);
+    $variant = Variant::factory()->overriddenAt(110000)->create(['listing_id' => $listing->id]);
+    $length = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $width = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $lengthValue = OptionValue::factory()->create(['axis_id' => $length->id, 'label' => '48 in']);
+    $widthValue = OptionValue::factory()->create(['axis_id' => $width->id, 'label' => '30 in']);
+
+    $breakdown = ConfigurationPricer::price($listing, [$lengthValue, $widthValue], $variant, null, [], 1);
+
+    expect($breakdown->lines[0]->label)->toBe('48 in / 30 in');
+});
+
+it('uses the unit override before the variant override, keeping "Base price" with no axis to name', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 2000]);
     $variant = Variant::factory()->serialized()->overriddenAt(9500)->create(['listing_id' => $listing->id]);
     $unit = Unit::factory()->create(['variant_id' => $variant->id, 'price_override_cents' => 3500]);
 
     $breakdown = ConfigurationPricer::price($listing, [], $variant, $unit, [], 1);
 
-    expect($breakdown->total()->cents)->toBe(3500);
+    expect($breakdown->lines[0]->label)->toBe('Base price')
+        ->and($breakdown->total()->cents)->toBe(3500);
 });
 
 it('prices a select answer at the chosen option add-on, labeled with its prompt and choice', function (): void {
