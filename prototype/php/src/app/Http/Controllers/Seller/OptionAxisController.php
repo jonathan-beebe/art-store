@@ -43,7 +43,7 @@ final class OptionAxisController extends SellerController
         }
 
         $property = $request->property();
-        $axis = $create($listing, $request->name(), $property, $request->position());
+        $axis = $create($listing, $request->name(), $property, $request->position(), $request->pricingMode());
 
         // Catalog choices first (doc §4): a catalog property pre-fills the
         // choice's options from the property's own values — staged as
@@ -71,7 +71,7 @@ final class OptionAxisController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $update($optionAxis, $request->name(), $request->property(), $request->position());
+        $update($optionAxis, $request->name(), $request->property(), $request->position(), $request->pricingMode());
 
         return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Choice updated.');
     }

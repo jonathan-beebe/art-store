@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitState;
 use App\Domain\Configurator\VariantAvailability;
 use App\Domain\Configurator\VariantPrice;
@@ -72,21 +73,32 @@ class Variant extends Model
     }
 
     /**
-     * The base price plus every option value this variant holds surcharges
-     * for, or the flat override when one is set.
+     * The base price plus every `add_on` option value this variant holds a
+     * surcharge for — or, when this variant carries a `standalone` option,
+     * that option's own price in place of the base — or the flat override
+     * when one is set (`docs/item-configurator.md` §3).
      */
     public function resolvedPrice(Money $basePrice): Money
     {
-        $surcharges = array_values($this->options()
-            ->with('optionValue')
-            ->get()
-            ->map(fn (VariantOption $option): Money => ($option->optionValue ?? throw new LogicException('A variant option always names an option value.'))->surcharge())
-            ->all());
+        $standalonePrices = [];
+        $addonSurcharges = [];
+
+        foreach ($this->options()->with('optionValue.axis')->get() as $option) {
+            $value = $option->optionValue ?? throw new LogicException('A variant option always names an option value.');
+            $axis = $value->axis ?? throw new LogicException('An option value always belongs to an axis.');
+
+            if ($axis->pricing_mode === PricingMode::Standalone) {
+                $standalonePrices[] = $value->price();
+            } else {
+                $addonSurcharges[] = $value->surcharge();
+            }
+        }
 
         return VariantPrice::resolve(
             $basePrice,
             $this->price_override_cents === null ? null : Money::fromCents($this->price_override_cents),
-            $surcharges,
+            $addonSurcharges,
+            $standalonePrices,
         )->amount;
     }
 

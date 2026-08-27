@@ -6,6 +6,7 @@ namespace App\Support\Configurator;
 
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\PriceBreakdown;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Money\Money;
 
 /**
@@ -19,7 +20,7 @@ use App\Domain\Money\Money;
 final readonly class ListingConfiguration
 {
     /**
-     * @param  list<array{id: string, name: string, options: list<array{id: string, label: string, delta: Money, selected: bool, selectable: bool, reason: ?string}>}>  $axes
+     * @param  list<array{id: string, name: string, pricingMode: PricingMode, options: list<array{id: string, label: string, delta: Money, price: Money, selected: bool, selectable: bool, reason: ?string}>}>  $axes
      * @param  array<string, string>  $selectedOptionValueIdsByAxis
      * @param  list<array{id: string, label: string, conditionNote: ?string, specLines: list<string>, price: Money, selected: bool}>  $units
      * @param  list<array{id: string, prompt: string, instructions: ?string, kind: ModifierKind, required: bool, charLimit: ?int, unit: ?string, minValue: ?float, maxValue: ?float, addOnPriceCents: int, options: list<array{id: string, label: string, delta: Money, selected: bool}>, answer: string, delta: Money}>  $modifiers

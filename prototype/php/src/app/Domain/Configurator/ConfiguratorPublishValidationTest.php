@@ -83,6 +83,34 @@ it('does not flag a required attribute the listing already holds a value for', f
     expect(ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, ['prp_01'], ['prp_01']))->toBe([]);
 });
 
+it('flags a standalone option with no price', function (): void {
+    $issues = ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, standaloneOptions: [
+        new StandaloneOptionSnapshot('ovl_01', null),
+    ]);
+
+    expect($issues)->toHaveCount(1)
+        ->and($issues[0]->code)->toBe('option_missing_price')
+        ->and($issues[0]->subjectId)->toBe('ovl_01');
+});
+
+it('flags a standalone option priced below zero', function (): void {
+    $issues = ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, standaloneOptions: [
+        new StandaloneOptionSnapshot('ovl_01', -100),
+    ]);
+
+    expect($issues)->toHaveCount(1)
+        ->and($issues[0]->code)->toBe('option_missing_price');
+});
+
+it('does not flag a standalone option that carries a price of zero or more', function (): void {
+    $issues = ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, standaloneOptions: [
+        new StandaloneOptionSnapshot('ovl_01', 0),
+        new StandaloneOptionSnapshot('ovl_02', 1800),
+    ]);
+
+    expect($issues)->toBe([]);
+});
+
 it('flags too many variants, modifiers, quantity tiers, and sections', function (): void {
     $variants = array_fill(0, ConfiguratorPublishValidation::MAX_VARIANTS + 1, passingVariant());
 

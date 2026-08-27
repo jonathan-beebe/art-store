@@ -17,13 +17,14 @@ final class UnitPrice
 
     /**
      * @param  list<Money>  $surcharges
+     * @param  list<Money>  $standalonePrices
      */
-    public static function resolve(?Money $unitOverride, ?Money $variantOverride, Money $basePrice, array $surcharges): Money
+    public static function resolve(?Money $unitOverride, ?Money $variantOverride, Money $basePrice, array $surcharges, array $standalonePrices = []): Money
     {
         if ($unitOverride !== null) {
             return $unitOverride;
         }
 
-        return VariantPrice::resolve($basePrice, $variantOverride, $surcharges)->amount;
+        return VariantPrice::resolve($basePrice, $variantOverride, $surcharges, $standalonePrices)->amount;
     }
 }

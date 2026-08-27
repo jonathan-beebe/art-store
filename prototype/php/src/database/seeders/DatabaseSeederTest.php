@@ -49,7 +49,7 @@ it('seeds seven verified sellers', function (): void {
 });
 
 it('seeds listings across statuses', function (): void {
-    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(40)
+    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(41)
         ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
         ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
 });
@@ -176,7 +176,7 @@ it('keeps the database on a second run, only confirming the admins', function ()
     $this->seed();
 
     expect(Seller::count())->toBe(7)
-        ->and(Listing::count())->toBe(45)
+        ->and(Listing::count())->toBe(46)
         ->and(Order::count())->toBe(3)
         ->and(Admin::count())->toBe(2)
         ->and($log->line('seed.run', 'did')['data'])->toHaveKey('skipped', true);

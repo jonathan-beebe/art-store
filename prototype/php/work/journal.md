@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:14:43:20 — DSGN-002 — implementation started (canvas approved by human review; Direction B — creation-time pricing mode — is the decided mechanism)
 - 2026-08-27:14:20:00 — DSGN-002 — started
 - 2026-08-27:14:06:30 — IMPRV-014 — defined: Remove the physical-goods-only footer line from the listing edit hub
 - 2026-08-27:14:06:20 — BUG-008 — defined: Removing an option a variant depends on has no path that succeeds

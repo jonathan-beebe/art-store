@@ -153,6 +153,7 @@ erDiagram
         text listing_id FK
         text property_id FK "nullable — custom axis when null"
         string name
+        string pricing_mode "standalone | add_on, default add_on"
         unsigned position
     }
     option_values {
@@ -161,6 +162,7 @@ erDiagram
         text property_value_id FK "nullable"
         string label
         int surcharge_cents
+        int price_cents "nullable, unsigned — standalone axes only"
         bool is_default
         unsigned position
     }
@@ -244,6 +246,14 @@ Notes:
 - **Media stays out of this layer.** Option values, units, and modifier
   options carry no image of their own in v1 — a listing's existing photo set
   is unchanged.
+- **`option_axes.pricing_mode` is chosen once, at creation** (DSGN-002): a
+  `standalone` axis's options each carry their own absolute `price_cents`
+  and no axis in this state ever reads `surcharge_cents` (stored `0`); an
+  `add_on` axis's options carry a signed `surcharge_cents` and no
+  `price_cents` (stored `null`). Every axis before this column existed, and
+  every new axis by default, is `add_on` — an `add_on`-only listing's
+  resolution and rendering are unchanged (§3). The mode may change only
+  while the axis holds zero options; adding the first option locks it in.
 
 ### 2.3 Content layer
 
@@ -319,8 +329,12 @@ Pure domain code, `app/Domain` — no query, no clock, no random, unit tested
 without a database (`docs/architecture.md`'s Core layer).
 
 ```
+standalone_sum = Σ over selected options on standalone axes: price_cents
+addon_sum      = Σ over selected options on add_on axes: surcharge_cents
+
 unit_price_cents = variant.price_override_cents
-                 ?? listing.price_cents + Σ(selected option_values.surcharge_cents)
+                 ?? (listing has ≥1 standalone axis ? standalone_sum : listing.price_cents)
+                    + addon_sum
 
 answer_add_on_cents = Σ over answered modifiers:
     select      → chosen modifier_option.add_on_price_cents
@@ -333,6 +347,33 @@ line_price_cents = quantity_break(discount_bps for qty) applied to
 price_breakdown = [{label, cents}, ...]   -- base, each surcharge, each
                                               answer add-on, the tier discount
 ```
+
+**Standalone axes replace the base line, not add to it.** A listing with no
+`standalone` axis keeps the shape above exactly — one "Base price" line, then
+one line per surcharging option value, byte-for-byte what shipped before
+DSGN-002. A listing with at least one `standalone` axis drops "Base price"
+entirely and itemizes every selected option instead, unconditionally (a
+zero-cost `add_on` selection still gets its own line, since there is no base
+line left to fold it into): `"Size: 8x10" — $18.00` (absolute, the option's
+own `price_cents`) alongside `"Frame: Unframed" — +$0.00` (still signed, the
+option's `surcharge_cents`). The same rule renders the buyer dropdown: a
+`standalone` axis's non-selected options show their absolute price
+(`"11x14 ($24.00)"`), the selected one bare; an `add_on` axis keeps today's
+signed delta (`"Black frame (+$32.00)"`).
+
+**`listings.price_cents` is derived, not seller-edited, once a standalone
+axis exists.** `App\Support\Configurator\ListingPriceSync` runs after every
+option-axis and option-value write (add, update, remove — wired from the
+Actions in `App\Actions\Configurator`, not the controllers, so a seeder or a
+console command gets the same guarantee an HTTP request does) and sets
+`price_cents` to the default configuration's `standalone_sum` — the price
+`/art/{slug}` opens at — whenever the listing holds ≥1 `standalone` axis.
+Storefront cards keep reading `price_cents` unchanged. A listing with no
+`standalone` axis is never touched by the sync, so `price_cents` stays
+seller-edited exactly as it does today; if a seller removes their listing's
+last `standalone` axis, `price_cents` is left at whatever it last synced to
+rather than reverting to an earlier seller-typed price — there is no earlier
+value to revert to once the derived era has started.
 
 Availability:
 
@@ -426,6 +467,10 @@ gates when the listing has configurator data:
   on the listing.
 - Every `is_serialized` variant has at least one `unt` row in state
   `available`.
+- Every option on a `standalone` axis carries a `price_cents` ≥ 0
+  (`option_missing_price` — the write path already refuses to save one
+  without a price, so this is a defensive check on whatever the row actually
+  holds, not the seller's only guard against it).
 - Every count cap in §7 is respected.
 
 A failing gate refuses the transition with every issue listed, each linking

@@ -108,6 +108,33 @@ it('translates a missing required attribute to the exact copy linking the facts 
         ->and($presented->fixUrl)->toBe(route('seller.listings.edit', $listing).'#attribute-prp_1');
 });
 
+it('names a standalone option with no price by its label', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '11x14', 'price_cents' => null]);
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('option_missing_price', 'irrelevant', $value->id), $listing);
+
+    expect($presented->message)->toBe('The 11x14 option has no price yet — give it one before this can go live.')
+        ->and($presented->fixUrl)->toBe(route('seller.listings.option-axes.index', $listing).'#'.$value->id);
+});
+
+it('falls back to the generic phrasing for a missing-price issue with no subject', function (): void {
+    $listing = $this->listing($this->seller());
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('option_missing_price', 'irrelevant'), $listing);
+
+    expect($presented->message)->toBe('One of your options has no price yet — every option in a choice priced on its own needs one before it can go live.');
+});
+
+it('falls back to the generic phrasing for a missing-price option that is gone', function (): void {
+    $listing = $this->listing($this->seller());
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('option_missing_price', 'irrelevant', 'ovl_gone'), $listing);
+
+    expect($presented->message)->toBe('One of your options has no price yet — every option in a choice priced on its own needs one before it can go live.');
+});
+
 it('translates an oversized choice to a plain sentence linking the choices screen', function (): void {
     $listing = $this->listing($this->seller());
     $issue = PublishIssue::of('axis_too_many_options', 'irrelevant domain message');

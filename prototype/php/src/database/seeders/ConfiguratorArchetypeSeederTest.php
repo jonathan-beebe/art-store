@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\Modifier;
@@ -23,10 +24,10 @@ function archetypeListing(string $title): Listing
     return Listing::where('title', $title)->sole();
 }
 
-it('seeds one demo seller owning all eight archetypes', function (): void {
+it('seeds one demo seller owning all nine archetypes', function (): void {
     $seller = Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole();
 
-    expect(Listing::where('seller_id', $seller->id)->count())->toBe(8);
+    expect(Listing::where('seller_id', $seller->id)->count())->toBe(9);
 });
 
 it('gives the plain print the legacy, axis-free path with zero configurator rows', function (): void {
@@ -159,6 +160,21 @@ it('generates the pet portrait’s three-axis grid, pets and pose split from the
     expect($twoPets->surcharge_cents)->toBe(1500);
 });
 
+it('gives Sunset Ridge a standalone Size axis and prices the listing off its default option', function (): void {
+    $listing = archetypeListing('Sunset Ridge, Fine Art Print');
+    $size = $listing->optionAxes()->where('name', 'Size')->sole();
+    $frame = $listing->optionAxes()->where('name', 'Frame')->sole();
+
+    expect($size->pricing_mode)->toBe(PricingMode::Standalone)
+        ->and($frame->pricing_mode)->toBe(PricingMode::AddOn)
+        ->and($size->optionValues()->where('label', '8x10')->sole()->price_cents)->toBe(1800)
+        ->and($size->optionValues()->where('label', '11x14')->sole()->price_cents)->toBe(2400)
+        ->and($size->optionValues()->where('label', '16x20')->sole()->price_cents)->toBe(3400)
+        ->and($listing->variants()->count())->toBe(6)
+        ->and($listing->price_cents)->toBe(1800)
+        ->and($listing->publishIssues())->toBe([]);
+});
+
 it('carries the pet portraits required Medium attribute', function (): void {
     $listing = archetypeListing('Custom Pet Portrait');
 
@@ -176,6 +192,7 @@ it('carries a Medium attribute holding every archetype’s consolidated high-lev
         'Vintage Brass Candlesticks, Individually Listed' => 'Metal',
         'Letterpress Wedding Invitations' => 'Paper',
         'Custom Pet Portrait' => 'Painting',
+        'Sunset Ridge, Fine Art Print' => 'Print',
     ] as $title => $expectedLabel) {
         $medium = archetypeListing($title)->listingAttributes()
             ->with(['property', 'propertyValue'])
@@ -196,6 +213,7 @@ it('categorizes every configured archetype', function (): void {
         'Vintage Brass Candlesticks, Individually Listed',
         'Letterpress Wedding Invitations',
         'Custom Pet Portrait',
+        'Sunset Ridge, Fine Art Print',
     ] as $title) {
         expect(archetypeListing($title)->category_id)->not->toBeNull();
     }
@@ -205,5 +223,5 @@ it('changes nothing on a second run', function (): void {
     $this->seed(ConfiguratorArchetypeSeeder::class);
 
     expect(Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->count())->toBe(1)
-        ->and(Listing::where('seller_id', Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole()->id)->count())->toBe(8);
+        ->and(Listing::where('seller_id', Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole()->id)->count())->toBe(9);
 });

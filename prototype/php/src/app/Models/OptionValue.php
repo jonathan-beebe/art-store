@@ -18,7 +18,7 @@ use Override;
  * One choice on an {@see OptionAxis} (Gold, Silver, …), with the price delta
  * choosing it adds.
  */
-#[Fillable(['axis_id', 'property_value_id', 'label', 'surcharge_cents', 'is_default', 'position'])]
+#[Fillable(['axis_id', 'property_value_id', 'label', 'surcharge_cents', 'price_cents', 'is_default', 'position'])]
 class OptionValue extends Model
 {
     /** @use HasFactory<OptionValueFactory> */
@@ -39,6 +39,7 @@ class OptionValue extends Model
     {
         return [
             'surcharge_cents' => 'integer',
+            'price_cents' => 'integer',
             'is_default' => 'boolean',
             'position' => 'integer',
         ];
@@ -71,5 +72,15 @@ class OptionValue extends Model
     public function surcharge(): Money
     {
         return Money::fromCents($this->surcharge_cents);
+    }
+
+    /**
+     * This option's own absolute price — meaningful only on a `standalone`
+     * axis; a `null` row (every `add_on` axis's option) reads as zero rather
+     * than forcing every caller to null-check.
+     */
+    public function price(): Money
+    {
+        return Money::fromCents($this->price_cents ?? 0);
     }
 }

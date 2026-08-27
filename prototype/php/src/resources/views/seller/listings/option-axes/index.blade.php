@@ -64,7 +64,7 @@
                                     </div>
 
                                     <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">
-                                        buyers pay {{ OptionBuyerPrice::forOption($listing->price(), $value->surcharge())->format() }}
+                                        buyers pay {{ OptionBuyerPrice::forOption($listing->price(), $axis->pricing_mode, $value)->format() }}
                                     </span>
 
                                     <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-xs">Save</button>

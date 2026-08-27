@@ -1,5 +1,6 @@
 @php
     use App\Domain\Configurator\ModifierKind;
+    use App\Domain\Configurator\PricingMode;
 @endphp
 
 <form method="POST" action="{{ route('shop.cart.add', $listing) }}" class="mt-2 max-w-lg">
@@ -12,7 +13,11 @@
                     class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
                 @foreach ($axis['options'] as $option)
                     <option value="{{ $option['id'] }}" @selected($option['selected']) @disabled(! $option['selectable'])>
-                        {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
+                        @if ($axis['pricingMode'] === PricingMode::Standalone)
+                            {{ $option['label'] }}@unless($option['selected']) ({{ $option['price']->format() }})@endunless
+                        @else
+                            {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
+                        @endif
                         @if (! $option['selectable']) — {{ $option['reason'] }}@endif
                     </option>
                 @endforeach
@@ -121,7 +126,7 @@
             @foreach ($configuration->breakdown->lines as $line)
                 <div class="flex justify-between gap-4">
                     <dt class="text-neutral-600">{{ $line->label }}</dt>
-                    <dd>{{ ! $loop->first && $line->amount->cents > 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
+                    <dd>{{ ! $loop->first && $line->amount->cents >= 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
                 </div>
             @endforeach
         </dl>

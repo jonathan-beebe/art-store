@@ -17,6 +17,7 @@ use App\Actions\Configurator\ScopeModifier;
 use App\Actions\Listings\CreateListing;
 use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
@@ -63,6 +64,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $this->vintageCandlesticks($seller);
         $this->weddingInvitations($seller);
         $this->petPortrait($seller);
+        $this->sunsetRidgePrint($seller);
     }
 
     /**
@@ -375,6 +377,42 @@ class ConfiguratorArchetypeSeeder extends Seeder
         return $listing;
     }
 
+    /**
+     * DSGN-002's standalone-pricing archetype: Size is `standalone` — each
+     * size just has a price, none is a "base" — crossed with Frame, an
+     * ordinary `add_on` axis. `listings.price_cents` is never set directly
+     * here; {@see \App\Support\Configurator\ListingPriceSync}, run from
+     * inside {@see AddOptionValue}, derives it from the default (8x10)
+     * option's price the moment that option is added.
+     */
+    private function sunsetRidgePrint(Seller $seller): Listing
+    {
+        $listing = $this->createListing(
+            $seller,
+            'Sunset Ridge, Fine Art Print',
+            'A sunset over the ridge behind the studio, giclée printed in three sizes — framed or unframed.',
+            'See size options',
+            1800,
+            25,
+            category: Category::where('name', 'Art')->sole(),
+        );
+
+        $size = $this->axis($listing, 'Size', pricingMode: PricingMode::Standalone);
+        $this->value($size, '8x10', 0, isDefault: true, priceCents: 1800);
+        $this->value($size, '11x14', 0, priceCents: 2400);
+        $this->value($size, '16x20', 0, priceCents: 3400);
+
+        $frame = $this->axis($listing, 'Frame');
+        $this->value($frame, 'Unframed', 0, isDefault: true);
+        $this->value($frame, 'Black frame', 3200);
+
+        app(GenerateVariants::class)($listing);
+
+        $this->attribute($listing, 'Medium', 'Print');
+
+        return $listing;
+    }
+
     private function createListing(
         Seller $seller,
         string $title,
@@ -399,14 +437,14 @@ class ConfiguratorArchetypeSeeder extends Seeder
         return $listing;
     }
 
-    private function axis(Listing $listing, string $name, ?Property $property = null): OptionAxis
+    private function axis(Listing $listing, string $name, ?Property $property = null, PricingMode $pricingMode = PricingMode::AddOn): OptionAxis
     {
-        return app(CreateOptionAxis::class)($listing, $name, $property);
+        return app(CreateOptionAxis::class)($listing, $name, $property, pricingMode: $pricingMode);
     }
 
-    private function value(OptionAxis $axis, string $label, int $surchargeCents, bool $isDefault = false, ?PropertyValue $propertyValue = null): OptionValue
+    private function value(OptionAxis $axis, string $label, int $surchargeCents, bool $isDefault = false, ?PropertyValue $propertyValue = null, ?int $priceCents = null): OptionValue
     {
-        return app(AddOptionValue::class)($axis, $label, $surchargeCents, $isDefault, propertyValue: $propertyValue);
+        return app(AddOptionValue::class)($axis, $label, $surchargeCents, $isDefault, propertyValue: $propertyValue, priceCents: $priceCents);
     }
 
     /**

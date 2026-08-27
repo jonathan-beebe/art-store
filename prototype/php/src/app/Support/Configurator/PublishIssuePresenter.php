@@ -6,8 +6,10 @@ namespace App\Support\Configurator;
 
 use App\Domain\Configurator\PublishIssue;
 use App\Models\Listing;
+use App\Models\OptionValue;
 use App\Models\Variant;
 use App\Models\VariantOption;
+use Illuminate\Database\Eloquent\Builder;
 use LogicException;
 
 /**
@@ -44,6 +46,11 @@ final class PublishIssuePresenter
                 "Say what it's made of — buyers filter by it.",
                 'Pick one under Your item',
                 route('seller.listings.edit', $listing).'#attribute-'.$issue->subjectId,
+            ),
+            'option_missing_price' => PresentedPublishIssue::of(
+                self::missingPriceMessage($listing, $issue->subjectId),
+                'Fix it in Choices',
+                route('seller.listings.option-axes.index', $listing).'#'.$issue->subjectId,
             ),
             'axis_too_many_options' => PresentedPublishIssue::of(
                 'One of your choices holds more options than the platform allows — trim its list before this can go live.',
@@ -104,6 +111,33 @@ final class PublishIssuePresenter
         return $label === null
             ? "You marked one of your combinations one-of-a-kind, but the piece list is empty — there's nothing to sell yet."
             : "You marked the {$label} combination one-of-a-kind, but the piece list is empty — there's nothing to sell yet.";
+    }
+
+    private static function missingPriceMessage(Listing $listing, ?string $optionValueId): string
+    {
+        $label = self::optionLabel($listing, $optionValueId);
+
+        return $label === null
+            ? 'One of your options has no price yet — every option in a choice priced on its own needs one before it can go live.'
+            : "The {$label} option has no price yet — give it one before this can go live.";
+    }
+
+    /**
+     * The label naming the option a publish issue points at — `null` when
+     * the issue carries no subject or the option is gone, so the caller
+     * falls back to naming it generically.
+     */
+    private static function optionLabel(Listing $listing, ?string $optionValueId): ?string
+    {
+        if ($optionValueId === null) {
+            return null;
+        }
+
+        $value = OptionValue::query()
+            ->whereHas('axis', fn (Builder $axes): Builder => $axes->where('listing_id', $listing->id))
+            ->find($optionValueId);
+
+        return $value?->label;
     }
 
     /**

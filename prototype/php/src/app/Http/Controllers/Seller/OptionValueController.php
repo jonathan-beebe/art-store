@@ -35,7 +35,7 @@ final class OptionValueController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $value = $add($optionAxis, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+        $value = $add($optionAxis, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue(), $request->priceCents());
 
         if ($request->isDefault()) {
             $this->unsetOtherDefaults($optionAxis, $value, $update);
@@ -58,7 +58,7 @@ final class OptionValueController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $value = $update($optionValue, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+        $value = $update($optionValue, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue(), $request->priceCents());
 
         if ($request->isDefault()) {
             $this->unsetOtherDefaults($optionAxis, $value, $update);
@@ -101,7 +101,7 @@ final class OptionValueController extends SellerController
             ->get();
 
         foreach ($siblings as $sibling) {
-            $update($sibling, $sibling->label, $sibling->surcharge_cents, false, $sibling->position, $sibling->propertyValue);
+            $update($sibling, $sibling->label, $sibling->surcharge_cents, false, $sibling->position, $sibling->propertyValue, $sibling->price_cents);
         }
     }
 

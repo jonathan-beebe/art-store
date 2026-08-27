@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\PublishIssue;
+use App\Domain\Configurator\StandaloneOptionSnapshot;
 use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
@@ -211,7 +213,7 @@ class Listing extends Model
      */
     public function publishIssues(): array
     {
-        $axes = $this->optionAxes()->withCount('optionValues')->get();
+        $axes = $this->optionAxes()->withCount('optionValues')->with('optionValues')->get();
 
         $variants = array_values($this->variants()->get()->map(fn (Variant $variant): VariantSnapshot => new VariantSnapshot(
             $variant->id,
@@ -233,6 +235,12 @@ class Listing extends Model
         /** @var list<string> $attributedPropertyIds */
         $attributedPropertyIds = array_values($this->listingAttributes()->distinct()->pluck('property_id')->all());
 
+        $standaloneOptions = array_values($axes
+            ->filter(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone)
+            ->flatMap(fn (OptionAxis $axis) => $axis->optionValues)
+            ->map(fn (OptionValue $value): StandaloneOptionSnapshot => new StandaloneOptionSnapshot($value->id, $value->price_cents))
+            ->all());
+
         return ConfiguratorPublishValidation::check(
             axisIds: array_values($axes->map(fn (OptionAxis $axis): string => $axis->id)->all()),
             optionCountsPerAxis: array_values($axes->map(function (OptionAxis $axis): int {
@@ -246,6 +254,7 @@ class Listing extends Model
             sectionCount: $this->descriptionSections()->count(),
             requiredAttributePropertyIds: $requiredAttributePropertyIds,
             attributedPropertyIds: $attributedPropertyIds,
+            standaloneOptions: $standaloneOptions,
         );
     }
 

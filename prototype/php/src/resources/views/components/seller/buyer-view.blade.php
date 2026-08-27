@@ -1,5 +1,6 @@
 @php
     use App\Domain\Configurator\ModifierKind;
+    use App\Domain\Configurator\PricingMode;
     use App\Support\Configurator\PriceDifferenceInput;
 @endphp
 
@@ -16,7 +17,12 @@
                         class="mt-1 block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900">
                     @foreach ($axis['options'] as $option)
                         <option @selected($option['selected']) @disabled(! $option['selectable'])>
-                            {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif @if (! $option['selectable']) — {{ $option['reason'] }}@endif
+                            @if ($axis['pricingMode'] === PricingMode::Standalone)
+                                {{ $option['label'] }}@unless($option['selected']) ({{ $option['price']->format() }})@endunless
+                            @else
+                                {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
+                            @endif
+                            @if (! $option['selectable']) — {{ $option['reason'] }}@endif
                         </option>
                     @endforeach
                 </select>
@@ -108,7 +114,7 @@
                 @foreach ($configuration->breakdown->lines as $line)
                     <div class="flex justify-between gap-4">
                         <dt class="text-neutral-600">{{ $line->label }}</dt>
-                        <dd>{{ ! $loop->first && $line->amount->cents > 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
+                        <dd>{{ ! $loop->first && $line->amount->cents >= 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
                     </div>
                 @endforeach
             </dl>

@@ -14,6 +14,7 @@ use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\ScopeModifier;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
@@ -282,6 +283,28 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $cartPage->assertSee('Engraving Text:');
     $cartPage->assertSee('ADA');
     $cartPage->assertSee('$266.00');
+});
+
+it('adds a standalone-priced configuration to the cart at the option’s own price plus its add-on', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'sunset-ridge', 'price_cents' => 1800]);
+    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
+    app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 1800);
+    $elevenByFourteen = app(AddOptionValue::class)($size, '11x14', priceCents: 2400);
+    $frame = app(CreateOptionAxis::class)($listing, 'Frame');
+    app(AddOptionValue::class)($frame, 'Unframed', 0, isDefault: true);
+    $blackFrame = app(AddOptionValue::class)($frame, 'Black frame', 3200);
+    app(GenerateVariants::class)($listing);
+
+    $this->post('/cart/sunset-ridge', ['axis' => [$size->id => $elevenByFourteen->id, $frame->id => $blackFrame->id]]);
+
+    $cartPage = $this->get('/cart');
+    $cartPage->assertOk();
+    $cartPage->assertSee('Size:');
+    $cartPage->assertSee('11x14');
+    $cartPage->assertSee('Frame:');
+    $cartPage->assertSee('Black frame');
+    $cartPage->assertSee('$56.00');
 });
 
 it('C6: prices a length measurement by the exact value entered, not a preset step', function (): void {

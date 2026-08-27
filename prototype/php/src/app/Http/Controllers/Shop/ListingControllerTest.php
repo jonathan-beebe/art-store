@@ -15,6 +15,7 @@ use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\ScopeModifier;
 use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\DescriptionSection;
@@ -253,6 +254,37 @@ it('A10: preselects the rings axis defaults and prices the page concretely at fi
     $withRoseGoldAndEngraving->assertSee('$133.00');
     $withRoseGoldAndEngraving->assertSee('Engraving Font');
     $withRoseGoldAndEngraving->assertSee('Engraving Text');
+});
+
+it('shows a standalone size’s absolute prices and an absolute-first breakdown', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'sunset-ridge', 'price_cents' => 1800]);
+    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
+    app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 1800);
+    $elevenByFourteen = app(AddOptionValue::class)($size, '11x14', priceCents: 2400);
+    $frame = app(CreateOptionAxis::class)($listing, 'Frame');
+    app(AddOptionValue::class)($frame, 'Unframed', 0, isDefault: true);
+    app(AddOptionValue::class)($frame, 'Black frame', 3200);
+    app(GenerateVariants::class)($listing);
+
+    $default = $this->get('/art/sunset-ridge');
+
+    $default->assertOk();
+    // The selected 8x10 renders bare; the non-selected 11x14 shows its own
+    // absolute price, never a delta off the 8x10 price.
+    $default->assertDontSee('($18.00)', escape: false);
+    $default->assertSee('($24.00)', escape: false);
+    $default->assertSee('Size: 8x10', escape: false);
+    $default->assertSee('Frame: Unframed', escape: false);
+
+    $withEleven = $this->get('/art/sunset-ridge?'.http_build_query(['axis' => [$size->id => $elevenByFourteen->id]]));
+
+    $withEleven->assertOk();
+    // Now 11x14 is selected (bare) and 8x10 is the non-selected one showing
+    // its own absolute price.
+    $withEleven->assertSee('($18.00)', escape: false);
+    $withEleven->assertSee('Size: 11x14', escape: false);
+    $withEleven->assertSee('$24.00');
 });
 
 it('shows the mugs personalization text box only once the personalized option is selected', function (): void {

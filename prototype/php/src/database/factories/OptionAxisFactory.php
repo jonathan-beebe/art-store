@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Domain\Configurator\PricingMode;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -25,6 +26,17 @@ class OptionAxisFactory extends Factory
             'property_id' => null,
             'name' => ucfirst(fake()->unique()->word()),
             'position' => 0,
+            'pricing_mode' => PricingMode::AddOn,
         ];
+    }
+
+    public function standalone(): static
+    {
+        return $this->state(fn (array $attributes) => ['pricing_mode' => PricingMode::Standalone]);
+    }
+
+    public function addOn(): static
+    {
+        return $this->state(fn (array $attributes) => ['pricing_mode' => PricingMode::AddOn]);
     }
 }

@@ -18,6 +18,11 @@ return new class extends Migration
             $table->foreignUlid('property_value_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('label');
             $table->integer('surcharge_cents')->default(0);
+            // The option's own absolute price (DSGN-002) — set, and read,
+            // only when its axis is `standalone`; null on an `add_on` axis's
+            // rows, where `surcharge_cents` carries the price difference
+            // instead.
+            $table->unsignedInteger('price_cents')->nullable();
             $table->boolean('is_default')->default(false);
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();

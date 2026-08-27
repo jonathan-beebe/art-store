@@ -32,6 +32,7 @@ final readonly class ConfiguratorPublishValidation
      * @param  list<VariantSnapshot>  $variants
      * @param  list<string>  $requiredAttributePropertyIds  `category_properties` grants that are both `usable_as_attribute` and `required` for this listing's category
      * @param  list<string>  $attributedPropertyIds  property ids the listing already holds at least one `listing_attributes` row for
+     * @param  list<StandaloneOptionSnapshot>  $standaloneOptions  every option value on one of the listing's `standalone` axes
      * @return list<PublishIssue>
      */
     public static function check(
@@ -43,6 +44,7 @@ final readonly class ConfiguratorPublishValidation
         int $sectionCount,
         array $requiredAttributePropertyIds = [],
         array $attributedPropertyIds = [],
+        array $standaloneOptions = [],
     ): array {
         $issues = [];
 
@@ -63,6 +65,12 @@ final readonly class ConfiguratorPublishValidation
         foreach ($requiredAttributePropertyIds as $propertyId) {
             if (! in_array($propertyId, $attributedPropertyIds, true)) {
                 $issues[] = PublishIssue::of('missing_required_attribute', 'A required attribute has no value set.', $propertyId);
+            }
+        }
+
+        foreach ($standaloneOptions as $option) {
+            if ($option->priceCents === null || $option->priceCents < 0) {
+                $issues[] = PublishIssue::of('option_missing_price', "Option {$option->id} has no price.", $option->id);
             }
         }
 

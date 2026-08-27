@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PricingMode;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OptionAxisFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -17,7 +18,7 @@ use Override;
  * One buyer-facing choice a listing offers (Metal, Size, …), either a catalog
  * property or a custom, label-only axis when `property_id` is null.
  */
-#[Fillable(['listing_id', 'property_id', 'name', 'position'])]
+#[Fillable(['listing_id', 'property_id', 'name', 'position', 'pricing_mode'])]
 class OptionAxis extends Model
 {
     /** @use HasFactory<OptionAxisFactory> */
@@ -36,7 +37,10 @@ class OptionAxis extends Model
     #[Override]
     protected function casts(): array
     {
-        return ['position' => 'integer'];
+        return [
+            'position' => 'integer',
+            'pricing_mode' => PricingMode::class,
+        ];
     }
 
     /** @return BelongsTo<Listing, $this> */

@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Domain\Configurator\ConfiguratorDeletionGuard;
 use App\Logging\StoryEvent;
 use App\Models\OptionValue;
+use App\Support\Configurator\ListingPriceSync;
 use App\Support\Story;
 use LogicException;
 
@@ -26,8 +27,11 @@ final readonly class DeleteOptionValue
             $listingId = $axis->listing_id;
             $axisId = $value->axis_id;
             $valueId = $value->id;
+            $listing = $axis->listing ?? throw new LogicException('An option axis always belongs to a listing.');
 
             $value->delete();
+
+            ListingPriceSync::sync($listing);
 
             $story->did('deleted the option value', [
                 'listing_id' => $listingId,

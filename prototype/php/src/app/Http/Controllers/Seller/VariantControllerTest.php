@@ -27,6 +27,21 @@ it('lists the listing’s sparse variants with a derived price', function (): vo
     $response->assertSee('$25.00', escape: false);
 });
 
+it('derives a standalone combination’s price from its own option, ignoring the listing base', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $elevenByFourteen = OptionValue::factory()->priced(2400)->create(['axis_id' => $size->id, 'label' => '11x14']);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => $elevenByFourteen->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $size->id, 'option_value_id' => $elevenByFourteen->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('11x14');
+    $response->assertSee('$24.00', escape: false);
+});
+
 it('offers the add-variant form while a combination remains', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

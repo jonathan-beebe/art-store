@@ -10,15 +10,19 @@ use App\Domain\Configurator\OverridePriceLabel;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Domain\Configurator\PriceBreakdownAssembler;
 use App\Domain\Configurator\PriceBreakdownLine;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\QuantityDiscount;
 use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
+use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\QuantityBreak;
 use App\Models\Unit;
 use App\Models\Variant;
+use Illuminate\Support\Collection;
+use LogicException;
 
 /**
  * The itemized price for one configuration, re-resolved live against the
@@ -41,7 +45,7 @@ final class ConfigurationPricer
         array $rawAnswers,
         int $quantity,
     ): PriceBreakdown {
-        $listing->loadMissing(['modifiers.options', 'quantityBreaks']);
+        $listing->loadMissing(['modifiers.options', 'quantityBreaks', 'optionAxes']);
 
         $variantOverride = $variant?->price_override_cents === null ? null : Money::fromCents($variant->price_override_cents);
         $unitOverride = $unit?->price_override_cents === null ? null : Money::fromCents($unit->price_override_cents);
@@ -88,20 +92,54 @@ final class ConfigurationPricer
     }
 
     /**
+     * A listing with no `standalone` axis keeps today's shape exactly: one
+     * "Base price" line, plus one line per option value that actually
+     * surcharges. A listing with at least one `standalone` axis drops "Base
+     * price" — there is no single base to name — and instead itemizes every
+     * selected option, standalone ones at their own absolute price,
+     * `add_on` ones at their signed surcharge, unconditionally: with the
+     * base line gone, a zero-cost `add_on` selection ("Frame: Unframed —
+     * +$0.00") is the only place that choice still shows on the panel.
+     *
      * @param  list<OptionValue>  $selectedOptionValues
      * @return list<PriceBreakdownLine>
      */
     private static function baseAndSurchargeLines(Listing $listing, array $selectedOptionValues): array
     {
-        $lines = [PriceBreakdownLine::of('Base price', $listing->price())];
+        $axisById = $listing->optionAxes->keyBy('id');
+        $hasStandaloneAxis = $axisById->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone);
+
+        if (! $hasStandaloneAxis) {
+            $lines = [PriceBreakdownLine::of('Base price', $listing->price())];
+
+            foreach ($selectedOptionValues as $value) {
+                if ($value->surcharge_cents !== 0) {
+                    $lines[] = PriceBreakdownLine::of($value->label, $value->surcharge());
+                }
+            }
+
+            return $lines;
+        }
+
+        $lines = [];
 
         foreach ($selectedOptionValues as $value) {
-            if ($value->surcharge_cents !== 0) {
-                $lines[] = PriceBreakdownLine::of($value->label, $value->surcharge());
-            }
+            $axis = self::axisFor($axisById, $value);
+            $amount = $axis->pricing_mode === PricingMode::Standalone ? $value->price() : $value->surcharge();
+            $lines[] = PriceBreakdownLine::of("{$axis->name}: {$value->label}", $amount);
         }
 
         return $lines;
+    }
+
+    /**
+     * @param  Collection<string, OptionAxis>  $axisById
+     */
+    private static function axisFor(Collection $axisById, OptionValue $value): OptionAxis
+    {
+        $axis = $axisById->get($value->axis_id);
+
+        return $axis instanceof OptionAxis ? $axis : throw new LogicException('An option value always belongs to one of the listing’s axes.');
     }
 
     private static function priceAnswer(Modifier $modifier, string $raw): Money

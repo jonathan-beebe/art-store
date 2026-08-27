@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Domain\DomainRuleViolation;
+use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\PropertyValue;
 
@@ -27,3 +29,20 @@ it('clears the catalog value when set back to null', function (): void {
 
     expect($updated->property_value_id)->toBeNull();
 });
+
+it('updates a standalone option’s price and keeps its surcharge at zero', function (): void {
+    $axis = OptionAxis::factory()->standalone()->create();
+    $value = OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id]);
+
+    $updated = app(UpdateOptionValue::class)($value, $value->label, 999, false, 0, null, 2400);
+
+    expect($updated->price_cents)->toBe(2400)
+        ->and($updated->surcharge_cents)->toBe(0);
+});
+
+it('refuses to blank out a standalone option’s price', function (): void {
+    $axis = OptionAxis::factory()->standalone()->create();
+    $value = OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id]);
+
+    app(UpdateOptionValue::class)($value, $value->label, 0, false, 0, null, null);
+})->throws(DomainRuleViolation::class, 'Every option on this choice needs its own price.');

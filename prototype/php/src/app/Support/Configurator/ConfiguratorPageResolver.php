@@ -10,6 +10,7 @@ use App\Domain\Configurator\ComboKey;
 use App\Domain\Configurator\ModifierAnswerPrice;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\OptionAvailability;
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\QuantityDiscount;
 use App\Domain\Configurator\UnitLabelOrder;
 use App\Domain\Configurator\UnitPrice;
@@ -71,6 +72,7 @@ final class ConfiguratorPageResolver
 
         $selected = AxisSelectionResolver::resolve($axisDefaults, $input->axisSelections);
         $selectedOptionValues = array_values(array_map(fn (string $id): OptionValue => $optionValueById[$id], $selected));
+        $axisById = $axisModels->keyBy('id');
 
         $variantModels = $listing->variants()->with(['options.optionValue', 'units'])->get();
 
@@ -90,7 +92,7 @@ final class ConfiguratorPageResolver
         $axesPresentation = self::buildAxesPresentation($axisModels, $selected, $enabledByComboKey, $availableByComboKey);
 
         $isSerialized = $matchedVariant !== null && $matchedVariant->is_serialized;
-        [$unitsPresentation, $selectedUnitId] = self::buildUnitsPresentation($listing, $matchedVariant, $isSerialized, $selectedOptionValues, $input->unitId);
+        [$unitsPresentation, $selectedUnitId] = self::buildUnitsPresentation($listing, $matchedVariant, $isSerialized, $selectedOptionValues, $input->unitId, $axisById);
         $selectedUnit = $selectedUnitId === null ? null : $matchedVariant?->units->firstWhere('id', $selectedUnitId);
 
         $modifierModels = $listing->modifiers()->with('options')->orderBy('position')->get();
@@ -195,7 +197,7 @@ final class ConfiguratorPageResolver
      * @param  array<string, string>  $selected
      * @param  array<string, bool>  $enabledByComboKey
      * @param  array<string, bool>  $availableByComboKey
-     * @return list<array{id: string, name: string, options: list<array{id: string, label: string, delta: Money, selected: bool, selectable: bool, reason: ?string}>}>
+     * @return list<array{id: string, name: string, pricingMode: PricingMode, options: list<array{id: string, label: string, delta: Money, price: Money, selected: bool, selectable: bool, reason: ?string}>}>
      */
     private static function buildAxesPresentation(Collection $axisModels, array $selected, array $enabledByComboKey, array $availableByComboKey): array
     {
@@ -220,13 +222,14 @@ final class ConfiguratorPageResolver
                     'id' => $value->id,
                     'label' => $value->label,
                     'delta' => $value->surcharge(),
+                    'price' => $value->price(),
                     'selected' => $selected[$axis->id] === $value->id,
                     'selectable' => $availability->selectable,
                     'reason' => $availability->reason,
                 ];
             }
 
-            $presentation[] = ['id' => $axis->id, 'name' => $axis->name, 'options' => $options];
+            $presentation[] = ['id' => $axis->id, 'name' => $axis->name, 'pricingMode' => $axis->pricing_mode, 'options' => $options];
         }
 
         return $presentation;
@@ -234,9 +237,10 @@ final class ConfiguratorPageResolver
 
     /**
      * @param  list<OptionValue>  $selectedOptionValues
+     * @param  Collection<string, OptionAxis>  $axisById
      * @return array{0: list<array{id: string, label: string, conditionNote: ?string, specLines: list<string>, price: Money, selected: bool}>, 1: ?string}
      */
-    private static function buildUnitsPresentation(Listing $listing, ?Variant $variant, bool $isSerialized, array $selectedOptionValues, ?string $requestedUnitId): array
+    private static function buildUnitsPresentation(Listing $listing, ?Variant $variant, bool $isSerialized, array $selectedOptionValues, ?string $requestedUnitId, Collection $axisById): array
     {
         if (! $isSerialized || $variant === null) {
             return [[], null];
@@ -251,7 +255,20 @@ final class ConfiguratorPageResolver
             ? $requestedUnitId
             : $availableUnits->first()?->id;
 
-        $surcharges = array_map(fn (OptionValue $value): Money => $value->surcharge(), $selectedOptionValues);
+        $addonSurcharges = [];
+        $standalonePrices = [];
+
+        foreach ($selectedOptionValues as $value) {
+            $axis = $axisById->get($value->axis_id);
+            $isStandalone = $axis instanceof OptionAxis && $axis->pricing_mode === PricingMode::Standalone;
+
+            if ($isStandalone) {
+                $standalonePrices[] = $value->price();
+            } else {
+                $addonSurcharges[] = $value->surcharge();
+            }
+        }
+
         $variantOverride = $variant->price_override_cents === null ? null : Money::fromCents($variant->price_override_cents);
 
         $presentation = [];
@@ -264,7 +281,7 @@ final class ConfiguratorPageResolver
                 'label' => $unit->label,
                 'conditionNote' => $unit->condition_note,
                 'specLines' => UnitSpecLines::format($unit->specs_json),
-                'price' => UnitPrice::resolve($unitOverride, $variantOverride, $listing->price(), $surcharges),
+                'price' => UnitPrice::resolve($unitOverride, $variantOverride, $listing->price(), $addonSurcharges, $standalonePrices),
                 'selected' => $unit->id === $selectedUnitId,
             ];
         }

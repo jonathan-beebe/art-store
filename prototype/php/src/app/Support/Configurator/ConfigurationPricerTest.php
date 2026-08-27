@@ -131,6 +131,63 @@ it('skips a modifier out of scope even when an answer is given', function (): vo
     expect($breakdown->lines)->toHaveCount(1);
 });
 
+it('replaces the base line with an absolute standalone selection', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 1800]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $small = OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id, 'label' => '8x10']);
+
+    $breakdown = ConfigurationPricer::price($listing, [$small], null, null, [], 1);
+
+    expect($breakdown->lines)->toHaveCount(1)
+        ->and($breakdown->lines[0]->label)->toBe('Size: 8x10')
+        ->and($breakdown->lines[0]->amount->cents)->toBe(1800)
+        ->and($breakdown->total()->cents)->toBe(1800);
+});
+
+it('itemizes a standalone selection alongside a zero-cost add-on selection', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $eightByTen = OptionValue::factory()->priced(1800)->create(['axis_id' => $size->id, 'label' => '8x10']);
+    $frame = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id, 'name' => 'Frame']);
+    $unframed = OptionValue::factory()->surcharging(0)->create(['axis_id' => $frame->id, 'label' => 'Unframed']);
+
+    $breakdown = ConfigurationPricer::price($listing, [$eightByTen, $unframed], null, null, [], 1);
+
+    expect($breakdown->lines)->toHaveCount(2)
+        ->and($breakdown->lines[0]->label)->toBe('Size: 8x10')
+        ->and($breakdown->lines[0]->amount->cents)->toBe(1800)
+        ->and($breakdown->lines[1]->label)->toBe('Frame: Unframed')
+        ->and($breakdown->lines[1]->amount->cents)->toBe(0)
+        ->and($breakdown->total()->cents)->toBe(1800);
+});
+
+it('adds an add-on surcharge on top of a standalone selection', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $eightByTen = OptionValue::factory()->priced(1800)->create(['axis_id' => $size->id, 'label' => '8x10']);
+    $frame = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id, 'name' => 'Frame']);
+    $black = OptionValue::factory()->surcharging(3200)->create(['axis_id' => $frame->id, 'label' => 'Black frame']);
+
+    $breakdown = ConfigurationPricer::price($listing, [$eightByTen, $black], null, null, [], 1);
+
+    expect($breakdown->total()->cents)->toBe(5000);
+});
+
+it('keeps a no-standalone-axis listing’s breakdown byte-for-byte when a standalone axis exists elsewhere on other listings', function (): void {
+    // Regression guard: a listing with only add_on axes must never take the
+    // itemized-everything branch just because standalone axes exist in the
+    // schema generally.
+    $listing = $this->listing($this->seller(), ['price_cents' => 2000]);
+    $axis = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id]);
+    $priced = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Rose Gold', 'surcharge_cents' => 800]);
+
+    $breakdown = ConfigurationPricer::price($listing, [$priced], null, null, [], 1);
+
+    expect($breakdown->lines)->toHaveCount(2)
+        ->and($breakdown->lines[0]->label)->toBe('Base price')
+        ->and($breakdown->lines[1]->label)->toBe('Rose Gold');
+});
+
 it('scales lines by quantity and applies the best tier discount', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 300]);
     QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 50, 'discount_bps' => 500]);

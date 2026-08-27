@@ -25,6 +25,7 @@ class OptionValueFactory extends Factory
             'property_value_id' => null,
             'label' => ucfirst(fake()->unique()->word()),
             'surcharge_cents' => 0,
+            'price_cents' => null,
             'is_default' => false,
             'position' => 0,
         ];
@@ -33,6 +34,14 @@ class OptionValueFactory extends Factory
     public function surcharging(int $cents): static
     {
         return $this->state(fn (array $attributes) => ['surcharge_cents' => $cents]);
+    }
+
+    /**
+     * A `standalone` axis's option: its own absolute price, no surcharge.
+     */
+    public function priced(int $cents): static
+    {
+        return $this->state(fn (array $attributes) => ['price_cents' => $cents, 'surcharge_cents' => 0]);
     }
 
     public function default(): static

@@ -14,6 +14,7 @@ use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\ScopeModifier;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricingMode;
 use LogicException;
 
 it('says a plain listing has no configurator', function (): void {
@@ -163,6 +164,23 @@ it('renders a serialized variant as a unit picker excluding sold units', functio
 
     $withUnitTwo = ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::of([], $two->id, [], 1));
     expect($withUnitTwo->breakdown->total()->cents)->toBe(4500);
+});
+
+it('folds a standalone selection and an add-on selection into a serialized unit’s price', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 0]);
+    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
+    $eightByTen = app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 1800);
+    $frame = app(CreateOptionAxis::class)($listing, 'Frame');
+    $framed = app(AddOptionValue::class)($frame, 'Framed', 3200, isDefault: true);
+    $variant = app(CreateVariant::class)($listing, [$eightByTen, $framed], isSerialized: true);
+    app(AddUnit::class)($variant, '#1');
+
+    $configuration = ConfiguratorPageResolver::resolve(
+        $listing,
+        ConfiguratorInput::of([$size->id => $eightByTen->id, $frame->id => $framed->id], null, [], 1),
+    );
+
+    expect($configuration->units[0]['price']->cents)->toBe(1800 + 3200);
 });
 
 it('orders units naturally by label, numeric-aware, and humanizes their specs', function (): void {

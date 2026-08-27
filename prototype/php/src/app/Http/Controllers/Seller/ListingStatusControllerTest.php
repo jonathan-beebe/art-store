@@ -9,6 +9,7 @@ use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
 use App\Models\ListingRemoval;
 use App\Models\OptionAxis;
+use App\Models\OptionValue;
 use App\Models\Variant;
 use Tests\CapturedStory;
 
@@ -70,6 +71,23 @@ it('refuses to publish a listing with configurator issues, sending the seller to
     $editResponse = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
     $editResponse->assertSee('Before this can go live');
     $editResponse->assertSee(route('seller.listings.variants.index', $listing).'#'.$variant->id, escape: false);
+});
+
+it('refuses to publish a standalone option with no price, linking the choices screen', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '11x14', 'price_cents' => null]);
+
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/listings/{$listing->id}/status", ['status' => 'for_sale']);
+
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect($listing->refresh()->status)->toBe(ListingStatus::Draft);
+
+    $editResponse = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
+    $editResponse->assertSee('The 11x14 option has no price yet — give it one before this can go live.');
+    $editResponse->assertSee(route('seller.listings.option-axes.index', $listing).'#'.$value->id, escape: false);
 });
 
 it('refuses to change another sellers listing', function (): void {
