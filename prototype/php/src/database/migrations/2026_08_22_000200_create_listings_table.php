@@ -21,7 +21,6 @@ return new class extends Migration
             $table->unsignedInteger('quantity')->default(1);
             $table->string('status')->default(ListingStatus::Draft->value);
             $table->string('image_path')->nullable();
-            $table->string('medium')->nullable();
             $table->string('dimensions')->nullable();
             $table->timestamps();
 

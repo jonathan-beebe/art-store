@@ -9,8 +9,10 @@
             <p class="mt-8 text-2xl">{{ $listing->price()->format() }}</p>
 
             <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-neutral-100 py-6 text-base">
-                <dt class="text-neutral-500">Medium</dt>
-                <dd>{{ $listing->mediumAttributeLabel() ?? $listing->medium ?? 'Mixed' }}</dd>
+                @if ($listing->mediumAttributeLabel() !== null)
+                    <dt class="text-neutral-500">Medium</dt>
+                    <dd>{{ $listing->mediumAttributeLabel() }}</dd>
+                @endif
                 <dt class="text-neutral-500">Dimensions</dt>
                 <dd>{{ $listing->dimensions ?? 'Unlisted' }}</dd>
                 <dt class="text-neutral-500">Available</dt>

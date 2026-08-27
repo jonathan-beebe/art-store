@@ -84,7 +84,6 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
         $this->post('/seller/listings', [
             'title' => SMOKE_LISTING_TITLE,
             'description' => 'Oil on linen.',
-            'medium' => 'Painting',
             'dimensions' => '40 x 60 cm',
             'price' => SMOKE_PRICE_DOLLARS,
             'quantity' => 1,

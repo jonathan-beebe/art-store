@@ -47,16 +47,10 @@ it('seeds seven verified sellers', function (): void {
         ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(7);
 });
 
-it('seeds listings across statuses and media', function (): void {
+it('seeds listings across statuses', function (): void {
     expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(40)
         ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
         ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
-
-    expect(Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all())
-        ->toBe([
-            'apparel', 'brass', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
-            'photography', 'plant', 'print', 'publication', 'sculpture', 'textile', 'walnut', 'watercolor',
-        ]);
 });
 
 it('mirrors listing_attributes to the storefront media vocabulary, every listing categorized and attributed', function (): void {

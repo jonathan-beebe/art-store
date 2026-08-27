@@ -38,7 +38,6 @@ final class ListingRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'medium' => ['nullable', 'string', 'max:255'],
             'dimensions' => ['nullable', 'string', 'max:255'],
             'price' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
             'quantity' => ['required', 'integer', 'min:0', 'max:999'],
@@ -66,7 +65,6 @@ final class ListingRequest extends FormRequest
         return ListingDraft::of(
             $this->string('title')->toString(),
             $this->optionalString('description'),
-            $this->optionalString('medium'),
             $this->optionalString('dimensions'),
             Money::fromDollars($this->string('price')->toString()),
             $this->integer('quantity'),

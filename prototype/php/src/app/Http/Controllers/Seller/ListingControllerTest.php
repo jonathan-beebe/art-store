@@ -32,7 +32,6 @@ $form = function (array $overrides = []): array {
     return $overrides + [
         'title' => 'Harbour at Dusk',
         'description' => 'Oil on linen.',
-        'medium' => 'oil',
         'dimensions' => '12 x 16 in',
         'price' => '249.00',
         'quantity' => 1,

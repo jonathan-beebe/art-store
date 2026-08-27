@@ -17,7 +17,6 @@ $form = function (array $overrides = []): array {
     return $overrides + [
         'title' => 'Harbour at Dusk',
         'description' => 'Oil on linen.',
-        'medium' => 'oil',
         'dimensions' => '12 x 16 in',
         'price' => '249.00',
         'quantity' => 1,
@@ -121,7 +120,6 @@ it('reads the typed fields into a draft', function () use ($form): void {
 
     expect($draft->title)->toBe('Harbour at Dusk')
         ->and($draft->description)->toBe('Oil on linen.')
-        ->and($draft->medium)->toBe('oil')
         ->and($draft->dimensions)->toBe('12 x 16 in')
         ->and($draft->price)->toBeMoney(24900)
         ->and($draft->quantity)->toBe(1)
@@ -132,4 +130,4 @@ it('leaves an optional field the seller skipped null', function (string $field) 
     $draft = ListingRequest::create('/seller/listings', 'POST', $form([$field => '']))->toDraft();
 
     expect($draft->{$field})->toBeNull();
-})->with(['description', 'medium', 'dimensions']);
+})->with(['description', 'dimensions']);

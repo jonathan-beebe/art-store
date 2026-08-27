@@ -23,7 +23,7 @@
         </div>
         <div>
             <dt class="text-gray-600 dark:text-gray-400">Medium</dt>
-            <dd class="mt-1">{{ $listing->medium ?? '—' }}</dd>
+            <dd class="mt-1">{{ $listing->mediumAttributeLabel() ?? '—' }}</dd>
         </div>
         <div>
             <dt class="text-gray-600 dark:text-gray-400">Dimensions</dt>

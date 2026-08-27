@@ -104,7 +104,7 @@ it('shows an empty storefront when the medium filter matches nothing', function 
 
 it('leaves a listing with no Medium attribute out of every medium filter', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Unattributed Piece', 'medium' => 'oil']);
+    $this->listing($seller, ['title' => 'Unattributed Piece']);
 
     $response = $this->get('/?medium=oil');
 

@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 $draft = fn (): ListingDraft => ListingDraft::of(
     'Harbour at Dusk',
     'Oil on linen.',
-    'oil',
     '12 x 16 in',
     Money::fromCents(24500),
     2,
@@ -25,7 +24,6 @@ it('writes the drafted fields', function () use ($draft): void {
 
     expect($listing->title)->toBe('Harbour at Dusk')
         ->and($listing->description)->toBe('Oil on linen.')
-        ->and($listing->medium)->toBe('oil')
         ->and($listing->dimensions)->toBe('12 x 16 in')
         ->and($listing->price_cents)->toBe(24500)
         ->and($listing->quantity)->toBe(2);
@@ -39,7 +37,7 @@ it('leaves a listing uncategorized by default', function () use ($draft): void {
 
 it('categorizes a listing the seller assigned one to', function (): void {
     $category = Category::factory()->create();
-    $draft = ListingDraft::of('Harbour at Dusk', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(24500), 2, $category->id);
+    $draft = ListingDraft::of('Harbour at Dusk', 'Oil on linen.', '12 x 16 in', Money::fromCents(24500), 2, $category->id);
 
     $listing = app(CreateListing::class)($this->seller(), $draft);
 

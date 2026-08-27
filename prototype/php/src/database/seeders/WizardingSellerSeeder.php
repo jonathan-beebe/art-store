@@ -50,7 +50,6 @@ class WizardingSellerSeeder extends Seeder
                 $created = $createListing($seller, ListingDraft::of(
                     $listing['title'],
                     $listing['description'],
-                    $listing['medium'],
                     $listing['dimensions'],
                     Money::fromCents($listing['price_cents']),
                     $listing['quantity'],

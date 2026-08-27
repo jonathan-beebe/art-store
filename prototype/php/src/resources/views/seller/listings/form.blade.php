@@ -6,8 +6,6 @@
               :value="$listing?->description" />
 
 <div class="mt-4 grid gap-4 sm:grid-cols-2">
-    <x-form.field name="medium" label="Medium" maxlength="255" :value="$listing?->medium" />
-
     <x-form.field name="dimensions" label="Dimensions" maxlength="255" :value="$listing?->dimensions" />
 
     <x-form.field name="price" label="Price (dollars)" type="number" step="0.01" min="0" required

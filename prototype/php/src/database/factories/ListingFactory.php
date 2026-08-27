@@ -32,7 +32,6 @@ class ListingFactory extends Factory
             'price_cents' => fake()->numberBetween(2500, 250000),
             'quantity' => 1,
             'status' => ListingStatus::ForSale,
-            'medium' => fake()->randomElement(['oil', 'print', 'ceramic', 'watercolour']),
             'dimensions' => '12 x 16 in',
         ];
     }

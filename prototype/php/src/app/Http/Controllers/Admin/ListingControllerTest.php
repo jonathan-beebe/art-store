@@ -89,7 +89,8 @@ it('says so when no listing matches the filters', function (): void {
 
 it('shows one listing with its activity and sales', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
-    $listing = $this->listing($seller, ['title' => 'Nine Herons', 'medium' => 'Oil on linen']);
+    $listing = $this->listing($seller, ['title' => 'Nine Herons']);
+    $this->mediumAttribute($listing, 'Oil on linen');
     $customer = $this->verifiedCustomer();
     Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
     app(AddToCart::class)($this->cartFor($customer), $listing, 1, $this->moment('2026-08-20 08:00:00'));

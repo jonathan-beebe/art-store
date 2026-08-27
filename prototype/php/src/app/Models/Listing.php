@@ -38,7 +38,7 @@ use Override;
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
-    'quantity', 'status', 'image_path', 'medium', 'dimensions',
+    'quantity', 'status', 'image_path', 'dimensions',
 ])]
 class Listing extends Model
 {
@@ -438,9 +438,9 @@ class Listing extends Model
     }
 
     /**
-     * The listing page's Medium line: the attribute FEAT-030 gives it
-     * priority over, falling back to the legacy `medium` column for a
-     * listing seeded or edited before it carried one.
+     * The listing page's Medium line: the label of this listing's Medium
+     * attribute, or null when it does not carry one — `listing_attributes` is
+     * the only place a listing's medium lives (RFCTR-009).
      */
     public function mediumAttributeLabel(): ?string
     {

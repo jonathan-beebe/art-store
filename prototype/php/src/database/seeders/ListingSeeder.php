@@ -71,7 +71,6 @@ class ListingSeeder extends Seeder
             $listing = $createListing($seller, ListingDraft::of(
                 $entry['title'],
                 $entry['description'],
-                $entry['medium'],
                 $entry['dimensions'],
                 Money::fromCents($entry['price_cents']),
                 $entry['quantity'],

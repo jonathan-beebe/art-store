@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:07:24:00 — RFCTR-009 — done: The legacy `listings.medium` column retires — dropped from the migration, model, factory, and every seeder; `ListingDraft`/`ListingRequest`/`CreateListing`/`UpdateListing` lose the field; the seller form drops its free-text Medium input; the storefront and admin listing pages read `mediumAttributeLabel()` only, no fallback; 2314 tests, 6677 assertions, 100% lines
 - 2026-08-27:00:00:01 — BUG-006 — defined: Error pages render unstyled
 - 2026-08-27:00:00:01 — BUG-005 — defined: Adding an existing variant combination answers a 500
 - 2026-08-27:07:14:27 — RFCTR-009 — started

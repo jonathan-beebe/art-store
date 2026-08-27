@@ -29,10 +29,10 @@ it('shows the listing in full', function (): void {
         'title' => 'Harbour at Dawn',
         'slug' => 'harbour-at-dawn',
         'description' => 'A quiet morning over the water.',
-        'medium' => 'oil',
         'dimensions' => '12 x 16 in',
         'price_cents' => 24500,
     ]);
+    $this->mediumAttribute($listing, 'Oil');
 
     $response = $this->get('/art/'.$listing->slug);
 
@@ -40,27 +40,26 @@ it('shows the listing in full', function (): void {
     $response->assertSee('Harbour at Dawn');
     $response->assertSee('Blue Kiln Studio');
     $response->assertSee('A quiet morning over the water.');
-    $response->assertSee('oil');
+    $response->assertSee('Oil');
     $response->assertSee('12 x 16 in');
     $response->assertSee('$245.00');
 });
 
-it('shows the Medium attribute over the legacy column when the listing carries one', function (): void {
-    $listing = $this->listing($this->seller(), ['slug' => 'kiln-study', 'medium' => 'oil']);
+it('shows the Medium attribute when the listing carries one', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'kiln-study']);
     $this->mediumAttribute($listing, 'Ceramic');
 
     $response = $this->get('/art/kiln-study');
 
     $response->assertSee('Ceramic');
-    $response->assertDontSee('oil');
 });
 
-it('falls back to the legacy medium column for a listing with no Medium attribute', function (): void {
-    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'medium' => 'oil']);
+it('shows no Medium line for a listing with no Medium attribute', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
 
     $response = $this->get('/art/harbour-at-dawn');
 
-    $response->assertSee('oil');
+    $response->assertDontSee('Medium');
 });
 
 it('records a view event for the visitor', function (): void {

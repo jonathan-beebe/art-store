@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Storage;
 $draft = fn (): ListingDraft => ListingDraft::of(
     'Harbour at Dawn',
     'Oil on linen.',
-    'oil',
     '12 x 16 in',
     Money::fromCents(9900),
     1,
@@ -88,7 +87,7 @@ it('assigns the category a seller picked', function (): void {
     $listing = $this->listing($this->seller());
     $category = Category::factory()->create();
 
-    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(9900), 1, $category->id));
+    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', '12 x 16 in', Money::fromCents(9900), 1, $category->id));
 
     expect($listing->refresh()->category_id)->toBe($category->id);
 });
@@ -110,7 +109,7 @@ it('prunes attribute rows the new category does not grant', function (): void {
         'property_value_id' => $value->id,
     ]);
 
-    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(9900), 1, $newCategory->id));
+    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', '12 x 16 in', Money::fromCents(9900), 1, $newCategory->id));
 
     expect($listing->listingAttributes()->count())->toBe(0);
 });
@@ -132,7 +131,7 @@ it('keeps attribute rows the new category still grants', function (): void {
     ]);
 
     // Re-submitting the same category is not a change — the attribute stays.
-    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(9900), 1, $category->id));
+    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', '12 x 16 in', Money::fromCents(9900), 1, $category->id));
 
     expect($listing->listingAttributes()->count())->toBe(1);
 });

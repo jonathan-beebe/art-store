@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Domain\Listings\ListingStatus;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
 use App\Models\Seller;
 
 beforeEach(function (): void {
@@ -26,13 +27,22 @@ it('seeds two verified sellers with a shop name and a live catalog', function ()
 
     $listings = Listing::whereIn('seller_id', $sellers->pluck('id'))->get();
 
+    $mediumLabels = ListingAttribute::whereIn('listing_id', $listings->pluck('id'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
+        ->with('propertyValue')
+        ->get()
+        ->map(fn (ListingAttribute $attribute): string => mb_strtolower($attribute->propertyValue->label))
+        ->unique()
+        ->sort()
+        ->values()
+        ->all();
+
     expect($listings)->toHaveCount(8)
         ->and($listings->every(fn (Listing $listing): bool => $listing->status === ListingStatus::ForSale))->toBeTrue()
-        ->and($listings->pluck('medium')->unique()->sort()->values()->all())
-        ->toBe(['curio', 'jewelry', 'plant', 'publication']);
+        ->and($mediumLabels)->toBe(['curio', 'jewelry', 'plant', 'publication']);
 });
 
-it('categorizes every listing and carries a Medium attribute matching its legacy medium string', function (): void {
+it('categorizes every listing and carries a Medium attribute', function (): void {
     $this->seed(WizardingSellerSeeder::class);
 
     $listings = Listing::whereIn('seller_id', Seller::whereIn('email', [
@@ -46,8 +56,7 @@ it('categorizes every listing and carries a Medium attribute matching its legacy
             ->firstWhere('property.name', 'Medium');
 
         expect($listing->category_id)->not->toBeNull()
-            ->and($listing->medium)->not->toBeNull()
-            ->and($medium?->propertyValue->label)->toBe(ucfirst((string) $listing->medium));
+            ->and($medium?->propertyValue->label)->not->toBeNull();
     }
 });
 
