@@ -99,8 +99,11 @@ it('gives the walnut table sparse variants with price overrides, not the full gr
         expect($variant->price_override_cents)->not->toBeNull();
     }
 
-    expect($listing->listingAttributes()->with('propertyValue')->get()->pluck('propertyValue.label')->all())
-        ->toEqualCanonicalizing(['Walnut', 'Oak']);
+    $attributes = $listing->listingAttributes()->with(['property', 'propertyValue'])->get();
+
+    expect($attributes->where('property.name', 'Material')->pluck('propertyValue.label')->all())
+        ->toEqualCanonicalizing(['Walnut', 'Oak'])
+        ->and($attributes->where('property.name', 'Medium')->sole()->propertyValue->label)->toBe('Walnut');
 });
 
 it('derives the candlestick variant’s available quantity from its twelve units', function (): void {
@@ -143,10 +146,29 @@ it('carries the pet portraits required Medium attribute', function (): void {
         ->and($listing->listingAttributes()->with('propertyValue')->sole()->propertyValue->label)->toBe('Watercolor');
 });
 
-it('categorizes every configured archetype except the legacy, axis-free print', function (): void {
-    expect(archetypeListing('Meadow at Dawn, 8x10 Print')->category_id)->toBeNull();
-
+it('carries a Medium attribute matching every archetype’s legacy medium string', function (): void {
     foreach ([
+        'Meadow at Dawn, 8x10 Print' => 'Print',
+        'Engraved Signet Ring' => 'Metal',
+        'Stoneware Coffee Mug' => 'Ceramic',
+        'Line Art Cat Tee' => 'Apparel',
+        'Live-Edge Walnut Dining Table' => 'Walnut',
+        'Vintage Brass Candlesticks, Individually Listed' => 'Brass',
+        'Letterpress Wedding Invitations' => 'Paper',
+        'Custom Pet Portrait' => 'Watercolor',
+    ] as $title => $expectedLabel) {
+        $medium = archetypeListing($title)->listingAttributes()
+            ->with(['property', 'propertyValue'])
+            ->get()
+            ->firstWhere('property.name', 'Medium');
+
+        expect($medium?->propertyValue->label)->toBe($expectedLabel);
+    }
+});
+
+it('categorizes every configured archetype', function (): void {
+    foreach ([
+        'Meadow at Dawn, 8x10 Print',
         'Engraved Signet Ring',
         'Stoneware Coffee Mug',
         'Line Art Cat Tee',

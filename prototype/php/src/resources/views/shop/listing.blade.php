@@ -10,7 +10,7 @@
 
             <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-neutral-100 py-6 text-base">
                 <dt class="text-neutral-500">Medium</dt>
-                <dd>{{ $listing->medium ?? 'Mixed' }}</dd>
+                <dd>{{ $listing->mediumAttributeLabel() ?? $listing->medium ?? 'Mixed' }}</dd>
                 <dt class="text-neutral-500">Dimensions</dt>
                 <dd>{{ $listing->dimensions ?? 'Unlisted' }}</dd>
                 <dt class="text-neutral-500">Available</dt>

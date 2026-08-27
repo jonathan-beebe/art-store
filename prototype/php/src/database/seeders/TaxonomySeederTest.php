@@ -52,6 +52,26 @@ it('seeds a category tree with grants exercising attribute, axis, and required',
         ->toBe(['Gold', 'Silver', 'Rose Gold']);
 });
 
+it('extends Medium to the storefront vocabulary and grants it as an attribute everywhere a listing is seeded', function (): void {
+    $this->seed(TaxonomySeeder::class);
+
+    expect(Property::where('name', 'Medium')->sole()->values()->pluck('label')->sort()->values()->all())
+        ->toBe([
+            'Apparel', 'Brass', 'Ceramic', 'Curio', 'Jewelry', 'Metal', 'Oil', 'Painting',
+            'Paper', 'Photograph', 'Plant', 'Print', 'Publication', 'Sculpture', 'Textile',
+            'Walnut', 'Watercolor',
+        ]);
+
+    foreach (['Art', 'Jewelry', 'Rings', 'Home Goods', 'Furniture', 'Apparel', 'Stationery'] as $categoryName) {
+        $grant = CategoryProperty::query()
+            ->whereHas('category', fn ($q) => $q->where('name', $categoryName))
+            ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
+            ->sole();
+
+        expect($grant->usable_as_attribute)->toBeTrue();
+    }
+});
+
 it('changes nothing on a second run', function (): void {
     $this->seed(TaxonomySeeder::class);
     $this->seed(TaxonomySeeder::class);

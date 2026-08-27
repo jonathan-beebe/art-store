@@ -213,6 +213,30 @@ it('shows every listing when the removed filter is any or absent', function (?Re
     'the explicit any case' => [RemovedFilter::Any],
 ]);
 
+it('narrows by its Medium attribute, case-insensitively, and adds no clause for null', function (): void {
+    $seller = $this->seller();
+    $ceramic = $this->listing($seller, ['title' => 'Kiln Study']);
+    $oil = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $unattributed = $this->listing($seller, ['title' => 'Field Sketch']);
+    $this->mediumAttribute($ceramic, 'Ceramic');
+    $this->mediumAttribute($oil, 'Oil');
+
+    expect(Listing::query()->ofMediumAttribute('ceramic')->pluck('title')->all())->toBe(['Kiln Study'])
+        ->and(Listing::query()->ofMediumAttribute('bronze')->count())->toBe(0)
+        ->and(Listing::query()->ofMediumAttribute(null)->count())->toBe(3)
+        ->and(Listing::query()->ofMediumAttribute('ceramic')->pluck('title')->all())->not->toContain($unattributed->title);
+});
+
+it('reads its Medium attribute label, or null with none set', function (): void {
+    $seller = $this->seller();
+    $attributed = $this->listing($seller);
+    $this->mediumAttribute($attributed, 'Ceramic');
+    $unattributed = $this->listing($seller);
+
+    expect($attributed->mediumAttributeLabel())->toBe('Ceramic')
+        ->and($unattributed->mediumAttributeLabel())->toBeNull();
+});
+
 it('keeps for sale and sold on the storefront and leaves draft and archived off it', function (): void {
     $seller = $this->seller();
     $forSale = $this->listing($seller);

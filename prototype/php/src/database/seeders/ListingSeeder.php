@@ -8,7 +8,10 @@ use App\Actions\Listings\CreateListing;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
+use App\Models\Category;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
+use App\Models\Property;
 use App\Models\Seller;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -23,6 +26,29 @@ use RuntimeException;
  */
 class ListingSeeder extends Seeder
 {
+    /**
+     * The category each of this seeder's six legacy media fits under —
+     * every one of them hosts a `TaxonomySeeder` Medium grant.
+     *
+     * @var array<string, string>
+     */
+    private const CATEGORY_BY_MEDIUM = [
+        'painting' => 'Art',
+        'print' => 'Art',
+        'photography' => 'Art',
+        'ceramic' => 'Home Goods',
+        'textile' => 'Home Goods',
+        'sculpture' => 'Home Goods',
+    ];
+
+    /**
+     * The one legacy medium string that does not title-case straight onto its
+     * `TaxonomySeeder` Medium label.
+     */
+    private const MEDIUM_LABEL_OVERRIDES = [
+        'photography' => 'Photograph',
+    ];
+
     public function run(): void
     {
         $sellers = Seller::query()->get()->keyBy('email');
@@ -30,6 +56,7 @@ class ListingSeeder extends Seeder
 
         foreach ($this->listings() as $entry) {
             $seller = $sellers->get($entry['seller']) ?? throw new RuntimeException("No seller seeded for {$entry['seller']}.");
+            $category = Category::where('name', self::CATEGORY_BY_MEDIUM[$entry['medium']])->sole();
 
             $listing = $createListing($seller, ListingDraft::of(
                 $entry['title'],
@@ -38,10 +65,27 @@ class ListingSeeder extends Seeder
                 $entry['dimensions'],
                 Money::fromCents($entry['price_cents']),
                 $entry['quantity'],
+                categoryId: $category->id,
             ));
 
             $this->advance($listing, $entry['status']);
+            $this->attributeMedium($listing, $entry['medium']);
         }
+    }
+
+    /**
+     * The Medium attribute matching this listing's legacy medium string.
+     */
+    private function attributeMedium(Listing $listing, string $legacyMedium): void
+    {
+        $property = Property::where('name', 'Medium')->sole();
+        $label = self::MEDIUM_LABEL_OVERRIDES[$legacyMedium] ?? ucfirst($legacyMedium);
+
+        ListingAttribute::create([
+            'listing_id' => $listing->id,
+            'property_id' => $property->id,
+            'property_value_id' => $property->values()->where('label', $label)->sole()->id,
+        ]);
     }
 
     private function advance(Listing $listing, ListingStatus $target): void

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines
+- 2026-08-27:11:25:21 — FEAT-030 — started
 - 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
 - 2026-08-27:05:55:04 — IMPRV-010 — done: buyer configurator polish — natural unit-label ordering (`UnitLabelOrder`) shared by the buyer picker and seller units screen, humanized `specs_json` (`UnitSpecLabel`), override-priced breakdowns labeled with their combination instead of "Base price" (`OverridePriceLabel`), a `:has(:focus-visible)` ring on unit cards; addendum: pet portrait's compound "Pets & Pose" axis split into independent "Pets"/"Pose" axes; 2305 tests, 6594 assertions, 100% lines
 - 2026-08-27:05:39:24 — IMPRV-010 — started

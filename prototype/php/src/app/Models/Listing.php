@@ -412,6 +412,47 @@ class Listing extends Model
     }
 
     /**
+     * The storefront media filter (FEAT-030): a listing carrying a Medium
+     * attribute whose label matches the URL's lowercase value (Ceramic →
+     * `medium=ceramic`). Null adds no clause, the same "empty means all"
+     * idiom `ofStatus` and `ofSeller` hold; a value nothing carries keeps
+     * this scope to zero rows rather than falling back to no filter — the
+     * same emptiness an unrecognised legacy medium produced.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofMediumAttribute(Builder $query, ?string $medium): void
+    {
+        if ($medium === null) {
+            return;
+        }
+
+        $valueIds = PropertyValue::query()
+            ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+            ->get()
+            ->filter(fn (PropertyValue $value): bool => mb_strtolower($value->label) === mb_strtolower($medium))
+            ->pluck('id');
+
+        $query->whereHas('listingAttributes', fn (Builder $attributes): Builder => $attributes->whereIn('property_value_id', $valueIds));
+    }
+
+    /**
+     * The listing page's Medium line: the attribute FEAT-030 gives it
+     * priority over, falling back to the legacy `medium` column for a
+     * listing seeded or edited before it carried one.
+     */
+    public function mediumAttributeLabel(): ?string
+    {
+        return $this->listingAttributes()
+            ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+            ->with('propertyValue')
+            ->first()
+            ?->propertyValue
+            ->label;
+    }
+
+    /**
      * The same list narrowed by removal state. `null` and `Any` both add no
      * clause, which is what an absent, empty, or `removed=any` filter asks
      * for — the same "empty means all" shape `ofStatus` and `ofSeller` hold.

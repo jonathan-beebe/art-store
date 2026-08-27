@@ -45,6 +45,24 @@ it('shows the listing in full', function (): void {
     $response->assertSee('$245.00');
 });
 
+it('shows the Medium attribute over the legacy column when the listing carries one', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'kiln-study', 'medium' => 'oil']);
+    $this->mediumAttribute($listing, 'Ceramic');
+
+    $response = $this->get('/art/kiln-study');
+
+    $response->assertSee('Ceramic');
+    $response->assertDontSee('oil');
+});
+
+it('falls back to the legacy medium column for a listing with no Medium attribute', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'medium' => 'oil']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('oil');
+});
+
 it('records a view event for the visitor', function (): void {
     $visitor = $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);

@@ -53,8 +53,23 @@ class TaxonomySeeder extends Seeder
         $size = $this->property('Size', ['S', 'M', 'L', 'XL', 'XXL']);
         $this->grant($apparel, $size, usableAsAttribute: false, usableAsAxis: true, required: true);
 
-        $medium = $this->property('Medium', ['Print', 'Oil', 'Watercolor', 'Photograph']);
+        // The storefront's whole media vocabulary (FEAT-030): the four
+        // original values (Print, Watercolor, Photograph kept as-is; Oil kept
+        // even though no seeded listing uses it today) plus every legacy
+        // `medium` string the seeders carry, so `listing_attributes` can
+        // answer the storefront filter for anything the store sells.
+        $medium = $this->property('Medium', [
+            'Print', 'Oil', 'Watercolor', 'Photograph',
+            'Painting', 'Ceramic', 'Textile', 'Sculpture', 'Plant', 'Publication',
+            'Curio', 'Jewelry', 'Metal', 'Apparel', 'Walnut', 'Brass', 'Paper',
+        ]);
         $this->grant($art, $medium, usableAsAttribute: true, usableAsAxis: false, required: true);
+        $this->grant($jewelry, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($rings, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($homeGoods, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($furniture, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($apparel, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($stationery, $medium, usableAsAttribute: true, usableAsAxis: false);
 
         $paperStock = $this->property('Paper Stock', ['Standard', 'Pearl Shimmer', 'Cotton Linen']);
         $this->grant($stationery, $paperStock, usableAsAttribute: false, usableAsAxis: true);

@@ -6,6 +6,9 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\ListingSearch;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
+use App\Models\Property;
+use App\Models\PropertyValue;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -23,7 +26,7 @@ final class StorefrontController extends ShopController
 
         return view('shop.home', [
             'search' => $search,
-            'media' => $this->mediaForSale(),
+            'media' => $this->mediumOptions(),
             'listings' => $this->matching($search)->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),
         ]);
     }
@@ -41,31 +44,48 @@ final class StorefrontController extends ShopController
             $listings->where(fn (Builder $match): Builder => $match
                 ->where('title', 'like', $pattern)
                 ->orWhere('description', 'like', $pattern)
-                ->orWhere('medium', 'like', $pattern));
+                ->orWhereHas('listingAttributes', fn (Builder $attributes): Builder => $attributes
+                    ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+                    ->whereHas('propertyValue', fn (Builder $values): Builder => $values->where('label', 'like', $pattern))));
         }
 
-        if ($search->hasMedium()) {
-            $listings->where('medium', $search->medium);
-        }
+        $listings->ofMediumAttribute($search->medium);
 
         return $listings;
     }
 
     /**
-     * @return list<string>
+     * The dropdown's options: every Medium value at least one for-sale
+     * listing carries, ordered by label — the URL value is the label
+     * lowercased, matching {@see Listing::ofMediumAttribute()}.
+     *
+     * @return list<array{value: string, label: string}>
      */
-    private function mediaForSale(): array
+    private function mediumOptions(): array
     {
-        /** @var list<string> $media */
-        $media = array_values(Listing::query()
-            ->forSale()
-            ->whereNotNull('medium')
+        $medium = Property::where('name', 'Medium')->first();
+
+        if ($medium === null) {
+            return [];
+        }
+
+        $forSaleListingIds = Listing::query()->forSale()->pluck('id');
+
+        $attributedValueIds = ListingAttribute::query()
+            ->where('property_id', $medium->id)
+            ->whereIn('listing_id', $forSaleListingIds)
             ->distinct()
-            ->orderBy('medium')
-            ->pluck('medium')
+            ->pluck('property_value_id');
+
+        /** @var list<string> $labels */
+        $labels = array_values(PropertyValue::query()
+            ->where('property_id', $medium->id)
+            ->whereIn('id', $attributedValueIds)
+            ->orderBy('label')
+            ->pluck('label')
             ->all());
 
-        return $media;
+        return array_map(fn (string $label): array => ['value' => mb_strtolower($label), 'label' => $label], $labels);
     }
 
     private function submitted(Request $request, string $key): ?string

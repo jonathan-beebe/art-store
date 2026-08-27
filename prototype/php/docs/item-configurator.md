@@ -450,8 +450,9 @@ From the research doc §2.1.
 - **Cart-time unit reservation.** `units` has no `reserved` state — a unit
   stays `available` until an order actually places, so two shoppers can add
   the same unit to their carts before checkout resolves who claims it.
-- **Search and facets.** `listing_attributes` is written but drives no
-  facet or filter UI in v1.
+- **Search and facets.** The storefront's media filter, search, and listing
+  display read `listing_attributes`' Medium property first (FEAT-030); no
+  other property drives a facet or filter UI yet.
 - **Private quotes.** No per-customer expiring offer object.
 - **Formula pricing.** No `price = f(x, y)`; a dimension matrix is either
   enumerated as sparse variants or priced with a linear `measurement` rate.

@@ -70,7 +70,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
      */
     private function plainPrint(Seller $seller): Listing
     {
-        return $this->createListing(
+        $listing = $this->createListing(
             $seller,
             'Meadow at Dawn, 8x10 Print',
             'A giclée print of the meadow behind my studio, shot at first light on a spring morning.',
@@ -78,7 +78,12 @@ class ConfiguratorArchetypeSeeder extends Seeder
             '8 x 10 in',
             3500,
             10,
+            category: Category::where('name', 'Art')->sole(),
         );
+
+        $this->attribute($listing, 'Medium', 'Print');
+
+        return $listing;
     }
 
     /**
@@ -121,6 +126,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', instructions: 'Up to 20 characters.', required: true, position: 1, charLimit: 20);
         app(ScopeModifier::class)($text, [$outside, $both]);
 
+        $this->attribute($listing, 'Medium', 'Metal');
+
         return $listing;
     }
 
@@ -150,6 +157,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', instructions: 'One name or short word.', required: true, charLimit: 16);
         app(ScopeModifier::class)($text, [$personalized]);
+
+        $this->attribute($listing, 'Medium', 'Ceramic');
 
         return $listing;
     }
@@ -184,6 +193,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $this->value($size, 'XXL', 300);
 
         app(GenerateVariants::class)($listing);
+
+        $this->attribute($listing, 'Medium', 'Apparel');
 
         return $listing;
     }
@@ -227,14 +238,9 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         // Furniture's Material grant is multivalued (TaxonomySeeder) — this
         // table is genuinely both: a walnut top on oak legs.
-        $material = Property::where('name', 'Material')->sole();
-        foreach (['Walnut', 'Oak'] as $label) {
-            ListingAttribute::create([
-                'listing_id' => $listing->id,
-                'property_id' => $material->id,
-                'property_value_id' => $material->values()->where('label', $label)->sole()->id,
-            ]);
-        }
+        $this->attribute($listing, 'Material', 'Walnut');
+        $this->attribute($listing, 'Material', 'Oak');
+        $this->attribute($listing, 'Medium', 'Walnut');
 
         app(AddDescriptionSection::class)($listing, 0, DescriptionSectionKind::Care, 'Care', 'Oil every six months with food-safe mineral oil. Wipe spills promptly — walnut marks with standing water.');
 
@@ -274,13 +280,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
             );
         }
 
-        $material = Property::where('name', 'Material')->sole();
-        $brass = $material->values()->where('label', 'Brass')->sole();
-        ListingAttribute::create([
-            'listing_id' => $listing->id,
-            'property_id' => $material->id,
-            'property_value_id' => $brass->id,
-        ]);
+        $this->attribute($listing, 'Material', 'Brass');
+        $this->attribute($listing, 'Medium', 'Brass');
 
         return $listing;
     }
@@ -322,6 +323,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
             ['q' => 'How long does printing take?', 'a' => 'Orders ship 2-3 weeks after proof approval.'],
         ]);
 
+        $this->attribute($listing, 'Medium', 'Paper');
+
         return $listing;
     }
 
@@ -361,13 +364,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         // Art's Medium grant is required (TaxonomySeeder) — this is the
         // archetype that carries it.
-        $medium = Property::where('name', 'Medium')->sole();
-        $watercolor = $medium->values()->where('label', 'Watercolor')->sole();
-        ListingAttribute::create([
-            'listing_id' => $listing->id,
-            'property_id' => $medium->id,
-            'property_value_id' => $watercolor->id,
-        ]);
+        $this->attribute($listing, 'Medium', 'Watercolor');
 
         return $listing;
     }
@@ -406,5 +403,21 @@ class ConfiguratorArchetypeSeeder extends Seeder
     private function value(OptionAxis $axis, string $label, int $surchargeCents, bool $isDefault = false): OptionValue
     {
         return app(AddOptionValue::class)($axis, $label, $surchargeCents, $isDefault);
+    }
+
+    /**
+     * Writes one listing_attributes row directly — reference data, the way
+     * {@see TaxonomySeeder} writes its own rows rather than going through a
+     * seller-facing action.
+     */
+    private function attribute(Listing $listing, string $propertyName, string $label): void
+    {
+        $property = Property::where('name', $propertyName)->sole();
+
+        ListingAttribute::create([
+            'listing_id' => $listing->id,
+            'property_id' => $property->id,
+            'property_value_id' => $property->values()->where('label', $label)->sole()->id,
+        ]);
     }
 }

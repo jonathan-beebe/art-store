@@ -39,6 +39,15 @@ it('keeps every value of a multivalued property under one heading', function ():
     ]);
 });
 
+it('leaves Medium out, the page’s own Medium line already carries it', function (): void {
+    $medium = Property::factory()->create(['name' => 'Medium']);
+    $ceramic = PropertyValue::factory()->create(['property_id' => $medium->id, 'label' => 'Ceramic']);
+    $listing = Listing::factory()->create();
+    ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $medium->id, 'property_value_id' => $ceramic->id]);
+
+    expect(ListingHighlights::forStorefront($listing))->toBe([]);
+});
+
 it('lists more than one property in the order the attributes were set', function (): void {
     $material = Property::factory()->create(['name' => 'Material']);
     $color = Property::factory()->create(['name' => 'Color']);
