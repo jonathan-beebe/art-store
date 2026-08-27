@@ -28,7 +28,8 @@ it('flags an enabled variant priced below zero', function (): void {
     $issues = ConfiguratorPublishValidation::check(['axs_01'], [1], [$variant], 0, 0, 0);
 
     expect($issues)->toHaveCount(1)
-        ->and($issues[0]->code)->toBe('variant_priced_negative');
+        ->and($issues[0]->code)->toBe('variant_priced_negative')
+        ->and($issues[0]->subjectId)->toBe('vrt_01');
 });
 
 it('does not flag a disabled variant priced below zero', function (): void {
@@ -43,7 +44,8 @@ it('flags a variant missing a value for one of the listing’s axes', function (
     $issues = ConfiguratorPublishValidation::check(['axs_01', 'axs_02'], [1, 1], [$variant], 0, 0, 0);
 
     expect($issues)->toHaveCount(1)
-        ->and($issues[0]->code)->toBe('variant_missing_axis_value');
+        ->and($issues[0]->code)->toBe('variant_missing_axis_value')
+        ->and($issues[0]->subjectId)->toBe('vrt_01');
 });
 
 it('flags a serialized variant with no available unit', function (): void {
@@ -52,7 +54,8 @@ it('flags a serialized variant with no available unit', function (): void {
     $issues = ConfiguratorPublishValidation::check([], [], [$variant], 0, 0, 0);
 
     expect($issues)->toHaveCount(1)
-        ->and($issues[0]->code)->toBe('serialized_variant_has_no_units');
+        ->and($issues[0]->code)->toBe('serialized_variant_has_no_units')
+        ->and($issues[0]->subjectId)->toBe('vrt_01');
 });
 
 it('does not flag a serialized variant with an available unit', function (): void {

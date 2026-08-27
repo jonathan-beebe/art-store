@@ -19,4 +19,43 @@
             <a href="{{ route('seller.listings.index') }}" class="text-gray-700 dark:text-gray-300 underline">Cancel</a>
         </div>
     </form>
+
+    <section aria-labelledby="configurator-heading" class="mt-6 max-w-3xl rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+        <h2 id="configurator-heading" class="font-semibold text-gray-700 dark:text-gray-300">Configurator</h2>
+        <p class="mt-1 text-gray-600 dark:text-gray-400">Axes, variants, units, modifiers, quantity breaks, and description sections — everything a buyer configures before adding this listing to cart.</p>
+
+        <ul class="mt-3 flex flex-wrap gap-3">
+            <li><a href="{{ route('seller.listings.option-axes.index', $listing) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Axes &amp; options</a></li>
+            <li><a href="{{ route('seller.listings.variants.index', $listing) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Variants</a></li>
+            <li><a href="{{ route('seller.listings.modifiers.index', $listing) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Modifiers</a></li>
+            <li><a href="{{ route('seller.listings.quantity-breaks.index', $listing) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Quantity breaks</a></li>
+            <li><a href="{{ route('seller.listings.description-sections.index', $listing) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Description sections</a></li>
+        </ul>
+
+        @if (! empty($publishIssues))
+            @php
+                $issueUrl = function (\App\Domain\Configurator\PublishIssue $issue) use ($listing): string {
+                    return match ($issue->code) {
+                        'variant_priced_negative', 'variant_missing_axis_value' => route('seller.listings.variants.index', $listing).'#'.$issue->subjectId,
+                        'serialized_variant_has_no_units' => route('seller.listings.variants.units.index', [$listing, $issue->subjectId]),
+                        'axis_too_many_options' => route('seller.listings.option-axes.index', $listing),
+                        'too_many_variants' => route('seller.listings.variants.index', $listing),
+                        'too_many_modifiers' => route('seller.listings.modifiers.index', $listing),
+                        'too_many_quantity_tiers' => route('seller.listings.quantity-breaks.index', $listing),
+                        'too_many_sections' => route('seller.listings.description-sections.index', $listing),
+                        default => route('seller.listings.edit', $listing),
+                    };
+                };
+            @endphp
+
+            <div role="alert" class="mt-4 rounded border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-red-900 dark:text-red-200">
+                <p class="font-semibold">Not ready to publish — {{ count($publishIssues) }} issue(s):</p>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    @foreach ($publishIssues as $issue)
+                        <li><a href="{{ $issueUrl($issue) }}" class="underline">{{ $issue->message }}</a></li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+    </section>
 </x-layouts.seller>

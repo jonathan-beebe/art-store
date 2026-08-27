@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
+use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ActivityTimeline;
@@ -71,7 +72,10 @@ final class ListingController extends SellerController
     {
         $this->authorize('update', $listing);
 
-        return view('seller.listings.edit', ['listing' => $listing]);
+        return view('seller.listings.edit', [
+            'listing' => $listing,
+            'publishIssues' => $listing->status === ListingStatus::Draft ? $listing->publishIssues() : [],
+        ]);
     }
 
     public function update(ListingRequest $request, Listing $listing, UpdateListing $updateListing, RateLimitGate $rateLimit): RedirectResponse|Response

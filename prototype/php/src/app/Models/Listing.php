@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PublishIssue;
+use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
@@ -196,6 +199,41 @@ class Listing extends Model
     public function availableTransitions(): array
     {
         return ListingAvailability::availableTransitions($this->status, $this->hasActiveRemoval());
+    }
+
+    /**
+     * Folds this listing's axes, variants, modifiers, quantity breaks, and
+     * sections into the primitives {@see ConfiguratorPublishValidation} judges
+     * without reading anything itself. Empty for a listing with no
+     * configurator data — the legacy, axis-free path has nothing to check.
+     *
+     * @return list<PublishIssue>
+     */
+    public function publishIssues(): array
+    {
+        $axes = $this->optionAxes()->withCount('optionValues')->get();
+
+        $variants = array_values($this->variants()->get()->map(fn (Variant $variant): VariantSnapshot => new VariantSnapshot(
+            $variant->id,
+            $variant->enabled,
+            $variant->resolvedPrice($this->price())->cents,
+            $variant->is_serialized,
+            $variant->availableUnitCount(),
+            $variant->axisIdsCovered(),
+        ))->all());
+
+        return ConfiguratorPublishValidation::check(
+            axisIds: array_values($axes->map(fn (OptionAxis $axis): string => $axis->id)->all()),
+            optionCountsPerAxis: array_values($axes->map(function (OptionAxis $axis): int {
+                $count = $axis->getAttribute('option_values_count');
+
+                return is_numeric($count) ? (int) $count : 0;
+            })->all()),
+            variants: $variants,
+            modifierCount: $this->modifiers()->count(),
+            quantityBreakCount: $this->quantityBreaks()->count(),
+            sectionCount: $this->descriptionSections()->count(),
+        );
     }
 
     /**

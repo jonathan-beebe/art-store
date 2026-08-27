@@ -8,6 +8,8 @@ use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
 use App\Models\ListingRemoval;
+use App\Models\OptionAxis;
+use App\Models\Variant;
 use Tests\CapturedStory;
 
 it('puts a draft up for sale', function (): void {
@@ -51,6 +53,23 @@ it('offers no button to put a removed listing back on the storefront', function 
 
     $response->assertSee('A removed piece');
     $response->assertDontSee('value="for_sale"', escape: false);
+});
+
+it('refuses to publish a listing with configurator issues, sending the seller to the edit screen', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'price_override_cents' => -100]);
+
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/listings/{$listing->id}/status", ['status' => 'for_sale']);
+
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect($listing->refresh()->status)->toBe(ListingStatus::Draft);
+
+    $editResponse = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
+    $editResponse->assertSee('Not ready to publish');
+    $editResponse->assertSee(route('seller.listings.variants.index', $listing).'#'.$variant->id, escape: false);
 });
 
 it('refuses to change another sellers listing', function (): void {

@@ -44,15 +44,15 @@ final readonly class ConfiguratorPublishValidation
 
         foreach ($variants as $variant) {
             if ($variant->enabled && $variant->priceCents < 0) {
-                $issues[] = PublishIssue::of('variant_priced_negative', "Variant {$variant->id} is priced below zero.");
+                $issues[] = PublishIssue::of('variant_priced_negative', "Variant {$variant->id} is priced below zero.", $variant->id);
             }
 
             if ($variant->enabled && array_diff($axisIds, $variant->axisIdsCovered) !== []) {
-                $issues[] = PublishIssue::of('variant_missing_axis_value', "Variant {$variant->id} does not carry a value for every axis.");
+                $issues[] = PublishIssue::of('variant_missing_axis_value', "Variant {$variant->id} does not carry a value for every axis.", $variant->id);
             }
 
             if ($variant->enabled && $variant->isSerialized && $variant->availableUnitCount < 1) {
-                $issues[] = PublishIssue::of('serialized_variant_has_no_units', "Serialized variant {$variant->id} has no available unit.");
+                $issues[] = PublishIssue::of('serialized_variant_has_no_units', "Serialized variant {$variant->id} has no available unit.", $variant->id);
             }
         }
 

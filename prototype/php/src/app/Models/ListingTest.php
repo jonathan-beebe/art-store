@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\Listings\RecordListingEvent;
+use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PublishIssue;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
@@ -36,6 +38,33 @@ it('reads its configurator rows through their relations', function (): void {
         ->and($listing->quantityBreaks()->count())->toBe(1)
         ->and($listing->descriptionSections()->count())->toBe(1)
         ->and($listing->listingAttributes()->count())->toBe(1);
+});
+
+it('has no publish issues with no configurator data', function (): void {
+    $listing = $this->listing($this->seller());
+
+    expect($listing->publishIssues())->toBe([]);
+});
+
+it('folds its axes, variants, modifiers, quantity breaks, and sections into publish issues', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+
+    $issues = $listing->publishIssues();
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))
+        ->toBe(['variant_missing_axis_value'])
+        ->and($issues[0]->subjectId)->toBe($variant->id);
+});
+
+it('flags too many modifiers among its publish issues', function (): void {
+    $listing = $this->listing($this->seller());
+    Modifier::factory()->count(ConfiguratorPublishValidation::MAX_MODIFIERS + 1)->create(['listing_id' => $listing->id]);
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $listing->publishIssues()))
+        ->toBe(['too_many_modifiers']);
 });
 
 it('reads the faqs published on it', function (): void {
