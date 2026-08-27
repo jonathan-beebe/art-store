@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
-use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\PropertyValue;
+use App\Support\Configurator\PriceDifferenceInput;
+use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -27,19 +28,15 @@ final class OptionValueRequest extends FormRequest
     {
         return [
             'label' => ['required', 'string', 'max:255'],
-            'surcharge' => ['required', 'regex:/^-?\d+(\.\d{1,2})?$/'],
+            'surcharge' => ['nullable', 'string', function (string $attribute, mixed $value, Closure $fail): void {
+                if (! PriceDifferenceInput::isValid(is_string($value) ? $value : null)) {
+                    $fail('The price difference is an amount in dollars, like 8.50 or -2.00.');
+                }
+            }],
             'is_default' => ['nullable', 'boolean'],
             'position' => ['required', 'integer', 'min:0'],
             'property_value_id' => ['nullable', 'string', Rule::exists('property_values', 'id')],
         ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return ['surcharge.regex' => 'The surcharge is an amount in dollars, like 8.50 or -2.00.'];
     }
 
     public function label(): string
@@ -49,7 +46,7 @@ final class OptionValueRequest extends FormRequest
 
     public function surchargeCents(): int
     {
-        return Money::fromDollars($this->string('surcharge')->toString())->cents;
+        return PriceDifferenceInput::parseCents($this->string('surcharge')->toString());
     }
 
     public function isDefault(): bool

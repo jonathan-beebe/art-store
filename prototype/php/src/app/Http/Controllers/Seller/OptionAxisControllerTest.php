@@ -130,7 +130,7 @@ it('adds no option values for a custom, non-catalog axis', function (): void {
     expect(OptionAxis::where('listing_id', $listing->id)->sole()->optionValues()->count())->toBe(0);
 });
 
-it('lists the picker’s catalog properties before the custom-label option', function (): void {
+it('lists the picker’s catalog properties before the "Something else…" custom-choice link', function (): void {
     $seller = $this->seller();
     $category = Category::factory()->create();
     $property = Property::factory()->create(['name' => 'Ring Size']);
@@ -141,11 +141,11 @@ it('lists the picker’s catalog properties before the custom-label option', fun
 
     $content = $response->getContent() ?: '';
     $ringSizePosition = strpos($content, 'Ring Size');
-    $customLabelPosition = strpos($content, 'Custom label');
+    $somethingElsePosition = strpos($content, 'Something else');
 
     expect($ringSizePosition)->not->toBeFalse()
-        ->and($customLabelPosition)->not->toBeFalse()
-        ->and((int) $ringSizePosition)->toBeLessThan((int) $customLabelPosition);
+        ->and($somethingElsePosition)->not->toBeFalse()
+        ->and((int) $ringSizePosition)->toBeLessThan((int) $somethingElsePosition);
 });
 
 it('refuses adding an axis to another sellers listing', function (): void {
@@ -261,4 +261,152 @@ it('trips the listing-write limit removing an axis', function (): void {
 
     $response->assertStatus(429);
     expect(OptionAxis::find($axis->id))->not->toBeNull();
+});
+
+it('shows an empty-state invitation when a listing has no choices yet', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('No choices yet. Add one below');
+});
+
+it('renders a choice with no options yet without the price-neutral hint', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Engraving Placement']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('Engraving Placement');
+    $response->assertDontSee('A choice with no price differences');
+});
+
+it('shows the "Something else…" link only when there is a catalog property to lead with', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertDontSee('Something else');
+    $response->assertSee('Choice name');
+});
+
+it('reveals the custom-choice name field when asked for "Something else…"', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create(['name' => 'Ring Size']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_axis' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $collapsed = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+    $collapsed->assertDontSee('Choice name');
+    $collapsed->assertSee('Something else');
+
+    $expanded = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes?choice=custom");
+    $expanded->assertSee('Choice name');
+});
+
+it('adds a catalog choice from its "Add another choice" button', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create(['name' => 'Wax type']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_axis' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
+        'name' => 'Wax type',
+        'property_id' => $property->id,
+        'position' => 0,
+    ]);
+
+    expect(OptionAxis::where('listing_id', $listing->id)->sole()->property_id)->toBe($property->id);
+});
+
+it('C5 shows the honest per-listing shipping-timeline note', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('Every option ships on this listing');
+    $response->assertSee('silver ships tomorrow, gold takes 3 weeks');
+});
+
+it('A1 shows per-option buyers-pay chips and a changes/does-not-change-the-price pill for each choice', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2400]);
+
+    $size = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size', 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '8 oz', 'is_default' => true, 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '12 oz', 'surcharge_cents' => 600, 'position' => 1]);
+    OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '16 oz', 'surcharge_cents' => 1000, 'position' => 2]);
+
+    $scent = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Scent', 'position' => 1]);
+    OptionValue::factory()->create(['axis_id' => $scent->id, 'label' => 'Sea Salt', 'is_default' => true, 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $scent->id, 'label' => 'Fig', 'position' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('changes the price');
+    $response->assertSee("doesn't change the price", escape: false);
+    $response->assertSee('buyers pay $24.00');
+    $response->assertSee('buyers pay $30.00');
+    $response->assertSee('buyers pay $34.00');
+    $response->assertSee('(+$6.00)', escape: false);
+    $response->assertSeeInOrder(['Total', '$24.00']);
+});
+
+it('A2 keeps the same price difference on a size option however the other choice defaults', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2400]);
+
+    $size = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size', 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '8 oz', 'is_default' => true, 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '12 oz', 'surcharge_cents' => 600, 'position' => 1]);
+
+    $scent = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Scent', 'position' => 1]);
+    $seaSalt = OptionValue::factory()->create(['axis_id' => $scent->id, 'label' => 'Sea Salt', 'is_default' => true, 'position' => 0]);
+    $fig = OptionValue::factory()->create(['axis_id' => $scent->id, 'label' => 'Fig', 'position' => 1]);
+
+    $firstResponse = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+    $firstResponse->assertSee('+$6.00');
+
+    $seaSalt->update(['is_default' => false]);
+    $fig->update(['is_default' => true]);
+
+    $secondResponse = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+    $secondResponse->assertSee('+$6.00');
+});
+
+it('A4 renders four choices as their own cards with four selects in the buyer panel', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    foreach (['Size', 'Scent', 'Color', 'Wax type'] as $index => $name) {
+        $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => $name, 'position' => $index]);
+        OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'One', 'is_default' => true, 'position' => 0]);
+        OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Two', 'position' => 1]);
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('Size');
+    $response->assertSee('Scent');
+    $response->assertSee('Color');
+    $response->assertSee('Wax type');
+    expect(substr_count($response->getContent() ?: '', '<select'))->toBe(4);
+});
+
+it('A9 shows the option delta at the point of choice in the buyer panel', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2400]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8 oz', 'is_default' => true, 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '12 oz', 'surcharge_cents' => 600, 'position' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('12 oz (+$6.00)', escape: false);
 });

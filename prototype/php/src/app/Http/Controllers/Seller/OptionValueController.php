@@ -13,7 +13,8 @@ use App\Http\Requests\Seller\OptionValueRequest;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
-use App\Models\Property;
+use App\Support\Configurator\AxisPropertyOptions;
+use App\Support\Configurator\ListingConfiguratorSummaries;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -85,7 +86,8 @@ final class OptionValueController extends SellerController
         return [
             'listing' => $listing,
             'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-            'properties' => Property::orderBy('name')->get(),
+            'properties' => AxisPropertyOptions::for($listing),
+            'combinations' => ListingConfiguratorSummaries::choices($listing),
         ];
     }
 }

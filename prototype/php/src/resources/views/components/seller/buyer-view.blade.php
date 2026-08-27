@@ -37,10 +37,18 @@
                                 @if ($unit['conditionNote'] !== null)
                                     <span class="mt-1 block text-neutral-500">{{ $unit['conditionNote'] }}</span>
                                 @endif
+                                @if ($unit['specLines'] !== [])
+                                    <span class="mt-1 block text-neutral-500">
+                                        @foreach ($unit['specLines'] as $line)
+                                            {{ $line }}@if (! $loop->last), @endif
+                                        @endforeach
+                                    </span>
+                                @endif
                                 <span class="mt-1 block">{{ $unit['price']->format() }}</span>
                             </div>
                         @endforeach
                     </div>
+                    <p class="mt-3 text-xs text-neutral-500">The piece a buyer picks is exactly the one they get — its condition and measurements sit on the card, not scattered between a dropdown number, a photo caption, and a line in the description. Sold pieces don't appear at all.</p>
                 @endif
             </div>
         @endif

@@ -13,10 +13,9 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\OptionAxisRequest;
 use App\Models\Listing;
 use App\Models\OptionAxis;
-use App\Models\Property;
+use App\Support\Configurator\AxisPropertyOptions;
+use App\Support\Configurator\ListingConfiguratorSummaries;
 use App\Support\RateLimiting\RateLimitGate;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -46,17 +45,17 @@ final class OptionAxisController extends SellerController
         $property = $request->property();
         $axis = $create($listing, $request->name(), $property, $request->position());
 
-        // Catalog axes first (doc §4): a catalog property pre-fills the
-        // axis's option values from the property's own values — staged as
+        // Catalog choices first (doc §4): a catalog property pre-fills the
+        // choice's options from the property's own values — staged as
         // ordinary, editable/removable rows the seller can adjust before the
-        // axis is put to use, not a JS behavior.
+        // choice is put to use, not a JS behavior.
         if ($property !== null) {
             foreach ($property->values()->orderBy('position')->get() as $index => $value) {
                 $addValue($axis, $value->label, 0, $index === 0, $index, $value);
             }
         }
 
-        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Axis added.');
+        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Choice added.');
     }
 
     public function update(
@@ -74,7 +73,7 @@ final class OptionAxisController extends SellerController
 
         $update($optionAxis, $request->name(), $request->property(), $request->position());
 
-        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Axis updated.');
+        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Choice updated.');
     }
 
     public function destroy(Listing $listing, OptionAxis $optionAxis, DeleteOptionAxis $delete, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -89,7 +88,7 @@ final class OptionAxisController extends SellerController
 
         $delete($optionAxis);
 
-        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Axis removed.');
+        return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Choice removed.');
     }
 
     /**
@@ -100,26 +99,8 @@ final class OptionAxisController extends SellerController
         return [
             'listing' => $listing,
             'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-            'properties' => $this->axisProperties($listing),
+            'properties' => AxisPropertyOptions::for($listing),
+            'combinations' => ListingConfiguratorSummaries::choices($listing),
         ];
-    }
-
-    /**
-     * The picker's catalog-property options: only the current category's
-     * `usable_as_axis` grants — an uncategorized listing offers none, the
-     * same as it offers no attribute section.
-     *
-     * @return Collection<int, Property>
-     */
-    private function axisProperties(Listing $listing): Collection
-    {
-        return $listing->category_id === null
-            ? new Collection
-            : Property::query()
-                ->whereHas('categoryProperties', fn (Builder $query): Builder => $query
-                    ->where('category_id', $listing->category_id)
-                    ->where('usable_as_axis', true))
-                ->orderBy('name')
-                ->get();
     }
 }
