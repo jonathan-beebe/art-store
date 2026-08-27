@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\ComboKey;
+use App\Domain\DomainRuleViolation;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\Variant;
 
 it('creates one sparse variant with its combo key and option links', function (): void {
     $listing = $this->listing($this->seller());
@@ -40,4 +42,25 @@ it('clears quantity on a serialized variant regardless of what was passed', func
 
     expect($variant->quantity)->toBeNull()
         ->and($variant->is_serialized)->toBeTrue();
+});
+
+it('refuses a combination that already has a variant row instead of a raw constraint violation', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Metal']);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Gold']);
+    app(CreateVariant::class)($listing, [$value]);
+
+    $create = fn () => app(CreateVariant::class)($listing, [$value]);
+
+    expect($create)->toThrow(DomainRuleViolation::class, 'Gold already exists — edit its row in the grid above.');
+    expect(Variant::where('listing_id', $listing->id)->count())->toBe(1);
+});
+
+it('refuses a second axis-free variant the same way', function (): void {
+    $listing = $this->listing($this->seller());
+    app(CreateVariant::class)($listing, []);
+
+    $create = fn () => app(CreateVariant::class)($listing, []);
+
+    expect($create)->toThrow(DomainRuleViolation::class, 'This combination already exists — edit its row in the grid above.');
 });

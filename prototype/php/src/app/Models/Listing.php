@@ -250,6 +250,30 @@ class Listing extends Model
     }
 
     /**
+     * Whether the full cross product of this listing's axes already has a
+     * variant row for every combination — what {@see \App\Actions\Configurator\GenerateVariants}
+     * would produce from a clean slate. An axis-free listing has no
+     * combination to exhaust, so it reads false regardless of its one
+     * legacy variant.
+     */
+    public function everyVariantCombinationExists(): bool
+    {
+        $axes = $this->optionAxes()->withCount('optionValues')->get();
+
+        if ($axes->isEmpty()) {
+            return false;
+        }
+
+        $combinationCount = $axes->reduce(function (int $total, OptionAxis $axis): int {
+            $count = $axis->getAttribute('option_values_count');
+
+            return $total * (is_numeric($count) ? (int) $count : 0);
+        }, 1);
+
+        return $this->variants()->count() >= $combinationCount;
+    }
+
+    /**
      * Hands the given number of items to a buyer, reaching `sold` at nothing
      * left.
      */

@@ -410,6 +410,31 @@ it('reads the favorites it was added to', function (): void {
     expect($listing->favorites()->pluck('customer_id')->all())->toBe([$customer->id]);
 });
 
+it('reads false for an axis-free listing regardless of its one legacy variant', function (): void {
+    $listing = $this->listing($this->seller());
+    Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => '']);
+
+    expect($listing->everyVariantCombinationExists())->toBeFalse();
+});
+
+it('reads false while a combination remains unfilled', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+
+    expect($listing->everyVariantCombinationExists())->toBeFalse();
+});
+
+it('reads true once every combination has a variant row', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $only = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => $only->id]);
+
+    expect($listing->everyVariantCombinationExists())->toBeTrue();
+});
+
 it('counts every status across every seller\'s listings, in one row each', function (): void {
     $this->listing($this->seller(), ['status' => ListingStatus::Draft]);
     $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);

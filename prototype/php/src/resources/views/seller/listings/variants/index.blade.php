@@ -85,31 +85,35 @@
     @if ($axes->isNotEmpty())
         <h2 class="mt-6 font-semibold text-gray-700 dark:text-gray-300">Add a combination</h2>
 
-        <form method="POST" action="{{ route('seller.listings.variants.store', $listing) }}" class="mt-2 flex flex-wrap items-end gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            @csrf
+        @if ($everyCombinationExists)
+            <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">Every combination exists — edit rows above.</p>
+        @else
+            <form method="POST" action="{{ route('seller.listings.variants.store', $listing) }}" class="mt-2 flex flex-wrap items-end gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                @csrf
 
-            @foreach ($axes as $axis)
-                <div>
-                    <label for="option_value_id-{{ $axis->id }}" class="block font-medium text-gray-700 dark:text-gray-300">{{ $axis->name }}</label>
-                    <select id="option_value_id-{{ $axis->id }}" name="option_value_id[{{ $axis->id }}]" required class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        @foreach ($axis->optionValues as $value)
-                            <option value="{{ $value->id }}">{{ $value->label }}</option>
-                        @endforeach
-                    </select>
+                @foreach ($axes as $axis)
+                    <div>
+                        <label for="option_value_id-{{ $axis->id }}" class="block font-medium text-gray-700 dark:text-gray-300">{{ $axis->name }}</label>
+                        <select id="option_value_id-{{ $axis->id }}" name="option_value_id[{{ $axis->id }}]" required class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            @foreach ($axis->optionValues as $value)
+                                <option value="{{ $value->id }}">{{ $value->label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endforeach
+
+                <x-form.field name="sku" label="SKU" maxlength="255" />
+                <x-form.field name="price_override" label="Override (dollars)" />
+                <x-form.field name="quantity" label="Qty" type="number" step="1" min="0" value="1" />
+
+                <div class="flex items-center gap-2">
+                    <input id="new-is-serialized" name="is_serialized" type="checkbox" value="1" class="rounded border-gray-400 dark:border-gray-600">
+                    <label for="new-is-serialized" class="text-gray-700 dark:text-gray-300">Serialized</label>
                 </div>
-            @endforeach
 
-            <x-form.field name="sku" label="SKU" maxlength="255" />
-            <x-form.field name="price_override" label="Override (dollars)" />
-            <x-form.field name="quantity" label="Qty" type="number" step="1" min="0" value="1" />
-
-            <div class="flex items-center gap-2">
-                <input id="new-is-serialized" name="is_serialized" type="checkbox" value="1" class="rounded border-gray-400 dark:border-gray-600">
-                <label for="new-is-serialized" class="text-gray-700 dark:text-gray-300">Serialized</label>
-            </div>
-
-            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add variant</button>
-        </form>
+                <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add variant</button>
+            </form>
+        @endif
 
         <form method="POST" action="{{ route('seller.listings.variants.generate', $listing) }}" class="mt-4">
             @csrf

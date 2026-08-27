@@ -26,6 +26,35 @@ it('lists the listing’s sparse variants with a derived price', function (): vo
     $response->assertSee('$25.00', escape: false);
 });
 
+it('offers the add-variant form while a combination remains', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('Add variant');
+    $response->assertDontSee('Every combination exists');
+});
+
+it('replaces the add-variant form with a note once every combination has a row', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $only = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => $only->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $only->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('Every combination exists — edit rows above.');
+    $response->assertDontSee('Add variant');
+});
+
 it('refuses another sellers listing variants page', function (): void {
     $listing = $this->listing($this->seller('Other Studio'));
 

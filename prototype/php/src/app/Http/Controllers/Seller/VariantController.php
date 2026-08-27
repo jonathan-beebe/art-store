@@ -66,6 +66,7 @@ final class VariantController extends SellerController
             'listing' => $listing,
             'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
             'variants' => $listing->variants()->with('options.optionValue.axis')->orderBy('combo_key')->get(),
+            'everyCombinationExists' => $listing->everyVariantCombinationExists(),
         ];
     }
 }

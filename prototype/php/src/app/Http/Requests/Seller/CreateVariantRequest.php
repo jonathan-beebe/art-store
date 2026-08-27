@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Domain\Configurator\ComboKey;
 use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -51,6 +53,35 @@ final class CreateVariantRequest extends FormRequest
     public function messages(): array
     {
         return ['price_override.regex' => 'The price override is an amount in dollars, like 249.00 or -5.00.'];
+    }
+
+    /**
+     * A combination already on the grid is refused here, before the insert
+     * `variants.combo_key`'s unique index would otherwise refuse with a raw
+     * constraint violation. Only checked once every axis value has already
+     * validated — a bad option value id has nothing to combine.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($this->listing()->optionAxes->isEmpty()) {
+                return;
+            }
+
+            $optionValues = $this->optionValues();
+
+            $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $optionValues));
+
+            if ($this->listing()->variants()->where('combo_key', $comboKey->value)->exists()) {
+                $label = implode(' / ', array_map(fn (OptionValue $value): string => $value->label, $optionValues));
+
+                $validator->errors()->add('option_value_id', "{$label} already exists — edit its row in the grid above.");
+            }
+        });
     }
 
     /**

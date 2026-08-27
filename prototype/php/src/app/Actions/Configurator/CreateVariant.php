@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\ComboKey;
+use App\Domain\DomainRuleViolation;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionValue;
@@ -36,6 +37,19 @@ final readonly class CreateVariant
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $optionValues, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
             $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $optionValues));
+
+            // `CreateVariantRequest`'s combination rule catches this first;
+            // this is the backstop for a race between two requests and for
+            // the non-HTTP caller (a console command, a test) that skips the
+            // request layer entirely. Without it the insert below refuses
+            // with a raw `UniqueConstraintViolationException` instead of a
+            // `DomainRuleViolation` the global handler turns into form
+            // feedback.
+            if ($listing->variants()->where('combo_key', $comboKey->value)->exists()) {
+                $label = $optionValues === [] ? 'This combination' : implode(' / ', array_map(fn (OptionValue $value): string => $value->label, $optionValues));
+
+                throw new DomainRuleViolation("{$label} already exists — edit its row in the grid above.");
+            }
 
             $variant = $listing->variants()->create([
                 'combo_key' => $comboKey->value,
