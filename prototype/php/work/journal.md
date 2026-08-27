@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-26:00:00:08 — FEAT-028 — done: checkout and order snapshot — order_items freezes variant_id/unit_id/configuration_json/answers_json/price_breakdown_json at placement, re-resolving a configured line's price and availability from the rows PlaceOrder locks rather than trusting the cart; a serialized line's unit flips available→sold and a non-serialized line's variant.quantity decrements inside the same transaction (listings.quantity/status stay untouched for configured lines), with cancel/decline/retry restoring exactly what placement claimed through one shared StockMovement helper; one order-item-detail partial renders the frozen breakdown on the customer, seller, and admin order pages; make smoke gains the configured-ring walk; 2239 tests, 6466 assertions, 100% lines
+- 2026-08-26:00:00:07 — FEAT-028 — started
 - 2026-08-26:00:00:06 — FEAT-027 — done: buyer configurator and cart — GET-form configurator on `/art/{slug}` (axis selects with grey-outs, serialized-variant unit picker, scoped modifiers, quantity-break table, live itemized price panel), add-to-cart POST with fingerprint-based merge, `cart_items` widened to `(cart_id, listing_id, fingerprint)`; 12 new Domain/Support classes; 2173 tests, 6261 assertions, 100% lines
 - 2026-08-26:00:00:05 — FEAT-027 — started
 - 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights

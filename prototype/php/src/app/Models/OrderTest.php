@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
+use App\Actions\Orders\PlaceOrder;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\UnavailableReason;
 
@@ -66,6 +71,28 @@ it('blocks a line whose listing carries an active removal, even while for sale',
     expect($plan->isPlaceable())->toBeFalse()
         ->and($plan->blocked[0]->title)->toBe('Winter Elm')
         ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
+});
+
+it('plans a configured lines placement off its variant rather than the listing quantity', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 1]);
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    $variant->update(['quantity' => 0]);
+
+    $plan = $order->load('items.listing', 'items.variant')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Line Art Cat Tee')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
 });
 
 it('counts every status the table holds, in one row each', function (): void {

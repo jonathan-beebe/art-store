@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\DomainRuleViolation;
 use App\Domain\Money\Money;
+use Illuminate\Database\Query\Grammars\MySqlGrammar;
+use Illuminate\Support\Facades\DB;
 
 it('belongs to a listing and lists its options and units', function (): void {
     $listing = $this->listing($this->seller());
@@ -59,4 +62,47 @@ it('reads the axes it covers from its options', function (): void {
     VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axisTwo->id]);
 
     expect($variant->axisIdsCovered())->toEqualCanonicalizing([$axisOne->id, $axisTwo->id]);
+});
+
+it('decrements its tracked quantity by a sale', function (): void {
+    $variant = Variant::factory()->create(['quantity' => 3]);
+
+    expect($variant->decrementQuantity(2)->quantity)->toBe(1)
+        ->and($variant->refresh()->quantity)->toBe(1);
+});
+
+it('leaves an untracked quantity null through a sale', function (): void {
+    $variant = Variant::factory()->serialized()->create();
+
+    expect($variant->decrementQuantity(1)->quantity)->toBeNull();
+});
+
+it('rejects a sale for more than its tracked quantity holds', function (): void {
+    $variant = Variant::factory()->create(['quantity' => 1]);
+
+    expect(fn () => $variant->decrementQuantity(2))->toThrow(DomainRuleViolation::class);
+});
+
+it('restores its tracked quantity by a restock', function (): void {
+    $variant = Variant::factory()->create(['quantity' => 1]);
+
+    expect($variant->restoreQuantity(2)->quantity)->toBe(3)
+        ->and($variant->refresh()->quantity)->toBe(3);
+});
+
+it('leaves an untracked quantity null through a restock', function (): void {
+    $variant = Variant::factory()->serialized()->create();
+
+    expect($variant->restoreQuantity(1)->quantity)->toBeNull();
+});
+
+it('takes the rows placement reads for update, in id order', function (): void {
+    // SQLite has no row lock and its grammar compiles the clause away, so the
+    // query is compiled here with the grammar of a database that does have
+    // one — what the same read asks for in production.
+    $query = Variant::query()->lockedForPlacement()->toBase();
+
+    expect((new MySqlGrammar(DB::connection()))->compileSelect($query))
+        ->toContain('order by `id` asc')
+        ->toEndWith('for update');
 });

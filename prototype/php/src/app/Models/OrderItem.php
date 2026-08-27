@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PriceBreakdown;
+use App\Domain\Configurator\PriceBreakdownLine;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderItemFactory;
@@ -17,8 +19,16 @@ use Override;
  * @property-read Order $order
  * @property-read Listing $listing
  * @property-read Seller $seller
+ * @property-read Variant|null $variant
+ * @property-read Unit|null $unit
+ * @property list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>|null $configuration_json
+ * @property array<string, array{prompt: string, answer: string, raw: string}>|null $answers_json
+ * @property list<array{label: string, cents: int}>|null $price_breakdown_json
  */
-#[Fillable(['order_id', 'listing_id', 'seller_id', 'title', 'unit_price_cents', 'quantity'])]
+#[Fillable([
+    'order_id', 'listing_id', 'seller_id', 'title', 'unit_price_cents', 'quantity',
+    'variant_id', 'unit_id', 'configuration_json', 'answers_json', 'price_breakdown_json',
+])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */
@@ -40,6 +50,9 @@ class OrderItem extends Model
         return [
             'unit_price_cents' => 'integer',
             'quantity' => 'integer',
+            'configuration_json' => 'array',
+            'answers_json' => 'array',
+            'price_breakdown_json' => 'array',
         ];
     }
 
@@ -61,13 +74,49 @@ class OrderItem extends Model
         return $this->belongsTo(Seller::class);
     }
 
+    /** @return BelongsTo<Variant, $this> */
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(Variant::class);
+    }
+
+    /** @return BelongsTo<Unit, $this> */
+    public function unit(): BelongsTo
+    {
+        return $this->belongsTo(Unit::class);
+    }
+
+    public function isConfigured(): bool
+    {
+        return $this->variant_id !== null;
+    }
+
     public function unitPrice(): Money
     {
         return Money::fromCents($this->unit_price_cents);
     }
 
+    /**
+     * The itemized breakdown frozen at placement — never re-derived from the
+     * listing's current configurator rows, unlike {@see CartItem::currentBreakdown()},
+     * which reads them live. Empty for a legacy line, which carries none.
+     */
+    public function priceBreakdown(): PriceBreakdown
+    {
+        return PriceBreakdown::of(array_map(
+            fn (array $line): PriceBreakdownLine => PriceBreakdownLine::of($line['label'], Money::fromCents($line['cents'])),
+            $this->price_breakdown_json ?? [],
+        ));
+    }
+
+    /**
+     * A configured line's total is its frozen breakdown's own total — surcharges,
+     * answer add-ons, and the quantity discount already folded in — rather
+     * than `unit_price_cents * quantity`, which for a configured line is only
+     * a representative per-unit figure (see `PlaceOrder`).
+     */
     public function lineTotal(): Money
     {
-        return $this->unitPrice()->multiply($this->quantity);
+        return $this->isConfigured() ? $this->priceBreakdown()->total() : $this->unitPrice()->multiply($this->quantity);
     }
 }

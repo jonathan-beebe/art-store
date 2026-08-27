@@ -5,6 +5,15 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\AddUnit;
+use App\Actions\Configurator\CreateModifier;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\CreateVariant;
+use App\Actions\Configurator\GenerateVariants;
+use App\Actions\Configurator\UpdateOptionValue;
+use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\BlockedLine;
@@ -15,6 +24,7 @@ use App\Domain\Orders\UnavailableReason;
 use App\Models\CustomerBlock;
 use App\Models\Listing;
 use App\Models\Order;
+use App\Models\Variant;
 use DomainException;
 use RuntimeException;
 
@@ -241,4 +251,142 @@ it('refuses every blocked line at once, not just the first', function (): void {
     }
 
     expect(Order::count())->toBe(1);
+});
+
+it('freezes a configured lines price, configuration, and answers at placement', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Engraved Signet Ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    app(GenerateVariants::class)($listing);
+    $variant = Variant::whereHas('options', fn ($query) => $query->where('option_value_id', $roseGold->id))->sole();
+    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', addOnPriceCents: 500);
+
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)(
+        $cart,
+        $listing,
+        1,
+        $this->moment('2026-08-20 08:00:00'),
+        listingHasVariants: true,
+        variant: $variant,
+        configuration: [['axisId' => $metal->id, 'axisName' => 'Metal', 'optionValueId' => $roseGold->id, 'optionValueLabel' => 'Rose Gold']],
+        answers: [$text->id => ['prompt' => 'Engraving Text', 'answer' => 'ADA', 'raw' => 'ADA']],
+        fingerprintAnswers: [$text->id => 'ADA'],
+    );
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $item = $order->items()->sole();
+
+    expect($item->variant_id)->toBe($variant->id)
+        ->and($item->unit_id)->toBeNull()
+        ->and($item->configuration_json)->toBe([
+            ['axisId' => $metal->id, 'axisName' => 'Metal', 'optionValueId' => $roseGold->id, 'optionValueLabel' => 'Rose Gold'],
+        ])
+        ->and($item->answers_json)->toBe([$text->id => ['prompt' => 'Engraving Text', 'answer' => 'ADA', 'raw' => 'ADA']])
+        ->and($item->price_breakdown_json)->toBe([
+            ['label' => 'Base price', 'cents' => 12000],
+            ['label' => 'Rose Gold', 'cents' => 800],
+            ['label' => 'Engraving Text', 'cents' => 500],
+        ])
+        ->and($item->lineTotal())->toBeMoney(13300);
+});
+
+it('claims a serialized lines unit and decrements a non-serialized variants quantity inside placement', function (): void {
+    $customer = $this->verifiedCustomer();
+    $tee = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
+    $axis = app(CreateOptionAxis::class)($tee, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($tee);
+    $teeVariant = $tee->variants()->sole();
+    $teeVariant->update(['quantity' => 3]);
+
+    $candlesticks = $this->listing($this->seller(), ['title' => 'Vintage Brass Candlesticks']);
+    $variant = app(CreateVariant::class)($candlesticks, [], isSerialized: true);
+    $unit = app(AddUnit::class)($variant, '#1');
+
+    $cart = $this->cartFor($customer);
+    $addToCart = app(AddToCart::class);
+    $addToCart($cart, $tee, 2, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $teeVariant);
+    $addToCart($cart, $candlesticks, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant, unitId: $unit->id);
+
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($teeVariant->refresh()->quantity)->toBe(1)
+        ->and($unit->refresh()->state)->toBe(UnitState::Sold)
+        ->and($tee->refresh()->quantity)->toBe(1)
+        ->and($tee->status)->toBe(ListingStatus::ForSale)
+        ->and($candlesticks->refresh()->quantity)->toBe(1)
+        ->and($candlesticks->status)->toBe(ListingStatus::ForSale);
+});
+
+it('blocks a configured line whose variant sold out while it sat in the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 1]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+    $variant->update(['quantity' => 0]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Line Art Cat Tee” is no longer available to buy.')
+        ->and(Order::count())->toBe(0);
+});
+
+it('blocks a serialized line whose unit sold to someone else while it sat in the cart', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Vintage Brass Candlesticks']);
+    $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
+    $unit = app(AddUnit::class)($variant, '#1');
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant, unitId: $unit->id);
+    $unit->update(['state' => UnitState::Sold]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class, '“Vintage Brass Candlesticks” is no longer available to buy.')
+        ->and(Order::count())->toBe(0)
+        ->and($unit->refresh()->state)->toBe(UnitState::Sold);
+});
+
+it('leaves the placed orders price and configuration unchanged after the seller edits the axis surcharge', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Engraved Signet Ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    app(GenerateVariants::class)($listing);
+    $variant = Variant::whereHas('options', fn ($query) => $query->where('option_value_id', $roseGold->id))->sole();
+
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)(
+        $cart,
+        $listing,
+        1,
+        $this->moment('2026-08-20 08:00:00'),
+        listingHasVariants: true,
+        variant: $variant,
+        configuration: [['axisId' => $metal->id, 'axisName' => 'Metal', 'optionValueId' => $roseGold->id, 'optionValueLabel' => 'Rose Gold']],
+    );
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $item = $order->items()->sole();
+    $frozenBreakdown = $item->price_breakdown_json;
+    $frozenConfiguration = $item->configuration_json;
+    $frozenTotal = $item->lineTotal();
+
+    // The seller raises Rose Gold's surcharge well after the sale.
+    app(UpdateOptionValue::class)($roseGold->refresh(), 'Rose Gold', 5000, false, 0, null);
+
+    $item->refresh();
+
+    expect($item->price_breakdown_json)->toBe($frozenBreakdown)
+        ->and($item->configuration_json)->toBe($frozenConfiguration)
+        ->and($item->lineTotal())->toBeMoney($frozenTotal->cents)
+        ->and($roseGold->refresh()->surcharge_cents)->toBe(5000);
 });

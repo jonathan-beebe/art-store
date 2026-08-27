@@ -76,6 +76,13 @@
                             <td class="px-4 py-2 text-right tabular-nums">{{ $item->unitPrice()->format() }}</td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $item->lineTotal()->format() }}</td>
                         </tr>
+                        @if ($item->isConfigured())
+                            <tr>
+                                <td colspan="5" class="px-4 pb-3">
+                                    <x-order-item-detail :item="$item" />
+                                </td>
+                            </tr>
+                        @endif
                     @endforeach
                 </tbody>
             </table>

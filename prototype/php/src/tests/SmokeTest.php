@@ -9,14 +9,21 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\CartItem;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Message;
+use App\Models\Modifier;
+use App\Models\ModifierOption;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\Seller;
+use Database\Seeders\ConfiguratorArchetypeSeeder;
+use Database\Seeders\TaxonomySeeder;
 use DateTimeImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
@@ -321,4 +328,101 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     $readEarningsAsSeller($seller);
 
     expect($order->refresh()->customer_id)->toBe($visitor->id);
+});
+
+/**
+ * The FEAT-028 walk: one archetype from FEAT-025's seeds carries a
+ * configuration and a modifier answer through browse, configure, cart,
+ * checkout, and payment, and the itemized breakdown that lands on the
+ * receipt is asserted unchanged on every one of the three surfaces that
+ * render it back.
+ */
+it('carries a configured ring purchase through checkout, freezing its breakdown for customer, seller, and admin', function (): void {
+    $this->seed(TaxonomySeeder::class);
+    $this->seed(ConfiguratorArchetypeSeeder::class);
+
+    $listing = Listing::where('title', 'Engraved Signet Ring')->sole();
+    $seller = Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole();
+    $metal = OptionAxis::where('listing_id', $listing->id)->where('name', 'Metal')->sole();
+    $roseGold = OptionValue::where('axis_id', $metal->id)->where('label', 'Rose Gold')->sole();
+    $engraving = OptionAxis::where('listing_id', $listing->id)->where('name', 'Engraving')->sole();
+    $outside = OptionValue::where('axis_id', $engraving->id)->where('label', 'Outside Only')->sole();
+    $font = Modifier::where('listing_id', $listing->id)->where('prompt', 'Engraving Font')->sole();
+    $block = ModifierOption::where('modifier_id', $font->id)->where('label', 'Block')->sole();
+    $text = Modifier::where('listing_id', $listing->id)->where('prompt', 'Engraving Text')->sole();
+
+    $customer = $this->arriveAs($this->verifiedCustomer());
+
+    // Browse, then configure: the axis and modifier choices are GET params,
+    // so the page opens on a concrete price before any script runs.
+    $this->get("/art/{$listing->slug}")->assertOk()->assertSee('Engraved Signet Ring');
+
+    $this->get("/art/{$listing->slug}?".http_build_query([
+        'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],
+    ]))->assertOk()->assertSee('Rose Gold');
+
+    $addedToCart = $this->post("/cart/{$listing->slug}", [
+        'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],
+        'modifier' => [$font->id => $block->id, $text->id => 'ADA'],
+    ]);
+    $addedToCart->assertRedirect(route('shop.cart'));
+
+    $cartItem = CartItem::sole();
+    $frozenTotal = $cartItem->currentBreakdown()->total()->format();
+
+    $this->get('/cart')->assertOk()->assertSee('Rose Gold')->assertSee('ADA')->assertSee($frozenTotal);
+
+    $placed = $this->post('/checkout', [
+        'email' => $customer->email,
+        'shipping_name' => 'Casey Whitfield',
+        'shipping_line1' => '18 Harbour Road',
+        'shipping_city' => 'Bristol',
+        'shipping_region' => 'Bristol',
+        'shipping_postal_code' => 'BS1 5TY',
+        'shipping_country' => 'GB',
+        'card_number' => '4242 4242 4242 4242',
+    ]);
+
+    $order = Order::sole();
+    $placed->assertRedirect(route('shop.order', $order));
+    expect($order->status)->toBe(OrderStatus::Paid);
+
+    $item = $order->items()->sole();
+    expect($item->isConfigured())->toBeTrue()
+        ->and($item->lineTotal()->format())->toBe($frozenTotal);
+
+    $this->get(route('shop.order', $order))
+        ->assertOk()
+        ->assertSee('Metal:')->assertSee('Rose Gold')
+        ->assertSee('Engraving:')->assertSee('Outside Only')
+        ->assertSee('Engraving Font:')->assertSee('Block')
+        ->assertSee('Engraving Text:')->assertSee('ADA')
+        ->assertSee($frozenTotal);
+
+    $fulfillment = Fulfillment::sole();
+
+    $this->actingAs($seller, 'seller')
+        ->get(route('seller.orders.show', $fulfillment))
+        ->assertOk()
+        ->assertSee('Metal:')->assertSee('Rose Gold')
+        ->assertSee($frozenTotal);
+
+    $this->post("/seller/orders/{$fulfillment->id}/shipment", [
+        'carrier' => 'Royal Mail',
+        'tracking_number' => 'RM123456789GB',
+    ])->assertRedirect(route('seller.orders.show', $fulfillment->id));
+
+    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::Shipped);
+
+    $this->actingAs($this->admin(), 'admin')
+        ->get(route('admin.orders.show', $order))
+        ->assertOk()
+        ->assertSee('Metal:')->assertSee('Rose Gold')
+        ->assertSee($frozenTotal);
+
+    // A later edit to the axis surcharge the customer bought at leaves the
+    // placed order's frozen price and configuration exactly as they were.
+    $roseGold->update(['surcharge_cents' => 5000]);
+
+    expect($order->items()->sole()->lineTotal()->format())->toBe($frozenTotal);
 });

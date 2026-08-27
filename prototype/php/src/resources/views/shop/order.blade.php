@@ -68,11 +68,15 @@
                         </p>
                     @endif
 
-                    <ul class="mt-4 space-y-2">
+                    <ul class="mt-4 space-y-4">
                         @foreach ($itemsBySeller[$fulfillment->seller_id] ?? [] as $item)
-                            <li class="flex items-baseline justify-between gap-6 text-base">
-                                <span>{{ $item->title }} × {{ $item->quantity }}</span>
-                                <span>{{ $item->lineTotal() }}</span>
+                            <li class="text-base">
+                                <div class="flex items-baseline justify-between gap-6">
+                                    <span>{{ $item->title }} × {{ $item->quantity }}</span>
+                                    <span>{{ $item->lineTotal() }}</span>
+                                </div>
+
+                                <x-order-item-detail :item="$item" />
                             </li>
                         @endforeach
                     </ul>

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Domain\Cart\CartTotals;
+use App\Domain\Configurator\PriceBreakdown;
+use App\Domain\Configurator\PriceBreakdownLine;
 use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\Fee;
 use App\Domain\Orders\OrderPlacementRefused;
@@ -18,10 +20,14 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Unit;
+use App\Models\Variant;
+use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 final readonly class PlaceOrder
 {
@@ -37,12 +43,17 @@ final readonly class PlaceOrder
 
             $order = DB::transaction(function () use ($cart, $purchaser, $shipping, $now): Order {
                 // Read fresh and for update, inside the transaction: the
-                // listing rows the plan judges are the rows `sell()` writes
-                // back, so holding them from this read to the commit is what
-                // stops two shoppers both taking the last piece. A line that
-                // went stale between the page and this submit is refused —
-                // every blocked line at once — rather than half-placed.
-                $cart->load(['items.listing' => $this->takeForUpdate(...)]);
+                // listing (and, for a configured line, variant and unit) rows
+                // the plan judges are the rows the stock claim writes back,
+                // so holding them from this read to the commit is what stops
+                // two shoppers both taking the last piece. A line that went
+                // stale between the page and this submit is refused — every
+                // blocked line at once — rather than half-placed.
+                $cart->load([
+                    'items.listing' => $this->takeForUpdate(...),
+                    'items.variant' => $this->takeForUpdateVariant(...),
+                    'items.unit' => $this->takeForUpdateUnit(...),
+                ]);
                 $plan = $cart->placementPlan();
 
                 if (! $plan->isPlaceable()) {
@@ -64,7 +75,7 @@ final readonly class PlaceOrder
                 $this->splitBySeller($order, $totals);
 
                 foreach ($cart->items as $item) {
-                    $item->listing->sell($item->quantity);
+                    StockMovement::claim($item);
                 }
 
                 $cart->items()->delete();
@@ -94,18 +105,87 @@ final readonly class PlaceOrder
         $listing->getQuery()->lockedForPlacement();
     }
 
+    /**
+     * @param  BelongsTo<Variant, CartItem>  $variant
+     */
+    private function takeForUpdateVariant(BelongsTo $variant): void
+    {
+        $variant->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Unit, CartItem>  $unit
+     */
+    private function takeForUpdateUnit(BelongsTo $unit): void
+    {
+        $unit->getQuery()->lockedForPlacement();
+    }
+
     private function snapshotItems(Order $order, Cart $cart): void
     {
         foreach ($cart->items as $item) {
+            $breakdown = $item->isConfigured() ? $item->currentBreakdown() : null;
+
             OrderItem::create([
                 'order_id' => $order->id,
                 'listing_id' => $item->listing_id,
                 'seller_id' => $item->listing->seller_id,
                 'title' => $item->listing->title,
-                'unit_price_cents' => $item->listing->price_cents,
+                // A configured line's own per-unit price is only
+                // representative — the total that matters is the frozen
+                // breakdown below, which already folds in the quantity
+                // discount `unit_price_cents * quantity` cannot express.
+                'unit_price_cents' => $breakdown === null ? $item->listing->price_cents : intdiv($breakdown->total()->cents, $item->quantity),
                 'quantity' => $item->quantity,
+                'variant_id' => $item->variant_id,
+                'unit_id' => $item->unit_id,
+                'configuration_json' => $this->configurationSnapshot($item),
+                'answers_json' => $item->answers_json,
+                'price_breakdown_json' => $breakdown === null ? null : $this->breakdownJson($breakdown),
             ]);
         }
+    }
+
+    /**
+     * The buyer's axis choices, plus — for a serialized line — the specific
+     * piece claimed, appended in the same shape so one render loop shows
+     * both: never a live join back to the unit by id (`docs/item-configurator.md`'s
+     * authorization note), just its label read once, here, while the row is
+     * still in hand.
+     *
+     * @return list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>|null
+     */
+    private function configurationSnapshot(CartItem $item): ?array
+    {
+        if (! $item->isConfigured()) {
+            return null;
+        }
+
+        $pairs = $item->configuration_json ?? [];
+
+        if ($item->unit_id !== null) {
+            $unit = $item->unit ?? throw new LogicException('A line naming a unit id always resolves to one.');
+
+            $pairs[] = [
+                'axisId' => 'unit',
+                'axisName' => 'Piece',
+                'optionValueId' => $item->unit_id,
+                'optionValueLabel' => $unit->label,
+            ];
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * @return list<array{label: string, cents: int}>
+     */
+    private function breakdownJson(PriceBreakdown $breakdown): array
+    {
+        return array_map(
+            fn (PriceBreakdownLine $line): array => ['label' => $line->label, 'cents' => $line->amount->cents],
+            $breakdown->lines,
+        );
     }
 
     private function splitBySeller(Order $order, CartTotals $totals): void

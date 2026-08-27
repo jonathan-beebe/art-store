@@ -10,6 +10,9 @@ use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Unit;
+use App\Models\Variant;
+use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -56,13 +59,20 @@ final readonly class CancelOrder
     }
 
     /**
-     * Hands back every listing this order was holding, from rows read for
-     * update so the quantity written is the quantity read.
+     * Hands back every listing (or, for a configured line, variant/unit)
+     * this order was holding, from rows read for update so the quantity
+     * written is the quantity read.
      */
     private function restockItems(Order $order): void
     {
-        foreach ($order->load(['items.listing' => $this->takeForUpdate(...)])->items as $item) {
-            $item->listing->restock($item->quantity);
+        $order->load([
+            'items.listing' => $this->takeForUpdate(...),
+            'items.variant' => $this->takeForUpdateVariant(...),
+            'items.unit' => $this->takeForUpdateUnit(...),
+        ]);
+
+        foreach ($order->items as $item) {
+            StockMovement::release($item);
         }
     }
 
@@ -72,5 +82,21 @@ final readonly class CancelOrder
     private function takeForUpdate(BelongsTo $listing): void
     {
         $listing->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Variant, OrderItem>  $variant
+     */
+    private function takeForUpdateVariant(BelongsTo $variant): void
+    {
+        $variant->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Unit, OrderItem>  $unit
+     */
+    private function takeForUpdateUnit(BelongsTo $unit): void
+    {
+        $unit->getQuery()->lockedForPlacement();
     }
 }

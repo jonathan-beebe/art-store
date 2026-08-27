@@ -19,6 +19,9 @@ use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Unit;
+use App\Models\Variant;
+use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -128,15 +131,20 @@ final readonly class FinalizeOrder
     }
 
     /**
-     * Takes the listing rows behind this order for update and reloads the
-     * items from them. Every stock write in this transaction reads a
-     * quantity and writes the pair back from what it read, so the rows are
-     * held from that read until the commit and a concurrent checkout waits
-     * rather than overwriting the result with its own stale arithmetic.
+     * Takes the listing (and, for a configured line, variant/unit) rows
+     * behind this order for update and reloads the items from them. Every
+     * stock write in this transaction reads a quantity and writes the pair
+     * back from what it read, so the rows are held from that read until the
+     * commit and a concurrent checkout waits rather than overwriting the
+     * result with its own stale arithmetic.
      */
     private function lockListings(Order $order): Order
     {
-        return $order->load(['items.listing' => $this->takeForUpdate(...)]);
+        return $order->load([
+            'items.listing' => $this->takeForUpdate(...),
+            'items.variant' => $this->takeForUpdateVariant(...),
+            'items.unit' => $this->takeForUpdateUnit(...),
+        ]);
     }
 
     /**
@@ -151,17 +159,33 @@ final readonly class FinalizeOrder
         $listing->getQuery()->lockedForPlacement();
     }
 
+    /**
+     * @param  BelongsTo<Variant, OrderItem>  $variant
+     */
+    private function takeForUpdateVariant(BelongsTo $variant): void
+    {
+        $variant->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Unit, OrderItem>  $unit
+     */
+    private function takeForUpdateUnit(BelongsTo $unit): void
+    {
+        $unit->getQuery()->lockedForPlacement();
+    }
+
     private function sellItems(Order $order): void
     {
         foreach ($order->items as $item) {
-            $item->listing->sell($item->quantity);
+            StockMovement::claim($item);
         }
     }
 
     private function restockItems(Order $order): void
     {
         foreach ($this->lockListings($order)->items as $item) {
-            $item->listing->restock($item->quantity);
+            StockMovement::release($item);
         }
     }
 }

@@ -40,7 +40,7 @@
 
                         <p class="mt-1 text-sm text-neutral-500">Quantity {{ $item->quantity }}</p>
 
-                        @if ($reason = $plan->blockedReasonFor($item->listing_id))
+                        @if ($reason = $plan->blockedReasonFor($item->id))
                             <p class="mt-2 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-900">
                                 {{ ucfirst($reason->notice()) }}
                             </p>

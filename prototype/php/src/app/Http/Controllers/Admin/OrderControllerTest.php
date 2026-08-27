@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Orders\FinalizeOrder;
+use App\Actions\Orders\PlaceOrder;
 use App\Models\Customer;
+use App\Models\Variant;
 
 it('lists every order with its customer', function (): void {
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);
@@ -94,6 +100,37 @@ it('says so on an order nobody has paid for yet, whose fulfillment is already wa
     $response->assertOk();
     $response->assertSee('No payment attempts yet.');
     $response->assertSee('Awaiting shipment');
+});
+
+it('renders a configured lines configuration and itemized breakdown', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Engraved Signet Ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    app(GenerateVariants::class)($listing);
+    $variant = Variant::whereHas('options', fn ($query) => $query->where('option_value_id', $roseGold->id))->sole();
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)(
+        $cart,
+        $listing,
+        1,
+        $this->moment('2026-08-20 08:00:00'),
+        listingHasVariants: true,
+        variant: $variant,
+        configuration: [['axisId' => $metal->id, 'axisName' => 'Metal', 'optionValueId' => $roseGold->id, 'optionValueLabel' => 'Rose Gold']],
+    );
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    $response->assertSee('Metal:');
+    $response->assertSee('Rose Gold');
+    $response->assertSee('Base price');
+    $response->assertSee('$128.00');
 });
 
 it('sends a guest to the admin login page', function (): void {

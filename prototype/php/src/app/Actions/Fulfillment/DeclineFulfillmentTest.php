@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Fulfillment;
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Orders\FinalizeOrder;
+use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
@@ -64,6 +69,28 @@ it('puts exactly the declined quantities back on the storefront', function (): v
 
     expect($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
+it('restores a configured lines variant quantity on decline', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 3]);
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 2, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($variant->refresh()->quantity)->toBe(1);
+
+    app(DeclineFulfillment::class)($order->fulfillments()->sole(), 'Damaged.', $this->moment('2026-08-21 09:00:00'));
+
+    expect($variant->refresh()->quantity)->toBe(3);
 });
 
 it('leaves another seller\'s lines on the same order sold', function (): void {
