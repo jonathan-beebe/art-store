@@ -10,10 +10,14 @@
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
-- BUG: 9
+- BUG: 13
 
 ## Log
 
+- 2026-08-27:18:25:06 — BUG-012 — defined: A standalone choice's selected option hides its price in the buyer dropdown
+- 2026-08-27:18:25:06 — BUG-011 — defined: The Basics screen lacks the buyer-view panel
+- 2026-08-27:18:25:06 — BUG-010 — defined: Uploaded listing images render broken under the CSP
+- 2026-08-27:18:25:06 — BUG-009 — defined: Creating a listing still opens the legacy flat form
 - 2026-08-27:17:12:40 — DSGN-002 — done: row-based editor hub (Your item · Images · section rows beside the buyer-view panel; flat form retired; Basics detail screen with the item facts; price/stock only while unconfigured) and creation-time pricing modes (standalone options carry their own price replacing the base, add-ons stay signed deltas; price_cents sync-derived; option_missing_price gate; mode frozen once options exist); listing_images (img prefix, cover-first, 8-cap, buyer thumbnail grid); docs §2–§7 carry the design; Sunset Ridge end-to-end smoke; 2672 tests, 100% lines; IMPRV-013 closed with it
 - 2026-08-27:17:12:40 — IMPRV-013 — done: buyer-view panel on the edit hub, landed with DSGN-002's row-based hub (both hub states)
 - 2026-08-27:14:43:20 — DSGN-002 — implementation started (canvas approved by human review; Direction B — creation-time pricing mode — is the decided mechanism)
