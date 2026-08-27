@@ -8,7 +8,7 @@ use App\Models\Listing;
 
 /**
  * `/art/{slug}`'s Highlights panel: a listing's fixed, category-gated facts
- * (Material: Sterling Silver) grouped by property name, in the order the
+ * (Metal: Gold) grouped by property name, in the order the
  * seller set them. A listing with no `listing_attributes` rows resolves to
  * an empty list, so the panel renders nothing rather than an empty shell.
  * Medium is left out — the page's own Medium line (FEAT-030) already carries

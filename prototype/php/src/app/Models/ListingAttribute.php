@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * One search-facet fact about a listing: a category-gated property paired
- * with one of its values (Material: Sterling Silver). A property the category
+ * with one of its values (Metal: Gold). A property the category
  * marks `multivalued` may hold more than one row on the same listing.
  *
  * @property-read Property $property

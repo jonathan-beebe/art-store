@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-27:07:12:25 — FEAT-031 — done: One Medium vocabulary (14 high-level values); Material property/grants removed; walnut table gains a Wood option axis (Walnut/Oak, 8 variants); Garden Gnome demonstrates multivalued Medium (Sculpture + Wood); 2315 tests, 6690 assertions, 100% lines
+- 2026-08-27:07:01:28 — FEAT-031 — started
+
 - 2026-08-27:00:00:00 — RFCTR-009 — defined: Remove the legacy listings.medium column
 - 2026-08-27:00:00:00 — FEAT-031 — defined: One Medium vocabulary — high-level attributes, specific axes
 - 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines

@@ -200,10 +200,11 @@ class ConfiguratorArchetypeSeeder extends Seeder
     }
 
     /**
-     * Two dimension axes with a sparse, hand-priced matrix: only the
+     * Two dimension axes with a sparse, hand-priced matrix — only the
      * combinations the seller actually sells get a variant row, each with a
-     * `price_override_cents` rather than a summed surcharge — the primitive
-     * that replaces the 136-cell hand-priced matrix.
+     * `price_override_cents` rather than a summed surcharge, the primitive
+     * that replaces the 136-cell hand-priced matrix — crossed with a third,
+     * dense Wood axis: every priced cell exists in both Walnut and Oak.
      */
     private function walnutTable(Seller $seller): Listing
     {
@@ -227,20 +228,29 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $w24 = $this->value($width, '24 in', 0);
         $w30 = $this->value($width, '30 in', 0);
 
-        $createVariant = app(CreateVariant::class);
-        // Sparse: four of the six possible cells, each hand-priced. 36x30 and
-        // 60x24 are never created — a seller who does not offer them adds no
-        // row for them, rather than materializing every cell of the grid.
-        $createVariant($listing, [$l36, $w24], priceOverrideCents: 80000);
-        $createVariant($listing, [$l48, $w24], priceOverrideCents: 95000);
-        $createVariant($listing, [$l48, $w30], priceOverrideCents: 110000);
-        $createVariant($listing, [$l60, $w30], priceOverrideCents: 135000);
+        // Which wood is the buyer's choice, not a second attribute vocabulary
+        // (FEAT-031): the attribute below says Wood, this axis says which.
+        $wood = $this->axis($listing, 'Wood');
+        $walnut = $this->value($wood, 'Walnut', 0, isDefault: true);
+        $oak = $this->value($wood, 'Oak', 0);
 
-        // Furniture's Material grant is multivalued (TaxonomySeeder) — this
-        // table is genuinely both: a walnut top on oak legs.
-        $this->attribute($listing, 'Material', 'Walnut');
-        $this->attribute($listing, 'Material', 'Oak');
-        $this->attribute($listing, 'Medium', 'Walnut');
+        $createVariant = app(CreateVariant::class);
+        // Sparse: four of the six possible Length x Width cells, each
+        // hand-priced. 36x30 and 60x24 are never created — a seller who does
+        // not offer them adds no row for them, rather than materializing
+        // every cell of the grid. Each priced cell carries its price to both
+        // Wood options — the wood choice is stylistic, not a size surcharge —
+        // so the sparse grid crosses with the full Wood axis.
+        $createVariant($listing, [$l36, $w24, $walnut], priceOverrideCents: 80000);
+        $createVariant($listing, [$l36, $w24, $oak], priceOverrideCents: 80000);
+        $createVariant($listing, [$l48, $w24, $walnut], priceOverrideCents: 95000);
+        $createVariant($listing, [$l48, $w24, $oak], priceOverrideCents: 95000);
+        $createVariant($listing, [$l48, $w30, $walnut], priceOverrideCents: 110000);
+        $createVariant($listing, [$l48, $w30, $oak], priceOverrideCents: 110000);
+        $createVariant($listing, [$l60, $w30, $walnut], priceOverrideCents: 135000);
+        $createVariant($listing, [$l60, $w30, $oak], priceOverrideCents: 135000);
+
+        $this->attribute($listing, 'Medium', 'Wood');
 
         app(AddDescriptionSection::class)($listing, 0, DescriptionSectionKind::Care, 'Care', 'Oil every six months with food-safe mineral oil. Wipe spills promptly — walnut marks with standing water.');
 
@@ -280,8 +290,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
             );
         }
 
-        $this->attribute($listing, 'Material', 'Brass');
-        $this->attribute($listing, 'Medium', 'Brass');
+        $this->attribute($listing, 'Medium', 'Metal');
 
         return $listing;
     }
@@ -364,7 +373,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         // Art's Medium grant is required (TaxonomySeeder) — this is the
         // archetype that carries it.
-        $this->attribute($listing, 'Medium', 'Watercolor');
+        $this->attribute($listing, 'Medium', 'Painting');
 
         return $listing;
     }

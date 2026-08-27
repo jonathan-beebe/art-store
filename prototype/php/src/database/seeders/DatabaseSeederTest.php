@@ -75,8 +75,8 @@ it('mirrors listing_attributes to the storefront media vocabulary, every listing
         ->all();
 
     expect($labels)->toBe([
-        'apparel', 'brass', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
-        'photograph', 'plant', 'print', 'publication', 'sculpture', 'textile', 'walnut', 'watercolor',
+        'apparel', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
+        'photograph', 'plant', 'print', 'publication', 'sculpture', 'textile', 'wood',
     ]);
 });
 

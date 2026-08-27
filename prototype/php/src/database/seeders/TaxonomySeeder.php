@@ -40,33 +40,30 @@ class TaxonomySeeder extends Seeder
         $ringSize = $this->property('Ring Size', ['6', '7', '8', '9']);
         $this->grant($rings, $ringSize, usableAsAttribute: false, usableAsAxis: true, required: true);
 
-        $material = $this->property('Material', ['Walnut', 'Brass', 'Oak', 'Cotton']);
-        $this->grant($homeGoods, $material, usableAsAttribute: true, usableAsAxis: false);
-        // Furniture's own grant is multivalued: a table can be Walnut and Oak
-        // at once, where Home Goods' grant on the same property stays
-        // single-valued for its other listings.
-        $this->grant($furniture, $material, usableAsAttribute: true, usableAsAxis: false, multivalued: true);
-
         $color = $this->property('Color', ['Black', 'White', 'Heather Grey']);
         $this->grant($apparel, $color, usableAsAttribute: true, usableAsAxis: true);
 
         $size = $this->property('Size', ['S', 'M', 'L', 'XL', 'XXL']);
         $this->grant($apparel, $size, usableAsAttribute: false, usableAsAxis: true, required: true);
 
-        // The storefront's whole media vocabulary (FEAT-030): the four
-        // original values (Print, Watercolor, Photograph kept as-is; Oil kept
-        // even though no seeded listing uses it today) plus every legacy
-        // `medium` string the seeders carry, so `listing_attributes` can
-        // answer the storefront filter for anything the store sells.
+        // One high-level vocabulary (FEAT-031): each value is a browse-altitude
+        // fact ("this is wood", "this is a sculpture") that covers every
+        // legacy `medium` string the seeders carry. A specific type — which
+        // wood, which metal — lives on an option axis instead (the walnut
+        // table's Wood axis, the ring's Metal axis), never a second attribute
+        // vocabulary.
         $medium = $this->property('Medium', [
-            'Print', 'Oil', 'Watercolor', 'Photograph',
-            'Painting', 'Ceramic', 'Textile', 'Sculpture', 'Plant', 'Publication',
-            'Curio', 'Jewelry', 'Metal', 'Apparel', 'Walnut', 'Brass', 'Paper',
+            'Painting', 'Print', 'Photograph', 'Ceramic', 'Textile', 'Sculpture',
+            'Wood', 'Metal', 'Paper', 'Plant', 'Publication', 'Curio', 'Jewelry', 'Apparel',
         ]);
         $this->grant($art, $medium, usableAsAttribute: true, usableAsAxis: false, required: true);
         $this->grant($jewelry, $medium, usableAsAttribute: true, usableAsAxis: false);
         $this->grant($rings, $medium, usableAsAttribute: true, usableAsAxis: false);
-        $this->grant($homeGoods, $medium, usableAsAttribute: true, usableAsAxis: false);
+        // Home Goods' grant is multivalued: a sculpture built from a
+        // reclaimed beam is genuinely both Sculpture and Wood at once, where
+        // Furniture's grant on the same property stays single-valued — the
+        // walnut table's specific wood lives on its own axis instead.
+        $this->grant($homeGoods, $medium, usableAsAttribute: true, usableAsAxis: false, multivalued: true);
         $this->grant($furniture, $medium, usableAsAttribute: true, usableAsAxis: false);
         $this->grant($apparel, $medium, usableAsAttribute: true, usableAsAxis: false);
         $this->grant($stationery, $medium, usableAsAttribute: true, usableAsAxis: false);

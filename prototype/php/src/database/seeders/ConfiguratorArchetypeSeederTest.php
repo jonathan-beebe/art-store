@@ -90,20 +90,24 @@ it('gives the tee’s larger sizes their surcharge', function (): void {
         ->and($listing->variants()->count())->toBe(15);
 });
 
-it('gives the walnut table sparse variants with price overrides, not the full grid', function (): void {
+it('gives the walnut table sparse variants with price overrides crossed with a full Wood axis', function (): void {
     $listing = archetypeListing('Live-Edge Walnut Dining Table');
 
-    expect($listing->variants()->count())->toBe(4);
+    expect($listing->optionAxes()->count())->toBe(3)
+        ->and($listing->variants()->count())->toBe(8);
 
     foreach ($listing->variants()->get() as $variant) {
-        expect($variant->price_override_cents)->not->toBeNull();
+        expect($variant->price_override_cents)->not->toBeNull()
+            ->and($variant->axisIdsCovered())->toHaveCount(3);
     }
+
+    $wood = $listing->optionAxes()->where('name', 'Wood')->sole();
+
+    expect($wood->optionValues()->pluck('label')->sort()->values()->all())->toBe(['Oak', 'Walnut']);
 
     $attributes = $listing->listingAttributes()->with(['property', 'propertyValue'])->get();
 
-    expect($attributes->where('property.name', 'Material')->pluck('propertyValue.label')->all())
-        ->toEqualCanonicalizing(['Walnut', 'Oak'])
-        ->and($attributes->where('property.name', 'Medium')->sole()->propertyValue->label)->toBe('Walnut');
+    expect($attributes->where('property.name', 'Medium')->sole()->propertyValue->label)->toBe('Wood');
 });
 
 it('derives the candlestick variant’s available quantity from its twelve units', function (): void {
@@ -143,19 +147,19 @@ it('carries the pet portraits required Medium attribute', function (): void {
     $listing = archetypeListing('Custom Pet Portrait');
 
     expect($listing->publishIssues())->toBe([])
-        ->and($listing->listingAttributes()->with('propertyValue')->sole()->propertyValue->label)->toBe('Watercolor');
+        ->and($listing->listingAttributes()->with('propertyValue')->sole()->propertyValue->label)->toBe('Painting');
 });
 
-it('carries a Medium attribute matching every archetype’s legacy medium string', function (): void {
+it('carries a Medium attribute holding every archetype’s consolidated high-level value', function (): void {
     foreach ([
         'Meadow at Dawn, 8x10 Print' => 'Print',
         'Engraved Signet Ring' => 'Metal',
         'Stoneware Coffee Mug' => 'Ceramic',
         'Line Art Cat Tee' => 'Apparel',
-        'Live-Edge Walnut Dining Table' => 'Walnut',
-        'Vintage Brass Candlesticks, Individually Listed' => 'Brass',
+        'Live-Edge Walnut Dining Table' => 'Wood',
+        'Vintage Brass Candlesticks, Individually Listed' => 'Metal',
         'Letterpress Wedding Invitations' => 'Paper',
-        'Custom Pet Portrait' => 'Watercolor',
+        'Custom Pet Portrait' => 'Painting',
     ] as $title => $expectedLabel) {
         $medium = archetypeListing($title)->listingAttributes()
             ->with(['property', 'propertyValue'])

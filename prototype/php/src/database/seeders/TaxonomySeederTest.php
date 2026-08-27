@@ -24,21 +24,21 @@ it('seeds a category tree with grants exercising attribute, axis, and required',
         ->and($ringSizeGrant->required)->toBeTrue()
         ->and($ringSizeGrant->usable_as_attribute)->toBeFalse();
 
-    $materialGrant = CategoryProperty::query()
+    $homeGoodsMediumGrant = CategoryProperty::query()
         ->whereHas('category', fn ($q) => $q->where('name', 'Home Goods'))
-        ->whereHas('property', fn ($q) => $q->where('name', 'Material'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
         ->sole();
 
-    expect($materialGrant->usable_as_attribute)->toBeTrue()
-        ->and($materialGrant->usable_as_axis)->toBeFalse()
-        ->and($materialGrant->multivalued)->toBeFalse();
+    expect($homeGoodsMediumGrant->usable_as_attribute)->toBeTrue()
+        ->and($homeGoodsMediumGrant->usable_as_axis)->toBeFalse()
+        ->and($homeGoodsMediumGrant->multivalued)->toBeTrue();
 
-    $furnitureMaterialGrant = CategoryProperty::query()
+    $furnitureMediumGrant = CategoryProperty::query()
         ->whereHas('category', fn ($q) => $q->where('name', 'Furniture'))
-        ->whereHas('property', fn ($q) => $q->where('name', 'Material'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
         ->sole();
 
-    expect($furnitureMaterialGrant->multivalued)->toBeTrue();
+    expect($furnitureMediumGrant->multivalued)->toBeFalse();
 
     $mediumGrant = CategoryProperty::query()
         ->whereHas('category', fn ($q) => $q->where('name', 'Art'))
@@ -52,14 +52,14 @@ it('seeds a category tree with grants exercising attribute, axis, and required',
         ->toBe(['Gold', 'Silver', 'Rose Gold']);
 });
 
-it('extends Medium to the storefront vocabulary and grants it as an attribute everywhere a listing is seeded', function (): void {
+it('gives Medium one high-level vocabulary and grants it as an attribute everywhere a listing is seeded', function (): void {
     $this->seed(TaxonomySeeder::class);
 
     expect(Property::where('name', 'Medium')->sole()->values()->pluck('label')->sort()->values()->all())
         ->toBe([
-            'Apparel', 'Brass', 'Ceramic', 'Curio', 'Jewelry', 'Metal', 'Oil', 'Painting',
+            'Apparel', 'Ceramic', 'Curio', 'Jewelry', 'Metal', 'Painting',
             'Paper', 'Photograph', 'Plant', 'Print', 'Publication', 'Sculpture', 'Textile',
-            'Walnut', 'Watercolor',
+            'Wood',
         ]);
 
     foreach (['Art', 'Jewelry', 'Rings', 'Home Goods', 'Furniture', 'Apparel', 'Stationery'] as $categoryName) {
@@ -77,5 +77,5 @@ it('changes nothing on a second run', function (): void {
     $this->seed(TaxonomySeeder::class);
 
     expect(Category::count())->toBe(7)
-        ->and(Property::count())->toBe(7);
+        ->and(Property::count())->toBe(6);
 });

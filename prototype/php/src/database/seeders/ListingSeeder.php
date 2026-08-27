@@ -49,6 +49,16 @@ class ListingSeeder extends Seeder
         'photography' => 'Photograph',
     ];
 
+    /**
+     * The one listing that exercises Home Goods' multivalued Medium grant
+     * (FEAT-031): a sculpture carved from a reclaimed beam is genuinely both
+     * Sculpture and Wood at once, matching this title to a second Medium
+     * value beyond the one every listing gets automatically.
+     */
+    private const MULTIVALUED_MEDIUM_TITLE = 'Garden Gnome in Reclaimed Oak';
+
+    private const ADDITIONAL_MEDIUM_VALUE = 'Wood';
+
     public function run(): void
     {
         $sellers = Seller::query()->get()->keyBy('email');
@@ -69,17 +79,23 @@ class ListingSeeder extends Seeder
             ));
 
             $this->advance($listing, $entry['status']);
-            $this->attributeMedium($listing, $entry['medium']);
+            $this->attributeMedium($listing, self::MEDIUM_LABEL_OVERRIDES[$entry['medium']] ?? ucfirst($entry['medium']));
+
+            // Home Goods' Medium grant is multivalued (TaxonomySeeder) — this
+            // is the one listing that demonstrates it, carrying Sculpture
+            // (above) and Wood at once.
+            if ($entry['title'] === self::MULTIVALUED_MEDIUM_TITLE) {
+                $this->attributeMedium($listing, self::ADDITIONAL_MEDIUM_VALUE);
+            }
         }
     }
 
     /**
-     * The Medium attribute matching this listing's legacy medium string.
+     * A Medium attribute matching the given label.
      */
-    private function attributeMedium(Listing $listing, string $legacyMedium): void
+    private function attributeMedium(Listing $listing, string $label): void
     {
         $property = Property::where('name', 'Medium')->sole();
-        $label = self::MEDIUM_LABEL_OVERRIDES[$legacyMedium] ?? ucfirst($legacyMedium);
 
         ListingAttribute::create([
             'listing_id' => $listing->id,
