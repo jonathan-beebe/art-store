@@ -10,8 +10,13 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Reports\DailyActivity;
+use App\Models\Category;
+use App\Models\CategoryProperty;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
 use App\Models\ListingRemoval;
+use App\Models\Property;
+use App\Models\PropertyValue;
 use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
@@ -98,6 +103,16 @@ it('renders the create form', function (): void {
     $response->assertOk();
     $response->assertSee('New listing');
     $response->assertSee('for="price"', escape: false);
+});
+
+it('offers the category tree on the create form, indented by depth', function (): void {
+    $jewelry = Category::factory()->create(['name' => 'Jewelry', 'path' => '/jewelry/']);
+    Category::factory()->create(['name' => 'Rings', 'path' => '/jewelry/rings/', 'parent_id' => $jewelry->id]);
+
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings/create');
+
+    $response->assertSee('Jewelry');
+    $response->assertSee('— Rings', escape: false);
 });
 
 it('creates a listing from the form', function () use ($form): void {
@@ -267,6 +282,71 @@ it('renders the edit form with the price in dollars', function (): void {
 
     $response->assertOk();
     $response->assertSee('value="249.00"', escape: false);
+});
+
+it('preselects the listings current category on the edit form', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create(['name' => 'Jewelry']);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('value="'.$category->id.'" selected', escape: false);
+});
+
+it('shows an attributes section for a categorized listing with attribute grants', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create(['name' => 'Material']);
+    PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Walnut']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('Attributes');
+    $response->assertSee('Material');
+    $response->assertSee('Walnut');
+});
+
+it('shows no attributes section for an uncategorized listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertDontSee('id="attributes-heading"', escape: false);
+});
+
+it('links a missing required attribute to its control on the edit form', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $listing = $this->listing($seller, ['category_id' => $category->id, 'status' => ListingStatus::Draft]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('#attribute-'.$property->id, escape: false);
+});
+
+it('preselects a listings existing attribute values on the edit form', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    $value = PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Brass']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+    ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $property->id, 'property_value_id' => $value->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('value="'.$value->id.'" selected', escape: false);
 });
 
 it('renders the edit form as a PUT form', function (): void {

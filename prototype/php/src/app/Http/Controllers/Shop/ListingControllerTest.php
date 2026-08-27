@@ -16,9 +16,12 @@ use App\Actions\Configurator\ScopeModifier;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
+use App\Models\ListingAttribute;
 use App\Models\ListingEvent;
 use App\Models\ListingFaq;
 use App\Models\ListingRemoval;
+use App\Models\Property;
+use App\Models\PropertyValue;
 use Tests\CapturedStory;
 
 it('shows the listing in full', function (): void {
@@ -282,6 +285,27 @@ it('shows the wedding invitations quantity-break table and applies the tier live
     $response->assertSee('100+');
     $response->assertSee('Quantity discount (100+)');
     $response->assertSee('$270.00');
+});
+
+it('renders a Highlights panel from the listings attributes', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $material = Property::factory()->create(['name' => 'Material']);
+    $walnut = PropertyValue::factory()->create(['property_id' => $material->id, 'label' => 'Walnut']);
+    ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $material->id, 'property_value_id' => $walnut->id]);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('Highlights');
+    $response->assertSee('Material');
+    $response->assertSee('Walnut');
+});
+
+it('renders no Highlights panel for a listing with no attributes', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertDontSee('Highlights');
 });
 
 it('keeps the legacy zero-axis listing on its one-click add, with no configurator section', function (): void {

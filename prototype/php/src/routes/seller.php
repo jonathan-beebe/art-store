@@ -10,6 +10,7 @@ use App\Http\Controllers\Seller\DescriptionSectionReorderController;
 use App\Http\Controllers\Seller\EarningsController;
 use App\Http\Controllers\Seller\EventsController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
+use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingFaqController;
 use App\Http\Controllers\Seller\ListingStatusController;
@@ -34,6 +35,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
 
     Route::resource('listings', ListingController::class)->except('destroy');
     Route::post('listings/{listing}/status', ListingStatusController::class)->name('listings.status');
+    Route::put('listings/{listing}/attributes', [ListingAttributeController::class, 'update'])->name('listings.attributes.update');
     Route::resource('listings.faqs', ListingFaqController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->scoped();

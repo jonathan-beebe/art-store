@@ -19,11 +19,14 @@ final readonly class ListingDraft
         public ?string $dimensions,
         public Money $price,
         public int $quantity,
+        public ?string $categoryId = null,
     ) {}
 
     /**
      * Four of the six fields are strings that transpose without a word of
-     * complaint, so the one way in takes them by name.
+     * complaint, so the one way in takes them by name. `categoryId` defaults
+     * to null — an uncategorized listing is as valid as it was before the
+     * taxonomy existed.
      */
     public static function of(
         string $title,
@@ -32,8 +35,9 @@ final readonly class ListingDraft
         ?string $dimensions,
         Money $price,
         int $quantity,
+        ?string $categoryId = null,
     ): self {
-        return new self($title, $description, $medium, $dimensions, $price, $quantity);
+        return new self($title, $description, $medium, $dimensions, $price, $quantity, $categoryId);
     }
 
     /**
@@ -48,6 +52,7 @@ final readonly class ListingDraft
             'dimensions' => $this->dimensions,
             'price_cents' => $this->price->cents,
             'quantity' => $this->quantity,
+            'category_id' => $this->categoryId,
         ];
     }
 }

@@ -16,6 +16,9 @@ use Override;
  * One grant: a {@see Category} allows a {@see Property} to be used on the
  * listings placed in it, and how — as a search attribute, a buyer-facing
  * option axis, required, or repeatable per listing.
+ *
+ * @property-read Category $category
+ * @property-read Property $property
  */
 #[Fillable(['category_id', 'property_id', 'usable_as_attribute', 'usable_as_axis', 'required', 'multivalued'])]
 class CategoryProperty extends Model

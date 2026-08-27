@@ -10,6 +10,7 @@ use App\Models\Listing;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Override;
 
 final class ListingRequest extends FormRequest
@@ -30,7 +31,7 @@ final class ListingRequest extends FormRequest
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<mixed>>
      */
     public function rules(): array
     {
@@ -41,6 +42,7 @@ final class ListingRequest extends FormRequest
             'dimensions' => ['nullable', 'string', 'max:255'],
             'price' => ['required', 'regex:/^\d+(\.\d{1,2})?$/'],
             'quantity' => ['required', 'integer', 'min:0', 'max:999'],
+            'category_id' => ['nullable', 'string', Rule::exists('categories', 'id')],
             // `image` and `mimes` both read the declared type, which an upload
             // controls. `dimensions` decodes the file, so a text file renamed
             // .jpg is rejected here rather than served as a broken listing image.
@@ -68,6 +70,7 @@ final class ListingRequest extends FormRequest
             $this->optionalString('dimensions'),
             Money::fromDollars($this->string('price')->toString()),
             $this->integer('quantity'),
+            $this->optionalString('category_id'),
         );
     }
 

@@ -30,6 +30,8 @@ final readonly class ConfiguratorPublishValidation
      * @param  list<string>  $axisIds
      * @param  list<int>  $optionCountsPerAxis
      * @param  list<VariantSnapshot>  $variants
+     * @param  list<string>  $requiredAttributePropertyIds  `category_properties` grants that are both `usable_as_attribute` and `required` for this listing's category
+     * @param  list<string>  $attributedPropertyIds  property ids the listing already holds at least one `listing_attributes` row for
      * @return list<PublishIssue>
      */
     public static function check(
@@ -39,6 +41,8 @@ final readonly class ConfiguratorPublishValidation
         int $modifierCount,
         int $quantityBreakCount,
         int $sectionCount,
+        array $requiredAttributePropertyIds = [],
+        array $attributedPropertyIds = [],
     ): array {
         $issues = [];
 
@@ -53,6 +57,12 @@ final readonly class ConfiguratorPublishValidation
 
             if ($variant->enabled && $variant->isSerialized && $variant->availableUnitCount < 1) {
                 $issues[] = PublishIssue::of('serialized_variant_has_no_units', "Serialized variant {$variant->id} has no available unit.", $variant->id);
+            }
+        }
+
+        foreach ($requiredAttributePropertyIds as $propertyId) {
+            if (! in_array($propertyId, $attributedPropertyIds, true)) {
+                $issues[] = PublishIssue::of('missing_required_attribute', 'A required attribute has no value set.', $propertyId);
             }
         }
 

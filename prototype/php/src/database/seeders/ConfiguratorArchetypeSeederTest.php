@@ -99,7 +99,8 @@ it('gives the walnut table sparse variants with price overrides, not the full gr
         expect($variant->price_override_cents)->not->toBeNull();
     }
 
-    expect($listing->listingAttributes()->count())->toBe(1);
+    expect($listing->listingAttributes()->with('propertyValue')->get()->pluck('propertyValue.label')->all())
+        ->toEqualCanonicalizing(['Walnut', 'Oak']);
 });
 
 it('derives the candlestick variant’s available quantity from its twelve units', function (): void {
@@ -127,6 +128,29 @@ it('generates the pet portrait’s two-axis grid', function (): void {
 
     expect($listing->optionAxes()->count())->toBe(2)
         ->and($listing->variants()->count())->toBe(6);
+});
+
+it('carries the pet portraits required Medium attribute', function (): void {
+    $listing = archetypeListing('Custom Pet Portrait');
+
+    expect($listing->publishIssues())->toBe([])
+        ->and($listing->listingAttributes()->with('propertyValue')->sole()->propertyValue->label)->toBe('Watercolor');
+});
+
+it('categorizes every configured archetype except the legacy, axis-free print', function (): void {
+    expect(archetypeListing('Meadow at Dawn, 8x10 Print')->category_id)->toBeNull();
+
+    foreach ([
+        'Engraved Signet Ring',
+        'Stoneware Coffee Mug',
+        'Line Art Cat Tee',
+        'Live-Edge Walnut Dining Table',
+        'Vintage Brass Candlesticks, Individually Listed',
+        'Letterpress Wedding Invitations',
+        'Custom Pet Portrait',
+    ] as $title) {
+        expect(archetypeListing($title)->category_id)->not->toBeNull();
+    }
 });
 
 it('changes nothing on a second run', function (): void {

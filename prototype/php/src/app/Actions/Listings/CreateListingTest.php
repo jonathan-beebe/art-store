@@ -7,6 +7,7 @@ namespace App\Actions\Listings;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
+use App\Models\Category;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -28,6 +29,21 @@ it('writes the drafted fields', function () use ($draft): void {
         ->and($listing->dimensions)->toBe('12 x 16 in')
         ->and($listing->price_cents)->toBe(24500)
         ->and($listing->quantity)->toBe(2);
+});
+
+it('leaves a listing uncategorized by default', function () use ($draft): void {
+    $listing = app(CreateListing::class)($this->seller(), $draft());
+
+    expect($listing->category_id)->toBeNull();
+});
+
+it('categorizes a listing the seller assigned one to', function (): void {
+    $category = Category::factory()->create();
+    $draft = ListingDraft::of('Harbour at Dusk', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(24500), 2, $category->id);
+
+    $listing = app(CreateListing::class)($this->seller(), $draft);
+
+    expect($listing->category_id)->toBe($category->id);
 });
 
 it('starts a listing as a draft', function () use ($draft): void {

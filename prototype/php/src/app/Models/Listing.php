@@ -222,6 +222,17 @@ class Listing extends Model
             $variant->axisIdsCovered(),
         ))->all());
 
+        /** @var list<string> $requiredAttributePropertyIds */
+        $requiredAttributePropertyIds = $this->category_id === null ? [] : array_values(CategoryProperty::query()
+            ->where('category_id', $this->category_id)
+            ->where('usable_as_attribute', true)
+            ->where('required', true)
+            ->pluck('property_id')
+            ->all());
+
+        /** @var list<string> $attributedPropertyIds */
+        $attributedPropertyIds = array_values($this->listingAttributes()->distinct()->pluck('property_id')->all());
+
         return ConfiguratorPublishValidation::check(
             axisIds: array_values($axes->map(fn (OptionAxis $axis): string => $axis->id)->all()),
             optionCountsPerAxis: array_values($axes->map(function (OptionAxis $axis): int {
@@ -233,6 +244,8 @@ class Listing extends Model
             modifierCount: $this->modifiers()->count(),
             quantityBreakCount: $this->quantityBreaks()->count(),
             sectionCount: $this->descriptionSections()->count(),
+            requiredAttributePropertyIds: $requiredAttributePropertyIds,
+            attributedPropertyIds: $attributedPropertyIds,
         );
     }
 

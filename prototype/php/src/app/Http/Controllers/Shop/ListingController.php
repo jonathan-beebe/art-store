@@ -11,6 +11,7 @@ use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Support\Configurator\ConfiguratorInput;
 use App\Support\Configurator\ConfiguratorPageResolver;
+use App\Support\Configurator\ListingHighlights;
 use App\Support\Story;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ final class ListingController extends ShopController
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
             'hasConfigurator' => $hasConfigurator,
             'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
+            'highlights' => ListingHighlights::forStorefront($listing),
         ]);
     }
 }

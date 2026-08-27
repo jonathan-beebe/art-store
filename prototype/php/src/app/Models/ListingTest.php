@@ -67,6 +67,58 @@ it('flags too many modifiers among its publish issues', function (): void {
         ->toBe(['too_many_modifiers']);
 });
 
+it('flags a required attribute with no value among its publish issues', function (): void {
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+
+    $issues = $listing->publishIssues();
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))->toBe(['missing_required_attribute'])
+        ->and($issues[0]->subjectId)->toBe($property->id);
+});
+
+it('does not flag a required attribute the listing already holds a value for', function (): void {
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $value = PropertyValue::factory()->create(['property_id' => $property->id]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    ListingAttribute::factory()->create([
+        'listing_id' => $listing->id,
+        'property_id' => $property->id,
+        'property_value_id' => $value->id,
+    ]);
+
+    expect($listing->publishIssues())->toBe([]);
+});
+
+it('ignores a required grant belonging to another category', function (): void {
+    $category = Category::factory()->create();
+    $otherCategory = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $otherCategory->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+
+    expect($listing->publishIssues())->toBe([]);
+});
+
 it('reads the faqs published on it', function (): void {
     $listing = $this->listing($this->seller());
     ListingFaq::factory()->create(['listing_id' => $listing->id]);

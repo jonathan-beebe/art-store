@@ -225,13 +225,16 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $createVariant($listing, [$l48, $w30], priceOverrideCents: 110000);
         $createVariant($listing, [$l60, $w30], priceOverrideCents: 135000);
 
+        // Furniture's Material grant is multivalued (TaxonomySeeder) — this
+        // table is genuinely both: a walnut top on oak legs.
         $material = Property::where('name', 'Material')->sole();
-        $walnut = $material->values()->where('label', 'Walnut')->sole();
-        ListingAttribute::create([
-            'listing_id' => $listing->id,
-            'property_id' => $material->id,
-            'property_value_id' => $walnut->id,
-        ]);
+        foreach (['Walnut', 'Oak'] as $label) {
+            ListingAttribute::create([
+                'listing_id' => $listing->id,
+                'property_id' => $material->id,
+                'property_value_id' => $material->values()->where('label', $label)->sole()->id,
+            ]);
+        }
 
         app(AddDescriptionSection::class)($listing, 0, DescriptionSectionKind::Care, 'Care', 'Oil every six months with food-safe mineral oil. Wipe spills promptly — walnut marks with standing water.');
 
@@ -350,6 +353,16 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $this->value($sizeAndFraming, '11x14 Framed', 4000);
 
         app(GenerateVariants::class)($listing);
+
+        // Art's Medium grant is required (TaxonomySeeder) — this is the
+        // archetype that carries it.
+        $medium = Property::where('name', 'Medium')->sole();
+        $watercolor = $medium->values()->where('label', 'Watercolor')->sole();
+        ListingAttribute::create([
+            'listing_id' => $listing->id,
+            'property_id' => $medium->id,
+            'property_value_id' => $watercolor->id,
+        ]);
 
         return $listing;
     }

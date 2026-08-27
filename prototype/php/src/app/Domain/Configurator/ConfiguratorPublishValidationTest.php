@@ -71,6 +71,18 @@ it('flags an axis with too many options', function (): void {
         ->and($issues[0]->code)->toBe('axis_too_many_options');
 });
 
+it('flags a required attribute with no listing_attributes row', function (): void {
+    $issues = ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, requiredAttributePropertyIds: ['prp_01'], attributedPropertyIds: []);
+
+    expect($issues)->toHaveCount(1)
+        ->and($issues[0]->code)->toBe('missing_required_attribute')
+        ->and($issues[0]->subjectId)->toBe('prp_01');
+});
+
+it('does not flag a required attribute the listing already holds a value for', function (): void {
+    expect(ConfiguratorPublishValidation::check([], [], [], 0, 0, 0, ['prp_01'], ['prp_01']))->toBe([]);
+});
+
 it('flags too many variants, modifiers, quantity tiers, and sections', function (): void {
     $variants = array_fill(0, ConfiguratorPublishValidation::MAX_VARIANTS + 1, passingVariant());
 

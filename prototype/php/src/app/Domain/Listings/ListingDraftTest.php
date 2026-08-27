@@ -16,5 +16,12 @@ it('carries the typed fields a seller submitted into an attribute array', functi
         'dimensions' => '12 x 16 in',
         'price_cents' => 24900,
         'quantity' => 1,
+        'category_id' => null,
     ]);
+});
+
+it('carries the category a seller picked into the attribute array', function (): void {
+    $draft = ListingDraft::of('Harbour at Dusk', 'Oil on linen.', 'oil', '12 x 16 in', Money::fromCents(24900), 1, 'cat_01');
+
+    expect($draft->attributes()['category_id'])->toBe('cat_01');
 });

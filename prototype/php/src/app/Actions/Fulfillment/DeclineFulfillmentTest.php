@@ -6,11 +6,14 @@ namespace App\Actions\Fulfillment;
 
 use App\Actions\Cart\AddToCart;
 use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\AddUnit;
 use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
+use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
@@ -91,6 +94,25 @@ it('restores a configured lines variant quantity on decline', function (): void 
     app(DeclineFulfillment::class)($order->fulfillments()->sole(), 'Damaged.', $this->moment('2026-08-21 09:00:00'));
 
     expect($variant->refresh()->quantity)->toBe(3);
+});
+
+it('restores a configured line’s serialized unit to available on decline', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
+    $unit = app(AddUnit::class)($variant, '#1');
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant, unitId: $unit->id);
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($unit->refresh()->state)->toBe(UnitState::Sold);
+
+    app(DeclineFulfillment::class)($order->fulfillments()->sole(), 'Damaged.', $this->moment('2026-08-21 09:00:00'));
+
+    expect($unit->refresh()->state)->toBe(UnitState::Available);
 });
 
 it('leaves another seller\'s lines on the same order sold', function (): void {

@@ -42,7 +42,10 @@ class TaxonomySeeder extends Seeder
 
         $material = $this->property('Material', ['Walnut', 'Brass', 'Oak', 'Cotton']);
         $this->grant($homeGoods, $material, usableAsAttribute: true, usableAsAxis: false);
-        $this->grant($furniture, $material, usableAsAttribute: true, usableAsAxis: false);
+        // Furniture's own grant is multivalued: a table can be Walnut and Oak
+        // at once, where Home Goods' grant on the same property stays
+        // single-valued for its other listings.
+        $this->grant($furniture, $material, usableAsAttribute: true, usableAsAxis: false, multivalued: true);
 
         $color = $this->property('Color', ['Black', 'White', 'Heather Grey']);
         $this->grant($apparel, $color, usableAsAttribute: true, usableAsAxis: true);
@@ -51,7 +54,7 @@ class TaxonomySeeder extends Seeder
         $this->grant($apparel, $size, usableAsAttribute: false, usableAsAxis: true, required: true);
 
         $medium = $this->property('Medium', ['Print', 'Oil', 'Watercolor', 'Photograph']);
-        $this->grant($art, $medium, usableAsAttribute: true, usableAsAxis: false);
+        $this->grant($art, $medium, usableAsAttribute: true, usableAsAxis: false, required: true);
 
         $paperStock = $this->property('Paper Stock', ['Standard', 'Pearl Shimmer', 'Cotton Linen']);
         $this->grant($stationery, $paperStock, usableAsAttribute: false, usableAsAxis: true);
@@ -77,6 +80,7 @@ class TaxonomySeeder extends Seeder
         bool $usableAsAttribute,
         bool $usableAsAxis,
         bool $required = false,
+        bool $multivalued = false,
     ): void {
         CategoryProperty::create([
             'category_id' => $category->id,
@@ -84,6 +88,7 @@ class TaxonomySeeder extends Seeder
             'usable_as_attribute' => $usableAsAttribute,
             'usable_as_axis' => $usableAsAxis,
             'required' => $required,
+            'multivalued' => $multivalued,
         ]);
     }
 }

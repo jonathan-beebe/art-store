@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Models\Category;
 use App\Models\Listing;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,31 @@ it('rejects invalid listing input', function (array $overrides, string $field) u
     'a negative quantity' => [['quantity' => -1], 'quantity'],
     'more pieces than a studio makes' => [['quantity' => 1000], 'quantity'],
 ]);
+
+it('rejects a category id that does not exist', function () use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form(['category_id' => 'cat_does_not_exist']));
+
+    $response->assertSessionHasErrors('category_id');
+    expect(Listing::count())->toBe(0);
+});
+
+it('accepts a listing with no category', function () use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form());
+
+    $response->assertSessionDoesntHaveErrors('category_id');
+    expect(Listing::sole()->category_id)->toBeNull();
+});
+
+it('saves the category a seller picked', function () use ($form): void {
+    $category = Category::factory()->create();
+
+    $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form(['category_id' => $category->id]));
+
+    expect(Listing::sole()->category_id)->toBe($category->id);
+});
 
 it('rejects an invalid image upload', function (string $filename, int $kilobytes, string $mimeType) use ($form): void {
     Storage::fake('public');
@@ -98,7 +124,8 @@ it('reads the typed fields into a draft', function () use ($form): void {
         ->and($draft->medium)->toBe('oil')
         ->and($draft->dimensions)->toBe('12 x 16 in')
         ->and($draft->price)->toBeMoney(24900)
-        ->and($draft->quantity)->toBe(1);
+        ->and($draft->quantity)->toBe(1)
+        ->and($draft->categoryId)->toBeNull();
 });
 
 it('leaves an optional field the seller skipped null', function (string $field) use ($form): void {

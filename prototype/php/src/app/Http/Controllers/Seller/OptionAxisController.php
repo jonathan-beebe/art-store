@@ -14,6 +14,8 @@ use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\Property;
 use App\Support\RateLimiting\RateLimitGate;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -81,7 +83,26 @@ final class OptionAxisController extends SellerController
         return [
             'listing' => $listing,
             'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-            'properties' => Property::orderBy('name')->get(),
+            'properties' => $this->axisProperties($listing),
         ];
+    }
+
+    /**
+     * The picker's catalog-property options: only the current category's
+     * `usable_as_axis` grants — an uncategorized listing offers none, the
+     * same as it offers no attribute section.
+     *
+     * @return Collection<int, Property>
+     */
+    private function axisProperties(Listing $listing): Collection
+    {
+        return $listing->category_id === null
+            ? new Collection
+            : Property::query()
+                ->whereHas('categoryProperties', fn (Builder $query): Builder => $query
+                    ->where('category_id', $listing->category_id)
+                    ->where('usable_as_axis', true))
+                ->orderBy('name')
+                ->get();
     }
 }

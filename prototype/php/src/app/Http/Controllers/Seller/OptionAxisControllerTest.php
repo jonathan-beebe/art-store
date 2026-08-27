@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\RateLimiting\RateLimitValue;
+use App\Models\Category;
+use App\Models\CategoryProperty;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Property;
@@ -23,6 +25,33 @@ it('lists the listing’s axes with their options', function (): void {
     $response->assertOk();
     $response->assertSee('Metal');
     $response->assertSee('Gold');
+});
+
+it('offers only the current categorys usable-as-axis properties in the picker', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $axisProperty = Property::factory()->create(['name' => 'Ring Size']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $axisProperty->id, 'usable_as_axis' => true, 'usable_as_attribute' => false]);
+    $attributeOnlyProperty = Property::factory()->create(['name' => 'Material Only']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $attributeOnlyProperty->id, 'usable_as_axis' => false, 'usable_as_attribute' => true]);
+    $elsewhereProperty = Property::factory()->create(['name' => 'Elsewhere Property']);
+    $listing = $this->listing($seller, ['category_id' => $category->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('Ring Size');
+    $response->assertDontSee('Material Only');
+    $response->assertDontSee('Elsewhere Property');
+});
+
+it('offers no catalog properties for an uncategorized listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Property::factory()->create(['name' => 'Somewhere Property']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertDontSee('Somewhere Property');
 });
 
 it('refuses another sellers listing axes page', function (): void {

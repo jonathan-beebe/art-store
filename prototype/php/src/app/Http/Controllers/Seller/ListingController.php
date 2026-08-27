@@ -6,13 +6,14 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
-use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ActivityTimeline;
 use App\Http\Requests\Seller\ListingRequest;
+use App\Models\Category;
 use App\Models\Listing;
 use App\Models\OrderItem;
+use App\Support\Configurator\ListingEditPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -32,7 +33,9 @@ final class ListingController extends SellerController
 
     public function create(): View
     {
-        return view('seller.listings.create');
+        return view('seller.listings.create', [
+            'categories' => Category::orderBy('path')->get(),
+        ]);
     }
 
     public function store(ListingRequest $request, CreateListing $createListing, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -40,7 +43,9 @@ final class ListingController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.create');
+            return $this->tooManyRequests($exceeded, 'seller.listings.create', [
+                'categories' => Category::orderBy('path')->get(),
+            ]);
         }
 
         $listing = $createListing($this->seller(), $request->toDraft(), $request->file('image'));
@@ -72,10 +77,7 @@ final class ListingController extends SellerController
     {
         $this->authorize('update', $listing);
 
-        return view('seller.listings.edit', [
-            'listing' => $listing,
-            'publishIssues' => $listing->status === ListingStatus::Draft ? $listing->publishIssues() : [],
-        ]);
+        return view('seller.listings.edit', ListingEditPageData::for($listing));
     }
 
     public function update(ListingRequest $request, Listing $listing, UpdateListing $updateListing, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -83,7 +85,7 @@ final class ListingController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.edit', ['listing' => $listing]);
+            return $this->tooManyRequests($exceeded, 'seller.listings.edit', ListingEditPageData::for($listing));
         }
 
         $updated = $updateListing($listing, $request->toDraft(), $request->file('image'));

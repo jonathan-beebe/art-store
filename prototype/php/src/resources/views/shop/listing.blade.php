@@ -17,6 +17,18 @@
                 <dd>{{ $isPurchasable ? $listing->quantity : 'Sold' }}</dd>
             </dl>
 
+            @if (! empty($highlights))
+                <section aria-labelledby="highlights-heading" class="mt-8 border-b border-neutral-100 pb-6">
+                    <h2 id="highlights-heading" class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Highlights</h2>
+                    <dl class="mt-4 grid grid-cols-2 gap-y-4 text-base">
+                        @foreach ($highlights as $highlight)
+                            <dt class="text-neutral-500">{{ $highlight['name'] }}</dt>
+                            <dd>{{ implode(', ', $highlight['values']) }}</dd>
+                        @endforeach
+                    </dl>
+                </section>
+            @endif
+
             <p class="mt-8 text-lg leading-relaxed text-neutral-700">{{ $listing->description }}</p>
 
             <div class="mt-10">

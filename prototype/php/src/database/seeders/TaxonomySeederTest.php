@@ -30,7 +30,23 @@ it('seeds a category tree with grants exercising attribute, axis, and required',
         ->sole();
 
     expect($materialGrant->usable_as_attribute)->toBeTrue()
-        ->and($materialGrant->usable_as_axis)->toBeFalse();
+        ->and($materialGrant->usable_as_axis)->toBeFalse()
+        ->and($materialGrant->multivalued)->toBeFalse();
+
+    $furnitureMaterialGrant = CategoryProperty::query()
+        ->whereHas('category', fn ($q) => $q->where('name', 'Furniture'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Material'))
+        ->sole();
+
+    expect($furnitureMaterialGrant->multivalued)->toBeTrue();
+
+    $mediumGrant = CategoryProperty::query()
+        ->whereHas('category', fn ($q) => $q->where('name', 'Art'))
+        ->whereHas('property', fn ($q) => $q->where('name', 'Medium'))
+        ->sole();
+
+    expect($mediumGrant->usable_as_attribute)->toBeTrue()
+        ->and($mediumGrant->required)->toBeTrue();
 
     expect(Property::where('name', 'Metal')->sole()->values()->pluck('label')->all())
         ->toBe(['Gold', 'Silver', 'Rose Gold']);
