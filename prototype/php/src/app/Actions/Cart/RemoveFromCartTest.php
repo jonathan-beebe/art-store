@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
-it('takes a listing back out of the cart', function (): void {
+use App\Models\CartItem;
+
+it('takes a line back out of the cart', function (): void {
     $cart = $this->cartFor($this->verifiedCustomer());
     $seller = $this->seller();
     $kept = $this->listing($seller);
@@ -13,17 +15,25 @@ it('takes a listing back out of the cart', function (): void {
     $now = $this->moment('2026-08-20 09:00:00');
     $addToCart($cart, $kept, 1, $now);
     $addToCart($cart, $removed, 1, $now);
+    $removedItem = $cart->items()->where('listing_id', $removed->id)->sole();
 
-    app(RemoveFromCart::class)($cart, $removed);
+    app(RemoveFromCart::class)($removedItem);
 
     expect($cart->items()->pluck('listing_id')->all())->toBe([$kept->id]);
 });
 
-it('changes nothing when removing a listing the cart never held', function (): void {
+it('removes exactly the line asked for, leaving a second configuration of the same listing untouched', function (): void {
     $cart = $this->cartFor($this->verifiedCustomer());
     $listing = $this->listing($this->seller());
+    $addToCart = app(AddToCart::class);
+    $now = $this->moment('2026-08-20 09:00:00');
+    $addToCart($cart, $listing, 1, $now);
+    $first = $cart->items()->sole();
+    // A second, distinct fingerprint for the same listing — the shape a
+    // configured line takes once a buyer configures the same listing twice.
+    $second = CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'fingerprint' => 'a-second-configuration']);
 
-    app(RemoveFromCart::class)($cart, $listing);
+    app(RemoveFromCart::class)($first);
 
-    expect($cart->items()->count())->toBe(0);
+    expect($cart->items()->pluck('id')->all())->toBe([$second->id]);
 });

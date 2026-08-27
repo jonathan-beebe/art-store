@@ -49,7 +49,7 @@
 
                     <p class="text-lg">{{ $item->toLine()->total()->format() }}</p>
 
-                    <form method="POST" action="{{ route('shop.cart.remove', $item->listing) }}">
+                    <form method="POST" action="{{ route('shop.cart.remove', $item) }}">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-sm text-neutral-500 underline hover:text-neutral-900">Remove</button>

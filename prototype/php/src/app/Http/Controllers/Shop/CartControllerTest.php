@@ -84,8 +84,9 @@ it('removes a line', function (): void {
     $this->visitor();
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
     $this->post('/cart/harbour-at-dawn');
+    $item = CartItem::sole();
 
-    $response = $this->delete('/cart/harbour-at-dawn');
+    $response = $this->delete("/cart/items/{$item->id}");
 
     $response->assertRedirect(route('shop.cart'));
     expect(CartItem::count())->toBe(0);
@@ -99,6 +100,48 @@ it('renders the remove button as a DELETE form', function (): void {
     $response = $this->get('/cart');
 
     $response->assertSee('<input type="hidden" name="_method" value="DELETE">', escape: false);
+});
+
+it('removes only the configuration asked for, leaving a second configuration of the same listing in the cart', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'ring']);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $silver = app(AddOptionValue::class)($metal, 'Silver', 0);
+    app(GenerateVariants::class)($listing);
+    $this->post('/cart/ring');
+    $this->post('/cart/ring', ['axis' => [$metal->id => $silver->id]]);
+    expect(CartItem::count())->toBe(2);
+
+    $toRemove = CartItem::query()->orderBy('id')->firstOrFail();
+    $kept = CartItem::query()->orderBy('id')->skip(1)->firstOrFail();
+
+    $response = $this->delete("/cart/items/{$toRemove->id}");
+
+    $response->assertRedirect(route('shop.cart'));
+    expect(CartItem::count())->toBe(1)
+        ->and(CartItem::sole()->id)->toBe($kept->id);
+});
+
+it('answers not found removing another visitors cart line', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $this->arriveAs($this->anonymousCustomer());
+    $this->post('/cart/harbour-at-dawn');
+    $item = CartItem::sole();
+
+    $intruder = $this->arriveAs($this->anonymousCustomer());
+    $response = $this->delete("/cart/items/{$item->id}");
+
+    $response->assertNotFound();
+    expect(CartItem::count())->toBe(1);
+});
+
+it('answers not found removing a cart item id that matches nothing', function (): void {
+    $this->visitor();
+
+    $response = $this->delete('/cart/items/cti_00000000000000000000000001');
+
+    $response->assertNotFound();
 });
 
 it('refuses a listing that is not for sale', function (): void {

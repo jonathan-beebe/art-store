@@ -96,12 +96,6 @@ the cart page over HTTP after `make fresh`.
   fit a `<select>` needing per-option `disabled`/delta text, or the
   card-grid radio unit picker; `<x-form.field>` stays the fit for the
   quantity input alone, but consistency argued for one hand-rolled block.
-- `DELETE /cart/{listing}` (`RemoveFromCart`) still removes every line for
-  that listing, not one fingerprint — pre-existing route/action shape the
-  ticket did not ask to change. A cart can now legitimately hold two
-  configurations of the same listing (proven by a `CartControllerTest`
-  walk); removing one currently takes both. Worth a ticket of its own if a
-  buyer configuring the same listing twice becomes a real path.
 - `PlaceOrder`/`OrderItem` still snapshot `listing->price_cents` untouched —
   explicitly FEAT-028's job per this ticket's own framing. `CartTotals`
   (and so `order.total_cents`) already reflects a configured line's real
@@ -112,6 +106,25 @@ the cart page over HTTP after `make fresh`.
 
 No contradiction found with `docs/item-configurator.md`; §3's formula,
 §5's flow, and §10's platform notes matched the implementation as designed.
+
+### Follow-up
+
+Review flagged the removal gap above before FEAT-028 builds on the cart:
+`DELETE /cart/{listing}` removed every line for that listing, not the one
+line a shopper clicked "Remove" on. Fixed: the route is now `DELETE
+/cart/items/{cartItem}` (`shop.cart.remove`, unchanged name), binding a
+`CartItem` directly instead of a `Listing`. `CartItemPolicy::delete`
+(auto-discovered the same way `ListingPolicy`/`OrderPolicy` are — no
+`Gate::policy()` registration needed for an app model) answers ownership
+through `$customer->cart()->id` against the item's `cart_id`, denying as not
+found for a line that is not the visitor's own; `CartController::remove`
+calls it via the existing `authorizeVisitor()` helper, the same idiom
+`AccountController::readNotification` already uses. `RemoveFromCart` now
+takes the `CartItem` alone (no more `Cart`/`Listing` pair) and deletes that
+one row; the log event stays `cart.remove`. The cart page's remove form
+posts to `route('shop.cart.remove', $item)` instead of `$item->listing`. The
+legacy zero-axis case is unaffected from the shopper's view — one line, one
+remove button, same redirect to `/cart`.
 
 ## Related work
 - FEAT-025 (data model, domain pricing, fingerprint function this ticket calls)

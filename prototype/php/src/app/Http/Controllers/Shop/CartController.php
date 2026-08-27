@@ -8,6 +8,7 @@ use App\Actions\Cart\AddToCart;
 use App\Actions\Cart\RemoveFromCart;
 use App\Domain\Cart\CartTotals;
 use App\Http\Requests\Shop\AddToCartRequest;
+use App\Models\CartItem;
 use App\Models\Listing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -45,9 +46,11 @@ final class CartController extends ShopController
         return redirect()->route('shop.cart');
     }
 
-    public function remove(Listing $listing, RemoveFromCart $removeFromCart): RedirectResponse
+    public function remove(CartItem $cartItem, RemoveFromCart $removeFromCart): RedirectResponse
     {
-        $removeFromCart($this->visitor()->cart(), $listing);
+        $this->authorizeVisitor('delete', $cartItem);
+
+        $removeFromCart($cartItem);
 
         return redirect()->route('shop.cart');
     }
