@@ -5,15 +5,17 @@
 - RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 31
+- FEAT: 32
 - IMPRV: 10
 - MAINT: 5
 - A11Y: 1
-- RFCTR: 9
+- RFCTR: 10
 - BUG: 5
 
 ## Log
 
+- 2026-08-27:00:00:00 — RFCTR-009 — defined: Remove the legacy listings.medium column
+- 2026-08-27:00:00:00 — FEAT-031 — defined: One Medium vocabulary — high-level attributes, specific axes
 - 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines
 - 2026-08-27:11:25:21 — FEAT-030 — started
 - 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
