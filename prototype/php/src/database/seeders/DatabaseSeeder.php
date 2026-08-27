@@ -21,12 +21,14 @@ class DatabaseSeeder extends Seeder
     {
         $seeders = [
             AdminSeeder::class,
+            TaxonomySeeder::class,
             SellerSeeder::class,
             ListingSeeder::class,
             CustomerSeeder::class,
             OrderHistorySeeder::class,
             MessagingSeeder::class,
             WizardingSellerSeeder::class,
+            ConfiguratorArchetypeSeeder::class,
         ];
 
         $story = Story::for(StoryEvent::SeedRun)->will('seeding the demo data', [

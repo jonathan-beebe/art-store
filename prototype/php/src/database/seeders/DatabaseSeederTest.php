@@ -40,18 +40,21 @@ beforeEach(function () use ($seedRun): void {
     $this->seed();
 });
 
-it('seeds six verified sellers', function (): void {
-    expect(Seller::count())->toBe(6)
-        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(6);
+it('seeds seven verified sellers', function (): void {
+    expect(Seller::count())->toBe(7)
+        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(7);
 });
 
 it('seeds listings across statuses and media', function (): void {
-    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(32)
+    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(40)
         ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
         ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
 
     expect(Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all())
-        ->toBe(['ceramic', 'curio', 'jewelry', 'painting', 'photography', 'plant', 'print', 'publication', 'sculpture', 'textile']);
+        ->toBe([
+            'apparel', 'brass', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
+            'photography', 'plant', 'print', 'publication', 'sculpture', 'textile', 'walnut', 'watercolor',
+        ]);
 });
 
 it('seeds each listing through CreateListing, so every slug is a plain collision-free slug', function (): void {
@@ -141,8 +144,8 @@ it('keeps the database on a second run, only confirming the admins', function ()
     $log = CapturedStory::capture();
     $this->seed();
 
-    expect(Seller::count())->toBe(6)
-        ->and(Listing::count())->toBe(37)
+    expect(Seller::count())->toBe(7)
+        ->and(Listing::count())->toBe(45)
         ->and(Order::count())->toBe(3)
         ->and(Admin::count())->toBe(2)
         ->and($log->line('seed.run', 'did')['data'])->toHaveKey('skipped', true);
@@ -152,5 +155,5 @@ it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 
     expect($log->outline())->toContain('seed.run will', 'seed.run did')
-        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 7);
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 9);
 });

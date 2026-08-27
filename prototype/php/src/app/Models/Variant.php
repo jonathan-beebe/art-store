@@ -1,0 +1,107 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Domain\Configurator\UnitState;
+use App\Domain\Configurator\VariantAvailability;
+use App\Domain\Configurator\VariantPrice;
+use App\Domain\Money\Money;
+use App\Models\Concerns\HasPrefixedUlid;
+use Database\Factories\VariantFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use LogicException;
+use Override;
+
+/**
+ * One sellable combination of a listing's option values — a sparse row, so a
+ * seller creates only the combinations that actually sell rather than every
+ * cell of the full cross product.
+ */
+#[Fillable(['listing_id', 'combo_key', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
+class Variant extends Model
+{
+    /** @use HasFactory<VariantFactory> */
+    use HasFactory;
+
+    use HasPrefixedUlid;
+
+    public static function idPrefix(): string
+    {
+        return 'vrt';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    #[Override]
+    protected function casts(): array
+    {
+        return [
+            'price_override_cents' => 'integer',
+            'quantity' => 'integer',
+            'is_serialized' => 'boolean',
+            'enabled' => 'boolean',
+        ];
+    }
+
+    /** @return BelongsTo<Listing, $this> */
+    public function listing(): BelongsTo
+    {
+        return $this->belongsTo(Listing::class);
+    }
+
+    /** @return HasMany<VariantOption, $this> */
+    public function options(): HasMany
+    {
+        return $this->hasMany(VariantOption::class);
+    }
+
+    /** @return HasMany<Unit, $this> */
+    public function units(): HasMany
+    {
+        return $this->hasMany(Unit::class);
+    }
+
+    /**
+     * The base price plus every option value this variant holds surcharges
+     * for, or the flat override when one is set.
+     */
+    public function resolvedPrice(Money $basePrice): Money
+    {
+        $surcharges = array_values($this->options()
+            ->with('optionValue')
+            ->get()
+            ->map(fn (VariantOption $option): Money => ($option->optionValue ?? throw new LogicException('A variant option always names an option value.'))->surcharge())
+            ->all());
+
+        return VariantPrice::resolve(
+            $basePrice,
+            $this->price_override_cents === null ? null : Money::fromCents($this->price_override_cents),
+            $surcharges,
+        )->amount;
+    }
+
+    public function availableUnitCount(): int
+    {
+        return $this->units()->where('state', UnitState::Available)->count();
+    }
+
+    public function availability(): VariantAvailability
+    {
+        return VariantAvailability::resolve($this->enabled, $this->is_serialized, $this->availableUnitCount(), $this->quantity);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function axisIdsCovered(): array
+    {
+        return array_map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '', array_values($this->options()->pluck('axis_id')->all()));
+    }
+}

@@ -12,6 +12,32 @@ use DomainException;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
+it('reads its configurator rows through their relations', function (): void {
+    $category = Category::factory()->create();
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    Variant::factory()->create(['listing_id' => $listing->id]);
+    Modifier::factory()->create(['listing_id' => $listing->id]);
+    QuantityBreak::factory()->create(['listing_id' => $listing->id]);
+    DescriptionSection::factory()->create(['listing_id' => $listing->id]);
+    $property = Property::factory()->create();
+    $propertyValue = PropertyValue::factory()->create(['property_id' => $property->id]);
+    ListingAttribute::factory()->create([
+        'listing_id' => $listing->id,
+        'property_id' => $property->id,
+        'property_value_id' => $propertyValue->id,
+    ]);
+
+    expect($listing->category()->first()?->id)->toBe($category->id)
+        ->and($listing->optionAxes()->count())->toBe(1)
+        ->and($listing->variants()->count())->toBe(1)
+        ->and($listing->modifiers()->count())->toBe(1)
+        ->and($listing->quantityBreaks()->count())->toBe(1)
+        ->and($listing->descriptionSections()->count())->toBe(1)
+        ->and($listing->listingAttributes()->count())->toBe(1);
+});
+
 it('reads the faqs published on it', function (): void {
     $listing = $this->listing($this->seller());
     ListingFaq::factory()->create(['listing_id' => $listing->id]);

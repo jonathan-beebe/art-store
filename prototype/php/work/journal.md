@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 25
+- FEAT: 29
 - IMPRV: 10
 - MAINT: 5
 - A11Y: 1
@@ -14,6 +14,12 @@
 
 ## Log
 
+- 2026-08-26:00:00:02 — FEAT-025 — done: configurator schema (14 tables + `listings.category_id`), pure domain pricing/availability/publish-validation under `app/Domain/Configurator`, 11 seller-facing actions, taxonomy seed, and all 8 archetype seeds built through the real actions; 1948 tests, 5628 assertions, 100% lines
+- 2026-08-26:00:00:01 — FEAT-025 — started
+- 2026-08-26:00:00:00 — FEAT-028 — defined: Checkout and order snapshot
+- 2026-08-26:00:00:00 — FEAT-027 — defined: Buyer configurator and cart
+- 2026-08-26:00:00:00 — FEAT-026 — defined: Seller configurator UI
+- 2026-08-26:00:00:00 — FEAT-025 — defined: Configurator data model, domain pricing, and archetype seeds
 - 2026-08-24:23:20:00 — IMPRV-009 — done: `CustomerIdentity::fromCookie()` resolves once per request and both middlewares read that answer; on identical seeded data `/` 16 -> 14 queries, `/cart` 13 -> 11, `/art/{slug}` 18 -> 16, `/favorites` 13 -> 11; 1831 tests, 4955 assertions, 100% lines
 - 2026-08-24:23:00:00 — IMPRV-009 — started
 - 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines

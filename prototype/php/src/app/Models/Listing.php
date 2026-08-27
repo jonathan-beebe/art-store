@@ -34,7 +34,7 @@ use Override;
  * @property-read int $cart_adds_count  only after `withEventCounts` or `loadEventCounts`
  */
 #[Fillable([
-    'seller_id', 'title', 'slug', 'description', 'price_cents',
+    'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
     'quantity', 'status', 'image_path', 'medium', 'dimensions',
 ])]
 class Listing extends Model
@@ -66,6 +66,48 @@ class Listing extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
+    }
+
+    /** @return BelongsTo<Category, $this> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    /** @return HasMany<ListingAttribute, $this> */
+    public function listingAttributes(): HasMany
+    {
+        return $this->hasMany(ListingAttribute::class);
+    }
+
+    /** @return HasMany<OptionAxis, $this> */
+    public function optionAxes(): HasMany
+    {
+        return $this->hasMany(OptionAxis::class);
+    }
+
+    /** @return HasMany<Variant, $this> */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(Variant::class);
+    }
+
+    /** @return HasMany<Modifier, $this> */
+    public function modifiers(): HasMany
+    {
+        return $this->hasMany(Modifier::class);
+    }
+
+    /** @return HasMany<QuantityBreak, $this> */
+    public function quantityBreaks(): HasMany
+    {
+        return $this->hasMany(QuantityBreak::class);
+    }
+
+    /** @return HasMany<DescriptionSection, $this> */
+    public function descriptionSections(): HasMany
+    {
+        return $this->hasMany(DescriptionSection::class);
     }
 
     /** @return HasMany<ListingEvent, $this> */
