@@ -3,17 +3,21 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 2
+- DSGN: 3
 - ARCH: 1
 - FEAT: 33
-- IMPRV: 13
+- IMPRV: 15
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
-- BUG: 8
+- BUG: 9
 
 ## Log
 
+- 2026-08-27:14:06:30 — IMPRV-014 — defined: Remove the physical-goods-only footer line from the listing edit hub
+- 2026-08-27:14:06:20 — BUG-008 — defined: Removing an option a variant depends on has no path that succeeds
+- 2026-08-27:14:06:10 — IMPRV-013 — defined: Show the buyer-view preview panel on the main listing edit hub
+- 2026-08-27:14:06:00 — DSGN-002 — defined: Retire the legacy listing form; unify the editor as row summaries with buyer preview
 - 2026-08-27:13:23:12 — DSGN-001 — done: seller configurator redesigned by intent — canvas (11 artboards, human-reviewed) then six screens + hub shipped in craft language with buyer-view panels beside every control, plain-language publish checklist, honest coming/not-yet slots; every binding story carries a story-named feature test; 2547 tests, 7251 assertions, 100% lines; follow-ups BUG-007, IMPRV-012
 - 2026-08-27:13:22:41 — IMPRV-012 — defined: One coming-pill component and honest preselect semantics
 - 2026-08-27:13:22:41 — BUG-007 — defined: A priced question on a choice-free listing never charges the buyer
