@@ -10,10 +10,13 @@
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
-- BUG: 5
+- BUG: 7
 
 ## Log
 
+- 2026-08-27:00:00:01 — BUG-006 — defined: Error pages render unstyled
+- 2026-08-27:00:00:01 — BUG-005 — defined: Adding an existing variant combination answers a 500
+- 2026-08-27:07:14:27 — RFCTR-009 — started
 - 2026-08-27:07:12:25 — FEAT-031 — done: One Medium vocabulary (14 high-level values); Material property/grants removed; walnut table gains a Wood option axis (Walnut/Oak, 8 variants); Garden Gnome demonstrates multivalued Medium (Sculpture + Wood); 2315 tests, 6690 assertions, 100% lines
 - 2026-08-27:07:01:28 — FEAT-031 — started
 
