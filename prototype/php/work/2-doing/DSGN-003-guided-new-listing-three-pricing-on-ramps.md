@@ -79,3 +79,10 @@ already shipped — Sunset Ridge). Create collects only what the shape
 needs; images, category, facts, sections, questions, discounts, pieces
 all stay with the hub's rows and publish checklist. BUG-009 (legacy
 flat form) closes with this ticket's implementation.
+
+2026-08-27 — Review refinement from the human: made to order is an
+explicit "Made to order — no fixed count" checkbox overriding the
+quantity (ramps 1 and 3, and the Basics screen's stock block), stored as
+a NULL quantity internally; a blank count without the checkbox stays a
+validation error. The magic-blank hint is gone. Canvas republished with
+the checkbox on the ramp-1 landing.

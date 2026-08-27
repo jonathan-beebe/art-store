@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:18:35:54 — DSGN-003 — implementation started (canvas approved by human review)
 - 2026-08-27:18:44:00 — DSGN-003 — design canvas published for human review (create question + three ramp landings + flow map); implementation waits on review
 - 2026-08-27:18:31:40 — DSGN-003 — started (canvas round next)
 - 2026-08-27:18:31:22 — DSGN-003 — defined: Guided new listing — three pricing on-ramps
