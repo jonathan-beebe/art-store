@@ -12,7 +12,7 @@ it('reads its items as cart lines', function (): void {
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
     $listing = $this->listing($seller, ['price_cents' => 4500]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 2]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 2]);
 
     $lines = $cart->lines();
 
@@ -39,7 +39,7 @@ it('plans placement from its items against the listings behind them', function (
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
     $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
 
     $plan = $cart->load('items.listing')->placementPlan();
 
@@ -53,7 +53,7 @@ it('blocks a line whose listing carries an active removal, even while for sale',
     $cart = $this->cartFor($customer);
     $listing = $this->listing($this->seller(), ['title' => 'Winter Elm']);
     ListingRemoval::factory()->create(['listing_id' => $listing->id]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
 
     $plan = $cart->load('items.listing')->placementPlan();
 

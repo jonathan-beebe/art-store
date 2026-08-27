@@ -16,7 +16,7 @@ final class CartController extends ShopController
 {
     public function show(): View
     {
-        $cart = $this->visitor()->cart()->load('items.listing.seller');
+        $cart = $this->visitor()->cart()->load('items.listing.seller', 'items.variant', 'items.unit');
 
         return view('shop.cart', [
             'cart' => $cart,
@@ -27,11 +27,19 @@ final class CartController extends ShopController
 
     public function add(AddToCartRequest $request, Listing $listing, AddToCart $addToCart): RedirectResponse
     {
+        $configuration = $request->configuration();
+
         $addToCart(
             $this->visitor()->cart(),
             $listing,
             $request->quantity(),
             $this->now(),
+            $configuration->hasVariants,
+            $request->variant(),
+            $configuration->selectedUnitId,
+            $configuration->configurationSnapshot,
+            $configuration->answersSnapshot,
+            $configuration->fingerprintAnswers,
         );
 
         return redirect()->route('shop.cart');

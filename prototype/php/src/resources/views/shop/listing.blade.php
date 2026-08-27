@@ -19,8 +19,10 @@
 
             <p class="mt-8 text-lg leading-relaxed text-neutral-700">{{ $listing->description }}</p>
 
-            <div class="mt-10 flex flex-wrap items-center gap-4">
-                @if ($isPurchasable)
+            <div class="mt-10">
+                @if ($hasConfigurator)
+                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration])
+                @elseif ($isPurchasable)
                     <form method="POST" action="{{ route('shop.cart.add', $listing) }}">
                         @csrf
                         <button type="submit" class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
@@ -29,7 +31,7 @@
                     </form>
                 @endif
 
-                <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}">
+                <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}" class="mt-4">
                     @csrf
                     <button type="submit" class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
                         {{ $isFavorited ? 'Remove from favorites' : 'Favorite' }}

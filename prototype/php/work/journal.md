@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-26:00:00:06 — FEAT-027 — done: buyer configurator and cart — GET-form configurator on `/art/{slug}` (axis selects with grey-outs, serialized-variant unit picker, scoped modifiers, quantity-break table, live itemized price panel), add-to-cart POST with fingerprint-based merge, `cart_items` widened to `(cart_id, listing_id, fingerprint)`; 12 new Domain/Support classes; 2173 tests, 6261 assertions, 100% lines
+- 2026-08-26:00:00:05 — FEAT-027 — started
 - 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights
 - 2026-08-26:00:00:04 — FEAT-026 — done: ten seller-facing configurator screens (axes/options, sparse variant grid with generate/bulk-toggle, per-variant units, modifiers with scope picker, quantity breaks, description sections with reorder), publish validation surfaced inline on the listing edit screen with per-issue links; 16 new Actions, `ConfiguratorDeletionGuard` domain guard; 2101 tests, 6043 assertions, 100% lines
 - 2026-08-26:00:00:03 — FEAT-026 — started

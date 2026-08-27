@@ -17,7 +17,7 @@ namespace App\Domain\Customers;
 final readonly class CustomerMergePlan
 {
     /**
-     * @param  list<CustomerCartLine>  $cartLines  the verified customer's cart after the fold, one line per listing
+     * @param  list<CustomerCartLine>  $cartLines  the verified customer's cart after the fold, one line per (listing, fingerprint)
      * @param  list<string>  $favoritesToMove  anonymous favorites the verified customer does not already have — repoint these rows
      * @param  list<string>  $favoritesToDrop  anonymous favorites that duplicate one the verified customer already has — delete these rows
      */
@@ -51,14 +51,18 @@ final readonly class CustomerMergePlan
     }
 
     /**
-     * Sums quantity per listing across both carts in the order each listing
-     * was first seen — verified lines before anonymous ones — clamps the sum
-     * to stock, and drops anything that lands at zero. A listing already
-     * removed from the storefront is not special-cased: its row still
-     * carries the stock it held before removal, so the line survives the
-     * fold at that quantity the same way it would survive sitting untouched
-     * in a single cart across a removal — `OrderPlacementPlan` is what marks
-     * it blocked when checkout is attempted, not the fold.
+     * Sums quantity per (listing, fingerprint) across both carts in the
+     * order each was first seen — verified lines before anonymous ones —
+     * clamps the sum to stock, and drops anything that lands at zero. A
+     * listing already removed from the storefront is not special-cased: its
+     * row still carries the stock it held before removal, so the line
+     * survives the fold at that quantity the same way it would survive
+     * sitting untouched in a single cart across a removal —
+     * `OrderPlacementPlan` is what marks it blocked when checkout is
+     * attempted, not the fold. The stock clamp reads the listing's own
+     * quantity for every line of that listing, configured or not — the same
+     * approximation `AddToCart` accepts at add time; a variant's own tighter
+     * bound is enforced there, not folded in here.
      *
      * @param  list<CustomerCartLine>  $verifiedLines
      * @param  list<CustomerCartLine>  $anonymousLines
@@ -68,25 +72,38 @@ final readonly class CustomerMergePlan
     private static function foldCartLines(array $verifiedLines, array $anonymousLines, array $stockByListing): array
     {
         $order = [];
-        $quantityByListing = [];
+        $quantityByKey = [];
+        $lineByKey = [];
 
         foreach ([...$verifiedLines, ...$anonymousLines] as $line) {
-            if (! array_key_exists($line->listingId, $quantityByListing)) {
-                $order[] = $line->listingId;
-                $quantityByListing[$line->listingId] = 0;
+            $key = $line->listingId.'|'.$line->fingerprint;
+
+            if (! array_key_exists($key, $quantityByKey)) {
+                $order[] = $key;
+                $quantityByKey[$key] = 0;
+                $lineByKey[$key] = $line;
             }
 
-            $quantityByListing[$line->listingId] += $line->quantity;
+            $quantityByKey[$key] += $line->quantity;
         }
 
         $lines = [];
-        foreach ($order as $listingId) {
-            $summed = $quantityByListing[$listingId];
-            $stock = $stockByListing[$listingId] ?? null;
+        foreach ($order as $key) {
+            $summed = $quantityByKey[$key];
+            $original = $lineByKey[$key];
+            $stock = $stockByListing[$original->listingId] ?? null;
             $quantity = $stock === null ? $summed : min($summed, max($stock, 0));
 
             if ($quantity > 0) {
-                $lines[] = new CustomerCartLine($listingId, $quantity);
+                $lines[] = new CustomerCartLine(
+                    $original->listingId,
+                    $quantity,
+                    $original->fingerprint,
+                    $original->variantId,
+                    $original->unitId,
+                    $original->configurationJson,
+                    $original->answersJson,
+                );
             }
         }
 

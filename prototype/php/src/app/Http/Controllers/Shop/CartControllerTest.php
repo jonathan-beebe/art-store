@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Configurator\AddModifierOption;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\AddQuantityBreak;
+use App\Actions\Configurator\AddUnit;
+use App\Actions\Configurator\CreateModifier;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\CreateVariant;
+use App\Actions\Configurator\GenerateVariants;
+use App\Actions\Configurator\ScopeModifier;
+use App\Domain\Configurator\ModifierKind;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
@@ -186,4 +196,144 @@ it('leaves a purchasable line unmarked and checkout enabled', function (): void 
     $response->assertDontSee('No longer for sale');
     $response->assertSee('href="'.route('shop.checkout').'"', escape: false);
     $response->assertDontSee('<button type="button" disabled', escape: false);
+});
+
+it('adds the rings configuration to the cart, itemized and merged on a repeat add', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'ring', 'title' => 'Engraved Signet Ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    $engraving = app(CreateOptionAxis::class)($listing, 'Engraving');
+    app(AddOptionValue::class)($engraving, 'No Engraving', 0, isDefault: true);
+    $outside = app(AddOptionValue::class)($engraving, 'Outside Only', 500);
+    app(GenerateVariants::class)($listing);
+    $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Engraving Font', required: true);
+    $block = app(AddModifierOption::class)($font, 'Block', 0, 0);
+    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', required: true, charLimit: 20);
+    app(ScopeModifier::class)($font, [$outside]);
+    app(ScopeModifier::class)($text, [$outside]);
+
+    $post = [
+        'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],
+        'modifier' => [$font->id => $block->id, $text->id => 'ADA'],
+    ];
+
+    $this->post('/cart/ring', $post);
+    $response = $this->post('/cart/ring', $post);
+
+    $response->assertRedirect(route('shop.cart'));
+    $item = CartItem::sole();
+    expect($item->quantity)->toBe(2)
+        ->and($item->configuration_json)->toBe([
+            ['axisId' => $metal->id, 'axisName' => 'Metal', 'optionValueId' => $roseGold->id, 'optionValueLabel' => 'Rose Gold'],
+            ['axisId' => $engraving->id, 'axisName' => 'Engraving', 'optionValueId' => $outside->id, 'optionValueLabel' => 'Outside Only'],
+        ]);
+    $answers = $item->answers_json ?? [];
+    expect($answers[$text->id]['answer'])->toBe('ADA');
+
+    $cartPage = $this->get('/cart');
+    $cartPage->assertOk();
+    $cartPage->assertSee('Metal:');
+    $cartPage->assertSee('Rose Gold');
+    $cartPage->assertSee('Engraving Text:');
+    $cartPage->assertSee('ADA');
+    $cartPage->assertSee('$266.00');
+});
+
+it('keeps two different ring configurations as separate cart lines', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $silver = app(AddOptionValue::class)($metal, 'Silver', 0);
+    app(GenerateVariants::class)($listing);
+
+    $this->post('/cart/ring');
+    $this->post('/cart/ring', ['axis' => [$metal->id => $silver->id]]);
+
+    expect(CartItem::count())->toBe(2);
+});
+
+it('hides the mugs personalization box and never charges its flat fee when blank', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'mug', 'price_cents' => 1800]);
+    $personalization = app(CreateOptionAxis::class)($listing, 'Personalization');
+    app(AddOptionValue::class)($personalization, 'Blank', 0, isDefault: true);
+    $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
+    app(GenerateVariants::class)($listing);
+    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
+    app(ScopeModifier::class)($text, [$personalized]);
+
+    $response = $this->post('/cart/mug');
+
+    $response->assertRedirect(route('shop.cart'));
+    $item = CartItem::sole();
+    expect($item->answers_json)->toBeNull()
+        ->and($item->toLine()->total())->toBeMoney(1800);
+});
+
+it('refuses to add the tables sparse not-offered combination to the cart', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 80000]);
+    $length = app(CreateOptionAxis::class)($listing, 'Length');
+    $l36 = app(AddOptionValue::class)($length, '36 in', 0, isDefault: true);
+    $l48 = app(AddOptionValue::class)($length, '48 in', 0);
+    $width = app(CreateOptionAxis::class)($listing, 'Width');
+    $w24 = app(AddOptionValue::class)($width, '24 in', 0, isDefault: true);
+    $w30 = app(AddOptionValue::class)($width, '30 in', 0);
+    $createVariant = app(CreateVariant::class);
+    $createVariant($listing, [$l36, $w24], priceOverrideCents: 80000);
+    $createVariant($listing, [$l48, $w30], priceOverrideCents: 110000);
+
+    $response = $this->from(route('shop.listing', 'table'))
+        ->followingRedirects()
+        ->post('/cart/table', ['axis' => [$length->id => $l48->id]]);
+
+    $response->assertOk();
+    $response->assertSee('That configuration is no longer available.');
+    expect(CartItem::count())->toBe(0);
+});
+
+it('claims a specific candlestick unit and keeps a second add of the same unit at one', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'candlesticks', 'price_cents' => 4500]);
+    $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
+    $unit = app(AddUnit::class)($variant, '#1', conditionNote: 'Excellent estate condition', priceOverrideCents: 3500);
+    app(AddUnit::class)($variant, '#2');
+
+    $this->post('/cart/candlesticks', ['unit' => $unit->id]);
+    $response = $this->post('/cart/candlesticks', ['unit' => $unit->id, 'quantity' => 5]);
+
+    $response->assertRedirect(route('shop.cart'));
+    $item = CartItem::sole();
+    expect($item->unit_id)->toBe($unit->id)
+        ->and($item->quantity)->toBe(1)
+        ->and($item->toLine()->total())->toBeMoney(3500);
+
+    $cartPage = $this->get('/cart');
+    $cartPage->assertSee('Piece:');
+    $cartPage->assertSee('#1');
+});
+
+it('prices the wedding invitations quantity break into the cart line', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'invitations', 'price_cents' => 300]);
+    $size = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($size, '4x6 in', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $paperStock = app(CreateModifier::class)($listing, ModifierKind::Select, 'Paper Stock', required: true);
+    $standard = app(AddModifierOption::class)($paperStock, 'Standard', 0, 0);
+    app(AddQuantityBreak::class)($listing, 50, 500);
+    app(AddQuantityBreak::class)($listing, 100, 1000);
+
+    $response = $this->post('/cart/invitations', ['quantity' => 100, 'modifier' => [$paperStock->id => $standard->id]]);
+
+    $response->assertRedirect(route('shop.cart'));
+    $item = CartItem::sole();
+    expect($item->quantity)->toBe(100)
+        ->and($item->toLine()->total())->toBeMoney(27000);
+
+    $cartPage = $this->get('/cart');
+    $cartPage->assertSee('$270.00');
 });

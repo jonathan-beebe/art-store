@@ -9,12 +9,15 @@ use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
+use App\Support\Configurator\ConfiguratorInput;
+use App\Support\Configurator\ConfiguratorPageResolver;
 use App\Support\Story;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 final class ListingController extends ShopController
 {
-    public function __invoke(Listing $listing, RecordListingEvent $recordListingEvent): View
+    public function __invoke(Listing $listing, Request $request, RecordListingEvent $recordListingEvent): View
     {
         abort_unless($listing->isOnStorefront(), 404);
 
@@ -31,10 +34,14 @@ final class ListingController extends ShopController
             ? $story->refused('collapsed a repeat view into the hour already recorded', $data)
             : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
 
+        $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
+
         return view('shop.listing', [
             'listing' => $listing->load('seller', 'faqs'),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
+            'hasConfigurator' => $hasConfigurator,
+            'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
         ]);
     }
 }
