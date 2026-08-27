@@ -19,6 +19,7 @@ it('moves a section up', function (): void {
     ]);
 
     $response->assertRedirect(route('seller.listings.description-sections.index', $listing));
+    $response->assertSessionHas('status', 'Moved.');
     expect($second->fresh()?->position)->toBe(0)
         ->and($first->fresh()?->position)->toBe(1);
 });

@@ -22,6 +22,17 @@ it('says a plain listing has no configurator', function (): void {
     expect(ConfiguratorPageResolver::hasConfigurator($listing))->toBeFalse();
 });
 
+it('says a listing with only a quantity discount still has a configurator', function (): void {
+    $listing = $this->listing($this->seller());
+    app(AddQuantityBreak::class)($listing, 50, 1000);
+
+    expect(ConfiguratorPageResolver::hasConfigurator($listing))->toBeTrue();
+
+    $configuration = ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::of([], null, [], 1));
+
+    expect($configuration->hasConfigurator)->toBeTrue();
+});
+
 it('preselects each axis default and prices the page concretely at first paint', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 12000]);
     $metal = app(CreateOptionAxis::class)($listing, 'Metal');

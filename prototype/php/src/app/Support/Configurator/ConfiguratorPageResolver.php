@@ -38,12 +38,14 @@ final class ConfiguratorPageResolver
 
     /**
      * Whether a listing has anything to configure at all — the legacy,
-     * zero-axis listing with no variant and no modifier keeps its one-click
-     * add and never reaches this resolver.
+     * zero-axis listing with no variant, no modifier, and no quantity
+     * discount keeps its one-click add and never reaches this resolver. A
+     * quantity discount alone still earns the configurator, since its tier
+     * table and its live-priced total only exist there.
      */
     public static function hasConfigurator(Listing $listing): bool
     {
-        return $listing->optionAxes()->exists() || $listing->variants()->exists() || $listing->modifiers()->exists();
+        return $listing->optionAxes()->exists() || $listing->variants()->exists() || $listing->modifiers()->exists() || $listing->quantityBreaks()->exists();
     }
 
     public static function resolve(Listing $listing, ConfiguratorInput $input): ListingConfiguration
@@ -169,7 +171,7 @@ final class ConfiguratorPageResolver
         }
 
         return new ListingConfiguration(
-            hasConfigurator: $axisModels->isNotEmpty() || $variantModels->isNotEmpty() || $modifierModels->isNotEmpty(),
+            hasConfigurator: $axisModels->isNotEmpty() || $variantModels->isNotEmpty() || $modifierModels->isNotEmpty() || $breakModels->isNotEmpty(),
             hasVariants: $variantModels->isNotEmpty(),
             axes: $axesPresentation,
             selectedOptionValueIdsByAxis: $selected,

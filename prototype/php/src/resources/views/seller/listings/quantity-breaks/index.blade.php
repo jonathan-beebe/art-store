@@ -1,45 +1,90 @@
-<x-layouts.seller :title="'Quantity breaks — '.$listing->title.' — Art Store seller'">
-    <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">Quantity breaks</h1>
-        <a href="{{ route('seller.listings.edit', $listing) }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">Back to listing</a>
+@php
+    use App\Support\Configurator\ConfiguratorInput;
+    use App\Support\Configurator\QuantityBreakPercent;
+    use App\Support\Configurator\QuantityBreakUnitPrice;
+
+    $basePrice = $listing->price();
+    $previewQuantity = $quantityBreaks->isEmpty() ? 1 : (int) $quantityBreaks->max('min_qty');
+    $previewInput = ConfiguratorInput::of([], null, [], $previewQuantity);
+@endphp
+
+<x-layouts.seller :title="'Quantity discounts — '.$listing->title.' — Art Store seller'">
+    <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
+    <h1 class="mt-2 text-xl font-semibold">Quantity discounts</h1>
+    <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Bigger orders pay less per item, the way your print costs actually work — set the breakpoints once and the price drops by itself. No more "Quantity: 50 / 100 / 200" options with hand-typed totals.</p>
+
+    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_400px]">
+        <div class="flex flex-col gap-4">
+            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                @foreach ($quantityBreaks as $break)
+                    <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-gray-800 py-3 first:pt-0 last:border-none last:pb-0">
+                        <form method="POST" action="{{ route('seller.listings.quantity-breaks.update', [$listing, $break]) }}" class="contents">
+                            @csrf
+                            @method('PUT')
+
+                            <span class="text-gray-700 dark:text-gray-300">From</span>
+                            <label for="min_qty-{{ $break->id }}" class="sr-only">Items</label>
+                            <input id="min_qty-{{ $break->id }}" name="min_qty" type="number" step="1" min="2" required
+                                   value="{{ old('min_qty', $break->min_qty) }}"
+                                   class="w-20 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                            <span class="text-gray-700 dark:text-gray-300">items,</span>
+                            <label for="discount_percent-{{ $break->id }}" class="sr-only">Percent off</label>
+                            <input id="discount_percent-{{ $break->id }}" name="discount_percent" type="text" inputmode="decimal" required
+                                   value="{{ old('discount_percent', QuantityBreakPercent::format($break->discount_bps)) }}"
+                                   class="w-16 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                            <span class="text-gray-700 dark:text-gray-300">% off each</span>
+
+                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Save</button>
+
+                            @error('min_qty')
+                                <span class="w-full text-xs text-red-700 dark:text-red-400">{{ $message }}</span>
+                            @enderror
+                            @error('discount_percent')
+                                <span class="w-full text-xs text-red-700 dark:text-red-400">{{ $message }}</span>
+                            @enderror
+                        </form>
+
+                        <span class="ml-auto rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-700 dark:text-gray-300">
+                            &asymp; {{ QuantityBreakUnitPrice::resolve($basePrice, $break->toDomain())->format() }} per item
+                        </span>
+
+                        <form method="POST" action="{{ route('seller.listings.quantity-breaks.destroy', [$listing, $break]) }}" class="contents">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="text-gray-700 dark:text-gray-300 underline">Remove</button>
+                        </form>
+                    </div>
+                @endforeach
+
+                @if ($quantityBreaks->isEmpty())
+                    <p class="text-gray-600 dark:text-gray-400">No breakpoints yet — add the first one below.</p>
+                @endif
+
+                <form method="POST" action="{{ route('seller.listings.quantity-breaks.store', $listing) }}" class="mt-3 flex flex-wrap items-center gap-2">
+                    @csrf
+
+                    <span class="text-gray-700 dark:text-gray-300">From</span>
+                    <label for="new-min_qty" class="sr-only">Items</label>
+                    <input id="new-min_qty" name="min_qty" type="number" step="1" min="2" required value="{{ old('min_qty') }}"
+                           class="w-20 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                    <span class="text-gray-700 dark:text-gray-300">items,</span>
+                    <label for="new-discount_percent" class="sr-only">Percent off</label>
+                    <input id="new-discount_percent" name="discount_percent" type="text" inputmode="decimal" required value="{{ old('discount_percent') }}"
+                           class="w-16 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                    <span class="text-gray-700 dark:text-gray-300">% off each</span>
+
+                    <button type="submit" class="ml-auto rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add a breakpoint</button>
+                </form>
+
+                <p class="mt-3 text-gray-600 dark:text-gray-400">Per-item prices shown at your {{ $basePrice->format() }} base. The discount applies to whatever the buyer configures — paper upgrades included.</p>
+            </div>
+
+            <p class="text-gray-600 dark:text-gray-400">A private price for one customer isn't available yet — quote bespoke jobs in Messages rather than publishing them as options anyone can buy.</p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <x-seller.buyer-view :listing="$listing" :input="$previewInput" />
+            <p class="text-xs text-gray-500 dark:text-gray-500">The active tier is bold, and the total is the exact amount charged — the platform's own quantity field stays meaningful.</p>
+        </div>
     </div>
-
-    <p class="mt-2 text-gray-600 dark:text-gray-400">At a tier's minimum quantity or more, the resolved unit price carries its discount. Up to 10 tiers.</p>
-
-    @if ($quantityBreaks->isEmpty())
-        <p class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No tiers yet.</p>
-    @else
-        <ul class="mt-4 space-y-3">
-            @foreach ($quantityBreaks as $break)
-                <li class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                    <form method="POST" action="{{ route('seller.listings.quantity-breaks.update', [$listing, $break]) }}" class="flex flex-wrap items-end gap-3">
-                        @csrf
-                        @method('PUT')
-
-                        <x-form.field name="min_qty" label="Min quantity" type="number" step="1" min="2" required :value="$break->min_qty" />
-                        <x-form.field name="discount_bps" label="Discount (basis points)" type="number" step="1" min="1" max="9999" required :value="$break->discount_bps" hint="100 basis points = 1%." />
-
-                        <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Save</button>
-                    </form>
-
-                    <form method="POST" action="{{ route('seller.listings.quantity-breaks.destroy', [$listing, $break]) }}" class="mt-2">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Remove tier</button>
-                    </form>
-                </li>
-            @endforeach
-        </ul>
-    @endif
-
-    <h2 class="mt-6 font-semibold text-gray-700 dark:text-gray-300">Add a tier</h2>
-
-    <form method="POST" action="{{ route('seller.listings.quantity-breaks.store', $listing) }}" class="mt-2 flex flex-wrap items-end gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-        @csrf
-
-        <x-form.field name="min_qty" label="Min quantity" type="number" step="1" min="2" required />
-        <x-form.field name="discount_bps" label="Discount (basis points)" type="number" step="1" min="1" max="9999" required hint="100 basis points = 1%." />
-
-        <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add tier</button>
-    </form>
 </x-layouts.seller>

@@ -12,18 +12,20 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\DescriptionSectionRequest;
 use App\Models\DescriptionSection;
 use App\Models\Listing;
+use App\Support\Configurator\DescriptionSectionIndexPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 final class DescriptionSectionController extends SellerController
 {
-    public function index(Listing $listing): View
+    public function index(Request $request, Listing $listing): View
     {
         $this->authorize('view', $listing);
 
-        return view('seller.listings.description-sections.index', $this->indexData($listing));
+        return view('seller.listings.description-sections.index', $this->indexData($request, $listing));
     }
 
     public function store(DescriptionSectionRequest $request, Listing $listing, AddDescriptionSection $add, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -31,7 +33,7 @@ final class DescriptionSectionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', $this->indexData($request, $listing));
         }
 
         $maxPosition = $listing->descriptionSections()->max('position');
@@ -52,7 +54,7 @@ final class DescriptionSectionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', $this->indexData($request, $listing));
         }
 
         $update($descriptionSection, $request->kind(), $request->title(), $request->bodyMd(), $request->bodyJson());
@@ -71,7 +73,7 @@ final class DescriptionSectionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', DescriptionSectionIndexPageData::build($listing));
         }
 
         $delete($descriptionSection);
@@ -82,11 +84,10 @@ final class DescriptionSectionController extends SellerController
     /**
      * @return array<string, mixed>
      */
-    private function indexData(Listing $listing): array
+    private function indexData(Request $request, Listing $listing): array
     {
-        return [
-            'listing' => $listing,
-            'sections' => $listing->descriptionSections()->orderBy('position')->get(),
-        ];
+        $kind = $request->query('kind');
+
+        return DescriptionSectionIndexPageData::build($listing, is_string($kind) ? $kind : null);
     }
 }

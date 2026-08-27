@@ -36,7 +36,7 @@ final class QuantityBreakController extends SellerController
 
         $add($listing, $request->minQty(), $request->discountBps());
 
-        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Quantity break added.');
+        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Breakpoint added.');
     }
 
     public function update(
@@ -54,7 +54,7 @@ final class QuantityBreakController extends SellerController
 
         $update($quantityBreak, $request->minQty(), $request->discountBps());
 
-        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Quantity break updated.');
+        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Breakpoint updated.');
     }
 
     public function destroy(Listing $listing, QuantityBreak $quantityBreak, DeleteQuantityBreak $delete, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -69,7 +69,7 @@ final class QuantityBreakController extends SellerController
 
         $delete($quantityBreak);
 
-        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Quantity break removed.');
+        return redirect()->route('seller.listings.quantity-breaks.index', $listing)->with('status', 'Breakpoint removed.');
     }
 
     /**

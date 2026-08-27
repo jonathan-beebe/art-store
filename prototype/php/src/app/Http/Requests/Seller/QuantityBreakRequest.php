@@ -7,6 +7,8 @@ namespace App\Http\Requests\Seller;
 use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Models\Listing;
 use App\Models\QuantityBreak;
+use App\Support\Configurator\QuantityBreakPercent;
+use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -17,7 +19,9 @@ use RuntimeException;
  * The ≤10-tier cap is enforced here, on a new tier only, so the seller sees
  * the refusal before typing an 11th row rather than only at publish —
  * the same cap `ConfiguratorPublishValidation::MAX_QUANTITY_TIERS` judges,
- * read from there rather than repeated as a second magic number.
+ * read from there rather than repeated as a second magic number. The seller
+ * types a percent; {@see QuantityBreakPercent} converts it to the
+ * `discount_bps` the frozen add/update actions store.
  */
 final class QuantityBreakRequest extends FormRequest
 {
@@ -27,14 +31,28 @@ final class QuantityBreakRequest extends FormRequest
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<mixed>>
      */
     public function rules(): array
     {
         return [
             'min_qty' => ['required', 'integer', 'min:2'],
-            'discount_bps' => ['required', 'integer', 'min:1', 'max:9999'],
+            'discount_percent' => ['required', 'string', self::percent()],
         ];
+    }
+
+    /**
+     * A discount is valid whenever {@see QuantityBreakPercent} can read it —
+     * "10", "12.5", and "0.01" all pass; a third decimal place, zero, or
+     * anything over 99.99 does not.
+     */
+    private static function percent(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if (! is_string($value) || ! QuantityBreakPercent::isValid($value)) {
+                $fail('The discount is a percent between 0.01 and 99.99, like 12.5.');
+            }
+        };
     }
 
     public function withValidator(Validator $validator): void
@@ -58,7 +76,7 @@ final class QuantityBreakRequest extends FormRequest
 
     public function discountBps(): int
     {
-        return $this->integer('discount_bps');
+        return QuantityBreakPercent::toBps($this->string('discount_percent')->toString());
     }
 
     public function listing(): Listing

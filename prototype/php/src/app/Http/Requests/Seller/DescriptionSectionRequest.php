@@ -18,6 +18,10 @@ use RuntimeException;
 /**
  * The ≤15-section cap is enforced here, on a new section only, reading
  * {@see ConfiguratorPublishValidation::MAX_SECTIONS} rather than repeating it.
+ * A row-editing kind (specs, a size chart, Q & A) arrives as labeled rows —
+ * `spec[]`, `size_chart[]`, `faq[]` — rather than a raw JSON field a seller
+ * would have to hand-author; {@see self::completeRows()} folds whichever one
+ * the section's kind uses into the list `body_json` stores.
  */
 final class DescriptionSectionRequest extends FormRequest
 {
@@ -35,7 +39,16 @@ final class DescriptionSectionRequest extends FormRequest
             'kind' => ['required', Rule::enum(DescriptionSectionKind::class)],
             'title' => ['nullable', 'string', 'max:255'],
             'body_md' => ['nullable', 'string'],
-            'body_json' => ['nullable', 'json'],
+            'spec' => ['nullable', 'array'],
+            'spec.*.label' => ['nullable', 'string', 'max:255'],
+            'spec.*.value' => ['nullable', 'string', 'max:255'],
+            'faq' => ['nullable', 'array'],
+            'faq.*.question' => ['nullable', 'string', 'max:255'],
+            'faq.*.answer' => ['nullable', 'string'],
+            'size_chart' => ['nullable', 'array'],
+            'size_chart.*.label' => ['nullable', 'string', 'max:255'],
+            'size_chart.*.value1' => ['nullable', 'string', 'max:255'],
+            'size_chart.*.value2' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -69,17 +82,16 @@ final class DescriptionSectionRequest extends FormRequest
     }
 
     /**
-     * @return array<int|string, mixed>|null
+     * @return list<array<string, string>>|null
      */
     public function bodyJson(): ?array
     {
-        if (! $this->filled('body_json')) {
-            return null;
-        }
-
-        $decoded = json_decode($this->string('body_json')->toString(), true);
-
-        return is_array($decoded) ? $decoded : null;
+        return match ($this->kind()) {
+            DescriptionSectionKind::Specs => $this->completeRows('spec', ['label', 'value']),
+            DescriptionSectionKind::Faq => $this->completeRows('faq', ['question', 'answer']),
+            DescriptionSectionKind::SizeChart => $this->completeRows('size_chart', ['label', 'value1', 'value2']),
+            DescriptionSectionKind::Text, DescriptionSectionKind::Care, DescriptionSectionKind::Disclaimer => null,
+        };
     }
 
     public function listing(): Listing
@@ -89,5 +101,39 @@ final class DescriptionSectionRequest extends FormRequest
         return $listing instanceof Listing
             ? $listing
             : throw new RuntimeException('The description section route binds a listing.');
+    }
+
+    /**
+     * Zips one field's array-of-rows input into the list `body_json` stores,
+     * keeping only rows where every named column is filled — the fixed
+     * blank rows a JS-off "add a row" leaves behind when a seller ignores
+     * them contribute nothing, and a half-filled row is not a shape any
+     * renderer expects.
+     *
+     * @param  list<string>  $columns
+     * @return list<array<string, string>>|null
+     */
+    private function completeRows(string $field, array $columns): ?array
+    {
+        $rows = [];
+
+        foreach ($this->array($field) as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $values = [];
+            foreach ($columns as $column) {
+                $values[$column] = is_string($row[$column] ?? null) ? trim($row[$column]) : '';
+            }
+
+            if (in_array('', $values, true)) {
+                continue;
+            }
+
+            $rows[] = $values;
+        }
+
+        return $rows === [] ? null : $rows;
     }
 }

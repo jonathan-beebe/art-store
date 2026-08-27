@@ -96,7 +96,7 @@
                 <p class="text-sm font-medium text-neutral-700">Quantity discounts</p>
                 <ul class="mt-1 text-sm text-neutral-600">
                     @foreach ($configuration->quantityTiers as $tier)
-                        <li>{{ $tier['minQty'] }}+: {{ rtrim(rtrim(number_format($tier['discountPercent'], 2), '0'), '.') }}% off</li>
+                        <li @class(['font-semibold text-neutral-900' => $tier['active']])>{{ $tier['minQty'] }}+: {{ rtrim(rtrim(number_format($tier['discountPercent'], 2), '0'), '.') }}% off</li>
                     @endforeach
                 </ul>
             </div>

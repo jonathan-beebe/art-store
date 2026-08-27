@@ -10,6 +10,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ReorderDescriptionSectionRequest;
 use App\Models\DescriptionSection;
 use App\Models\Listing;
+use App\Support\Configurator\DescriptionSectionIndexPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -26,14 +27,11 @@ final class DescriptionSectionReorderController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', [
-                'listing' => $listing,
-                'sections' => $listing->descriptionSections()->orderBy('position')->get(),
-            ]);
+            return $this->tooManyRequests($exceeded, 'seller.listings.description-sections.index', DescriptionSectionIndexPageData::build($listing));
         }
 
         $reorder($descriptionSection, $request->direction());
 
-        return redirect()->route('seller.listings.description-sections.index', $listing)->with('status', 'Reordered.');
+        return redirect()->route('seller.listings.description-sections.index', $listing)->with('status', 'Moved.');
     }
 }

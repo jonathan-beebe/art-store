@@ -8,6 +8,7 @@ use App\Actions\Configurator\CreateVariant;
 use App\Models\Modifier;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\QuantityBreak;
 use App\Support\Configurator\ConfiguratorInput;
 use Illuminate\Support\Facades\Blade;
 
@@ -99,6 +100,21 @@ it('B7: carries the min, max, and unit on the buyer measurement input', function
     $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
 
     expect($html)->toContain('min="10"')->toContain('max="100"')->toContain('mm');
+});
+
+it('C3: bolds the active quantity tier and totals the discounted breakdown', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 450]);
+    QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 50, 'discount_bps' => 1000]);
+    QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 200, 'discount_bps' => 2200]);
+
+    $html = Blade::render(
+        '<x-seller.buyer-view :listing="$listing" :input="$input" />',
+        ['listing' => $listing, 'input' => ConfiguratorInput::of([], null, [], 200)],
+    );
+
+    expect($html)->toContain('200+: 22% off')
+        ->and($html)->toContain('font-semibold text-neutral-900')
+        ->and($html)->toContain('$702.00');
 });
 
 it('B6: shows a scoped question only for the selection it applies to', function (): void {
