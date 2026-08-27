@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-08-27:09:57:55 — DSGN-001 — implementation started (canvas approved by human review)
+- 2026-08-27:08:58:38 — DSGN-001 — design canvas published for human review (11 artboards: intent-organized editor, section screens with buyer-view panels, 43-story coverage map); implementation waits on review
+- 2026-08-27:08:41:15 — DSGN-001 — started
 - 2026-08-27:08:38:42 — DSGN-001 — defined: Seller-problem-driven configurator UI
 - 2026-08-27:08:38:42 — IMPRV-011 — defined: The configurator auto-updates on change
 - 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines

@@ -32,3 +32,24 @@ it('carries the drafts publish issues', function (): void {
 
     expect($data['publishIssues'])->not->toBe([]);
 });
+
+it('carries a null summary for every progressive-disclosure area on an unconfigured listing', function (): void {
+    $listing = Listing::factory()->create();
+
+    $data = ListingEditPageData::for($listing);
+
+    expect($data['choicesSummary'])->toBeNull()
+        ->and($data['questionsSummary'])->toBeNull()
+        ->and($data['discountsLine'])->toBeNull()
+        ->and($data['sectionsLine'])->toBeNull()
+        ->and($data['piecesSummary'])->toBeNull();
+});
+
+it('carries a choices summary once the listing offers a choice', function (): void {
+    $listing = Listing::factory()->create();
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+
+    $data = ListingEditPageData::for($listing);
+
+    expect($data['choicesSummary'])->not->toBeNull();
+});

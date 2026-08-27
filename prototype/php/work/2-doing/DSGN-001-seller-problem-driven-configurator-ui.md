@@ -286,3 +286,49 @@ current position. Coverage values: **v1** (mechanism in `docs/item-configurator.
 | E1    | §1.2 full-replace PUT risk                 | v1       | Order-line snapshots freeze configuration and price breakdown        |
 | E2    | §6 publish gates                           | v1       | Publish refusal lists every issue, linked to the owning screen       |
 | E3    | §2.1 linked add-on listings                | deferred | §9 — add-ons stay separate listings                                  |
+
+## Working
+
+2026-08-27 — Outcome 1 delivered: design canvas published for human review at
+https://claude.ai/code/artifact/2d93c687-00a7-494f-9e07-7afaaaf9eef5
+(11 artboards, 2 pages). Implementation (Outcome 2) waits on that review.
+
+Design decisions the canvas commits to:
+
+- One listing editor page organized by seller intent; sub-screens per section.
+  Section names: Your item · Choices you offer · Combinations & stock ·
+  Questions you ask the buyer · Individual pieces · Quantity discounts ·
+  Listing page sections · Before this can go live.
+- Progressive disclosure: an unconfigured listing shows only "Your item" plus
+  five one-line invitations; opening a section is what reveals its machinery.
+  The `Main` artboard (simple print listing) and `GrownListing` artboard
+  (configured mug) show the two lives of the same page.
+- Vocabulary map (UI ↔ schema, schema unchanged): choice ↔ option_axis ·
+  option's price difference ↔ surcharge_cents · combination ↔ variant ·
+  "you don't make this" ↔ enabled=false · individual piece ↔ unit ·
+  question ↔ modifier · "only ask when…" ↔ modifier_scopes · quantity
+  discount (% off) ↔ quantity_break (bps internally) · page section ↔
+  description_section · item fact ↔ listing_attribute.
+- Every editing surface carries a "What buyers see" panel rendered in the
+  storefront's own styling; the Questions artboard shows the scoped question
+  present for Hand-lettered and absent for Blank, plus the answer landing on
+  the order line (B9). Human review 2026-08-27 confirmed this panel as a
+  must-keep; implementation renders it from the same support path the shop
+  listing page uses, so the preview cannot drift from the real buyer view.
+- Deferred/gap stories get visible honest placements ("coming — not in this
+  version" / "not yet" notes at the point a seller would look): B8 photo-type
+  card, B10 preview-image squares, A8 flat-amount sweep row, C4 weight note,
+  C5 timeline note, C8/D7/D8 physical-goods-only line, C10 private-quote
+  note, D4 shared-snippet note, D6 custom-fact-value note, D2 pin-beside-
+  choices placement, C1 per-piece photo slot.
+- Structured measurement rows replace the Units screen's raw "Specs (JSON)"
+  textarea; quantity discounts read in percent, never basis points; publish
+  checklist items name the fix and link to the owning field (E2).
+- Page 2 of the canvas is the story-by-story coverage table (all 44 —
+  the ticket prose above says "43 stories" but the embedded list
+  enumerates 44: A1–A12, B1–B10, C1–C11, D1–D8, E1–E3),
+  ships-now / partly-ships / designed-not-shipped / honest-note per story —
+  the implementation-phase validation checklist.
+
+Canvas working files: session scratchpad `dsgn-001/` (re-extractable from the
+artifact via the design tooling if the session's files are gone).
