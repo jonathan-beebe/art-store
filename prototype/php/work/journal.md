@@ -6,14 +6,17 @@
 - DSGN: 2
 - ARCH: 1
 - FEAT: 33
-- IMPRV: 12
+- IMPRV: 13
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
-- BUG: 7
+- BUG: 8
 
 ## Log
 
+- 2026-08-27:13:23:12 — DSGN-001 — done: seller configurator redesigned by intent — canvas (11 artboards, human-reviewed) then six screens + hub shipped in craft language with buyer-view panels beside every control, plain-language publish checklist, honest coming/not-yet slots; every binding story carries a story-named feature test; 2547 tests, 7251 assertions, 100% lines; follow-ups BUG-007, IMPRV-012
+- 2026-08-27:13:22:41 — IMPRV-012 — defined: One coming-pill component and honest preselect semantics
+- 2026-08-27:13:22:41 — BUG-007 — defined: A priced question on a choice-free listing never charges the buyer
 - 2026-08-27:09:57:55 — DSGN-001 — implementation started (canvas approved by human review)
 - 2026-08-27:08:58:38 — DSGN-001 — design canvas published for human review (11 artboards: intent-organized editor, section screens with buyer-view panels, 43-story coverage map); implementation waits on review
 - 2026-08-27:08:41:15 — DSGN-001 — started

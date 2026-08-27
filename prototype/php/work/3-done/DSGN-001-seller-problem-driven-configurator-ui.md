@@ -1,8 +1,9 @@
 ---
 id: DSGN-001
 type: design
-status: open
+status: resolved
 created: 2026-08-27
+resolved: 2026-08-27
 ---
 
 # DSGN-001: Seller-problem-driven configurator UI
@@ -332,3 +333,46 @@ Design decisions the canvas commits to:
 
 Canvas working files: session scratchpad `dsgn-001/` (re-extractable from the
 artifact via the design tooling if the session's files are gone).
+
+### Implementation record (2026-08-27)
+
+Shipped across five commits on php/item-configurator: 6a179ef (hub, buyer-view
+component, publish presenter), 281fc48 (choices, pieces), 323eebc
+(combinations & stock, questions), dc99271 (discounts, page sections),
+25fb7b1 (shop-page sections, preselect exclusivity, story sweep). Suite:
+2547 tests, 7251 assertions, 100% lines; `make check` green throughout.
+Actions and Domain untouched; new logic in app/Support/Configurator/*,
+app/Http/Requests/Seller/* transforms, views, and the seller BuyerView
+component. JS-off holds on every screen (type-first flows and expanded
+edit rows ride GET params).
+
+Validation (Outcome 3): every v1/partial story carries a story-named feature
+test; deferred/gap stories carry a render test on their honest slot. Mapping:
+
+| Story | Status | Test |
+| --- | --- | --- |
+| A1, A2, A4, A9, A12, C5 | ships / partly / note | OptionAxisControllerTest (story-named) |
+| A3, A5, A6, A7, A8, A11, C11 | ships / partly | VariantControllerTest (story-named) |
+| A10 | ships | Shop/ListingControllerTest `A10: preselects…` |
+| B1, B2, B3+B4, B5, B6, B7, B8+B10+E3 | ships / notes | ModifierControllerTest (+BuyerViewTest) |
+| B9 | ships | OrderControllerTest `B9: shows an answered question…` |
+| C1, C2, C4 | partly / ships / note | UnitControllerTest (story-named) |
+| C3, C10 | ships / note | QuantityBreakControllerTest (+BuyerViewTest) |
+| C6, C7 | partly | Shop/CartControllerTest (story-named) |
+| C8, D6, D7, D8 | honest notes | Seller/ListingControllerTest (footer/hint tests) |
+| C9 | ships | ModifierScopeControllerTest `C9: …` |
+| D1, D3 | ships | DescriptionSectionControllerTest + Shop/ListingControllerTest |
+| D2, D4 | partly / note | DescriptionSectionControllerTest (story-named) |
+| D5, E1, E2 | ships | Seller/ListingControllerTest (story-named + issue-code tests) |
+
+Accepted decisions (design-level, recorded rather than built): no
+"See it as buyers will" header link (buyer panels carry the consequence);
+choice/option ordering is append-only with no reorder control (mock shows
+none); the custom-choice add form collapses on a validation error; a legacy
+non-serialized empty combination blocking "Start listing pieces" is a
+documented no-UI state; question kind stays changeable via a craft-worded
+select.
+
+Follow-ups filed from the work: BUG-007 (a priced question on a choice-free
+listing never charges — pre-existing cart gate, found by the sweep),
+IMPRV-012 (coming-pill component; preselect control semantics).
