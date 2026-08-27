@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 29
+- FEAT: 30
 - IMPRV: 10
 - MAINT: 5
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights
 - 2026-08-26:00:00:04 — FEAT-026 — done: ten seller-facing configurator screens (axes/options, sparse variant grid with generate/bulk-toggle, per-variant units, modifiers with scope picker, quantity breaks, description sections with reorder), publish validation surfaced inline on the listing edit screen with per-issue links; 16 new Actions, `ConfiguratorDeletionGuard` domain guard; 2101 tests, 6043 assertions, 100% lines
 - 2026-08-26:00:00:03 — FEAT-026 — started
 - 2026-08-26:00:00:02 — FEAT-025 — done: configurator schema (14 tables + `listings.category_id`), pure domain pricing/availability/publish-validation under `app/Domain/Configurator`, 11 seller-facing actions, taxonomy seed, and all 8 archetype seeds built through the real actions; 1948 tests, 5628 assertions, 100% lines
