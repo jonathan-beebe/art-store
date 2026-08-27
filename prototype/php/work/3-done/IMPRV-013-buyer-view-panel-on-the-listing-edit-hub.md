@@ -1,8 +1,9 @@
 ---
 id: IMPRV-013
 type: improvement
-status: open
+status: resolved
 created: 2026-08-27
+resolved: 2026-08-27
 ---
 
 # IMPRV-013: Show the buyer-view preview panel on the main listing edit hub
@@ -24,3 +25,11 @@ Requested directly against a live listing (/seller/listings/lst_01M128EBWPGB42G0
 
 ## Related work
 - prototype/php/work/3-done/DSGN-001-seller-problem-driven-configurator-ui.md (punch-list item 3, previously accepted as "omit — buyer panels [on sub-screens] cover it"; reopened here for the hub specifically)
+
+## Resolution
+
+2026-08-27 — Landed with DSGN-002 (commit d8eec2c): the row-based hub
+renders `<x-seller.buyer-view>` in a fixed right column beside the
+summary rows, in both hub states (configured, and the unconfigured
+"nothing here yet for a buyer to configure" empty state), covered by
+the hub feature tests in ListingControllerTest.

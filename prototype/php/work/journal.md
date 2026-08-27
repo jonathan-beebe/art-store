@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:17:12:40 — DSGN-002 — done: row-based editor hub (Your item · Images · section rows beside the buyer-view panel; flat form retired; Basics detail screen with the item facts; price/stock only while unconfigured) and creation-time pricing modes (standalone options carry their own price replacing the base, add-ons stay signed deltas; price_cents sync-derived; option_missing_price gate; mode frozen once options exist); listing_images (img prefix, cover-first, 8-cap, buyer thumbnail grid); docs §2–§7 carry the design; Sunset Ridge end-to-end smoke; 2672 tests, 100% lines; IMPRV-013 closed with it
+- 2026-08-27:17:12:40 — IMPRV-013 — done: buyer-view panel on the edit hub, landed with DSGN-002's row-based hub (both hub states)
 - 2026-08-27:14:43:20 — DSGN-002 — implementation started (canvas approved by human review; Direction B — creation-time pricing mode — is the decided mechanism)
 - 2026-08-27:14:20:00 — DSGN-002 — started
 - 2026-08-27:14:06:30 — IMPRV-014 — defined: Remove the physical-goods-only footer line from the listing edit hub

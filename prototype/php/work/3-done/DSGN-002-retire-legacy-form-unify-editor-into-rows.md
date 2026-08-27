@@ -1,8 +1,9 @@
 ---
 id: DSGN-002
 type: design
-status: open
+status: resolved
 created: 2026-08-27
+resolved: 2026-08-27
 ---
 
 # DSGN-002: Retire the legacy listing form; unify the editor as row summaries with buyer preview
@@ -81,3 +82,46 @@ exactly; the Images detail screen showed 3 images while the hub row claimed
 5; an "Individual pieces" row was missing from both hub states; and two
 screens used different wording for the same pricing-mode tag. Republished to
 the same link.
+
+### Implementation record (2026-08-27)
+
+Shipped across five commits on php/item-configurator: e70a385 (pricing
+modes — schema, domain, resolution, price sync, publish gate, Sunset
+Ridge archetype, docs §2/§3/§6), da254f2 (mode-first choices screen;
+listing_images with the Images screen and buyer thumbnail grid),
+d8eec2c (row-based hub and the Your item detail screen; flat form
+retired), da7b5fd (docs §4/§5/§7; end-to-end smoke; dead-code removal).
+Suite: 2672 tests, 100% lines, `make check` and `make fresh` green
+throughout.
+
+Outcome validation (each clause test-mapped):
+- Row summaries with edit affordances, no form fields on the hub —
+  ListingControllerTest (hub rewrite tests, phase D).
+- Buyer-view panel beside the rows, both hub states —
+  ListingControllerTest.
+- Both pricing patterns as clearly named mechanisms, always identifiable —
+  mode cards at creation, mode pill on every choice card AND on the hub's
+  choices row, "$ Price" vs "+ Price difference" field labels
+  (OptionAxisControllerTest, ListingControllerTest); mode frozen once
+  options exist (PricingModeChangeGuard).
+- Doc carries the design — item-configurator.md §2 (pricing_mode,
+  price_cents, listing_images + img prefix), §3 (standalone-sum
+  resolution, breakdown shape, price_cents sync rule), §4 (row-hub
+  seller flow), §5 (absolute vs signed option prices, image row),
+  §6 (option_missing_price gate), §7 (8-image cap).
+- End to end — SmokeTest walks create → basics → images → standalone
+  Size → add-on Frame → combinations → publish → buyer page → paid
+  order with the frozen breakdown surviving a later price edit.
+
+Decisions recorded: mode chosen at creation, changeable only while the
+choice has zero options; catalog prefill skipped for standalone axes (a
+catalog value carries no price); listings.price_cents is sync-derived
+(default configuration's standalone sum) whenever a standalone axis
+exists, seller-edited otherwise; price/stock render on Your item and
+the Basics screen only while the listing has no choices and no pieces;
+the create form stays flat (a new listing is always unconfigured);
+images are capped at 8, cover = lowest position, reordered with
+move buttons (JS-off).
+
+IMPRV-013 (buyer panel on the hub) landed here and is closed with this
+ticket.
