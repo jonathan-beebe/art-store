@@ -6,6 +6,7 @@ namespace App\Http\Requests\Seller;
 
 use App\Models\Category;
 use App\Models\Listing;
+use App\Models\OptionAxis;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -131,3 +132,26 @@ it('leaves an optional field the seller skipped null', function (string $field) 
 
     expect($draft->{$field})->toBeNull();
 })->with(['description', 'dimensions']);
+
+it('does not require price or quantity to update a listing that already offers a choice', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $payload = $form();
+    unset($payload['price'], $payload['quantity']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionDoesntHaveErrors(['price', 'quantity']);
+});
+
+it('still requires price and quantity to update a listing with no choices and no serialized pieces', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $payload = $form();
+    unset($payload['price'], $payload['quantity']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionHasErrors(['price', 'quantity']);
+});

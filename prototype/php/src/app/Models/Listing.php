@@ -184,6 +184,19 @@ class Listing extends Model
         return Money::fromCents($this->price_cents);
     }
 
+    /**
+     * Whether this listing still prices and stocks itself, rather than
+     * handing that job to the choices or combinations screens — true until
+     * it either offers an option choice or breaks into serialized,
+     * one-of-a-kind pieces. A modifier or a quantity discount alone leaves
+     * this true: neither replaces the listing's own price and stock count,
+     * only adjusts or discounts it.
+     */
+    public function hasOwnPriceAndStock(): bool
+    {
+        return $this->optionAxes()->doesntExist() && $this->variants()->where('is_serialized', true)->doesntExist();
+    }
+
     public function isPurchasable(): bool
     {
         return ListingAvailability::isPurchasable($this->status, $this->quantity);

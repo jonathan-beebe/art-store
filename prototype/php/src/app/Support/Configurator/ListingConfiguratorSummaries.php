@@ -19,6 +19,7 @@ use App\Models\QuantityBreak;
 use App\Models\Unit;
 use App\Models\Variant;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use LogicException;
 
 /**
@@ -42,7 +43,38 @@ final class ListingConfiguratorSummaries
      */
     private const int MAX_DISPLAYED_OPTIONS = 3;
 
+    /**
+     * How much of the description the hub's "Your item" row quotes before
+     * trailing off.
+     */
+    private const int DESCRIPTION_EXCERPT_LENGTH = 140;
+
     private function __construct() {} // @codeCoverageIgnore
+
+    /**
+     * The hub's "Your item" row: the title-line facts (category, Medium)
+     * joined the way the row reads them, a trimmed description, and whether
+     * the row also names a price and stock count — it does until the
+     * listing offers a choice or breaks into serialized pieces, at which
+     * point those numbers live on the choices or combinations screens
+     * instead (see {@see Listing::hasOwnPriceAndStock()}).
+     *
+     * @return array{title: string, metaLine: string, descriptionExcerpt: ?string, hasOwnPriceAndStock: bool, priceLabel: string, quantity: int}
+     */
+    public static function basics(Listing $listing): array
+    {
+        return [
+            'title' => $listing->title,
+            'metaLine' => implode(' · ', array_filter([
+                $listing->category?->name,
+                $listing->mediumAttributeLabel() === null ? null : "Medium: {$listing->mediumAttributeLabel()}",
+            ])),
+            'descriptionExcerpt' => $listing->description === null ? null : Str::limit($listing->description, self::DESCRIPTION_EXCERPT_LENGTH),
+            'hasOwnPriceAndStock' => $listing->hasOwnPriceAndStock(),
+            'priceLabel' => $listing->price()->format(),
+            'quantity' => $listing->quantity,
+        ];
+    }
 
     /**
      * @return null|array{axes: list<array{name: string, pricingMode: PricingMode, displayedLabels: list<string>, priceDeltas: list<string>, moreCount: int}>, offeredCount: int, totalCombinations: int, lowStockCount: int, combinationsUrl: string}

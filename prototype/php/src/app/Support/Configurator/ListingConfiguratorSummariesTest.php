@@ -6,15 +6,60 @@ namespace App\Support\Configurator;
 
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitState;
+use App\Models\Category;
+use App\Models\CategoryProperty;
 use App\Models\DescriptionSection;
+use App\Models\ListingAttribute;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
 use App\Models\ModifierScope;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\Property;
+use App\Models\PropertyValue;
 use App\Models\QuantityBreak;
 use App\Models\Unit;
 use App\Models\Variant;
+
+it('summarizes the title, an empty meta line, and no description for a bare listing', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dusk', 'description' => null]);
+
+    $basics = ListingConfiguratorSummaries::basics($listing);
+
+    expect($basics['title'])->toBe('Harbour at Dusk')
+        ->and($basics['metaLine'])->toBe('')
+        ->and($basics['descriptionExcerpt'])->toBeNull()
+        ->and($basics['hasOwnPriceAndStock'])->toBeTrue();
+});
+
+it('joins the category name and Medium fact into the basics meta line', function (): void {
+    $category = Category::factory()->create(['name' => 'Photography']);
+    $property = Property::factory()->create(['name' => 'Medium']);
+    $value = PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Photograph']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $property->id, 'property_value_id' => $value->id]);
+
+    $basics = ListingConfiguratorSummaries::basics($listing);
+
+    expect($basics['metaLine'])->toBe('Photography · Medium: Photograph');
+});
+
+it('excerpts a long description on the basics summary', function (): void {
+    $listing = $this->listing($this->seller(), ['description' => str_repeat('a', 200)]);
+
+    $excerpt = ListingConfiguratorSummaries::basics($listing)['descriptionExcerpt'];
+
+    expect($excerpt)->not->toBeNull()
+        ->and(mb_strlen((string) $excerpt))->toBeLessThan(200);
+});
+
+it('reports no own price and stock on the basics summary once a choice exists', function (): void {
+    $listing = $this->listing($this->seller());
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+
+    expect(ListingConfiguratorSummaries::basics($listing)['hasOwnPriceAndStock'])->toBeFalse();
+});
 
 it('reports zero images and no urls for a listing with none', function (): void {
     $listing = $this->listing($this->seller());

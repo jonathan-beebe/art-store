@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace App\Support\Configurator;
 
 use App\Domain\Listings\ListingStatus;
-use App\Models\Category;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\Variant;
 
-it('carries the category tree and an empty publish-issue list for a listing not in draft', function (): void {
-    Category::factory()->create(['name' => 'Jewelry']);
+it('carries the listing and an empty publish-issue list for a listing not in draft', function (): void {
     $listing = Listing::factory()->create(['status' => ListingStatus::ForSale]);
 
     $data = ListingEditPageData::for($listing);
-    /** @var \Illuminate\Support\Collection<int, Category> $categories */
-    $categories = $data['categories'];
 
     expect($data['listing'])->toBe($listing)
-        ->and($categories->pluck('name')->all())->toBe(['Jewelry'])
         ->and($data['publishIssues'])->toBe([]);
+});
+
+it('carries the basics and images summaries every listing has', function (): void {
+    $listing = Listing::factory()->create();
+
+    $data = ListingEditPageData::for($listing);
+
+    expect($data['basics'])->toBe(ListingConfiguratorSummaries::basics($listing))
+        ->and($data['imagesSummary'])->toBe(ListingConfiguratorSummaries::images($listing));
 });
 
 it('carries the drafts publish issues', function (): void {

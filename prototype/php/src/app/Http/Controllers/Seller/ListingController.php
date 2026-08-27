@@ -13,6 +13,7 @@ use App\Http\Requests\Seller\ListingRequest;
 use App\Models\Category;
 use App\Models\Listing;
 use App\Models\OrderItem;
+use App\Support\Configurator\ListingBasicsPageData;
 use App\Support\Configurator\ListingEditPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Collection;
@@ -51,7 +52,7 @@ final class ListingController extends SellerController
         $listing = $createListing($this->seller(), $request->toDraft(), $request->file('image'));
 
         return redirect()
-            ->route('seller.listings.index')
+            ->route('seller.listings.edit', $listing)
             ->with('status', "\"{$listing->title}\" is saved as a draft.".$this->imageUploadFailureNote($request, $listing));
     }
 
@@ -85,13 +86,13 @@ final class ListingController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.edit', ListingEditPageData::for($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.basics.edit', ListingBasicsPageData::for($listing));
         }
 
         $updated = $updateListing($listing, $request->toDraft(), $request->file('image'));
 
         return redirect()
-            ->route('seller.listings.index')
+            ->route('seller.listings.basics.edit', $updated)
             ->with('status', "\"{$updated->title}\" is updated.");
     }
 

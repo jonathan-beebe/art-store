@@ -324,6 +324,18 @@ it('reads its price as money', function (): void {
     expect($listing->price()->format())->toBe('$450.00');
 });
 
+it('owns its own price and stock until it offers a choice or breaks into serialized pieces', function (): void {
+    $listing = $this->listing($this->seller());
+    $withChoice = $this->listing($this->seller());
+    OptionAxis::factory()->create(['listing_id' => $withChoice->id]);
+    $withPieces = $this->listing($this->seller());
+    Variant::factory()->serialized()->create(['listing_id' => $withPieces->id, 'combo_key' => 'a']);
+
+    expect($listing->hasOwnPriceAndStock())->toBeTrue()
+        ->and($withChoice->hasOwnPriceAndStock())->toBeFalse()
+        ->and($withPieces->hasOwnPriceAndStock())->toBeFalse();
+});
+
 it('renders a placeholder image when there is no upload', function (): void {
     $listing = $this->listing($this->seller(), ['title' => 'Blue Heron']);
 

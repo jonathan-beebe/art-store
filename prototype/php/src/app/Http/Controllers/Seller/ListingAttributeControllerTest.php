@@ -24,7 +24,7 @@ it('sets a value for a property the listings category grants as an attribute', f
         'attribute' => [$property->id => [$value->id]],
     ]);
 
-    $response->assertRedirect(route('seller.listings.edit', $listing));
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
     expect(ListingAttribute::where('listing_id', $listing->id)->sole()->property_value_id)->toBe($value->id);
 });
 

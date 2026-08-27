@@ -11,6 +11,7 @@ use App\Http\Controllers\Seller\EarningsController;
 use App\Http\Controllers\Seller\EventsController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\ListingAttributeController;
+use App\Http\Controllers\Seller\ListingBasicsController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingFaqController;
 use App\Http\Controllers\Seller\ListingImageController;
@@ -36,6 +37,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('/', DashboardController::class)->name('dashboard');
 
     Route::resource('listings', ListingController::class)->except('destroy');
+    Route::get('listings/{listing}/basics', [ListingBasicsController::class, 'edit'])->name('listings.basics.edit');
     Route::post('listings/{listing}/status', ListingStatusController::class)->name('listings.status');
     Route::put('listings/{listing}/attributes', [ListingAttributeController::class, 'update'])->name('listings.attributes.update');
     Route::resource('listings.faqs', ListingFaqController::class)

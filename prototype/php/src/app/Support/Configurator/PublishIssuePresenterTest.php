@@ -105,7 +105,7 @@ it('translates a missing required attribute to the exact copy linking the facts 
     $presented = PublishIssuePresenter::present($issue, $listing);
 
     expect($presented->message)->toBe("Say what it's made of — buyers filter by it.")
-        ->and($presented->fixUrl)->toBe(route('seller.listings.edit', $listing).'#attribute-prp_1');
+        ->and($presented->fixUrl)->toBe(route('seller.listings.basics.edit', $listing).'#attribute-prp_1');
 });
 
 it('names a standalone option with no price by its label', function (): void {

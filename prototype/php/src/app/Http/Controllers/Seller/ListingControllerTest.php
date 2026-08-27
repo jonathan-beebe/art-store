@@ -121,16 +121,21 @@ it('offers the category tree on the create form, indented by depth', function ()
     $response->assertSee('— Rings', escape: false);
 });
 
-it('creates a listing from the form', function () use ($form): void {
+it('creates a listing from the form and lands on the hub', function () use ($form): void {
     $seller = $this->seller();
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
 
-    $response->assertRedirect(route('seller.listings.index'));
     $listing = Listing::where('seller_id', $seller->id)->sole();
+    $response->assertRedirect(route('seller.listings.edit', $listing));
     expect($listing->title)->toBe('Harbour at Dusk')
         ->and($listing->price_cents)->toBe(24900)
         ->and($listing->status)->toBe(ListingStatus::Draft);
+
+    $hub = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
+
+    $hub->assertOk();
+    $hub->assertSee('Your item');
 });
 
 it('stores an uploaded image on the public disk', function () use ($form): void {
@@ -281,22 +286,22 @@ it('renders the activity page on a fixed number of queries however many events t
     $response->assertOk();
 });
 
-it('renders the edit form with the price in dollars', function (): void {
+it('renders the basics screen with the price in dollars', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Harbour at Dusk', 'price_cents' => 24900]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertOk();
     $response->assertSee('value="249.00"', escape: false);
 });
 
-it('preselects the listings current category on the edit form', function (): void {
+it('preselects the listings current category on the basics screen', function (): void {
     $seller = $this->seller();
     $category = Category::factory()->create(['name' => 'Jewelry']);
     $listing = $this->listing($seller, ['category_id' => $category->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee('value="'.$category->id.'" selected', escape: false);
 });
@@ -309,13 +314,13 @@ it('shows an item facts control for a categorized listing with attribute grants'
     CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
     $listing = $this->listing($seller, ['category_id' => $category->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee('Material');
     $response->assertSee('Walnut');
 });
 
-it('D5: the category gates which facts the edit form asks, only the grant for that category appears', function (): void {
+it('D5: the category gates which facts the basics screen asks, only the grant for that category appears', function (): void {
     $seller = $this->seller();
     $jewelry = Category::factory()->create(['name' => 'Jewelry']);
     $metalProperty = Property::factory()->create(['name' => 'Metal']);
@@ -325,7 +330,7 @@ it('D5: the category gates which facts the edit form asks, only the grant for th
     CategoryProperty::factory()->create(['category_id' => $pottery->id, 'property_id' => $glazeProperty->id, 'usable_as_attribute' => true]);
     $listing = $this->listing($seller, ['category_id' => $jewelry->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee('Metal');
     $response->assertDontSee('Glaze');
@@ -335,12 +340,12 @@ it('shows no item facts control for an uncategorized listing', function (): void
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertDontSee('Save facts');
 });
 
-it('links a missing required attribute to its control on the edit form', function (): void {
+it('links a missing required attribute to its control on the basics screen, from the hub', function (): void {
     $seller = $this->seller();
     $category = Category::factory()->create();
     $property = Property::factory()->create();
@@ -354,10 +359,10 @@ it('links a missing required attribute to its control on the edit form', functio
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
-    $response->assertSee('#attribute-'.$property->id, escape: false);
+    $response->assertSee(route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id, escape: false);
 });
 
-it('preselects a listings existing attribute values on the edit form', function (): void {
+it('preselects a listings existing attribute values on the basics screen', function (): void {
     $seller = $this->seller();
     $category = Category::factory()->create();
     $property = Property::factory()->create();
@@ -366,18 +371,75 @@ it('preselects a listings existing attribute values on the edit form', function 
     $listing = $this->listing($seller, ['category_id' => $category->id]);
     ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $property->id, 'property_value_id' => $value->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee('value="'.$value->id.'" selected', escape: false);
 });
 
-it('renders the edit form as a PUT form', function (): void {
+it('renders the basics screen as a PUT form', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee('<input type="hidden" name="_method" value="PUT">', escape: false);
+});
+
+it('shows price and how many you have on the basics screen for an unconfigured listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
+
+    $response->assertSee('for="price"', escape: false);
+    $response->assertSee('How many you have');
+});
+
+it('omits price and how many you have from the basics screen once the listing offers a choice', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
+
+    $response->assertDontSee('for="price"', escape: false);
+    $response->assertDontSee('How many you have');
+});
+
+it('saves the title and item facts from the basics screen', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create(['name' => 'Material']);
+    $value = PropertyValue::factory()->create(['property_id' => $property->id, 'label' => 'Walnut']);
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id, 'title' => 'Old title']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", [
+        'title' => 'New title', 'price' => '10.00', 'quantity' => 1, 'category_id' => $category->id,
+    ]);
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
+    expect($listing->refresh()->title)->toBe('New title');
+
+    $attributes = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/attributes", [
+        'attribute' => [$property->id => [$value->id]],
+    ]);
+    $attributes->assertRedirect(route('seller.listings.basics.edit', $listing));
+    expect(ListingAttribute::where('listing_id', $listing->id)->sole()->property_value_id)->toBe($value->id);
+});
+
+it('a basics save does not clobber the synced price of a listing with a standalone choice', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Old title', 'price_cents' => 999]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id, 'is_default' => true, 'position' => 0]);
+    \App\Support\Configurator\ListingPriceSync::sync($listing->refresh());
+    expect($listing->refresh()->price_cents)->toBe(1800);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", ['title' => 'New title']);
+
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
+    expect($listing->refresh()->title)->toBe('New title')
+        ->and($listing->refresh()->price_cents)->toBe(1800);
 });
 
 it('updates a listing from the form', function () use ($form): void {
@@ -386,7 +448,7 @@ it('updates a listing from the form', function () use ($form): void {
 
     $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form());
 
-    $response->assertRedirect(route('seller.listings.index'));
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
     $listing->refresh();
     expect($listing->title)->toBe('Harbour at Dusk')
         ->and($listing->price_cents)->toBe(24900);
@@ -399,7 +461,7 @@ it('E1: editing a live listings price after an order leaves the placed order at 
 
     $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form(['price' => '80.00']));
 
-    $response->assertRedirect(route('seller.listings.index'));
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
     expect($listing->fresh()?->price_cents)->toBe(8000)
         ->and($order->items->sole()->unit_price_cents)->toBe(5000);
 });
@@ -482,7 +544,8 @@ it('resets the listing-write limit once its window passes', function () use ($fo
     $this->travel(61)->minutes();
     $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form(['title' => 'Second piece']));
 
-    $response->assertRedirect(route('seller.listings.index'));
+    $newListing = Listing::where('seller_id', $seller->id)->where('title', 'Second piece')->sole();
+    $response->assertRedirect(route('seller.listings.edit', $newListing));
     expect(Listing::where('seller_id', $seller->id)->count())->toBe(2);
 });
 
@@ -561,6 +624,90 @@ it('DSGN-001 progressive disclosure: shows summary cards with craft copy for a c
     $response->assertDontSee('Ask a question');
 });
 
+it('shows the price and stock line on the hub for an unconfigured listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2800, 'quantity' => 4]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('$28.00');
+    $response->assertSee('4 in stock');
+});
+
+it('hides the price and stock line on the hub once the listing offers a choice', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2800, 'quantity' => 4]);
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertDontSee('in stock');
+});
+
+it('hides the price and stock line on the hub once the listing carries a serialized piece', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2800, 'quantity' => 4]);
+    Variant::factory()->serialized()->create(['listing_id' => $listing->id, 'combo_key' => 'a']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertDontSee('in stock');
+});
+
+it('no longer renders the flat listing form on the hub', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertDontSee('name="title"', escape: false);
+    $response->assertDontSee('name="price"', escape: false);
+});
+
+it('shows the buyer-view panel in its empty state for an unconfigured listing on the hub', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('Nothing here yet for a buyer to configure — this listing adds straight to cart.');
+});
+
+it('shows the buyer-view panel resolved to a choice for a configured listing on the hub', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8x10', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('What buyers see', escape: false);
+    $response->assertSee('Size');
+    $response->assertSee('8x10');
+});
+
+it('shows an invitation-style line on the Images row for a listing with no images', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('Images');
+    $response->assertSee('No images yet — buyers see a placeholder.');
+});
+
+it('shows up to three thumbnails and a more-count tile on the Images row', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    foreach (range(0, 4) as $position) {
+        $this->listingImage($listing, ['position' => $position]);
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('+2');
+});
+
 it('shows an available-and-sold piece summary for a listing with a serialized combination', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -585,7 +732,7 @@ it('shows the Medium custom-value hint on an item fact grant named Medium', func
     CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true]);
     $listing = $this->listing($seller, ['category_id' => $category->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
     $response->assertSee("Not on the list? Custom values aren't available yet — say it in the description.", escape: false);
 });
@@ -680,7 +827,7 @@ it('reaches the missing-required-item-fact publish issue end to end', function (
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
     $response->assertSee("Say what it's made of — buyers filter by it.");
-    $response->assertSee(route('seller.listings.edit', $listing).'#attribute-'.$property->id, escape: false);
+    $response->assertSee(route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id, escape: false);
 });
 
 it('reaches the too-many-options publish issue end to end', function (): void {
@@ -756,6 +903,6 @@ it('E2: shows every publish issue at once, each naming its fix and linking to th
         "buyers can't be charged a negative amount.",
         route('seller.listings.variants.index', $listing).'#'.$variant->id,
         "Say what it's made of — buyers filter by it.",
-        route('seller.listings.edit', $listing).'#attribute-'.$property->id,
+        route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id,
     ], escape: false);
 });

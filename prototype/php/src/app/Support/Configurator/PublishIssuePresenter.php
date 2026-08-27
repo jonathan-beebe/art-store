@@ -45,7 +45,7 @@ final class PublishIssuePresenter
             'missing_required_attribute' => PresentedPublishIssue::of(
                 "Say what it's made of — buyers filter by it.",
                 'Pick one under Your item',
-                route('seller.listings.edit', $listing).'#attribute-'.$issue->subjectId,
+                route('seller.listings.basics.edit', $listing).'#attribute-'.$issue->subjectId,
             ),
             'option_missing_price' => PresentedPublishIssue::of(
                 self::missingPriceMessage($listing, $issue->subjectId),
