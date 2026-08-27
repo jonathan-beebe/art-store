@@ -104,6 +104,33 @@ validation (§6). One tree, no separate seller/buyer taxonomy split. Scales and
 cross-scale value equivalence (ring size 7 US ↔ 54 EU) are out of scope — see
 §7.
 
+### Attribute altitude
+
+A property carries an altitude, enforced by its grants — never by new schema:
+
+- **Browse-level properties** (`Medium`: Wood, Metal, Ceramic, …) are granted
+  `usable_as_attribute` only — `required` where the category's listings must
+  state one, `multivalued` where mixed media is plausible. They answer "what
+  kind of thing is this" and feed the storefront filter.
+- **Specific-type properties** (`Wood Species`: Walnut, Oak, Maple; the
+  jewelry `Metal` property is the same pattern) are granted per category with
+  both flags meaningful:
+  - No buyer choice → the seller states it as an attribute
+    (`Wood Species = Walnut` on a fixed-species table).
+  - Buyer choice → the seller builds an axis referencing the property; the
+    axis's option values reference the property's values
+    (`option_values.property_value_id`), so the walnut variant is
+    structurally the walnut one, and the choice is search-meaningful.
+- The implication "Walnut → Wood" is curation: a category granting a
+  specific-type property marks its broad property `required`, so the pair is
+  always stated together. A value hierarchy with browse roll-up
+  (Wood → Walnut/Oak) is the upgrade path if species-level filtering ever
+  matters — deferred (§9), and nothing here is thrown away by it.
+
+The line to hold: attributes answer *what is this* at browse altitude; axes
+answer *which one do you want*. No specific species as a browse attribute
+vocabulary, no broad medium as an axis.
+
 ### 2.2 Configuration layer
 
 ```mermaid
@@ -351,6 +378,10 @@ Screen notes:
   override.
 - **Scoping is a picker**, not a text field: "show this modifier when…" lists
   the listing's option values; leaving it empty means always-shown.
+- **Catalog axes first.** The axes screen offers the category's
+  `usable_as_axis` grants before the custom label-only axis, and a
+  catalog-backed axis pre-fills its option values from the property's values —
+  the nudge toward search-meaningful axes the source design specified.
 
 ## 5. Customer flow
 
@@ -454,6 +485,9 @@ From the research doc §2.1.
   display read `listing_attributes`' Medium property exclusively (FEAT-030,
   RFCTR-009 — the legacy `listings.medium` column is gone); no other property
   drives a facet or filter UI yet.
+- **Property-value hierarchy.** No `parent_id` on `property_values` and no
+  filter roll-up; the attribute-altitude split (§2.1) covers v1 and upgrades
+  to a value tree without schema loss.
 - **Private quotes.** No per-customer expiring offer object.
 - **Formula pricing.** No `price = f(x, y)`; a dimension matrix is either
   enumerated as sparse variants or priced with a linear `measurement` rate.

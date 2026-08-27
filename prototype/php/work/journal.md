@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 32
+- FEAT: 33
 - IMPRV: 10
 - MAINT: 5
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
 - 2026-08-27:08:12:59 — BUG-006 — done: Error pages render styled in debug and out — `SecurityHeaders` widens the CSP to `style-src`/`script-src 'self' 'unsafe-inline'` only when `app.debug` is on (production CSP byte-for-byte unchanged); branded `404`/`419`/`500` views under one neutral shared layout (no per-site variant — Laravel resolves error views by status code alone, no site context available); 2329 tests, 6714 assertions, 100% lines
 - 2026-08-27:07:50:51 — BUG-006 — started
 - 2026-08-27:07:48:27 — BUG-005 — done: Adding an existing variant combination no longer 500s — `CreateVariantRequest` gains a combo-uniqueness rule naming the combination inline; `CreateVariant` guards the same rule as a `DomainRuleViolation` backstop; the add-variant form is replaced by a note once the grid is full (`Listing::everyVariantCombinationExists()`); 2323 tests, 6700 assertions, 100% lines
