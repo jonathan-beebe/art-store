@@ -14,8 +14,11 @@ use Illuminate\Validation\Rule;
 use RuntimeException;
 
 /**
- * "Show this question only when…" — every checked box names one of the
- * listing's own option values; an empty selection means always-shown.
+ * "When to ask it" — Always, or Only when one of the checked boxes names one
+ * of the listing's own option values. The Always radio wins outright: a
+ * seller who switches back to it is done with the scope regardless of which
+ * boxes still show checked underneath, the same "leave it alone" gesture as
+ * never having scoped the question at all.
  */
 final class ModifierScopeRequest extends FormRequest
 {
@@ -30,6 +33,7 @@ final class ModifierScopeRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'when' => ['nullable', 'in:always,only'],
             'option_value_id' => ['array'],
             'option_value_id.*' => [
                 'string',
@@ -45,6 +49,10 @@ final class ModifierScopeRequest extends FormRequest
      */
     public function optionValues(): array
     {
+        if ($this->string('when')->toString() === 'always') {
+            return [];
+        }
+
         /** @var list<string> $ids */
         $ids = $this->input('option_value_id', []);
 

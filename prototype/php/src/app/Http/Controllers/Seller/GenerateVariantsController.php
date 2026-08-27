@@ -30,6 +30,6 @@ final class GenerateVariantsController extends SellerController
 
         $created = $generate($listing);
 
-        return redirect()->route('seller.listings.variants.index', $listing)->with('status', count($created).' combination(s) generated.');
+        return redirect()->route('seller.listings.variants.index', $listing)->with('status', count($created).' combination(s) added.');
     }
 }

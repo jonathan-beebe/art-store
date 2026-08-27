@@ -6,13 +6,17 @@ namespace App\Support\Configurator;
 
 use App\Domain\Configurator\PublishIssue;
 use App\Models\Listing;
+use App\Models\Variant;
+use App\Models\VariantOption;
 use LogicException;
 
 /**
  * Turns one {@see PublishIssue} the domain raised in schema words
  * (variant, axis, modifier) into the sentence and fix link the seller-facing
  * publish panel shows — the one place `PublishIssue::$code` is read outside
- * the domain's own validation.
+ * the domain's own validation. A variant-scoped issue names the combination
+ * by its option labels when the variant still exists and carries options,
+ * falling back to the generic phrasing otherwise.
  */
 final class PublishIssuePresenter
 {
@@ -22,17 +26,17 @@ final class PublishIssuePresenter
     {
         return match ($issue->code) {
             'variant_priced_negative' => PresentedPublishIssue::of(
-                "One of your combinations' price comes out below zero once its price differences apply — buyers can't be charged a negative amount.",
+                self::negativePriceMessage($listing, $issue->subjectId),
                 'Fix it in Choices & combinations',
                 self::combinationUrl($listing, $issue),
             ),
             'variant_missing_axis_value' => PresentedPublishIssue::of(
-                "One of your combinations doesn't carry an option for every choice — pick one for each before it can be offered.",
+                self::missingAxisValueMessage($listing, $issue->subjectId),
                 'Fix it in Choices & combinations',
                 self::combinationUrl($listing, $issue),
             ),
             'serialized_variant_has_no_units' => PresentedPublishIssue::of(
-                "You marked one of your combinations one-of-a-kind, but the piece list is empty — there's nothing to sell yet.",
+                self::noUnitsMessage($listing, $issue->subjectId),
                 'Add pieces in Individual pieces',
                 route('seller.listings.variants.units.index', [$listing, $issue->subjectId]),
             ),
@@ -73,5 +77,59 @@ final class PublishIssuePresenter
     private static function combinationUrl(Listing $listing, PublishIssue $issue): string
     {
         return route('seller.listings.variants.index', $listing).'#'.$issue->subjectId;
+    }
+
+    private static function negativePriceMessage(Listing $listing, ?string $variantId): string
+    {
+        $label = self::combinationLabel($listing, $variantId);
+
+        return $label === null
+            ? "One of your combinations' price comes out below zero once its price differences apply — buyers can't be charged a negative amount."
+            : "The {$label} combination's price comes out below zero once its price differences apply — buyers can't be charged a negative amount.";
+    }
+
+    private static function missingAxisValueMessage(Listing $listing, ?string $variantId): string
+    {
+        $label = self::combinationLabel($listing, $variantId);
+
+        return $label === null
+            ? "One of your combinations doesn't carry an option for every choice — pick one for each before it can be offered."
+            : "The {$label} combination doesn't carry an option for every choice — pick one for each before it can be offered.";
+    }
+
+    private static function noUnitsMessage(Listing $listing, ?string $variantId): string
+    {
+        $label = self::combinationLabel($listing, $variantId);
+
+        return $label === null
+            ? "You marked one of your combinations one-of-a-kind, but the piece list is empty — there's nothing to sell yet."
+            : "You marked the {$label} combination one-of-a-kind, but the piece list is empty — there's nothing to sell yet.";
+    }
+
+    /**
+     * The option labels naming the variant a publish issue points at, joined
+     * the way the seller screens name a combination — `null` when the issue
+     * carries no subject, the variant is gone, or it never picked up an
+     * option (an axis-free listing's single combination), so the caller
+     * falls back to naming it generically.
+     */
+    private static function combinationLabel(Listing $listing, ?string $variantId): ?string
+    {
+        if ($variantId === null) {
+            return null;
+        }
+
+        $variant = Variant::query()->where('listing_id', $listing->id)->with('options.optionValue')->find($variantId);
+
+        if ($variant === null) {
+            return null;
+        }
+
+        $labels = $variant->options
+            ->map(fn (VariantOption $option): ?string => $option->optionValue?->label)
+            ->filter()
+            ->values();
+
+        return $labels->isEmpty() ? null : $labels->implode(' · ');
     }
 }

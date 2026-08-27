@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Cart\AddToCart;
 use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Fulfillment\ConfirmDelivered;
@@ -13,6 +14,7 @@ use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
+use App\Domain\Configurator\ModifierKind;
 use App\Models\Fulfillment;
 use App\Models\Seller;
 use App\Models\Variant;
@@ -147,6 +149,39 @@ it('renders a configured lines configuration and itemized breakdown', function (
     $response->assertSee('Rose Gold');
     $response->assertSee('Base price');
     $response->assertSee('$128.00');
+});
+
+it('B9: shows an answered question on the order the seller fulfills', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Hand-Lettered Name Mug', 'price_cents' => 1400]);
+    $size = app(CreateOptionAxis::class)($listing, 'Size');
+    $eightOz = app(AddOptionValue::class)($size, '8 oz', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = Variant::whereHas('options', fn ($query) => $query->where('option_value_id', $eightOz->id))->sole();
+    $modifier = app(CreateModifier::class)($listing, ModifierKind::Text, 'Name to letter', addOnPriceCents: 200);
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)(
+        $cart,
+        $listing,
+        1,
+        $this->moment('2026-08-20 08:00:00'),
+        listingHasVariants: true,
+        variant: $variant,
+        configuration: [['axisId' => $size->id, 'axisName' => 'Size', 'optionValueId' => $eightOz->id, 'optionValueLabel' => '8 oz']],
+        answers: [$modifier->id => ['prompt' => 'Name to letter', 'answer' => 'Wren', 'raw' => 'Wren']],
+        fingerprintAnswers: [$modifier->id => 'Wren'],
+    );
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('Name to letter:');
+    $response->assertSee('Wren');
 });
 
 it('answers not found for a value that is not a fulfillment id, the same as an unknown one', function (string $id): void {

@@ -30,6 +30,6 @@ final class BulkVariantsController extends SellerController
 
         $count = $setEnabled($listing, $request->optionValue(), $request->enabled());
 
-        return redirect()->route('seller.listings.variants.index', $listing)->with('status', "{$count} variant(s) updated.");
+        return redirect()->route('seller.listings.variants.index', $listing)->with('status', "{$count} combination(s) updated.");
     }
 }

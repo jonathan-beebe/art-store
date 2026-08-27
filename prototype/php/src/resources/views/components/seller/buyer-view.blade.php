@@ -1,9 +1,10 @@
 @php
     use App\Domain\Configurator\ModifierKind;
+    use App\Support\Configurator\PriceDifferenceInput;
 @endphp
 
 <div class="relative rounded-lg border border-dashed border-neutral-400 bg-white p-5 text-neutral-900">
-    <span class="absolute -top-3 left-4 rounded-full bg-neutral-800 px-3 py-0.5 text-xs font-medium text-white">What buyers see</span>
+    <span class="absolute -top-3 left-4 rounded-full bg-neutral-800 px-3 py-0.5 text-xs font-medium text-white">What buyers see @if ($caption !== null)— {{ $caption }}@endif</span>
 
     @if (! $hasConfigurator)
         <p class="text-sm text-neutral-500">Nothing here yet for a buyer to configure — this listing adds straight to cart.</p>
@@ -14,8 +15,8 @@
                 <select disabled aria-disabled="true"
                         class="mt-1 block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900">
                     @foreach ($axis['options'] as $option)
-                        <option @selected($option['selected'])>
-                            {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
+                        <option @selected($option['selected']) @disabled(! $option['selectable'])>
+                            {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif @if (! $option['selectable']) — {{ $option['reason'] }}@endif
                         </option>
                     @endforeach
                 </select>
@@ -56,8 +57,12 @@
         @foreach ($configuration->modifiers as $modifier)
             <div class="mt-4">
                 <label class="block text-sm font-medium text-neutral-700">
-                    {{ $modifier['prompt'] }}@if ($modifier['required']) <span aria-hidden="true">*</span>@endif
+                    {{ $modifier['prompt'] }}@if ($modifier['kind'] === ModifierKind::Text && $modifier['addOnPriceCents'] !== 0) <span class="font-normal text-neutral-500">({{ PriceDifferenceInput::format($modifier['addOnPriceCents']) }})</span>@endif @if ($modifier['required']) <span aria-hidden="true">*</span>@endif
                 </label>
+
+                @if ($modifier['instructions'] !== null)
+                    <p class="mt-1 text-xs text-neutral-500">{{ $modifier['instructions'] }}</p>
+                @endif
 
                 @if ($modifier['kind'] === ModifierKind::Select)
                     <select disabled aria-disabled="true" class="mt-1 block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900">
@@ -67,9 +72,21 @@
                             </option>
                         @endforeach
                     </select>
+                @elseif ($modifier['kind'] === ModifierKind::Measurement)
+                    <input type="text" disabled aria-disabled="true" value="{{ $modifier['answer'] }}"
+                           @if ($modifier['minValue'] !== null) min="{{ $modifier['minValue'] }}" @endif
+                           @if ($modifier['maxValue'] !== null) max="{{ $modifier['maxValue'] }}" @endif
+                           class="mt-1 block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900">
+                    @if ($modifier['unit'] !== null)
+                        <span class="mt-1 block text-xs text-neutral-500">{{ $modifier['unit'] }}</span>
+                    @endif
                 @else
                     <input type="text" disabled aria-disabled="true" value="{{ $modifier['answer'] }}"
+                           @if ($modifier['charLimit'] !== null) maxlength="{{ $modifier['charLimit'] }}" @endif
                            class="mt-1 block w-full rounded-lg border border-neutral-300 bg-neutral-50 px-3 py-2 text-sm text-neutral-900">
+                    @if ($modifier['charLimit'] !== null)
+                        <span class="mt-1 block text-xs text-neutral-500">Up to {{ $modifier['charLimit'] }} letters.</span>
+                    @endif
                 @endif
             </div>
         @endforeach

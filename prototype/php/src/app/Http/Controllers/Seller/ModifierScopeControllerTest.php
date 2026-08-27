@@ -25,6 +25,22 @@ it('sets a modifier’s scope to the checked option values', function (): void {
     expect($modifier->scopes()->pluck('option_value_id')->all())->toBe([$personalized->id]);
 });
 
+it('clears the scope when Always is chosen even if boxes are still checked', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/scope", [
+        'when' => 'always',
+        'option_value_id' => [$value->id],
+    ]);
+
+    $response->assertRedirect(route('seller.listings.modifiers.index', $listing));
+    expect($modifier->scopes()->count())->toBe(0);
+});
+
 it('clears the scope with nothing checked', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

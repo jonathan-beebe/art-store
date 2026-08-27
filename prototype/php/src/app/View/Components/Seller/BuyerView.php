@@ -17,7 +17,8 @@ use Illuminate\View\Component;
  * path `/art/{slug}` renders from, but never wired to a submittable form —
  * a seller page has no business posting to a shop route. Accepts the buyer's
  * raw choices so a later screen can show the panel under a chosen
- * combination rather than only the listing's defaults.
+ * combination rather than only the listing's defaults, and an optional
+ * caption suffix for a screen that shows more than one panel side by side.
  */
 final class BuyerView extends Component
 {
@@ -25,7 +26,7 @@ final class BuyerView extends Component
 
     public readonly ?ListingConfiguration $configuration;
 
-    public function __construct(public readonly Listing $listing, public readonly ?ConfiguratorInput $input = null)
+    public function __construct(public readonly Listing $listing, public readonly ?ConfiguratorInput $input = null, public readonly ?string $caption = null)
     {
         $this->hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
         $this->configuration = $this->hasConfigurator

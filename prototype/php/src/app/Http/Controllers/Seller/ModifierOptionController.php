@@ -13,6 +13,7 @@ use App\Http\Requests\Seller\ModifierOptionRequest;
 use App\Models\Listing;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
+use App\Support\Configurator\ModifierIndexPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -29,12 +30,12 @@ final class ModifierOptionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', ModifierIndexPageData::build($listing));
         }
 
         $add($modifier, $request->label(), $request->addOnPriceCents(), $request->position());
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier option added.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Option added.');
     }
 
     public function update(
@@ -48,12 +49,12 @@ final class ModifierOptionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', ModifierIndexPageData::build($listing));
         }
 
         $update($option, $request->label(), $request->addOnPriceCents(), $request->position());
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier option updated.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Option updated.');
     }
 
     public function destroy(
@@ -68,23 +69,11 @@ final class ModifierOptionController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', ModifierIndexPageData::build($listing));
         }
 
         $delete($option);
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier option removed.');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function indexData(Listing $listing): array
-    {
-        return [
-            'listing' => $listing,
-            'modifiers' => $listing->modifiers()->with(['options', 'scopes'])->orderBy('position')->get(),
-            'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-        ];
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Option removed.');
     }
 }

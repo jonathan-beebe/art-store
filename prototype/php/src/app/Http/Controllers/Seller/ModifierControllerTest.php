@@ -7,6 +7,9 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Modifier;
+use App\Models\ModifierOption;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
 use Illuminate\Support\Facades\Config;
 
 it('lists the listing’s modifiers', function (): void {
@@ -145,4 +148,145 @@ it('trips the listing-write limit removing a modifier', function (): void {
 
     $response->assertStatus(429);
     expect(Modifier::find($modifier->id))->not->toBeNull();
+});
+
+it('names the screen and gives an honest intro and a back link', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Hand-Lettered Name Mug']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('Questions you ask the buyer');
+    $response->assertSee("you'll see them where you fulfill, never buried in a message thread", false);
+    $response->assertSee('Hand-Lettered Name Mug');
+    $response->assertSee(route('seller.listings.edit', $listing), false);
+});
+
+it('B1: shows the letter limit and offers it to the buyer as a maxlength', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?', 'char_limit' => 20]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('buyers see the limit before they type');
+    $response->assertSee('maxlength="20"', false);
+    $response->assertSee('Up to 20 letters.');
+});
+
+it('B2: shows an extra charge on the question card and the buyer panel label', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Name to letter', 'add_on_price_cents' => 200]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Name to letter', '+$2.00']);
+});
+
+it('B3+B4: shows per-option prices on the rows and only the listed options to the buyer', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $modifier = Modifier::factory()->select()->create(['listing_id' => $listing->id, 'prompt' => 'Lettering color']);
+    ModifierOption::factory()->create(['modifier_id' => $modifier->id, 'label' => 'Gold leaf', 'add_on_price_cents' => 150]);
+    ModifierOption::factory()->create(['modifier_id' => $modifier->id, 'label' => 'Black', 'add_on_price_cents' => 0]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('+$1.50');
+    $response->assertSee('Gold leaf (+$1.50)');
+    $response->assertDontSee('Silver');
+});
+
+it('B5: renders the required checkbox and marks the buyer panel required', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Modifier::factory()->required()->create(['listing_id' => $listing->id, 'prompt' => 'Name to letter']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('Buyers must answer before they can buy');
+    $response->assertSee('<span aria-hidden="true">*</span>', false);
+});
+
+it('B6: shows a scoped question on the applies panel and not on the other, with both captions', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Version']);
+    $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
+    $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?']);
+    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('Version: Hand-lettered');
+    $response->assertSee('Version: Blank');
+    $response->assertSee('Buyers who pick Blank never see this question');
+    $response->assertSee("it simply isn't there", false);
+});
+
+it('B7: renders limit fields for a measurement question and their attributes on the buyer input', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Modifier::factory()->measurement('mm', 10.0, 100.0, 50)->create(['listing_id' => $listing->id, 'prompt' => 'Engraved length']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('within limits you set');
+    $response->assertSee('min="10"', false);
+    $response->assertSee('max="100"', false);
+    $response->assertSee('mm');
+});
+
+it('B8+B10+E3: renders the honest not-yet, coming, and footer slots with no live controls', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $modifier = Modifier::factory()->select()->create(['listing_id' => $listing->id, 'prompt' => 'Lettering color']);
+    ModifierOption::factory()->create(['modifier_id' => $modifier->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertSee('They attach a photo');
+    $response->assertSee('not yet');
+    $response->assertSee('Until this ships, ask buyers to send reference photos through Messages after ordering.');
+    $response->assertSee('coming');
+    $response->assertSee('not in this version');
+    $response->assertSee('Gift wrap or rush turnaround?');
+    $response->assertSee("add-on checkboxes on this listing aren't available yet.", false);
+});
+
+it('shows only the fields for the chosen type when adding a question', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers?kind=measurement");
+
+    $response->assertOk();
+    $response->assertSee('$ per unit');
+    $response->assertSee('Smallest allowed');
+    $response->assertDontSee('Longest answer');
+});
+
+it('never renders the schema vocabulary the buyer-facing screen retired', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    Modifier::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertOk();
+    $response->assertDontSee('Modifiers');
+    $response->assertDontSee('Add a modifier');
+    $response->assertDontSee('Prompt');
+    $response->assertDontSee('Char limit');
+    $response->assertDontSee('Show this question only when');
 });

@@ -5,7 +5,68 @@ declare(strict_types=1);
 namespace App\Support\Configurator;
 
 use App\Domain\Configurator\PublishIssue;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
+use App\Models\Variant;
+use App\Models\VariantOption;
 use LogicException;
+
+it('names a negative-priced combination by its option labels when the variant still exists', function (): void {
+    $listing = $this->listing($this->seller());
+    $size = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $large = OptionValue::factory()->create(['axis_id' => $size->id, 'label' => 'Large']);
+    $pattern = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Pattern']);
+    $speckle = OptionValue::factory()->create(['axis_id' => $pattern->id, 'label' => 'Speckle']);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $size->id, 'option_value_id' => $large->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $pattern->id, 'option_value_id' => $speckle->id]);
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('variant_priced_negative', 'irrelevant', $variant->id), $listing);
+
+    expect($presented->message)->toBe("The Large · Speckle combination's price comes out below zero once its price differences apply — buyers can't be charged a negative amount.");
+});
+
+it('names a combination missing an axis value by its option labels when the variant still exists', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Small']);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('variant_missing_axis_value', 'irrelevant', $variant->id), $listing);
+
+    expect($presented->message)->toBe("The Small combination doesn't carry an option for every choice — pick one for each before it can be offered.");
+});
+
+it('names a missing-piece-list combination by its option labels when the variant still exists', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Edition']);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Numbered']);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('serialized_variant_has_no_units', 'irrelevant', $variant->id), $listing);
+
+    expect($presented->message)->toBe("You marked the Numbered combination one-of-a-kind, but the piece list is empty — there's nothing to sell yet.");
+});
+
+it('falls back to the generic phrasing for a variant that carries no options', function (): void {
+    $listing = $this->listing($this->seller());
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('variant_missing_axis_value', 'irrelevant', $variant->id), $listing);
+
+    expect($presented->message)->toBe("One of your combinations doesn't carry an option for every choice — pick one for each before it can be offered.");
+});
+
+it('falls back to the generic phrasing for a variant-scoped issue with no subject', function (): void {
+    $listing = $this->listing($this->seller());
+
+    $presented = PublishIssuePresenter::present(PublishIssue::of('variant_priced_negative', 'irrelevant'), $listing);
+
+    expect($presented->message)->toContain('One of your combinations')
+        ->and($presented->message)->toContain('price comes out below zero');
+});
 
 it('translates a negative-priced combination to a plain sentence linking the combinations screen', function (): void {
     $listing = $this->listing($this->seller());

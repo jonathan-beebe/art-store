@@ -116,6 +116,7 @@ final class ConfiguratorPageResolver
                 'unit' => $modifier->unit,
                 'minValue' => $modifier->min_value,
                 'maxValue' => $modifier->max_value,
+                'addOnPriceCents' => $modifier->add_on_price_cents,
                 'options' => $resolvedAnswer['options'],
                 'answer' => $resolvedAnswer['resolvedAnswer'],
                 'delta' => $resolvedAnswer['delta'],

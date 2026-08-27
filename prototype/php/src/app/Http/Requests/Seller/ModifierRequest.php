@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Requests\Seller;
 
 use App\Domain\Configurator\ModifierKind;
-use App\Domain\Money\Money;
 use App\Models\Listing;
+use App\Support\Configurator\PriceDifferenceInput;
+use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -37,24 +38,27 @@ final class ModifierRequest extends FormRequest
             'instructions' => ['nullable', 'string'],
             'required' => ['nullable', 'boolean'],
             'position' => ['required', 'integer', 'min:0'],
-            'add_on_price' => ['nullable', 'regex:/^-?\d+(\.\d{1,2})?$/'],
+            'add_on_price' => ['nullable', 'string', self::money('The extra charge is an amount in dollars, like 2.00.')],
             'char_limit' => ['nullable', 'integer', 'min:1'],
             'unit' => ['nullable', 'string', 'max:255'],
             'min_value' => ['nullable', 'numeric'],
             'max_value' => ['nullable', 'numeric'],
-            'rate' => ['nullable', 'regex:/^-?\d+(\.\d{1,2})?$/'],
+            'rate' => ['nullable', 'string', self::money('The rate is an amount in dollars, like 0.50.')],
         ];
     }
 
     /**
-     * @return array<string, string>
+     * A validation rule closure reused for both money fields — a value is
+     * valid whenever {@see PriceDifferenceInput} can read it, so "2.00",
+     * "+$2.00", and "—" all pass.
      */
-    public function messages(): array
+    private static function money(string $failureMessage): Closure
     {
-        return [
-            'add_on_price.regex' => 'The add-on price is an amount in dollars, like 5.00.',
-            'rate.regex' => 'The rate is an amount in dollars, like 0.50.',
-        ];
+        return function (string $attribute, mixed $value, Closure $fail) use ($failureMessage): void {
+            if (! PriceDifferenceInput::isValid(is_string($value) ? $value : null)) {
+                $fail($failureMessage);
+            }
+        };
     }
 
     public function kind(): ModifierKind
@@ -84,7 +88,7 @@ final class ModifierRequest extends FormRequest
 
     public function addOnPriceCents(): int
     {
-        return $this->filled('add_on_price') ? Money::fromDollars($this->string('add_on_price')->toString())->cents : 0;
+        return $this->filled('add_on_price') ? PriceDifferenceInput::parseCents($this->string('add_on_price')->toString()) : 0;
     }
 
     public function charLimit(): ?int
@@ -109,7 +113,7 @@ final class ModifierRequest extends FormRequest
 
     public function rateCentsPerUnit(): ?int
     {
-        return $this->filled('rate') ? Money::fromDollars($this->string('rate')->toString())->cents : null;
+        return $this->filled('rate') ? PriceDifferenceInput::parseCents($this->string('rate')->toString()) : null;
     }
 
     public function listing(): Listing

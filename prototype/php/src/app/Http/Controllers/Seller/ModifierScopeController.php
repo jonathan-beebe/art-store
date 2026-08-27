@@ -10,6 +10,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ModifierScopeRequest;
 use App\Models\Listing;
 use App\Models\Modifier;
+use App\Support\Configurator\ModifierIndexPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -21,15 +22,11 @@ final class ModifierScopeController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', [
-                'listing' => $listing,
-                'modifiers' => $listing->modifiers()->with(['options', 'scopes'])->orderBy('position')->get(),
-                'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-            ]);
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', ModifierIndexPageData::build($listing));
         }
 
         $setScope($modifier, $request->optionValues());
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Scope updated.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'When to ask it updated.');
     }
 }

@@ -22,7 +22,7 @@ final readonly class ListingConfiguration
      * @param  list<array{id: string, name: string, options: list<array{id: string, label: string, delta: Money, selected: bool, selectable: bool, reason: ?string}>}>  $axes
      * @param  array<string, string>  $selectedOptionValueIdsByAxis
      * @param  list<array{id: string, label: string, conditionNote: ?string, specLines: list<string>, price: Money, selected: bool}>  $units
-     * @param  list<array{id: string, prompt: string, instructions: ?string, kind: ModifierKind, required: bool, charLimit: ?int, unit: ?string, minValue: ?float, maxValue: ?float, options: list<array{id: string, label: string, delta: Money, selected: bool}>, answer: string, delta: Money}>  $modifiers
+     * @param  list<array{id: string, prompt: string, instructions: ?string, kind: ModifierKind, required: bool, charLimit: ?int, unit: ?string, minValue: ?float, maxValue: ?float, addOnPriceCents: int, options: list<array{id: string, label: string, delta: Money, selected: bool}>, answer: string, delta: Money}>  $modifiers
      * @param  list<array{minQty: int, discountPercent: float, active: bool}>  $quantityTiers
      * @param  list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>  $configurationSnapshot
      * @param  array<string, array{prompt: string, answer: string, raw: string}>  $answersSnapshot

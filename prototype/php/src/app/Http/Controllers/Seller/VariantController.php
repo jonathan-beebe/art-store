@@ -34,9 +34,19 @@ final class VariantController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.variants.index', $this->indexData($listing));
         }
 
-        $create($listing, $request->optionValues(), $request->priceOverrideCents(), $request->quantity(), $request->isSerialized(), true, $request->sku());
+        $optionValues = $request->optionValues();
+        $variant = $create($listing, $optionValues, $request->priceOverrideCents(), $request->quantity(), $request->isSerialized(), true, $request->sku());
 
-        return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Variant added.');
+        // The one path with no option values and marked one-of-a-kind is the
+        // no-choices "Start listing pieces" entry — it lands the seller on
+        // that combination's own pieces screen rather than back on a grid
+        // that, with no axes, would have nothing else to show.
+        if ($optionValues === [] && $variant->is_serialized) {
+            return redirect()->route('seller.listings.variants.units.index', [$listing, $variant])
+                ->with('status', 'Piece tracking started — add your first piece below.');
+        }
+
+        return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Combination added.');
     }
 
     public function update(
@@ -54,7 +64,7 @@ final class VariantController extends SellerController
 
         $update($variant, $request->priceOverrideCents(), $request->quantity(), $request->isSerialized(), $request->enabled(), $request->sku());
 
-        return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Variant updated.');
+        return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Combination updated.');
     }
 
     /**

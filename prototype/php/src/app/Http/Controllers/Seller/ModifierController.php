@@ -12,18 +12,20 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ModifierRequest;
 use App\Models\Listing;
 use App\Models\Modifier;
+use App\Support\Configurator\ModifierIndexPageData;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 final class ModifierController extends SellerController
 {
-    public function index(Listing $listing): View
+    public function index(Request $request, Listing $listing): View
     {
         $this->authorize('view', $listing);
 
-        return view('seller.listings.modifiers.index', $this->indexData($listing));
+        return view('seller.listings.modifiers.index', $this->indexData($request, $listing));
     }
 
     public function store(ModifierRequest $request, Listing $listing, CreateModifier $create, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -31,7 +33,7 @@ final class ModifierController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($request, $listing));
         }
 
         $create(
@@ -49,7 +51,7 @@ final class ModifierController extends SellerController
             $request->rateCentsPerUnit(),
         );
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier added.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Question added.');
     }
 
     public function update(ModifierRequest $request, Listing $listing, Modifier $modifier, UpdateModifier $update, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -57,7 +59,7 @@ final class ModifierController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($request, $listing));
         }
 
         $update(
@@ -75,7 +77,7 @@ final class ModifierController extends SellerController
             $request->rateCentsPerUnit(),
         );
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier updated.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Question updated.');
     }
 
     public function destroy(Listing $listing, Modifier $modifier, DeleteModifier $delete, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -85,23 +87,21 @@ final class ModifierController extends SellerController
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
-            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', $this->indexData($listing));
+            return $this->tooManyRequests($exceeded, 'seller.listings.modifiers.index', ModifierIndexPageData::build($listing));
         }
 
         $delete($modifier);
 
-        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Modifier removed.');
+        return redirect()->route('seller.listings.modifiers.index', $listing)->with('status', 'Question removed.');
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function indexData(Listing $listing): array
+    private function indexData(Request $request, Listing $listing): array
     {
-        return [
-            'listing' => $listing,
-            'modifiers' => $listing->modifiers()->with(['options', 'scopes'])->orderBy('position')->get(),
-            'axes' => $listing->optionAxes()->with('optionValues')->orderBy('position')->get(),
-        ];
+        $kind = $request->query('kind');
+
+        return ModifierIndexPageData::build($listing, is_string($kind) ? $kind : null);
     }
 }

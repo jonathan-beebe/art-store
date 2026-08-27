@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
-use App\Domain\Money\Money;
 use App\Models\Listing;
+use App\Support\Configurator\PriceDifferenceInput;
+use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -19,23 +20,19 @@ final class ModifierOptionRequest extends FormRequest
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<mixed>>
      */
     public function rules(): array
     {
         return [
             'label' => ['required', 'string', 'max:255'],
-            'add_on_price' => ['required', 'regex:/^-?\d+(\.\d{1,2})?$/'],
+            'add_on_price' => ['required', 'string', function (string $attribute, mixed $value, Closure $fail): void {
+                if (! PriceDifferenceInput::isValid(is_string($value) ? $value : null)) {
+                    $fail('The price difference is an amount in dollars, like 3.00 or -1.00.');
+                }
+            }],
             'position' => ['required', 'integer', 'min:0'],
         ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function messages(): array
-    {
-        return ['add_on_price.regex' => 'The add-on price is an amount in dollars, like 3.00.'];
     }
 
     public function label(): string
@@ -45,7 +42,7 @@ final class ModifierOptionRequest extends FormRequest
 
     public function addOnPriceCents(): int
     {
-        return Money::fromDollars($this->string('add_on_price')->toString())->cents;
+        return PriceDifferenceInput::parseCents($this->string('add_on_price')->toString());
     }
 
     public function position(): int

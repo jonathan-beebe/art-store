@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Configurator\CreateVariant;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
@@ -36,7 +37,7 @@ it('offers the add-variant form while a combination remains', function (): void 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
 
     $response->assertOk();
-    $response->assertSee('Add variant');
+    $response->assertSee('Add it');
     $response->assertDontSee('Every combination exists');
 });
 
@@ -52,7 +53,7 @@ it('replaces the add-variant form with a note once every combination has a row',
 
     $response->assertOk();
     $response->assertSee('Every combination exists — edit rows above.');
-    $response->assertDontSee('Add variant');
+    $response->assertDontSee('Add it');
 });
 
 it('refuses another sellers listing variants page', function (): void {
@@ -172,4 +173,164 @@ it('trips the listing-write limit updating a variant', function (): void {
 
     $response->assertStatus(429);
     expect($variant->fresh()?->sku)->toBe('Old');
+});
+
+it('A3: offers the one combination added and refuses the sibling combination never added', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $size = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $ten = OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '10']);
+    $eleven = OptionValue::factory()->create(['axis_id' => $size->id, 'label' => '11', 'is_default' => true]);
+    $metal = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Metal']);
+    $silver = OptionValue::factory()->create(['axis_id' => $metal->id, 'label' => 'Silver']);
+    $gold = OptionValue::factory()->create(['axis_id' => $metal->id, 'label' => 'Gold', 'is_default' => true]);
+    app(CreateVariant::class)($listing, [$eleven, $gold]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('Gold');
+    $response->assertSee('Silver');
+    $response->assertSee('not offered');
+});
+
+it('A5: an unchecked combination greys its row and shows unavailable with a reason in the buyer panel', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $small = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Small', 'is_default' => true]);
+    $large = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Large']);
+    app(CreateVariant::class)($listing, [$small]);
+    $offVariant = app(CreateVariant::class)($listing, [$large]);
+    $offVariant->update(['enabled' => false]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee("you don't make this", escape: false);
+    $response->assertSee('not offered');
+});
+
+it('A6: a combination sold out to zero greys only that option, leaving the other purchasable', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Color']);
+    $red = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Red', 'is_default' => true]);
+    $blue = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blue']);
+    app(CreateVariant::class)($listing, [$red], quantity: 5);
+    app(CreateVariant::class)($listing, [$blue], quantity: 0);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('Red');
+    $response->assertSee('Blue');
+    $response->assertSee('out of stock');
+});
+
+it('A7: distinct stock counts per combination render and persist, with a low marker at three or fewer', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $plenty = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Plenty']);
+    $scarce = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Scarce']);
+    $plentyVariant = app(CreateVariant::class)($listing, [$plenty], quantity: 40);
+    $scarceVariant = app(CreateVariant::class)($listing, [$scarce], quantity: 3);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('value="40"', false);
+    $response->assertSee('value="3"', false);
+    $response->assertSee('low');
+
+    $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$scarceVariant->id}", ['quantity' => 12]);
+
+    expect($scarceVariant->fresh()?->quantity)->toBe(12);
+    expect($plentyVariant->fresh()?->quantity)->toBe(40);
+});
+
+it('A8: stopping offering every combination for one option value works end to end, and the price sweep renders as a coming slot', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $large = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Large']);
+    $variant = app(CreateVariant::class)($listing, [$large]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+    $response->assertOk();
+    $response->assertSee('stop offering them');
+    $response->assertSee('offer them');
+    $response->assertSee('coming — not in this version');
+    $response->assertSee('add $10.00 to the price');
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/bulk", [
+        'option_value_id' => $large->id,
+        'enabled' => '0',
+    ]);
+
+    expect($variant->fresh()?->enabled)->toBeFalse();
+});
+
+it('A11: setting a combination’s own code persists', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = app(CreateVariant::class)($listing, [$value]);
+
+    $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$variant->id}", [
+        'sku' => 'WORKSHOP-07',
+        'quantity' => 1,
+    ]);
+
+    expect($variant->fresh()?->sku)->toBe('WORKSHOP-07');
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+    $response->assertSee('WORKSHOP-07');
+});
+
+it('C11: the how-stock-works card renders and a blank-stock combination stays available in the buyer panel', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $oneSize = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'One size', 'is_default' => true]);
+    app(CreateVariant::class)($listing, [$oneSize], quantity: null);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('How stock works here');
+    $response->assertSee('Made in batches');
+    $response->assertSee('Made to order');
+    $response->assertSee('One of a kind');
+    $response->assertDontSee('out of stock');
+    $response->assertDontSee('not offered');
+});
+
+it('offers to start listing pieces for a listing with no choices', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+
+    $response->assertOk();
+    $response->assertSee('Every piece one of a kind?');
+    $response->assertSee('Start listing pieces');
+});
+
+it('starts listing pieces for a no-choices listing, landing on that combination’s pieces screen', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['is_serialized' => '1']);
+
+    $variant = Variant::where('listing_id', $listing->id)->sole();
+    expect($variant->is_serialized)->toBeTrue()
+        ->and($variant->combo_key)->toBe('');
+    $response->assertRedirect(route('seller.listings.variants.units.index', [$listing, $variant]));
+
+    $again = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
+    $again->assertSee('See your pieces');
+    $again->assertDontSee('Start listing pieces');
 });
