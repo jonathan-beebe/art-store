@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 1
 - ARCH: 1
-- FEAT: 30
+- FEAT: 31
 - IMPRV: 10
 - MAINT: 5
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
 - 2026-08-27:05:55:04 — IMPRV-010 — done: buyer configurator polish — natural unit-label ordering (`UnitLabelOrder`) shared by the buyer picker and seller units screen, humanized `specs_json` (`UnitSpecLabel`), override-priced breakdowns labeled with their combination instead of "Base price" (`OverridePriceLabel`), a `:has(:focus-visible)` ring on unit cards; addendum: pet portrait's compound "Pets & Pose" axis split into independent "Pets"/"Pose" axes; 2305 tests, 6594 assertions, 100% lines
 - 2026-08-27:05:39:24 — IMPRV-010 — started
 - 2026-08-27:00:31:24 — FEAT-029 — done: listing categorization, attributes, and storefront Highlights — category select on the seller listing form (nullable, path-indented), an attributes section on the edit screen writing through `SetListingAttributes` (a sync per property, honoring `multivalued`), category-change pruning of ungranted attribute rows in `UpdateListing`, `ConfiguratorPublishValidation`'s new `required && usable_as_attribute` gate, the axes catalog-property picker fixed to scope by category, and a Highlights panel on `/art/{slug}`; archetype seeds now exercise `required` (pet portrait's Medium) and `multivalued` (walnut table's Material); 2291 tests, 6557 assertions, 100% lines
