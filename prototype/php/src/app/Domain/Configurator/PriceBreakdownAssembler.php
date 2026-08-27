@@ -22,7 +22,7 @@ final class PriceBreakdownAssembler
     public static function assemble(array $perUnitLines, int $quantity, ?QuantityDiscount $tier): PriceBreakdown
     {
         $scaled = array_map(
-            fn (PriceBreakdownLine $line): PriceBreakdownLine => PriceBreakdownLine::of($line->label, $line->amount->multiply($quantity)),
+            fn (PriceBreakdownLine $line): PriceBreakdownLine => PriceBreakdownLine::of($line->label, $line->amount->multiply($quantity), $line->signed),
             $perUnitLines,
         );
 

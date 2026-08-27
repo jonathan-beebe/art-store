@@ -48,6 +48,26 @@ it('shows the listing in full', function (): void {
     $response->assertSee('$245.00');
 });
 
+it('renders the cover and a thumbnail grid of the remaining images', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'gallery-piece']);
+    $cover = $this->listingImage($listing, ['path' => 'listings/cover.jpg', 'position' => 0]);
+    $second = $this->listingImage($listing, ['path' => 'listings/second.jpg', 'position' => 1]);
+
+    $response = $this->get('/art/gallery-piece');
+
+    $response->assertSeeInOrder([$cover->url(), $second->url()], escape: false);
+});
+
+it('renders no thumbnail grid for a listing with a single image', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'lone-image']);
+    $this->listingImage($listing, ['position' => 0]);
+
+    $response = $this->get('/art/lone-image');
+
+    $response->assertOk();
+    $response->assertDontSee('photo 2', false);
+});
+
 it('shows the Medium attribute when the listing carries one', function (): void {
     $listing = $this->listing($this->seller(), ['slug' => 'kiln-study']);
     $this->mediumAttribute($listing, 'Ceramic');

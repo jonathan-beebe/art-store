@@ -42,7 +42,7 @@ every foreign key holds the referenced table's id.
 | category_properties    | `cpr`  | modifier_scopes      | `mds`  |
 | listing_attributes     | `lat`  | quantity_breaks      | `qbk`  |
 | option_axes            | `axs`  | description_sections | `dsc`  |
-| option_values          | `ovl`  |                      |        |
+| option_values          | `ovl`  | listing_images       | `img`  |
 | variants               | `vrt`  |                      |        |
 | variant_options        | `vop`  |                      |        |
 
@@ -260,6 +260,7 @@ Notes:
 ```mermaid
 erDiagram
     listings ||--o{ description_sections : "described by"
+    listings ||--o{ listing_images : shows
 
     description_sections {
         text id PK
@@ -270,6 +271,12 @@ erDiagram
         text body_md "nullable, text | care | disclaimer"
         text body_json "nullable, specs rows | size-chart table | faq pairs"
     }
+    listing_images {
+        text id PK
+        text listing_id FK
+        string path
+        unsigned position "unique with listing_id, lowest is the cover"
+    }
 ```
 
 A listing's description becomes an ordered list of typed sections instead of
@@ -277,6 +284,13 @@ one free-text field. `body_md` carries prose kinds; `body_json` carries
 structured kinds. No section kind renders automatically from configurator
 data in v1 (a How-to-Order or What's-Included section is authored like any
 other) — see §7.
+
+`listing_images` replaces the single `listings.image_path` column: one row
+per uploaded photo, ordered by `position`. The lowest position is the
+cover — the image `Listing::imageUrl()` returns and every card, cart line,
+and admin row renders; the rest render as a thumbnail grid on the buyer
+page below it. A listing with no rows here falls back to a placeholder
+drawn from its title, the same as before this table existed.
 
 ### 2.4 Cart and order
 

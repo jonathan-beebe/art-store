@@ -96,7 +96,7 @@ it('shows the event counts for each listing', function (): void {
 
 it('shows a placeholder thumbnail for a listing without an image', function (): void {
     $seller = $this->seller();
-    $listing = $this->listing($seller, ['image_path' => null]);
+    $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
@@ -142,8 +142,9 @@ it('stores an uploaded image on the public disk', function () use ($form): void 
     ]));
 
     $listing = Listing::where('seller_id', $seller->id)->sole();
-    expect($listing->image_path)->not->toBeNull();
-    Storage::disk('public')->assertExists((string) $listing->image_path);
+    $cover = $listing->images()->sole();
+    expect($cover->position)->toBe(0);
+    Storage::disk('public')->assertExists($cover->path);
 });
 
 it('creates the listing without an image and tells the seller when the upload fails', function () use ($form): void {
@@ -157,7 +158,7 @@ it('creates the listing without an image and tells the seller when the upload fa
 
     $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'image failed to upload'));
     $listing = Listing::where('seller_id', $seller->id)->sole();
-    expect($listing->image_path)->toBeNull();
+    expect($listing->images()->count())->toBe(0);
 });
 
 it('renders the activity page', function (): void {
@@ -416,7 +417,8 @@ it('rejects an update without a title', function () use ($form): void {
 
 it('keeps the previous image when a replacement upload fails', function () use ($form): void {
     $seller = $this->seller();
-    $listing = $this->listing($seller, ['image_path' => 'listings/old.jpg']);
+    $listing = $this->listing($seller);
+    $this->listingImage($listing, ['path' => 'listings/old.jpg']);
     Storage::shouldReceive('disk')->with('public')->andReturnSelf();
     Storage::shouldReceive('putFile')->andReturn(false);
 
@@ -424,7 +426,7 @@ it('keeps the previous image when a replacement upload fails', function () use (
         'image' => UploadedFile::fake()->image('harbour.jpg'),
     ]));
 
-    expect($listing->refresh()->image_path)->toBe('listings/old.jpg');
+    expect($listing->images()->sole()->path)->toBe('listings/old.jpg');
 });
 
 it('hides another sellers listing from the edit form', function (): void {

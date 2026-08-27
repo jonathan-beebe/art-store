@@ -20,7 +20,6 @@ return new class extends Migration
             $table->unsignedInteger('price_cents');
             $table->unsignedInteger('quantity')->default(1);
             $table->string('status')->default(ListingStatus::Draft->value);
-            $table->string('image_path')->nullable();
             $table->string('dimensions')->nullable();
             $table->timestamps();
 

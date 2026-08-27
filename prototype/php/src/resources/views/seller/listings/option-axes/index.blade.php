@@ -1,29 +1,38 @@
 @php
+    use App\Domain\Configurator\PricingMode;
     use App\Support\Configurator\OptionBuyerPrice;
     use App\Support\Configurator\PriceDifferenceInput;
 
     // The custom-name form shows whenever there is nothing to catalog-lead
     // with, or the seller asked for it via "Something else…".
     $showCustomChoiceForm = $properties->isEmpty() || request()->query('choice') === 'custom';
+
+    // "Add another choice" is mode-first (DSGN-002): the seller picks how a
+    // new choice prices its options before seeing any catalog-property or
+    // custom-name picker, threaded through as a GET `mode` param so the
+    // whole flow works with JS off.
+    $selectedMode = match (request()->query('mode')) {
+        PricingMode::Standalone->value => PricingMode::Standalone,
+        PricingMode::AddOn->value => PricingMode::AddOn,
+        default => null,
+    };
+    $addChoiceUrl = route('seller.listings.option-axes.index', $listing);
 @endphp
 
 <x-layouts.seller :title="'Choices you offer — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
     <h1 class="mt-2 text-xl font-semibold">Choices you offer</h1>
-    <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Each choice becomes a dropdown on your listing. A price difference sits on the option itself — set it once and it applies in every other combination.</p>
+    <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Each choice becomes a dropdown on your listing. Say up front whether its options are each priced on their own, or add to your price — every option follows that choice's rule.</p>
 
     <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_420px]">
         <div class="flex flex-col gap-4">
             @forelse ($axes as $axis)
+                @php $isStandalone = $axis->pricing_mode === PricingMode::Standalone; @endphp
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <div class="flex flex-wrap items-baseline gap-2">
                         <p class="font-semibold text-gray-700 dark:text-gray-300">{{ $axis->name }}</p>
 
-                        @if ($axis->optionValues->contains(fn ($value) => $value->surcharge_cents !== 0))
-                            <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">changes the price</span>
-                        @else
-                            <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">doesn't change the price</span>
-                        @endif
+                        @include('seller.listings.option-axes._mode-pill', ['mode' => $axis->pricing_mode])
 
                         <form method="POST" action="{{ route('seller.listings.option-axes.destroy', [$listing, $axis]) }}" class="ml-auto">
                             @csrf
@@ -54,18 +63,33 @@
                                         @enderror
                                     </div>
 
-                                    <div>
-                                        <label for="surcharge-{{ $value->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Price difference</label>
-                                        <input id="surcharge-{{ $value->id }}" type="text" name="surcharge" value="{{ old('surcharge', PriceDifferenceInput::format($value->surcharge_cents)) }}"
-                                               class="mt-1 w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                        @error('surcharge')
-                                            <p class="mt-1 text-xs text-red-700 dark:text-red-400">{{ $message }}</p>
-                                        @enderror
-                                    </div>
+                                    @if ($isStandalone)
+                                        <div>
+                                            <label for="price-{{ $value->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Price</label>
+                                            <div class="relative mt-1">
+                                                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500 dark:text-gray-400">$</span>
+                                                <input id="price-{{ $value->id }}" type="text" name="price"
+                                                       value="{{ old('price', number_format(($value->price_cents ?? 0) / 100, 2, '.', ',')) }}" required
+                                                       class="w-24 rounded border border-gray-400 dark:border-gray-600 py-2 pl-6 pr-3">
+                                            </div>
+                                            @error('price')
+                                                <p class="mt-1 text-xs text-red-700 dark:text-red-400">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    @else
+                                        <div>
+                                            <label for="surcharge-{{ $value->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Price difference</label>
+                                            <input id="surcharge-{{ $value->id }}" type="text" name="surcharge" value="{{ old('surcharge', PriceDifferenceInput::format($value->surcharge_cents)) }}"
+                                                   class="mt-1 w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                            @error('surcharge')
+                                                <p class="mt-1 text-xs text-red-700 dark:text-red-400">{{ $message }}</p>
+                                            @enderror
+                                        </div>
 
-                                    <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">
-                                        buyers pay {{ OptionBuyerPrice::forOption($listing->price(), $axis->pricing_mode, $value)->format() }}
-                                    </span>
+                                        <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">
+                                            buyers pay {{ OptionBuyerPrice::forOption($listing->price(), $axis->pricing_mode, $value)->format() }}
+                                        </span>
+                                    @endif
 
                                     <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-xs">Save</button>
                                 </form>
@@ -79,8 +103,14 @@
                         @endforeach
                     </div>
 
-                    @if ($axis->optionValues->isNotEmpty() && $axis->optionValues->every(fn ($value) => $value->surcharge_cents === 0))
-                        <p class="mt-2 text-gray-600 dark:text-gray-400">A choice with no price differences never touches your price — buyers just pick one.</p>
+                    @if ($axis->optionValues->isNotEmpty())
+                        @if ($isStandalone)
+                            <p class="mt-2 text-gray-600 dark:text-gray-400">No option is the "base" here — each size just costs what it costs. Buyers pay exactly the price shown for the size they pick.</p>
+                        @elseif ($axis->optionValues->every(fn ($value) => $value->surcharge_cents === 0))
+                            <p class="mt-2 text-gray-600 dark:text-gray-400">A choice with no price differences never touches your price — buyers just pick one.</p>
+                        @else
+                            <p class="mt-2 text-gray-600 dark:text-gray-400">Buyers pay your item's price, plus whatever {{ $axis->name }} adds on top.</p>
+                        @endif
                     @endif
 
                     <form method="POST" action="{{ route('seller.listings.option-axes.option-values.store', [$listing, $axis]) }}" class="mt-3 flex flex-wrap items-center gap-3 border-t border-gray-200 dark:border-gray-800 pt-3">
@@ -91,9 +121,18 @@
                         <input id="new-label-{{ $axis->id }}" type="text" name="label" placeholder="New option" required maxlength="255"
                                class="w-32 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
 
-                        <label for="new-surcharge-{{ $axis->id }}" class="sr-only">Price difference</label>
-                        <input id="new-surcharge-{{ $axis->id }}" type="text" name="surcharge" placeholder="+$0.00"
-                               class="w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                        @if ($isStandalone)
+                            <label for="new-price-{{ $axis->id }}" class="sr-only">Price</label>
+                            <div class="relative">
+                                <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-500 dark:text-gray-400">$</span>
+                                <input id="new-price-{{ $axis->id }}" type="text" name="price" placeholder="18.00" required
+                                       class="w-24 rounded border border-gray-400 dark:border-gray-600 py-2 pl-6 pr-3">
+                            </div>
+                        @else
+                            <label for="new-surcharge-{{ $axis->id }}" class="sr-only">Price difference</label>
+                            <input id="new-surcharge-{{ $axis->id }}" type="text" name="surcharge" placeholder="+$0.00"
+                                   class="w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                        @endif
 
                         <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add option</button>
                     </form>
@@ -103,39 +142,65 @@
             @endforelse
 
             <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <p class="font-semibold text-gray-700 dark:text-gray-300">Add another choice</p>
-                <p class="mt-1 text-gray-600 dark:text-gray-400">Start from what buyers search by, or name your own:</p>
+                @if ($selectedMode === null)
+                    <p class="font-semibold text-gray-700 dark:text-gray-300">Add another choice</p>
+                    <p class="mt-1 text-gray-600 dark:text-gray-400">Pick how its options get priced — you can't change this after adding the first option, so choose the one that matches how you actually price it.</p>
 
-                @php $nextAxisPosition = $axes->isEmpty() ? 0 : $axes->max('position') + 1; @endphp
+                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <a href="{{ $addChoiceUrl }}?mode=standalone" class="block rounded border border-gray-400 dark:border-gray-600 px-4 py-3 text-left font-medium text-gray-900 dark:text-gray-100">
+                            Each option priced on its own
+                            <span class="mt-0.5 block font-normal text-gray-600 dark:text-gray-400">Small, medium, large — every size just has a price. Nothing is a "base."</span>
+                        </a>
+                        <a href="{{ $addChoiceUrl }}?mode=add_on" class="block rounded border border-gray-400 dark:border-gray-600 px-4 py-3 text-left font-medium text-gray-900 dark:text-gray-100">
+                            Options add to your price
+                            <span class="mt-0.5 block font-normal text-gray-600 dark:text-gray-400">A frame, an engraving, a nicer paper — each one adds a little (or a lot) to what you already charge.</span>
+                        </a>
+                    </div>
+                @else
+                    <div class="flex flex-wrap items-baseline gap-2">
+                        <p class="font-semibold text-gray-700 dark:text-gray-300">Add another choice</p>
+                        @include('seller.listings.option-axes._mode-pill', ['mode' => $selectedMode])
+                        <a href="{{ $addChoiceUrl }}" class="ml-auto underline">Choose a different pricing style</a>
+                    </div>
+                    <p class="mt-1 text-gray-600 dark:text-gray-400">Start from what buyers search by, or name your own:</p>
 
-                <div class="mt-2 flex flex-wrap items-center gap-2">
-                    @foreach ($properties as $property)
-                        <form method="POST" action="{{ route('seller.listings.option-axes.store', $listing) }}">
+                    @php $nextAxisPosition = $axes->isEmpty() ? 0 : $axes->max('position') + 1; @endphp
+
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        @foreach ($properties as $property)
+                            <form method="POST" action="{{ route('seller.listings.option-axes.store', $listing) }}">
+                                @csrf
+                                <input type="hidden" name="name" value="{{ $property->name }}">
+                                <input type="hidden" name="property_id" value="{{ $property->id }}">
+                                <input type="hidden" name="position" value="{{ $nextAxisPosition }}">
+                                <input type="hidden" name="pricing_mode" value="{{ $selectedMode->value }}">
+                                <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1">
+                                    {{ $property->name }} <span class="text-gray-600 dark:text-gray-400">&middot; from the catalog, searchable</span>
+                                </button>
+                            </form>
+                        @endforeach
+
+                        @if ($properties->isNotEmpty() && ! $showCustomChoiceForm)
+                            <a href="{{ $addChoiceUrl }}?mode={{ $selectedMode->value }}&choice=custom" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1">Something else...</a>
+                        @endif
+                    </div>
+
+                    @if ($showCustomChoiceForm)
+                        <form method="POST" action="{{ route('seller.listings.option-axes.store', $listing) }}" class="mt-3 flex flex-wrap items-end gap-3">
                             @csrf
-                            <input type="hidden" name="name" value="{{ $property->name }}">
-                            <input type="hidden" name="property_id" value="{{ $property->id }}">
+                            <x-form.field name="name" label="Choice name" required maxlength="255" hint="Metal, Size, or a custom label of your own." />
                             <input type="hidden" name="position" value="{{ $nextAxisPosition }}">
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1">
-                                {{ $property->name }} <span class="text-gray-600 dark:text-gray-400">&middot; from the catalog, searchable</span>
-                            </button>
+                            <input type="hidden" name="pricing_mode" value="{{ $selectedMode->value }}">
+                            <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Add choice</button>
                         </form>
-                    @endforeach
-
-                    @if ($properties->isNotEmpty() && ! $showCustomChoiceForm)
-                        <a href="{{ route('seller.listings.option-axes.index', $listing) }}?choice=custom" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1">Something else...</a>
                     @endif
-                </div>
 
-                @if ($showCustomChoiceForm)
-                    <form method="POST" action="{{ route('seller.listings.option-axes.store', $listing) }}" class="mt-3 flex flex-wrap items-end gap-3">
-                        @csrf
-                        <x-form.field name="name" label="Choice name" required maxlength="255" hint="Metal, Size, or a custom label of your own." />
-                        <input type="hidden" name="position" value="{{ $nextAxisPosition }}">
-                        <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Add choice</button>
-                    </form>
+                    @if ($selectedMode === PricingMode::Standalone)
+                        <p class="mt-2 text-gray-600 dark:text-gray-400">A catalog choice links to your catalog property, searchable — you still give each option its own price yourself.</p>
+                    @else
+                        <p class="mt-2 text-gray-600 dark:text-gray-400">A catalog choice starts with its standard options filled in; keep the ones you make.</p>
+                    @endif
                 @endif
-
-                <p class="mt-2 text-gray-600 dark:text-gray-400">A catalog choice starts with its standard options filled in; keep the ones you make.</p>
             </div>
 
             @if ($combinations !== null)

@@ -325,15 +325,24 @@ it('reads its price as money', function (): void {
 });
 
 it('renders a placeholder image when there is no upload', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron', 'image_path' => null]);
+    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron']);
 
     expect($listing->imageUrl())->toStartWith('data:image/svg+xml;base64,');
 });
 
 it('serves an uploaded image from the public disk', function (): void {
-    $listing = $this->listing($this->seller(), ['image_path' => 'listings/heron.png']);
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/heron.png']);
 
     expect($listing->imageUrl())->toEndWith('/storage/listings/heron.png');
+});
+
+it('reads the lowest-position image as the cover', function (): void {
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/second.png', 'position' => 1]);
+    $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
+
+    expect($listing->imageUrl())->toEndWith('/storage/listings/first.png');
 });
 
 it('sells items off its quantity', function (): void {

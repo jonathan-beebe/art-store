@@ -188,6 +188,36 @@ it('keeps a no-standalone-axis listing’s breakdown byte-for-byte when a standa
         ->and($breakdown->lines[1]->label)->toBe('Rose Gold');
 });
 
+it('keeps neither line signed when two standalone axes are both selected', function (): void {
+    // Regression guard: the price panel used to add a spurious "+" to every
+    // non-first line by position; a second standalone selection is an
+    // absolute price too and must never take one.
+    $listing = $this->listing($this->seller(), ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    $eightByTen = OptionValue::factory()->priced(1800)->create(['axis_id' => $size->id, 'label' => '8x10']);
+    $color = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Color']);
+    $blue = OptionValue::factory()->priced(2200)->create(['axis_id' => $color->id, 'label' => 'Blue']);
+
+    $breakdown = ConfigurationPricer::price($listing, [$eightByTen, $blue], null, null, [], 1);
+
+    expect($breakdown->lines)->toHaveCount(2)
+        ->and($breakdown->lines[0]->signed)->toBeFalse()
+        ->and($breakdown->lines[1]->signed)->toBeFalse()
+        ->and($breakdown->total()->cents)->toBe(4000);
+});
+
+it('marks the base price and a standalone selection unsigned, and a surcharge signed', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 2000]);
+
+    $unsignedBase = ConfigurationPricer::price($listing, [], null, null, [], 1);
+    expect($unsignedBase->lines[0]->signed)->toBeFalse();
+
+    $axis = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id]);
+    $priced = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Rose Gold', 'surcharge_cents' => 800]);
+    $signedSurcharge = ConfigurationPricer::price($listing, [$priced], null, null, [], 1);
+    expect($signedSurcharge->lines[1]->signed)->toBeTrue();
+});
+
 it('scales lines by quantity and applies the best tier discount', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 300]);
     QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 50, 'discount_bps' => 500]);

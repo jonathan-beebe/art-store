@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Configurator;
 
+use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitState;
 use App\Models\DescriptionSection;
 use App\Models\Modifier;
@@ -14,6 +15,23 @@ use App\Models\OptionValue;
 use App\Models\QuantityBreak;
 use App\Models\Unit;
 use App\Models\Variant;
+
+it('reports zero images and no urls for a listing with none', function (): void {
+    $listing = $this->listing($this->seller());
+
+    expect(ListingConfiguratorSummaries::images($listing))->toBe(['urls' => [], 'count' => 0]);
+});
+
+it('lists images cover-first by position', function (): void {
+    $listing = $this->listing($this->seller());
+    $second = $this->listingImage($listing, ['path' => 'listings/second.jpg', 'position' => 1]);
+    $first = $this->listingImage($listing, ['path' => 'listings/first.jpg', 'position' => 0]);
+
+    $images = ListingConfiguratorSummaries::images($listing);
+
+    expect($images['urls'])->toBe([$first->url(), $second->url()])
+        ->and($images['count'])->toBe(2);
+});
 
 it('has no choices summary for a listing with no choices', function (): void {
     $listing = $this->listing($this->seller());
@@ -44,6 +62,34 @@ it('summarizes a choice, its priced option, and its combination coverage', funct
         ->and($summary['offeredCount'])->toBe(1)
         ->and($summary['totalCombinations'])->toBe(2)
         ->and($summary['combinationsUrl'])->toBe(route('seller.listings.variants.index', $listing));
+});
+
+it('summarizes a standalone choice with each displayed option’s own absolute price, unfiltered and unsigned', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id, 'label' => '8x10', 'position' => 0]);
+    OptionValue::factory()->priced(2400)->create(['axis_id' => $axis->id, 'label' => '11x14', 'position' => 1]);
+    OptionValue::factory()->priced(3400)->create(['axis_id' => $axis->id, 'label' => '16x20', 'position' => 2]);
+
+    /** @var array{axes: list<array{name: string, pricingMode: PricingMode, displayedLabels: list<string>, priceDeltas: list<string>, moreCount: int}>, offeredCount: int, totalCombinations: int, lowStockCount: int, combinationsUrl: string} $summary */
+    $summary = ListingConfiguratorSummaries::choices($listing);
+
+    expect($summary['axes'][0]['pricingMode'])->toBe(PricingMode::Standalone)
+        ->and($summary['axes'][0]['displayedLabels'])->toBe(['8x10', '11x14', '16x20'])
+        ->and($summary['axes'][0]['priceDeltas'])->toBe(['$18.00', '$24.00', '$34.00']);
+});
+
+it('names an add-on choice’s pricing mode alongside its filtered, signed price deltas', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id, 'name' => 'Frame']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Unframed', 'surcharge_cents' => 0, 'position' => 0]);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Black frame', 'surcharge_cents' => 3200, 'position' => 1]);
+
+    /** @var array{axes: list<array{name: string, pricingMode: PricingMode, displayedLabels: list<string>, priceDeltas: list<string>, moreCount: int}>, offeredCount: int, totalCombinations: int, lowStockCount: int, combinationsUrl: string} $summary */
+    $summary = ListingConfiguratorSummaries::choices($listing);
+
+    expect($summary['axes'][0]['pricingMode'])->toBe(PricingMode::AddOn)
+        ->and($summary['axes'][0]['priceDeltas'])->toBe(['+$32.00']);
 });
 
 it('collapses a choice past three options into a more count', function (): void {

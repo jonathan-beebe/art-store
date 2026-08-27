@@ -26,31 +26,50 @@ final readonly class UpdateListing
             'listing_id' => $listing->id,
             'seller_id' => $listing->seller_id,
         ], function (Story $story) use ($listing, $draft, $image): Listing {
-            $replaced = $listing->image_path;
             $previousCategoryId = $listing->category_id;
-            $storedImage = $image === null ? null : ($this->storeListingImage)($image);
+            $imageReplaced = $image !== null && $this->replaceCoverImage($listing, $image);
 
-            $listing->update($draft->attributes() + ($storedImage === null
-                ? []
-                : ['image_path' => $storedImage]));
+            $listing->update($draft->attributes());
 
             if ($listing->category_id !== $previousCategoryId) {
                 $this->pruneAttributesTheNewCategoryDoesNotGrant($listing);
-            }
-
-            if ($storedImage !== null && $replaced !== null) {
-                Storage::disk('public')->delete($replaced);
             }
 
             $story->did('updated the listing', [
                 'listing_id' => $listing->id,
                 'seller_id' => $listing->seller_id,
                 'price_cents' => $listing->price_cents,
-                'image_replaced' => $storedImage !== null,
+                'image_replaced' => $imageReplaced,
             ]);
 
             return $listing;
         });
+    }
+
+    /**
+     * Replaces the cover — the lowest-position image — with a freshly
+     * uploaded file, leaving every other image on the listing untouched. A
+     * failed disk write changes nothing, so a seller keeps whatever cover
+     * they had rather than losing it to a bad upload.
+     */
+    private function replaceCoverImage(Listing $listing, UploadedFile $image): bool
+    {
+        $path = ($this->storeListingImage)($image);
+
+        if ($path === null) {
+            return false;
+        }
+
+        $cover = $listing->images()->orderBy('position')->first();
+
+        if ($cover === null) {
+            $listing->images()->create(['path' => $path, 'position' => 0]);
+        } else {
+            Storage::disk('public')->delete($cover->path);
+            $cover->update(['path' => $path]);
+        }
+
+        return true;
     }
 
     /**

@@ -52,7 +52,7 @@ final class ConfigurationPricer
         $effectiveOverride = $unitOverride ?? $variantOverride;
 
         $perUnitLines = $effectiveOverride !== null
-            ? [PriceBreakdownLine::of(self::combinationLabel($selectedOptionValues), $effectiveOverride)]
+            ? [PriceBreakdownLine::of(self::combinationLabel($selectedOptionValues), $effectiveOverride, signed: false)]
             : self::baseAndSurchargeLines($listing, $selectedOptionValues);
 
         $selectedIds = array_map(fn (OptionValue $value): string => $value->id, $selectedOptionValues);
@@ -110,7 +110,7 @@ final class ConfigurationPricer
         $hasStandaloneAxis = $axisById->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone);
 
         if (! $hasStandaloneAxis) {
-            $lines = [PriceBreakdownLine::of('Base price', $listing->price())];
+            $lines = [PriceBreakdownLine::of('Base price', $listing->price(), signed: false)];
 
             foreach ($selectedOptionValues as $value) {
                 if ($value->surcharge_cents !== 0) {
@@ -125,8 +125,9 @@ final class ConfigurationPricer
 
         foreach ($selectedOptionValues as $value) {
             $axis = self::axisFor($axisById, $value);
-            $amount = $axis->pricing_mode === PricingMode::Standalone ? $value->price() : $value->surcharge();
-            $lines[] = PriceBreakdownLine::of("{$axis->name}: {$value->label}", $amount);
+            $isStandalone = $axis->pricing_mode === PricingMode::Standalone;
+            $amount = $isStandalone ? $value->price() : $value->surcharge();
+            $lines[] = PriceBreakdownLine::of("{$axis->name}: {$value->label}", $amount, signed: ! $isStandalone);
         }
 
         return $lines;

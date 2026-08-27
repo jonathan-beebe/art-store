@@ -21,6 +21,16 @@ it('shows a for sale listing with its artist and price', function (): void {
     $response->assertSee('$245.00');
 });
 
+it('shows the listings cover image on its shop card', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $this->listingImage($listing, ['path' => 'listings/cover.jpg', 'position' => 0]);
+
+    $response = $this->get('/');
+
+    $response->assertSee($listing->imageUrl(), escape: false);
+});
+
 it('leaves out listings that are not for sale', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'Unfinished Sketch', 'status' => ListingStatus::Draft]);

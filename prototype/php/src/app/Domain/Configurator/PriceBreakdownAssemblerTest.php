@@ -17,6 +17,19 @@ it('scales every line by the quantity with no tier', function (): void {
         ->and($breakdown->total()->cents)->toBe(8400);
 });
 
+it('carries each line’s signedness through the quantity scaling', function (): void {
+    // Regression guard: scaling used to rebuild every line through
+    // `PriceBreakdownLine::of()`'s two-argument form, silently defaulting
+    // every line back to signed regardless of what it started as.
+    $breakdown = PriceBreakdownAssembler::assemble([
+        PriceBreakdownLine::of('Size: 8x10', Money::fromCents(1800), signed: false),
+        PriceBreakdownLine::of('Frame: Black frame', Money::fromCents(3200)),
+    ], 2, null);
+
+    expect($breakdown->lines[0]->signed)->toBeFalse()
+        ->and($breakdown->lines[1]->signed)->toBeTrue();
+});
+
 it('appends the tier discount against the scaled subtotal', function (): void {
     $breakdown = PriceBreakdownAssembler::assemble([
         PriceBreakdownLine::of('Base price', Money::fromCents(300)),

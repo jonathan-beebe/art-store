@@ -18,6 +18,7 @@ use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
+use App\Models\ListingImage;
 use App\Models\Order;
 use App\Models\Property;
 use App\Models\PropertyValue;
@@ -89,6 +90,18 @@ abstract class CommerceTestCase extends TestCase
     public function mediumAttribute(Listing $listing, string $label): ListingAttribute
     {
         return $this->attribute($listing, 'Medium', $label);
+    }
+
+    /**
+     * A stored image row on the given listing — the shorthand every test
+     * that needs a listing to already carry a cover or extra photo reaches
+     * for, since a factory-built listing starts with none.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function listingImage(Listing $listing, array $attributes = []): ListingImage
+    {
+        return ListingImage::factory()->create($attributes + ['listing_id' => $listing->id]);
     }
 
     public function purchaser(Customer $customer): Purchaser

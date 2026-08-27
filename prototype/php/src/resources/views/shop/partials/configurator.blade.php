@@ -126,7 +126,7 @@
             @foreach ($configuration->breakdown->lines as $line)
                 <div class="flex justify-between gap-4">
                     <dt class="text-neutral-600">{{ $line->label }}</dt>
-                    <dd>{{ ! $loop->first && $line->amount->cents >= 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
+                    <dd>{{ $line->signed && $line->amount->cents >= 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
                 </div>
             @endforeach
         </dl>

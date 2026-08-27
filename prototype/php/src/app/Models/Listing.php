@@ -28,7 +28,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 use Override;
 
 /**
@@ -40,7 +39,7 @@ use Override;
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
-    'quantity', 'status', 'image_path', 'dimensions',
+    'quantity', 'status', 'dimensions',
 ])]
 class Listing extends Model
 {
@@ -113,6 +112,12 @@ class Listing extends Model
     public function descriptionSections(): HasMany
     {
         return $this->hasMany(DescriptionSection::class);
+    }
+
+    /** @return HasMany<ListingImage, $this> */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ListingImage::class);
     }
 
     /** @return HasMany<ListingEvent, $this> */
@@ -318,11 +323,19 @@ class Listing extends Model
         return $this;
     }
 
+    /**
+     * The cover — the lowest-position row in `images` — or a placeholder
+     * drawn from the title when the listing carries no image yet. A fresh
+     * query rather than the loaded relation, so a caller that never
+     * eager-loaded `images` still gets an answer under strict mode.
+     */
     public function imageUrl(): string
     {
-        return $this->image_path === null
+        $cover = $this->images()->orderBy('position')->first();
+
+        return $cover === null
             ? PlaceholderImage::dataUri($this->title)
-            : Storage::disk('public')->url($this->image_path);
+            : $cover->url();
     }
 
     /**

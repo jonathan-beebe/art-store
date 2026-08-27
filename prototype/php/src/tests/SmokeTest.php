@@ -93,7 +93,8 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
         $listing = Listing::sole();
         expect($listing->status)->toBe(ListingStatus::Draft)
             ->and($listing->price_cents)->toBe($price()->cents);
-        Storage::disk('public')->assertExists($listing->image_path ?? $this->fail('The listing saved no image.'));
+        $cover = $listing->images()->orderBy('position')->first() ?? $this->fail('The listing saved no image.');
+        Storage::disk('public')->assertExists($cover->path);
 
         return $listing;
     };

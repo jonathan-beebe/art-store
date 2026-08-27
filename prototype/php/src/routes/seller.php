@@ -13,6 +13,8 @@ use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingController;
 use App\Http\Controllers\Seller\ListingFaqController;
+use App\Http\Controllers\Seller\ListingImageController;
+use App\Http\Controllers\Seller\ListingImageReorderController;
 use App\Http\Controllers\Seller\ListingStatusController;
 use App\Http\Controllers\Seller\MessageController;
 use App\Http\Controllers\Seller\ModifierController;
@@ -39,6 +41,13 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::resource('listings.faqs', ListingFaqController::class)
         ->only(['index', 'store', 'update', 'destroy'])
         ->scoped();
+
+    Route::resource('listings.images', ListingImageController::class)
+        ->only(['index', 'store', 'destroy'])
+        ->scoped();
+    Route::post('listings/{listing}/images/{image}/reorder', ListingImageReorderController::class)
+        ->name('listings.images.reorder')
+        ->scopeBindings();
 
     Route::resource('listings.option-axes', OptionAxisController::class)
         ->only(['index', 'store', 'update', 'destroy'])

@@ -103,7 +103,7 @@ final class ListingController extends SellerController
      */
     private function imageUploadFailureNote(ListingRequest $request, Listing $listing): string
     {
-        return $request->hasFile('image') && $listing->image_path === null
+        return $request->hasFile('image') && ! $listing->images()->exists()
             ? ' The image failed to upload; try again from the listing.'
             : '';
     }

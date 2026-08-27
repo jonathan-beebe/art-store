@@ -76,17 +76,26 @@ it('numbers a slug another listing already holds', function () use ($draft): voi
 it('leaves a listing without an upload imageless', function () use ($draft): void {
     $listing = app(CreateListing::class)($this->seller(), $draft());
 
-    expect($listing->image_path)->toBeNull();
+    expect($listing->images()->count())->toBe(0);
 });
 
-it('stores an uploaded image on the public disk', function () use ($draft): void {
+it('stores an uploaded image on the public disk as the cover', function () use ($draft): void {
     Storage::fake('public');
 
     $listing = app(CreateListing::class)($this->seller(), $draft(), UploadedFile::fake()->image('harbour.jpg'));
 
-    $imagePath = $listing->image_path;
+    $cover = $listing->images()->sole();
 
-    expect($imagePath)->not->toBeNull();
-    expect($imagePath)->toStartWith('listings/');
-    Storage::disk('public')->assertExists((string) $imagePath);
+    expect($cover->position)->toBe(0)
+        ->and($cover->path)->toStartWith('listings/');
+    Storage::disk('public')->assertExists($cover->path);
+});
+
+it('creates the listing imageless when the disk write fails', function () use ($draft): void {
+    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
+    Storage::shouldReceive('putFile')->andReturn(false);
+
+    $listing = app(CreateListing::class)($this->seller(), $draft(), UploadedFile::fake()->image('harbour.jpg'));
+
+    expect($listing->images()->count())->toBe(0);
 });

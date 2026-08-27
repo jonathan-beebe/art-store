@@ -39,7 +39,11 @@ final class ListingController extends ShopController
         $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
 
         return view('shop.listing', [
-            'listing' => $listing->load(['seller', 'faqs', 'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position')]),
+            'listing' => $listing->load([
+                'seller', 'faqs',
+                'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position'),
+                'images' => fn (Relation $query): Relation => $query->orderBy('position'),
+            ]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
             'hasConfigurator' => $hasConfigurator,

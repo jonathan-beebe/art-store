@@ -1,7 +1,18 @@
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
-        <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
-             class="aspect-square w-full rounded-3xl object-cover">
+        <div>
+            <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
+                 class="aspect-square w-full rounded-3xl object-cover">
+
+            @if ($listing->images->count() > 1)
+                <div class="mt-4 grid grid-cols-4 gap-3">
+                    @foreach ($listing->images->skip(1)->values() as $image)
+                        <img src="{{ $image->url() }}" alt="{{ $listing->title }} — photo {{ $loop->iteration + 1 }}"
+                             class="aspect-square w-full rounded-xl object-cover">
+                    @endforeach
+                </div>
+            @endif
+        </div>
 
         <div class="max-w-lg">
             <h1 class="text-4xl font-semibold leading-tight tracking-tight">{{ $listing->title }}</h1>
