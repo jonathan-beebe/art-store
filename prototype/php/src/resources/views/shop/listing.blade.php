@@ -33,6 +33,15 @@
 
             <p class="mt-8 text-lg leading-relaxed text-neutral-700">{{ $listing->description }}</p>
 
+            @if ($listing->descriptionSections->isNotEmpty())
+                @include('shop.partials.description-sections', [
+                    'sections' => $listing->descriptionSections,
+                    'sectionClass' => 'mt-14 border-t border-neutral-100 pt-10',
+                    'headingTag' => 'h2',
+                    'headingClass' => 'text-xl font-semibold tracking-tight',
+                ])
+            @endif
+
             <div class="mt-10">
                 @if ($hasConfigurator)
                     @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration])

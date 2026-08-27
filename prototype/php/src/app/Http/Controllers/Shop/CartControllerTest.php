@@ -284,6 +284,40 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $cartPage->assertSee('$266.00');
 });
 
+it('C6: prices a length measurement by the exact value entered, not a preset step', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 5000]);
+    $wood = app(CreateOptionAxis::class)($listing, 'Wood');
+    app(AddOptionValue::class)($wood, 'Oak', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $length = app(CreateModifier::class)($listing, ModifierKind::Measurement, 'Length', required: true, unit: 'in', rateCentsPerUnit: 300);
+
+    $tenInches = $this->post('/cart/table', ['axis' => [$wood->id => $wood->optionValues()->sole()->id], 'modifier' => [$length->id => '10']]);
+
+    $tenInches->assertRedirect(route('shop.cart'));
+    $cartPage = $this->get('/cart');
+    $cartPage->assertSee('Length:');
+    $cartPage->assertSee('$80.00');
+});
+
+it('C7: prices an exact measurement between two presets, inside the sellers min', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'belt', 'price_cents' => 2000]);
+    $leather = app(CreateOptionAxis::class)($listing, 'Leather');
+    app(AddOptionValue::class)($leather, 'Brown', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $length = app(CreateModifier::class)($listing, ModifierKind::Measurement, 'Waist length', required: true, unit: 'in', minValue: 40.0, maxValue: 48.0, rateCentsPerUnit: 200);
+    $post = ['axis' => [$leather->id => $leather->optionValues()->sole()->id]];
+
+    $exact = $this->post('/cart/belt', [...$post, 'modifier' => [$length->id => '45']]);
+    $exact->assertRedirect(route('shop.cart'));
+    $cartPage = $this->get('/cart');
+    $cartPage->assertSee('$110.00');
+
+    $tooShort = $this->post('/cart/belt', [...$post, 'modifier' => [$length->id => '10']]);
+    $tooShort->assertSessionHasErrors();
+});
+
 it('keeps two different ring configurations as separate cart lines', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);

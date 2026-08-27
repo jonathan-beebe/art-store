@@ -89,6 +89,37 @@ it('refuses scoping another sellers modifier', function (): void {
     $response->assertNotFound();
 });
 
+it('C9: a Version choice with a question scoped to it shows or hides the question on the buyer page', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['slug' => 'mug', 'price_cents' => 1800]);
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'Version', 'position' => 0]);
+    $axis = OptionAxis::where('listing_id', $listing->id)->sole();
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", [
+        'label' => 'Blank', 'surcharge' => '0.00', 'is_default' => '1', 'position' => 0,
+    ]);
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", [
+        'label' => 'Decorated', 'surcharge' => '3.00', 'position' => 1,
+    ]);
+    $blank = OptionValue::where('axis_id', $axis->id)->where('label', 'Blank')->sole();
+    $decorated = OptionValue::where('axis_id', $axis->id)->where('label', 'Decorated')->sole();
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/generate");
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", [
+        'kind' => 'text', 'prompt' => 'What should we letter?', 'position' => 0, 'required' => '1', 'char_limit' => 16,
+    ]);
+    $modifier = Modifier::where('listing_id', $listing->id)->sole();
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/scope", [
+        'option_value_id' => [$decorated->id],
+    ]);
+
+    $blankPage = $this->get('/art/mug?'.http_build_query(['axis' => [$axis->id => $blank->id]]));
+    $blankPage->assertOk();
+    $blankPage->assertDontSee('What should we letter?');
+
+    $decoratedPage = $this->get('/art/mug?'.http_build_query(['axis' => [$axis->id => $decorated->id]]));
+    $decoratedPage->assertOk();
+    $decoratedPage->assertSee('What should we letter?');
+});
+
 it('trips the listing-write limit setting a scope', function (): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();

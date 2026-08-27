@@ -13,7 +13,6 @@ use App\Domain\Configurator\OptionAvailability;
 use App\Domain\Configurator\QuantityDiscount;
 use App\Domain\Configurator\UnitLabelOrder;
 use App\Domain\Configurator\UnitPrice;
-use App\Domain\Configurator\UnitSpecLabel;
 use App\Domain\Money\Money;
 use App\Models\Listing;
 use App\Models\Modifier;
@@ -264,30 +263,13 @@ final class ConfiguratorPageResolver
                 'id' => $unit->id,
                 'label' => $unit->label,
                 'conditionNote' => $unit->condition_note,
-                'specLines' => self::specLines($unit->specs_json),
+                'specLines' => UnitSpecLines::format($unit->specs_json),
                 'price' => UnitPrice::resolve($unitOverride, $variantOverride, $listing->price(), $surcharges),
                 'selected' => $unit->id === $selectedUnitId,
             ];
         }
 
         return [$presentation, $selectedUnitId];
-    }
-
-    /**
-     * @param  ?array<string, int|float|string|bool>  $specs
-     * @return list<string>
-     */
-    private static function specLines(?array $specs): array
-    {
-        if ($specs === null) {
-            return [];
-        }
-
-        return array_map(
-            fn (string $key, int|float|string|bool $value): string => UnitSpecLabel::format($key, $value),
-            array_keys($specs),
-            array_values($specs),
-        );
     }
 
     /**

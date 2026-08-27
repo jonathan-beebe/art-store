@@ -11,8 +11,8 @@ use App\Models\Listing;
  * (Metal: Gold) grouped by property name, in the order the
  * seller set them. A listing with no `listing_attributes` rows resolves to
  * an empty list, so the panel renders nothing rather than an empty shell.
- * Medium is left out — the page's own Medium line (FEAT-030) already carries
- * it, so repeating it here would only echo the same fact twice.
+ * Medium is left out — the page's own Medium line already carries it, so
+ * repeating it here would only echo the same fact twice.
  */
 final class ListingHighlights
 {

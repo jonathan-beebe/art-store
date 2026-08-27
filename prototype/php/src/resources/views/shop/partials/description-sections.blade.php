@@ -1,11 +1,19 @@
 @php
     use App\Domain\Configurator\DescriptionSectionKind;
     use App\Support\Configurator\DescriptionSectionKindWord;
+
+    // Two call sites share this markup with two different typographic
+    // vocabularies: the seller's compact buyer-preview card, and the real
+    // shop page's section headings. Callers override either slot; the
+    // preview card's look is the default since it was the first caller.
+    $sectionClass ??= 'mt-8 first:mt-0';
+    $headingTag ??= 'p';
+    $headingClass ??= 'text-base font-semibold';
 @endphp
 
 @foreach ($sections as $section)
-    <section class="mt-8 first:mt-0">
-        <p class="text-base font-semibold">{{ $section->title ?? DescriptionSectionKindWord::forKind($section->kind) }}</p>
+    <section class="{{ $sectionClass }}">
+        <{{ $headingTag }} class="{{ $headingClass }}">{{ $section->title ?? DescriptionSectionKindWord::forKind($section->kind) }}</{{ $headingTag }}>
 
         @if ($section->kind === DescriptionSectionKind::SizeChart)
             @if (($section->body_json ?? []) !== [])

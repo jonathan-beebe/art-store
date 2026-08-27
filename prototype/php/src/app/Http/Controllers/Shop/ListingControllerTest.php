@@ -13,9 +13,11 @@ use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\ScopeModifier;
+use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
+use App\Models\DescriptionSection;
 use App\Models\ListingAttribute;
 use App\Models\ListingEvent;
 use App\Models\ListingFaq;
@@ -177,7 +179,50 @@ it('shows no questions and answers section for a listing with none published', f
     $response->assertDontSee('Questions &amp; answers', escape: false);
 });
 
-it('preselects the rings axis defaults and prices the page concretely at first paint', function (): void {
+it('D1: renders the listings page sections as separated titled blocks in order', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    DescriptionSection::factory()->create([
+        'listing_id' => $listing->id,
+        'position' => 0,
+        'kind' => DescriptionSectionKind::Text,
+        'title' => 'How to order',
+        'body_md' => 'Orders print Mondays.',
+    ]);
+    DescriptionSection::factory()->create([
+        'listing_id' => $listing->id,
+        'position' => 1,
+        'kind' => DescriptionSectionKind::Care,
+        'title' => 'Care',
+        'body_md' => 'Hand wash cold.',
+    ]);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSeeInOrder(['How to order', 'Orders print Mondays.', 'Care', 'Hand wash cold.']);
+});
+
+it('D3: renders a size chart on the listing page as a real table', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    DescriptionSection::factory()->json(DescriptionSectionKind::SizeChart, [
+        ['label' => 'S', 'value1' => '36 in', 'value2' => '27 in'],
+        ['label' => 'M', 'value1' => '40 in', 'value2' => '28 in'],
+    ])->create(['listing_id' => $listing->id, 'position' => 0, 'title' => 'Size chart']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('<table', false);
+    $response->assertSeeInOrder(['S', '36 in', '27 in', 'M', '40 in', '28 in']);
+});
+
+it('shows no page sections for a listing with none', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertDontSee('<table', false);
+});
+
+it('A10: preselects the rings axis defaults and prices the page concretely at first paint, one whole price never a range', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);
     $metal = app(CreateOptionAxis::class)($listing, 'Metal');

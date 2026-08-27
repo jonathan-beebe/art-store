@@ -399,6 +399,24 @@ it('A4 renders four choices as their own cards with four selects in the buyer pa
     expect(substr_count($response->getContent() ?: '', '<select'))->toBe(4);
 });
 
+it('A12 keeps pet, pose, and output as three separate choices, not one crammed dropdown', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    foreach (['Pet', 'Pose', 'Output'] as $index => $name) {
+        $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => $name, 'position' => $index]);
+        OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'One', 'is_default' => true, 'position' => 0]);
+        OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Two', 'position' => 1]);
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('Pet');
+    $response->assertSee('Pose');
+    $response->assertSee('Output');
+    expect(substr_count($response->getContent() ?: '', '<select'))->toBe(3);
+});
+
 it('A9 shows the option delta at the point of choice in the buyer panel', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['price_cents' => 2400]);

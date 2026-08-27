@@ -61,6 +61,29 @@ it('updates an option value', function (): void {
         ->and($value->fresh()?->surcharge_cents)->toBe(-250);
 });
 
+it('unsets the previous default when saving another option as preselected', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['slug' => 'two-tone-ring']);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $a = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Gold', 'is_default' => true, 'position' => 0]);
+    $b = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Silver', 'is_default' => false, 'position' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$b->id}", [
+        'label' => $b->label,
+        'surcharge' => '0.00',
+        'is_default' => '1',
+        'position' => $b->position,
+    ]);
+
+    $response->assertRedirect(route('seller.listings.option-axes.index', $listing));
+    expect($a->fresh()?->is_default)->toBeFalse()
+        ->and($b->fresh()?->is_default)->toBeTrue()
+        ->and(OptionValue::where('axis_id', $axis->id)->where('is_default', true)->count())->toBe(1);
+
+    $buyerPage = $this->get('/art/two-tone-ring');
+    $buyerPage->assertSee('value="'.$b->id.'" selected', false);
+});
+
 it('removes an option value no variant selects', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

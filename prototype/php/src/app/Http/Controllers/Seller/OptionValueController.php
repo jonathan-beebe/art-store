@@ -26,6 +26,7 @@ final class OptionValueController extends SellerController
         Listing $listing,
         OptionAxis $optionAxis,
         AddOptionValue $add,
+        UpdateOptionValue $update,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         try {
@@ -34,7 +35,11 @@ final class OptionValueController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $add($optionAxis, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+        $value = $add($optionAxis, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+
+        if ($request->isDefault()) {
+            $this->unsetOtherDefaults($optionAxis, $value, $update);
+        }
 
         return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Option added.');
     }
@@ -53,7 +58,11 @@ final class OptionValueController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.option-axes.index', $this->indexData($listing));
         }
 
-        $update($optionValue, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+        $value = $update($optionValue, $request->label(), $request->surchargeCents(), $request->isDefault(), $request->position(), $request->propertyValue());
+
+        if ($request->isDefault()) {
+            $this->unsetOtherDefaults($optionAxis, $value, $update);
+        }
 
         return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Option updated.');
     }
@@ -76,6 +85,24 @@ final class OptionValueController extends SellerController
         $delete($optionValue);
 
         return redirect()->route('seller.listings.option-axes.index', $listing)->with('status', 'Option removed.');
+    }
+
+    /**
+     * A choice offers one preselected option at a time. Each option is its
+     * own form, so making one the default cannot see its siblings in the
+     * same request; this clears the flag from every other option on the
+     * axis through the same frozen Action that set it.
+     */
+    private function unsetOtherDefaults(OptionAxis $optionAxis, OptionValue $keep, UpdateOptionValue $update): void
+    {
+        $siblings = $optionAxis->optionValues()
+            ->where('is_default', true)
+            ->where('id', '!=', $keep->id)
+            ->get();
+
+        foreach ($siblings as $sibling) {
+            $update($sibling, $sibling->label, $sibling->surcharge_cents, false, $sibling->position, $sibling->propertyValue);
+        }
     }
 
     /**

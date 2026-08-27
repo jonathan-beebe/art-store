@@ -47,6 +47,17 @@ it('D3: renders a size chart as an actual table in the buyer panel', function ()
     $response->assertSeeInOrder(['S', '36 in', '27 in', 'M', '40 in', '28 in']);
 });
 
+it('D2: how-to-order leads the page today, with pinning it beside the choices named as coming', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    DescriptionSection::factory()->create(['listing_id' => $listing->id, 'position' => 0, 'kind' => DescriptionSectionKind::Text, 'title' => 'How to order', 'body_md' => 'Orders print Mondays.']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/description-sections");
+
+    $response->assertSee("Leads the page today. Pinning it beside the buyer's choices is", escape: false);
+    $response->assertSee('coming — not in this version', false);
+});
+
 it('D4: shows the honest note about per-listing sections', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

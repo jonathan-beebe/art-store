@@ -24,7 +24,7 @@ final class ListingStatusController extends SellerController
             'status_from' => $from->value,
             'status_to' => $next->value,
         ], function (Story $story) use ($listing, $from, $next): RedirectResponse {
-            // Every issue FEAT-025's validation holds against this listing's
+            // Every issue publish validation holds against this listing's
             // configurator state, judged here rather than inside
             // `changeStatusTo()` — that state machine knows nothing about
             // axes, variants, or units. A refusal sends the seller back to

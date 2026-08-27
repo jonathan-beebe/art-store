@@ -188,7 +188,7 @@
         @if ($sectionsLine === null)
             <div class="flex items-baseline gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 <span class="font-medium">More to say?</span>
-                <span class="text-gray-600 dark:text-gray-400">Give the page real sections — a size chart, care notes, FAQ.</span>
+                <span class="text-gray-600 dark:text-gray-400">Give the page real sections — a size chart, care notes, Q &amp; A.</span>
                 <a href="{{ route('seller.listings.description-sections.index', $listing) }}" class="ml-auto whitespace-nowrap underline">Lay out the page</a>
             </div>
         @else

@@ -314,6 +314,22 @@ it('shows an item facts control for a categorized listing with attribute grants'
     $response->assertSee('Walnut');
 });
 
+it('D5: the category gates which facts the edit form asks, only the grant for that category appears', function (): void {
+    $seller = $this->seller();
+    $jewelry = Category::factory()->create(['name' => 'Jewelry']);
+    $metalProperty = Property::factory()->create(['name' => 'Metal']);
+    CategoryProperty::factory()->create(['category_id' => $jewelry->id, 'property_id' => $metalProperty->id, 'usable_as_attribute' => true]);
+    $pottery = Category::factory()->create(['name' => 'Pottery']);
+    $glazeProperty = Property::factory()->create(['name' => 'Glaze']);
+    CategoryProperty::factory()->create(['category_id' => $pottery->id, 'property_id' => $glazeProperty->id, 'usable_as_attribute' => true]);
+    $listing = $this->listing($seller, ['category_id' => $jewelry->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('Metal');
+    $response->assertDontSee('Glaze');
+});
+
 it('shows no item facts control for an uncategorized listing', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -373,6 +389,18 @@ it('updates a listing from the form', function () use ($form): void {
     $listing->refresh();
     expect($listing->title)->toBe('Harbour at Dusk')
         ->and($listing->price_cents)->toBe(24900);
+});
+
+it('E1: editing a live listings price after an order leaves the placed order at its old price', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Old title', 'price_cents' => 5000]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form(['price' => '80.00']));
+
+    $response->assertRedirect(route('seller.listings.index'));
+    expect($listing->fresh()?->price_cents)->toBe(8000)
+        ->and($order->items->sole()->unit_price_cents)->toBe(5000);
 });
 
 it('rejects an update without a title', function () use ($form): void {
@@ -707,4 +735,25 @@ it('reaches the too-many-sections publish issue end to end', function (): void {
 
     $response->assertSee('holds more page sections than the platform allows', escape: false);
     $response->assertSee(route('seller.listings.description-sections.index', $listing), escape: false);
+});
+
+it('E2: shows every publish issue at once, each naming its fix and linking to the owning field', function (): void {
+    $seller = $this->seller();
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create(['category_id' => $category->id, 'property_id' => $property->id, 'usable_as_attribute' => true, 'required' => true]);
+    $listing = $this->listing($seller, ['category_id' => $category->id, 'status' => ListingStatus::Draft]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a', 'price_override_cents' => -500]);
+    $variant->options()->create(['axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSeeInOrder([
+        "buyers can't be charged a negative amount.",
+        route('seller.listings.variants.index', $listing).'#'.$variant->id,
+        "Say what it's made of — buyers filter by it.",
+        route('seller.listings.edit', $listing).'#attribute-'.$property->id,
+    ], escape: false);
 });

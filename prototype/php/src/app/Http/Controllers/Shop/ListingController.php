@@ -14,6 +14,7 @@ use App\Support\Configurator\ConfiguratorPageResolver;
 use App\Support\Configurator\ListingHighlights;
 use App\Support\Story;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 
 final class ListingController extends ShopController
@@ -38,7 +39,7 @@ final class ListingController extends ShopController
         $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
 
         return view('shop.listing', [
-            'listing' => $listing->load('seller', 'faqs'),
+            'listing' => $listing->load(['seller', 'faqs', 'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position')]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
             'hasConfigurator' => $hasConfigurator,
