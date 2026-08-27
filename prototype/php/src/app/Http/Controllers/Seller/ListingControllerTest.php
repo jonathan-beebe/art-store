@@ -477,12 +477,10 @@ it('rejects an update without a title', function () use ($form): void {
     expect($listing->refresh()->title)->toBe('Old title');
 });
 
-it('keeps the previous image when a replacement upload fails', function () use ($form): void {
+it('DSGN-002 ignores an image on a Basics-screen save — that upload belongs to the Images screen', function () use ($form): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $this->listingImage($listing, ['path' => 'listings/old.jpg']);
-    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
-    Storage::shouldReceive('putFile')->andReturn(false);
 
     $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form([
         'image' => UploadedFile::fake()->image('harbour.jpg'),
@@ -662,6 +660,20 @@ it('no longer renders the flat listing form on the hub', function (): void {
 
     $response->assertDontSee('name="title"', escape: false);
     $response->assertDontSee('name="price"', escape: false);
+});
+
+it('DSGN-002 repeats each choice’s pricing-mode pill on the hub’s Choices row', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->priced(1800)->create(['axis_id' => $size->id, 'label' => '8x10', 'is_default' => true]);
+    $frame = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id, 'name' => 'Frame']);
+    OptionValue::factory()->create(['axis_id' => $frame->id, 'label' => 'Unframed', 'surcharge_cents' => 0, 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+
+    $response->assertSee('each option priced on its own');
+    $response->assertSee('adds to your price');
 });
 
 it('shows the buyer-view panel in its empty state for an unconfigured listing on the hub', function (): void {

@@ -22,6 +22,7 @@ use App\Models\OptionValue;
 use App\Models\Order;
 use App\Models\Payout;
 use App\Models\Seller;
+use App\Models\Variant;
 use Database\Seeders\ConfiguratorArchetypeSeeder;
 use Database\Seeders\TaxonomySeeder;
 use DateTimeImmutable;
@@ -425,4 +426,144 @@ it('carries a configured ring purchase through checkout, freezing its breakdown 
     $roseGold->update(['surcharge_cents' => 5000]);
 
     expect($order->items()->sole()->lineTotal()->format())->toBe($frozenTotal);
+});
+
+/**
+ * The DSGN-002 walk: a seller builds the Sunset Ridge shape entirely through
+ * the row-based hub and its detail screens — no flat listing form — mixing
+ * both pricing patterns on one listing (a standalone Size choice, an add-on
+ * Frame choice), and a buyer's purchase of a non-default combination freezes
+ * the same absolute-and-signed breakdown on the order it lands on.
+ */
+it('DSGN-002 builds Sunset Ridge through the row hub, then freezes a standalone-and-add-on purchase on its order', function (): void {
+    Storage::fake('public');
+    $seller = $this->seller();
+
+    // Create: a listing is always unconfigured at birth, so its one form
+    // still asks for price and quantity up front.
+    $created = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'title' => 'Sunset Ridge',
+        'description' => 'A ridge line catching the last light of the day.',
+        'dimensions' => '8 x 10 in',
+        'price' => '18.00',
+        'quantity' => 5,
+    ]);
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    $created->assertRedirect(route('seller.listings.edit', $listing));
+
+    // Basics: the hub's "Your item" row edits here, on its own screen.
+    $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", [
+        'title' => 'Sunset Ridge',
+        'description' => 'A ridge line catching the last light of the day, printed on archival matte paper.',
+        'dimensions' => '8 x 10 in',
+        'price' => '18.00',
+        'quantity' => 5,
+    ])->assertRedirect(route('seller.listings.basics.edit', $listing));
+
+    // Images: plural, its own screen — the create form's single upload is
+    // no longer the only way a listing gets a photo.
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/images", [
+        'image' => UploadedFile::fake()->image('sunset-ridge.jpg'),
+    ])->assertRedirect(route('seller.listings.images.index', $listing));
+    expect($listing->images()->count())->toBe(1);
+
+    // Choices: Size prices standalone (each option its own absolute price),
+    // Frame adds on (a signed delta over whatever Size resolved to).
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
+        'name' => 'Size', 'position' => 0, 'pricing_mode' => 'standalone',
+    ])->assertRedirect(route('seller.listings.option-axes.index', $listing));
+    $size = OptionAxis::where('listing_id', $listing->id)->where('name', 'Size')->sole();
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$size->id}/option-values", [
+        'label' => '8x10', 'price' => '18.00', 'is_default' => '1', 'position' => 0,
+    ]);
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$size->id}/option-values", [
+        'label' => '11x14', 'price' => '24.00', 'position' => 1,
+    ]);
+    $elevenByFourteen = OptionValue::where('axis_id', $size->id)->where('label', '11x14')->sole();
+
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
+        'name' => 'Frame', 'position' => 1,
+    ]);
+    $frame = OptionAxis::where('listing_id', $listing->id)->where('name', 'Frame')->sole();
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$frame->id}/option-values", [
+        'label' => 'Unframed', 'surcharge' => '0.00', 'is_default' => '1', 'position' => 0,
+    ]);
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$frame->id}/option-values", [
+        'label' => 'Black frame', 'surcharge' => '32.00', 'position' => 1,
+    ]);
+    $blackFrame = OptionValue::where('axis_id', $frame->id)->where('label', 'Black frame')->sole();
+
+    // Combinations: every Size x Frame pair exists.
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/generate")
+        ->assertRedirect(route('seller.listings.variants.index', $listing));
+    expect(Variant::where('listing_id', $listing->id)->count())->toBe(4);
+
+    // The listing's own price is now derived from the default configuration.
+    expect($listing->refresh()->price_cents)->toBe(1800);
+
+    // Publish gates pass: every standalone option carries a price.
+    $hub = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
+    $hub->assertSee('Ready to go live — nothing is missing.')
+        ->assertDontSee('Before this can go live')
+        ->assertSee('each option priced on its own')
+        ->assertSee('adds to your price');
+    $this->actingAs($seller, 'seller')->post(route('seller.listings.status', $listing), ['status' => 'for_sale'])
+        ->assertRedirect(route('seller.listings.index'));
+    expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
+
+    // Buyer: the page opens on the default (8x10, Unframed) at $18.00, the
+    // non-selected 11x14 showing its own absolute price rather than a delta.
+    $customer = $this->arriveAs($this->verifiedCustomer());
+    $this->get("/art/{$listing->slug}")
+        ->assertOk()
+        ->assertSee('Size: 8x10', escape: false)
+        ->assertSee('($24.00)', escape: false);
+
+    // Picking 11x14 and a Black frame prices at $24.00 + $32.00 = $56.00.
+    $withSelections = $this->get('/art/'.$listing->slug.'?'.http_build_query([
+        'axis' => [$size->id => $elevenByFourteen->id, $frame->id => $blackFrame->id],
+    ]));
+    $withSelections->assertOk()
+        ->assertSee('Size: 11x14', escape: false)
+        ->assertSee('Frame: Black frame', escape: false)
+        ->assertSee('$56.00');
+
+    $this->post("/cart/{$listing->slug}", [
+        'axis' => [$size->id => $elevenByFourteen->id, $frame->id => $blackFrame->id],
+    ])->assertRedirect(route('shop.cart'));
+
+    $placed = $this->post('/checkout', [
+        'email' => $customer->email,
+        'shipping_name' => 'Casey Whitfield',
+        'shipping_line1' => '18 Harbour Road',
+        'shipping_city' => 'Bristol',
+        'shipping_region' => 'Bristol',
+        'shipping_postal_code' => 'BS1 5TY',
+        'shipping_country' => 'GB',
+        'card_number' => '4242 4242 4242 4242',
+    ]);
+
+    $order = Order::sole();
+    $placed->assertRedirect(route('shop.order', $order));
+    expect($order->status)->toBe(OrderStatus::Paid);
+
+    // The order snapshot: absolute Size line, signed Frame line, no base
+    // line — the same rule the buyer page priced by.
+    $item = $order->items()->sole();
+    expect($item->price_breakdown_json)->toBe([
+        ['label' => 'Size: 11x14', 'cents' => 2400],
+        ['label' => 'Frame: Black frame', 'cents' => 3200],
+    ])->and($item->lineTotal())->toBeMoney(5600);
+
+    $this->get(route('shop.order', $order))
+        ->assertOk()
+        ->assertSee('Size:')->assertSee('11x14')
+        ->assertSee('Frame:')->assertSee('Black frame')
+        ->assertSee('$56.00');
+
+    // A later price change on the purchased option never reaches the order
+    // already placed at the old price.
+    $elevenByFourteen->update(['price_cents' => 9900]);
+    expect($order->items()->sole()->lineTotal())->toBeMoney(5600);
 });

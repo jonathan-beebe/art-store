@@ -405,38 +405,78 @@ availability exactly as it does today, off `listings.price_cents` and
 ## 4. Seller flow
 
 Nested under the existing seller listing edit flow — no new top-level seller
-route, new steps inside `Seller\ListingController`'s edit screens.
+route. The flow is a hub of row summaries, not a linear wizard: every row
+opens its own detail screen and comes back to the hub, and an unconfigured
+row reads as an invitation rather than an empty screen (DSGN-002 retired the
+flat title/price/photos form that used to sit above the row summaries).
 
 ```mermaid
 flowchart TD
-    A["Listing edit\n(existing title/price/photos screen)"] --> B{Category set?}
-    B -- no --> C["Pick category\n(gates which properties are offered below)"]
-    C --> D
-    B -- yes --> D["Option axes\ncatalog property or custom label\nvalues: label · surcharge · default"]
-    D --> E["Variant grid (sparse)\nenable combinations · derived price shown per row\noverride price / SKU / qty / enabled per cell\nbulk actions by axis value"]
-    E --> F{Serialized stock?}
-    F -- yes --> G["Units\nlabel · condition note · specs · price override"]
-    F -- no --> H
-    G --> H["Modifiers\ntype · prompt · required · add-on price\nscope picker: 'show only when Size = Personalized'"]
-    H --> I["Quantity breaks\nmin qty -> % off"]
-    I --> J["Description sections\ntext · specs · size chart · faq · care · disclaimer"]
-    J --> K{Publish}
-    K -- "issues listed inline, linked to the owning screen" --> D
-    K -- pass --> L["for_sale"]
+    Hub["Editor hub\nrow per part of the listing, buyer-view preview fixed beside it"]
+    Hub --> Basics["Your item\ntitle · description · category · medium + other granted facts · dimensions\nprice + how many you have, only while unconfigured"]
+    Hub --> Images["Images\nplural, cover = lowest position\nMove up / Move down · Add an image · Remove — capped at 8"]
+    Hub -- "no choice yet" --> Invite["'Comes in more than one version?' invitation row"]
+    Invite --> Choices
+    Hub -- "a choice exists" --> Choices["Choices you offer\npricing mode chosen once, at creation:\neach option priced on its own · adds to your price\ncatalog property or custom label, values priced accordingly"]
+    Choices --> Variants["Combinations & stock (sparse variant grid)\nenable combinations · derived price shown per row\noverride price / SKU / qty / enabled per cell\nbulk actions by axis value"]
+    Variants -- "serialized stock" --> Units["Individual pieces\nlabel · condition note · specs · price override"]
+    Hub --> Modifiers["Questions you ask the buyer\ntype · prompt · required · add-on price\nscope picker: 'show only when Size = Personalized'"]
+    Hub --> Discounts["Quantity discounts\nmin qty -> % off"]
+    Hub --> Sections["Listing page sections\ntext · specs · size chart · faq · care · disclaimer"]
+    Hub --> Publish{Publish}
+    Publish -- "issues listed inline, each linking back to the row's own screen" --> Hub
+    Publish -- pass --> ForSale["for_sale"]
 ```
 
 Screen notes:
 
-- **Variant grid is the contract.** Each row shows its derived price
-  (`listings.price_cents` + selected surcharges) beside the override cell, so
-  the seller sees what the customer will pay per combination before typing an
-  override.
+- **The hub is the contract, not a wizard.** Basics, Images, and each
+  configurator section all read as a summary row with its own "Edit"
+  affordance; a row with nothing on it yet reads as an invitation instead of
+  an empty table ("Comes in more than one version? Offer choices", "Need an
+  answer from the buyer? Ask a question", and so on for pieces, discounts,
+  and page sections). A buyer-view preview sits fixed beside the rows,
+  rendered disabled exactly as a buyer would see it, resolved to the
+  listing's current default configuration — or, with nothing configurable
+  yet, "Nothing here yet for a buyer to configure — this listing adds
+  straight to cart."
+- **Price and stock live in exactly one place at a time.** They appear on the
+  Your-item row and its detail screen only while the listing holds no option
+  axis and no serialized piece; the moment a first choice or piece exists,
+  they move to the Choices/Combinations screens and the Your-item summary
+  drops the line entirely (a new listing is always unconfigured, so its one
+  create form still asks for both up front). Once the listing holds a
+  standalone axis, its price is derived rather than seller-typed (§3), and
+  the Your-item save stops reading a price field at all.
+- **A choice's pricing mode is chosen at creation, mode-first.** "Add another
+  choice" opens on the two mode buttons — "Each option priced on its own" and
+  "Options add to your price" — before any catalog-property or custom-name
+  picker, so the seller commits to the mechanism before naming the choice,
+  the same way a Question already declares its kind at creation. Every
+  option row on a standalone choice is labeled "Price" (an absolute `$`
+  amount); every option row on an add-on choice is labeled "Price
+  difference" (a signed `+` amount). The choice's own pill — dark-fill "each
+  option priced on its own" vs light-border "adds to your price" — repeats on
+  both the Choices-screen card and the hub's Choices row, so which rule an
+  option follows is never a guess. The mode locks the moment the choice's
+  first option is added (§2.2).
+- **Variant grid is the contract.** Each row shows its derived price (the
+  listing's resolved default price, plus selected surcharges) beside the
+  override cell, so the seller sees what the customer will pay per
+  combination before typing an override.
 - **Scoping is a picker**, not a text field: "show this modifier when…" lists
   the listing's option values; leaving it empty means always-shown.
 - **Catalog axes first.** The axes screen offers the category's
   `usable_as_axis` grants before the custom label-only axis, and a
-  catalog-backed axis pre-fills its option values from the property's values —
-  the nudge toward search-meaningful axes the source design specified.
+  catalog-backed add-on axis pre-fills its option values from the property's
+  values — the nudge toward search-meaningful axes the source design
+  specified. A standalone axis skips that prefill, since no price can be
+  inferred from the catalog; the seller still names each option and its price
+  by hand.
+- **Images are plural and ordered, JS-off.** The lowest-position image is the
+  cover — the one every card, cart line, admin row, and the buyer page's own
+  primary photo renders — and the screen reorders the rest with Move up /
+  Move down buttons rather than drag, capped at 8 per listing (§7).
 
 ## 5. Customer flow
 
@@ -464,9 +504,15 @@ Behavior this enforces:
   renders only when `modifier_scopes` matches the current selection (or has
   no rows).
 - **No surprise prices.** Defaults are preselected so the page opens with a
-  concrete price; every priced option and answer shows its delta at the
-  point of choice; the panel's breakdown is the same list that lands in
-  `order_items.price_breakdown_json` and on the order page.
+  concrete price; every priced option and answer shows its price at the
+  point of choice — an add-on axis's non-selected options as a signed delta
+  ("Black frame (+$32.00)"), a standalone axis's non-selected options as
+  their own absolute price ("11x14 ($24.00)"), the selected option on either
+  kind of axis bare — and the panel's breakdown is the same list that lands
+  in `order_items.price_breakdown_json` and on the order page. The listing's
+  cover image renders where its one image used to; any further images render
+  below it as a plain, static thumbnail row (§2.3), no lightbox, no script
+  required.
 
 ## 6. Publish validation
 
@@ -503,6 +549,7 @@ already uses for "list every blocked line, not just the first" (`docs/orders.md`
 | Modifier select options         | 30          |
 | Quantity-break tiers            | 10          |
 | Description sections           | 15          |
+| Images per listing              | 8           |
 
 ## 8. Traceability: observed hack → mechanism here
 

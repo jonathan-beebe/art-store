@@ -89,7 +89,7 @@ final class ListingController extends SellerController
             return $this->tooManyRequests($exceeded, 'seller.listings.basics.edit', ListingBasicsPageData::for($listing));
         }
 
-        $updated = $updateListing($listing, $request->toDraft(), $request->file('image'));
+        $updated = $updateListing($listing, $request->toDraft());
 
         return redirect()
             ->route('seller.listings.basics.edit', $updated)

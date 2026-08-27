@@ -9,25 +9,21 @@ use App\Logging\StoryEvent;
 use App\Models\CategoryProperty;
 use App\Models\Listing;
 use App\Support\Story;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 final readonly class UpdateListing
 {
-    public function __construct(private StoreListingImage $storeListingImage) {}
-
     /**
      * The slug is left alone: a renamed listing keeps the storefront URL it was
-     * shared under.
+     * shared under. Images are the Images screen's own concern (DSGN-002) —
+     * the Basics save this action backs never carries an upload.
      */
-    public function __invoke(Listing $listing, ListingDraft $draft, ?UploadedFile $image = null): Listing
+    public function __invoke(Listing $listing, ListingDraft $draft): Listing
     {
         return Story::for(StoryEvent::ListingUpdate)->tell('updating a listing', [
             'listing_id' => $listing->id,
             'seller_id' => $listing->seller_id,
-        ], function (Story $story) use ($listing, $draft, $image): Listing {
+        ], function (Story $story) use ($listing, $draft): Listing {
             $previousCategoryId = $listing->category_id;
-            $imageReplaced = $image !== null && $this->replaceCoverImage($listing, $image);
 
             $listing->update($draft->attributes());
 
@@ -39,37 +35,10 @@ final readonly class UpdateListing
                 'listing_id' => $listing->id,
                 'seller_id' => $listing->seller_id,
                 'price_cents' => $listing->price_cents,
-                'image_replaced' => $imageReplaced,
             ]);
 
             return $listing;
         });
-    }
-
-    /**
-     * Replaces the cover — the lowest-position image — with a freshly
-     * uploaded file, leaving every other image on the listing untouched. A
-     * failed disk write changes nothing, so a seller keeps whatever cover
-     * they had rather than losing it to a bad upload.
-     */
-    private function replaceCoverImage(Listing $listing, UploadedFile $image): bool
-    {
-        $path = ($this->storeListingImage)($image);
-
-        if ($path === null) {
-            return false;
-        }
-
-        $cover = $listing->images()->orderBy('position')->first();
-
-        if ($cover === null) {
-            $listing->images()->create(['path' => $path, 'position' => 0]);
-        } else {
-            Storage::disk('public')->delete($cover->path);
-            $cover->update(['path' => $path]);
-        }
-
-        return true;
     }
 
     /**

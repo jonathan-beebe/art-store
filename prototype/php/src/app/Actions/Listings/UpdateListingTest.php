@@ -13,8 +13,6 @@ use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\Property;
 use App\Models\PropertyValue;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 $draft = fn (): ListingDraft => ListingDraft::of(
     'Harbour at Dawn',
@@ -49,61 +47,13 @@ it('keeps the status the listing already had', function () use ($draft): void {
     expect($listing)->toHaveStatus(ListingStatus::ForSale);
 });
 
-it('keeps the image when the form uploads none', function () use ($draft): void {
+it('DSGN-002 never touches a listing’s images — that save belongs to the Images screen', function () use ($draft): void {
     $listing = $this->listing($this->seller());
     $this->listingImage($listing, ['path' => 'listings/kept.jpg']);
 
     app(UpdateListing::class)($listing, $draft());
 
     expect($listing->images()->sole()->path)->toBe('listings/kept.jpg');
-});
-
-it('replaces the cover and deletes the file it replaced', function () use ($draft): void {
-    Storage::fake('public');
-    Storage::disk('public')->put('listings/old.jpg', 'old');
-    $listing = $this->listing($this->seller());
-    $cover = $this->listingImage($listing, ['path' => 'listings/old.jpg', 'position' => 0]);
-
-    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
-
-    $path = $cover->fresh()?->path;
-
-    expect($path)->not->toBeNull();
-    expect($path)->not->toBe('listings/old.jpg');
-    Storage::disk('public')->assertMissing('listings/old.jpg');
-    Storage::disk('public')->assertExists((string) $path);
-});
-
-it('adds a cover to an imageless listing when the update carries an upload', function () use ($draft): void {
-    Storage::fake('public');
-    $listing = $this->listing($this->seller());
-
-    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
-
-    expect($listing->images()->sole()->position)->toBe(0);
-});
-
-it('leaves every other image alone when the cover is replaced', function () use ($draft): void {
-    Storage::fake('public');
-    $listing = $this->listing($this->seller());
-    $this->listingImage($listing, ['position' => 0]);
-    $second = $this->listingImage($listing, ['position' => 1]);
-
-    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
-
-    expect($second->fresh()?->path)->toBe($second->path);
-});
-
-it('keeps the previous image and does not delete it when the write fails', function () use ($draft): void {
-    $listing = $this->listing($this->seller());
-    $this->listingImage($listing, ['path' => 'listings/old.jpg']);
-    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
-    Storage::shouldReceive('putFile')->andReturn(false);
-    Storage::shouldReceive('delete')->never();
-
-    app(UpdateListing::class)($listing, $draft(), UploadedFile::fake()->image('new.jpg'));
-
-    expect($listing->images()->sole()->path)->toBe('listings/old.jpg');
 });
 
 it('assigns the category a seller picked', function (): void {

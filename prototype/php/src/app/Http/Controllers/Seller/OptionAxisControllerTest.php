@@ -444,6 +444,25 @@ it('DSGN-002 renders the standalone footer hint and the add-on footer hint once 
     $response->assertSee('Buyers pay your item\'s price, plus whatever Frame adds on top.', false);
 });
 
+it('DSGN-002 labels a standalone option’s field Price and an add-on option’s field Price difference', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 1800]);
+    $size = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->priced(1800)->create(['axis_id' => $size->id, 'label' => '8x10', 'is_default' => true]);
+    $frame = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id, 'name' => 'Frame']);
+    OptionValue::factory()->create(['axis_id' => $frame->id, 'label' => 'Unframed', 'surcharge_cents' => 0, 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $content = $response->getContent() ?: '';
+    // One label per existing option, one for the standalone card's own "Add
+    // option" row, plus the buyer-view panel's own "Price" heading — a
+    // standalone card never renders "Price difference" and an add-on card
+    // never renders the bare "Price" label.
+    expect(substr_count($content, '>Price<'))->toBe(3)
+        ->and(substr_count($content, 'Price difference'))->toBe(2);
+});
+
 it('DSGN-002 shows the required-price message inline on the choice’s own option row', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
