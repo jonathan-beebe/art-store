@@ -62,12 +62,33 @@ it('greys out an option no combination offers, with its reason', function (): vo
         ->toContain('disabled');
 });
 
-it('renders an unconfigured listing with a plain notice instead of controls', function (): void {
-    $listing = $this->listing($this->seller());
+it('BUG-013: shows the title, price, and an inert add-to-cart presentation for an unconfigured listing', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'price_cents' => 4100, 'quantity' => 5]);
 
     $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
 
-    expect($html)->toContain('Nothing here yet for a buyer to configure');
+    expect($html)->toContain('Winter Elm')
+        ->toContain('$41.00')
+        ->toContain('5 in stock')
+        ->toContain('Add to cart');
+    expect($html)->not->toContain('<form');
+    expect($html)->not->toContain('Nothing here yet for a buyer to configure');
+});
+
+it('BUG-013: shows the made-to-order label for an unconfigured listing with no fixed quantity', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+
+    $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
+
+    expect($html)->toContain('Made to order');
+});
+
+it('BUG-013: shows the zero-stock label for an unconfigured listing that has sold out', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => 0]);
+
+    $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
+
+    expect($html)->toContain('0 in stock');
 });
 
 it('appends a caption to the panel badge when one is given', function (): void {

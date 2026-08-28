@@ -870,13 +870,16 @@ it('DSGN-002 repeats each choice’s pricing-mode pill on the hub’s Choices ro
     $response->assertSee('adds to your price');
 });
 
-it('shows the buyer-view panel in its empty state for an unconfigured listing on the hub', function (): void {
+it('BUG-013: shows the buyer-view panel as a title, price, and add-to-cart preview for an unconfigured listing on the hub', function (): void {
     $seller = $this->seller();
-    $listing = $this->listing($seller);
+    $listing = $this->listing($seller, ['title' => 'Winter Elm', 'price_cents' => 4100]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
-    $response->assertSee('Nothing here yet for a buyer to configure — this listing adds straight to cart.');
+    $response->assertSee('Winter Elm');
+    $response->assertSee('$41.00');
+    $response->assertSee('Add to cart');
+    $response->assertDontSee('Nothing here yet for a buyer to configure');
 });
 
 it('shows the buyer-view panel resolved to a choice for a configured listing on the hub', function (): void {
