@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:20:20:23 — BUG-008 — done: variant destroy route + row control + forVariant guard (cart/order references refuse); one bug confirmed — no variant-delete path existed; end-to-end unblock path tested
 - 2026-08-27:20:03:45 — BUG-008 — started
 - 2026-08-27:20:03:25 — BUG-007 — done: axis-free listing's priced answers now reach the cart line, frozen breakdown, and order total; gate was three call sites skipping currentBreakdown() when unconfigured; refactor note filed in 0-refine
 - 2026-08-27:19:49:40 — BUG-007 — started
