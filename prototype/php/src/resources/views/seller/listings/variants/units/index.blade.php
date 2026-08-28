@@ -118,7 +118,7 @@
                     <div class="flex flex-wrap items-center gap-3">
                         <div class="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-center text-xs text-gray-400">photo</div>
                         <p class="max-w-sm text-gray-600 dark:text-gray-400">
-                            Per-piece photos are <span class="rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs">coming &mdash; not in this version</span>. Until then, number your pieces in the listing photos the way you do today.
+                            Per-piece photos are <x-seller.coming-pill />. Until then, number your pieces in the listing photos the way you do today.
                         </p>
                         <button type="submit" class="ml-auto rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Add the piece</button>
                     </div>

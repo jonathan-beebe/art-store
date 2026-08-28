@@ -61,7 +61,7 @@
                     </form>
 
                     @if ($loop->first)
-                        <p class="mt-3 text-gray-600 dark:text-gray-400">Leads the page today. Pinning it beside the buyer's choices is <span class="rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs">coming — not in this version</span>.</p>
+                        <p class="mt-3 text-gray-600 dark:text-gray-400">Leads the page today. Pinning it beside the buyer's choices is <x-seller.coming-pill />.</p>
                     @endif
                 </div>
             @endforeach
@@ -111,7 +111,7 @@
                     </div>
                 @endif
 
-                <p class="mt-3 text-gray-600 dark:text-gray-400">Reusing one section across all your listings — the same disclaimer on 40 pages, edited once — is <span class="rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs">coming — not in this version</span>. Until then it's per listing.</p>
+                <p class="mt-3 text-gray-600 dark:text-gray-400">Reusing one section across all your listings — the same disclaimer on 40 pages, edited once — is <x-seller.coming-pill />. Until then it's per listing.</p>
             </div>
         </div>
 

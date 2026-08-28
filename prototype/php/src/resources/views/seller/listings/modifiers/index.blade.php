@@ -163,7 +163,7 @@
 
                             <p class="mt-3 text-gray-600 dark:text-gray-400">
                                 The squares are where each option's preview image goes &mdash;
-                                <span class="rounded-full border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs">coming &mdash; not in this version</span>.
+                                <x-seller.coming-pill />.
                                 Until then buyers see the names only; keep specimens in your listing photos.
                             </p>
 
@@ -303,7 +303,7 @@
                         <div class="flex-1 rounded border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3">
                             <p class="font-medium text-gray-500 dark:text-gray-500">
                                 They attach a photo
-                                <span class="rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs">not yet</span>
+                                <x-seller.coming-pill text="not yet" />
                             </p>
                             <p class="mt-1 text-gray-500 dark:text-gray-500">Until this ships, ask buyers to send reference photos through Messages after ordering.</p>
                         </div>

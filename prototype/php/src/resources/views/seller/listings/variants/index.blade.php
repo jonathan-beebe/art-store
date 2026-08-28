@@ -230,7 +230,7 @@
                         <span class="rounded border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">Size is Large</span>
                         <span class="rounded border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">add $10.00 to the price</span>
                         <span class="rounded border border-dashed border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-3 py-2">Apply</span>
-                        <span class="rounded-full border border-gray-200 dark:border-gray-700 px-2 py-0.5 text-xs">coming — not in this version</span>
+                        <x-seller.coming-pill />
                     </div>
 
                     <p class="mt-2 text-gray-600 dark:text-gray-400">When your material cost rises, sweep the change across combinations instead of retyping each one.</p>

@@ -68,6 +68,7 @@ it('D4: shows the honest note about per-listing sections', function (): void {
         'Reusing one section across all your listings — the same disclaimer on 40 pages, edited once — is',
         escape: false,
     );
+    $response->assertSee('coming — not in this version', false);
     $response->assertSee("Until then it's per listing.", escape: false);
 });
 

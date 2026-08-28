@@ -557,6 +557,19 @@ it('A12 keeps pet, pose, and output as three separate choices, not one crammed d
     expect(substr_count($response->getContent() ?: '', '<select'))->toBe(3);
 });
 
+it('IMPRV-012: renders the preselect control as a checkbox naming what saving does, not a radio with no group', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Large', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('type="checkbox" name="is_default"', false);
+    $response->assertDontSee('type="radio" name="is_default"', false);
+    $response->assertSee('saving clears any other preselected option', false);
+});
+
 it('A9 shows the option delta at the point of choice in the buyer panel', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['price_cents' => 2400]);

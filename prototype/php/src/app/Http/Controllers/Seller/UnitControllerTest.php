@@ -270,6 +270,18 @@ it('C4: shows the honest note that selling by weight or length is not supported 
     $response->assertSee("isn't supported yet; say so in the listing page for now.", false);
 });
 
+it('C1: shows the honest note that per-piece photos are not in this version', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units");
+
+    $response->assertOk();
+    $response->assertSee('Per-piece photos are');
+    $response->assertSee('coming — not in this version', false);
+});
+
 it('never names the schema word "variant" on the pieces screen', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

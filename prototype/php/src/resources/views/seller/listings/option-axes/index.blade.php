@@ -50,8 +50,8 @@
                                     <input type="hidden" name="position" value="{{ $value->position }}">
 
                                     <label for="is_default-{{ $value->id }}" class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-                                        <input id="is_default-{{ $value->id }}" type="radio" name="is_default" value="1" @checked($value->is_default) class="border-gray-400 dark:border-gray-600">
-                                        preselected
+                                        <input id="is_default-{{ $value->id }}" type="checkbox" name="is_default" value="1" @checked($value->is_default) class="rounded border-gray-400 dark:border-gray-600">
+                                        preselected — saving clears any other preselected option
                                     </label>
 
                                     <div>
