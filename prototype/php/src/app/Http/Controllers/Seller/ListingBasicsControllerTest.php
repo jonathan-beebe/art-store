@@ -11,3 +11,13 @@ it('refuses another sellers basics screen', function (): void {
 
     $response->assertNotFound();
 });
+
+it('shows the buyer-view panel beside the basics form', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
+
+    $response->assertSee('What buyers see');
+    $response->assertSee('Harbour at Dusk');
+});

@@ -39,3 +39,17 @@ screens; layout parallels the hub's 1fr/380px grid.
 ## Related work
 - prototype/php/work/3-done/DSGN-002-retire-legacy-form-unify-editor-into-rows.md
 - prototype/php/work/3-done/IMPRV-013-buyer-view-panel-on-the-listing-edit-hub.md
+
+## Working
+Changed `src/resources/views/seller/listings/basics/edit.blade.php`: wrapped
+the existing form and attributes form in the hub's 1fr/380px grid and added
+`<x-seller.buyer-view :listing="$listing" />` in the right column. No
+controller or page-data change — `ListingBasicsPageData::for()` already
+passes `listing` to the view.
+
+Test added: `it shows the buyer-view panel beside the basics form` in
+`src/app/Http/Controllers/Seller/ListingBasicsControllerTest.php`. Confirmed
+it failed against the unmodified view (missing "What buyers see"), then
+passed after the fix.
+
+Full suite: 2718 passed (7755 assertions).
