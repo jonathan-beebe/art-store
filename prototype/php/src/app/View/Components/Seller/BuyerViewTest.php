@@ -25,6 +25,18 @@ it('renders a priced options price difference and the breakdown total', function
         ->toContain('$41.00');
 });
 
+it('shows a standalone option’s own absolute price whether or not it is selected', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 1800]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id, 'label' => '8x10', 'is_default' => true]);
+    OptionValue::factory()->priced(2400)->create(['axis_id' => $axis->id, 'label' => '11x14']);
+
+    $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
+
+    expect($html)->toContain('8x10 ($18.00)')
+        ->toContain('11x14 ($24.00)');
+});
+
 it('renders no live form and no submit action for a shop route', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 1000]);
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);

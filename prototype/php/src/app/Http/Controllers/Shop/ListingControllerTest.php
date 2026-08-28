@@ -290,9 +290,9 @@ it('shows a standalone size’s absolute prices and an absolute-first breakdown'
     $default = $this->get('/art/sunset-ridge');
 
     $default->assertOk();
-    // The selected 8x10 renders bare; the non-selected 11x14 shows its own
-    // absolute price, never a delta off the 8x10 price.
-    $default->assertDontSee('($18.00)', escape: false);
+    // The selected 8x10 and the non-selected 11x14 both show their own
+    // absolute price, never a delta off one another.
+    $default->assertSee('($18.00)', escape: false);
     $default->assertSee('($24.00)', escape: false);
     $default->assertSee('Size: 8x10', escape: false);
     $default->assertSee('Frame: Unframed', escape: false);
@@ -300,11 +300,11 @@ it('shows a standalone size’s absolute prices and an absolute-first breakdown'
     $withEleven = $this->get('/art/sunset-ridge?'.http_build_query(['axis' => [$size->id => $elevenByFourteen->id]]));
 
     $withEleven->assertOk();
-    // Now 11x14 is selected (bare) and 8x10 is the non-selected one showing
-    // its own absolute price.
+    // Now 11x14 is selected and 8x10 is the non-selected one — both still
+    // show their own absolute price.
     $withEleven->assertSee('($18.00)', escape: false);
+    $withEleven->assertSee('($24.00)', escape: false);
     $withEleven->assertSee('Size: 11x14', escape: false);
-    $withEleven->assertSee('$24.00');
 });
 
 it('shows the mugs personalization text box only once the personalized option is selected', function (): void {

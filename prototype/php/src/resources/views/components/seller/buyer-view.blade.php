@@ -18,7 +18,7 @@
                     @foreach ($axis['options'] as $option)
                         <option @selected($option['selected']) @disabled(! $option['selectable'])>
                             @if ($axis['pricingMode'] === PricingMode::Standalone)
-                                {{ $option['label'] }}@unless($option['selected']) ({{ $option['price']->format() }})@endunless
+                                {{ $option['label'] }} ({{ $option['price']->format() }})
                             @else
                                 {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
                             @endif

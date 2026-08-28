@@ -40,3 +40,22 @@ choice and may want a sharpened assertion here.
 
 ## Related work
 - prototype/php/work/3-done/DSGN-002-retire-legacy-form-unify-editor-into-rows.md
+
+## Working
+Removed the `@unless($option['selected'])` guard around the standalone
+price suffix in both views, so every standalone option renders
+`label ($price)` regardless of selection. Add-on delta rendering is
+unchanged.
+
+Files changed:
+- `src/resources/views/shop/partials/configurator.blade.php`
+- `src/resources/views/components/seller/buyer-view.blade.php`
+- `src/app/Http/Controllers/Shop/ListingControllerTest.php` — sharpened
+  `it shows a standalone size's absolute prices and an absolute-first
+  breakdown` to assert both the selected and non-selected option's
+  price
+- `src/app/View/Components/Seller/BuyerViewTest.php` — added `it shows
+  a standalone option's own absolute price whether or not it is
+  selected`
+
+Full suite: 2719 passed (7757 assertions).
