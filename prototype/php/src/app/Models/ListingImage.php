@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Storage;
 use Override;
 
 /**
@@ -52,8 +51,12 @@ class ListingImage extends Model
         return $this->belongsTo(Listing::class);
     }
 
+    /**
+     * A relative path, so it is always same-origin under the CSP's
+     * `img-src 'self'` regardless of which host the app is browsed at.
+     */
     public function url(): string
     {
-        return Storage::disk('public')->url($this->path);
+        return '/storage/'.$this->path;
     }
 }

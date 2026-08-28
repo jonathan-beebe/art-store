@@ -11,8 +11,8 @@ it('belongs to the listing it was uploaded for', function (): void {
     expect($image->listing()->first()?->id)->toBe($listing->id);
 });
 
-it('serves its file from the public disk', function (): void {
+it('serves its file from the public disk as a relative path', function (): void {
     $image = ListingImage::factory()->create(['path' => 'listings/heron.png']);
 
-    expect($image->url())->toEndWith('/storage/listings/heron.png');
+    expect($image->url())->toBe('/storage/listings/heron.png');
 });

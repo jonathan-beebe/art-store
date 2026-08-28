@@ -51,3 +51,48 @@ images too.
 ## Related work
 - prototype/php/work/3-done/DSGN-002-retire-legacy-form-unify-editor-into-rows.md
 - BUG-006 (the CSP's debug-mode shape — prototype/php/work/3-done/)
+
+## Working
+
+Root cause confirmed: `ListingImage::url()` called
+`Storage::disk('public')->url($path)`, which builds an absolute URL from
+the `public` disk's `url` config value — `APP_URL`
+(`config/filesystems.php:46`). Any browser address other than that exact
+host/port makes the image cross-origin, and the CSP's `img-src 'self'`
+blocks it.
+
+Fix: `ListingImage::url()` now returns `'/storage/'.$this->path` — a
+relative path, always same-origin regardless of the browsing host. The
+CSP constant is untouched.
+
+Every consumer of `ListingImage::url()` (`Listing::imageUrl()`'s cover
+lookup, `ListingConfiguratorSummaries::images()`'s `urls` array, and the
+seller Images-row and shop-listing Blade views) only ever places the
+value in a server-rendered `<img src>` attribute or hands it back to
+Blade for the same. None parses it as an absolute URL or sends it to a
+different origin, so the relative form works everywhere it's used.
+
+Symlink check: the link exists in both runtime paths already. Dev's
+`docker/entrypoint.sh` runs `php artisan storage:link --force` on every
+container start. The production `runtime` stage in `Dockerfile` creates
+the equivalent link directly (`ln -sfn
+/var/www/src/storage/app/public public/storage`) at image build time —
+outside the `storage/` volume mount, so it survives the volume starting
+empty on first boot and persists across restarts. No missing-symlink
+contribution to this bug; no change needed there.
+
+Files changed:
+- `src/app/Models/ListingImage.php` — `url()` returns a relative path.
+- `src/app/Models/ListingImageTest.php` — pinned test updated to assert
+  the relative form.
+
+Tests:
+- `it serves its file from the public disk as a relative path` (new,
+  replaces the old absolute-URL assertion) — confirmed failing against
+  the pre-fix code (`'/storage/listings/heron.png'` expected vs.
+  `'http://localhost:8000/storage/listings/heron.png'` actual), then
+  passing after the fix.
+- Full suite: 2717 passed (7753 assertions), `make test`.
+
+Refactor suggestions (not done): none — the fix is a one-line change to
+an existing single-purpose method.
