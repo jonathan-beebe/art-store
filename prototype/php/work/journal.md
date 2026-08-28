@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:20:39:53 — BUG-012 — started
 - 2026-08-27:20:33:21 — BUG-011 — done: added the shared buyer-view panel to the Basics screen in the hub's 1fr/380px grid; no controller/page-data change needed
 - 2026-08-27:20:29:43 — BUG-011 — started
 - 2026-08-27:20:29:33 — BUG-010 — done: ListingImage::url() returns a relative /storage path, always same-origin under img-src 'self'; storage:link verified present in dev entrypoint and runtime image
