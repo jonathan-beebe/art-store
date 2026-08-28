@@ -32,7 +32,7 @@ final readonly class CustomerMergePlan
      * @param  list<CustomerCartLine>  $anonymousCartLines
      * @param  list<string>  $verifiedFavoriteListingIds
      * @param  list<string>  $anonymousFavoriteListingIds
-     * @param  array<string, int>  $stockByListing  units in stock, by listing id; a listing absent from this map contributes no cap
+     * @param  array<string, int|null>  $stockByListing  units in stock, by listing id; a listing absent from this map, or mapped to null (made to order), contributes no cap
      */
     public static function for(
         array $verifiedCartLines,
@@ -66,7 +66,7 @@ final readonly class CustomerMergePlan
      *
      * @param  list<CustomerCartLine>  $verifiedLines
      * @param  list<CustomerCartLine>  $anonymousLines
-     * @param  array<string, int>  $stockByListing
+     * @param  array<string, int|null>  $stockByListing
      * @return list<CustomerCartLine>
      */
     private static function foldCartLines(array $verifiedLines, array $anonymousLines, array $stockByListing): array

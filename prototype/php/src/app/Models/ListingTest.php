@@ -398,6 +398,32 @@ it('restocks items a sale took', function (): void {
         ->and($listing)->toHaveStatus(ListingStatus::ForSale);
 });
 
+it('DSGN-003 leaves a made-to-order quantity null through a sale', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+
+    $listing->sell(3);
+
+    expect($listing->refresh()->quantity)->toBeNull()
+        ->and($listing)->toHaveStatus(ListingStatus::ForSale);
+});
+
+it('DSGN-003 leaves a made-to-order quantity null through a restock', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $listing->sell(1);
+
+    $listing->restock(1);
+
+    expect($listing->refresh()->quantity)->toBeNull();
+});
+
+it('DSGN-003 labels a made-to-order listing rather than a bare zero', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $tracked = $this->listing($this->seller(), ['quantity' => 4]);
+
+    expect($listing->quantityLabel())->toBe('Made to order')
+        ->and($tracked->quantityLabel())->toBe('4');
+});
+
 it('moves through an allowed status transition', function (ListingStatus $from, ListingStatus $to): void {
     $listing = $this->listing($this->seller(), ['status' => $from]);
 

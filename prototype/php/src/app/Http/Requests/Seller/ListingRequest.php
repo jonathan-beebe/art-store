@@ -4,15 +4,28 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Domain\Listings\ListingCreationShape;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Money\Money;
 use App\Models\Listing;
+use App\Support\Configurator\AbsolutePriceInput;
+use App\Support\Configurator\PriceDifferenceInput;
+use Closure;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Override;
 
+/**
+ * Two very different forms behind one request, told apart by whether the
+ * route names a listing: a create names none, and asks only for the guided
+ * on-ramp DSGN-003 routes it through (title, pricing shape, and that shape's
+ * own fields — never description, dimensions, category, or an image, which
+ * all wait on the hub); an update names one and keeps the Basics screen's
+ * full field set.
+ */
 final class ListingRequest extends FormRequest
 {
     private const MAX_IMAGE_KILOBYTES = 5120;
@@ -35,24 +48,9 @@ final class ListingRequest extends FormRequest
      */
     public function rules(): array
     {
-        // A listing that already offers a choice or breaks into serialized
-        // pieces no longer owns its price and stock count — the Basics
-        // screen doesn't render those fields for it, so nothing requires
-        // them here either.
-        $ownsPriceAndStock = $this->listingOwnsPriceAndStock();
+        $listing = $this->route('listing');
 
-        return [
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:5000'],
-            'dimensions' => ['nullable', 'string', 'max:255'],
-            'price' => [Rule::requiredIf($ownsPriceAndStock), 'nullable', 'regex:/^\d+(\.\d{1,2})?$/'],
-            'quantity' => [Rule::requiredIf($ownsPriceAndStock), 'nullable', 'integer', 'min:0', 'max:999'],
-            'category_id' => ['nullable', 'string', Rule::exists('categories', 'id')],
-            // `image` and `mimes` both read the declared type, which an upload
-            // controls. `dimensions` decodes the file, so a text file renamed
-            // .jpg is rejected here rather than served as a broken listing image.
-            'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp,gif', 'dimensions:min_width=1,min_height=1', 'max:'.self::MAX_IMAGE_KILOBYTES],
-        ];
+        return $listing instanceof Listing ? $this->updateRules($listing) : $this->createRules();
     }
 
     /**
@@ -67,26 +65,97 @@ final class ListingRequest extends FormRequest
     }
 
     /**
+     * The create path's own cross-field checks — a version or an extra
+     * option row is either complete (label and price) or wholly blank (a
+     * dropped placeholder row); a shape that needs at least one complete row
+     * says so once, rather than field by field.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $listing = $this->route('listing');
+
+            if ($listing instanceof Listing) {
+                return;
+            }
+
+            match (ListingCreationShape::tryFrom($this->string('shape')->toString())) {
+                ListingCreationShape::Versions => $this->validateVersionRows($validator),
+                ListingCreationShape::Extras => $this->validateExtraRows($validator),
+                default => null,
+            };
+        });
+    }
+
+    /**
      * A configured listing's Basics save carries no price or quantity field
      * at all — the Basics screen never renders them — so the draft keeps
      * whatever the listing already holds rather than parsing an absent
      * input. `listings.price_cents` may be sync-derived at that point
      * ({@see \App\Support\Configurator\ListingPriceSync}); reading it back
-     * unchanged here is what keeps a Basics save from clobbering it.
+     * unchanged here is what keeps a Basics save from clobbering it. A
+     * create builds its draft from whichever on-ramp shape was submitted
+     * instead — none of those fields exist on this path.
      */
     public function toDraft(): ListingDraft
     {
         $listing = $this->route('listing');
         $listing = $listing instanceof Listing ? $listing : null;
 
+        if ($listing === null) {
+            return $this->createDraft();
+        }
+
         return ListingDraft::of(
             $this->string('title')->toString(),
             $this->optionalString('description'),
             $this->optionalString('dimensions'),
-            $this->filled('price') ? Money::fromDollars($this->string('price')->toString()) : ($listing === null ? Money::zero() : $listing->price()),
-            $this->filled('quantity') ? $this->integer('quantity') : ($listing === null ? 0 : $listing->quantity),
+            $this->filled('price') ? Money::fromDollars($this->string('price')->toString()) : $listing->price(),
+            $this->boolean('made_to_order') ? null : ($this->filled('quantity') ? $this->integer('quantity') : $listing->quantity),
             $this->optionalString('category_id'),
         );
+    }
+
+    public function shape(): ListingCreationShape
+    {
+        return ListingCreationShape::from($this->string('shape')->toString());
+    }
+
+    public function choiceName(): string
+    {
+        return $this->string('choice_name')->toString();
+    }
+
+    public function extraChoiceName(): string
+    {
+        return trim($this->string('extra_choice_name')->toString());
+    }
+
+    /**
+     * The versions ramp's complete rows — a fully blank prefilled row is
+     * dropped, never surfaced as an option.
+     *
+     * @return list<array{label: string, cents: int}>
+     */
+    public function versionRows(): array
+    {
+        return $this->completeRows('versions', AbsolutePriceInput::parseCents(...));
+    }
+
+    /**
+     * The extras ramp's complete option rows — empty once the seller pressed
+     * "Create with just the price", or left both the choice name and every
+     * row blank (the same outcome, reached without the link).
+     *
+     * @return list<array{label: string, cents: int}>
+     */
+    public function extraOptionRows(): array
+    {
+        if ($this->boolean('skip_extra') || $this->extraChoiceName() === '') {
+            return [];
+        }
+
+        return $this->completeRows('extra_options', PriceDifferenceInput::parseCents(...));
     }
 
     private function optionalString(string $key): ?string
@@ -95,14 +164,217 @@ final class ListingRequest extends FormRequest
     }
 
     /**
-     * Whether price and quantity are required on this submission: always on
-     * a create (there is no listing yet to fall back to), and on an update
-     * only while the listing still owns its own price and stock.
+     * @return array<string, list<mixed>>
      */
-    private function listingOwnsPriceAndStock(): bool
+    private function updateRules(Listing $listing): array
     {
-        $listing = $this->route('listing');
+        // A listing that already offers a choice or breaks into serialized
+        // pieces no longer owns its price and stock count — the Basics
+        // screen doesn't render those fields for it, so nothing requires
+        // them here either.
+        $ownsPriceAndStock = $listing->hasOwnPriceAndStock();
+        $madeToOrder = $this->boolean('made_to_order');
 
-        return ! $listing instanceof Listing || $listing->hasOwnPriceAndStock();
+        return [
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'dimensions' => ['nullable', 'string', 'max:255'],
+            'price' => [Rule::requiredIf($ownsPriceAndStock), 'nullable', 'regex:/^\d+(\.\d{1,2})?$/'],
+            'made_to_order' => ['nullable', 'boolean'],
+            'quantity' => [Rule::requiredIf($ownsPriceAndStock && ! $madeToOrder), 'nullable', 'integer', 'min:0', 'max:999'],
+            'category_id' => ['nullable', 'string', Rule::exists('categories', 'id')],
+            // `image` and `mimes` both read the declared type, which an upload
+            // controls. `dimensions` decodes the file, so a text file renamed
+            // .jpg is rejected here rather than served as a broken listing image.
+            'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp,gif', 'dimensions:min_width=1,min_height=1', 'max:'.self::MAX_IMAGE_KILOBYTES],
+        ];
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function createRules(): array
+    {
+        $shape = ListingCreationShape::tryFrom($this->string('shape')->toString());
+
+        return [
+            'shape' => ['required', Rule::enum(ListingCreationShape::class)],
+            'title' => ['required', 'string', 'max:255'],
+            ...match ($shape) {
+                ListingCreationShape::Versions => $this->versionsRules(),
+                ListingCreationShape::Extras => $this->extrasRules(),
+                default => $this->oneThingRules(),
+            },
+        ];
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function oneThingRules(): array
+    {
+        return [
+            'price' => ['required', 'string', $this->absolutePrice('The price is an amount in dollars, like 249.00.')],
+            'made_to_order' => ['nullable', 'boolean'],
+            'quantity' => [Rule::requiredIf(! $this->boolean('made_to_order')), 'nullable', 'integer', 'min:0', 'max:999'],
+        ];
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function extrasRules(): array
+    {
+        return $this->oneThingRules() + [
+            'extra_choice_name' => ['nullable', 'string', 'max:255'],
+            'extra_options' => ['array'],
+            'extra_options.*.label' => ['nullable', 'string', 'max:255'],
+            'extra_options.*.price' => ['nullable', 'string'],
+            'skip_extra' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function versionsRules(): array
+    {
+        return [
+            'choice_name' => ['required', 'string', 'max:255'],
+            'versions' => ['array'],
+            'versions.*.label' => ['nullable', 'string', 'max:255'],
+            'versions.*.price' => ['nullable', 'string'],
+        ];
+    }
+
+    private function absolutePrice(string $message): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($message): void {
+            if (! AbsolutePriceInput::isValid(is_string($value) ? $value : null)) {
+                $fail($message);
+            }
+        };
+    }
+
+    private function validateVersionRows(Validator $validator): void
+    {
+        $completeCount = $this->validateRows($validator, 'versions', AbsolutePriceInput::isValid(...), 'Name this version.', 'The price is an amount in dollars, like 18.00.');
+
+        if ($completeCount === 0) {
+            $validator->errors()->add('versions', 'Add at least one version and its price.');
+        }
+    }
+
+    private function validateExtraRows(Validator $validator): void
+    {
+        if ($this->boolean('skip_extra')) {
+            return;
+        }
+
+        $choiceName = $this->extraChoiceName();
+        $completeCount = $this->validateRows($validator, 'extra_options', PriceDifferenceInput::isValid(...), 'Name this option.', 'The amount it adds is a dollar figure, like +6.00 or -2.00.');
+
+        if ($choiceName === '' && $completeCount === 0) {
+            // Nothing entered on either field — the same outcome "Create
+            // with just the price" reaches explicitly.
+            return;
+        }
+
+        if ($choiceName === '') {
+            $validator->errors()->add('extra_choice_name', 'Name the choice these options belong to.');
+        }
+
+        if ($completeCount === 0) {
+            $validator->errors()->add('extra_options', 'Add at least one option and what it adds.');
+        }
+    }
+
+    /**
+     * Walks a `{$key}.*.label` / `{$key}.*.price` row set, flagging every
+     * half-filled row (one field present, the other blank) and every filled
+     * price that does not parse, and reports how many rows are complete —
+     * both shared by the versions and extras row sets, which differ only in
+     * which price format they accept and what an incomplete row's messages
+     * say.
+     *
+     * @param  Closure(string): bool  $isValidPrice
+     */
+    private function validateRows(Validator $validator, string $key, Closure $isValidPrice, string $labelMessage, string $priceMessage): int
+    {
+        $rows = $this->input($key);
+        $rows = is_array($rows) ? $rows : [];
+        $completeCount = 0;
+
+        foreach ($rows as $index => $row) {
+            $label = is_array($row) ? ($row['label'] ?? null) : null;
+            $price = is_array($row) ? ($row['price'] ?? null) : null;
+            $hasLabel = is_string($label) && trim($label) !== '';
+            $hasPrice = is_string($price) && trim($price) !== '';
+
+            if (! $hasLabel && ! $hasPrice) {
+                continue;
+            }
+
+            if (! $hasLabel) {
+                $validator->errors()->add("{$key}.{$index}.label", $labelMessage);
+            }
+
+            if (! $hasPrice) {
+                $validator->errors()->add("{$key}.{$index}.price", $priceMessage);
+            } elseif (! $isValidPrice($price)) {
+                $validator->errors()->add("{$key}.{$index}.price", $priceMessage);
+            }
+
+            if ($hasLabel && $hasPrice && $isValidPrice($price)) {
+                $completeCount++;
+            }
+        }
+
+        return $completeCount;
+    }
+
+    /**
+     * @param  Closure(string): int  $parseCents
+     * @return list<array{label: string, cents: int}>
+     */
+    private function completeRows(string $key, Closure $parseCents): array
+    {
+        $rows = $this->input($key);
+        $rows = is_array($rows) ? $rows : [];
+        $complete = [];
+
+        foreach ($rows as $row) {
+            $label = is_array($row) ? ($row['label'] ?? null) : null;
+            $price = is_array($row) ? ($row['price'] ?? null) : null;
+
+            if (! is_string($label) || trim($label) === '' || ! is_string($price) || trim($price) === '') {
+                continue;
+            }
+
+            $complete[] = ['label' => trim($label), 'cents' => $parseCents($price)];
+        }
+
+        return $complete;
+    }
+
+    /**
+     * The on-ramp's own draft: never a description, dimensions, or category
+     * — all three wait on the Basics screen.
+     */
+    private function createDraft(): ListingDraft
+    {
+        if ($this->shape() === ListingCreationShape::Versions) {
+            // No base price is asked on this ramp — ListingPriceSync sets
+            // `price_cents` from the default version once it exists.
+            return ListingDraft::of($this->string('title')->toString(), null, null, Money::zero(), null);
+        }
+
+        return ListingDraft::of(
+            $this->string('title')->toString(),
+            null,
+            null,
+            Money::fromCents(AbsolutePriceInput::parseCents($this->string('price')->toString())),
+            $this->boolean('made_to_order') ? null : $this->integer('quantity'),
+        );
     }
 }

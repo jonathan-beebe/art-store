@@ -80,6 +80,7 @@ final readonly class OrderPlacementPlan
             $line->status === ListingStatus::Sold => UnavailableReason::SoldOut,
             $line->status !== ListingStatus::ForSale => UnavailableReason::OffSale,
             $line->configured => self::unavailableReasonForConfiguredLine($line),
+            $line->availableQuantity === null => null,
             $line->availableQuantity < 1 => UnavailableReason::SoldOut,
             $line->quantity > $line->availableQuantity => UnavailableReason::ShortStock,
             default => null,

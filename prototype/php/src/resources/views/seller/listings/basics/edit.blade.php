@@ -33,9 +33,16 @@
                 <x-form.field name="price" label="Price" type="number" step="0.01" min="0" required
                               :value="number_format($listing->price_cents / 100, 2, '.', '')" />
 
-                <x-form.field name="quantity" label="How many you have" type="number" step="1" min="0" max="999" required
-                              :value="$listing->quantity" />
+                <div>
+                    <x-form.field name="quantity" label="How many you have" type="number" step="1" min="0" max="999"
+                                  :value="$listing->quantity" />
+                    <label class="mt-1 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" name="made_to_order" value="1" @checked($listing->quantity === null)>
+                        Made to order — no fixed count
+                    </label>
+                </div>
             </div>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">With "Made to order" checked, the count is ignored and the listing stays available.</p>
         @endif
 
         <div class="mt-6 flex items-center gap-3">

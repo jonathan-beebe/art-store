@@ -240,6 +240,12 @@ Notes:
 - **`variants.quantity`** is nullable and unused once `is_serialized` is true:
   a serialized variant's available count is `count(units where state =
   'available')` for that variant, never a stored number.
+- **`listings.quantity`** is nullable too (DSGN-003), mirroring
+  `variants.quantity`'s own "no fixed count" reading: `null` means made to
+  order — always available while `for_sale`, untouched by a sale or a
+  restock. Reached only through the "Made to order" checkbox on create or
+  Your-item; a blank count field without it is a validation error, not a
+  silent null.
 - **`modifier_scopes`** has zero rows by default, which means the modifier
   shows for every configuration of the listing. A row names one option value
   the customer must have selected for the modifier to appear.
@@ -400,7 +406,9 @@ variant_available = variant.enabled
 
 An unconfigured listing (no axes, no variant row) resolves price and
 availability exactly as it does today, off `listings.price_cents` and
-`listings.quantity`.
+`listings.quantity` — the latter nullable the same "no fixed count" way as
+`variant.quantity` (`isPurchasable = status = for_sale AND (quantity IS NULL
+OR quantity > 0)`).
 
 ## 4. Seller flow
 
@@ -410,8 +418,24 @@ opens its own detail screen and comes back to the hub, and an unconfigured
 row reads as an invitation rather than an empty screen (DSGN-002 retired the
 flat title/price/photos form that used to sit above the row summaries).
 
+DSGN-003 forks the entry point three ways: `GET /seller/listings/create`
+asks a title and, in the seller's own words, which of three shapes the
+pricing takes; each answer lands on a screen that collects exactly what that
+shape needs and nothing else (never description, dimensions, category, or an
+image — those wait on the hub), then creates the draft and opens the hub.
+The fork routes, it never constrains — the hub's Choices screen still lets
+any listing grow the other two shapes afterward, versions and add-ons
+included (the Sunset Ridge archetype does exactly that).
+
 ```mermaid
 flowchart TD
+    Create["New listing\ntitle + \"how do you price it?\""]
+    Create -- "one thing, one price" --> LandOne["Price · how many you have\n(Made to order checkbox → quantity NULL)"]
+    Create -- "versions, each priced" --> LandVersions["Name the choice · price every version\nno base price asked — standalone axis + priced options"]
+    Create -- "one price, with extras" --> LandExtras["The item's price · how many you have\noptional first extra, skippable — add_on axis + options"]
+    LandOne --> Hub
+    LandVersions --> Hub
+    LandExtras --> Hub
     Hub["Editor hub\nrow per part of the listing, buyer-view preview fixed beside it"]
     Hub --> Basics["Your item\ntitle · description · category · medium + other granted facts · dimensions\nprice + how many you have, only while unconfigured"]
     Hub --> Images["Images\nplural, cover = lowest position\nMove up / Move down · Add an image · Remove — capped at 8"]
@@ -444,10 +468,24 @@ Screen notes:
   Your-item row and its detail screen only while the listing holds no option
   axis and no serialized piece; the moment a first choice or piece exists,
   they move to the Choices/Combinations screens and the Your-item summary
-  drops the line entirely (a new listing is always unconfigured, so its one
-  create form still asks for both up front). Once the listing holds a
-  standalone axis, its price is derived rather than seller-typed (§3), and
-  the Your-item save stops reading a price field at all.
+  drops the line entirely. Once the listing holds a standalone axis, its
+  price is derived rather than seller-typed (§3), and the Your-item save
+  stops reading a price field at all. "How many you have" carries a "Made to
+  order" checkbox, on create and on Your-item alike — checked, the count is
+  ignored and `quantity` is stored `null`, read the same "no fixed count" way
+  a variant's own untracked quantity already is (§2.2, §3).
+- **Create is three on-ramps, not one form (DSGN-003).** The question screen
+  asks a title and a pricing shape in the seller's own words — "one thing,
+  one price" / "it comes in versions, each with its own price" / "one price,
+  with extras that add to it" — each mapping 1:1 onto a shipped mechanism (no
+  axis / a standalone axis / an add_on axis). The versions landing asks for
+  no base price at all — there isn't one, since each version's own price is
+  what `ListingPriceSync` reads back onto `listings.price_cents` once the
+  axis and its options exist (§3). The extras landing's first choice is
+  skippable ("Create with just the price"), landing on a plain, axis-free
+  draft the same as the one-thing ramp. Every ramp ends on the hub; the
+  legacy flat title/price/photos form (retired by DSGN-002) is gone from
+  every code path (BUG-009).
 - **A choice's pricing mode is chosen at creation, mode-first.** "Add another
   choice" opens on the two mode buttons — "Each option priced on its own" and
   "Options add to your price" — before any catalog-property or custom-name

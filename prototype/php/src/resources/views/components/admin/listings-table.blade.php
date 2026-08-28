@@ -38,7 +38,7 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-right tabular-nums">{{ $listing->price()->format() }}</td>
-                        <td class="px-4 py-2 text-right tabular-nums">{{ $listing->quantity }}</td>
+                        <td class="px-4 py-2 text-right tabular-nums">{{ $listing->quantityLabel() }}</td>
                     </tr>
                 @endforeach
             </tbody>

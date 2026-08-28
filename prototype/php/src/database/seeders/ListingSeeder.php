@@ -126,7 +126,7 @@ class ListingSeeder extends Seeder
             ListingStatus::ForSale => $listing->changeStatusTo(ListingStatus::ForSale),
             // A listing reaches the storefront before it can sell out: put it
             // up for sale, then sell the stock it was created with.
-            ListingStatus::Sold => $listing->changeStatusTo(ListingStatus::ForSale)->sell($listing->quantity),
+            ListingStatus::Sold => $listing->changeStatusTo(ListingStatus::ForSale)->sell($listing->quantity ?? throw new RuntimeException('A seeded sold-out listing always starts with a fixed quantity.')),
             ListingStatus::Archived => $listing->changeStatusTo(ListingStatus::Archived),
         };
     }

@@ -7,6 +7,7 @@ namespace App\Support\Configurator;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitState;
+use App\Domain\Listings\ListingStockLabel;
 use App\Domain\Money\Money;
 use App\Models\DescriptionSection;
 use App\Models\Listing;
@@ -59,7 +60,7 @@ final class ListingConfiguratorSummaries
      * point those numbers live on the choices or combinations screens
      * instead (see {@see Listing::hasOwnPriceAndStock()}).
      *
-     * @return array{title: string, metaLine: string, descriptionExcerpt: ?string, hasOwnPriceAndStock: bool, priceLabel: string, quantity: int}
+     * @return array{title: string, metaLine: string, descriptionExcerpt: ?string, hasOwnPriceAndStock: bool, priceLabel: string, quantityLabel: string}
      */
     public static function basics(Listing $listing): array
     {
@@ -72,7 +73,7 @@ final class ListingConfiguratorSummaries
             'descriptionExcerpt' => $listing->description === null ? null : Str::limit($listing->description, self::DESCRIPTION_EXCERPT_LENGTH),
             'hasOwnPriceAndStock' => $listing->hasOwnPriceAndStock(),
             'priceLabel' => $listing->price()->format(),
-            'quantity' => $listing->quantity,
+            'quantityLabel' => ListingStockLabel::withInStock($listing->quantity),
         ];
     }
 

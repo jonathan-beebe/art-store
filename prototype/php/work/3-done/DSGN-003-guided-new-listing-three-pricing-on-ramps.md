@@ -1,7 +1,7 @@
 ---
 id: DSGN-003
 type: design
-status: open
+status: done
 created: 2026-08-27
 ---
 
@@ -86,3 +86,37 @@ quantity (ramps 1 and 3, and the Basics screen's stock block), stored as
 a NULL quantity internally; a blank count without the checkbox stays a
 validation error. The magic-blank hint is gone. Canvas republished with
 the checkbox on the ramp-1 landing.
+
+2026-08-27 — Implemented on php/item-configurator. `GET
+seller/listings/create` is now a two-step, JS-off flow: the question
+screen (title + three shape radio cards) submits back to itself by GET
+with `title`/`shape`, which renders the matching landing screen; each
+landing POSTs to `seller.listings.store`, which composes `CreateListing`
+with `CreateOptionAxis`/`AddOptionValue`/`GenerateVariants` for the
+versions and extras ramps. `form.blade.php` is deleted; create no
+longer asks description, dimensions, category, or an image — all three
+on-ramps end on the row-based hub exactly as DSGN-002 left it.
+
+Made-to-order shipped as the reviewed checkbox, not the ticket's
+original blank-field hint: an explicit "Made to order — no fixed count"
+checkbox next to "How many you have" (create's one-thing/extras
+landings, and the Basics screen's own price/stock block). Checking it
+is the only way to reach `listings.quantity = NULL`; a blank count
+field without it is a validation error. This required making
+`listings.quantity` nullable (migration edited in place) and mirroring
+`variant.quantity`'s existing null-is-uncapped semantics down through
+`ListingStock`, `ListingAvailability`, `CartQuantity`, `PlaceableLine`/
+`OrderPlacementPlan`, and `Listing::sell()`/`restock()` — confidently
+green end to end (`PlaceOrderTest`, `CancelOrderTest` cover the
+decrement-skip and restore paths), so it shipped rather than being
+deferred.
+
+Decisions the ticket left to the maker: the versions choice-name field
+("Size") is a `placeholder`, not a prefill — the field is `required`
+rather than silently defaulting; versions/extras row minimums are 3 and
+2 blank rows respectively, with no JS-off add/remove beyond that (more
+rows are added afterward on the Choices screen, which already supports
+it one at a time); skip-the-extra is a second `<button type="submit"
+name="skip_extra">` styled as a link in the same form, not a separate
+minimal form. Suite: 2703 tests, 100% lines, `make check` and `make
+fresh` green.

@@ -10,7 +10,7 @@ function placeableLine(
     string $listingId = 'lst_00000000000000000000000001',
     string $title = 'Harbour at Dusk',
     ListingStatus $status = ListingStatus::ForSale,
-    int $availableQuantity = 1,
+    ?int $availableQuantity = 1,
     int $quantity = 1,
     bool $hasActiveRemoval = false,
 ): PlaceableLine {
@@ -29,6 +29,13 @@ it('has nothing standing in the way of a cart of listings still for sale', funct
 
 it('has nothing standing in the way of an empty cart', function (): void {
     $plan = OrderPlacementPlan::for([]);
+
+    expect($plan->isPlaceable())->toBeTrue()
+        ->and($plan->blocked)->toBe([]);
+});
+
+it('has nothing standing in the way of a made-to-order line, however many are asked for', function (): void {
+    $plan = OrderPlacementPlan::for([placeableLine(availableQuantity: null, quantity: 50)]);
 
     expect($plan->isPlaceable())->toBeTrue()
         ->and($plan->blocked)->toBe([]);

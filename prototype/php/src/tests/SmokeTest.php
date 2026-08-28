@@ -82,18 +82,27 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     $createListing = function () use ($price): Listing {
+        // DSGN-003: the create moment asks a title and a pricing shape
+        // first; "one thing, one price" is this walk's shape. Images,
+        // description, and dimensions wait on the hub's own screens.
+        $this->get('/seller/listings/create?'.http_build_query(['title' => SMOKE_LISTING_TITLE, 'shape' => 'one']))
+            ->assertOk();
+
         $this->post('/seller/listings', [
+            'shape' => 'one',
             'title' => SMOKE_LISTING_TITLE,
-            'description' => 'Oil on linen.',
-            'dimensions' => '40 x 60 cm',
             'price' => SMOKE_PRICE_DOLLARS,
             'quantity' => 1,
-            'image' => UploadedFile::fake()->image('meadow.jpg'),
         ])->assertRedirect();
 
         $listing = Listing::sole();
         expect($listing->status)->toBe(ListingStatus::Draft)
             ->and($listing->price_cents)->toBe($price()->cents);
+
+        $this->post("/seller/listings/{$listing->id}/images", [
+            'image' => UploadedFile::fake()->image('meadow.jpg'),
+        ])->assertRedirect();
+
         $cover = $listing->images()->orderBy('position')->first() ?? $this->fail('The listing saved no image.');
         Storage::disk('public')->assertExists($cover->path);
 
@@ -439,12 +448,14 @@ it('DSGN-002 builds Sunset Ridge through the row hub, then freezes a standalone-
     Storage::fake('public');
     $seller = $this->seller();
 
-    // Create: a listing is always unconfigured at birth, so its one form
-    // still asks for price and quantity up front.
+    // Create: a listing is always unconfigured at birth, so DSGN-003's
+    // "one thing, one price" on-ramp still asks for price and quantity up
+    // front — a poster that later grows Sunset Ridge's standalone-and-add-on
+    // hybrid entirely on the hub, the on-ramps-route-never-constrain rule
+    // DSGN-003 is built on.
     $created = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'one',
         'title' => 'Sunset Ridge',
-        'description' => 'A ridge line catching the last light of the day.',
-        'dimensions' => '8 x 10 in',
         'price' => '18.00',
         'quantity' => 5,
     ]);

@@ -47,6 +47,18 @@ it('puts the stock it was holding back on the storefront', function (): void {
         ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
+it('DSGN-003 leaves a made-to-order listings quantity null on cancel', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+
+    expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
+
+    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
+
+    expect($listing->refresh()->quantity)->toBeNull()
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
 it('leaves the stock alone when a declined card already handed it back', function (): void {
     $listing = $this->listing($this->seller(), ['quantity' => 1]);
     $order = $this->orderFor($this->verifiedCustomer(), $listing);

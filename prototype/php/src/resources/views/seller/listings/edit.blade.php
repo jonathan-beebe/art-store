@@ -25,7 +25,7 @@
                         <br>{{ $basics['descriptionExcerpt'] }}
                     @endif
                     @if ($basics['hasOwnPriceAndStock'])
-                        <br><span class="mt-2 inline-block"><strong class="text-gray-900 dark:text-gray-100">{{ $basics['priceLabel'] }}</strong> &middot; {{ $basics['quantity'] }} in stock</span>
+                        <br><span class="mt-2 inline-block"><strong class="text-gray-900 dark:text-gray-100">{{ $basics['priceLabel'] }}</strong> &middot; {{ $basics['quantityLabel'] }}</span>
                     @endif
                 </div>
             </div>

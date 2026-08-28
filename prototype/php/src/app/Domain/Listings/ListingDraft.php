@@ -17,7 +17,9 @@ final readonly class ListingDraft
         public ?string $description,
         public ?string $dimensions,
         public Money $price,
-        public int $quantity,
+        // Null: made to order — no fixed count, reached only through the
+        // "Made to order" checkbox on create or Basics.
+        public ?int $quantity,
         public ?string $categoryId = null,
     ) {}
 
@@ -32,7 +34,7 @@ final readonly class ListingDraft
         ?string $description,
         ?string $dimensions,
         Money $price,
-        int $quantity,
+        ?int $quantity,
         ?string $categoryId = null,
     ): self {
         return new self($title, $description, $dimensions, $price, $quantity, $categoryId);

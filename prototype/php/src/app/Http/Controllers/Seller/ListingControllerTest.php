@@ -29,7 +29,6 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * @param  array<string, mixed>  $overrides
@@ -37,6 +36,7 @@ use Illuminate\Support\Facades\Storage;
  */
 $form = function (array $overrides = []): array {
     return $overrides + [
+        'shape' => 'one',
         'title' => 'Harbour at Dusk',
         'description' => 'Oil on linen.',
         'dimensions' => '12 x 16 in',
@@ -103,22 +103,79 @@ it('shows a placeholder thumbnail for a listing without an image', function (): 
     $response->assertSee($listing->imageUrl(), escape: false);
 });
 
-it('renders the create form', function (): void {
+it('DSGN-003 renders the create question screen with the three pricing shapes', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings/create');
 
     $response->assertOk();
     $response->assertSee('New listing');
-    $response->assertSee('for="price"', escape: false);
+    $response->assertSee('What are you selling?');
+    $response->assertSee('One thing, one price');
+    $response->assertSee('It comes in versions, each with its own price');
+    $response->assertSee('One price, with extras that add to it');
+    $response->assertSee('This just picks your starting point');
 });
 
-it('offers the category tree on the create form, indented by depth', function (): void {
-    $jewelry = Category::factory()->create(['name' => 'Jewelry', 'path' => '/jewelry/']);
-    Category::factory()->create(['name' => 'Rings', 'path' => '/jewelry/rings/', 'parent_id' => $jewelry->id]);
+it('DSGN-003 continues to the one-thing landing screen with the title carried over', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->get('/seller/listings/create?'.http_build_query(['title' => 'Harbour at Dusk', 'shape' => 'one']));
 
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings/create');
+    $response->assertOk();
+    $response->assertSee('Harbour at Dusk');
+    $response->assertSee('value="Harbour at Dusk"', escape: false);
+    $response->assertSee('for="price"', escape: false);
+    $response->assertSee('Made to order — no fixed count');
+});
 
-    $response->assertSee('Jewelry');
-    $response->assertSee('— Rings', escape: false);
+it('DSGN-003 continues to the versions landing screen with no price field', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->get('/seller/listings/create?'.http_build_query(['title' => 'Sunset Ridge', 'shape' => 'versions']));
+
+    $response->assertOk();
+    $response->assertSee('Sunset Ridge');
+    $response->assertSee('What do buyers choose between?');
+    $response->assertSee('each option priced on its own');
+    $response->assertDontSee('for="price"', escape: false);
+});
+
+it('DSGN-003 continues to the extras landing screen', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->get('/seller/listings/create?'.http_build_query(['title' => 'Maple Serving Board', 'shape' => 'extras']));
+
+    $response->assertOk();
+    $response->assertSee('Maple Serving Board');
+    $response->assertSee('The first extra buyers choose');
+    $response->assertSee('adds to your price');
+    $response->assertSee('Create with just the price');
+});
+
+it('DSGN-003 falls back to the question screen for an unrecognized shape', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->get('/seller/listings/create?'.http_build_query(['title' => 'X', 'shape' => 'bogus']));
+
+    $response->assertOk();
+    $response->assertSee('What are you selling?');
+});
+
+it('DSGN-003 keeps the legacy flat-form fields off every create screen', function (): void {
+    $seller = $this->actingAs($this->seller(), 'seller');
+
+    $seller->get('/seller/listings/create')
+        ->assertDontSee('name="dimensions"', escape: false)
+        ->assertDontSee('name="category_id"', escape: false)
+        ->assertDontSee('name="image"', escape: false)
+        ->assertDontSee('name="description"', escape: false);
+
+    foreach (['one', 'versions', 'extras'] as $shape) {
+        $seller->get('/seller/listings/create?'.http_build_query(['title' => 'X', 'shape' => $shape]))
+            ->assertDontSee('name="dimensions"', escape: false)
+            ->assertDontSee('name="category_id"', escape: false)
+            ->assertDontSee('name="image"', escape: false)
+            ->assertDontSee('name="description"', escape: false);
+    }
+});
+
+it('DSGN-003 retires the flat listing form view', function (): void {
+    expect(\Illuminate\Support\Facades\View::exists('seller.listings.form'))->toBeFalse();
 });
 
 it('creates a listing from the form and lands on the hub', function () use ($form): void {
@@ -130,40 +187,135 @@ it('creates a listing from the form and lands on the hub', function () use ($for
     $response->assertRedirect(route('seller.listings.edit', $listing));
     expect($listing->title)->toBe('Harbour at Dusk')
         ->and($listing->price_cents)->toBe(24900)
+        ->and($listing->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::Draft);
 
     $hub = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
 
     $hub->assertOk();
     $hub->assertSee('Your item');
+    $hub->assertSee('$249.00');
+    $hub->assertSee('1 in stock');
 });
 
-it('stores an uploaded image on the public disk', function () use ($form): void {
-    Storage::fake('public');
+it('DSGN-003 creates a made-to-order one-thing listing with a null quantity that stays available', function () use ($form): void {
     $seller = $this->seller();
 
-    $this->actingAs($seller, 'seller')->post('/seller/listings', $form([
-        'image' => UploadedFile::fake()->image('harbour.jpg'),
-    ]));
+    $response = $this->actingAs($seller, 'seller')
+        ->post('/seller/listings', $form(['quantity' => '', 'made_to_order' => '1']));
 
     $listing = Listing::where('seller_id', $seller->id)->sole();
-    $cover = $listing->images()->sole();
-    expect($cover->position)->toBe(0);
-    Storage::disk('public')->assertExists($cover->path);
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect($listing->quantity)->toBeNull();
+
+    $hub = $this->actingAs($seller, 'seller')->get(route('seller.listings.edit', $listing));
+    $hub->assertSee('Made to order');
 });
 
-it('creates the listing without an image and tells the seller when the upload fails', function () use ($form): void {
-    Storage::shouldReceive('disk')->with('public')->andReturnSelf();
-    Storage::shouldReceive('putFile')->andReturn(false);
+it('DSGN-003 creates a versions listing: standalone axis, priced options, one combination per version, synced price', function (): void {
     $seller = $this->seller();
 
-    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', $form([
-        'image' => UploadedFile::fake()->image('harbour.jpg'),
-    ]));
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [
+            ['label' => '8x10', 'price' => '18.00'],
+            ['label' => '11x14', 'price' => '24.00'],
+            ['label' => '16x20', 'price' => '34.00'],
+            ['label' => '', 'price' => ''],
+        ],
+    ]);
 
-    $response->assertSessionHas('status', fn (string $status): bool => str_contains($status, 'image failed to upload'));
     $listing = Listing::where('seller_id', $seller->id)->sole();
-    expect($listing->images()->count())->toBe(0);
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+
+    $axis = OptionAxis::where('listing_id', $listing->id)->sole();
+    expect($axis->name)->toBe('Size')
+        ->and($axis->pricing_mode)->toBe(\App\Domain\Configurator\PricingMode::Standalone)
+        ->and($axis->optionValues()->count())->toBe(3)
+        ->and(Variant::where('listing_id', $listing->id)->count())->toBe(3)
+        ->and(Variant::where('listing_id', $listing->id)->whereNotNull('quantity')->count())->toBe(0)
+        ->and($listing->refresh()->price_cents)->toBe(1800);
+});
+
+it('DSGN-003 drops a fully blank version row and rejects an incomplete one', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [
+            ['label' => '8x10', 'price' => '18.00'],
+            ['label' => '', 'price' => ''],
+            ['label' => 'Bad row', 'price' => ''],
+        ],
+    ]);
+
+    $response->assertSessionHasErrors('versions.2.price');
+    expect(Listing::count())->toBe(0);
+});
+
+it('DSGN-003 creates an extras listing with an add_on axis, options, and combinations', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+        'extra_choice_name' => 'Finish',
+        'extra_options' => [
+            ['label' => 'Oil finish', 'price' => '+0.00'],
+            ['label' => 'Carved handle', 'price' => '+14.00'],
+        ],
+    ]);
+
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect($listing->price_cents)->toBe(4600);
+
+    $axis = OptionAxis::where('listing_id', $listing->id)->sole();
+    expect($axis->name)->toBe('Finish')
+        ->and($axis->pricing_mode)->toBe(\App\Domain\Configurator\PricingMode::AddOn)
+        ->and($axis->optionValues()->count())->toBe(2)
+        ->and(Variant::where('listing_id', $listing->id)->count())->toBe(2)
+        ->and(Variant::where('listing_id', $listing->id)->whereNotNull('quantity')->count())->toBe(0);
+});
+
+it('DSGN-003 skips the extra via the plain-price link and creates an axis-free listing', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+        'extra_choice_name' => 'Finish',
+        'extra_options' => [['label' => 'Oil finish', 'price' => '+0.00']],
+        'skip_extra' => '1',
+    ]);
+
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect(OptionAxis::where('listing_id', $listing->id)->count())->toBe(0)
+        ->and($listing->hasOwnPriceAndStock())->toBeTrue();
+});
+
+it('DSGN-003 skips the extra by leaving its fields blank, with no skip flag at all', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+    ]);
+
+    $listing = Listing::where('seller_id', $seller->id)->sole();
+    $response->assertRedirect(route('seller.listings.edit', $listing));
+    expect(OptionAxis::where('listing_id', $listing->id)->count())->toBe(0);
 });
 
 it('renders the activity page', function (): void {
@@ -406,6 +558,48 @@ it('omits price and how many you have from the basics screen once the listing of
     $response->assertDontSee('How many you have');
 });
 
+it('DSGN-003 checks the made-to-order box on the basics screen for a null quantity', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['quantity' => null]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
+
+    $response->assertSee('value="1" checked', escape: false);
+});
+
+it('DSGN-003 leaves the made-to-order box unchecked on the basics screen for a tracked quantity', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['quantity' => 5]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
+
+    $response->assertDontSee('value="1" checked', escape: false);
+});
+
+it('DSGN-003 saves made to order from the basics screen, nulling the quantity', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['quantity' => 5]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", [
+        'title' => $listing->title, 'price' => '10.00', 'made_to_order' => '1',
+    ]);
+
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
+    expect($listing->refresh()->quantity)->toBeNull();
+});
+
+it('DSGN-003 unchecking made to order on the basics screen restores a required, tracked quantity', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['quantity' => null]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", [
+        'title' => $listing->title, 'price' => '10.00', 'quantity' => 7,
+    ]);
+
+    $response->assertRedirect(route('seller.listings.basics.edit', $listing));
+    expect($listing->refresh()->quantity)->toBe(7);
+});
+
 it('saves the title and item facts from the basics screen', function (): void {
     $seller = $this->seller();
     $category = Category::factory()->create();
@@ -506,7 +700,7 @@ it('refuses to update another sellers listing', function () use ($form): void {
     expect($listing->refresh()->title)->toBe('Not Mine');
 });
 
-it('trips the listing-write limit on create, re-rendering the create form with nothing saved', function () use ($form): void {
+it('trips the listing-write limit on create, re-rendering the landing screen with nothing saved', function () use ($form): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $this->actingAs($seller, 'seller')->post('/seller/listings', $form());
@@ -516,7 +710,7 @@ it('trips the listing-write limit on create, re-rendering the create form with n
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
-    $response->assertSee('New listing');
+    $response->assertSee('Second piece');
     expect(Listing::where('seller_id', $seller->id)->count())->toBe(1);
 });
 

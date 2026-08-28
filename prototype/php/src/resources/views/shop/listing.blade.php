@@ -27,7 +27,7 @@
                 <dt class="text-neutral-500">Dimensions</dt>
                 <dd>{{ $listing->dimensions ?? 'Unlisted' }}</dd>
                 <dt class="text-neutral-500">Available</dt>
-                <dd>{{ $isPurchasable ? $listing->quantity : 'Sold' }}</dd>
+                <dd>{{ $isPurchasable ? $listing->quantityLabel() : 'Sold' }}</dd>
             </dl>
 
             @if (! empty($highlights))

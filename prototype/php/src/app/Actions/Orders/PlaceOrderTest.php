@@ -127,6 +127,20 @@ it('takes the stock the order claims', function (): void {
         ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
+it('DSGN-003 leaves a made-to-order listings quantity null after the order claims stock', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => null]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 5, $this->moment('2026-08-20 08:00:00'));
+
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    $listing->refresh();
+
+    expect($listing->quantity)->toBeNull()
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
 it('marks a listing sold when the order claims the last of it', function (): void {
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($this->seller(), ['price_cents' => 45000, 'quantity' => 1]);

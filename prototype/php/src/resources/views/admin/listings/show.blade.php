@@ -19,7 +19,7 @@
         </div>
         <div>
             <dt class="text-gray-600 dark:text-gray-400">Quantity</dt>
-            <dd class="mt-1 tabular-nums">{{ $listing->quantity }}</dd>
+            <dd class="mt-1 tabular-nums">{{ $listing->quantityLabel() }}</dd>
         </div>
         <div>
             <dt class="text-gray-600 dark:text-gray-400">Medium</dt>

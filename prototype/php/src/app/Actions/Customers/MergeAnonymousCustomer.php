@@ -98,7 +98,7 @@ final readonly class MergeAnonymousCustomer
             ->values()
             ->all();
 
-        /** @var array<string, int> $stockByListing */
+        /** @var array<string, int|null> $stockByListing */
         $stockByListing = Listing::query()->whereIn('id', $listingIds)->pluck('quantity', 'id')->all();
 
         return CustomerMergePlan::for(

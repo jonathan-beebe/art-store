@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:19:14:45 — BUG-009 — RESOLVED: closed by DSGN-003's implementation — form.blade.php deleted, create opens the guided on-ramp flow
+- 2026-08-27:19:14:45 — DSGN-003 — RESOLVED: guided three-shape create on-ramp (one thing / versions / extras) shipped on php/item-configurator, replacing the legacy flat form; made-to-order shipped as an explicit checkbox (nullable listings.quantity, mirroring variant semantics) per human review refinement mid-implementation; form.blade.php retired; BUG-009 closes with this implementation; 2703 tests, 100% coverage, make check and make fresh green
 - 2026-08-27:18:35:54 — DSGN-003 — implementation started (canvas approved by human review)
 - 2026-08-27:18:44:00 — DSGN-003 — design canvas published for human review (create question + three ramp landings + flow map); implementation waits on review
 - 2026-08-27:18:31:40 — DSGN-003 — started (canvas round next)

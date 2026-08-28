@@ -36,3 +36,7 @@ it('rejects a listing an admin has removed from the storefront', function (): vo
 it('rejects a request below one', function (): void {
     expect(fn () => CartQuantity::withinStock(0, 5, ListingStatus::ForSale, hasActiveRemoval: false))->toThrow(InvalidArgumentException::class);
 });
+
+it('leaves a made-to-order request uncapped', function (): void {
+    expect(CartQuantity::withinStock(9, null, ListingStatus::ForSale, hasActiveRemoval: false))->toBe(9);
+});

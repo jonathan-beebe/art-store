@@ -13,6 +13,7 @@ use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
+use App\Domain\Listings\ListingStockLabel;
 use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -182,6 +183,15 @@ class Listing extends Model
     public function price(): Money
     {
         return Money::fromCents($this->price_cents);
+    }
+
+    /**
+     * The bare count, or "Made to order" for the null, uncapped reading a
+     * seller reaches through the "Made to order" checkbox.
+     */
+    public function quantityLabel(): string
+    {
+        return ListingStockLabel::bare($this->quantity);
     }
 
     /**

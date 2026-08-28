@@ -49,6 +49,14 @@ class ListingFactory extends Factory
         ]);
     }
 
+    /**
+     * No fixed count — always available while for sale.
+     */
+    public function madeToOrder(): static
+    {
+        return $this->state(fn (array $attributes) => ['quantity' => null]);
+    }
+
     public function archived(): static
     {
         return $this->state(fn (array $attributes) => ['status' => ListingStatus::Archived]);

@@ -1,7 +1,7 @@
 ---
 id: BUG-009
 type: bug
-status: open
+status: done
 created: 2026-08-27
 ---
 
@@ -45,3 +45,7 @@ slimmer create already exists.
 
 2026-08-27 — Design owned by DSGN-003 (guided new listing, three pricing
 on-ramps); this ticket closes with DSGN-003's implementation.
+
+2026-08-27 — Closed by DSGN-003's implementation on php/item-configurator:
+`form.blade.php` is deleted, and `GET seller/listings/create` now opens
+the guided, three-shape on-ramp flow rather than the legacy flat form.

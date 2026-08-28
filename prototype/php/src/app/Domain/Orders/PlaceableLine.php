@@ -21,7 +21,9 @@ final readonly class PlaceableLine
         public string $listingId,
         public string $title,
         public ListingStatus $status,
-        public int $availableQuantity,
+        // Null: the listing is made to order — no fixed count, so nothing
+        // caps an unconfigured line's quantity.
+        public ?int $availableQuantity,
         public int $quantity,
         public bool $hasActiveRemoval,
         // Unique per line — a cart or order item id — so two lines of the
