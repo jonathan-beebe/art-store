@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-28:07:23:01 — IMPRV-015 — absorbs the 0-refine shared-view-partials research note (both duplication clusters now explicit outcomes); note discarded per human
 - 2026-08-28:07:22:01 — RFCTR-010 — defined: Split isConfigured() into honest predicates (human-directed from BUG-007's refactor note; supersedes the 0-refine research file)
 - 2026-08-28:07:20:41 — IMPRV-014 — human decision: honest-note commitment for C8/D7/D8 dropped, no relocation; 0-refine decision file discarded
 - 2026-08-28:07:19:44 — BUG-014 — started

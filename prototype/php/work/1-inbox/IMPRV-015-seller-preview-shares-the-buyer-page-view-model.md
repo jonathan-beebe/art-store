@@ -37,6 +37,10 @@ interact — and as close to the real thing as possible.
       an inert Add to cart (a preview never mutates a cart).
 - [ ] The shared path is covered so a rendering-rule change lands in both
       surfaces from one edit (BUG-012's class of two-file fix is gone).
+- [ ] The eight seller screens' hand-duplicated panel embed (the
+      `grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]` wrapper
+      plus the panel slot) collapses into one layout component while the
+      embeds are being touched.
 - [ ] `make check` green; coverage 100%; journal updated.
 
 ## Why it matters
@@ -50,9 +54,11 @@ twice doubles the cost of touching the buyer experience.
   and friends) is the candidate single source; the seller screens would
   build the same view model for the listing being edited, driven by the same
   GET params so the preview's form round-trips on the seller page's own URL.
-- work/0-refine/RSRCH-shared-view-partials-for-configurator-surfaces.md
-  documents the known duplicated blocks (option-select branch, breakdown
-  `<dl>`, unit cards); this ticket subsumes that note's markup half.
+- Known duplicated blocks between the shop configurator and the panel:
+  the option-select branch, the price-breakdown `<dl>`, and the
+  serialized-unit cards (from BUG-011/BUG-012's findings; this ticket
+  subsumes the 0-refine shared-view-partials research note, discarded
+  2026-08-28).
 - The preview embeds a form inside seller pages that already carry their own
   forms — nesting and CSRF/GET interplay need care (the shop configurator is
   one form with two submits; a nested form inside a seller form is invalid
