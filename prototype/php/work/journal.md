@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:21:40:41 — IMPRV-014 — started
+- 2026-08-27:21:40:41 — IMPRV-012 — done: coming pill extracted to one anonymous Blade component (6 real copies found, not 16; prose honest-notes left as-is); preselect radio replaced by a checkbox whose label says saving clears the others; server-side exclusivity untouched
 - 2026-08-27:21:21:32 — IMPRV-012 — started
 - 2026-08-27:21:17:50 — IMPRV-011 — done: the configurator auto-updates its options, unit cards, and price panel on change via a dependency-free auto-submit script, with autofocus continuity and the no-JS path unchanged
 - 2026-08-27:21:06:03 — IMPRV-011 — started
