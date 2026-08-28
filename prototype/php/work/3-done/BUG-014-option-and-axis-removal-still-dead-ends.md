@@ -1,7 +1,7 @@
 ---
 id: BUG-014
 type: bug
-status: open
+status: resolved
 created: 2026-08-28
 ---
 
