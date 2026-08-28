@@ -6,13 +6,18 @@
 - DSGN: 4
 - ARCH: 1
 - FEAT: 33
-- IMPRV: 15
+- IMPRV: 16
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 10
-- BUG: 14
+- BUG: 15
 
 ## Log
+
+- 2026-08-28:07:19:44 — BUG-014 — started
+- 2026-08-28:07:19:44 — IMPRV-015 — defined: The seller's buyer preview shares the buyer page's view model and behavior
+- 2026-08-28:07:19:44 — BUG-014 — defined: Removing a listing's options or variants still dead-ends
+- 2026-08-28:07:19:44 — IMPRV-011 — manual browser walk recorded: enhanced path verified by the human on /art/line-art-cat-tee at 127.0.0.1
 
 - 2026-08-27:21:49:06 — IMPRV-014 — done: physical-goods footer line removed from the edit hub; C8/D7/D8 honest-note placement question filed in 0-refine for the human
 - 2026-08-27:21:40:41 — IMPRV-014 — started

@@ -19,7 +19,7 @@ A selection immediately refreshes the rest of the form — available options, un
 - [x] Typed modifier answers survive the refresh (they already round-trip through the GET params today — a test pins that this stays true), and quantity changes debounce enough that typing "150" doesn't fire three refreshes (submit on change/blur for the number input, not per keystroke).
 - [x] Continuity: after the refresh the page doesn't feel reset — the changed control regains focus and the configurator stays in view (URL fragment, autofocus, or equivalent server-rendered mechanism; decide and record). A full-page navigation that meets this is acceptable; an in-place fetch-and-swap of the configurator and price panel is equally acceptable if it stays small, dependency-free, and falls back cleanly.
 - [x] The script ships like the existing live-badge.js (public/, `<script defer>`, no build step) or inline per the storefront's pattern — match whatever keeps the asset story simplest; CSP must not need widening in production.
-- [ ] Feature tests cover the no-JS path unchanged; a browser-level check of the enhanced path is manual (record the walk in the ticket's Working section). ← no-JS tests done; the manual browser walk is still pending (see Working).
+- [x] Feature tests cover the no-JS path unchanged; a browser-level check of the enhanced path is manual (record the walk in the ticket's Working section).
 - [x] `make check` green; coverage 100%; journal updated.
 
 ## Why it matters
@@ -44,3 +44,9 @@ A selection immediately refreshes the rest of the form — available options, un
 
 ### Numbers
 `make check`: 2725 tests, 7774 assertions, 100% lines.
+
+### Manual browser walk (2026-08-28, human)
+Verified on http://127.0.0.1:8000/art/line-art-cat-tee: the form updates as
+options and quantity change, no "Update options" press — works as expected.
+Browsing at 127.0.0.1 also exercises BUG-010's relative image URLs. A
+serialized/unit-picker listing was not part of this walk.
