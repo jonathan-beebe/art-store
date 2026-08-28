@@ -50,3 +50,7 @@ this ticket and left for the human to decide (relocate vs. drop the
 honest-note commitment for those three stories).
 
 Full suite: 2729 passed, 7785 assertions, 100% lines (`make check` green).
+
+### Decision (2026-08-28, human)
+The honest-note commitment for C8/D7/D8 is dropped — no relocation. The
+0-refine decision file is discarded.

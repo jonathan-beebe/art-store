@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-28:07:20:41 — IMPRV-014 — human decision: honest-note commitment for C8/D7/D8 dropped, no relocation; 0-refine decision file discarded
 - 2026-08-28:07:19:44 — BUG-014 — started
 - 2026-08-28:07:19:44 — IMPRV-015 — defined: The seller's buyer preview shares the buyer page's view model and behavior
 - 2026-08-28:07:19:44 — BUG-014 — defined: Removing a listing's options or variants still dead-ends
