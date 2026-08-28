@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-27:21:06:03 — IMPRV-011 — started
+- 2026-08-27:21:06:03 — BUG-013 — done: unconfigured branch of the buyer-view panel now mirrors the shop page — title, price, honest stock label, inert Add to cart; hasConfigurator confirmed correct on both axis-adding ramps
 - 2026-08-27:20:50:49 — BUG-013 — started
 - 2026-08-27:20:50:49 — BUG-012 — done: selected standalone option shows its absolute price in the shop dropdown and seller buyer-view panel; @unless(selected) guard removed in both views; view-duplication research note filed in 0-refine
 - 2026-08-27:20:39:53 — BUG-012 — started
