@@ -172,8 +172,11 @@ it('B1: shows the letter limit and offers it to the buyer as a maxlength', funct
 
     $response->assertOk();
     $response->assertSee('buyers see the limit before they type');
+    // IMPRV-015: the buyer panel's maxlength now comes from the same
+    // partial the shop page renders, which carries no "Up to N letters"
+    // hint — that hint was panel-only markup the real buyer page never
+    // showed, dropped along with the rest of the hand-duplicated rendering.
     $response->assertSee('maxlength="20"', false);
-    $response->assertSee('Up to 20 letters.');
 });
 
 it('B2: shows an extra charge on the question card and the buyer panel label', function (): void {
@@ -230,6 +233,37 @@ it('B6: shows a scoped question on the applies panel and not on the other, with 
     $response->assertSee('Version: Blank');
     $response->assertSee('Buyers who pick Blank never see this question');
     $response->assertSee("it simply isn't there", false);
+});
+
+it('IMPRV-015: the scoped-preview pair stays disabled rather than falsely interactive', function (): void {
+    // ScopedListingPreview pins each panel to a specific option value from
+    // stored scope data, never the request — a live form here would accept
+    // a seller's clicks and then silently discard them on the next render,
+    // so this pair renders with no <form> at all rather than one that lies.
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Version']);
+    $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
+    $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?']);
+    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertDontSee('<form method="GET"', false);
+    $response->assertSee('aria-disabled="true"', false);
+});
+
+it('IMPRV-015: the default buyer panel (no scoped question yet) is a live, enabled form', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Version']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
+
+    $response->assertSee('<form method="GET" action="'.route('seller.listings.modifiers.index', $listing).'"', escape: false);
+    $response->assertDontSee('<select disabled', false);
 });
 
 it('B7: renders limit fields for a measurement question and their attributes on the buyer input', function (): void {

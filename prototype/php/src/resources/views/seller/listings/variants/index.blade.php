@@ -32,8 +32,7 @@
     <h1 class="mt-2 text-xl font-semibold">Combinations &amp; stock</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Buyers can only buy a combination you make. Each one tracks its own stock, and each shows the price a buyer would pay — change it only where your costs really differ.</p>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_400px]">
-        <div class="flex flex-col gap-4">
+    <x-seller.editor-layout>
             @if ($noChoices)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <p class="font-semibold text-gray-700 dark:text-gray-300">Every piece one of a kind?</p>
@@ -253,8 +252,9 @@
                     </ul>
                 </div>
             @endif
-        </div>
 
-        <x-seller.buyer-view :listing="$listing" caption="unavailable options grey out with the reason" />
-    </div>
+        <x-slot:panel>
+            <x-seller.buyer-view :listing="$listing" caption="unavailable options grey out with the reason" />
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

@@ -36,29 +36,51 @@ final readonly class ConfiguratorInput
     /**
      * Reads the same four fields off either a GET query string or a POST
      * body, tolerating whatever shape a tampered request sends instead of
-     * raising — a bad value just resolves to the listing's own default.
+     * raising — a bad value falls back to the given default (the listing's
+     * own default when the caller supplies none) rather than to an empty
+     * selection, so a seller preview pinned to one variant or quantity
+     * still opens there before any interaction.
+     *
+     * @param  array<string, string>  $defaultAxisSelections
      */
-    public static function fromRaw(mixed $axis, mixed $unit, mixed $modifier, mixed $quantity): self
-    {
+    public static function fromRaw(
+        mixed $axis,
+        mixed $unit,
+        mixed $modifier,
+        mixed $quantity,
+        array $defaultAxisSelections = [],
+        ?string $defaultUnitId = null,
+        int $defaultQuantity = 1,
+    ): self {
         return self::of(
-            is_array($axis) ? self::stringMap($axis) : [],
-            is_string($unit) ? $unit : null,
+            is_array($axis) ? self::stringMap($axis) : $defaultAxisSelections,
+            is_string($unit) ? $unit : $defaultUnitId,
             is_array($modifier) ? self::stringMap($modifier) : [],
-            is_string($quantity) && ctype_digit($quantity) ? (int) $quantity : 1,
+            is_string($quantity) && ctype_digit($quantity) ? (int) $quantity : $defaultQuantity,
         );
     }
 
     /**
      * The same four fields, read off a GET request's query string — the
-     * page render and its rate-limit-tripped re-render both read from here.
+     * page render and its rate-limit-tripped re-render both read from here,
+     * as does a seller preview panel round-tripping on its own screen's URL.
+     *
+     * @param  array<string, string>  $defaultAxisSelections
      */
-    public static function fromQuery(Request $request): self
-    {
+    public static function fromQuery(
+        Request $request,
+        array $defaultAxisSelections = [],
+        ?string $defaultUnitId = null,
+        int $defaultQuantity = 1,
+    ): self {
         return self::fromRaw(
-            $request->query('axis', []),
+            $request->query('axis'),
             $request->query('unit'),
             $request->query('modifier', []),
             $request->query('quantity'),
+            $defaultAxisSelections,
+            $defaultUnitId,
+            $defaultQuantity,
         );
     }
 

@@ -16,8 +16,7 @@
         Each piece is its own thing &mdash; its own price, condition, and measurements, in one listing that keeps your reviews and search rank. The moment one sells it comes off the listing by itself; the rest stay up untouched.
     </p>
 
-    <div class="mt-4 grid items-start gap-6 lg:grid-cols-[1fr_24rem]">
-        <div class="flex flex-col gap-4">
+    <x-seller.editor-layout>
             <p class="font-medium">
                 {{ $counts['total'] }} pieces &middot; {{ $counts['available'] }} available &middot; {{ $counts['sold'] }} sold
                 @if ($counts['onHold'] > 0)
@@ -126,8 +125,9 @@
             </div>
 
             <p class="text-gray-600 dark:text-gray-400">Selling by weight or length &mdash; a 100 g bag of mixed beads at one price &mdash; isn't supported yet; say so in the listing page for now.</p>
-        </div>
 
-        <x-seller.buyer-view :listing="$listing" :input="$buyerViewInput" />
-    </div>
+        <x-slot:panel>
+            <x-seller.buyer-view :listing="$listing" :input="$buyerViewInput" />
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

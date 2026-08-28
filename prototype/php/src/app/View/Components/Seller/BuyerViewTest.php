@@ -37,15 +37,16 @@ it('shows a standalone option’s own absolute price whether or not it is select
         ->toContain('11x14 ($24.00)');
 });
 
-it('renders no live form and no submit action for a shop route', function (): void {
+it('IMPRV-015: renders a live GET form that round-trips on the seller URL, never the cart route', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 1000]);
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
     OptionValue::factory()->create(['axis_id' => $axis->id, 'is_default' => true]);
 
     $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
 
-    expect($html)->not->toContain('<form');
-    expect($html)->not->toContain('cart/add');
+    expect($html)->toContain('<form method="GET"')
+        ->and($html)->not->toContain('cart/add')
+        ->and($html)->toContain('aria-disabled="true" class="inline-block rounded-full bg-neutral-300 px-6 py-2 text-sm font-medium text-white">Add to cart');
 });
 
 it('greys out an option no combination offers, with its reason', function (): void {
@@ -99,16 +100,19 @@ it('appends a caption to the panel badge when one is given', function (): void {
     expect($html)->toContain('What buyers see')->toContain('Version: Blank');
 });
 
-it('B1: carries the char limit as a maxlength and names it under the field', function (): void {
+it('B1: carries the char limit as a maxlength, same as the shop page', function (): void {
     $listing = $this->listing($this->seller());
     Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Name to letter', 'char_limit' => 20]);
 
     $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
 
-    expect($html)->toContain('maxlength="20"')->toContain('Up to 20 letters.');
+    expect($html)->toContain('maxlength="20"');
 });
 
-it('B2: shows the extra charge on the label and, once answered, in the price breakdown', function (): void {
+it('B2: shows the flat charge in the price breakdown once answered, same as the shop page', function (): void {
+    // IMPRV-015: the panel no longer names the flat charge on the label
+    // itself — the shop page never did either, so showing it there was
+    // the panel claiming something a buyer never actually sees.
     $listing = $this->listing($this->seller(), ['price_cents' => 1400]);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Name to letter', 'add_on_price_cents' => 200]);
 
@@ -119,10 +123,8 @@ it('B2: shows the extra charge on the label and, once answered, in the price bre
     );
 
     expect($unanswered)->toContain('Name to letter')
-        ->and($unanswered)->toContain('(+$2.00)')
         ->and($unanswered)->not->toContain('$16.00')
         ->and($answered)->toContain('Name to letter')
-        ->and($answered)->toContain('(+$2.00)')
         ->and($answered)->toContain('$16.00');
 });
 
@@ -136,6 +138,8 @@ it('B7: carries the min, max, and unit on the buyer measurement input', function
 });
 
 it('C3: bolds the active quantity tier and totals the discounted breakdown', function (): void {
+    // IMPRV-015: the tier table is the shared configurator partial's own
+    // <table> now (identical to the shop page), not a panel-only <ul>.
     $listing = $this->listing($this->seller(), ['price_cents' => 450]);
     QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 50, 'discount_bps' => 1000]);
     QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 200, 'discount_bps' => 2200]);
@@ -145,8 +149,9 @@ it('C3: bolds the active quantity tier and totals the discounted breakdown', fun
         ['listing' => $listing, 'input' => ConfiguratorInput::of([], null, [], 200)],
     );
 
-    expect($html)->toContain('200+: 22% off')
-        ->and($html)->toContain('font-semibold text-neutral-900')
+    expect($html)->toContain('200+')
+        ->and($html)->toContain('22% off')
+        ->and($html)->toContain('<tr class="font-semibold">')
         ->and($html)->toContain('$702.00');
 });
 

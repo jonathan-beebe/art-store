@@ -45,8 +45,11 @@ it('C3: shows the buyer panel with the tier table and a discounted breakdown', f
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/quantity-breaks");
 
+    // IMPRV-015: the tier table is the shared configurator partial's own
+    // <table> now (identical to the shop page), not a panel-only sentence.
     $response->assertSee('What buyers see');
-    $response->assertSee('200+: 22% off');
+    $response->assertSee('200+');
+    $response->assertSee('22% off');
     $response->assertSee('$702.00');
 });
 

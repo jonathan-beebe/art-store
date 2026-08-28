@@ -9,8 +9,7 @@
     <h1 class="mt-2 text-xl font-semibold">Listing page sections</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Build the page in sections that render like a real product page — no ALL-CAPS headers, no size chart pasted as a wall of numbers.</p>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_420px]">
-        <div class="flex flex-col gap-4">
+    <x-seller.editor-layout>
             @foreach ($sections as $section)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <div class="flex flex-wrap items-baseline gap-2">
@@ -113,17 +112,13 @@
 
                 <p class="mt-3 text-gray-600 dark:text-gray-400">Reusing one section across all your listings — the same disclaimer on 40 pages, edited once — is <x-seller.coming-pill />. Until then it's per listing.</p>
             </div>
-        </div>
 
-        <div class="relative rounded-lg border border-dashed border-neutral-400 bg-white p-5 text-neutral-900">
-            <span class="absolute -top-3 left-4 rounded-full bg-neutral-800 px-3 py-0.5 text-xs font-medium text-white">What buyers see</span>
-            <p class="mt-1 text-lg font-semibold text-neutral-900">{{ $listing->title }}</p>
+        <x-slot:panel>
+            <x-seller.buyer-view :listing="$listing" />
 
             @if ($sections->isEmpty())
-                <p class="mt-4 text-sm text-neutral-500">Nothing here yet — a section you add on the left shows up here exactly as buyers will read it.</p>
-            @else
-                @include('shop.partials.description-sections', ['sections' => $sections])
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">Nothing here yet — a section you add on the left shows up here exactly as buyers will read it.</p>
             @endif
-        </div>
-    </div>
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

@@ -11,9 +11,7 @@
         </span>
     </div>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]">
-        <div class="flex flex-col gap-4">
-
+    <x-seller.editor-layout>
             <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 <div class="flex items-baseline gap-2">
                     <p class="font-semibold text-gray-700 dark:text-gray-300">Your item</p>
@@ -193,10 +191,9 @@
             @if ($listing->status !== ListingStatus::Draft)
                 <p class="text-gray-600 dark:text-gray-400">Editing a live listing never changes an order that's already placed — every order keeps the exact price and choices its buyer agreed to.</p>
             @endif
-        </div>
 
-        <div>
+        <x-slot:panel>
             <x-seller.buyer-view :listing="$listing" />
-        </div>
-    </div>
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

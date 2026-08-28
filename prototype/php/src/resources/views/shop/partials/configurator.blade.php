@@ -1,16 +1,47 @@
 @php
     use App\Domain\Configurator\ModifierKind;
     use App\Domain\Configurator\PricingMode;
+
+    // IMPRV-015: one partial renders the configurator on `/art/{slug}` and
+    // inside the seller's "What buyers see" panel — `$mode` is the only
+    // thing that changes: `shop` posts to the cart, `preview` is a live GET
+    // form that round-trips on the seller screen's own URL with an inert
+    // Add to cart, `static` (the modifier scope demo's pinned pair) is a
+    // disabled read-only rendering with no form at all. Every label,
+    // option, price, and breakdown line below renders identically in all
+    // three, so a rendering-rule change lands everywhere from this one file.
+    $isForm = $mode !== 'static';
+    $wrapperTag = $isForm ? 'form' : 'div';
+    $wrapperAttributes = match ($mode) {
+        'shop' => 'method="POST" action="'.e(route('shop.cart.add', $listing)).'" data-configurator',
+        'preview' => 'method="GET" action="'.e($refreshUrl).'" data-configurator',
+        default => '',
+    };
 @endphp
 
-<form method="POST" action="{{ route('shop.cart.add', $listing) }}" class="mt-2 max-w-lg" data-configurator>
-    @csrf
-    <input type="hidden" name="focus" data-configurator-focus>
+<{{ $wrapperTag }} {!! $wrapperAttributes !!} class="mt-2 max-w-lg">
+    @if ($mode === 'shop')
+        @csrf
+    @endif
+
+    @if ($mode === 'preview')
+        @foreach (collect(request()->query())->except(['axis', 'unit', 'modifier', 'quantity', 'focus'])->all() as $preservedKey => $preservedValue)
+            @if (is_scalar($preservedValue))
+                <input type="hidden" name="{{ $preservedKey }}" value="{{ $preservedValue }}">
+            @endif
+        @endforeach
+    @endif
+
+    @if ($isForm)
+        <input type="hidden" name="focus" data-configurator-focus>
+    @endif
 
     @foreach ($configuration->axes as $axis)
         <div class="mt-6">
             <label for="axis-{{ $axis['id'] }}" class="block text-sm font-medium text-neutral-700">{{ $axis['name'] }}</label>
-            <select id="axis-{{ $axis['id'] }}" name="axis[{{ $axis['id'] }}]" @if ($focusId === 'axis-'.$axis['id']) autofocus @endif data-configurator-refresh
+            <select id="axis-{{ $axis['id'] }}" name="axis[{{ $axis['id'] }}]" @if ($focusId === 'axis-'.$axis['id']) autofocus @endif
+                    @if ($isForm) data-configurator-refresh @endif
+                    @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                     class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
                 @foreach ($axis['options'] as $option)
                     <option value="{{ $option['id'] }}" @selected($option['selected']) @disabled(! $option['selectable'])>
@@ -36,7 +67,10 @@
                 <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     @foreach ($configuration->units as $unit)
                         <label class="block cursor-pointer rounded-2xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-neutral-900 {{ $unit['selected'] ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200' }}">
-                            <input type="radio" id="unit-{{ $unit['id'] }}" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) @if ($focusId === 'unit-'.$unit['id']) autofocus @endif data-configurator-refresh class="sr-only">
+                            <input type="radio" id="unit-{{ $unit['id'] }}" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) @if ($focusId === 'unit-'.$unit['id']) autofocus @endif
+                                   @if ($isForm) data-configurator-refresh @endif
+                                   @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
+                                   class="sr-only">
                             <span class="block font-medium">{{ $unit['label'] }}</span>
                             @if ($unit['conditionNote'] !== null)
                                 <span class="mt-1 block text-sm text-neutral-500">{{ $unit['conditionNote'] }}</span>
@@ -68,6 +102,7 @@
 
             @if ($modifier['kind'] === ModifierKind::Select)
                 <select id="modifier-{{ $modifier['id'] }}" name="modifier[{{ $modifier['id'] }}]"
+                        @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                         class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
                     @foreach ($modifier['options'] as $option)
                         <option value="{{ $option['id'] }}" @selected($option['selected'])>
@@ -80,7 +115,8 @@
                        value="{{ $modifier['answer'] }}"
                        @if ($modifier['minValue'] !== null) min="{{ $modifier['minValue'] }}" @endif
                        @if ($modifier['maxValue'] !== null) max="{{ $modifier['maxValue'] }}" @endif
-                       @required($modifier['required'])
+                       @required($modifier['required'] && $isForm)
+                       @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                        class="mt-2 block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
                 @if ($modifier['unit'] !== null)
                     <span class="mt-1 block text-sm text-neutral-500">{{ $modifier['unit'] }}</span>
@@ -89,13 +125,16 @@
                 <input type="text" id="modifier-{{ $modifier['id'] }}" name="modifier[{{ $modifier['id'] }}]"
                        value="{{ $modifier['answer'] }}"
                        @if ($modifier['charLimit'] !== null) maxlength="{{ $modifier['charLimit'] }}" @endif
-                       @required($modifier['required'])
+                       @required($modifier['required'] && $isForm)
+                       @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                        class="mt-2 block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
             @endif
 
-            @error('modifier.'.$modifier['id'])
-                <p class="mt-2 text-red-700">{{ $message }}</p>
-            @enderror
+            @if ($mode === 'shop')
+                @error('modifier.'.$modifier['id'])
+                    <p class="mt-2 text-red-700">{{ $message }}</p>
+                @enderror
+            @endif
         </div>
     @endforeach
 
@@ -118,7 +157,9 @@
     <div class="mt-6">
         <label for="quantity" class="block text-sm font-medium text-neutral-700">Quantity</label>
         <input type="number" id="quantity" name="quantity" min="1" value="{{ $configuration->quantity }}"
-               @if ($focusId === 'quantity') autofocus @endif data-configurator-refresh
+               @if ($focusId === 'quantity') autofocus @endif
+               @if ($isForm) data-configurator-refresh @endif
+               @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                class="mt-2 block w-32 rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
     </div>
 
@@ -145,15 +186,21 @@
     @endif
 
     <div class="mt-6 flex flex-wrap items-center gap-4">
-        <button type="submit" formmethod="GET" formaction="{{ route('shop.listing', $listing) }}" formnovalidate
-                data-configurator-update
-                class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
-            Update options
-        </button>
+        @if ($isForm)
+            <button type="submit" formmethod="GET" formaction="{{ $refreshUrl }}" formnovalidate
+                    data-configurator-update
+                    class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
+                Update options
+            </button>
+        @else
+            <span aria-disabled="true" class="rounded-full border border-neutral-300 px-6 py-2 text-sm font-medium text-neutral-400">Update options</span>
+        @endif
 
-        <button type="submit" @disabled(! $configuration->canAddToCart)
-                class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-neutral-300">
-            Add to cart
-        </button>
+        @include('shop.partials.add-to-cart-button', [
+            'mode' => $mode,
+            'listing' => $listing,
+            'standalone' => false,
+            'disabled' => ! $configuration->canAddToCart,
+        ])
     </div>
-</form>
+</{{ $wrapperTag }}>

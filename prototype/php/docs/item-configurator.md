@@ -460,10 +460,20 @@ Screen notes:
   an empty table ("Comes in more than one version? Offer choices", "Need an
   answer from the buyer? Ask a question", and so on for pieces, discounts,
   and page sections). A buyer-view preview sits fixed beside the rows,
-  rendered disabled exactly as a buyer would see it, resolved to the
-  listing's current default configuration — or, with nothing configurable
-  yet, a mirror of the shop page's simple rendering: the title, the one
-  price, an honest stock label, and an inert Add to cart button.
+  built from the same view model and rendering partials `/art/{slug}`
+  itself uses (IMPRV-015) — images, title, description, and either the
+  live configurator form or, with nothing configurable yet, the title, the
+  one price, an honest stock label, and an inert Add to cart button. The
+  form is real: changing an option, unit, quantity, or answer submits a GET
+  back to the seller screen's own URL and re-renders the panel with the new
+  availability, grey-outs, and total — the same auto-submit script the shop
+  page ships also runs here, so it happens on change rather than needing a
+  click. Add to cart alone stays inert, since a preview must never mutate a
+  cart. One embed is the deliberate exception: the questions screen's
+  scope-demo pair (`ScopedListingPreview`) pins each panel to a specific,
+  stored option value the request can never influence, so it renders
+  disabled rather than as a form that would silently discard a seller's
+  clicks.
 - **Price and stock live in exactly one place at a time.** They appear on the
   Your-item row and its detail screen only while the listing holds no option
   axis and no serialized piece; the moment a first choice or piece exists,

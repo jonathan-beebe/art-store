@@ -1,17 +1,7 @@
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
         <div>
-            <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
-                 class="aspect-square w-full rounded-3xl object-cover">
-
-            @if ($listing->images->count() > 1)
-                <div class="mt-4 grid grid-cols-4 gap-3">
-                    @foreach ($listing->images->skip(1)->values() as $image)
-                        <img src="{{ $image->url() }}" alt="{{ $listing->title }} — photo {{ $loop->iteration + 1 }}"
-                             class="aspect-square w-full rounded-xl object-cover">
-                    @endforeach
-                </div>
-            @endif
+            @include('shop.partials.listing-images', ['listing' => $listing])
         </div>
 
         <div class="max-w-lg">
@@ -42,27 +32,13 @@
                 </section>
             @endif
 
-            <p class="mt-8 text-lg leading-relaxed text-neutral-700">{{ $listing->description }}</p>
-
-            @if ($listing->descriptionSections->isNotEmpty())
-                @include('shop.partials.description-sections', [
-                    'sections' => $listing->descriptionSections,
-                    'sectionClass' => 'mt-14 border-t border-neutral-100 pt-10',
-                    'headingTag' => 'h2',
-                    'headingClass' => 'text-xl font-semibold tracking-tight',
-                ])
-            @endif
+            @include('shop.partials.listing-description', ['listing' => $listing])
 
             <div class="mt-10">
                 @if ($hasConfigurator)
-                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration, 'focusId' => $focusId])
+                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration, 'focusId' => $focusId, 'mode' => 'shop', 'refreshUrl' => route('shop.listing', $listing)])
                 @elseif ($isPurchasable)
-                    <form method="POST" action="{{ route('shop.cart.add', $listing) }}">
-                        @csrf
-                        <button type="submit" class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
-                            Add to cart
-                        </button>
-                    </form>
+                    @include('shop.partials.add-to-cart-button', ['mode' => 'shop', 'listing' => $listing])
                 @endif
 
                 <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}" class="mt-4">

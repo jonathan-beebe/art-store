@@ -5,7 +5,10 @@
 
     $basePrice = $listing->price();
     $previewQuantity = $quantityBreaks->isEmpty() ? 1 : (int) $quantityBreaks->max('min_qty');
-    $previewInput = ConfiguratorInput::of([], null, [], $previewQuantity);
+    // The panel opens on the top tier so its discount is visible without
+    // any interaction; a live change to the panel's own quantity field
+    // round-trips on this URL and overrides this default (IMPRV-015).
+    $previewInput = ConfiguratorInput::fromQuery(request(), defaultQuantity: $previewQuantity);
 @endphp
 
 <x-layouts.seller :title="'Quantity discounts — '.$listing->title.' — Art Store seller'">
@@ -13,8 +16,7 @@
     <h1 class="mt-2 text-xl font-semibold">Quantity discounts</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Bigger orders pay less per item, the way your print costs actually work — set the breakpoints once and the price drops by itself. No more "Quantity: 50 / 100 / 200" options with hand-typed totals.</p>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_400px]">
-        <div class="flex flex-col gap-4">
+    <x-seller.editor-layout>
             <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 @foreach ($quantityBreaks as $break)
                     <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 dark:border-gray-800 py-3 first:pt-0 last:border-none last:pb-0">
@@ -80,11 +82,10 @@
             </div>
 
             <p class="text-gray-600 dark:text-gray-400">A private price for one customer isn't available yet — quote bespoke jobs in Messages rather than publishing them as options anyone can buy.</p>
-        </div>
 
-        <div class="flex flex-col gap-2">
+        <x-slot:panel>
             <x-seller.buyer-view :listing="$listing" :input="$previewInput" />
             <p class="text-xs text-gray-500 dark:text-gray-500">The active tier is bold, and the total is the exact amount charged — the platform's own quantity field stays meaningful.</p>
-        </div>
-    </div>
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

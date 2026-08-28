@@ -15,8 +15,7 @@
         A question can charge for the work it asks for, and it only appears when it applies.
     </p>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_420px]">
-        <div class="flex flex-col gap-4">
+    <x-seller.editor-layout>
             @foreach ($modifiers as $modifier)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <form method="POST" action="{{ route('seller.listings.modifiers.update', [$listing, $modifier]) }}" class="flex flex-col gap-3">
@@ -312,18 +311,22 @@
             </div>
 
             <p class="text-gray-600 dark:text-gray-400">Gift wrap or rush turnaround? Keep them as their own listings for now &mdash; add-on checkboxes on this listing aren't available yet.</p>
-        </div>
 
-        <div class="flex flex-col gap-5">
+        <x-slot:panel>
             @if ($preview === null)
                 <x-seller.buyer-view :listing="$listing" />
             @else
-                <x-seller.buyer-view :listing="$listing" :input="$preview->appliesInput" :caption="$preview->appliesCaption" />
+                {{-- Pinned to the modifier's stored scope, never the request
+                     (ScopedListingPreview::resolve reads only stored data) —
+                     a live form here would accept a seller's clicks and then
+                     silently discard them, so this pair renders disabled
+                     rather than falsely interactive (IMPRV-015). --}}
+                <x-seller.buyer-view :listing="$listing" :input="$preview->appliesInput" :caption="$preview->appliesCaption" :interactive="false" />
                 <div>
-                    <x-seller.buyer-view :listing="$listing" :input="$preview->otherInput" :caption="$preview->otherCaption" />
+                    <x-seller.buyer-view :listing="$listing" :input="$preview->otherInput" :caption="$preview->otherCaption" :interactive="false" />
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">The question isn't greyed out &mdash; it simply isn't there. Nothing to ignore, nothing to explain in the description.</p>
                 </div>
             @endif
-        </div>
-    </div>
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

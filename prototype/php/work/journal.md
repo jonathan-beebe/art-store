@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-28:08:34:39 — IMPRV-015 — resolved: seller buyer-view panel now shares /art/{slug}'s view model and rendering partials (images/title/description, live GET form with auto-submit and no-JS Update-options round-tripping on the seller screen's own URL, inert Add to cart); eight screens' grid wrapper collapsed into x-seller.editor-layout; modifier scope-demo pair stays disabled (recorded design fork); make check green, coverage 100%, 2734 tests
 - 2026-08-28:08:02:34 — IMPRV-015 — started
 - 2026-08-28:07:55:58 — RFCTR-010 — done: Split CartItem/OrderItem::isConfigured() into hasVariant() and OrderItem::hasPricedBreakdown(), each named for the domain question it answers; the conflated predicate that caused BUG-007 is gone
 - 2026-08-28:07:48:03 — RFCTR-010 — started

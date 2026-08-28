@@ -36,7 +36,7 @@ final class UnitController extends SellerController
 
         $edit = $request->query('edit');
 
-        return view('seller.listings.variants.units.index', $this->indexData($listing, $variant, is_string($edit) ? $edit : null));
+        return view('seller.listings.variants.units.index', $this->indexData($listing, $variant, is_string($edit) ? $edit : null, $request));
     }
 
     public function store(CreateUnitRequest $request, Listing $listing, Variant $variant, AddUnit $add, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -74,7 +74,7 @@ final class UnitController extends SellerController
     /**
      * @return array<string, mixed>
      */
-    private function indexData(Listing $listing, Variant $variant, ?string $editingUnitId = null): array
+    private function indexData(Listing $listing, Variant $variant, ?string $editingUnitId = null, ?Request $request = null): array
     {
         $units = $variant->units()->get()->sort(fn (Unit $a, Unit $b): int => UnitLabelOrder::compare($a->label, $b->label))->values();
         $combinationPrice = $variant->resolvedPrice($listing->price());
@@ -86,7 +86,10 @@ final class UnitController extends SellerController
             'counts' => UnitStateCounts::tally($units),
             'pieces' => $units->map(fn (Unit $unit): array => self::piece($unit, $combinationPrice)),
             'editingUnitId' => $editingUnitId,
-            'buyerViewInput' => ConfiguratorInput::of(self::axisSelections($variant), null, [], 1),
+            // Opens on the exact combination this screen manages rather than
+            // the listing's own defaults; a live change in the panel then
+            // round-trips on this URL and overrides it (IMPRV-015).
+            'buyerViewInput' => ConfiguratorInput::fromQuery($request ?? request(), self::axisSelections($variant), null, 1),
         ];
     }
 

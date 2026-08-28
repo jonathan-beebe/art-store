@@ -3,9 +3,7 @@
     <h1 class="mt-2 text-xl font-semibold">Your item</h1>
     <p class="mt-1 max-w-xl text-gray-600 dark:text-gray-400">The basics every buyer sees first.</p>
 
-    <div class="mt-4 grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_380px]">
-        <div class="flex flex-col gap-4">
-
+    <x-seller.editor-layout>
             <form method="POST" action="{{ route('seller.listings.update', $listing) }}" class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 @csrf
                 @method('PUT')
@@ -87,10 +85,9 @@
                     <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Save facts</button>
                 </form>
             @endif
-        </div>
 
-        <div>
+        <x-slot:panel>
             <x-seller.buyer-view :listing="$listing" />
-        </div>
-    </div>
+        </x-slot:panel>
+    </x-seller.editor-layout>
 </x-layouts.seller>

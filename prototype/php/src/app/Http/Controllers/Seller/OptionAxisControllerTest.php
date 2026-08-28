@@ -581,3 +581,43 @@ it('A9 shows the option delta at the point of choice in the buyer panel', functi
 
     $response->assertSee('12 oz (+$6.00)', escape: false);
 });
+
+it('IMPRV-015: the buyer panel round-trips a live option pick on this screens own URL', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 2400]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8 oz', 'is_default' => true, 'position' => 0]);
+    $twelveOz = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '12 oz', 'surcharge_cents' => 600, 'position' => 1]);
+
+    $default = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+    $default->assertSee('$24.00');
+
+    $withTwelveOz = $this->actingAs($seller, 'seller')->get(
+        "/seller/listings/{$listing->id}/option-axes?".http_build_query(['axis' => [$axis->id => $twelveOz->id]])
+    );
+
+    // The same GET the shop page's own "Update options" submits — the
+    // panel's form posts back to this screen's own URL, not the shop one.
+    $withTwelveOz->assertSee('<form method="GET" action="'.route('seller.listings.option-axes.index', $listing).'"', escape: false);
+    $withTwelveOz->assertSee('$30.00');
+});
+
+it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8 oz', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes?mode=standalone");
+
+    $response->assertSee('<input type="hidden" name="mode" value="standalone">', escape: false);
+});
+
+it('IMPRV-015: ships the configurator auto-submit script on a seller listing screen', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
+
+    $response->assertSee('configurator-autosubmit.js', false);
+});
