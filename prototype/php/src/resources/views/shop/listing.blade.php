@@ -55,7 +55,7 @@
 
             <div class="mt-10">
                 @if ($hasConfigurator)
-                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration])
+                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration, 'focusId' => $focusId])
                 @elseif ($isPurchasable)
                     <form method="POST" action="{{ route('shop.cart.add', $listing) }}">
                         @csrf

@@ -37,6 +37,7 @@ final class ListingController extends ShopController
             : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
 
         $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
+        $focus = $request->query('focus');
 
         return view('shop.listing', [
             'listing' => $listing->load([
@@ -49,6 +50,10 @@ final class ListingController extends ShopController
             'hasConfigurator' => $hasConfigurator,
             'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
             'highlights' => ListingHighlights::forStorefront($listing),
+            // The control the auto-submit script last changed, so the refreshed
+            // page can autofocus it back — round-tripped through the GET query
+            // string alongside the axis/unit/modifier selections it caused.
+            'focusId' => is_string($focus) ? $focus : null,
         ]);
     }
 }

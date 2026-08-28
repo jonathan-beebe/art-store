@@ -3,13 +3,14 @@
     use App\Domain\Configurator\PricingMode;
 @endphp
 
-<form method="POST" action="{{ route('shop.cart.add', $listing) }}" class="mt-2 max-w-lg">
+<form method="POST" action="{{ route('shop.cart.add', $listing) }}" class="mt-2 max-w-lg" data-configurator>
     @csrf
+    <input type="hidden" name="focus" data-configurator-focus>
 
     @foreach ($configuration->axes as $axis)
         <div class="mt-6">
             <label for="axis-{{ $axis['id'] }}" class="block text-sm font-medium text-neutral-700">{{ $axis['name'] }}</label>
-            <select id="axis-{{ $axis['id'] }}" name="axis[{{ $axis['id'] }}]"
+            <select id="axis-{{ $axis['id'] }}" name="axis[{{ $axis['id'] }}]" @if ($focusId === 'axis-'.$axis['id']) autofocus @endif data-configurator-refresh
                     class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
                 @foreach ($axis['options'] as $option)
                     <option value="{{ $option['id'] }}" @selected($option['selected']) @disabled(! $option['selectable'])>
@@ -35,7 +36,7 @@
                 <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     @foreach ($configuration->units as $unit)
                         <label class="block cursor-pointer rounded-2xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-neutral-900 {{ $unit['selected'] ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200' }}">
-                            <input type="radio" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) class="sr-only">
+                            <input type="radio" id="unit-{{ $unit['id'] }}" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) @if ($focusId === 'unit-'.$unit['id']) autofocus @endif data-configurator-refresh class="sr-only">
                             <span class="block font-medium">{{ $unit['label'] }}</span>
                             @if ($unit['conditionNote'] !== null)
                                 <span class="mt-1 block text-sm text-neutral-500">{{ $unit['conditionNote'] }}</span>
@@ -117,6 +118,7 @@
     <div class="mt-6">
         <label for="quantity" class="block text-sm font-medium text-neutral-700">Quantity</label>
         <input type="number" id="quantity" name="quantity" min="1" value="{{ $configuration->quantity }}"
+               @if ($focusId === 'quantity') autofocus @endif data-configurator-refresh
                class="mt-2 block w-32 rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
     </div>
 
@@ -144,6 +146,7 @@
 
     <div class="mt-6 flex flex-wrap items-center gap-4">
         <button type="submit" formmethod="GET" formaction="{{ route('shop.listing', $listing) }}" formnovalidate
+                data-configurator-update
                 class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
             Update options
         </button>

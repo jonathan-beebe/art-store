@@ -451,3 +451,63 @@ it('keeps the legacy zero-axis listing on its one-click add, with no configurato
     $response->assertDontSee('Update options');
     $response->assertSee('Add to cart');
 });
+
+it('ships the configurator auto-submit script on the listing page', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('configurator-autosubmit.js', false);
+});
+
+it('keeps a typed modifier answer on the page after a GET refresh', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'mug', 'price_cents' => 1800]);
+    $personalization = app(CreateOptionAxis::class)($listing, 'Personalization');
+    app(AddOptionValue::class)($personalization, 'Blank', 0, isDefault: true);
+    $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
+    app(GenerateVariants::class)($listing);
+    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
+    app(ScopeModifier::class)($text, [$personalized]);
+
+    $response = $this->get('/art/mug?'.http_build_query([
+        'axis' => [$personalization->id => $personalized->id],
+        'modifier' => [$text->id => 'Ada'],
+    ]));
+
+    $response->assertOk();
+    $response->assertSee('value="Ada"', false);
+});
+
+it('autofocuses the axis select named by the refresh, so a shopper does not lose their place', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    app(GenerateVariants::class)($listing);
+
+    $response = $this->get('/art/ring?'.http_build_query([
+        'axis' => [$metal->id => $roseGold->id],
+        'focus' => 'axis-'.$metal->id,
+    ]));
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch(
+        '/<select id="axis-'.preg_quote($metal->id, '/').'"[^>]*\bautofocus\b/'
+    );
+});
+
+it('renders no autofocus on any control when nothing named the refresh', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    app(AddOptionValue::class)($metal, 'Rose Gold', 800);
+    app(GenerateVariants::class)($listing);
+
+    $response = $this->get('/art/ring');
+
+    $response->assertOk();
+    $response->assertDontSee('autofocus', false);
+});

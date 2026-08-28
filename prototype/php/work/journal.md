@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:21:17:50 — IMPRV-011 — done: the configurator auto-updates its options, unit cards, and price panel on change via a dependency-free auto-submit script, with autofocus continuity and the no-JS path unchanged
 - 2026-08-27:21:06:03 — IMPRV-011 — started
 - 2026-08-27:21:06:03 — BUG-013 — done: unconfigured branch of the buyer-view panel now mirrors the shop page — title, price, honest stock label, inert Add to cart; hasConfigurator confirmed correct on both axis-adding ramps
 - 2026-08-27:20:50:49 — BUG-013 — started

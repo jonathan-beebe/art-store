@@ -58,5 +58,6 @@
     </main>
 
     <script defer src="{{ asset('live-badge.js') }}"></script>
+    <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>
 </body>
 </html>
