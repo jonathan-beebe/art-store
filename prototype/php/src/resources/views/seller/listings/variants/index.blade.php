@@ -63,6 +63,7 @@
                                     <th scope="col" class="px-3 py-2 font-semibold">In stock</th>
                                     <th scope="col" class="px-3 py-2 font-semibold">Offered</th>
                                     <th scope="col" class="px-3 py-2 font-semibold"><span class="sr-only">Save</span></th>
+                                    <th scope="col" class="px-3 py-2 font-semibold"><span class="sr-only">Remove</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
@@ -144,6 +145,14 @@
                                                 </div>
 
                                                 <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Save</button>
+                                            </form>
+                                        </td>
+
+                                        <td class="px-3 py-2">
+                                            <form method="POST" action="{{ route('seller.listings.variants.destroy', [$listing, $variant]) }}">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-gray-700 dark:text-gray-300 underline">Remove</button>
                                             </form>
                                         </td>
                                     </tr>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\CreateVariant;
+use App\Actions\Configurator\DeleteVariant;
 use App\Actions\Configurator\UpdateVariant;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -65,6 +66,21 @@ final class VariantController extends SellerController
         $update($variant, $request->priceOverrideCents(), $request->quantity(), $request->isSerialized(), $request->enabled(), $request->sku());
 
         return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Combination updated.');
+    }
+
+    public function destroy(Listing $listing, Variant $variant, DeleteVariant $delete, RateLimitGate $rateLimit): RedirectResponse|Response
+    {
+        $this->authorize('update', $listing);
+
+        try {
+            $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
+        } catch (RateLimitExceeded $exceeded) {
+            return $this->tooManyRequests($exceeded, 'seller.listings.variants.index', $this->indexData($listing));
+        }
+
+        $delete($variant);
+
+        return redirect()->route('seller.listings.variants.index', $listing)->with('status', 'Combination removed.');
     }
 
     /**

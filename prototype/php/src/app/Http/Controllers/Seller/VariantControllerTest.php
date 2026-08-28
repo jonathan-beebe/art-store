@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\CreateVariant;
 use App\Domain\RateLimiting\RateLimitValue;
+use App\Models\CartItem;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\OrderItem;
 use App\Models\Variant;
 use App\Models\VariantOption;
 use Illuminate\Support\Facades\Config;
@@ -348,4 +350,86 @@ it('starts listing pieces for a no-choices listing, landing on that combinationâ
     $again = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants");
     $again->assertSee('See your pieces');
     $again->assertDontSee('Start listing pieces');
+});
+
+it('removes a variant nothing depends on', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertRedirect(route('seller.listings.variants.index', $listing));
+    expect(Variant::find($variant->id))->toBeNull();
+});
+
+it('refuses to remove a variant a cart still holds', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    CartItem::factory()->create(['listing_id' => $listing->id, 'variant_id' => $variant->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertSessionHasErrors();
+    expect(Variant::find($variant->id))->not->toBeNull();
+});
+
+it('refuses to remove a variant an order still holds', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    OrderItem::factory()->create(['listing_id' => $listing->id, 'variant_id' => $variant->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertSessionHasErrors();
+    expect(Variant::find($variant->id))->not->toBeNull();
+});
+
+it('refuses to remove another sellers variant', function (): void {
+    $listing = $this->listing($this->seller('Other Studio'));
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertNotFound();
+    expect(Variant::find($variant->id))->not->toBeNull();
+});
+
+it('trips the listing-write limit removing a variant', function (): void {
+    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['quantity' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertStatus(429);
+    expect(Variant::find($variant->id))->not->toBeNull();
+});
+
+it('BUG-008 unblocks removing the option value and axis a deleted variant no longer selects', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    $blockedValueRemoval = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}");
+    $blockedValueRemoval->assertSessionHasErrors();
+
+    $variantRemoval = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+    $variantRemoval->assertSessionDoesntHaveErrors();
+    expect(Variant::find($variant->id))->toBeNull();
+
+    $valueRemoval = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}");
+    $valueRemoval->assertSessionDoesntHaveErrors();
+    expect(OptionValue::find($value->id))->toBeNull();
+
+    $axisRemoval = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}");
+    $axisRemoval->assertSessionDoesntHaveErrors();
+    expect(OptionAxis::find($axis->id))->toBeNull();
 });

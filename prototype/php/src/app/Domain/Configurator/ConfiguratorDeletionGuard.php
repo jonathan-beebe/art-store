@@ -7,12 +7,14 @@ namespace App\Domain\Configurator;
 use App\Domain\DomainRuleViolation;
 
 /**
- * An axis or option value the schema would otherwise cascade-delete out from
- * under a variant that still names it — silently leaving that variant with a
- * gap in its axis coverage, or a stale price nobody chose any more. Deleting
- * either here is refused instead while a variant still selects it, the same
- * way a sale a listing's stock cannot cover is refused rather than let
- * negative.
+ * An axis, option value, or variant the schema would otherwise delete out
+ * from under something that still names it: cascade-deleting an axis or
+ * option value would silently leave a variant with a gap in its axis
+ * coverage, or a stale price nobody chose any more; nulling a variant's id
+ * out of a cart or order row (the foreign key is nullable, not restricting)
+ * would silently reprice that row as unconfigured. Deleting any of the three
+ * is refused instead while the dependent row still exists, the same way a
+ * sale a listing's stock cannot cover is refused rather than let negative.
  */
 final class ConfiguratorDeletionGuard
 {
@@ -29,6 +31,13 @@ final class ConfiguratorDeletionGuard
     {
         if ($referencedByVariant) {
             throw new DomainRuleViolation('This option value is selected by a variant; remove that variant first.');
+        }
+    }
+
+    public static function forVariant(bool $referencedByCartOrOrder): void
+    {
+        if ($referencedByCartOrOrder) {
+            throw new DomainRuleViolation('This combination is in a cart or an order; turn off "Offered" instead of removing it.');
         }
     }
 }

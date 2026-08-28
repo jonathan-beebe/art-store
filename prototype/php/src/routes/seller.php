@@ -59,7 +59,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
         ->scoped();
 
     Route::resource('listings.variants', VariantController::class)
-        ->only(['index', 'store', 'update'])
+        ->only(['index', 'store', 'update', 'destroy'])
         ->scoped();
     Route::post('listings/{listing}/variants/generate', GenerateVariantsController::class)->name('listings.variants.generate');
     Route::post('listings/{listing}/variants/bulk', BulkVariantsController::class)->name('listings.variants.bulk');
