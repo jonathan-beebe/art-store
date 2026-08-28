@@ -7,12 +7,16 @@ namespace App\Models;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Domain\Configurator\PriceBreakdownLine;
 use App\Domain\Money\Money;
+use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Override;
 
 /**
@@ -89,6 +93,26 @@ class OrderItem extends Model
     public function isConfigured(): bool
     {
         return $this->variant_id !== null;
+    }
+
+    /**
+     * Narrows to items whose seller could still decline the parcel they ride
+     * in on, the one fulfillment transition that reads a variant back onto
+     * the shelf ({@see \App\Support\Orders\StockMovement::release}). Every
+     * later fulfillment status settles the item on its own frozen columns.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function awaitingShipment(Builder $query): void
+    {
+        $query->whereExists(function (QueryBuilder $query): void {
+            $query->selectRaw('1')
+                ->from('fulfillments')
+                ->whereColumn('fulfillments.order_id', 'order_items.order_id')
+                ->whereColumn('fulfillments.seller_id', 'order_items.seller_id')
+                ->where('fulfillments.status', FulfillmentStatus::AwaitingShipment);
+        });
     }
 
     public function unitPrice(): Money

@@ -21,7 +21,7 @@ final readonly class DeleteVariant
         ], function (Story $story) use ($variant): void {
             ConfiguratorDeletionGuard::forVariant(
                 CartItem::where('variant_id', $variant->id)->exists()
-                    || OrderItem::where('variant_id', $variant->id)->exists(),
+                    || OrderItem::where('variant_id', $variant->id)->awaitingShipment()->exists(),
             );
 
             $variant->delete();

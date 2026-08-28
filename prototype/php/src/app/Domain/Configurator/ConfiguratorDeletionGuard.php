@@ -23,14 +23,14 @@ final class ConfiguratorDeletionGuard
     public static function forAxis(bool $referencedByVariant): void
     {
         if ($referencedByVariant) {
-            throw new DomainRuleViolation('This axis has a variant built from one of its values; remove or reassign that variant first.');
+            throw new DomainRuleViolation('This axis has a variant built from one of its values; remove or reassign that variant on Combinations & stock first.');
         }
     }
 
     public static function forOptionValue(bool $referencedByVariant): void
     {
         if ($referencedByVariant) {
-            throw new DomainRuleViolation('This option value is selected by a variant; remove that variant first.');
+            throw new DomainRuleViolation('This option value is selected by a variant; remove that variant on Combinations & stock first.');
         }
     }
 

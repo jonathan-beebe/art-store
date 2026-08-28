@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Configurator\CreateVariant;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\CartItem;
+use App\Models\Fulfillment;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Variant;
 use App\Models\VariantOption;
@@ -375,16 +377,42 @@ it('refuses to remove a variant a cart still holds', function (): void {
     expect(Variant::find($variant->id))->not->toBeNull();
 });
 
-it('refuses to remove a variant an order still holds', function (): void {
+it('refuses to remove a variant an order still awaiting shipment holds', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $variant = Variant::factory()->create(['listing_id' => $listing->id]);
-    OrderItem::factory()->create(['listing_id' => $listing->id, 'variant_id' => $variant->id]);
+    $order = Order::factory()->paid()->create();
+    Fulfillment::factory()->awaitingShipment()->create(['order_id' => $order->id, 'seller_id' => $seller->id]);
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'listing_id' => $listing->id,
+        'seller_id' => $seller->id,
+        'variant_id' => $variant->id,
+    ]);
 
     $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
 
     $response->assertSessionHasErrors();
     expect(Variant::find($variant->id))->not->toBeNull();
+});
+
+it('removes a variant only a delivered order references', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+    $order = Order::factory()->paid()->create();
+    Fulfillment::factory()->delivered()->create(['order_id' => $order->id, 'seller_id' => $seller->id]);
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'listing_id' => $listing->id,
+        'seller_id' => $seller->id,
+        'variant_id' => $variant->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
+
+    $response->assertRedirect(route('seller.listings.variants.index', $listing));
+    expect(Variant::find($variant->id))->toBeNull();
 });
 
 it('refuses to remove another sellers variant', function (): void {
