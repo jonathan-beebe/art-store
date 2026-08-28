@@ -61,6 +61,42 @@ it('re-resolves a configured line price from the live variant', function (): voi
     expect($item->toLine()->total())->toBeMoney(31000);
 });
 
+it('prices a text modifiers flat answer on an axis-free listing, matching a configured lines shape', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 4500]);
+    $note = app(CreateModifier::class)($listing, ModifierKind::Text, 'Note', addOnPriceCents: 500);
+    $cart = $this->cartFor($this->anonymousCustomer());
+    $item = CartItem::create([
+        'cart_id' => $cart->id,
+        'listing_id' => $listing->id,
+        'quantity' => 2,
+        'answers_json' => [$note->id => ['prompt' => 'Note', 'answer' => 'Congrats!', 'raw' => 'Congrats!']],
+        'fingerprint' => CartLineFingerprint::of(null, null, [$note->id => 'Congrats!'])->value,
+    ]);
+
+    expect($item->isConfigured())->toBeFalse()
+        ->and($item->currentBreakdown()->total())->toBeMoney(10000)
+        ->and($item->toLine()->total())->toBeMoney(10000);
+});
+
+it('prices a measurement modifiers rated answer on an axis-free listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['price_cents' => 3000]);
+    $length = app(CreateModifier::class)($listing, ModifierKind::Measurement, 'Length', unit: 'in', rateCentsPerUnit: 150);
+    $cart = $this->cartFor($this->anonymousCustomer());
+    $item = CartItem::create([
+        'cart_id' => $cart->id,
+        'listing_id' => $listing->id,
+        'quantity' => 1,
+        'answers_json' => [$length->id => ['prompt' => 'Length', 'answer' => '10 in', 'raw' => '10']],
+        'fingerprint' => CartLineFingerprint::of(null, null, [$length->id => '10'])->value,
+    ]);
+
+    expect($item->isConfigured())->toBeFalse()
+        ->and($item->currentBreakdown()->total())->toBeMoney(4500)
+        ->and($item->toLine()->total())->toBeMoney(4500);
+});
+
 it('reports a configured line unavailable once its variant is disabled', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

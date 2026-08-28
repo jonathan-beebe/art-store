@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:19:49:40 — BUG-007 — started
 - 2026-08-27:19:47:57 — BUG-013 — defined: The buyer-view panel shows a sentence instead of the simple listing's price
 - 2026-08-27:19:14:45 — BUG-009 — RESOLVED: closed by DSGN-003's implementation — form.blade.php deleted, create opens the guided on-ramp flow
 - 2026-08-27:19:14:45 — DSGN-003 — RESOLVED: guided three-shape create on-ramp (one thing / versions / extras) shipped on php/item-configurator, replacing the legacy flat form; made-to-order shipped as an explicit checkbox (nullable listings.quantity, mirroring variant semantics) per human review refinement mid-implementation; form.blade.php retired; BUG-009 closes with this implementation; 2703 tests, 100% coverage, make check and make fresh green

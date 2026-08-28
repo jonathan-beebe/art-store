@@ -81,10 +81,6 @@ class CartItem extends Model
 
     public function toLine(): CartLine
     {
-        if (! $this->isConfigured()) {
-            return CartLine::of($this->listing->seller_id, $this->listing->price(), $this->quantity);
-        }
-
         $breakdown = $this->currentBreakdown();
 
         return CartLine::ofBreakdownTotal($this->listing->seller_id, $this->listing->price(), $this->quantity, $breakdown->total());

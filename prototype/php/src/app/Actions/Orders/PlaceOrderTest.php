@@ -308,6 +308,32 @@ it('freezes a configured lines price, configuration, and answers at placement', 
         ->and($item->lineTotal())->toBeMoney(13300);
 });
 
+it('freezes an axis-free lines modifier answer price at placement, matching a configured lines shape', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Custom Mug', 'price_cents' => 1800, 'quantity' => 5]);
+    $note = app(CreateModifier::class)($listing, ModifierKind::Text, 'Note', addOnPriceCents: 300);
+
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)(
+        $cart,
+        $listing,
+        2,
+        $this->moment('2026-08-20 08:00:00'),
+        answers: [$note->id => ['prompt' => 'Note', 'answer' => 'Congrats!', 'raw' => 'Congrats!']],
+        fingerprintAnswers: [$note->id => 'Congrats!'],
+    );
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $item = $order->items()->sole();
+
+    expect($item->variant_id)->toBeNull()
+        ->and($item->price_breakdown_json)->toBe([
+            ['label' => 'Base price', 'cents' => 3600],
+            ['label' => 'Note', 'cents' => 600],
+        ])
+        ->and($item->lineTotal())->toBeMoney(4200);
+});
+
 it('freezes a standalone configured lines absolute breakdown at placement', function (): void {
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($this->seller(), ['title' => 'Sunset Ridge Print', 'price_cents' => 1800]);

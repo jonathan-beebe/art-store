@@ -110,13 +110,14 @@ class OrderItem extends Model
     }
 
     /**
-     * A configured line's total is its frozen breakdown's own total — surcharges,
+     * A line that froze a breakdown totals that breakdown — surcharges,
      * answer add-ons, and the quantity discount already folded in — rather
-     * than `unit_price_cents * quantity`, which for a configured line is only
-     * a representative per-unit figure (see `PlaceOrder`).
+     * than `unit_price_cents * quantity`, which is only a representative
+     * per-unit figure once a breakdown exists (see `PlaceOrder`). A legacy
+     * line placed before this snapshot existed has no breakdown to total.
      */
     public function lineTotal(): Money
     {
-        return $this->isConfigured() ? $this->priceBreakdown()->total() : $this->unitPrice()->multiply($this->quantity);
+        return $this->price_breakdown_json === null ? $this->unitPrice()->multiply($this->quantity) : $this->priceBreakdown()->total();
     }
 }

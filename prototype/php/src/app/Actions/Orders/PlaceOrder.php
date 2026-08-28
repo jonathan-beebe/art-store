@@ -124,24 +124,24 @@ final readonly class PlaceOrder
     private function snapshotItems(Order $order, Cart $cart): void
     {
         foreach ($cart->items as $item) {
-            $breakdown = $item->isConfigured() ? $item->currentBreakdown() : null;
+            $breakdown = $item->currentBreakdown();
 
             OrderItem::create([
                 'order_id' => $order->id,
                 'listing_id' => $item->listing_id,
                 'seller_id' => $item->listing->seller_id,
                 'title' => $item->listing->title,
-                // A configured line's own per-unit price is only
-                // representative — the total that matters is the frozen
-                // breakdown below, which already folds in the quantity
-                // discount `unit_price_cents * quantity` cannot express.
-                'unit_price_cents' => $breakdown === null ? $item->listing->price_cents : intdiv($breakdown->total()->cents, $item->quantity),
+                // A line's own per-unit price is only representative — the
+                // total that matters is the frozen breakdown below, which
+                // already folds in the quantity discount
+                // `unit_price_cents * quantity` cannot express.
+                'unit_price_cents' => intdiv($breakdown->total()->cents, $item->quantity),
                 'quantity' => $item->quantity,
                 'variant_id' => $item->variant_id,
                 'unit_id' => $item->unit_id,
                 'configuration_json' => $this->configurationSnapshot($item),
                 'answers_json' => $item->answers_json,
-                'price_breakdown_json' => $breakdown === null ? null : $this->breakdownJson($breakdown),
+                'price_breakdown_json' => $this->breakdownJson($breakdown),
             ]);
         }
     }
