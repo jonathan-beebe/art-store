@@ -462,8 +462,8 @@ Screen notes:
   and page sections). A buyer-view preview sits fixed beside the rows,
   rendered disabled exactly as a buyer would see it, resolved to the
   listing's current default configuration — or, with nothing configurable
-  yet, "Nothing here yet for a buyer to configure — this listing adds
-  straight to cart."
+  yet, a mirror of the shop page's simple rendering: the title, the one
+  price, an honest stock label, and an inert Add to cart button.
 - **Price and stock live in exactly one place at a time.** They appear on the
   Your-item row and its detail screen only while the listing holds no option
   axis and no serialized piece; the moment a first choice or piece exists,
