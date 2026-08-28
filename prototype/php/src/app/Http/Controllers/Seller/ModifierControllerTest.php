@@ -266,6 +266,17 @@ it('IMPRV-015: the default buyer panel (no scoped question yet) is a live, enabl
     $response->assertDontSee('<select disabled', false);
 });
 
+it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8 oz', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers?kind=measurement");
+
+    $response->assertSee('<input type="hidden" name="kind" value="measurement">', escape: false);
+});
+
 it('B7: renders limit fields for a measurement question and their attributes on the buyer input', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

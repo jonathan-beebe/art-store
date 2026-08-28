@@ -308,3 +308,14 @@ it('shows an expanded edit form for the piece named in the edit query parameter'
     $response->assertSee('Cancel');
     $response->assertDontSee('State</label>', false);
 });
+
+it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    $unit = Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#09']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units?edit={$unit->id}");
+
+    $response->assertSee('<input type="hidden" name="edit" value="'.$unit->id.'">', escape: false);
+});

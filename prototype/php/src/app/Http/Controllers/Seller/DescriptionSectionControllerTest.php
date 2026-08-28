@@ -8,6 +8,8 @@ use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\DescriptionSection;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
 use Illuminate\Support\Facades\Config;
 
 it('lists the listing’s sections in position order', function (): void {
@@ -20,6 +22,17 @@ it('lists the listing’s sections in position order', function (): void {
     $response->assertOk();
     $response->assertSee('Listing page sections');
     $response->assertSee('Care instructions');
+});
+
+it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Size']);
+    OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '8 oz', 'is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/description-sections?kind=nonsense");
+
+    $response->assertSee('<input type="hidden" name="kind" value="nonsense">', escape: false);
 });
 
 it('D1: renders sections as a clean titled page in the buyer panel', function (): void {
