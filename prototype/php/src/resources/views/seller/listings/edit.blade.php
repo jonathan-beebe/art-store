@@ -193,8 +193,6 @@
             @if ($listing->status !== ListingStatus::Draft)
                 <p class="text-gray-600 dark:text-gray-400">Editing a live listing never changes an order that's already placed — every order keeps the exact price and choices its buyer agreed to.</p>
             @endif
-
-            <p class="text-sm text-gray-600 dark:text-gray-400">Art Store sells physical goods — digital downloads and file delivery aren't supported yet.</p>
         </div>
 
         <div>

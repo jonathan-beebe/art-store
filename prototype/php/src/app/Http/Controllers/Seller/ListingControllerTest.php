@@ -946,13 +946,13 @@ it('shows the Medium custom-value hint on an item fact grant named Medium', func
     $response->assertSee("Not on the list? Custom values aren't available yet — say it in the description.", escape: false);
 });
 
-it('shows the physical-goods footer line', function (): void {
+it('does not show the physical-goods footer line', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
-    $response->assertSee("Art Store sells physical goods — digital downloads and file delivery aren't supported yet.", escape: false);
+    $response->assertDontSee("Art Store sells physical goods — digital downloads and file delivery aren't supported yet.", escape: false);
 });
 
 it('shows the ready panel and publishes a draft with no issues from its button', function (): void {
