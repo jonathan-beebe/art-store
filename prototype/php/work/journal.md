@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:20:03:25 — BUG-007 — done: axis-free listing's priced answers now reach the cart line, frozen breakdown, and order total; gate was three call sites skipping currentBreakdown() when unconfigured; refactor note filed in 0-refine
 - 2026-08-27:19:49:40 — BUG-007 — started
 - 2026-08-27:19:47:57 — BUG-013 — defined: The buyer-view panel shows a sentence instead of the simple listing's price
 - 2026-08-27:19:14:45 — BUG-009 — RESOLVED: closed by DSGN-003's implementation — form.blade.php deleted, create opens the guided on-ramp flow
