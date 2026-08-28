@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-28:07:55:58 — RFCTR-010 — done: Split CartItem/OrderItem::isConfigured() into hasVariant() and OrderItem::hasPricedBreakdown(), each named for the domain question it answers; the conflated predicate that caused BUG-007 is gone
 - 2026-08-28:07:48:03 — RFCTR-010 — started
 - 2026-08-28:07:48:03 — BUG-014 — done: forVariant refuses only live carts and awaiting-shipment fulfillments — settled history (shipped/delivered/declined/refunded) no longer locks the variant; guard messages name Combinations & stock; reproduced live via tinker on a delivered order
 - 2026-08-28:07:23:01 — IMPRV-015 — absorbs the 0-refine shared-view-partials research note (both duplication clusters now explicit outcomes); note discarded per human

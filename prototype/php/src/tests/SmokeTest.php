@@ -398,7 +398,7 @@ it('carries a configured ring purchase through checkout, freezing its breakdown 
     expect($order->status)->toBe(OrderStatus::Paid);
 
     $item = $order->items()->sole();
-    expect($item->isConfigured())->toBeTrue()
+    expect($item->hasVariant())->toBeTrue()
         ->and($item->lineTotal()->format())->toBe($frozenTotal);
 
     $this->get(route('shop.order', $order))

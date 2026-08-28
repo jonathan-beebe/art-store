@@ -157,7 +157,7 @@ final readonly class PlaceOrder
      */
     private function configurationSnapshot(CartItem $item): ?array
     {
-        if (! $item->isConfigured()) {
+        if (! $item->hasVariant()) {
             return null;
         }
 

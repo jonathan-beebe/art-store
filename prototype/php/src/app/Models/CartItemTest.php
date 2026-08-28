@@ -27,7 +27,7 @@ it('converts itself into the cart line the listing it holds prices', function ()
     expect($line->sellerId)->toBe($seller->id)
         ->and($line->unitPrice)->toBeMoney(4500)
         ->and($line->quantity)->toBe(3)
-        ->and($item->isConfigured())->toBeFalse()
+        ->and($item->hasVariant())->toBeFalse()
         ->and($item->currentBreakdown()->total())->toBeMoney(13500)
         ->and($item->currentAvailability()->selectable)->toBeTrue();
 });
@@ -51,7 +51,7 @@ it('re-resolves a configured line price from the live variant', function (): voi
         'fingerprint' => CartLineFingerprint::of($variant->id, null, [$text->id => 'Congrats!'])->value,
     ]);
 
-    expect($item->isConfigured())->toBeTrue()
+    expect($item->hasVariant())->toBeTrue()
         ->and($item->toLine()->total())->toBeMoney(25000)
         ->and($item->currentBreakdown()->total())->toBeMoney(25000);
 
@@ -74,7 +74,7 @@ it('prices a text modifiers flat answer on an axis-free listing, matching a conf
         'fingerprint' => CartLineFingerprint::of(null, null, [$note->id => 'Congrats!'])->value,
     ]);
 
-    expect($item->isConfigured())->toBeFalse()
+    expect($item->hasVariant())->toBeFalse()
         ->and($item->currentBreakdown()->total())->toBeMoney(10000)
         ->and($item->toLine()->total())->toBeMoney(10000);
 });
@@ -92,7 +92,7 @@ it('prices a measurement modifiers rated answer on an axis-free listing', functi
         'fingerprint' => CartLineFingerprint::of(null, null, [$length->id => '10'])->value,
     ]);
 
-    expect($item->isConfigured())->toBeFalse()
+    expect($item->hasVariant())->toBeFalse()
         ->and($item->currentBreakdown()->total())->toBeMoney(4500)
         ->and($item->toLine()->total())->toBeMoney(4500);
 });

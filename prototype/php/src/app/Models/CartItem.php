@@ -74,7 +74,7 @@ class CartItem extends Model
         return $this->belongsTo(Unit::class);
     }
 
-    public function isConfigured(): bool
+    public function hasVariant(): bool
     {
         return $this->variant_id !== null;
     }
@@ -93,7 +93,7 @@ class CartItem extends Model
      */
     public function currentBreakdown(): PriceBreakdown
     {
-        $variant = $this->isConfigured() ? $this->variant()->with('options.optionValue')->firstOrFail() : null;
+        $variant = $this->hasVariant() ? $this->variant()->with('options.optionValue')->firstOrFail() : null;
         $selectedOptionValues = $variant === null
             ? []
             : array_values($variant->options->map(fn (VariantOption $option): ?OptionValue => $option->optionValue)->filter()->all());
@@ -115,7 +115,7 @@ class CartItem extends Model
      */
     public function currentAvailability(): OptionAvailability
     {
-        if (! $this->isConfigured()) {
+        if (! $this->hasVariant()) {
             return OptionAvailability::selectable();
         }
 

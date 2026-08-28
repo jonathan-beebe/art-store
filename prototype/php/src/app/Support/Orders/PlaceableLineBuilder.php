@@ -32,7 +32,7 @@ final class PlaceableLineBuilder
         // snapshot yet, so it reads the listing's title live, same as today.
         $title = $item instanceof OrderItem ? $item->title : $listing->title;
 
-        if (! $item->isConfigured()) {
+        if (! $item->hasVariant()) {
             return new PlaceableLine(
                 listingId: $item->listing_id,
                 title: $title,

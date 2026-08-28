@@ -30,7 +30,7 @@ final class StockMovement
 
     public static function claim(CartItem|OrderItem $item): void
     {
-        if (! $item->isConfigured()) {
+        if (! $item->hasVariant()) {
             $item->listing->sell($item->quantity);
 
             return;
@@ -47,7 +47,7 @@ final class StockMovement
 
     public static function release(CartItem|OrderItem $item): void
     {
-        if (! $item->isConfigured()) {
+        if (! $item->hasVariant()) {
             $item->listing->restock($item->quantity);
 
             return;

@@ -18,7 +18,7 @@
                         <a href="{{ route('shop.listing', $item->listing) }}" class="text-lg font-medium">{{ $item->listing->title }}</a>
                         <p class="mt-1 text-sm text-neutral-500">{{ $item->listing->seller->displayName() }}</p>
 
-                        @if ($item->isConfigured())
+                        @if ($item->hasVariant())
                             <dl class="mt-1 text-sm text-neutral-500">
                                 @foreach ($item->configuration_json ?? [] as $pair)
                                     <div><span class="font-medium">{{ $pair['axisName'] }}:</span> {{ $pair['optionValueLabel'] }}</div>

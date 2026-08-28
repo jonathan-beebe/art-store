@@ -13,14 +13,14 @@ it('reads the price it was bought at as money', function (): void {
 it('multiplies the unit price out over the quantity for a legacy line', function (): void {
     $item = new OrderItem(['unit_price_cents' => 45000, 'quantity' => 3]);
 
-    expect($item->isConfigured())->toBeFalse()
+    expect($item->hasVariant())->toBeFalse()
         ->and($item->lineTotal())->toBeMoney(135000);
 });
 
 it('reads a configured line total off its frozen breakdown, not unit price times quantity', function (): void {
     $item = OrderItem::factory()->configured()->create(['unit_price_cents' => 6400, 'quantity' => 1]);
 
-    expect($item->isConfigured())->toBeTrue()
+    expect($item->hasVariant())->toBeTrue()
         ->and($item->lineTotal())->toBeMoney(12800);
 });
 
