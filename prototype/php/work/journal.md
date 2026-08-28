@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:21:49:06 — IMPRV-014 — done: physical-goods footer line removed from the edit hub; C8/D7/D8 honest-note placement question filed in 0-refine for the human
 - 2026-08-27:21:40:41 — IMPRV-014 — started
 - 2026-08-27:21:40:41 — IMPRV-012 — done: coming pill extracted to one anonymous Blade component (6 real copies found, not 16; prose honest-notes left as-is); preselect radio replaced by a checkbox whose label says saving clears the others; server-side exclusivity untouched
 - 2026-08-27:21:21:32 — IMPRV-012 — started
