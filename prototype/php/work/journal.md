@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-27:20:29:33 — BUG-010 — done: ListingImage::url() returns a relative /storage path, always same-origin under img-src 'self'; storage:link verified present in dev entrypoint and runtime image
 - 2026-08-27:20:20:37 — BUG-010 — started
 - 2026-08-27:20:20:23 — BUG-008 — done: variant destroy route + row control + forVariant guard (cart/order references refuse); one bug confirmed — no variant-delete path existed; end-to-end unblock path tested
 - 2026-08-27:20:03:45 — BUG-008 — started
