@@ -25,7 +25,6 @@
     @include('shop.design-system.typography')
     @include('shop.design-system.atoms')
     @include('shop.design-system.components', [
-        'media' => $media,
         'browse' => $browse,
         'listings' => $listings,
         'configurable' => $configurable,

@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\ListingSearch;
 use App\Models\Listing;
-use App\Support\Shop\MediumOptions;
+use App\Support\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -24,7 +24,7 @@ final class StorefrontController extends ShopController
 
         return view('shop.home', [
             'search' => $search,
-            'media' => MediumOptions::forStorefront(),
+            'browse' => MediumBrowse::forStorefront(),
             'listings' => $this->matching($search)->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),
         ]);
     }

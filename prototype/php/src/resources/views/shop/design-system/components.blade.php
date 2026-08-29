@@ -20,18 +20,7 @@
         </div>
 
         <div>
-            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Category tiles <span class="normal-case font-normal">— <code class="font-mono text-xs">shop.partials.category-tiles</code>, live media</span></h3>
-            @if ($media === [])
-                <p class="mt-3 text-sm text-ink-muted">No attributed medium yet — give a for-sale listing a Medium and the browse row renders here.</p>
-            @else
-                <div class="mt-4">
-                    @include('shop.partials.category-tiles', ['media' => $media, 'activeMedium' => null, 'term' => null])
-                </div>
-            @endif
-        </div>
-
-        <div>
-            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Category pickers <span class="normal-case font-normal">— exploration: three candidates to replace the tile rows, live media &amp; covers</span></h3>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Category pickers <span class="normal-case font-normal">— the storefront's browse controls, live media &amp; covers</span></h3>
             @if ($browse === [])
                 <p class="mt-3 text-sm text-ink-muted">No attributed medium yet — give a for-sale listing a Medium and the picker candidates render here.</p>
             @else

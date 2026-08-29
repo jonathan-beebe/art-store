@@ -10,7 +10,6 @@ use App\Support\Configurator\ConfiguratorPageResolver;
 use App\Support\Contrast;
 use App\Support\DesignTokens;
 use App\Support\Shop\MediumBrowse;
-use App\Support\Shop\MediumOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -48,7 +47,6 @@ final class DesignSystemController extends ShopController
         return view('shop.design-system', [
             'themeName' => DesignTokens::themeName(),
             'pairings' => $this->ratedPairings(),
-            'media' => MediumOptions::forStorefront(),
             'browse' => MediumBrowse::forStorefront(),
             'listings' => $listings,
             'configurable' => $configurable,
