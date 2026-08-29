@@ -1,7 +1,7 @@
 @props(['item'])
 
 @if ($item->hasVariant())
-    <dl class="text-sm text-gray-600 dark:text-gray-400">
+    <dl class="text-sm text-ink-muted">
         @foreach ($item->configuration_json ?? [] as $pair)
             <div><span class="font-medium">{{ $pair['axisName'] }}:</span> {{ $pair['optionValueLabel'] }}</div>
         @endforeach
@@ -10,7 +10,7 @@
         @endforeach
     </dl>
 
-    <ul class="mt-2 text-sm text-gray-500 dark:text-gray-500">
+    <ul class="mt-2 text-sm text-ink-faint">
         @foreach ($item->priceBreakdown()->lines as $line)
             <li class="flex items-baseline justify-between gap-6">
                 <span>{{ $line->label }}</span>

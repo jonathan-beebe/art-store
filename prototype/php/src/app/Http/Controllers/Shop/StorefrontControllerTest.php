@@ -130,8 +130,8 @@ it('offers the media of listings that are for sale', function (): void {
 
     $response = $this->get('/');
 
-    $response->assertSee('<option value="ceramic"', escape: false);
-    $response->assertDontSee('<option value="linocut"', escape: false);
+    $response->assertSee('?medium=ceramic', escape: false);
+    $response->assertDontSee('?medium=linocut', escape: false);
 });
 
 it('paginates at twelve listings', function (): void {

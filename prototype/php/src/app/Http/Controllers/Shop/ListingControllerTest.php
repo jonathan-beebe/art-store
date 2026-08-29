@@ -173,7 +173,7 @@ it('offers a form to ask the seller a question', function (): void {
 
     $response = $this->get('/art/harbour-at-dawn');
 
-    $response->assertSee('Ask the seller a question');
+    $response->assertSee('Ask Blue Kiln Studio a question');
     $response->assertSee(route('shop.listing.questions', $listing), escape: false);
 });
 
@@ -383,7 +383,9 @@ it('renders the candlesticks as a unit picker excluding sold pieces, naturally o
     $response->assertSee('Height: 205 mm');
     $response->assertSee('Weight: 310 g');
     $response->assertSeeInOrder(['#1', '#10']);
-    $response->assertDontSee('#2');
+    // The sold piece's label, as the picker would render it — the bare
+    // string '#2' would also match the theme stylesheet's hex values.
+    $response->assertDontSee('#2</span>', escape: false);
 });
 
 it('labels an overridden variant’s breakdown with its combination instead of "Base price"', function (): void {

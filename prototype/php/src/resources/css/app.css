@@ -3,22 +3,110 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/* The theme's two faces, self-hosted from public/fonts so the CSP stays
+   `'self'` and the store loads no third-party origin. Karla is a variable
+   font (one file spans weights 200–800); Young Serif ships 400 only. */
+@font-face {
+  font-family: 'Young Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/young-serif-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Young Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/young-serif-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/karla-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/karla-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1EFF, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Semantic utilities over the theme's custom properties. The values live
+   in config/theme.php and reach the page as `--ui-*` variables through
+   `<x-theme-css />` (App\Support\DesignTokens::css()), so `bg-canvas` or
+   `text-ink` re-resolve at runtime when the theme or mode changes —
+   nothing here names a real color. */
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-surface: var(--ui-surface);
+  --color-ink: var(--ui-ink);
+  --color-ink-muted: var(--ui-ink-muted);
+  --color-ink-faint: var(--ui-ink-faint);
+  --color-line: var(--ui-line);
+  --color-line-strong: var(--ui-line-strong);
+  --color-accent: var(--ui-accent);
+  --color-accent-strong: var(--ui-accent-strong);
+  --color-on-accent: var(--ui-on-accent);
+  --color-accent-soft: var(--ui-accent-soft);
+  --color-danger: var(--ui-danger);
+  --color-danger-surface: var(--ui-danger-surface);
+  --color-danger-line: var(--ui-danger-line);
+  --color-success: var(--ui-success);
+  --color-success-surface: var(--ui-success-surface);
+  --color-success-line: var(--ui-success-line);
+  --color-notice: var(--ui-notice);
+  --color-notice-surface: var(--ui-notice-surface);
+  --color-notice-line: var(--ui-notice-line);
+  --color-tint-1: var(--ui-tint-1);
+  --color-tint-2: var(--ui-tint-2);
+  --color-tint-3: var(--ui-tint-3);
+  --color-tint-4: var(--ui-tint-4);
+  --color-tint-5: var(--ui-tint-5);
+  --color-on-tint: var(--ui-on-tint);
+  --color-on-photo: var(--ui-on-photo);
+  --font-display: var(--ui-font-display);
+  --font-body: var(--ui-font-body);
+  --radius-card: var(--ui-radius-card);
+  --radius-field: var(--ui-radius-field);
+}
+
+/* The select caret, drawn by hand: the native arrow hugs the rounded
+   border with no way to move it, so `.select-caret` hides it and paints a
+   chevron with real margin. A data-URI cannot read custom properties, so
+   the stroke is written twice — the theme's light and dark ink-muted
+   values from config/theme.php. Pair it with `pl-4 pr-10`. */
+@layer components {
+  .select-caret {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%235b4a3e' stroke-width='1.5'%3E%3Cpath d='M2.5 4.5 L6 8 L9.5 4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .supports-dark .select-caret {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23c4b09c' stroke-width='1.5'%3E%3Cpath d='M2.5 4.5 L6 8 L9.5 4.5'/%3E%3C/svg%3E");
+    }
+  }
+}
+
 /* Dark styles follow the system preference, but only inside an element that
-   opts in with `supports-dark` — the seller and admin layouts set it on their
-   <body>, the storefront never does, so a `dark:` utility in a shared partial
-   cannot restyle the shop. */
+   opts in with `supports-dark` — every layout's <body> sets it, and the
+   theme's dark custom-property block (emitted by <x-theme-css />) is scoped
+   to the same class, so semantic utilities flip on their own. The variant
+   remains for the seller and admin layouts' raw `dark:` utilities. */
 @custom-variant dark {
   @media (prefers-color-scheme: dark) {
     &:where(.supports-dark, .supports-dark *) {
       @slot;
     }
-  }
-}
-
-/* Native controls (inputs, selects, scrollbars) take their dark palette from
-   color-scheme rather than per-control utilities. */
-@media (prefers-color-scheme: dark) {
-  .supports-dark {
-    color-scheme: dark;
   }
 }

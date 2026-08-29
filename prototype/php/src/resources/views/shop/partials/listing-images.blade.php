@@ -8,13 +8,13 @@
 @endphp
 
 <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
-     class="aspect-square w-full rounded-{{ $compact ? 'lg' : '3xl' }} object-cover">
+     class="aspect-square w-full {{ $compact ? 'rounded-field' : 'rounded-card' }} object-cover">
 
 @if ($listing->images->count() > 1)
-    <div class="mt-{{ $compact ? '2' : '4' }} grid grid-cols-4 gap-{{ $compact ? '1' : '3' }}">
+    <div class="{{ $compact ? 'mt-2' : 'mt-4' }} grid grid-cols-4 {{ $compact ? 'gap-1' : 'gap-3' }}">
         @foreach ($listing->images->skip(1)->values() as $image)
             <img src="{{ $image->url() }}" alt="{{ $listing->title }} — photo {{ $loop->iteration + 1 }}"
-                 class="aspect-square w-full rounded-{{ $compact ? 'md' : 'xl' }} object-cover">
+                 class="aspect-square w-full rounded-field object-cover">
         @endforeach
     </div>
 @endif

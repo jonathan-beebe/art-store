@@ -18,7 +18,7 @@ it('sends the byte-for-byte production CSP with app.debug off', function (): voi
 
     $this->get('/')->assertHeader(
         'Content-Security-Policy',
-        "default-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
     );
 });
 
@@ -27,7 +27,16 @@ it('widens the CSP for the framework debug page with app.debug on', function ():
 
     $this->get('/')->assertHeader(
         'Content-Security-Policy',
-        "default-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; script-src 'self' 'unsafe-inline'",
+    );
+});
+
+it('lets only this origin frame a design-system specimen', function (): void {
+    Config::set('app.debug', false);
+
+    $this->get('/design-system/specimens/browse-sheet')->assertHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'self'",
     );
 });
 
