@@ -190,7 +190,7 @@ it('trips the conversation-open limit, handing the listing back with the questio
     $response->assertStatus(429);
     $response->assertHeader('Retry-After');
     $response->assertSee('Too many requests', escape: false);
-    $response->assertSee('Ask the seller a question');
+    $response->assertSee('Ask Rye Press a question');
     $response->assertSee('>Is this signed?</textarea>', escape: false);
     expect(Conversation::count())->toBe(1);
 });

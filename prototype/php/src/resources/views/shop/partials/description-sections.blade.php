@@ -21,10 +21,10 @@
                     <table class="w-full min-w-max border-collapse text-sm">
                         <tbody>
                             @foreach ($section->body_json as $row)
-                                <tr class="border-b border-neutral-100">
+                                <tr class="border-b border-line">
                                     <td class="py-1 pr-6 font-medium">{{ $row['label'] ?? '' }}</td>
-                                    <td class="py-1 pr-6 text-neutral-600">{{ $row['value1'] ?? '' }}</td>
-                                    <td class="py-1 text-neutral-600">{{ $row['value2'] ?? '' }}</td>
+                                    <td class="py-1 pr-6 text-ink-muted">{{ $row['value1'] ?? '' }}</td>
+                                    <td class="py-1 text-ink-muted">{{ $row['value2'] ?? '' }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -35,7 +35,7 @@
             @if (($section->body_json ?? []) !== [])
                 <dl class="mt-2 grid grid-cols-2 gap-y-1 text-sm">
                     @foreach ($section->body_json as $row)
-                        <dt class="text-neutral-500">{{ $row['label'] ?? '' }}</dt>
+                        <dt class="text-ink-faint">{{ $row['label'] ?? '' }}</dt>
                         <dd>{{ $row['value'] ?? '' }}</dd>
                     @endforeach
                 </dl>
@@ -46,13 +46,13 @@
                     @foreach ($section->body_json as $row)
                         <div>
                             <dt class="font-medium">{{ $row['question'] ?? '' }}</dt>
-                            <dd class="mt-1 text-neutral-700">{{ $row['answer'] ?? '' }}</dd>
+                            <dd class="mt-1 text-ink-muted">{{ $row['answer'] ?? '' }}</dd>
                         </div>
                     @endforeach
                 </dl>
             @endif
         @else
-            <p class="mt-1 text-sm leading-relaxed text-neutral-700">{{ $section->body_md }}</p>
+            <p class="mt-1 text-sm leading-relaxed text-ink-muted">{{ $section->body_md }}</p>
         @endif
     </section>
 @endforeach

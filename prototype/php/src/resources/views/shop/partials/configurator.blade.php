@@ -38,11 +38,11 @@
 
     @foreach ($configuration->axes as $axis)
         <div class="mt-6">
-            <label for="axis-{{ $axis['id'] }}" class="block text-sm font-medium text-neutral-700">{{ $axis['name'] }}</label>
+            <label for="axis-{{ $axis['id'] }}" class="block text-sm font-semibold text-ink-muted">{{ $axis['name'] }}</label>
             <select id="axis-{{ $axis['id'] }}" name="axis[{{ $axis['id'] }}]" @if ($focusId === 'axis-'.$axis['id']) autofocus @endif
                     @if ($isForm) data-configurator-refresh @endif
                     @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
-                    class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
+                    class="select-caret mt-2 block w-full rounded-field border border-line-strong bg-surface py-3 pl-4 pr-10 text-base focus:border-accent focus:outline-none">
                 @foreach ($axis['options'] as $option)
                     <option value="{{ $option['id'] }}" @selected($option['selected']) @disabled(! $option['selectable'])>
                         @if ($axis['pricingMode'] === PricingMode::Standalone)
@@ -59,24 +59,24 @@
 
     @if ($configuration->isSerialized)
         <div class="mt-6">
-            <span class="block text-sm font-medium text-neutral-700">Choose your piece</span>
+            <span class="block text-sm font-semibold text-ink-muted">Choose your piece</span>
 
             @if ($configuration->units === [])
-                <p class="mt-2 text-red-700">Every piece has sold.</p>
+                <p class="mt-2 text-danger">Every piece has sold.</p>
             @else
                 <div class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     @foreach ($configuration->units as $unit)
-                        <label class="block cursor-pointer rounded-2xl border p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-neutral-900 {{ $unit['selected'] ? 'border-neutral-900 ring-1 ring-neutral-900' : 'border-neutral-200' }}">
+                        <label class="block cursor-pointer rounded-card border bg-surface p-4 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-accent {{ $unit['selected'] ? 'border-accent ring-1 ring-accent' : 'border-line' }}">
                             <input type="radio" id="unit-{{ $unit['id'] }}" name="unit" value="{{ $unit['id'] }}" @checked($unit['selected']) @if ($focusId === 'unit-'.$unit['id']) autofocus @endif
                                    @if ($isForm) data-configurator-refresh @endif
                                    @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
                                    class="sr-only">
                             <span class="block font-medium">{{ $unit['label'] }}</span>
                             @if ($unit['conditionNote'] !== null)
-                                <span class="mt-1 block text-sm text-neutral-500">{{ $unit['conditionNote'] }}</span>
+                                <span class="mt-1 block text-sm text-ink-faint">{{ $unit['conditionNote'] }}</span>
                             @endif
                             @if ($unit['specLines'] !== [])
-                                <span class="mt-1 block text-sm text-neutral-500">
+                                <span class="mt-1 block text-sm text-ink-faint">
                                     @foreach ($unit['specLines'] as $line)
                                         {{ $line }}@if (! $loop->last), @endif
                                     @endforeach
@@ -92,18 +92,18 @@
 
     @foreach ($configuration->modifiers as $modifier)
         <div class="mt-6">
-            <label for="modifier-{{ $modifier['id'] }}" class="block text-sm font-medium text-neutral-700">
+            <label for="modifier-{{ $modifier['id'] }}" class="block text-sm font-semibold text-ink-muted">
                 {{ $modifier['prompt'] }}@if ($modifier['required']) <span aria-hidden="true">*</span>@endif
             </label>
 
             @if ($modifier['instructions'] !== null)
-                <p class="mt-1 text-sm text-neutral-500">{{ $modifier['instructions'] }}</p>
+                <p class="mt-1 text-sm text-ink-faint">{{ $modifier['instructions'] }}</p>
             @endif
 
             @if ($modifier['kind'] === ModifierKind::Select)
                 <select id="modifier-{{ $modifier['id'] }}" name="modifier[{{ $modifier['id'] }}]"
                         @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
-                        class="mt-2 block w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
+                        class="select-caret mt-2 block w-full rounded-field border border-line-strong bg-surface py-3 pl-4 pr-10 text-base focus:border-accent focus:outline-none">
                     @foreach ($modifier['options'] as $option)
                         <option value="{{ $option['id'] }}" @selected($option['selected'])>
                             {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif
@@ -117,9 +117,9 @@
                        @if ($modifier['maxValue'] !== null) max="{{ $modifier['maxValue'] }}" @endif
                        @required($modifier['required'] && $isForm)
                        @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
-                       class="mt-2 block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
+                       class="mt-2 block w-full rounded-field border border-line-strong px-4 py-3 text-base focus:border-accent focus:outline-none">
                 @if ($modifier['unit'] !== null)
-                    <span class="mt-1 block text-sm text-neutral-500">{{ $modifier['unit'] }}</span>
+                    <span class="mt-1 block text-sm text-ink-faint">{{ $modifier['unit'] }}</span>
                 @endif
             @else
                 <input type="text" id="modifier-{{ $modifier['id'] }}" name="modifier[{{ $modifier['id'] }}]"
@@ -127,12 +127,12 @@
                        @if ($modifier['charLimit'] !== null) maxlength="{{ $modifier['charLimit'] }}" @endif
                        @required($modifier['required'] && $isForm)
                        @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
-                       class="mt-2 block w-full rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
+                       class="mt-2 block w-full rounded-field border border-line-strong px-4 py-3 text-base focus:border-accent focus:outline-none">
             @endif
 
             @if ($mode === 'shop')
                 @error('modifier.'.$modifier['id'])
-                    <p class="mt-2 text-red-700">{{ $message }}</p>
+                    <p class="mt-2 text-danger">{{ $message }}</p>
                 @enderror
             @endif
         </div>
@@ -140,7 +140,7 @@
 
     @if ($configuration->quantityTiers !== [])
         <div class="mt-6">
-            <p class="text-sm font-medium text-neutral-700">Quantity discounts</p>
+            <p class="text-sm font-semibold text-ink-muted">Quantity discounts</p>
             <table class="mt-2 w-full text-sm">
                 <tbody>
                     @foreach ($configuration->quantityTiers as $tier)
@@ -155,32 +155,32 @@
     @endif
 
     <div class="mt-6">
-        <label for="quantity" class="block text-sm font-medium text-neutral-700">Quantity</label>
+        <label for="quantity" class="block text-sm font-semibold text-ink-muted">Quantity</label>
         <input type="number" id="quantity" name="quantity" min="1" value="{{ $configuration->quantity }}"
                @if ($focusId === 'quantity') autofocus @endif
                @if ($isForm) data-configurator-refresh @endif
                @disabled(! $isForm) @if (! $isForm) aria-disabled="true" @endif
-               class="mt-2 block w-32 rounded-xl border border-neutral-300 px-4 py-3 text-base focus:border-neutral-900 focus:outline-none">
+               class="mt-2 block w-32 rounded-field border border-line-strong px-4 py-3 text-base focus:border-accent focus:outline-none">
     </div>
 
-    <div class="mt-8 rounded-2xl border border-neutral-100 bg-neutral-50 p-6">
-        <p class="text-sm font-medium text-neutral-700">Price</p>
+    <div class="mt-8 rounded-card border border-line bg-surface p-6">
+        <p class="text-sm font-semibold text-ink-muted">Price</p>
         <dl class="mt-3 space-y-1 text-sm">
             @foreach ($configuration->breakdown->lines as $line)
                 <div class="flex justify-between gap-4">
-                    <dt class="text-neutral-600">{{ $line->label }}</dt>
+                    <dt class="text-ink-muted">{{ $line->label }}</dt>
                     <dd>{{ $line->signed && $line->amount->cents >= 0 ? '+' : '' }}{{ $line->amount->format() }}</dd>
                 </div>
             @endforeach
         </dl>
-        <div class="mt-3 flex justify-between gap-4 border-t border-neutral-200 pt-3 text-lg font-semibold">
+        <div class="mt-3 flex justify-between gap-4 border-t border-line pt-3 text-lg font-semibold">
             <span>Total</span>
             <span>{{ $configuration->breakdown->total()->format() }}</span>
         </div>
     </div>
 
     @if (! $configuration->canAddToCart)
-        <p class="mt-4 inline-block rounded-full bg-red-50 px-4 py-2 text-sm font-medium text-red-900">
+        <p class="mt-4 inline-block rounded-full bg-danger-surface px-4 py-2 text-sm font-medium text-danger">
             {{ ucfirst($configuration->unavailableReason ?? 'unavailable') }}
         </p>
     @endif
@@ -189,11 +189,11 @@
         @if ($isForm)
             <button type="submit" formmethod="GET" formaction="{{ $refreshUrl }}" formnovalidate
                     data-configurator-update
-                    class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
+                    class="rounded-full border border-line-strong bg-surface px-8 py-3 text-base font-medium text-ink hover:border-accent hover:text-accent">
                 Update options
             </button>
         @else
-            <span aria-disabled="true" class="rounded-full border border-neutral-300 px-6 py-2 text-sm font-medium text-neutral-400">Update options</span>
+            <span aria-disabled="true" class="rounded-full border border-line px-6 py-2 text-sm font-medium text-ink-faint">Update options</span>
         @endif
 
         @include('shop.partials.add-to-cart-button', [

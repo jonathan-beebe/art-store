@@ -46,7 +46,7 @@ it('IMPRV-015: renders a live GET form that round-trips on the seller URL, never
 
     expect($html)->toContain('<form method="GET"')
         ->and($html)->not->toContain('cart/add')
-        ->and($html)->toContain('aria-disabled="true" class="inline-block rounded-full bg-neutral-300 px-6 py-2 text-sm font-medium text-white">Add to cart');
+        ->and($html)->toContain('aria-disabled="true" class="inline-block rounded-full bg-line px-6 py-2 text-sm font-medium text-ink-faint">Add to cart');
 });
 
 it('greys out an option no combination offers, with its reason', function (): void {

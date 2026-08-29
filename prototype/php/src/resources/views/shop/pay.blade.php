@@ -1,33 +1,33 @@
 <x-layouts.shop :title="'Pay for order '.$order->id.' — Art Store'">
-    <h1 class="text-4xl font-semibold tracking-tight">Pay for order {{ $order->id }}</h1>
+    <h1 class="font-display text-4xl leading-tight text-ink">Pay for order {{ $order->id }}</h1>
 
-    <p class="mt-3 text-lg text-neutral-600">
+    <p class="mt-3 text-lg text-ink-muted">
         {{ $order->total() }} to {{ $order->email }}
     </p>
 
     @if ($payment?->decline_reason)
-        <p role="alert" class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+        <x-ui.alert tone="danger" class="mt-8 max-w-xl">
             {{ $payment->decline_reason->message() }} Try another card.
-        </p>
+        </x-ui.alert>
     @endif
 
     @if (count($blocked) > 0)
-        <div role="alert" class="mt-8 max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-900">
+        <x-ui.alert tone="danger" class="mt-8 max-w-xl">
             <p>This order can no longer be completed:</p>
             <ul class="mt-2 list-disc pl-5">
                 @foreach ($blocked as $line)
                     <li>{{ $line->title }} — {{ $line->reason->notice() }}</li>
                 @endforeach
             </ul>
-        </div>
+        </x-ui.alert>
     @endif
 
     <form method="POST" action="{{ route('shop.order.pay.submit', $order) }}" class="mt-8 max-w-xl">
         @csrf
         <x-card-fields />
 
-        <button type="submit" class="mt-10 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
+        <x-ui.button variant="primary" class="mt-10">
             Pay {{ $order->total() }}
-        </button>
+        </x-ui.button>
     </form>
 </x-layouts.shop>

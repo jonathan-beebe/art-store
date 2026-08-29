@@ -7,13 +7,24 @@
         return;
     }
 
-    document.querySelectorAll('[data-events-url]').forEach(function (link) {
-        var label = link.dataset.liveBadge;
-        var source = new EventSource(link.dataset.eventsUrl);
+    // Connect only after the load event: a stream opened while the page is
+    // still parsing holds the tab in "loading" (spinner, never idle) for as
+    // long as the connection stays open.
+    function connect() {
+        document.querySelectorAll('[data-events-url]').forEach(function (link) {
+            var label = link.dataset.liveBadge;
+            var source = new EventSource(link.dataset.eventsUrl);
 
-        source.addEventListener('unread', function (event) {
-            var count = Number(event.data);
-            link.textContent = count > 0 ? label + ' (' + count + ')' : label;
+            source.addEventListener('unread', function (event) {
+                var count = Number(event.data);
+                link.textContent = count > 0 ? label + ' (' + count + ')' : label;
+            });
         });
-    });
+    }
+
+    if (document.readyState === 'complete') {
+        connect();
+    } else {
+        window.addEventListener('load', connect);
+    }
 })();

@@ -6,9 +6,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Domain\Shop\ListingSearch;
 use App\Models\Listing;
-use App\Models\ListingAttribute;
-use App\Models\Property;
-use App\Models\PropertyValue;
+use App\Support\Shop\MediumOptions;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -26,7 +24,7 @@ final class StorefrontController extends ShopController
 
         return view('shop.home', [
             'search' => $search,
-            'media' => $this->mediumOptions(),
+            'media' => MediumOptions::forStorefront(),
             'listings' => $this->matching($search)->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),
         ]);
     }
@@ -52,40 +50,6 @@ final class StorefrontController extends ShopController
         $listings->ofMediumAttribute($search->medium);
 
         return $listings;
-    }
-
-    /**
-     * The dropdown's options: every Medium value at least one for-sale
-     * listing carries, ordered by label — the URL value is the label
-     * lowercased, matching {@see Listing::ofMediumAttribute()}.
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    private function mediumOptions(): array
-    {
-        $medium = Property::where('name', 'Medium')->first();
-
-        if ($medium === null) {
-            return [];
-        }
-
-        $forSaleListingIds = Listing::query()->forSale()->pluck('id');
-
-        $attributedValueIds = ListingAttribute::query()
-            ->where('property_id', $medium->id)
-            ->whereIn('listing_id', $forSaleListingIds)
-            ->distinct()
-            ->pluck('property_value_id');
-
-        /** @var list<string> $labels */
-        $labels = array_values(PropertyValue::query()
-            ->where('property_id', $medium->id)
-            ->whereIn('id', $attributedValueIds)
-            ->orderBy('label')
-            ->pluck('label')
-            ->all());
-
-        return array_map(fn (string $label): array => ['value' => mb_strtolower($label), 'label' => $label], $labels);
     }
 
     private function submitted(Request $request, string $key): ?string

@@ -5,28 +5,32 @@
         </div>
 
         <div class="max-w-lg">
-            <h1 class="text-4xl font-semibold leading-tight tracking-tight">{{ $listing->title }}</h1>
-            <p class="mt-3 text-lg text-neutral-600">{{ $listing->seller->displayName() }}</p>
-            <p class="mt-8 text-2xl">{{ $listing->price()->format() }}</p>
+            <h1 class="font-display text-4xl leading-tight text-ink">{{ $listing->title }}</h1>
+            <p class="mt-6 text-2xl text-ink">{{ $listing->price()->format() }}</p>
 
-            <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-neutral-100 py-6 text-base">
+            <div class="mt-6 flex items-center gap-3 rounded-field border border-line bg-surface px-4 py-3">
+                <x-ui.avatar :name="$listing->seller->displayName()" size="md" />
+                <p class="text-sm font-semibold text-ink">Made by {{ $listing->seller->displayName() }}</p>
+            </div>
+
+            <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-line py-6 text-base">
                 @if ($listing->mediumAttributeLabel() !== null)
-                    <dt class="text-neutral-500">Medium</dt>
-                    <dd>{{ $listing->mediumAttributeLabel() }}</dd>
+                    <dt class="text-ink-faint">Medium</dt>
+                    <dd class="text-ink">{{ $listing->mediumAttributeLabel() }}</dd>
                 @endif
-                <dt class="text-neutral-500">Dimensions</dt>
-                <dd>{{ $listing->dimensions ?? 'Unlisted' }}</dd>
-                <dt class="text-neutral-500">Available</dt>
-                <dd>{{ $isPurchasable ? $listing->quantityLabel() : 'Sold' }}</dd>
+                <dt class="text-ink-faint">Dimensions</dt>
+                <dd class="text-ink">{{ $listing->dimensions ?? 'Unlisted' }}</dd>
+                <dt class="text-ink-faint">Available</dt>
+                <dd class="text-ink">{{ $isPurchasable ? $listing->quantityLabel() : 'Sold' }}</dd>
             </dl>
 
             @if (! empty($highlights))
-                <section aria-labelledby="highlights-heading" class="mt-8 border-b border-neutral-100 pb-6">
-                    <h2 id="highlights-heading" class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Highlights</h2>
+                <section aria-labelledby="highlights-heading" class="mt-8 border-b border-line pb-6">
+                    <h2 id="highlights-heading" class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Highlights</h2>
                     <dl class="mt-4 grid grid-cols-2 gap-y-4 text-base">
                         @foreach ($highlights as $highlight)
-                            <dt class="text-neutral-500">{{ $highlight['name'] }}</dt>
-                            <dd>{{ implode(', ', $highlight['values']) }}</dd>
+                            <dt class="text-ink-faint">{{ $highlight['name'] }}</dt>
+                            <dd class="text-ink">{{ implode(', ', $highlight['values']) }}</dd>
                         @endforeach
                     </dl>
                 </section>
@@ -43,41 +47,40 @@
 
                 <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}" class="mt-4">
                     @csrf
-                    <button type="submit" class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
+                    <x-ui.button variant="secondary">
                         {{ $isFavorited ? 'Remove from favorites' : 'Favorite' }}
-                    </button>
+                    </x-ui.button>
                 </form>
             </div>
 
-            <section class="mt-14 border-t border-neutral-100 pt-10">
-                <h2 class="text-xl font-semibold tracking-tight">Ask the seller a question</h2>
+            <section class="mt-14 border-t border-line pt-10">
+                <h2 class="font-display text-xl text-ink">Ask {{ $listing->seller->displayName() }} a question</h2>
 
                 <form method="POST" action="{{ route('shop.listing.questions', $listing) }}" class="mt-4">
                     @csrf
 
                     <label for="body" class="sr-only">Your question</label>
-                    <textarea id="body" name="body" required rows="3" maxlength="2000"
-                              placeholder="Ask about size, materials, shipping…"
-                              class="block w-full rounded-2xl border border-neutral-300 px-4 py-3 text-base placeholder:text-neutral-400 focus:border-neutral-900 focus:outline-none">{{ old('body') }}</textarea>
+                    <x-ui.textarea id="body" name="body" required rows="3" maxlength="2000"
+                                   placeholder="Ask about size, materials, shipping…">{{ old('body') }}</x-ui.textarea>
                     @error('body')
-                        <p class="mt-2 text-red-700">{{ $message }}</p>
+                        <p class="mt-2 text-danger">{{ $message }}</p>
                     @enderror
 
-                    <button type="submit" class="mt-4 rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
+                    <x-ui.button variant="primary" class="mt-4">
                         Ask a question
-                    </button>
+                    </x-ui.button>
                 </form>
             </section>
 
             @if ($listing->faqs->isNotEmpty())
-                <section class="mt-14 border-t border-neutral-100 pt-10">
-                    <h2 class="text-xl font-semibold tracking-tight">Questions &amp; answers</h2>
+                <section class="mt-14 border-t border-line pt-10">
+                    <h2 class="font-display text-xl text-ink">Questions &amp; answers</h2>
 
                     <dl class="mt-6 space-y-6">
                         @foreach ($listing->faqs as $faq)
                             <div>
-                                <dt class="font-medium">{{ $faq->question }}</dt>
-                                <dd class="mt-1 text-neutral-700">{{ $faq->answer }}</dd>
+                                <dt class="font-semibold text-ink">{{ $faq->question }}</dt>
+                                <dd class="mt-1 text-ink-muted">{{ $faq->answer }}</dd>
                             </div>
                         @endforeach
                     </dl>

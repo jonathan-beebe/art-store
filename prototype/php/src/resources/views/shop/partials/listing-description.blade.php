@@ -7,11 +7,11 @@
     $compact ??= false;
 @endphp
 
-<p class="mt-{{ $compact ? '2' : '8' }} text-{{ $compact ? 'sm' : 'lg' }} leading-relaxed text-neutral-700">{{ $listing->description }}</p>
+<p class="{{ $compact ? 'mt-2 text-sm' : 'mt-8 text-lg' }} leading-relaxed text-ink-muted">{{ $listing->description }}</p>
 
 @if ($listing->descriptionSections->isNotEmpty())
     @include('shop.partials.description-sections', array_merge(['sections' => $listing->descriptionSections], $compact ? [] : [
-        'sectionClass' => 'mt-14 border-t border-neutral-100 pt-10',
+        'sectionClass' => 'mt-14 border-t border-line pt-10',
         'headingTag' => 'h2',
         'headingClass' => 'text-xl font-semibold tracking-tight',
     ]))

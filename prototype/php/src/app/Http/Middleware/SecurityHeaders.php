@@ -10,28 +10,33 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * docs/alignment.md §"Security headers", on every response the `web` group
- * answers with. `img-src` carries `data:` beyond the contract's three named
- * directives: {@see PlaceholderImage} renders a listing with no photograph
- * as an inline `data:image/svg+xml` `<img src>`, and `default-src 'self'`
- * alone would block it.
+ * The security headers on every response the `web` group answers with.
+ * `img-src` carries `data:` beyond `'self'`: {@see PlaceholderImage}
+ * renders a listing with no photograph as an inline `data:image/svg+xml`
+ * `<img src>`. `style-src` carries `'unsafe-inline'`: the theme's design
+ * tokens reach the page as an inline `<style>` block (`<x-theme-css />`),
+ * and the category pickers paint listing covers through `style`
+ * attributes — scripts stay locked to `'self'` outside debug. Fonts are
+ * self-hosted under public/fonts, so no font origin needs naming.
+ *
+ * Framing is refused everywhere (`frame-ancestors 'none'`) except the
+ * design-system specimen routes, which the design-system page frames in
+ * its own phone-width iframes — those answer `'self'`, so only this
+ * origin can embed them.
  *
  * HSTS is production-only: `make up`'s local server has no certificate for
  * a browser to keep pinning past, and it does not stop being local by
  * skipping the header.
  *
  * With `app.debug` on, an unhandled exception renders the framework's own
- * debug page — a self-contained bundle of inline `<style>` and `<script>`
- * that `default-src 'self'` alone leaves both unstyled and unrendered, since
- * neither directive falls back to permitting inline content. The widened
- * policy is debug-only and never reaches a production response: the
- * constant below is what production always sends, byte-for-byte.
+ * debug page, whose inline `<script>` needs `'unsafe-inline'` — the
+ * widened policy is debug-only and never reaches a production response.
  */
 final readonly class SecurityHeaders
 {
-    private const string CSP = "default-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'";
+    private const string CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; form-action 'self'";
 
-    private const string DEBUG_CSP_ADDITIONS = "; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'";
+    private const string DEBUG_CSP_ADDITIONS = "; script-src 'self' 'unsafe-inline'";
 
     private const string REFERRER_POLICY = 'strict-origin-when-cross-origin';
 
@@ -46,7 +51,12 @@ final readonly class SecurityHeaders
     {
         $response = $next($request);
 
-        $response->headers->set('Content-Security-Policy', self::CSP.(app()->hasDebugModeEnabled() ? self::DEBUG_CSP_ADDITIONS : ''));
+        $frameAncestors = $request->routeIs('shop.design-system.specimen') ? "'self'" : "'none'";
+
+        $response->headers->set(
+            'Content-Security-Policy',
+            self::CSP."; frame-ancestors {$frameAncestors}".(app()->hasDebugModeEnabled() ? self::DEBUG_CSP_ADDITIONS : ''),
+        );
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', self::REFERRER_POLICY);
 

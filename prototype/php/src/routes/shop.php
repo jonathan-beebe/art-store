@@ -6,6 +6,8 @@ use App\Http\Controllers\Shop\AccountController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\DeliveryConfirmationController;
+use App\Http\Controllers\Shop\DesignSystemController;
+use App\Http\Controllers\Shop\DesignSystemSpecimenController;
 use App\Http\Controllers\Shop\EventsController;
 use App\Http\Controllers\Shop\FavoriteController;
 use App\Http\Controllers\Shop\ListingController;
@@ -22,6 +24,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::get('/', StorefrontController::class)->name('home');
     Route::get('/art/{listing:slug}', ListingController::class)->name('listing');
+    Route::get('/design-system', DesignSystemController::class)->name('design-system');
+    Route::get('/design-system/specimens/{specimen}', DesignSystemSpecimenController::class)->name('design-system.specimen');
 
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
     Route::post('/art/{listing:slug}/favorite', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
