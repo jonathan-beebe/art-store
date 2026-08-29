@@ -47,6 +47,13 @@
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $item->quantity }}</td>
                                 <td class="px-4 py-2 text-right tabular-nums">{{ $item->unitPrice() }}</td>
                             </tr>
+                            @if ($item->hasVariant())
+                                <tr>
+                                    <td colspan="3" class="px-4 pb-3">
+                                        <x-order-item-detail :item="$item" />
+                                    </td>
+                                </tr>
+                            @endif
                         @endforeach
                     </tbody>
                     <tfoot class="border-t border-gray-300 dark:border-gray-700">

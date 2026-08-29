@@ -74,7 +74,7 @@
                 @foreach ($cart->items as $item)
                     <li class="flex items-baseline justify-between gap-6 py-4">
                         <span class="text-base">{{ $item->listing->title }} × {{ $item->quantity }}</span>
-                        <span class="text-base">{{ $item->listing->price()->multiply($item->quantity)->format() }}</span>
+                        <span class="text-base">{{ $item->toLine()->total()->format() }}</span>
                     </li>
                 @endforeach
             </ul>

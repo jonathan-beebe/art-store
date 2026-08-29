@@ -1,7 +1,7 @@
 <x-layouts.seller :title="$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
-        <p class="text-gray-600 dark:text-gray-400">{{ $listing->status->label() }} · {{ $listing->price()->format() }} · {{ $listing->quantity }} in stock</p>
+        <p class="text-gray-600 dark:text-gray-400">{{ $listing->status->label() }} · {{ $listing->price()->format() }} · {{ \App\Domain\Listings\ListingStockLabel::withInStock($listing->quantity) }}</p>
         <a href="{{ route('seller.listings.faqs.index', $listing) }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">Questions & answers</a>
         <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Edit</a>
     </div>

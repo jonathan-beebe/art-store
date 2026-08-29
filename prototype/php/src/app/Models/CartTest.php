@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\UnavailableReason;
 
@@ -12,7 +13,7 @@ it('reads its items as cart lines', function (): void {
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
     $listing = $this->listing($seller, ['price_cents' => 4500]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 2]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 2]);
 
     $lines = $cart->lines();
 
@@ -39,7 +40,7 @@ it('plans placement from its items against the listings behind them', function (
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
     $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
 
     $plan = $cart->load('items.listing')->placementPlan();
 
@@ -53,11 +54,52 @@ it('blocks a line whose listing carries an active removal, even while for sale',
     $cart = $this->cartFor($customer);
     $listing = $this->listing($this->seller(), ['title' => 'Winter Elm']);
     ListingRemoval::factory()->create(['listing_id' => $listing->id]);
-    CartItem::create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
 
     $plan = $cart->load('items.listing')->placementPlan();
 
     expect($plan->isPlaceable())->toBeFalse()
         ->and($plan->blocked[0]->title)->toBe('Winter Elm')
         ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
+});
+
+it('plans a configured lines placement off its variant rather than the listing quantity', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee', 'quantity' => 50]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'quantity' => 0]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'variant_id' => $variant->id, 'quantity' => 1]);
+
+    $plan = $cart->load('items.listing', 'items.variant')->placementPlan();
+
+    expect($plan->isPlaceable())->toBeFalse()
+        ->and($plan->blocked[0]->title)->toBe('Line Art Cat Tee')
+        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
+});
+
+it('tells two configurations of the same listing apart when only one is blocked', function (): void {
+    $customer = $this->anonymousCustomer();
+    $cart = $this->cartFor($customer);
+    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
+    $available = Variant::factory()->create(['listing_id' => $listing->id, 'quantity' => 3]);
+    $soldOut = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'other', 'quantity' => 0]);
+    $keptItem = CartItem::factory()->create([
+        'cart_id' => $cart->id,
+        'listing_id' => $listing->id,
+        'variant_id' => $available->id,
+        'quantity' => 1,
+        'fingerprint' => CartLineFingerprint::of($available->id, null, [])->value,
+    ]);
+    $blockedItem = CartItem::factory()->create([
+        'cart_id' => $cart->id,
+        'listing_id' => $listing->id,
+        'variant_id' => $soldOut->id,
+        'quantity' => 1,
+        'fingerprint' => CartLineFingerprint::of($soldOut->id, null, [])->value,
+    ]);
+
+    $plan = $cart->load('items.listing', 'items.variant')->placementPlan();
+
+    expect($plan->blockedReasonFor($keptItem->id))->toBeNull()
+        ->and($plan->blockedReasonFor($blockedItem->id))->toBe(UnavailableReason::SoldOut);
 });

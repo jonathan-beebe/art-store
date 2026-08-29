@@ -19,7 +19,7 @@
                         class="mt-2 rounded-lg border border-neutral-200 px-4 py-2 text-base">
                     <option value="">All media</option>
                     @foreach ($media as $option)
-                        <option value="{{ $option }}" @selected($search->medium === $option)>{{ $option }}</option>
+                        <option value="{{ $option['value'] }}" @selected($search->medium === $option['value'])>{{ $option['label'] }}</option>
                     @endforeach
                 </select>
             </div>

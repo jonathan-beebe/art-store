@@ -15,25 +15,29 @@ final readonly class ListingDraft
     private function __construct(
         public string $title,
         public ?string $description,
-        public ?string $medium,
         public ?string $dimensions,
         public Money $price,
-        public int $quantity,
+        // Null: made to order — no fixed count, reached only through the
+        // "Made to order" checkbox on create or Basics.
+        public ?int $quantity,
+        public ?string $categoryId = null,
     ) {}
 
     /**
-     * Four of the six fields are strings that transpose without a word of
-     * complaint, so the one way in takes them by name.
+     * Three of the five fields are strings that transpose without a word of
+     * complaint, so the one way in takes them by name. `categoryId` defaults
+     * to null — an uncategorized listing is as valid as it was before the
+     * taxonomy existed.
      */
     public static function of(
         string $title,
         ?string $description,
-        ?string $medium,
         ?string $dimensions,
         Money $price,
-        int $quantity,
+        ?int $quantity,
+        ?string $categoryId = null,
     ): self {
-        return new self($title, $description, $medium, $dimensions, $price, $quantity);
+        return new self($title, $description, $dimensions, $price, $quantity, $categoryId);
     }
 
     /**
@@ -44,10 +48,10 @@ final readonly class ListingDraft
         return [
             'title' => $this->title,
             'description' => $this->description,
-            'medium' => $this->medium,
             'dimensions' => $this->dimensions,
             'price_cents' => $this->price->cents,
             'quantity' => $this->quantity,
+            'category_id' => $this->categoryId,
         ];
     }
 }

@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Seller;
 
 use App\Models\Listing;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use App\Models\OptionAxis;
 
 /**
  * @param  array<string, mixed>  $overrides
@@ -14,9 +13,9 @@ use Illuminate\Support\Facades\Storage;
  */
 $form = function (array $overrides = []): array {
     return $overrides + [
+        'shape' => 'one',
         'title' => 'Harbour at Dusk',
         'description' => 'Oil on linen.',
-        'medium' => 'oil',
         'dimensions' => '12 x 16 in',
         'price' => '249.00',
         'quantity' => 1,
@@ -39,28 +38,13 @@ it('rejects invalid listing input', function (array $overrides, string $field) u
     'more pieces than a studio makes' => [['quantity' => 1000], 'quantity'],
 ]);
 
-it('rejects an invalid image upload', function (string $filename, int $kilobytes, string $mimeType) use ($form): void {
-    Storage::fake('public');
+it('rejects a create with no shape at all', function () use ($form): void {
+    $payload = $form();
+    unset($payload['shape']);
 
-    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
-        'image' => UploadedFile::fake()->create($filename, $kilobytes, $mimeType),
-    ]));
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $payload);
 
-    $response->assertSessionHasErrors('image');
-    expect(Listing::count())->toBe(0);
-})->with([
-    'a file that is not an image at all' => ['notes.txt', 4, 'text/plain'],
-    'a file that only claims to be an image' => ['harbour.jpg', 12, 'image/jpeg'],
-]);
-
-it('rejects an image over the upload limit', function () use ($form): void {
-    Storage::fake('public');
-
-    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', $form([
-        'image' => UploadedFile::fake()->image('harbour.jpg')->size(5121),
-    ]));
-
-    $response->assertSessionHasErrors('image');
+    $response->assertSessionHasErrors('shape');
     expect(Listing::count())->toBe(0);
 });
 
@@ -79,6 +63,14 @@ it('says a price is an amount in dollars', function () use ($form): void {
     $response->assertSessionHasErrors(['price' => 'The price is an amount in dollars, like 249.00.']);
 });
 
+it('does not require a quantity for a made-to-order create', function () use ($form): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->post('/seller/listings', $form(['quantity' => '', 'made_to_order' => '1']));
+
+    $response->assertSessionDoesntHaveErrors('quantity');
+    expect(Listing::sole()->quantity)->toBeNull();
+});
+
 it('answers another sellers listing before it validates the form', function () use ($form): void {
     $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
 
@@ -90,19 +82,159 @@ it('answers another sellers listing before it validates the form', function () u
     expect($listing->refresh()->title)->toBe('Not Mine');
 });
 
-it('reads the typed fields into a draft', function () use ($form): void {
+it('reads the one-thing shape into a draft with no description, dimensions, or category', function () use ($form): void {
     $draft = ListingRequest::create('/seller/listings', 'POST', $form())->toDraft();
 
     expect($draft->title)->toBe('Harbour at Dusk')
-        ->and($draft->description)->toBe('Oil on linen.')
-        ->and($draft->medium)->toBe('oil')
-        ->and($draft->dimensions)->toBe('12 x 16 in')
+        ->and($draft->description)->toBeNull()
+        ->and($draft->dimensions)->toBeNull()
         ->and($draft->price)->toBeMoney(24900)
-        ->and($draft->quantity)->toBe(1);
+        ->and($draft->quantity)->toBe(1)
+        ->and($draft->categoryId)->toBeNull();
 });
 
-it('leaves an optional field the seller skipped null', function (string $field) use ($form): void {
-    $draft = ListingRequest::create('/seller/listings', 'POST', $form([$field => '']))->toDraft();
+it('reads a made-to-order one-thing submission into a null quantity', function () use ($form): void {
+    $draft = ListingRequest::create('/seller/listings', 'POST', $form(['made_to_order' => '1']))->toDraft();
 
-    expect($draft->{$field})->toBeNull();
-})->with(['description', 'medium', 'dimensions']);
+    expect($draft->quantity)->toBeNull();
+});
+
+it('reads the versions shape into a zero-priced, quantity-less draft', function (): void {
+    $draft = ListingRequest::create('/seller/listings', 'POST', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [['label' => '8x10', 'price' => '18.00']],
+    ])->toDraft();
+
+    expect($draft->title)->toBe('Sunset Ridge')
+        ->and($draft->price)->toBeMoney(0)
+        ->and($draft->quantity)->toBeNull();
+});
+
+it('reads the extras shape into a draft carrying the items own price and quantity', function (): void {
+    $draft = ListingRequest::create('/seller/listings', 'POST', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+    ])->toDraft();
+
+    expect($draft->price)->toBeMoney(4600)
+        ->and($draft->quantity)->toBe(12);
+});
+
+it('rejects a versions submission with no complete version row', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [['label' => '', 'price' => '']],
+    ]);
+
+    $response->assertSessionHasErrors('versions');
+});
+
+it('flags a version row missing only its label', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [['label' => '', 'price' => '18.00']],
+    ]);
+
+    $response->assertSessionHasErrors('versions.0.label');
+});
+
+it('flags a version row with a price that does not parse', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => 'Size',
+        'versions' => [['label' => '8x10', 'price' => 'not a price']],
+    ]);
+
+    $response->assertSessionHasErrors('versions.0.price');
+});
+
+it('rejects an extras choice name given with no complete option row', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+        'extra_choice_name' => 'Finish',
+    ]);
+
+    $response->assertSessionHasErrors('extra_options');
+});
+
+it('requires a choice name on the versions shape', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'versions',
+        'title' => 'Sunset Ridge',
+        'choice_name' => '',
+        'versions' => [['label' => '8x10', 'price' => '18.00']],
+    ]);
+
+    $response->assertSessionHasErrors('choice_name');
+});
+
+it('lets the extras shape through with no extra entered at all', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+    ]);
+
+    $response->assertSessionDoesntHaveErrors();
+});
+
+it('requires an extra choice name once an option row is filled in', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/listings', [
+        'shape' => 'extras',
+        'title' => 'Maple Serving Board',
+        'price' => '46.00',
+        'quantity' => 12,
+        'extra_options' => [['label' => 'Oil finish', 'price' => '+0.00']],
+    ]);
+
+    $response->assertSessionHasErrors('extra_choice_name');
+});
+
+it('does not require price or quantity to update a listing that already offers a choice', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $payload = $form();
+    unset($payload['price'], $payload['quantity']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionDoesntHaveErrors(['price', 'quantity']);
+});
+
+it('still requires price and quantity to update a listing with no choices and no serialized pieces', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $payload = $form();
+    unset($payload['price'], $payload['quantity']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionHasErrors(['price', 'quantity']);
+});
+
+it('does not require a quantity to update a made-to-order listing', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $payload = $form();
+    unset($payload['quantity']);
+    $payload['made_to_order'] = '1';
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionDoesntHaveErrors('quantity');
+    expect($listing->refresh()->quantity)->toBeNull();
+});

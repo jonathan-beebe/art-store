@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
@@ -125,6 +129,29 @@ it('pays the order and takes the stock again on a retry with a good card', funct
     expect($listing->refresh()->quantity)->toBe(0)
         ->and($listing->status)->toBe(ListingStatus::Sold);
     expect(LedgerEntry::query()->sole()->amount_cents)->toBe(40500);
+});
+
+it('takes a configured lines variant quantity again on a retry with a good card', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 1]);
+
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    $finalizeOrder = app(FinalizeOrder::class);
+    $finalizeOrder($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
+
+    expect($variant->refresh()->quantity)->toBe(1);
+
+    $order = $finalizeOrder($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:05:00'));
+
+    expect($order->status)->toBe(OrderStatus::Paid)
+        ->and($variant->refresh()->quantity)->toBe(0);
 });
 
 it('judges the retry against the rows it locked, not what the caller loaded before', function (): void {

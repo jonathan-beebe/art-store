@@ -17,18 +17,39 @@
                     <div class="flex-1">
                         <a href="{{ route('shop.listing', $item->listing) }}" class="text-lg font-medium">{{ $item->listing->title }}</a>
                         <p class="mt-1 text-sm text-neutral-500">{{ $item->listing->seller->displayName() }}</p>
+
+                        @if ($item->hasVariant())
+                            <dl class="mt-1 text-sm text-neutral-500">
+                                @foreach ($item->configuration_json ?? [] as $pair)
+                                    <div><span class="font-medium">{{ $pair['axisName'] }}:</span> {{ $pair['optionValueLabel'] }}</div>
+                                @endforeach
+                                @if ($item->unit)
+                                    <div><span class="font-medium">Piece:</span> {{ $item->unit->label }}</div>
+                                @endif
+                                @foreach ($item->answers_json ?? [] as $answer)
+                                    <div><span class="font-medium">{{ $answer['prompt'] }}:</span> {{ $answer['answer'] }}</div>
+                                @endforeach
+                            </dl>
+
+                            @unless ($item->currentAvailability()->selectable)
+                                <p class="mt-2 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-900">
+                                    {{ ucfirst($item->currentAvailability()->reason ?? 'unavailable') }}
+                                </p>
+                            @endunless
+                        @endif
+
                         <p class="mt-1 text-sm text-neutral-500">Quantity {{ $item->quantity }}</p>
 
-                        @if ($reason = $plan->blockedReasonFor($item->listing_id))
+                        @if ($reason = $plan->blockedReasonFor($item->id))
                             <p class="mt-2 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-900">
                                 {{ ucfirst($reason->notice()) }}
                             </p>
                         @endif
                     </div>
 
-                    <p class="text-lg">{{ $item->listing->price()->multiply($item->quantity)->format() }}</p>
+                    <p class="text-lg">{{ $item->toLine()->total()->format() }}</p>
 
-                    <form method="POST" action="{{ route('shop.cart.remove', $item->listing) }}">
+                    <form method="POST" action="{{ route('shop.cart.remove', $item) }}">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-sm text-neutral-500 underline hover:text-neutral-900">Remove</button>

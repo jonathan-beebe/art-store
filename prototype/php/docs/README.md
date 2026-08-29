@@ -12,6 +12,8 @@
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
 | [`data-model.md`](data-model.md)     | ER diagram generated from `database/migrations/`.                                                           |
+| [`item-configurator.md`](item-configurator.md) | The item configurator: taxonomy, option axes, sparse variants, serialized units, scoped modifiers, |
+|                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next       |

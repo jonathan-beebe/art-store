@@ -10,7 +10,7 @@ function placeableLine(
     string $listingId = 'lst_00000000000000000000000001',
     string $title = 'Harbour at Dusk',
     ListingStatus $status = ListingStatus::ForSale,
-    int $availableQuantity = 1,
+    ?int $availableQuantity = 1,
     int $quantity = 1,
     bool $hasActiveRemoval = false,
 ): PlaceableLine {
@@ -29,6 +29,13 @@ it('has nothing standing in the way of a cart of listings still for sale', funct
 
 it('has nothing standing in the way of an empty cart', function (): void {
     $plan = OrderPlacementPlan::for([]);
+
+    expect($plan->isPlaceable())->toBeTrue()
+        ->and($plan->blocked)->toBe([]);
+});
+
+it('has nothing standing in the way of a made-to-order line, however many are asked for', function (): void {
+    $plan = OrderPlacementPlan::for([placeableLine(availableQuantity: null, quantity: 50)]);
 
     expect($plan->isPlaceable())->toBeTrue()
         ->and($plan->blocked)->toBe([]);
@@ -76,3 +83,80 @@ it('looks a blocked line up by listing id, for a page that marks it', function (
         ->and($plan->blockedReasonFor('lst_00000000000000000000000002'))->toBeNull()
         ->and($plan->blockedReasonFor('lst_00000000000000000000000099'))->toBeNull();
 });
+
+it('looks a blocked line up by its own line id, for two configurations of the same listing', function (): void {
+    $blocked = new PlaceableLine(
+        listingId: 'lst_00000000000000000000000001',
+        title: 'Engraved Signet Ring',
+        status: ListingStatus::ForSale,
+        availableQuantity: 1,
+        quantity: 1,
+        hasActiveRemoval: false,
+        lineId: 'cti_00000000000000000000000001',
+        configured: true,
+        variantEnabled: false,
+    );
+    $placeable = new PlaceableLine(
+        listingId: 'lst_00000000000000000000000001',
+        title: 'Engraved Signet Ring',
+        status: ListingStatus::ForSale,
+        availableQuantity: 1,
+        quantity: 1,
+        hasActiveRemoval: false,
+        lineId: 'cti_00000000000000000000000002',
+        configured: true,
+        variantEnabled: true,
+    );
+
+    $plan = OrderPlacementPlan::for([$blocked, $placeable]);
+
+    expect($plan->blockedReasonFor('cti_00000000000000000000000001'))->toBe(UnavailableReason::OffSale)
+        ->and($plan->blockedReasonFor('cti_00000000000000000000000002'))->toBeNull();
+});
+
+it('judges a configured line off its variant and unit rather than the listing quantity', function (
+    PlaceableLine $line,
+    ?UnavailableReason $reason,
+): void {
+    $plan = OrderPlacementPlan::for([$line]);
+
+    expect($plan->isPlaceable())->toBe($reason === null)
+        ->and($plan->blockedReasonFor($line->lineId ?? ''))->toBe($reason);
+})->with([
+    'an enabled, uncapped variant is always placeable' => [
+        new PlaceableLine('lst_1', 'Ring', ListingStatus::ForSale, 0, 1, false, 'cti_1', configured: true, variantEnabled: true),
+        null,
+    ],
+    'a disabled variant is off sale' => [
+        new PlaceableLine('lst_1', 'Ring', ListingStatus::ForSale, 0, 1, false, 'cti_1', configured: true, variantEnabled: false),
+        UnavailableReason::OffSale,
+    ],
+    'a serialized line whose unit is still available is placeable' => [
+        new PlaceableLine('lst_1', 'Candlestick', ListingStatus::ForSale, 0, 1, false, 'cti_1', configured: true, variantEnabled: true, serialized: true, unitAvailable: true),
+        null,
+    ],
+    'a serialized line whose unit sold to someone else is sold out' => [
+        new PlaceableLine('lst_1', 'Candlestick', ListingStatus::ForSale, 0, 1, false, 'cti_1', configured: true, variantEnabled: true, serialized: true, unitAvailable: false),
+        UnavailableReason::SoldOut,
+    ],
+    'a non-serialized variant with stock left is placeable' => [
+        new PlaceableLine('lst_1', 'Tee', ListingStatus::ForSale, 0, 2, false, 'cti_1', configured: true, variantEnabled: true, variantRemainingQuantity: 3),
+        null,
+    ],
+    'a non-serialized variant with nothing left is sold out' => [
+        new PlaceableLine('lst_1', 'Tee', ListingStatus::ForSale, 0, 1, false, 'cti_1', configured: true, variantEnabled: true, variantRemainingQuantity: 0),
+        UnavailableReason::SoldOut,
+    ],
+    'a non-serialized variant asked for more than remains is short stock' => [
+        new PlaceableLine('lst_1', 'Tee', ListingStatus::ForSale, 0, 5, false, 'cti_1', configured: true, variantEnabled: true, variantRemainingQuantity: 2),
+        UnavailableReason::ShortStock,
+    ],
+    'a removal outranks the variant standing behind it' => [
+        new PlaceableLine('lst_1', 'Ring', ListingStatus::ForSale, 0, 1, true, 'cti_1', configured: true, variantEnabled: true),
+        UnavailableReason::Removed,
+    ],
+    'the listing status outranks the variant standing behind it' => [
+        new PlaceableLine('lst_1', 'Ring', ListingStatus::Archived, 0, 1, false, 'cti_1', configured: true, variantEnabled: true),
+        UnavailableReason::OffSale,
+    ],
+]);

@@ -21,6 +21,16 @@ it('shows a for sale listing with its artist and price', function (): void {
     $response->assertSee('$245.00');
 });
 
+it('shows the listings cover image on its shop card', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $this->listingImage($listing, ['path' => 'listings/cover.jpg', 'position' => 0]);
+
+    $response = $this->get('/');
+
+    $response->assertSee($listing->imageUrl(), escape: false);
+});
+
 it('leaves out listings that are not for sale', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'Unfinished Sketch', 'status' => ListingStatus::Draft]);
@@ -52,12 +62,13 @@ it('drops a removed listing from search results', function (): void {
     $response->assertDontSee('Harbour Study');
 });
 
-it('searches titles descriptions and media', function (): void {
+it('searches titles descriptions and media attribute labels', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Harbour at Dawn', 'description' => 'A quiet morning.', 'medium' => 'oil']);
-    $this->listing($seller, ['title' => 'Kiln Study', 'description' => 'Fired in a harbour town.', 'medium' => 'ceramic']);
-    $this->listing($seller, ['title' => 'Field Notes', 'description' => 'Pencil on paper.', 'medium' => 'harbour-blue print']);
-    $this->listing($seller, ['title' => 'Winter Elm', 'description' => 'Bare branches.', 'medium' => 'watercolour']);
+    $this->listing($seller, ['title' => 'Harbour at Dawn', 'description' => 'A quiet morning.']);
+    $this->listing($seller, ['title' => 'Kiln Study', 'description' => 'Fired in a harbour town.']);
+    $field = $this->listing($seller, ['title' => 'Field Notes', 'description' => 'Pencil on paper.']);
+    $this->mediumAttribute($field, 'Harbour Blue Print');
+    $this->listing($seller, ['title' => 'Winter Elm', 'description' => 'Bare branches.']);
 
     $response = $this->get('/?q=harbour');
 
@@ -80,8 +91,10 @@ it('treats a search of only wildcards as no search', function (): void {
 
 it('narrows to one medium', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Harbour at Dawn', 'medium' => 'oil']);
-    $this->listing($seller, ['title' => 'Kiln Study', 'medium' => 'ceramic']);
+    $oil = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $ceramic = $this->listing($seller, ['title' => 'Kiln Study']);
+    $this->mediumAttribute($oil, 'Oil');
+    $this->mediumAttribute($ceramic, 'Ceramic');
 
     $response = $this->get('/?medium=ceramic');
 
@@ -91,17 +104,29 @@ it('narrows to one medium', function (): void {
 
 it('shows an empty storefront when the medium filter matches nothing', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Harbour at Dawn', 'medium' => 'oil']);
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $this->mediumAttribute($listing, 'Oil');
 
     $response = $this->get('/?medium=bronze');
 
     $response->assertDontSee('Harbour at Dawn');
 });
 
+it('leaves a listing with no Medium attribute out of every medium filter', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Unattributed Piece']);
+
+    $response = $this->get('/?medium=oil');
+
+    $response->assertDontSee('Unattributed Piece');
+});
+
 it('offers the media of listings that are for sale', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['medium' => 'ceramic']);
-    $this->listing($seller, ['medium' => 'linocut', 'status' => ListingStatus::Draft]);
+    $forSale = $this->listing($seller);
+    $draft = $this->listing($seller, ['status' => ListingStatus::Draft]);
+    $this->mediumAttribute($forSale, 'Ceramic');
+    $this->mediumAttribute($draft, 'Linocut');
 
     $response = $this->get('/');
 

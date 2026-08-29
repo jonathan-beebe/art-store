@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PricingMode;
+use App\Domain\Configurator\PublishIssue;
+use App\Domain\Configurator\StandaloneOptionSnapshot;
+use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
+use App\Domain\Listings\ListingStockLabel;
 use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -23,7 +29,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 use Override;
 
 /**
@@ -34,8 +39,8 @@ use Override;
  * @property-read int $cart_adds_count  only after `withEventCounts` or `loadEventCounts`
  */
 #[Fillable([
-    'seller_id', 'title', 'slug', 'description', 'price_cents',
-    'quantity', 'status', 'image_path', 'medium', 'dimensions',
+    'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
+    'quantity', 'status', 'dimensions',
 ])]
 class Listing extends Model
 {
@@ -66,6 +71,54 @@ class Listing extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
+    }
+
+    /** @return BelongsTo<Category, $this> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    /** @return HasMany<ListingAttribute, $this> */
+    public function listingAttributes(): HasMany
+    {
+        return $this->hasMany(ListingAttribute::class);
+    }
+
+    /** @return HasMany<OptionAxis, $this> */
+    public function optionAxes(): HasMany
+    {
+        return $this->hasMany(OptionAxis::class);
+    }
+
+    /** @return HasMany<Variant, $this> */
+    public function variants(): HasMany
+    {
+        return $this->hasMany(Variant::class);
+    }
+
+    /** @return HasMany<Modifier, $this> */
+    public function modifiers(): HasMany
+    {
+        return $this->hasMany(Modifier::class);
+    }
+
+    /** @return HasMany<QuantityBreak, $this> */
+    public function quantityBreaks(): HasMany
+    {
+        return $this->hasMany(QuantityBreak::class);
+    }
+
+    /** @return HasMany<DescriptionSection, $this> */
+    public function descriptionSections(): HasMany
+    {
+        return $this->hasMany(DescriptionSection::class);
+    }
+
+    /** @return HasMany<ListingImage, $this> */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ListingImage::class);
     }
 
     /** @return HasMany<ListingEvent, $this> */
@@ -132,6 +185,28 @@ class Listing extends Model
         return Money::fromCents($this->price_cents);
     }
 
+    /**
+     * The bare count, or "Made to order" for the null, uncapped reading a
+     * seller reaches through the "Made to order" checkbox.
+     */
+    public function quantityLabel(): string
+    {
+        return ListingStockLabel::bare($this->quantity);
+    }
+
+    /**
+     * Whether this listing still prices and stocks itself, rather than
+     * handing that job to the choices or combinations screens — true until
+     * it either offers an option choice or breaks into serialized,
+     * one-of-a-kind pieces. A modifier or a quantity discount alone leaves
+     * this true: neither replaces the listing's own price and stock count,
+     * only adjusts or discounts it.
+     */
+    public function hasOwnPriceAndStock(): bool
+    {
+        return $this->optionAxes()->doesntExist() && $this->variants()->where('is_serialized', true)->doesntExist();
+    }
+
     public function isPurchasable(): bool
     {
         return ListingAvailability::isPurchasable($this->status, $this->quantity);
@@ -154,6 +229,85 @@ class Listing extends Model
     public function availableTransitions(): array
     {
         return ListingAvailability::availableTransitions($this->status, $this->hasActiveRemoval());
+    }
+
+    /**
+     * Folds this listing's axes, variants, modifiers, quantity breaks, and
+     * sections into the primitives {@see ConfiguratorPublishValidation} judges
+     * without reading anything itself. Empty for a listing with no
+     * configurator data — the legacy, axis-free path has nothing to check.
+     *
+     * @return list<PublishIssue>
+     */
+    public function publishIssues(): array
+    {
+        $axes = $this->optionAxes()->withCount('optionValues')->with('optionValues')->get();
+
+        $variants = array_values($this->variants()->get()->map(fn (Variant $variant): VariantSnapshot => new VariantSnapshot(
+            $variant->id,
+            $variant->enabled,
+            $variant->resolvedPrice($this->price())->cents,
+            $variant->is_serialized,
+            $variant->availableUnitCount(),
+            $variant->axisIdsCovered(),
+        ))->all());
+
+        /** @var list<string> $requiredAttributePropertyIds */
+        $requiredAttributePropertyIds = $this->category_id === null ? [] : array_values(CategoryProperty::query()
+            ->where('category_id', $this->category_id)
+            ->where('usable_as_attribute', true)
+            ->where('required', true)
+            ->pluck('property_id')
+            ->all());
+
+        /** @var list<string> $attributedPropertyIds */
+        $attributedPropertyIds = array_values($this->listingAttributes()->distinct()->pluck('property_id')->all());
+
+        $standaloneOptions = array_values($axes
+            ->filter(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone)
+            ->flatMap(fn (OptionAxis $axis) => $axis->optionValues)
+            ->map(fn (OptionValue $value): StandaloneOptionSnapshot => new StandaloneOptionSnapshot($value->id, $value->price_cents))
+            ->all());
+
+        return ConfiguratorPublishValidation::check(
+            axisIds: array_values($axes->map(fn (OptionAxis $axis): string => $axis->id)->all()),
+            optionCountsPerAxis: array_values($axes->map(function (OptionAxis $axis): int {
+                $count = $axis->getAttribute('option_values_count');
+
+                return is_numeric($count) ? (int) $count : 0;
+            })->all()),
+            variants: $variants,
+            modifierCount: $this->modifiers()->count(),
+            quantityBreakCount: $this->quantityBreaks()->count(),
+            sectionCount: $this->descriptionSections()->count(),
+            requiredAttributePropertyIds: $requiredAttributePropertyIds,
+            attributedPropertyIds: $attributedPropertyIds,
+            standaloneOptions: $standaloneOptions,
+        );
+    }
+
+    /**
+     * Whether the full cross product of this listing's axes already has a
+     * variant row for every combination — what {@see \App\Actions\Configurator\GenerateVariants}
+     * would produce from a clean slate. An axis-free listing has no
+     * combination to exhaust, so it reads false regardless of its one
+     * legacy variant.
+     */
+    public function everyVariantCombinationExists(): bool
+    {
+        $axes = $this->optionAxes()->withCount('optionValues')->get();
+
+        if ($axes->isEmpty()) {
+            return false;
+        }
+
+        $combinationCount = $axes->reduce(function (int $total, OptionAxis $axis): int {
+            $count = $axis->getAttribute('option_values_count');
+
+            return $total * (is_numeric($count) ? (int) $count : 0);
+        }, 1);
+
+        return $this->variants()->count() >= $combinationCount;
     }
 
     /**
@@ -192,11 +346,19 @@ class Listing extends Model
         return $this;
     }
 
+    /**
+     * The cover — the lowest-position row in `images` — or a placeholder
+     * drawn from the title when the listing carries no image yet. A fresh
+     * query rather than the loaded relation, so a caller that never
+     * eager-loaded `images` still gets an answer under strict mode.
+     */
     public function imageUrl(): string
     {
-        return $this->image_path === null
+        $cover = $this->images()->orderBy('position')->first();
+
+        return $cover === null
             ? PlaceholderImage::dataUri($this->title)
-            : Storage::disk('public')->url($this->image_path);
+            : $cover->url();
     }
 
     /**
@@ -316,6 +478,47 @@ class Listing extends Model
         if ($sellerId !== null) {
             $query->where('seller_id', $sellerId);
         }
+    }
+
+    /**
+     * The storefront media filter (FEAT-030): a listing carrying a Medium
+     * attribute whose label matches the URL's lowercase value (Ceramic →
+     * `medium=ceramic`). Null adds no clause, the same "empty means all"
+     * idiom `ofStatus` and `ofSeller` hold; a value nothing carries keeps
+     * this scope to zero rows rather than falling back to no filter — the
+     * same emptiness an unrecognised legacy medium produced.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofMediumAttribute(Builder $query, ?string $medium): void
+    {
+        if ($medium === null) {
+            return;
+        }
+
+        $valueIds = PropertyValue::query()
+            ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+            ->get()
+            ->filter(fn (PropertyValue $value): bool => mb_strtolower($value->label) === mb_strtolower($medium))
+            ->pluck('id');
+
+        $query->whereHas('listingAttributes', fn (Builder $attributes): Builder => $attributes->whereIn('property_value_id', $valueIds));
+    }
+
+    /**
+     * The listing page's Medium line: the label of this listing's Medium
+     * attribute, or null when it does not carry one — `listing_attributes` is
+     * the only place a listing's medium lives (RFCTR-009).
+     */
+    public function mediumAttributeLabel(): ?string
+    {
+        return $this->listingAttributes()
+            ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+            ->with('propertyValue')
+            ->first()
+            ?->propertyValue
+            ->label;
     }
 
     /**

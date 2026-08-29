@@ -98,7 +98,7 @@ final readonly class MergeAnonymousCustomer
             ->values()
             ->all();
 
-        /** @var array<string, int> $stockByListing */
+        /** @var array<string, int|null> $stockByListing */
         $stockByListing = Listing::query()->whereIn('id', $listingIds)->pluck('quantity', 'id')->all();
 
         return CustomerMergePlan::for(
@@ -117,8 +117,16 @@ final readonly class MergeAnonymousCustomer
     {
         $lines = CartItem::query()
             ->whereIn('cart_id', $customer->carts()->pluck('id'))
-            ->get(['listing_id', 'quantity'])
-            ->map(fn (CartItem $item): CustomerCartLine => new CustomerCartLine($item->listing_id, $item->quantity))
+            ->get(['listing_id', 'quantity', 'variant_id', 'unit_id', 'configuration_json', 'answers_json', 'fingerprint'])
+            ->map(fn (CartItem $item): CustomerCartLine => new CustomerCartLine(
+                $item->listing_id,
+                $item->quantity,
+                $item->fingerprint,
+                $item->variant_id,
+                $item->unit_id,
+                $item->configuration_json,
+                $item->answers_json,
+            ))
             ->values()
             ->all();
 
@@ -170,7 +178,15 @@ final readonly class MergeAnonymousCustomer
         $survivor->items()->delete();
 
         foreach ($plan->cartLines as $line) {
-            $survivor->items()->create(['listing_id' => $line->listingId, 'quantity' => $line->quantity]);
+            $survivor->items()->create([
+                'listing_id' => $line->listingId,
+                'quantity' => $line->quantity,
+                'variant_id' => $line->variantId,
+                'unit_id' => $line->unitId,
+                'configuration_json' => $line->configurationJson,
+                'answers_json' => $line->answersJson,
+                'fingerprint' => $line->fingerprint,
+            ]);
         }
     }
 

@@ -36,7 +36,7 @@ final readonly class OrderPlacementPlan
             $reason = self::unavailableReason($line);
 
             if ($reason !== null) {
-                $blocked[] = new BlockedLine($line->listingId, $line->title, $reason);
+                $blocked[] = new BlockedLine($line->listingId, $line->title, $reason, $line->lineId);
             }
         }
 
@@ -50,12 +50,15 @@ final readonly class OrderPlacementPlan
 
     /**
      * The reason the cart or pay page marks a line with, or null for a line
-     * nothing stands in the way of.
+     * nothing stands in the way of. Matched by line id when the blocked line
+     * carries one — a cart can hold two lines of the same listing (two
+     * configurations) — falling back to the listing id for a caller that
+     * never set one.
      */
-    public function blockedReasonFor(string $listingId): ?UnavailableReason
+    public function blockedReasonFor(string $key): ?UnavailableReason
     {
         foreach ($this->blocked as $line) {
-            if ($line->listingId === $listingId) {
+            if ($line->lineId === $key || ($line->lineId === null && $line->listingId === $key)) {
                 return $line->reason;
             }
         }
@@ -65,7 +68,10 @@ final readonly class OrderPlacementPlan
 
     /**
      * A removal outranks whatever the listing status says; nothing left to
-     * sell reads as sold out rather than short of stock.
+     * sell reads as sold out rather than short of stock. A configured line
+     * reads its availability off the variant (and, if serialized, the
+     * specific unit) it resolved to instead of the listing's own quantity —
+     * `docs/item-configurator.md` §3.
      */
     private static function unavailableReason(PlaceableLine $line): ?UnavailableReason
     {
@@ -73,9 +79,32 @@ final readonly class OrderPlacementPlan
             $line->hasActiveRemoval => UnavailableReason::Removed,
             $line->status === ListingStatus::Sold => UnavailableReason::SoldOut,
             $line->status !== ListingStatus::ForSale => UnavailableReason::OffSale,
+            $line->configured => self::unavailableReasonForConfiguredLine($line),
+            $line->availableQuantity === null => null,
             $line->availableQuantity < 1 => UnavailableReason::SoldOut,
             $line->quantity > $line->availableQuantity => UnavailableReason::ShortStock,
             default => null,
         };
+    }
+
+    private static function unavailableReasonForConfiguredLine(PlaceableLine $line): ?UnavailableReason
+    {
+        if (! $line->variantEnabled) {
+            return UnavailableReason::OffSale;
+        }
+
+        if ($line->serialized) {
+            return $line->unitAvailable ? null : UnavailableReason::SoldOut;
+        }
+
+        if ($line->variantRemainingQuantity === null) {
+            return null;
+        }
+
+        if ($line->variantRemainingQuantity < 1) {
+            return UnavailableReason::SoldOut;
+        }
+
+        return $line->quantity > $line->variantRemainingQuantity ? UnavailableReason::ShortStock : null;
     }
 }

@@ -15,6 +15,7 @@ use App\Models\Favorite;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
 use App\Models\ListingEvent;
 use App\Models\ListingFaq;
 use App\Models\Message;
@@ -22,7 +23,9 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Payout;
+use App\Models\Property;
 use App\Models\Seller;
+use App\Support\Configurator\ListingHighlights;
 use Illuminate\Notifications\DatabaseNotification;
 use RuntimeException;
 use Tests\CapturedStory;
@@ -40,18 +43,49 @@ beforeEach(function () use ($seedRun): void {
     $this->seed();
 });
 
-it('seeds six verified sellers', function (): void {
-    expect(Seller::count())->toBe(6)
-        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(6);
+it('seeds seven verified sellers', function (): void {
+    expect(Seller::count())->toBe(7)
+        ->and(Seller::whereNotNull('email_verified_at')->count())->toBe(7);
 });
 
-it('seeds listings across statuses and media', function (): void {
-    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(32)
+it('seeds listings across statuses', function (): void {
+    expect(Listing::where('status', ListingStatus::ForSale)->count())->toBe(41)
         ->and(Listing::where('status', ListingStatus::Draft)->count())->toBe(3)
         ->and(Listing::where('status', ListingStatus::Sold)->count())->toBe(2);
+});
 
-    expect(Listing::where('status', ListingStatus::ForSale)->pluck('medium')->unique()->sort()->values()->all())
-        ->toBe(['ceramic', 'curio', 'jewelry', 'painting', 'photography', 'plant', 'print', 'publication', 'sculpture', 'textile']);
+it('mirrors listing_attributes to the storefront media vocabulary, every listing categorized and attributed', function (): void {
+    $medium = Property::where('name', 'Medium')->sole();
+
+    expect(Listing::whereDoesntHave('listingAttributes', fn ($q) => $q->where('property_id', $medium->id))->count())->toBe(0)
+        ->and(Listing::whereNull('category_id')->count())->toBe(0);
+
+    $labels = ListingAttribute::where('property_id', $medium->id)
+        ->with('propertyValue')
+        ->get()
+        ->map(fn (ListingAttribute $attribute): string => strtolower($attribute->propertyValue->label))
+        ->unique()
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($labels)->toBe([
+        'apparel', 'ceramic', 'curio', 'jewelry', 'metal', 'painting', 'paper',
+        'photograph', 'plant', 'print', 'publication', 'sculpture', 'textile', 'wood',
+    ]);
+});
+
+it('gives the garden gnome a fixed Wood Species attribute beside its Medium — the no-choice case', function (): void {
+    $gnome = Listing::where('title', 'Garden Gnome in Reclaimed Oak')->sole();
+    $woodSpecies = Property::where('name', 'Wood Species')->sole();
+
+    $attribute = $gnome->listingAttributes()
+        ->with('propertyValue')
+        ->where('property_id', $woodSpecies->id)
+        ->sole();
+
+    expect($attribute->propertyValue->label)->toBe('Oak')
+        ->and(ListingHighlights::forStorefront($gnome))->toContain(['name' => 'Wood Species', 'values' => ['Oak']]);
 });
 
 it('seeds each listing through CreateListing, so every slug is a plain collision-free slug', function (): void {
@@ -141,8 +175,8 @@ it('keeps the database on a second run, only confirming the admins', function ()
     $log = CapturedStory::capture();
     $this->seed();
 
-    expect(Seller::count())->toBe(6)
-        ->and(Listing::count())->toBe(37)
+    expect(Seller::count())->toBe(7)
+        ->and(Listing::count())->toBe(46)
         ->and(Order::count())->toBe(3)
         ->and(Admin::count())->toBe(2)
         ->and($log->line('seed.run', 'did')['data'])->toHaveKey('skipped', true);
@@ -152,5 +186,5 @@ it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 
     expect($log->outline())->toContain('seed.run will', 'seed.run did')
-        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 7);
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 9);
 });

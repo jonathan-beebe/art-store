@@ -8,7 +8,10 @@ use App\Actions\Listings\CreateListing;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
+use App\Models\Category;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
+use App\Models\Property;
 use App\Models\Seller;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -23,6 +26,44 @@ use RuntimeException;
  */
 class ListingSeeder extends Seeder
 {
+    /**
+     * The category each of this seeder's six legacy media fits under —
+     * every one of them hosts a `TaxonomySeeder` Medium grant.
+     *
+     * @var array<string, string>
+     */
+    private const CATEGORY_BY_MEDIUM = [
+        'painting' => 'Art',
+        'print' => 'Art',
+        'photography' => 'Art',
+        'ceramic' => 'Home Goods',
+        'textile' => 'Home Goods',
+        'sculpture' => 'Home Goods',
+    ];
+
+    /**
+     * The one legacy medium string that does not title-case straight onto its
+     * `TaxonomySeeder` Medium label.
+     */
+    private const MEDIUM_LABEL_OVERRIDES = [
+        'photography' => 'Photograph',
+    ];
+
+    /**
+     * The one listing that exercises Home Goods' multivalued Medium grant
+     * (FEAT-031): a sculpture carved from a reclaimed beam is genuinely both
+     * Sculpture and Wood at once, matching this title to a second Medium
+     * value beyond the one every listing gets automatically. It also
+     * demonstrates the no-choice case for a specific-type property
+     * (FEAT-032, §2.1 "Attribute altitude"): a fixed-species piece states
+     * Wood Species as an attribute rather than building an axis for it.
+     */
+    private const MULTIVALUED_MEDIUM_TITLE = 'Garden Gnome in Reclaimed Oak';
+
+    private const ADDITIONAL_MEDIUM_VALUE = 'Wood';
+
+    private const FIXED_WOOD_SPECIES_VALUE = 'Oak';
+
     public function run(): void
     {
         $sellers = Seller::query()->get()->keyBy('email');
@@ -30,18 +71,52 @@ class ListingSeeder extends Seeder
 
         foreach ($this->listings() as $entry) {
             $seller = $sellers->get($entry['seller']) ?? throw new RuntimeException("No seller seeded for {$entry['seller']}.");
+            $category = Category::where('name', self::CATEGORY_BY_MEDIUM[$entry['medium']])->sole();
 
             $listing = $createListing($seller, ListingDraft::of(
                 $entry['title'],
                 $entry['description'],
-                $entry['medium'],
                 $entry['dimensions'],
                 Money::fromCents($entry['price_cents']),
                 $entry['quantity'],
+                categoryId: $category->id,
             ));
 
             $this->advance($listing, $entry['status']);
+            $this->attributeMedium($listing, self::MEDIUM_LABEL_OVERRIDES[$entry['medium']] ?? ucfirst($entry['medium']));
+
+            // Home Goods' Medium grant is multivalued (TaxonomySeeder) — this
+            // is the one listing that demonstrates it, carrying Sculpture
+            // (above) and Wood at once.
+            if ($entry['title'] === self::MULTIVALUED_MEDIUM_TITLE) {
+                $this->attributeMedium($listing, self::ADDITIONAL_MEDIUM_VALUE);
+                $this->attribute($listing, 'Wood Species', self::FIXED_WOOD_SPECIES_VALUE);
+            }
         }
+    }
+
+    /**
+     * A Medium attribute matching the given label.
+     */
+    private function attributeMedium(Listing $listing, string $label): void
+    {
+        $this->attribute($listing, 'Medium', $label);
+    }
+
+    /**
+     * Writes one listing_attributes row directly — reference data, the same
+     * way {@see TaxonomySeeder} writes its own rows rather than going
+     * through the seller-facing {@see \App\Actions\Configurator\SetListingAttributes}.
+     */
+    private function attribute(Listing $listing, string $propertyName, string $label): void
+    {
+        $property = Property::where('name', $propertyName)->sole();
+
+        ListingAttribute::create([
+            'listing_id' => $listing->id,
+            'property_id' => $property->id,
+            'property_value_id' => $property->values()->where('label', $label)->sole()->id,
+        ]);
     }
 
     private function advance(Listing $listing, ListingStatus $target): void
@@ -51,7 +126,7 @@ class ListingSeeder extends Seeder
             ListingStatus::ForSale => $listing->changeStatusTo(ListingStatus::ForSale),
             // A listing reaches the storefront before it can sell out: put it
             // up for sale, then sell the stock it was created with.
-            ListingStatus::Sold => $listing->changeStatusTo(ListingStatus::ForSale)->sell($listing->quantity),
+            ListingStatus::Sold => $listing->changeStatusTo(ListingStatus::ForSale)->sell($listing->quantity ?? throw new RuntimeException('A seeded sold-out listing always starts with a fixed quantity.')),
             ListingStatus::Archived => $listing->changeStatusTo(ListingStatus::Archived),
         };
     }

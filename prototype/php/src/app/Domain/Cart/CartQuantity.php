@@ -19,7 +19,7 @@ final class CartQuantity
      * a cart — the same answer `/art/{slug}` gives by then, and the answer
      * checkout gives to a line that is already in one.
      */
-    public static function withinStock(int $requested, int $available, ListingStatus $status, bool $hasActiveRemoval): int
+    public static function withinStock(int $requested, ?int $available, ListingStatus $status, bool $hasActiveRemoval): int
     {
         if ($requested < 1) {
             throw new InvalidArgumentException("A cart holds at least one of a listing, got {$requested}.");
@@ -29,6 +29,6 @@ final class CartQuantity
             throw new DomainRuleViolation('That listing is no longer for sale.');
         }
 
-        return min($requested, $available);
+        return $available === null ? $requested : min($requested, $available);
     }
 }

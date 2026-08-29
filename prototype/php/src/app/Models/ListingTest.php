@@ -5,12 +5,119 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\Listings\RecordListingEvent;
+use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PublishIssue;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
 use DomainException;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
+
+it('reads its configurator rows through their relations', function (): void {
+    $category = Category::factory()->create();
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    Variant::factory()->create(['listing_id' => $listing->id]);
+    Modifier::factory()->create(['listing_id' => $listing->id]);
+    QuantityBreak::factory()->create(['listing_id' => $listing->id]);
+    DescriptionSection::factory()->create(['listing_id' => $listing->id]);
+    $property = Property::factory()->create();
+    $propertyValue = PropertyValue::factory()->create(['property_id' => $property->id]);
+    ListingAttribute::factory()->create([
+        'listing_id' => $listing->id,
+        'property_id' => $property->id,
+        'property_value_id' => $propertyValue->id,
+    ]);
+
+    expect($listing->category()->first()?->id)->toBe($category->id)
+        ->and($listing->optionAxes()->count())->toBe(1)
+        ->and($listing->variants()->count())->toBe(1)
+        ->and($listing->modifiers()->count())->toBe(1)
+        ->and($listing->quantityBreaks()->count())->toBe(1)
+        ->and($listing->descriptionSections()->count())->toBe(1)
+        ->and($listing->listingAttributes()->count())->toBe(1);
+});
+
+it('has no publish issues with no configurator data', function (): void {
+    $listing = $this->listing($this->seller());
+
+    expect($listing->publishIssues())->toBe([]);
+});
+
+it('folds its axes, variants, modifiers, quantity breaks, and sections into publish issues', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
+
+    $issues = $listing->publishIssues();
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))
+        ->toBe(['variant_missing_axis_value'])
+        ->and($issues[0]->subjectId)->toBe($variant->id);
+});
+
+it('flags too many modifiers among its publish issues', function (): void {
+    $listing = $this->listing($this->seller());
+    Modifier::factory()->count(ConfiguratorPublishValidation::MAX_MODIFIERS + 1)->create(['listing_id' => $listing->id]);
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $listing->publishIssues()))
+        ->toBe(['too_many_modifiers']);
+});
+
+it('flags a required attribute with no value among its publish issues', function (): void {
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+
+    $issues = $listing->publishIssues();
+
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))->toBe(['missing_required_attribute'])
+        ->and($issues[0]->subjectId)->toBe($property->id);
+});
+
+it('does not flag a required attribute the listing already holds a value for', function (): void {
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $value = PropertyValue::factory()->create(['property_id' => $property->id]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    ListingAttribute::factory()->create([
+        'listing_id' => $listing->id,
+        'property_id' => $property->id,
+        'property_value_id' => $value->id,
+    ]);
+
+    expect($listing->publishIssues())->toBe([]);
+});
+
+it('ignores a required grant belonging to another category', function (): void {
+    $category = Category::factory()->create();
+    $otherCategory = Category::factory()->create();
+    $property = Property::factory()->create();
+    CategoryProperty::factory()->create([
+        'category_id' => $otherCategory->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+        'required' => true,
+    ]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+
+    expect($listing->publishIssues())->toBe([]);
+});
 
 it('reads the faqs published on it', function (): void {
     $listing = $this->listing($this->seller());
@@ -106,6 +213,30 @@ it('shows every listing when the removed filter is any or absent', function (?Re
     'the explicit any case' => [RemovedFilter::Any],
 ]);
 
+it('narrows by its Medium attribute, case-insensitively, and adds no clause for null', function (): void {
+    $seller = $this->seller();
+    $ceramic = $this->listing($seller, ['title' => 'Kiln Study']);
+    $oil = $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $unattributed = $this->listing($seller, ['title' => 'Field Sketch']);
+    $this->mediumAttribute($ceramic, 'Ceramic');
+    $this->mediumAttribute($oil, 'Oil');
+
+    expect(Listing::query()->ofMediumAttribute('ceramic')->pluck('title')->all())->toBe(['Kiln Study'])
+        ->and(Listing::query()->ofMediumAttribute('bronze')->count())->toBe(0)
+        ->and(Listing::query()->ofMediumAttribute(null)->count())->toBe(3)
+        ->and(Listing::query()->ofMediumAttribute('ceramic')->pluck('title')->all())->not->toContain($unattributed->title);
+});
+
+it('reads its Medium attribute label, or null with none set', function (): void {
+    $seller = $this->seller();
+    $attributed = $this->listing($seller);
+    $this->mediumAttribute($attributed, 'Ceramic');
+    $unattributed = $this->listing($seller);
+
+    expect($attributed->mediumAttributeLabel())->toBe('Ceramic')
+        ->and($unattributed->mediumAttributeLabel())->toBeNull();
+});
+
 it('keeps for sale and sold on the storefront and leaves draft and archived off it', function (): void {
     $seller = $this->seller();
     $forSale = $this->listing($seller);
@@ -193,16 +324,37 @@ it('reads its price as money', function (): void {
     expect($listing->price()->format())->toBe('$450.00');
 });
 
+it('owns its own price and stock until it offers a choice or breaks into serialized pieces', function (): void {
+    $listing = $this->listing($this->seller());
+    $withChoice = $this->listing($this->seller());
+    OptionAxis::factory()->create(['listing_id' => $withChoice->id]);
+    $withPieces = $this->listing($this->seller());
+    Variant::factory()->serialized()->create(['listing_id' => $withPieces->id, 'combo_key' => 'a']);
+
+    expect($listing->hasOwnPriceAndStock())->toBeTrue()
+        ->and($withChoice->hasOwnPriceAndStock())->toBeFalse()
+        ->and($withPieces->hasOwnPriceAndStock())->toBeFalse();
+});
+
 it('renders a placeholder image when there is no upload', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron', 'image_path' => null]);
+    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron']);
 
     expect($listing->imageUrl())->toStartWith('data:image/svg+xml;base64,');
 });
 
 it('serves an uploaded image from the public disk', function (): void {
-    $listing = $this->listing($this->seller(), ['image_path' => 'listings/heron.png']);
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/heron.png']);
 
     expect($listing->imageUrl())->toEndWith('/storage/listings/heron.png');
+});
+
+it('reads the lowest-position image as the cover', function (): void {
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/second.png', 'position' => 1]);
+    $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
+
+    expect($listing->imageUrl())->toEndWith('/storage/listings/first.png');
 });
 
 it('sells items off its quantity', function (): void {
@@ -246,6 +398,32 @@ it('restocks items a sale took', function (): void {
         ->and($listing)->toHaveStatus(ListingStatus::ForSale);
 });
 
+it('DSGN-003 leaves a made-to-order quantity null through a sale', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+
+    $listing->sell(3);
+
+    expect($listing->refresh()->quantity)->toBeNull()
+        ->and($listing)->toHaveStatus(ListingStatus::ForSale);
+});
+
+it('DSGN-003 leaves a made-to-order quantity null through a restock', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $listing->sell(1);
+
+    $listing->restock(1);
+
+    expect($listing->refresh()->quantity)->toBeNull();
+});
+
+it('DSGN-003 labels a made-to-order listing rather than a bare zero', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $tracked = $this->listing($this->seller(), ['quantity' => 4]);
+
+    expect($listing->quantityLabel())->toBe('Made to order')
+        ->and($tracked->quantityLabel())->toBe('4');
+});
+
 it('moves through an allowed status transition', function (ListingStatus $from, ListingStatus $to): void {
     $listing = $this->listing($this->seller(), ['status' => $from]);
 
@@ -277,6 +455,31 @@ it('reads the favorites it was added to', function (): void {
     Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
 
     expect($listing->favorites()->pluck('customer_id')->all())->toBe([$customer->id]);
+});
+
+it('reads false for an axis-free listing regardless of its one legacy variant', function (): void {
+    $listing = $this->listing($this->seller());
+    Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => '']);
+
+    expect($listing->everyVariantCombinationExists())->toBeFalse();
+});
+
+it('reads false while a combination remains unfilled', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+
+    expect($listing->everyVariantCombinationExists())->toBeFalse();
+});
+
+it('reads true once every combination has a variant row', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $only = OptionValue::factory()->create(['axis_id' => $axis->id]);
+    Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => $only->id]);
+
+    expect($listing->everyVariantCombinationExists())->toBeTrue();
 });
 
 it('counts every status across every seller\'s listings, in one row each', function (): void {

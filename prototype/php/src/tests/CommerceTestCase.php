@@ -9,6 +9,7 @@ use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
+use App\Domain\Configurator\PropertyDataType;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
 use App\Models\Admin;
@@ -16,7 +17,11 @@ use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
+use App\Models\ListingAttribute;
+use App\Models\ListingImage;
 use App\Models\Order;
+use App\Models\Property;
+use App\Models\PropertyValue;
 use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -59,6 +64,44 @@ abstract class CommerceTestCase extends TestCase
     public function listing(Seller $seller, array $attributes = []): Listing
     {
         return Listing::factory()->create($attributes + ['seller_id' => $seller->id]);
+    }
+
+    /**
+     * A listing attribute for the given property name and value label —
+     * `firstOrCreate` on the property so two calls in the same test share
+     * one property, the way a category can grant it more than once.
+     */
+    public function attribute(Listing $listing, string $propertyName, string $label): ListingAttribute
+    {
+        $property = Property::firstOrCreate(['name' => $propertyName], ['data_type' => PropertyDataType::Enum]);
+        $value = PropertyValue::firstOrCreate(['property_id' => $property->id, 'label' => $label]);
+
+        return ListingAttribute::create([
+            'listing_id' => $listing->id,
+            'property_id' => $property->id,
+            'property_value_id' => $value->id,
+        ]);
+    }
+
+    /**
+     * The storefront's Medium attribute, the shorthand every media-filter
+     * test reaches for.
+     */
+    public function mediumAttribute(Listing $listing, string $label): ListingAttribute
+    {
+        return $this->attribute($listing, 'Medium', $label);
+    }
+
+    /**
+     * A stored image row on the given listing — the shorthand every test
+     * that needs a listing to already carry a cover or extra photo reaches
+     * for, since a factory-built listing starts with none.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function listingImage(Listing $listing, array $attributes = []): ListingImage
+    {
+        return ListingImage::factory()->create($attributes + ['listing_id' => $listing->id]);
     }
 
     public function purchaser(Customer $customer): Purchaser

@@ -18,10 +18,9 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->text('description')->nullable();
             $table->unsignedInteger('price_cents');
-            $table->unsignedInteger('quantity')->default(1);
+            // Null: made to order — no fixed count, always available.
+            $table->unsignedInteger('quantity')->nullable()->default(1);
             $table->string('status')->default(ListingStatus::Draft->value);
-            $table->string('image_path')->nullable();
-            $table->string('medium')->nullable();
             $table->string('dimensions')->nullable();
             $table->timestamps();
 

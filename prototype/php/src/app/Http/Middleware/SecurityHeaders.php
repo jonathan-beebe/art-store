@@ -19,10 +19,19 @@ use Symfony\Component\HttpFoundation\Response;
  * HSTS is production-only: `make up`'s local server has no certificate for
  * a browser to keep pinning past, and it does not stop being local by
  * skipping the header.
+ *
+ * With `app.debug` on, an unhandled exception renders the framework's own
+ * debug page — a self-contained bundle of inline `<style>` and `<script>`
+ * that `default-src 'self'` alone leaves both unstyled and unrendered, since
+ * neither directive falls back to permitting inline content. The widened
+ * policy is debug-only and never reaches a production response: the
+ * constant below is what production always sends, byte-for-byte.
  */
 final readonly class SecurityHeaders
 {
     private const string CSP = "default-src 'self'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'";
+
+    private const string DEBUG_CSP_ADDITIONS = "; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'";
 
     private const string REFERRER_POLICY = 'strict-origin-when-cross-origin';
 
@@ -37,7 +46,7 @@ final readonly class SecurityHeaders
     {
         $response = $next($request);
 
-        $response->headers->set('Content-Security-Policy', self::CSP);
+        $response->headers->set('Content-Security-Policy', self::CSP.(app()->hasDebugModeEnabled() ? self::DEBUG_CSP_ADDITIONS : ''));
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', self::REFERRER_POLICY);
 

@@ -64,3 +64,16 @@ it('leaves an archived listing archived after a restock', function (): void {
 it('rejects a restock quantity below one', function (): void {
     expect(fn () => ListingStock::afterRestock(0, ListingStatus::Sold, 0))->toThrow(InvalidArgumentException::class);
 });
+
+it('leaves a made-to-order quantity null through a sale', function (): void {
+    $stock = ListingStock::afterSale(null, ListingStatus::ForSale, 5, 'Harbour at Dawn');
+
+    expect($stock->quantity)->toBeNull()
+        ->and($stock->status)->toBe(ListingStatus::ForSale);
+});
+
+it('leaves a made-to-order quantity null through a restock', function (): void {
+    $stock = ListingStock::afterRestock(null, ListingStatus::ForSale, 2);
+
+    expect($stock->quantity)->toBeNull();
+});

@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\AddUnit;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\CreateVariant;
+use App\Actions\Configurator\GenerateVariants;
+use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
@@ -40,6 +47,18 @@ it('puts the stock it was holding back on the storefront', function (): void {
         ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
+it('DSGN-003 leaves a made-to-order listings quantity null on cancel', function (): void {
+    $listing = $this->listing($this->seller(), ['quantity' => null]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+
+    expect($listing->refresh()->status)->toBe(ListingStatus::ForSale);
+
+    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
+
+    expect($listing->refresh()->quantity)->toBeNull()
+        ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
 it('leaves the stock alone when a declined card already handed it back', function (): void {
     $listing = $this->listing($this->seller(), ['quantity' => 1]);
     $order = $this->orderFor($this->verifiedCustomer(), $listing);
@@ -52,6 +71,35 @@ it('leaves the stock alone when a declined card already handed it back', functio
 
     expect($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
+it('restores a configured lines variant quantity and a serialized lines unit on cancel', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller());
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 3]);
+
+    $serializedListing = $this->listing($this->seller());
+    $serializedVariant = app(CreateVariant::class)($serializedListing, [], isSerialized: true);
+    $unit = app(AddUnit::class)($serializedVariant, '#1');
+
+    $cart = $this->cartFor($customer);
+    $addToCart = app(AddToCart::class);
+    $addToCart($cart, $listing, 2, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+    $addToCart($cart, $serializedListing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $serializedVariant, unitId: $unit->id);
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($variant->refresh()->quantity)->toBe(1)
+        ->and($unit->refresh()->state)->toBe(UnitState::Sold);
+
+    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
+
+    expect($variant->refresh()->quantity)->toBe(3)
+        ->and($unit->refresh()->state)->toBe(UnitState::Available);
 });
 
 it('refuses to cancel an order that has been paid', function (): void {

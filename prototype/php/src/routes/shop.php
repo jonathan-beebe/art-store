@@ -29,7 +29,7 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
 
     Route::get('/cart', [CartController::class, 'show'])->name('cart');
     Route::post('/cart/{listing:slug}', [CartController::class, 'add'])->name('cart.add');
-    Route::delete('/cart/{listing:slug}', [CartController::class, 'remove'])->name('cart.remove');
+    Route::delete('/cart/items/{cartItem}', [CartController::class, 'remove'])->name('cart.remove');
 
     Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'place'])->name('checkout.place');

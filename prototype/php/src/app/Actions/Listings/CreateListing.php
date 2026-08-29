@@ -27,8 +27,11 @@ final readonly class CreateListing
             $listing = $seller->listings()->create($draft->attributes() + [
                 'slug' => ListingSlug::firstFree($draft->title, $this->slugsStartingWith($base)),
                 'status' => ListingStatus::Draft,
-                'image_path' => $image === null ? null : ($this->storeListingImage)($image),
             ]);
+
+            if ($image !== null) {
+                $this->storeFirstImage($listing, $image);
+            }
 
             $story->did('created the listing', [
                 'listing_id' => $listing->id,
@@ -40,6 +43,20 @@ final readonly class CreateListing
 
             return $listing;
         });
+    }
+
+    /**
+     * A silent no-op when the disk write fails — a new listing has nothing
+     * to fall back to, so it is simply created imageless, the same as one
+     * whose seller uploaded nothing at all.
+     */
+    private function storeFirstImage(Listing $listing, UploadedFile $image): void
+    {
+        $path = ($this->storeListingImage)($image);
+
+        if ($path !== null) {
+            $listing->images()->create(['path' => $path, 'position' => 0]);
+        }
     }
 
     /**

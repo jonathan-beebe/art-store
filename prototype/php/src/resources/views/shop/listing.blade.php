@@ -1,7 +1,8 @@
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
-        <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
-             class="aspect-square w-full rounded-3xl object-cover">
+        <div>
+            @include('shop.partials.listing-images', ['listing' => $listing])
+        </div>
 
         <div class="max-w-lg">
             <h1 class="text-4xl font-semibold leading-tight tracking-tight">{{ $listing->title }}</h1>
@@ -9,27 +10,38 @@
             <p class="mt-8 text-2xl">{{ $listing->price()->format() }}</p>
 
             <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-neutral-100 py-6 text-base">
-                <dt class="text-neutral-500">Medium</dt>
-                <dd>{{ $listing->medium ?? 'Mixed' }}</dd>
+                @if ($listing->mediumAttributeLabel() !== null)
+                    <dt class="text-neutral-500">Medium</dt>
+                    <dd>{{ $listing->mediumAttributeLabel() }}</dd>
+                @endif
                 <dt class="text-neutral-500">Dimensions</dt>
                 <dd>{{ $listing->dimensions ?? 'Unlisted' }}</dd>
                 <dt class="text-neutral-500">Available</dt>
-                <dd>{{ $isPurchasable ? $listing->quantity : 'Sold' }}</dd>
+                <dd>{{ $isPurchasable ? $listing->quantityLabel() : 'Sold' }}</dd>
             </dl>
 
-            <p class="mt-8 text-lg leading-relaxed text-neutral-700">{{ $listing->description }}</p>
+            @if (! empty($highlights))
+                <section aria-labelledby="highlights-heading" class="mt-8 border-b border-neutral-100 pb-6">
+                    <h2 id="highlights-heading" class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Highlights</h2>
+                    <dl class="mt-4 grid grid-cols-2 gap-y-4 text-base">
+                        @foreach ($highlights as $highlight)
+                            <dt class="text-neutral-500">{{ $highlight['name'] }}</dt>
+                            <dd>{{ implode(', ', $highlight['values']) }}</dd>
+                        @endforeach
+                    </dl>
+                </section>
+            @endif
 
-            <div class="mt-10 flex flex-wrap items-center gap-4">
-                @if ($isPurchasable)
-                    <form method="POST" action="{{ route('shop.cart.add', $listing) }}">
-                        @csrf
-                        <button type="submit" class="rounded-full bg-neutral-900 px-8 py-3 text-base font-medium text-white">
-                            Add to cart
-                        </button>
-                    </form>
+            @include('shop.partials.listing-description', ['listing' => $listing])
+
+            <div class="mt-10">
+                @if ($hasConfigurator)
+                    @include('shop.partials.configurator', ['listing' => $listing, 'configuration' => $configuration, 'focusId' => $focusId, 'mode' => 'shop', 'refreshUrl' => route('shop.listing', $listing)])
+                @elseif ($isPurchasable)
+                    @include('shop.partials.add-to-cart-button', ['mode' => 'shop', 'listing' => $listing])
                 @endif
 
-                <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}">
+                <form method="POST" action="{{ route('shop.favorites.toggle', $listing) }}" class="mt-4">
                     @csrf
                     <button type="submit" class="rounded-full border border-neutral-300 px-8 py-3 text-base font-medium hover:border-neutral-900">
                         {{ $isFavorited ? 'Remove from favorites' : 'Favorite' }}

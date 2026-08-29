@@ -8,9 +8,13 @@ final class ListingAvailability
 {
     private function __construct() {} // @codeCoverageIgnore
 
-    public static function isPurchasable(ListingStatus $status, int $quantity): bool
+    /**
+     * A null quantity is made-to-order — no fixed count, so nothing here
+     * caps it; only the status gates it.
+     */
+    public static function isPurchasable(ListingStatus $status, ?int $quantity): bool
     {
-        return $status === ListingStatus::ForSale && $quantity > 0;
+        return $status === ListingStatus::ForSale && ($quantity === null || $quantity > 0);
     }
 
     /**

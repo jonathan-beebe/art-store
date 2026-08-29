@@ -32,7 +32,6 @@ class ListingFactory extends Factory
             'price_cents' => fake()->numberBetween(2500, 250000),
             'quantity' => 1,
             'status' => ListingStatus::ForSale,
-            'medium' => fake()->randomElement(['oil', 'print', 'ceramic', 'watercolour']),
             'dimensions' => '12 x 16 in',
         ];
     }
@@ -48,6 +47,14 @@ class ListingFactory extends Factory
             'status' => ListingStatus::Sold,
             'quantity' => 0,
         ]);
+    }
+
+    /**
+     * No fixed count — always available while for sale.
+     */
+    public function madeToOrder(): static
+    {
+        return $this->state(fn (array $attributes) => ['quantity' => null]);
     }
 
     public function archived(): static

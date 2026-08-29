@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\Configurator;
+
+use App\Logging\StoryEvent;
+use App\Models\Listing;
+use App\Models\OptionValue;
+use App\Support\Story;
+use Illuminate\Database\Eloquent\Builder;
+
+/**
+ * The variant grid's bulk action: every variant selecting one axis value
+ * (Size = Large, say) enabled or disabled together, rather than one row at a
+ * time — the walnut table's 136-combination grid culled to what actually
+ * sells without a click per cell.
+ */
+final readonly class SetVariantsEnabledByOptionValue
+{
+    public function __invoke(Listing $listing, OptionValue $optionValue, bool $enabled): int
+    {
+        return Story::for(StoryEvent::ListingUpdate)->tell('setting variants enabled by option value', [
+            'listing_id' => $listing->id,
+            'option_value_id' => $optionValue->id,
+            'enabled' => $enabled,
+        ], function (Story $story) use ($listing, $optionValue, $enabled): int {
+            $count = $listing->variants()
+                ->whereHas('options', fn (Builder $options): Builder => $options->where('option_value_id', $optionValue->id))
+                ->update(['enabled' => $enabled]);
+
+            $story->did('set variants enabled by option value', [
+                'listing_id' => $listing->id,
+                'option_value_id' => $optionValue->id,
+                'enabled' => $enabled,
+                'updated_count' => $count,
+            ]);
+
+            return $count;
+        });
+    }
+}

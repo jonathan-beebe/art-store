@@ -12,6 +12,9 @@ use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\OrderItem;
+use App\Models\Unit;
+use App\Models\Variant;
+use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -86,9 +89,15 @@ final readonly class DeclineFulfillment
     {
         $order = $fulfillment->loadMissing('order')->order;
 
-        foreach ($order->load(['items.listing' => $this->takeForUpdate(...)])->items as $item) {
+        $order->load([
+            'items.listing' => $this->takeForUpdate(...),
+            'items.variant' => $this->takeForUpdateVariant(...),
+            'items.unit' => $this->takeForUpdateUnit(...),
+        ]);
+
+        foreach ($order->items as $item) {
             if ($item->seller_id === $fulfillment->seller_id) {
-                $item->listing->restock($item->quantity);
+                StockMovement::release($item);
             }
         }
     }
@@ -99,5 +108,21 @@ final readonly class DeclineFulfillment
     private function takeForUpdate(BelongsTo $listing): void
     {
         $listing->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Variant, OrderItem>  $variant
+     */
+    private function takeForUpdateVariant(BelongsTo $variant): void
+    {
+        $variant->getQuery()->lockedForPlacement();
+    }
+
+    /**
+     * @param  BelongsTo<Unit, OrderItem>  $unit
+     */
+    private function takeForUpdateUnit(BelongsTo $unit): void
+    {
+        $unit->getQuery()->lockedForPlacement();
     }
 }

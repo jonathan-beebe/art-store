@@ -12,6 +12,8 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\AskSellerRequest;
 use App\Models\Customer;
 use App\Models\Listing;
+use App\Support\Configurator\ConfiguratorInput;
+use App\Support\Configurator\ConfiguratorPageResolver;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -35,7 +37,7 @@ final class ListingQuestionController extends ShopController
             // box.
             $request->flash();
 
-            return $this->tooManyRequests($exceeded, 'shop.listing', $this->listingPage($listing, $visitor));
+            return $this->tooManyRequests($exceeded, 'shop.listing', $this->listingPage($listing, $visitor, $request));
         }
 
         $conversation = $ask(
@@ -55,12 +57,16 @@ final class ListingQuestionController extends ShopController
      *
      * @return array<string, mixed>
      */
-    private function listingPage(Listing $listing, Customer $visitor): array
+    private function listingPage(Listing $listing, Customer $visitor, AskSellerRequest $request): array
     {
+        $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
+
         return [
             'listing' => $listing->load('seller', 'faqs'),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
+            'hasConfigurator' => $hasConfigurator,
+            'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
         ];
     }
 }

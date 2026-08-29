@@ -3,17 +3,111 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 1
+- DSGN: 4
 - ARCH: 1
-- FEAT: 25
-- IMPRV: 10
+- FEAT: 33
+- IMPRV: 16
 - MAINT: 5
 - A11Y: 1
-- RFCTR: 9
-- BUG: 5
+- RFCTR: 11
+- BUG: 15
 
 ## Log
 
+- 2026-08-28:08:34:39 — IMPRV-015 — resolved: seller buyer-view panel now shares /art/{slug}'s view model and rendering partials (images/title/description, live GET form with auto-submit and no-JS Update-options round-tripping on the seller screen's own URL, inert Add to cart); eight screens' grid wrapper collapsed into x-seller.editor-layout; modifier scope-demo pair stays disabled (recorded design fork); make check green, coverage 100%, 2734 tests
+- 2026-08-28:08:02:34 — IMPRV-015 — started
+- 2026-08-28:07:55:58 — RFCTR-010 — done: Split CartItem/OrderItem::isConfigured() into hasVariant() and OrderItem::hasPricedBreakdown(), each named for the domain question it answers; the conflated predicate that caused BUG-007 is gone
+- 2026-08-28:07:48:03 — RFCTR-010 — started
+- 2026-08-28:07:48:03 — BUG-014 — done: forVariant refuses only live carts and awaiting-shipment fulfillments — settled history (shipped/delivered/declined/refunded) no longer locks the variant; guard messages name Combinations & stock; reproduced live via tinker on a delivered order
+- 2026-08-28:07:23:01 — IMPRV-015 — absorbs the 0-refine shared-view-partials research note (both duplication clusters now explicit outcomes); note discarded per human
+- 2026-08-28:07:22:01 — RFCTR-010 — defined: Split isConfigured() into honest predicates (human-directed from BUG-007's refactor note; supersedes the 0-refine research file)
+- 2026-08-28:07:20:41 — IMPRV-014 — human decision: honest-note commitment for C8/D7/D8 dropped, no relocation; 0-refine decision file discarded
+- 2026-08-28:07:19:44 — BUG-014 — started
+- 2026-08-28:07:19:44 — IMPRV-015 — defined: The seller's buyer preview shares the buyer page's view model and behavior
+- 2026-08-28:07:19:44 — BUG-014 — defined: Removing a listing's options or variants still dead-ends
+- 2026-08-28:07:19:44 — IMPRV-011 — manual browser walk recorded: enhanced path verified by the human on /art/line-art-cat-tee at 127.0.0.1
+
+- 2026-08-27:21:49:06 — IMPRV-014 — done: physical-goods footer line removed from the edit hub; C8/D7/D8 honest-note placement question filed in 0-refine for the human
+- 2026-08-27:21:40:41 — IMPRV-014 — started
+- 2026-08-27:21:40:41 — IMPRV-012 — done: coming pill extracted to one anonymous Blade component (6 real copies found, not 16; prose honest-notes left as-is); preselect radio replaced by a checkbox whose label says saving clears the others; server-side exclusivity untouched
+- 2026-08-27:21:21:32 — IMPRV-012 — started
+- 2026-08-27:21:17:50 — IMPRV-011 — done: the configurator auto-updates its options, unit cards, and price panel on change via a dependency-free auto-submit script, with autofocus continuity and the no-JS path unchanged
+- 2026-08-27:21:06:03 — IMPRV-011 — started
+- 2026-08-27:21:06:03 — BUG-013 — done: unconfigured branch of the buyer-view panel now mirrors the shop page — title, price, honest stock label, inert Add to cart; hasConfigurator confirmed correct on both axis-adding ramps
+- 2026-08-27:20:50:49 — BUG-013 — started
+- 2026-08-27:20:50:49 — BUG-012 — done: selected standalone option shows its absolute price in the shop dropdown and seller buyer-view panel; @unless(selected) guard removed in both views; view-duplication research note filed in 0-refine
+- 2026-08-27:20:39:53 — BUG-012 — started
+- 2026-08-27:20:33:21 — BUG-011 — done: added the shared buyer-view panel to the Basics screen in the hub's 1fr/380px grid; no controller/page-data change needed
+- 2026-08-27:20:29:43 — BUG-011 — started
+- 2026-08-27:20:29:33 — BUG-010 — done: ListingImage::url() returns a relative /storage path, always same-origin under img-src 'self'; storage:link verified present in dev entrypoint and runtime image
+- 2026-08-27:20:20:37 — BUG-010 — started
+- 2026-08-27:20:20:23 — BUG-008 — done: variant destroy route + row control + forVariant guard (cart/order references refuse); one bug confirmed — no variant-delete path existed; end-to-end unblock path tested
+- 2026-08-27:20:03:45 — BUG-008 — started
+- 2026-08-27:20:03:25 — BUG-007 — done: axis-free listing's priced answers now reach the cart line, frozen breakdown, and order total; gate was three call sites skipping currentBreakdown() when unconfigured; refactor note filed in 0-refine
+- 2026-08-27:19:49:40 — BUG-007 — started
+- 2026-08-27:19:47:57 — BUG-013 — defined: The buyer-view panel shows a sentence instead of the simple listing's price
+- 2026-08-27:19:14:45 — BUG-009 — RESOLVED: closed by DSGN-003's implementation — form.blade.php deleted, create opens the guided on-ramp flow
+- 2026-08-27:19:14:45 — DSGN-003 — RESOLVED: guided three-shape create on-ramp (one thing / versions / extras) shipped on php/item-configurator, replacing the legacy flat form; made-to-order shipped as an explicit checkbox (nullable listings.quantity, mirroring variant semantics) per human review refinement mid-implementation; form.blade.php retired; BUG-009 closes with this implementation; 2703 tests, 100% coverage, make check and make fresh green
+- 2026-08-27:18:35:54 — DSGN-003 — implementation started (canvas approved by human review)
+- 2026-08-27:18:44:00 — DSGN-003 — design canvas published for human review (create question + three ramp landings + flow map); implementation waits on review
+- 2026-08-27:18:31:40 — DSGN-003 — started (canvas round next)
+- 2026-08-27:18:31:22 — DSGN-003 — defined: Guided new listing — three pricing on-ramps
+- 2026-08-27:18:25:06 — BUG-012 — defined: A standalone choice's selected option hides its price in the buyer dropdown
+- 2026-08-27:18:25:06 — BUG-011 — defined: The Basics screen lacks the buyer-view panel
+- 2026-08-27:18:25:06 — BUG-010 — defined: Uploaded listing images render broken under the CSP
+- 2026-08-27:18:25:06 — BUG-009 — defined: Creating a listing still opens the legacy flat form
+- 2026-08-27:17:12:40 — DSGN-002 — done: row-based editor hub (Your item · Images · section rows beside the buyer-view panel; flat form retired; Basics detail screen with the item facts; price/stock only while unconfigured) and creation-time pricing modes (standalone options carry their own price replacing the base, add-ons stay signed deltas; price_cents sync-derived; option_missing_price gate; mode frozen once options exist); listing_images (img prefix, cover-first, 8-cap, buyer thumbnail grid); docs §2–§7 carry the design; Sunset Ridge end-to-end smoke; 2672 tests, 100% lines; IMPRV-013 closed with it
+- 2026-08-27:17:12:40 — IMPRV-013 — done: buyer-view panel on the edit hub, landed with DSGN-002's row-based hub (both hub states)
+- 2026-08-27:14:43:20 — DSGN-002 — implementation started (canvas approved by human review; Direction B — creation-time pricing mode — is the decided mechanism)
+- 2026-08-27:14:20:00 — DSGN-002 — started
+- 2026-08-27:14:06:30 — IMPRV-014 — defined: Remove the physical-goods-only footer line from the listing edit hub
+- 2026-08-27:14:06:20 — BUG-008 — defined: Removing an option a variant depends on has no path that succeeds
+- 2026-08-27:14:06:10 — IMPRV-013 — defined: Show the buyer-view preview panel on the main listing edit hub
+- 2026-08-27:14:06:00 — DSGN-002 — defined: Retire the legacy listing form; unify the editor as row summaries with buyer preview
+- 2026-08-27:13:23:12 — DSGN-001 — done: seller configurator redesigned by intent — canvas (11 artboards, human-reviewed) then six screens + hub shipped in craft language with buyer-view panels beside every control, plain-language publish checklist, honest coming/not-yet slots; every binding story carries a story-named feature test; 2547 tests, 7251 assertions, 100% lines; follow-ups BUG-007, IMPRV-012
+- 2026-08-27:13:22:41 — IMPRV-012 — defined: One coming-pill component and honest preselect semantics
+- 2026-08-27:13:22:41 — BUG-007 — defined: A priced question on a choice-free listing never charges the buyer
+- 2026-08-27:09:57:55 — DSGN-001 — implementation started (canvas approved by human review)
+- 2026-08-27:08:58:38 — DSGN-001 — design canvas published for human review (11 artboards: intent-organized editor, section screens with buyer-view panels, 43-story coverage map); implementation waits on review
+- 2026-08-27:08:41:15 — DSGN-001 — started
+- 2026-08-27:08:38:42 — DSGN-001 — defined: Seller-problem-driven configurator UI
+- 2026-08-27:08:38:42 — IMPRV-011 — defined: The configurator auto-updates on change
+- 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines
+- 2026-08-27:09:00:00 — FEAT-032 — started
+- 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
+- 2026-08-27:08:12:59 — BUG-006 — done: Error pages render styled in debug and out — `SecurityHeaders` widens the CSP to `style-src`/`script-src 'self' 'unsafe-inline'` only when `app.debug` is on (production CSP byte-for-byte unchanged); branded `404`/`419`/`500` views under one neutral shared layout (no per-site variant — Laravel resolves error views by status code alone, no site context available); 2329 tests, 6714 assertions, 100% lines
+- 2026-08-27:07:50:51 — BUG-006 — started
+- 2026-08-27:07:48:27 — BUG-005 — done: Adding an existing variant combination no longer 500s — `CreateVariantRequest` gains a combo-uniqueness rule naming the combination inline; `CreateVariant` guards the same rule as a `DomainRuleViolation` backstop; the add-variant form is replaced by a note once the grid is full (`Listing::everyVariantCombinationExists()`); 2323 tests, 6700 assertions, 100% lines
+- 2026-08-27:07:35:43 — BUG-005 — started
+- 2026-08-27:07:24:00 — RFCTR-009 — done: The legacy `listings.medium` column retires — dropped from the migration, model, factory, and every seeder; `ListingDraft`/`ListingRequest`/`CreateListing`/`UpdateListing` lose the field; the seller form drops its free-text Medium input; the storefront and admin listing pages read `mediumAttributeLabel()` only, no fallback; 2314 tests, 6677 assertions, 100% lines
+- 2026-08-27:00:00:01 — BUG-006 — defined: Error pages render unstyled
+- 2026-08-27:00:00:01 — BUG-005 — defined: Adding an existing variant combination answers a 500
+- 2026-08-27:07:14:27 — RFCTR-009 — started
+- 2026-08-27:07:12:25 — FEAT-031 — done: One Medium vocabulary (14 high-level values); Material property/grants removed; walnut table gains a Wood option axis (Walnut/Oak, 8 variants); Garden Gnome demonstrates multivalued Medium (Sculpture + Wood); 2315 tests, 6690 assertions, 100% lines
+- 2026-08-27:07:01:28 — FEAT-031 — started
+
+- 2026-08-27:00:00:00 — RFCTR-009 — defined: Remove the legacy listings.medium column
+- 2026-08-27:00:00:00 — FEAT-031 — defined: One Medium vocabulary — high-level attributes, specific axes
+- 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines
+- 2026-08-27:11:25:21 — FEAT-030 — started
+- 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
+- 2026-08-27:05:55:04 — IMPRV-010 — done: buyer configurator polish — natural unit-label ordering (`UnitLabelOrder`) shared by the buyer picker and seller units screen, humanized `specs_json` (`UnitSpecLabel`), override-priced breakdowns labeled with their combination instead of "Base price" (`OverridePriceLabel`), a `:has(:focus-visible)` ring on unit cards; addendum: pet portrait's compound "Pets & Pose" axis split into independent "Pets"/"Pose" axes; 2305 tests, 6594 assertions, 100% lines
+- 2026-08-27:05:39:24 — IMPRV-010 — started
+- 2026-08-27:00:31:24 — FEAT-029 — done: listing categorization, attributes, and storefront Highlights — category select on the seller listing form (nullable, path-indented), an attributes section on the edit screen writing through `SetListingAttributes` (a sync per property, honoring `multivalued`), category-change pruning of ungranted attribute rows in `UpdateListing`, `ConfiguratorPublishValidation`'s new `required && usable_as_attribute` gate, the axes catalog-property picker fixed to scope by category, and a Highlights panel on `/art/{slug}`; archetype seeds now exercise `required` (pet portrait's Medium) and `multivalued` (walnut table's Material); 2291 tests, 6557 assertions, 100% lines
+- 2026-08-27:00:00:46 — FEAT-029 — started
+- 2026-08-26:00:00:08 — FEAT-028 — done: checkout and order snapshot — order_items freezes variant_id/unit_id/configuration_json/answers_json/price_breakdown_json at placement, re-resolving a configured line's price and availability from the rows PlaceOrder locks rather than trusting the cart; a serialized line's unit flips available→sold and a non-serialized line's variant.quantity decrements inside the same transaction (listings.quantity/status stay untouched for configured lines), with cancel/decline/retry restoring exactly what placement claimed through one shared StockMovement helper; one order-item-detail partial renders the frozen breakdown on the customer, seller, and admin order pages; make smoke gains the configured-ring walk; 2239 tests, 6466 assertions, 100% lines
+- 2026-08-26:00:00:07 — FEAT-028 — started
+- 2026-08-26:00:00:06 — FEAT-027 — done: buyer configurator and cart — GET-form configurator on `/art/{slug}` (axis selects with grey-outs, serialized-variant unit picker, scoped modifiers, quantity-break table, live itemized price panel), add-to-cart POST with fingerprint-based merge, `cart_items` widened to `(cart_id, listing_id, fingerprint)`; 12 new Domain/Support classes; 2173 tests, 6261 assertions, 100% lines
+- 2026-08-26:00:00:05 — FEAT-027 — started
+- 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights
+- 2026-08-26:00:00:04 — FEAT-026 — done: ten seller-facing configurator screens (axes/options, sparse variant grid with generate/bulk-toggle, per-variant units, modifiers with scope picker, quantity breaks, description sections with reorder), publish validation surfaced inline on the listing edit screen with per-issue links; 16 new Actions, `ConfiguratorDeletionGuard` domain guard; 2101 tests, 6043 assertions, 100% lines
+- 2026-08-26:00:00:03 — FEAT-026 — started
+- 2026-08-26:00:00:02 — FEAT-025 — done: configurator schema (14 tables + `listings.category_id`), pure domain pricing/availability/publish-validation under `app/Domain/Configurator`, 11 seller-facing actions, taxonomy seed, and all 8 archetype seeds built through the real actions; 1948 tests, 5628 assertions, 100% lines
+- 2026-08-26:00:00:01 — FEAT-025 — started
+- 2026-08-26:00:00:00 — FEAT-028 — defined: Checkout and order snapshot
+- 2026-08-26:00:00:00 — FEAT-027 — defined: Buyer configurator and cart
+- 2026-08-26:00:00:00 — FEAT-026 — defined: Seller configurator UI
+- 2026-08-26:00:00:00 — FEAT-025 — defined: Configurator data model, domain pricing, and archetype seeds
 - 2026-08-24:23:20:00 — IMPRV-009 — done: `CustomerIdentity::fromCookie()` resolves once per request and both middlewares read that answer; on identical seeded data `/` 16 -> 14 queries, `/cart` 13 -> 11, `/art/{slug}` 18 -> 16, `/favorites` 13 -> 11; 1831 tests, 4955 assertions, 100% lines
 - 2026-08-24:23:00:00 — IMPRV-009 — started
 - 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines

@@ -9,12 +9,17 @@ use App\Domain\Listings\ListingAvailability;
 use App\Domain\Listings\ListingEventType;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
+use App\Support\Configurator\ConfiguratorInput;
+use App\Support\Configurator\ConfiguratorPageResolver;
+use App\Support\Configurator\ListingHighlights;
 use App\Support\Story;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 
 final class ListingController extends ShopController
 {
-    public function __invoke(Listing $listing, RecordListingEvent $recordListingEvent): View
+    public function __invoke(Listing $listing, Request $request, RecordListingEvent $recordListingEvent): View
     {
         abort_unless($listing->isOnStorefront(), 404);
 
@@ -31,10 +36,24 @@ final class ListingController extends ShopController
             ? $story->refused('collapsed a repeat view into the hour already recorded', $data)
             : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
 
+        $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
+        $focus = $request->query('focus');
+
         return view('shop.listing', [
-            'listing' => $listing->load('seller', 'faqs'),
+            'listing' => $listing->load([
+                'seller', 'faqs',
+                'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position'),
+                'images' => fn (Relation $query): Relation => $query->orderBy('position'),
+            ]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
+            'hasConfigurator' => $hasConfigurator,
+            'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
+            'highlights' => ListingHighlights::forStorefront($listing),
+            // The control the auto-submit script last changed, so the refreshed
+            // page can autofocus it back — round-tripped through the GET query
+            // string alongside the axis/unit/modifier selections it caused.
+            'focusId' => is_string($focus) ? $focus : null,
         ]);
     }
 }

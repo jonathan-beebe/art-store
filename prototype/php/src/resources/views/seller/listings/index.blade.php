@@ -33,7 +33,7 @@
                             </th>
                             <td class="px-4 py-3">{{ $listing->status->label() }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->price()->format() }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->quantity }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->quantityLabel() }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->views_count }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->favorites_count }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ $listing->cart_adds_count }}</td>

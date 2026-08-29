@@ -15,5 +15,8 @@ final readonly class BlockedLine
         public string $listingId,
         public string $title,
         public UnavailableReason $reason,
+        // The cart or order item this reason belongs to, when the line it
+        // came from carried one — see {@see PlaceableLine::$lineId}.
+        public ?string $lineId = null,
     ) {}
 }
