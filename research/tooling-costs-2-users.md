@@ -1,6 +1,6 @@
 # shmetsy — Tooling Cost Reference (2 users)
 
-**Compiled:** 2026-08-28 · **Updated:** 2026-08-28 (added domain registration, Claude Max, CDN investigation)
+**Compiled:** 2026-08-28 · **Updated:** 2026-08-28 (added domain registration, Claude Max, CDN investigation, customer support software)
 **Scope:** Base/entry tiers for Supabase, Cloudflare, Canva, GitHub, domain registration, and Claude — sized for a 2-person team.
 **Sources:** Vendor-owned pages and docs only (links at the bottom). All figures USD.
 
@@ -148,7 +148,66 @@ GitHub Free (personal or organization) includes **unlimited private repositories
 
 ---
 
-## 8. Still not covered
+## 8. Customer support software — Zendesk vs. competitors (2 users)
+
+**Researched 2026-08-28.** All prices per agent/seat per month unless noted.
+
+### 8.1 Cost at 2 users
+
+| Vendor | Free tier | Entry paid plan | Pricing model | 2 users/mo (annual billing) | 2 users/yr | Confidence |
+|---|---|---|---|---|---|---|
+| **Help Scout** | **Free — up to 5 users**, 1 inbox, 1 Docs site | Standard $25/user monthly, ~$21/user annual | Per seat | **$0** on Free | **$0** | HIGH |
+| **Freshdesk** | **Free — up to 2 agents** | Growth **$19/agent** annual | Per seat | **$0** on Free, else $38 | $456 | HIGH |
+| **HubSpot Service Hub** | **Free — up to 2 users** | Starter **$7/seat** annual ($20 monthly) | Per seat | **$0** on Free, else $14 | $168 | HIGH |
+| **Zoho Desk** | **Free — 3 user licenses** | Express (USD price UNVERIFIED) | Per seat | **$0** on Free | $0 | HIGH (free tier) / UNVERIFIED (USD prices) |
+| **Crisp** | **Free — 2 seats** | Mini **$45/mo flat** (4 seats incl.) | **Flat per workspace** | **$0** on Free, else $45 | $540 | HIGH |
+| **Zendesk** | None | Support Team **$19/agent** annual; Suite Team **$55/agent** annual | Per seat | **$38** (Support) / **$110** (Suite) | $456 / $1,320 | HIGH |
+| **Intercom** | None | Essential **$29/seat** annual | Per seat + AI usage | **$58** + $0.99/Fin resolution | $696+ | HIGH |
+| **Gorgias** | None | Usage-based; docs example "300 tickets for $60/month + $0.40 per extra ticket" | **Per ticket/conversation — "never priced per agent"** | **~$60 flat**, seats not charged | ~$720 | HIGH (model) / UNVERIFIED (tier prices) |
+
+**Notes on gaps:** Zoho Desk publishes prices in local currency by geography; the USD figures did not render in this pass — do not convert the rupee prices, Zoho sets USD separately. Gorgias's tier table is JavaScript-rendered; only the docs' illustrative example was confirmed. Zendesk publishes annual rates and states "20% off annual" but does not show monthly figures — Support Team monthly derives to ~$23.75 (MEDIUM).
+
+### 8.2 Price breaks at 5+ users — the answer is no, and the premise inverts
+
+**No vendor in this set publishes a volume discount tied to seat count.** Seat-based pricing is strictly linear: 5 seats costs exactly 2.5× what 2 seats costs. Zendesk, Freshdesk, Help Scout, Intercom, and HubSpot all confirmed to have no published 5-seat or 10-seat break.
+
+**Going from 2 to 5 users makes things *more* expensive than linear, because free tiers are seat-capped:**
+
+| Vendor | Free tier cap | What happens at 5 users |
+|---|---|---|
+| Help Scout | 5 users | **Still free.** The only vendor whose free tier survives to 5. |
+| Zoho Desk | 3 users | Falls off free → paid |
+| Freshdesk | 2 agents | Falls off free → $95/mo |
+| HubSpot Service Hub | 2 users | Falls off free → $35/mo |
+| Crisp | 2 seats | Falls off free → Mini $45/mo covers 4; Essentials $95/mo covers 10 |
+
+**The real breaks that do exist at 5+ users come from non-seat pricing models:**
+
+| Vendor | 5-user effective cost | Per-user | Why |
+|---|---|---|---|
+| **Gorgias** | ~$60/mo (volume-driven) | **~$12/user** | Agents are free; you pay for tickets |
+| **Crisp Essentials** | $95/mo flat (10 seats) | **$9.50/user** at 10 seats | Flat per workspace |
+| **Crisp Mini** | $45/mo flat (4 seats) | $11.25/user at 4 seats | 5th-seat cost not published |
+| Zendesk Support Team | $95/mo | $19/user | Linear |
+| Freshdesk Growth | $95/mo | $19/user | Linear |
+
+**Bottom line: if the team is likely to grow past 5, the lever is choosing a non-seat pricing model (Gorgias, Crisp), not negotiating a seat discount.** Enterprise-tier negotiated discounts exist at Zendesk and Intercom but start far above 5 seats and are not published.
+
+**The one discount that is real at any size is annual billing:** Zendesk states "20% off annual"; Help Scout ~16%; HubSpot Starter $7 vs $20 per seat; Intercom and Freshdesk publish annual rates only.
+
+### 8.3 Recommendation for shmetsy
+
+**Start on Help Scout Free — $0, and it covers you to 5 users.** It is the only free tier in this set that survives past 3 seats, and it includes a Docs site (public knowledge base) which is worth having for an ecommerce storefront. No other vendor gives you headroom to grow the team without a bill.
+
+**Do not start with Zendesk.** At 2 users it is $456–$1,320/yr for capability a 2-person pre-launch operation will not use, and it has no free tier to fall back on.
+
+**The one to revisit later is Gorgias**, if shmetsy is selling on Etsy/Shopify at volume. It is the ecommerce-native option, it does not charge per agent, and it becomes cheaper per person as the team grows. It is the wrong choice today only because usage-based billing starts around $60/mo whether or not you have tickets.
+
+**Watch for:** Help Scout Free is limited to **1 inbox and 1 Docs site**. If shmetsy needs a second inbox, that is $10/mo (annual) or triggers Standard at ~$21/user/mo. That is the most likely reason you would leave the free tier before hitting 5 people.
+
+**Budget line: $0/mo.** Support software adds nothing to the Scenario B total.
+
+## 9. Still not covered
 
 - Etsy's own fee stack — see `etsy-fees-and-pricing-model.md`
 - Supabase overages above Pro quotas ($0.00325/MAU beyond 100k, plus egress/storage)
@@ -156,6 +215,7 @@ GitHub Free (personal or organization) includes **unlimited private repositories
 - Canva AI Pass add-on (price not published)
 - Claude API spend (separate from subscriptions), and "usage credits" that continue work at API rates past subscription limits
 - Email hosting — Google Workspace judged unnecessary while docs live in the GitHub repo (see §4 caveat)
+- Zoho Desk USD prices and Gorgias tier prices (see §8.1 gaps)
 
 ---
 
@@ -170,3 +230,11 @@ GitHub Free (personal or organization) includes **unlimited private repositories
 - GitHub pricing — https://github.com/pricing · plans docs — https://docs.github.com/en/get-started/learning-about-github/githubs-plans · wikis — https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis
 - Namecheap .com — https://www.namecheap.com/domains/registration/gtld/com/ · advance renewal — https://www.namecheap.com/blog/renew-domains-advance-save-money/ · max term — https://www.namecheap.com/support/knowledgebase/article.aspx/770/35/
 - Claude pricing — https://claude.com/pricing · Max plan — https://support.claude.com/en/articles/11049741-what-is-the-max-plan
+- Zendesk pricing — https://www.zendesk.com/pricing/
+- Freshdesk pricing — https://www.freshworks.com/freshdesk/pricing/ · free vs paid — https://www.freshworks.com/freshdesk/free-vs-paid-full-comparison/
+- Help Scout pricing — https://www.helpscout.com/pricing/
+- Intercom pricing — https://www.intercom.com/pricing
+- HubSpot Service Hub pricing — https://www.hubspot.com/pricing/service
+- Zoho Desk pricing — https://www.zoho.com/desk/pricing.html
+- Crisp pricing — https://crisp.chat/en/pricing/
+- Gorgias billing docs — https://docs.gorgias.com/en-US/subscription-plans-81852 · https://www.gorgias.com/llm-info
