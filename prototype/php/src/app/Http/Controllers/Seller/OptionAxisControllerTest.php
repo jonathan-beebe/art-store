@@ -480,11 +480,11 @@ it('DSGN-002 shows the required-price message inline on the choice’s own optio
     $response->assertSee('This choice prices each option on its own — give it a price.', false);
 });
 
-it('DSGN-002 renders the seeded Sunset Ridge listing’s standalone Size and add-on Frame choices correctly', function (): void {
+it('DSGN-002 renders the seeded Burrow at Sunset listing’s standalone Size and add-on Frame choices correctly', function (): void {
     $this->seed(TaxonomySeeder::class);
     $this->seed(ConfiguratorArchetypeSeeder::class);
     $seller = Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole();
-    $listing = Listing::where('title', 'Sunset Ridge, Fine Art Print')->sole();
+    $listing = Listing::where('title', 'The Burrow at Sunset, Fine Art Print')->sole();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
 

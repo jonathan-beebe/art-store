@@ -33,14 +33,14 @@ it('rates every promised pairing AA in both modes', function (): void {
 });
 
 it('renders real listings and the browse row once the catalog has them', function (): void {
-    $listing = $this->listing($this->seller('Red Clay Works'), ['title' => 'Thrown stoneware vase']);
+    $listing = $this->listing($this->seller('The Burrow Craftworks'), ['title' => 'Burrow Kitchen Tea Bowl']);
     $this->mediumAttribute($listing, 'Ceramic');
 
     $response = $this->get('/design-system');
 
     $response->assertOk();
-    $response->assertSee('Thrown stoneware vase');
-    $response->assertSee('Red Clay Works');
+    $response->assertSee('Burrow Kitchen Tea Bowl');
+    $response->assertSee('The Burrow Craftworks');
     $response->assertSee('Ceramic');
     $response->assertDontSee('No for-sale listing yet');
     $response->assertDontSee('No attributed medium yet');
@@ -67,7 +67,7 @@ it('renders the category-picker explorations with live counts and covers', funct
 });
 
 it('renders the configurator specimen live: selections reprice on this page', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Custom ring', 'price_cents' => 12000]);
+    $listing = $this->listing($this->seller(), ['title' => 'Goblin-Wrought Ring', 'price_cents' => 12000]);
     $metal = app(CreateOptionAxis::class)($listing, 'Metal');
     app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
     $roseGold = app(AddOptionValue::class)($metal, 'Rose Gold', 800);

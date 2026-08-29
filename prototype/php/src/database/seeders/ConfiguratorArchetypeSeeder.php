@@ -41,7 +41,7 @@ use Illuminate\Database\Seeder;
  */
 class ConfiguratorArchetypeSeeder extends Seeder
 {
-    public const EMAIL = 'configurator-demo@example.com';
+    public const EMAIL = 'george@example.com';
 
     public function run(): void
     {
@@ -51,8 +51,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
         $seller = Seller::create([
             'email' => self::EMAIL,
-            'name' => 'Configurator Demo',
-            'shop_name' => 'Archetype & Co',
+            'name' => 'George Weasley',
+            'shop_name' => "Weasleys' Wizard Wheezes",
             'email_verified_at' => new DateTimeImmutable('2026-08-20 00:00:00'),
         ]);
 
@@ -75,8 +75,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Meadow at Dawn, 8x10 Print',
-            'A giclée print of the meadow behind my studio, shot at first light on a spring morning.',
+            'Quidditch Pitch at Dawn, 8x10 Print',
+            'A giclée print of the Quidditch pitch behind the shop, shot at first light on a spring morning.',
             '8 x 10 in',
             3500,
             10,
@@ -97,7 +97,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Engraved Signet Ring',
+            'Engraved House Signet Ring',
             'A solid signet ring, hand-finished and ready for an inside or outside engraving.',
             'Ring sizes 6-9',
             12000,
@@ -141,7 +141,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Stoneware Coffee Mug',
+            'Three Broomsticks Stoneware Mug',
             'A 12oz stoneware mug, glazed in-house, with an optional personalized name or word.',
             '12 oz',
             1800,
@@ -171,8 +171,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Line Art Cat Tee',
-            'A single-line cat drawing, screen printed on soft ringspun cotton.',
+            'Line Art Kneazle Tee',
+            'A single-line kneazle drawing, screen printed on soft ringspun cotton.',
             'Unisex fit',
             2200,
             50,
@@ -209,8 +209,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Live-Edge Walnut Dining Table',
-            'A single-slab live-edge walnut table, oiled and ready for the dining room.',
+            'Live-Edge Great Hall Dining Table',
+            'A single-slab live-edge walnut table, oiled and ready for the dining hall.',
             'Length x width, see options',
             80000,
             1,
@@ -269,7 +269,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Vintage Brass Candlesticks, Individually Listed',
+            'Great Hall Brass Candlesticks, Individually Listed',
             'A lot of vintage brass candlesticks, each sold individually — pick the one photographed.',
             'Approx. 8-10 in tall, varies by piece',
             4500,
@@ -304,8 +304,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Letterpress Wedding Invitations',
-            'Letterpress-printed wedding invitations, sold per card with tiered pricing for larger orders.',
+            'Letterpress Yule Ball Invitations',
+            'Letterpress-printed Yule Ball invitations, sold per card with tiered pricing for larger orders.',
             'Card only, envelope included',
             300,
             500,
@@ -348,8 +348,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Custom Pet Portrait',
-            'A hand-painted portrait of your pet (or two), from your favorite photo.',
+            'Custom Patronus Portrait',
+            'A hand-painted portrait of your patronus (or two), from your favorite memory.',
             'See size options',
             6500,
             15,
@@ -389,8 +389,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
     {
         $listing = $this->createListing(
             $seller,
-            'Sunset Ridge, Fine Art Print',
-            'A sunset over the ridge behind the studio, giclée printed in three sizes — framed or unframed.',
+            'The Burrow at Sunset, Fine Art Print',
+            'A sunset over the Burrow, giclée printed in three sizes — framed or unframed.',
             'See size options',
             1800,
             25,

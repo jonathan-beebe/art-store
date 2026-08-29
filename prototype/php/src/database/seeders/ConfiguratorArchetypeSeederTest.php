@@ -31,7 +31,7 @@ it('seeds one demo seller owning all nine archetypes', function (): void {
 });
 
 it('gives the plain print the legacy, axis-free path with zero configurator rows', function (): void {
-    $listing = archetypeListing('Meadow at Dawn, 8x10 Print');
+    $listing = archetypeListing('Quidditch Pitch at Dawn, 8x10 Print');
 
     expect($listing->optionAxes()->count())->toBe(0)
         ->and($listing->variants()->count())->toBe(0)
@@ -40,7 +40,7 @@ it('gives the plain print the legacy, axis-free path with zero configurator rows
 });
 
 it('generates the ring’s full 3x3 grid and prices a variant off its surcharges', function (): void {
-    $listing = archetypeListing('Engraved Signet Ring');
+    $listing = archetypeListing('Engraved House Signet Ring');
 
     expect($listing->optionAxes()->count())->toBe(2)
         ->and($listing->variants()->count())->toBe(9);
@@ -55,7 +55,7 @@ it('generates the ring’s full 3x3 grid and prices a variant off its surcharges
 });
 
 it('scopes the ring’s font and text modifiers away from "No Engraving"', function (): void {
-    $listing = archetypeListing('Engraved Signet Ring');
+    $listing = archetypeListing('Engraved House Signet Ring');
     $noEngraving = $listing->optionAxes()->where('name', 'Engraving')->sole()->optionValues()->where('label', 'No Engraving')->sole();
     $outside = $listing->optionAxes()->where('name', 'Engraving')->sole()->optionValues()->where('label', 'Outside Only')->sole();
 
@@ -71,7 +71,7 @@ it('scopes the ring’s font and text modifiers away from "No Engraving"', funct
 });
 
 it('scopes the mug’s personalization text to only the personalized option value', function (): void {
-    $listing = archetypeListing('Stoneware Coffee Mug');
+    $listing = archetypeListing('Three Broomsticks Stoneware Mug');
     $axis = $listing->optionAxes()->sole();
     $blank = $axis->optionValues()->where('label', 'Blank')->sole();
     $personalized = $axis->optionValues()->where('label', 'Personalized')->sole();
@@ -83,7 +83,7 @@ it('scopes the mug’s personalization text to only the personalized option valu
 });
 
 it('gives the tee’s larger sizes their surcharge', function (): void {
-    $listing = archetypeListing('Line Art Cat Tee');
+    $listing = archetypeListing('Line Art Kneazle Tee');
     $size = $listing->optionAxes()->where('name', 'Size')->sole();
 
     expect($size->optionValues()->where('label', 'M')->sole()->surcharge_cents)->toBe(0)
@@ -93,7 +93,7 @@ it('gives the tee’s larger sizes their surcharge', function (): void {
 });
 
 it('gives the walnut table sparse variants with price overrides crossed with a full Wood axis', function (): void {
-    $listing = archetypeListing('Live-Edge Walnut Dining Table');
+    $listing = archetypeListing('Live-Edge Great Hall Dining Table');
 
     expect($listing->optionAxes()->count())->toBe(3)
         ->and($listing->variants()->count())->toBe(8);
@@ -113,7 +113,7 @@ it('gives the walnut table sparse variants with price overrides crossed with a f
 });
 
 it('catalog-backs the walnut table’s Wood axis against the Wood Species property', function (): void {
-    $listing = archetypeListing('Live-Edge Walnut Dining Table');
+    $listing = archetypeListing('Live-Edge Great Hall Dining Table');
     $woodSpecies = Property::where('name', 'Wood Species')->sole();
     $wood = $listing->optionAxes()->where('name', 'Wood')->sole();
 
@@ -128,7 +128,7 @@ it('catalog-backs the walnut table’s Wood axis against the Wood Species proper
 });
 
 it('derives the candlestick variant’s available quantity from its twelve units', function (): void {
-    $listing = archetypeListing('Vintage Brass Candlesticks, Individually Listed');
+    $listing = archetypeListing('Great Hall Brass Candlesticks, Individually Listed');
     $variant = $listing->variants()->sole();
 
     expect($variant->is_serialized)->toBeTrue()
@@ -139,7 +139,7 @@ it('derives the candlestick variant’s available quantity from its twelve units
 });
 
 it('prices the invitation’s paper stock per option and offers quantity breaks', function (): void {
-    $listing = archetypeListing('Letterpress Wedding Invitations');
+    $listing = archetypeListing('Letterpress Yule Ball Invitations');
     $paperStock = $listing->modifiers()->sole();
 
     expect($paperStock->options()->where('label', 'Cotton Linen')->sole()->add_on_price_cents)->toBe(100)
@@ -148,7 +148,7 @@ it('prices the invitation’s paper stock per option and offers quantity breaks'
 });
 
 it('generates the pet portrait’s three-axis grid, pets and pose split from the compound-option hack', function (): void {
-    $listing = archetypeListing('Custom Pet Portrait');
+    $listing = archetypeListing('Custom Patronus Portrait');
 
     expect($listing->optionAxes()->count())->toBe(3)
         ->and($listing->optionAxes()->pluck('name')->all())->toEqualCanonicalizing(['Pets', 'Pose', 'Size & Framing'])
@@ -160,8 +160,8 @@ it('generates the pet portrait’s three-axis grid, pets and pose split from the
     expect($twoPets->surcharge_cents)->toBe(1500);
 });
 
-it('gives Sunset Ridge a standalone Size axis and prices the listing off its default option', function (): void {
-    $listing = archetypeListing('Sunset Ridge, Fine Art Print');
+it('gives The Burrow at Sunset a standalone Size axis and prices the listing off its default option', function (): void {
+    $listing = archetypeListing('The Burrow at Sunset, Fine Art Print');
     $size = $listing->optionAxes()->where('name', 'Size')->sole();
     $frame = $listing->optionAxes()->where('name', 'Frame')->sole();
 
@@ -176,7 +176,7 @@ it('gives Sunset Ridge a standalone Size axis and prices the listing off its def
 });
 
 it('carries the pet portraits required Medium attribute', function (): void {
-    $listing = archetypeListing('Custom Pet Portrait');
+    $listing = archetypeListing('Custom Patronus Portrait');
 
     expect($listing->publishIssues())->toBe([])
         ->and($listing->listingAttributes()->with('propertyValue')->sole()->propertyValue->label)->toBe('Painting');
@@ -184,15 +184,15 @@ it('carries the pet portraits required Medium attribute', function (): void {
 
 it('carries a Medium attribute holding every archetype’s consolidated high-level value', function (): void {
     foreach ([
-        'Meadow at Dawn, 8x10 Print' => 'Print',
-        'Engraved Signet Ring' => 'Metal',
-        'Stoneware Coffee Mug' => 'Ceramic',
-        'Line Art Cat Tee' => 'Apparel',
-        'Live-Edge Walnut Dining Table' => 'Wood',
-        'Vintage Brass Candlesticks, Individually Listed' => 'Metal',
-        'Letterpress Wedding Invitations' => 'Paper',
-        'Custom Pet Portrait' => 'Painting',
-        'Sunset Ridge, Fine Art Print' => 'Print',
+        'Quidditch Pitch at Dawn, 8x10 Print' => 'Print',
+        'Engraved House Signet Ring' => 'Metal',
+        'Three Broomsticks Stoneware Mug' => 'Ceramic',
+        'Line Art Kneazle Tee' => 'Apparel',
+        'Live-Edge Great Hall Dining Table' => 'Wood',
+        'Great Hall Brass Candlesticks, Individually Listed' => 'Metal',
+        'Letterpress Yule Ball Invitations' => 'Paper',
+        'Custom Patronus Portrait' => 'Painting',
+        'The Burrow at Sunset, Fine Art Print' => 'Print',
     ] as $title => $expectedLabel) {
         $medium = archetypeListing($title)->listingAttributes()
             ->with(['property', 'propertyValue'])
@@ -205,15 +205,15 @@ it('carries a Medium attribute holding every archetype’s consolidated high-lev
 
 it('categorizes every configured archetype', function (): void {
     foreach ([
-        'Meadow at Dawn, 8x10 Print',
-        'Engraved Signet Ring',
-        'Stoneware Coffee Mug',
-        'Line Art Cat Tee',
-        'Live-Edge Walnut Dining Table',
-        'Vintage Brass Candlesticks, Individually Listed',
-        'Letterpress Wedding Invitations',
-        'Custom Pet Portrait',
-        'Sunset Ridge, Fine Art Print',
+        'Quidditch Pitch at Dawn, 8x10 Print',
+        'Engraved House Signet Ring',
+        'Three Broomsticks Stoneware Mug',
+        'Line Art Kneazle Tee',
+        'Live-Edge Great Hall Dining Table',
+        'Great Hall Brass Candlesticks, Individually Listed',
+        'Letterpress Yule Ball Invitations',
+        'Custom Patronus Portrait',
+        'The Burrow at Sunset, Fine Art Print',
     ] as $title) {
         expect(archetypeListing($title)->category_id)->not->toBeNull();
     }
