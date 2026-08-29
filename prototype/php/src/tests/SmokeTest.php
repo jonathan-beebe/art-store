@@ -351,7 +351,7 @@ it('carries a configured ring purchase through checkout, freezing its breakdown 
     $this->seed(TaxonomySeeder::class);
     $this->seed(ConfiguratorArchetypeSeeder::class);
 
-    $listing = Listing::where('title', 'Engraved Signet Ring')->sole();
+    $listing = Listing::where('title', 'Engraved House Signet Ring')->sole();
     $seller = Seller::where('email', ConfiguratorArchetypeSeeder::EMAIL)->sole();
     $metal = OptionAxis::where('listing_id', $listing->id)->where('name', 'Metal')->sole();
     $roseGold = OptionValue::where('axis_id', $metal->id)->where('label', 'Rose Gold')->sole();
@@ -365,7 +365,7 @@ it('carries a configured ring purchase through checkout, freezing its breakdown 
 
     // Browse, then configure: the axis and modifier choices are GET params,
     // so the page opens on a concrete price before any script runs.
-    $this->get("/art/{$listing->slug}")->assertOk()->assertSee('Engraved Signet Ring');
+    $this->get("/art/{$listing->slug}")->assertOk()->assertSee('Engraved House Signet Ring');
 
     $this->get("/art/{$listing->slug}?".http_build_query([
         'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],

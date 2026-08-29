@@ -14,14 +14,14 @@ it('renders every specimen with its empty-catalog note before any listing exists
 });
 
 it('renders the pickers with live media and covers', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Thrown stoneware vase']);
+    $listing = $this->listing($this->seller(), ['title' => 'Burrow Kitchen Tea Bowl']);
     $this->mediumAttribute($listing, 'Ceramic');
     $this->listingImage($listing);
 
     $sheet = $this->get('/design-system/specimens/browse-sheet');
     $sheet->assertOk();
     $sheet->assertSee('Browse media');
-    $sheet->assertSee('Thrown stoneware vase');
+    $sheet->assertSee('Burrow Kitchen Tea Bowl');
 
     $rail = $this->get('/design-system/specimens/cover-rail');
     $rail->assertOk();
@@ -31,30 +31,30 @@ it('renders the pickers with live media and covers', function (): void {
 });
 
 it('renders the buy bar with the listing price pinned alongside Add to cart', function (): void {
-    $this->listing($this->seller(), ['title' => 'Thrown stoneware vase', 'price_cents' => 14000]);
+    $this->listing($this->seller(), ['title' => 'Burrow Kitchen Tea Bowl', 'price_cents' => 14000]);
 
     $response = $this->get('/design-system/specimens/buy-bar');
 
     $response->assertOk();
-    $response->assertSee('Thrown stoneware vase');
+    $response->assertSee('Burrow Kitchen Tea Bowl');
     $response->assertSee('$140.00');
     $response->assertSee('Add to cart');
 });
 
 it('renders the gallery as a swipeable carousel once a listing has more than one photo', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Thrown stoneware vase']);
+    $listing = $this->listing($this->seller(), ['title' => 'Burrow Kitchen Tea Bowl']);
     $this->listingImage($listing, ['position' => 0]);
     $this->listingImage($listing, ['position' => 1]);
 
     $response = $this->get('/design-system/specimens/swipe-gallery');
 
     $response->assertOk();
-    $response->assertSee('Thrown stoneware vase — photo 1');
-    $response->assertSee('Thrown stoneware vase — photo 2');
+    $response->assertSee('Burrow Kitchen Tea Bowl — photo 1');
+    $response->assertSee('Burrow Kitchen Tea Bowl — photo 2');
 });
 
 it('shows the single photo with a nudge when a listing has no gallery yet', function (): void {
-    $this->listing($this->seller(), ['title' => 'Thrown stoneware vase']);
+    $this->listing($this->seller(), ['title' => 'Burrow Kitchen Tea Bowl']);
 
     $response = $this->get('/design-system/specimens/swipe-gallery');
 

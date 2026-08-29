@@ -31,11 +31,11 @@
             <h3 class="text-xs font-semibold uppercase tracking-wide text-ink-faint">Avatars</h3>
             <p class="mt-1 text-xs text-ink-faint">A maker's initial on a tint picked from their name — the same maker is the same color everywhere.</p>
             <div class="mt-4 flex flex-wrap items-center gap-3">
-                <x-ui.avatar name="Blue Kiln Studio" size="xs" />
-                <x-ui.avatar name="Mara Ellison" size="sm" />
-                <x-ui.avatar name="Noor Haddad" size="md" />
-                <x-ui.avatar name="Ines Duarte" size="lg" />
-                <x-ui.avatar name="Sam Whitaker" size="lg" />
+                <x-ui.avatar name="Molly Weasley" size="xs" />
+                <x-ui.avatar name="Luna Lovegood" size="sm" />
+                <x-ui.avatar name="Neville Longbottom" size="md" />
+                <x-ui.avatar name="Sybill Trelawney" size="lg" />
+                <x-ui.avatar name="Colin Creevey" size="lg" />
             </div>
         </div>
 
@@ -65,7 +65,7 @@
                 </div>
                 <div>
                     <x-ui.label for="ds-textarea">Message the maker</x-ui.label>
-                    <x-ui.textarea id="ds-textarea" rows="2" class="mt-2" placeholder="Hi Mara —"></x-ui.textarea>
+                    <x-ui.textarea id="ds-textarea" rows="2" class="mt-2" placeholder="Hi Molly —"></x-ui.textarea>
                 </div>
             </div>
         </div>

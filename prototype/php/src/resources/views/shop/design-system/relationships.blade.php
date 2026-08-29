@@ -27,7 +27,7 @@
     <div class="mt-4 rounded-card border border-line bg-canvas p-8">
         <div class="max-w-md rounded-card border border-line bg-surface p-6">
             <p class="flex items-center gap-2 text-xs text-ink-faint">
-                <x-ui.avatar name="Mara" size="xs" /> canvas → surface → line → ink
+                <x-ui.avatar name="Molly" size="xs" /> canvas → surface → line → ink
             </p>
             <h4 class="mt-3 font-display text-lg text-ink">Surface on canvas, ink on surface</h4>
             <p class="mt-2 text-sm text-ink-muted">
