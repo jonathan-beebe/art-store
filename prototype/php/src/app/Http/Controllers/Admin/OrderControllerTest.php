@@ -165,6 +165,19 @@ it('stops offering to cancel a paid order', function (): void {
     $response->assertSee('Refund this fulfillment');
 });
 
+it('keeps the Orders nav link current on an order detail page, not just the index', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $index = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+    $show = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    foreach ([$index, $show] as $response) {
+        $response->assertOk();
+        $html = (string) $response->getContent();
+        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
+    }
+});
+
 it('opens with a back link to the order list, for below sm', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
 

@@ -26,13 +26,13 @@ it('links to every page of the directory', function (): void {
     $response->assertSee('href="'.route('admin.fulfillments.index').'"', escape: false);
 });
 
-it('collapses the nav into a Menu disclosure carrying every admin link, below sm', function (): void {
+it('collapses the nav into a Menu disclosure carrying every admin link, below xl', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
     $response->assertOk();
     $html = (string) $response->getContent();
 
-    expect($html)->toMatch('/<details class="relative sm:hidden">/');
+    expect($html)->toMatch('/<details class="relative xl:hidden">/');
     foreach ([
         route('admin.sellers.index'), route('admin.customers.index'), route('admin.listings.index'),
         route('admin.orders.index'), route('admin.fulfillments.index'), route('admin.accounting'),
@@ -57,6 +57,25 @@ it('links every status drill row to its filtered list, below sm', function (): v
     $response->assertSee('href="'.route('admin.fulfillments.index', ['status' => 'awaiting_shipment']).'"', escape: false);
     $response->assertSee('href="'.route('admin.accounting').'"', escape: false);
     $response->assertSee('href="'.route('admin.stats').'"', escape: false);
+});
+
+it('marks the Dashboard nav link current in both the inline nav and the menu panel', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
+});
+
+it('does not mark Dashboard current on another admin page', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(0);
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
 });
 
 it('sends a guest to the admin login page', function (): void {
