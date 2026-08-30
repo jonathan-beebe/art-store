@@ -1,11 +1,13 @@
 @props(['conversation', 'viewer', 'indexRoute', 'storeRoute'])
 
+<x-admin.back-link :route="route($indexRoute)" label="Messages" />
+
 <div class="flex flex-wrap items-center gap-4">
     <div>
         <h1 class="text-xl font-semibold">{{ $conversation->counterpartName($viewer) }}</h1>
         <p class="text-gray-600 dark:text-gray-400">{{ $conversation->kind->topic($conversation->fulfillment?->order_id, $conversation->listing?->title) }}</p>
     </div>
-    <a href="{{ route($indexRoute) }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All messages</a>
+    <a href="{{ route($indexRoute) }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All messages</a>
 </div>
 
 <ol class="mt-6 space-y-3">

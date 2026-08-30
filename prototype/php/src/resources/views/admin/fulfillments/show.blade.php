@@ -1,7 +1,9 @@
 <x-layouts.admin :title="'Fulfillment '.$fulfillment->id.' — Art Store admin'">
+    <x-admin.back-link :route="route('admin.fulfillments.index')" label="Fulfillments" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Fulfillment {{ $fulfillment->id }}</h1>
-        <a href="{{ route('admin.fulfillments.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All fulfillments</a>
+        <a href="{{ route('admin.fulfillments.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All fulfillments</a>
     </div>
 
     <dl class="mt-4 grid gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:grid-cols-2">

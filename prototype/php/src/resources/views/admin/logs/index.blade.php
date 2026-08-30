@@ -157,14 +157,14 @@
                         </div>
 
                         <div class="mt-4 flex items-center gap-3 border-t border-gray-200 dark:border-gray-800 pt-3">
-                            <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-1.5 text-sm font-medium text-white dark:text-gray-900">Apply filters</button>
-                            <a href="{{ route('admin.logs.index') }}" class="text-sm text-gray-600 dark:text-gray-400 underline">Clear</a>
+                            <button type="submit" class="inline-flex min-h-11 items-center rounded bg-gray-900 dark:bg-gray-100 px-4 text-sm font-medium text-white dark:text-gray-900">Apply filters</button>
+                            <a href="{{ route('admin.logs.index') }}" class="inline-flex min-h-11 items-center text-sm text-gray-600 dark:text-gray-400 underline">Clear</a>
                         </div>
                     </div>
                 </details>
 
-                <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-1.5 text-sm font-medium text-white dark:text-gray-900">Filter</button>
-                <a href="{{ route('admin.logs.index') }}" class="text-sm text-gray-600 dark:text-gray-400 underline">Clear</a>
+                <button type="submit" class="inline-flex min-h-11 items-center rounded bg-gray-900 dark:bg-gray-100 px-4 text-sm font-medium text-white dark:text-gray-900">Filter</button>
+                <a href="{{ route('admin.logs.index') }}" class="inline-flex min-h-11 items-center text-sm text-gray-600 dark:text-gray-400 underline">Clear</a>
             </form>
         </div>
 
@@ -199,7 +199,7 @@
                 <x-admin.nothing class="mt-4">No log lines match these filters.</x-admin.nothing>
             @else
                 <div class="overflow-hidden rounded-b border-x border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-                    <div aria-hidden="true" class="grid {{ $rowGridCols }} gap-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    <div aria-hidden="true" class="hidden sm:grid {{ $rowGridCols }} gap-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         <span></span>
                         <span>Time</span>
                         <span>Request</span>
@@ -216,48 +216,105 @@
                             $severity = \App\Logging\Admin\LogSeverity::worstOf($group->lines);
                             $summary = \App\Logging\Admin\LogStoryHeader::of($group->lines);
                             $tint = \App\Logging\Admin\LogDurationTint::ofMs($group->durationMs);
+                            // The row's second line, below `sm`: the method+path a
+                            // request carries, or the message a non-request group
+                            // (a background job, an event with no story route) was
+                            // grouped under — the same fallback `method-path`
+                            // already uses at `sm` and up.
+                            $mobileHeadline = $group->kind === 'request' && ($group->method !== null || $group->path !== null)
+                                ? trim($group->method.' '.$group->path)
+                                : ($group->msg ?? '—');
                         @endphp
                         <details data-group="{{ $group->key }}" data-severity="{{ strtolower($severity->name) }}" class="group border-b border-gray-200 dark:border-gray-800 last:border-b-0 {{ $severity->rowClasses() }}">
-                            <summary class="grid {{ $rowGridCols }} min-h-11 cursor-pointer list-none items-center gap-3.5 px-4 py-2 [&::-webkit-details-marker]:hidden">
-                                {{-- The open/closed affordance: rotates when the row is open.
-                                     Decorative — <summary> itself announces the state. --}}
-                                <span aria-hidden="true" class="flex items-center text-gray-400 dark:text-gray-600">
-                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                </span>
-                                <span data-cell="ts" title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
-                                <span data-cell="method-path" class="truncate font-mono text-xs font-semibold">
-                                    @if ($group->kind === 'request' && ($group->method !== null || $group->path !== null))
-                                        {{ $group->method }} {{ $group->path }}
-                                    @else
-                                        {{ $group->msg ?? '—' }}
-                                    @endif
-                                </span>
-                                <span data-cell="status" class="justify-self-start">
-                                    @if ($group->status === null)
-                                        <span class="text-gray-300 dark:text-gray-700">—</span>
-                                    @else
-                                        <span class="inline-flex rounded px-1.5 py-0.5 font-mono text-xs {{ $group->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 font-semibold text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $group->status }}</span>
-                                    @endif
-                                </span>
-                                <span data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
-                                <span data-cell="line-count" class="text-gray-500 dark:text-gray-400">{{ $group->lineCount }}</span>
-                                <span data-cell="actor" class="min-w-0">
-                                    <x-admin.log-actor :actor-type="$summary->actorType" :actor-id="$summary->actorId" :filters="$filters" :truncate="true" />
-                                </span>
-                                <span data-cell="session" class="min-w-0">
-                                    @if ($summary->sessionId === null)
-                                        <span class="text-gray-300 dark:text-gray-700">—</span>
-                                    @else
-                                        <x-admin.log-id-chip :id="$summary->sessionId" :href="\App\Logging\Admin\LogFilterLinks::href('session', $summary->sessionId, $filters)" />
-                                    @endif
-                                </span>
-                                <span>
-                                    @if ($group->kind === 'request')
-                                        <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                        </a>
-                                    @endif
-                                </span>
+                            <summary class="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                                {{-- `sm` and up: today's grid row, unchanged — a tap
+                                     toggles the panel below. --}}
+                                <div class="hidden sm:grid {{ $rowGridCols }} min-h-11 items-center gap-3.5 px-4 py-2">
+                                    {{-- The open/closed affordance: rotates when the row is open.
+                                         Decorative — <summary> itself announces the state. --}}
+                                    <span aria-hidden="true" class="flex items-center text-gray-400 dark:text-gray-600">
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                    </span>
+                                    <span data-cell="ts" title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
+                                    <span data-cell="method-path" class="truncate font-mono text-xs font-semibold">
+                                        @if ($group->kind === 'request' && ($group->method !== null || $group->path !== null))
+                                            {{ $group->method }} {{ $group->path }}
+                                        @else
+                                            {{ $group->msg ?? '—' }}
+                                        @endif
+                                    </span>
+                                    <span data-cell="status" class="justify-self-start">
+                                        @if ($group->status === null)
+                                            <span class="text-gray-300 dark:text-gray-700">—</span>
+                                        @else
+                                            <span class="inline-flex rounded px-1.5 py-0.5 font-mono text-xs {{ $group->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 font-semibold text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $group->status }}</span>
+                                        @endif
+                                    </span>
+                                    <span data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
+                                    <span data-cell="line-count" class="text-gray-500 dark:text-gray-400">{{ $group->lineCount }}</span>
+                                    <span data-cell="actor" class="min-w-0">
+                                        <x-admin.log-actor :actor-type="$summary->actorType" :actor-id="$summary->actorId" :filters="$filters" :truncate="true" />
+                                    </span>
+                                    <span data-cell="session" class="min-w-0">
+                                        @if ($summary->sessionId === null)
+                                            <span class="text-gray-300 dark:text-gray-700">—</span>
+                                        @else
+                                            <x-admin.log-id-chip :id="$summary->sessionId" :href="\App\Logging\Admin\LogFilterLinks::href('session', $summary->sessionId, $filters)" />
+                                        @endif
+                                    </span>
+                                    <span>
+                                        @if ($group->kind === 'request')
+                                            <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
+                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                            </a>
+                                        @endif
+                                    </span>
+                                </div>
+
+                                {{-- Below `sm`: a two-line card. A request group's
+                                     card is a real link straight to its story — a
+                                     nested <a> inside <summary> follows its href
+                                     rather than toggling the panel, the same way
+                                     the "Open request story" chevron above already
+                                     does. A group with no story route (nothing to
+                                     navigate to) stays a plain row, so the tap
+                                     falls through to the native toggle instead. --}}
+                                @if ($group->kind === 'request')
+                                    <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="flex min-h-11 flex-col gap-1 px-4 py-2 sm:hidden">
+                                        <div class="flex items-center gap-2">
+                                            <span aria-hidden="true" class="flex flex-shrink-0 items-center text-gray-400 dark:text-gray-600">
+                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                            </span>
+                                            <span title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
+                                            @if ($group->status === null)
+                                                <span class="text-gray-300 dark:text-gray-700">—</span>
+                                            @else
+                                                <span class="inline-flex rounded px-1.5 py-0.5 font-mono text-xs {{ $group->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 font-semibold text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $group->status }}</span>
+                                            @endif
+                                            <span class="flex-1"></span>
+                                            <span class="font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="flex-shrink-0 text-gray-400 dark:text-gray-600"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                        </div>
+                                        <div class="truncate pl-[22px] font-mono text-xs font-semibold">{{ $mobileHeadline }}</div>
+                                    </a>
+                                @else
+                                    <div class="flex min-h-11 flex-col gap-1 px-4 py-2 sm:hidden">
+                                        <div class="flex items-center gap-2">
+                                            <span aria-hidden="true" class="flex flex-shrink-0 items-center text-gray-400 dark:text-gray-600">
+                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                            </span>
+                                            <span title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
+                                            @if ($group->status === null)
+                                                <span class="text-gray-300 dark:text-gray-700">—</span>
+                                            @else
+                                                <span class="inline-flex rounded px-1.5 py-0.5 font-mono text-xs {{ $group->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 font-semibold text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $group->status }}</span>
+                                            @endif
+                                            <span class="flex-1"></span>
+                                            <span class="font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
+                                        </div>
+                                        <div class="truncate pl-[22px] font-mono text-xs font-semibold">{{ $mobileHeadline }}</div>
+                                    </div>
+                                @endif
                             </summary>
 
                             <div class="border-t border-gray-200 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-950/20">

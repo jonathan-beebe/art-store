@@ -1,14 +1,16 @@
 <x-layouts.admin :title="'Order '.$order->id.' — Art Store admin'">
+    <x-admin.back-link :route="route('admin.orders.index')" label="Orders" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Order {{ $order->id }}</h1>
-        <a href="{{ route('admin.orders.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All orders</a>
+        <a href="{{ route('admin.orders.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All orders</a>
     </div>
 
     @if ($order->isCancellable())
         <form method="POST" action="{{ route('admin.orders.cancel', $order) }}" class="mt-4">
             @csrf
-            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 font-medium">Cancel this order</button>
-            <span class="ml-2 text-gray-600 dark:text-gray-400">Nothing has been charged yet; the stock goes back on the storefront.</span>
+            <button type="submit" class="block w-full rounded border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 text-center font-medium sm:inline-block sm:w-auto">Cancel this order</button>
+            <span class="mt-2 block text-gray-600 dark:text-gray-400 sm:ml-2 sm:mt-0 sm:inline">Nothing has been charged yet; the stock goes back on the storefront.</span>
         </form>
     @endif
 

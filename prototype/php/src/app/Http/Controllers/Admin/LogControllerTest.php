@@ -462,6 +462,32 @@ it('shows a request filter link and a story chevron on the grouped view', functi
         ->assertSee('aria-label="Open request story for req_1"', false);
 });
 
+it('gives a request group a mobile row that links straight to its story, below sm', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_1', 'ts' => '2026-08-24T09:00:00.000Z', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
+        Fixtures::line(['request_id' => 'req_1', 'ts' => '2026-08-24T09:00:00.010Z', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /checkout 200', 'duration_ms' => 10, 'data' => ['status' => 200]]),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?group=1&domain=shop');
+
+    $response->assertOk();
+    $content = (string) $response->getContent();
+    $storyHref = e(route('admin.logs.story', ['requestId' => 'req_1']));
+
+    expect($content)->toMatch('/<a href="'.preg_quote($storyHref, '/').'"[^>]*class="flex min-h-11 flex-col gap-1[^"]*sm:hidden"/');
+});
+
+it('keeps a non-request group a plain toggling row on mobile, with nothing to link to', function (): void {
+    $store = Fixtures::store([Fixtures::line(['request_id' => null, 'msg' => 'a background sweep', 'event' => 'payout.sweep'])]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?group=1');
+
+    $response->assertOk()->assertSee('a background sweep');
+    $response->assertDontSee('aria-label="Open request story for');
+});
+
 it('links the story views request id in the header back into the filtered list', function (): void {
     $store = Fixtures::store([Fixtures::line(['request_id' => 'req_1'])]);
     $this->app->instance(LogStore::class, $store);

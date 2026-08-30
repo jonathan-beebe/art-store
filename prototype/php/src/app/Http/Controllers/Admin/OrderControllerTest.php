@@ -165,6 +165,15 @@ it('stops offering to cancel a paid order', function (): void {
     $response->assertSee('Refund this fulfillment');
 });
 
+it('opens with a back link to the order list, for below sm', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/<a href="'.preg_quote(route('admin.orders.index'), '/').'"[^>]*sm:hidden"[^>]*>\s*<svg[\s\S]*?<span>Orders<\/span>/');
+});
+
 it('says so on an order with no refunds', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
 

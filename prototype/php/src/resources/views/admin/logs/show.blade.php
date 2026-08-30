@@ -1,6 +1,6 @@
 <x-layouts.admin :title="'Request '.$requestId.' — Art Store admin'" :full-width="true">
     <div class="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <a href="{{ route('admin.logs.index') }}" class="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100">
+        <a href="{{ route('admin.logs.index') }}" class="inline-flex min-h-11 items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
             <span>Logs</span>
         </a>

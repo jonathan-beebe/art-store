@@ -87,6 +87,15 @@ it('says so when no listing matches the filters', function (): void {
     $response->assertSee('No listings.');
 });
 
+it('opens with a back link to the listing list, for below sm', function (): void {
+    $listing = $this->listing($this->seller());
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$listing->id}");
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/<a href="'.preg_quote(route('admin.listings.index'), '/').'"[^>]*sm:hidden"[^>]*>\s*<svg[\s\S]*?<span>Listings<\/span>/');
+});
+
 it('shows one listing with its activity and sales', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
     $listing = $this->listing($seller, ['title' => 'Nine Herons']);

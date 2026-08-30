@@ -6,11 +6,11 @@
 @if ($page->count > 1)
     <nav aria-label="Pages" class="mt-4 flex items-baseline gap-6 text-gray-700 dark:text-gray-300">
         @unless ($page->isFirst)
-            <a rel="prev" href="{{ $baseUrl }}?{{ collect([$query, 'page='.$page->previousNumber])->filter()->implode('&') }}" class="underline">Previous</a>
+            <a rel="prev" href="{{ $baseUrl }}?{{ collect([$query, 'page='.$page->previousNumber])->filter()->implode('&') }}" class="inline-flex min-h-11 items-center underline">Previous</a>
         @endunless
         <span class="text-gray-600 dark:text-gray-400">Page {{ $page->number }} of {{ $page->count }} ({{ number_format($page->totalCount) }} total)</span>
         @unless ($page->isLast)
-            <a rel="next" href="{{ $baseUrl }}?{{ collect([$query, 'page='.$page->nextNumber])->filter()->implode('&') }}" class="underline">Next</a>
+            <a rel="next" href="{{ $baseUrl }}?{{ collect([$query, 'page='.$page->nextNumber])->filter()->implode('&') }}" class="inline-flex min-h-11 items-center underline">Next</a>
         @endunless
     </nav>
 @endif

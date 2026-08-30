@@ -1,7 +1,9 @@
 <x-layouts.admin :title="$customer->displayName().' — Art Store admin'">
+    <x-admin.back-link :route="route('admin.customers.index')" label="Customers" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $customer->displayName() }}</h1>
-        <a href="{{ route('admin.customers.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All customers</a>
+        <a href="{{ route('admin.customers.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All customers</a>
     </div>
 
     <dl class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -23,7 +25,7 @@
 
             <form method="POST" action="{{ route('admin.customers.blocks.lift', $customer) }}" class="mt-2">
                 @csrf
-                <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Lift block</button>
+                <button type="submit" class="block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Lift block</button>
             </form>
         @else
             <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">Not blocked.</p>
@@ -39,7 +41,7 @@
                     <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
-                <button type="submit" class="mt-4 rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Block</button>
+                <button type="submit" class="mt-4 block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Block</button>
             </form>
         @endif
     </section>

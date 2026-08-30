@@ -1,7 +1,9 @@
 <x-layouts.admin :title="$listing->title.' — Art Store admin'">
+    <x-admin.back-link :route="route('admin.listings.index')" label="Listings" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
-        <a href="{{ route('admin.listings.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All listings</a>
+        <a href="{{ route('admin.listings.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All listings</a>
     </div>
 
     <dl class="mt-4 grid gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:grid-cols-2">
@@ -52,7 +54,7 @@
             @if ($listing->activeRemoval->kind->canLift())
                 <form method="POST" action="{{ route('admin.listings.removals.lift', $listing) }}" class="mt-2">
                     @csrf
-                    <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Lift removal</button>
+                    <button type="submit" class="block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Lift removal</button>
                 </form>
             @endif
         @else
@@ -78,7 +80,7 @@
                     <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
-                <button type="submit" class="mt-4 rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Remove from storefront</button>
+                <button type="submit" class="mt-4 block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Remove from storefront</button>
             </form>
         @endif
     </section>
