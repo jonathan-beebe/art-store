@@ -10,7 +10,7 @@
             // is widened past the reference 112px to fit its pill plus the
             // chevron button DSGN-004 added it (Change 1), so the two never
             // wrap onto a second line at the common case.
-            $rowGridCols = 'grid-cols-[96px_minmax(0,1fr)_52px_76px_60px_136px_116px_28px]';
+            $rowGridCols = 'grid-cols-[16px_96px_minmax(0,1fr)_52px_76px_60px_152px_116px_28px]';
         @endphp
 
         {{-- Header bar: title, primary controls, More filters --}}
@@ -200,6 +200,7 @@
             @else
                 <div class="overflow-hidden rounded-b border-x border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
                     <div aria-hidden="true" class="grid {{ $rowGridCols }} gap-3.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        <span></span>
                         <span>Time</span>
                         <span>Request</span>
                         <span>Status</span>
@@ -216,8 +217,13 @@
                             $summary = \App\Logging\Admin\LogStoryHeader::of($group->lines);
                             $tint = \App\Logging\Admin\LogDurationTint::ofMs($group->durationMs);
                         @endphp
-                        <details data-group="{{ $group->key }}" data-severity="{{ strtolower($severity->name) }}" class="border-b border-gray-200 dark:border-gray-800 last:border-b-0 {{ $severity->rowClasses() }}">
+                        <details data-group="{{ $group->key }}" data-severity="{{ strtolower($severity->name) }}" class="group border-b border-gray-200 dark:border-gray-800 last:border-b-0 {{ $severity->rowClasses() }}">
                             <summary class="grid {{ $rowGridCols }} min-h-11 cursor-pointer list-none items-center gap-3.5 px-4 py-2 [&::-webkit-details-marker]:hidden">
+                                {{-- The open/closed affordance: rotates when the row is open.
+                                     Decorative — <summary> itself announces the state. --}}
+                                <span aria-hidden="true" class="flex items-center text-gray-400 dark:text-gray-600">
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                </span>
                                 <span data-cell="ts" title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
                                 <span data-cell="method-path" class="truncate font-mono text-xs font-semibold">
                                     @if ($group->kind === 'request' && ($group->method !== null || $group->path !== null))
