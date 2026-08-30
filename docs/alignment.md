@@ -632,3 +632,11 @@ decimal places), zero of each when no query ran, reachable through
 Rails owe the field over their own query-event hooks — knex's
 `query`/`query-response` events in Node, `sql.active_record`
 notifications in Rails.
+
+2026-08-30, log viewer landing: PHP's bare `/admin/logs` — zero query
+parameters — redirects to `?domain=shop&group=1`, the founder's landing
+view. Any parameter present, even empty, is honored as-is, so §5's
+empty-means-all rule stands. The rest of DSGN-004 (workflow-first header,
+columnar rows, duration tint at ≤300 / ≤600 / >600 ms, truncated row
+chips) is page layout, per stack; Node owes the redirect when its viewer
+reaches parity.
