@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 7
+- DSGN: 8
 - ARCH: 1
 - FEAT: 35
 - IMPRV: 18
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-08-30:17:07:48 — DSGN-007 — defined: The storefront home is an invitation to explore
 
 - 2026-08-30:16:59:47 — DSGN-006 — review fix: list panes bounded to a 50-row window (App\Support\ListPaneWindow), the open item prepended when it sorts outside it, footer naming the total; 3073+ tests, make check green
 
