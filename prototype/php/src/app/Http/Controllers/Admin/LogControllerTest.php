@@ -173,6 +173,22 @@ it('narrows the list with the any-attribute filter', function (): void {
     $response->assertOk()->assertSee('has a refund')->assertDontSee('no refund here');
 });
 
+it("reaches a request line's database tally through the any-attribute filter", function (): void {
+    $store = Fixtures::store([
+        Fixtures::line([
+            'event' => 'http.request',
+            'msg' => 'GET /checkout 200',
+            'data' => ['status' => 200, 'db' => ['queries' => 3, 'total_ms' => 12.5]],
+        ]),
+        Fixtures::line(['msg' => 'no database work here']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?key=data.db.queries');
+
+    $response->assertOk()->assertSee('GET /checkout 200')->assertDontSee('no database work here');
+});
+
 it('paginates 50 to a page, newest first, with filters carried through the pager', function (): void {
     $lines = [];
     for ($i = 0; $i < 55; $i++) {

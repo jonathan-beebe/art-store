@@ -163,8 +163,11 @@ level with the `error` object from §2.1.
 loop, a sweep over N orders). Requests log `will` on entry (`http.request`)
 carrying `method`, `path`, and — when the URL has one — the query string as
 `data.query`, an object of the request's query parameters; `did` on response
-carries `status` and `duration_ms` in `data`. `data.path` stays the bare
-path, so path-prefix rules (the log viewer's domain buckets) read one field.
+carries `status` and `duration_ms` in `data`, and also
+`data.db = {queries: <int>, total_ms: <number>}` — how many queries the
+request ran and their summed time in milliseconds (rounded to two decimal
+places), zero of each when none ran. `data.path` stays the bare path, so
+path-prefix rules (the log viewer's domain buckets) read one field.
 The §2.1 redaction rule applies to `data.query` the way it applies to every
 `data` field. A request
 the client abandons mid-response — a navigation away from an open SSE
@@ -618,3 +621,14 @@ decisions bullets updated; `docs/logging.md` § "Viewer" carries the full
 semantics. Node owes parity when its viewer catches up. PHP also ships §7
 decision 9's stream release — `live-badge.js` closes its `EventSource` on
 `pagehide` — leaving Rails the one stack owing it.
+
+2026-08-30, database work on the request line: §2.2 gains `data.db =
+{queries: <int>, total_ms: <number>}` on the `http.request` did line — the
+request's query count and summed query time (milliseconds, rounded to two
+decimal places), zero of each when no query ran, reachable through
+`/admin/logs`' any-attribute filter the way every `data` field is. PHP ships
+`data.db`, tallied over `DB::listen` and reset per request in
+`LogRequestStory`, request-only (CLI/txn stories do not carry it). Node and
+Rails owe the field over their own query-event hooks — knex's
+`query`/`query-response` events in Node, `sql.active_record`
+notifications in Rails.
