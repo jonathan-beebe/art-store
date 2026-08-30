@@ -14,7 +14,9 @@
 
 ## Log
 
+- 2026-08-30:08:07:30 — IMPRV-017 — resolved: http.request did lines carry data.db = {queries, total_ms} (App\Support\DbActivity tallies over DB::listen, reset per request in LogRequestStory), zero of each when no query ran, reachable through /admin/logs' any-attribute filter; request-only scope, CLI/txn stories untouched; alignment §2.2/§8 amended, PHP-first, Node/Rails owe the field; make check green, coverage 100%, 2997 tests
 - 2026-08-30:07:52:44 — DSGN-004 — started
+- 2026-08-30:07:52:26 — IMPRV-017 — started
 - 2026-08-30:07:37:27 — IMPRV-017 — defined: request lines carry database query count and time
 - 2026-08-30:07:36:24 — DSGN-004 — defined: Log viewer redesign: workflow-first filters and columnar rows
 - 2026-08-29:18:46:54 — FEAT-034 — resolved: storefront browse and search move to first-class paths (/medium/{medium}, /browse/{categoryPath}, /search?q=) with legacy redirects; stale-q link builder deleted from the three browse partials; browsable gains its first read-side meaning; make check green, coverage 100%, 2989 tests; alignment reconciliation updated

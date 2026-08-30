@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Logging\StoryEvent;
+use App\Support\DbActivity;
 use App\Support\IdMint;
 use App\Support\Story;
 use Closure;
@@ -68,6 +69,7 @@ final readonly class LogRequestStory
     {
         Story::forget();
         Log::withoutContext();
+        DbActivity::reset();
 
         $requestId = $this->requestId($request);
         $request->attributes->set(self::REQUEST_ID_ATTRIBUTE, $requestId);
@@ -91,7 +93,10 @@ final readonly class LogRequestStory
         $response->headers->set(self::REQUEST_ID_HEADER, $requestId);
 
         $status = $response->getStatusCode();
-        $story->did("{$request->method()} {$path} {$status}", ['status' => $status]);
+        $story->did("{$request->method()} {$path} {$status}", [
+            'status' => $status,
+            'db' => DbActivity::snapshot(),
+        ]);
 
         return $response;
     }
