@@ -97,17 +97,56 @@ it('tallies the tiles over the filters minus level itself', function (): void {
 
 it('hides health-check lines by default and shows them with health=1', function (): void {
     $store = Fixtures::store([
-        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /health', 'data' => ['method' => 'GET', 'path' => '/health']]),
-        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /health 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /up', 'data' => ['method' => 'GET', 'path' => '/up']]),
+        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /up 200', 'data' => ['status' => 200]]),
         Fixtures::line(['msg' => 'an ordinary line']),
     ]);
     $this->app->instance(LogStore::class, $store);
 
     $hidden = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
-    $hidden->assertOk()->assertDontSee('GET /health 200');
+    $hidden->assertOk()->assertDontSee('GET /up 200');
 
     $shown = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?health=1');
-    $shown->assertOk()->assertSee('GET /health 200');
+    $shown->assertOk()->assertSee('GET /up 200');
+});
+
+it('hides the log viewers own requests by default and shows them with viewer=1', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /admin/logs 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['msg' => 'an ordinary line']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $hidden = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $hidden->assertOk()->assertDontSee('GET /admin/logs 200');
+
+    $shown = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?viewer=1');
+    $shown->assertOk()->assertSee('GET /admin/logs 200');
+});
+
+it('hides viewer requests under domain=admin even though they share the admin domain', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
+        Fixtures::line(['request_id' => 'req_admin_orders', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/orders', 'data' => ['method' => 'GET', 'path' => '/admin/orders']]),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=admin');
+
+    $response->assertOk()->assertSee('GET /admin/orders')->assertDontSee('GET /admin/logs');
+});
+
+it('keeps a hidden viewer requests story addressable by id — the story view ignores the filter', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /admin/logs 200', 'duration_ms' => 5, 'data' => ['status' => 200]]),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs/requests/req_viewer');
+
+    $response->assertOk()->assertSee('GET /admin/logs 200');
 });
 
 it('narrows the list by domain', function (): void {
@@ -204,6 +243,8 @@ it('renders the story header from the root will/did pair, and links session and 
         ->assertSee('2026-08-24T09:00:00.000Z')
         ->assertSee('2026-08-24T09:00:00.020Z')
         ->assertSee(route('admin.customers.show', ['cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
+        ->assertSee('View customer')
+        ->assertSee(route('admin.logs.index', ['actor' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
         ->assertSee(route('admin.logs.index', ['session' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
 
     $html = (string) $response->getContent();
@@ -263,4 +304,82 @@ it('links a prefixed id inside a disclosed data block', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
 
     $response->assertOk()->assertSee(route('admin.orders.show', ['ord_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
+});
+
+it('renders a rows request id as a filter link carrying an existing filter, plus a story chevron', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_1', 'msg' => 'a warning line', 'level' => 'warn']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?level=warn');
+
+    $response->assertOk()
+        ->assertSee(e(route('admin.logs.index', ['level' => 'warn', 'request' => 'req_1'])), false)
+        ->assertSee('aria-label="Open request story for req_1"', false)
+        ->assertSee(route('admin.logs.story', ['requestId' => 'req_1']), false);
+});
+
+it('renders a rows actor id as a filter link and a separate View control to its detail page', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['actor_type' => 'customer', 'actor_id' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+
+    $response->assertOk()
+        ->assertSee(route('admin.logs.index', ['actor' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
+        ->assertSee(route('admin.customers.show', ['cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
+        ->assertSee('View customer');
+});
+
+it('omits the actor View control when the actors prefix has no detail page', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['actor_type' => 'admin', 'actor_id' => 'adm_01J5X3M9A2K8YB7Q4R6T1V0WZE']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+
+    $response->assertOk()
+        ->assertSee(route('admin.logs.index', ['actor' => 'adm_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
+        ->assertDontSee('View admin');
+});
+
+it('tucks a rows txn and session ids into its ids disclosure when the row does not already show them', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['txn_id' => 'txn_01J5X3M9A2K8YB7Q4R6T1V0WZE', 'session_id' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+
+    $response->assertOk()
+        ->assertSee('<summary class="cursor-pointer text-gray-500">ids</summary>', false)
+        ->assertSee(route('admin.logs.index', ['txn' => 'txn_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
+        ->assertSee(route('admin.logs.index', ['session' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
+});
+
+it('shows a request filter link and a story chevron on the grouped view', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['request_id' => 'req_1', 'ts' => '2026-08-24T09:00:00.000Z', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
+        Fixtures::line(['request_id' => 'req_1', 'ts' => '2026-08-24T09:00:00.010Z', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /checkout 200', 'duration_ms' => 10, 'data' => ['status' => 200]]),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?group=1&domain=shop');
+
+    $response->assertOk()
+        ->assertSee(e(route('admin.logs.index', ['domain' => 'shop', 'group' => '1', 'request' => 'req_1'])), false)
+        ->assertSee('aria-label="Open request story for req_1"', false);
+});
+
+it('links the story views request id in the header back into the filtered list', function (): void {
+    $store = Fixtures::store([Fixtures::line(['request_id' => 'req_1'])]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs/requests/req_1');
+
+    $response->assertOk()->assertSee('<a data-request-id href="'.route('admin.logs.index', ['request' => 'req_1']).'"', false);
 });

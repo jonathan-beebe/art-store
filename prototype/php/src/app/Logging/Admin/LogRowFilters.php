@@ -35,6 +35,10 @@ final readonly class LogRowFilters
         /** Health-check request pairs are excluded when this is `true` — the
          * viewer's default. `false` includes them. */
         public bool $hideHealth = true,
+        /** The log viewer's own requests (`/admin/logs` and everything
+         * under it) are excluded when this is `true` — the viewer's
+         * default. `false` includes them. */
+        public bool $hideViewer = true,
     ) {}
 
     /** The four stat tiles tally the current filters minus `level` itself,
@@ -56,6 +60,7 @@ final readonly class LogRowFilters
             key: $this->key,
             value: $this->value,
             hideHealth: $this->hideHealth,
+            hideViewer: $this->hideViewer,
         );
     }
 }

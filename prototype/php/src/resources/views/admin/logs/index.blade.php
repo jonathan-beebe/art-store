@@ -85,6 +85,10 @@
                 <input id="filter-health" name="health" type="checkbox" value="1" @checked(($filters['health'] ?? null) === '1')>
                 <label for="filter-health" class="text-gray-700 dark:text-gray-300">Include health checks</label>
             </div>
+            <div class="flex items-center gap-1.5 pb-2">
+                <input id="filter-viewer" name="viewer" type="checkbox" value="1" @checked(($filters['viewer'] ?? null) === '1')>
+                <label for="filter-viewer" class="text-gray-700 dark:text-gray-300">Include log viewer requests</label>
+            </div>
             <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Filter</button>
             <a href="{{ route('admin.logs.index') }}" class="pb-2 text-gray-700 dark:text-gray-300 underline">Clear</a>
         </form>
@@ -108,9 +112,12 @@
                         <details data-group="{{ $group->key }}" data-severity="{{ strtolower($severity->name) }}" class="rounded border border-gray-300 dark:border-gray-700 p-3 {{ $severity->rowClasses() !== '' ? $severity->rowClasses() : 'bg-white dark:bg-gray-900' }}">
                             <summary class="cursor-pointer">
                                 @if ($group->kind === 'request')
-                                    <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" class="float-right underline">Open story</a>
+                                    <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="float-right inline-flex items-center rounded border border-gray-300 dark:border-gray-700 px-1.5 leading-5 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">&rsaquo;</a>
                                 @endif
                                 <span data-cell="ts" class="tabular-nums text-gray-500">{{ $group->lastTs }}</span>
+                                @if ($group->kind === 'request')
+                                    <a data-cell="request" href="{{ \App\Logging\Admin\LogFilterLinks::href('request', $group->key, $filters) }}" class="ml-2 underline">{{ $group->key }}</a>
+                                @endif
                                 <span data-cell="level" class="ml-2 rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-xs">{{ $group->level ?? '—' }}</span>
                                 <span data-cell="msg" class="ml-2 font-medium">{{ $group->msg ?? '—' }}</span>
                                 @if ($group->method !== null || $group->path !== null)
@@ -124,7 +131,7 @@
                                 @endif
                                 <span data-cell="line-count" class="ml-2 text-gray-500">{{ $group->lineCount }} line{{ $group->lineCount === 1 ? '' : 's' }}</span>
                             </summary>
-                            <x-admin.log-lines :lines="$group->lines" :open="false" />
+                            <x-admin.log-lines :lines="$group->lines" :open="false" :filters="$filters" />
                         </details>
                     @endforeach
                 </div>
@@ -168,20 +175,18 @@
                                             <pre class="mt-1 overflow-x-auto rounded bg-gray-50 dark:bg-gray-800/50 p-2 text-xs">{!! \App\Logging\Admin\LogIdLinks::linkify(\App\Logging\Admin\LogJson::pretty($line->error)) !!}</pre>
                                         </details>
                                     @endif
+                                    <x-admin.log-ids :line="$line" :filters="$filters" :exclude="['request', 'actor']" />
                                 </td>
                                 <td data-cell="request" class="px-4 py-2 whitespace-nowrap">
                                     @if ($line->requestId === null)
                                         —
                                     @else
-                                        <a href="{{ route('admin.logs.story', ['requestId' => $line->requestId]) }}" class="underline">{{ $line->requestId }}</a>
+                                        <a href="{{ \App\Logging\Admin\LogFilterLinks::href('request', $line->requestId, $filters) }}" class="underline">{{ $line->requestId }}</a>
+                                        <a href="{{ route('admin.logs.story', ['requestId' => $line->requestId]) }}" aria-label="Open request story for {{ $line->requestId }}" class="ml-1 inline-flex items-center rounded border border-gray-300 dark:border-gray-700 px-1.5 leading-5 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">&rsaquo;</a>
                                     @endif
                                 </td>
                                 <td data-cell="actor" class="px-4 py-2 whitespace-nowrap">
-                                    @if ($line->actorId === null)
-                                        {{ $line->actorType ?? '—' }}
-                                    @else
-                                        {{ $line->actorType }} {!! \App\Logging\Admin\LogIdLinks::linkify($line->actorId) !!}
-                                    @endif
+                                    <x-admin.log-actor :actor-type="$line->actorType" :actor-id="$line->actorId" :filters="$filters" />
                                 </td>
                                 <td data-cell="duration" class="px-4 py-2 text-right tabular-nums">{{ $line->durationMs ?? '—' }}</td>
                             </tr>

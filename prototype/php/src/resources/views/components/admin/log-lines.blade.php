@@ -1,6 +1,6 @@
 {{-- One request's lines, oldest first: the story view's whole body, and
      what a `group=1` row opens into. Shared so the two never drift. --}}
-@props(['lines', 'open' => false])
+@props(['lines', 'open' => false, 'filters' => []])
 
 <ol class="mt-4 space-y-3">
     @foreach ($lines as $line)
@@ -27,6 +27,7 @@
                     <pre class="mt-1 overflow-x-auto rounded bg-gray-50 dark:bg-gray-800/50 p-2 text-xs">{!! \App\Logging\Admin\LogIdLinks::linkify(\App\Logging\Admin\LogJson::pretty($line->error)) !!}</pre>
                 </details>
             @endif
+            <x-admin.log-ids :line="$line" :filters="$filters" />
         </li>
     @endforeach
 </ol>

@@ -1,6 +1,6 @@
 <x-layouts.admin :title="'Request '.$requestId.' — Art Store admin'">
     <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">Request <span data-request-id>{{ $requestId }}</span></h1>
+        <h1 class="text-xl font-semibold">Request <a data-request-id href="{{ \App\Logging\Admin\LogFilterLinks::href('request', $requestId) }}" class="underline">{{ $requestId }}</a></h1>
         <a href="{{ route('admin.logs.index', ['request' => $requestId]) }}" class="underline">Open in the log list</a>
     </div>
 
@@ -40,11 +40,7 @@
             <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="actor">
                 <dt class="text-gray-600 dark:text-gray-400">Actor</dt>
                 <dd class="mt-1 text-lg font-semibold">
-                    @if ($header->actorId === null)
-                        {{ $header->actorType ?? '—' }}
-                    @else
-                        {{ $header->actorType }} {!! \App\Logging\Admin\LogIdLinks::linkify($header->actorId) !!}
-                    @endif
+                    <x-admin.log-actor :actor-type="$header->actorType" :actor-id="$header->actorId" />
                 </dd>
             </div>
         </dl>

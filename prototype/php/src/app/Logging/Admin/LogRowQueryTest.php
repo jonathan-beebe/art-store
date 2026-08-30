@@ -53,7 +53,7 @@ it('derives each lines domain from its own requests opening line path', function
         Fixtures::line(['request_id' => 'req_seller_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /seller/listings', 'data' => ['method' => 'GET', 'path' => '/seller/listings']]),
         Fixtures::line(['request_id' => 'req_seller_root2', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /seller', 'data' => ['method' => 'GET', 'path' => '/seller']]),
         Fixtures::line(['request_id' => 'req_shop_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
-        Fixtures::line(['request_id' => 'req_health_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /health', 'data' => ['method' => 'GET', 'path' => '/health']]),
+        Fixtures::line(['request_id' => 'req_health_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /up', 'data' => ['method' => 'GET', 'path' => '/up']]),
         Fixtures::line(['request_id' => 'req_events_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /events', 'data' => ['method' => 'GET', 'path' => '/events']]),
         Fixtures::line(['request_id' => null, 'msg' => 'orphan, no request id']),
     ]);
@@ -70,8 +70,8 @@ it('derives each lines domain from its own requests opening line path', function
 
 it('hides a health-check requests lines by default, shows them with health=1, and composes with domain', function (): void {
     $query = Fixtures::query([
-        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /health', 'data' => ['method' => 'GET', 'path' => '/health']]),
-        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /health 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /up', 'data' => ['method' => 'GET', 'path' => '/up']]),
+        Fixtures::line(['request_id' => 'req_health', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /up 200', 'data' => ['status' => 200]]),
         Fixtures::line(['request_id' => 'req_shop', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
         Fixtures::line(['request_id' => null, 'msg' => 'boot line, no request id']),
     ]);
@@ -80,6 +80,33 @@ it('hides a health-check requests lines by default, shows them with health=1, an
         ->and($query->count(new LogRowFilters(hideHealth: false)))->toBe(4)
         ->and($query->count(new LogRowFilters(domain: LogDomain::Shop)))->toBe(1)
         ->and($query->count(new LogRowFilters(domain: LogDomain::Shop, hideHealth: false)))->toBe(1);
+});
+
+it('hides the log viewers own requests by default, shows them with viewer=1, and composes with domain', function (): void {
+    $query = Fixtures::query([
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
+        Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'GET /admin/logs 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['request_id' => 'req_viewer_story', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs/requests/req_1', 'data' => ['method' => 'GET', 'path' => '/admin/logs/requests/req_1']]),
+        Fixtures::line(['request_id' => 'req_admin', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/orders', 'data' => ['method' => 'GET', 'path' => '/admin/orders']]),
+        Fixtures::line(['request_id' => null, 'msg' => 'boot line, no request id']),
+    ]);
+
+    expect($query->count(new LogRowFilters))->toBe(2)
+        ->and($query->count(new LogRowFilters(hideViewer: false)))->toBe(5)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Admin)))->toBe(1)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Admin, hideViewer: false)))->toBe(4);
+});
+
+it('hides log viewer requests at a path segment boundary, not a bare prefix match', function (): void {
+    $query = Fixtures::query([
+        Fixtures::line(['request_id' => 'req_exact', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
+        Fixtures::line(['request_id' => 'req_nested', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs/requests/req_1', 'data' => ['method' => 'GET', 'path' => '/admin/logs/requests/req_1']]),
+        Fixtures::line(['request_id' => 'req_lookalike', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs-export', 'data' => ['method' => 'GET', 'path' => '/admin/logs-export']]),
+    ]);
+
+    $msgs = array_map(fn (LogRow $row): ?string => $row->msg, $query->rows(new LogRowFilters, 50, 0));
+
+    expect($msgs)->toBe(['GET /admin/logs-export']);
 });
 
 it('matches msg as a literal substring, not treating % or _ as wildcards', function (): void {
