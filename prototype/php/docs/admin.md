@@ -54,6 +54,8 @@ sign in through the same magic link sellers and customers use
 | `POST /admin/sellers/{seller}/messages`,                                | open a thread from the directory                                         |
 | `POST /admin/customers/{customer}/messages`                             |                                                                          |
 | `GET /admin/events`                                                     | the admin's unread-count stream (`text/event-stream`)                    |
+| `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=&actor=&msg=&from=&to=&key=&value=&group=&health=` | the log store's time series, newest first, with the level/domain stat tiles ([`log-store.md`](log-store.md)) |
+| `GET /admin/logs/requests/{requestId}`                                  | one request's whole story, oldest first ([`log-store.md`](log-store.md)) |
 
 Every filter is optional and an empty value means "all": the console submits
 `seller=` for "All sellers", and the controller reads it back with

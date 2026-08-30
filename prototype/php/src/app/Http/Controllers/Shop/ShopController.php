@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Support\CustomerIdentity;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 
@@ -28,5 +29,17 @@ abstract class ShopController extends Controller
     protected function authorizeVisitor(string $ability, mixed $subject): void
     {
         Gate::forUser($this->visitor())->authorize($ability, $subject);
+    }
+
+    /**
+     * A query string value read as a plain string, or null for anything
+     * else it could be (absent, an array, a nested query) — the shape every
+     * storefront filter (`q`, `medium`) takes as input.
+     */
+    protected function submitted(Request $request, string $key): ?string
+    {
+        $value = $request->input($key);
+
+        return is_string($value) ? $value : null;
     }
 }

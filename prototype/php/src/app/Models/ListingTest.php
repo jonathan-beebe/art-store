@@ -227,6 +227,39 @@ it('narrows by its Medium attribute, case-insensitively, and adds no clause for 
         ->and(Listing::query()->ofMediumAttribute('ceramic')->pluck('title')->all())->not->toContain($unattributed->title);
 });
 
+it('narrows by a LIKE pattern over title, description, and Medium label, and adds no clause for null', function (): void {
+    $seller = $this->seller();
+    $titleMatch = $this->listing($seller, ['title' => 'Harbour at Dawn', 'description' => 'A quiet morning.']);
+    $descriptionMatch = $this->listing($seller, ['title' => 'Kiln Study', 'description' => 'Fired in a harbour town.']);
+    $mediumMatch = $this->listing($seller, ['title' => 'Field Notes', 'description' => 'Pencil on paper.']);
+    $this->mediumAttribute($mediumMatch, 'Harbour Blue Print');
+    $noMatch = $this->listing($seller, ['title' => 'Winter Elm', 'description' => 'Bare branches.']);
+
+    $matched = Listing::query()->ofSearchTerm('%harbour%')->pluck('title')->all();
+
+    expect($matched)->toContain($titleMatch->title, $descriptionMatch->title, $mediumMatch->title)
+        ->and($matched)->not->toContain($noMatch->title)
+        ->and(Listing::query()->ofSearchTerm(null)->count())->toBe(4);
+});
+
+it('narrows by category path prefix, including descendants, and adds no clause for null', function (): void {
+    $jewelry = Category::factory()->create(['path' => '/jewelry/']);
+    $rings = Category::factory()->childOf($jewelry, 'Rings')->create();
+    $furniture = Category::factory()->create(['path' => '/furniture/']);
+    $seller = $this->seller();
+    $inJewelry = $this->listing($seller, ['title' => 'Pearl Necklace', 'category_id' => $jewelry->id]);
+    $inRings = $this->listing($seller, ['title' => 'Gold Band', 'category_id' => $rings->id]);
+    $inFurniture = $this->listing($seller, ['title' => 'Oak Table', 'category_id' => $furniture->id]);
+    $uncategorized = $this->listing($seller, ['title' => 'Loose Sketch']);
+
+    $matched = Listing::query()->ofCategoryPathPrefix('/jewelry/')->pluck('title')->all();
+
+    expect($matched)->toContain($inJewelry->title, $inRings->title)
+        ->and($matched)->not->toContain($inFurniture->title, $uncategorized->title)
+        ->and(Listing::query()->ofCategoryPathPrefix('/jewelry/rings/')->pluck('title')->all())->toBe([$inRings->title])
+        ->and(Listing::query()->ofCategoryPathPrefix(null)->count())->toBe(4);
+});
+
 it('reads its Medium attribute label, or null with none set', function (): void {
     $seller = $this->seller();
     $attributed = $this->listing($seller);

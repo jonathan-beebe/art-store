@@ -18,7 +18,7 @@
                 Art Store
             </a>
 
-            <form method="GET" action="{{ route('shop.home') }}" class="order-last w-full sm:order-none sm:w-auto sm:flex-1">
+            <form method="GET" action="{{ route('shop.search') }}" class="order-last w-full sm:order-none sm:w-auto sm:flex-1">
                 <label for="site-search" class="sr-only">Search art</label>
                 <input id="site-search" type="search" name="q" value="{{ request('q') }}"
                        placeholder="Search makers and their work"

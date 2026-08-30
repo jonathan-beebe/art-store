@@ -145,7 +145,12 @@ level with the `error` object from §2.1.
 
 `doing` is optional and marks a long step inside the unit of work (a drain
 loop, a sweep over N orders). Requests log `will` on entry (`http.request`)
-and `did` on response with `status` and `duration_ms` in `data`. A request
+carrying `method`, `path`, and — when the URL has one — the query string as
+`data.query`, an object of the request's query parameters; `did` on response
+carries `status` and `duration_ms` in `data`. `data.path` stays the bare
+path, so path-prefix rules (the log viewer's domain buckets) read one field.
+The §2.1 redaction rule applies to `data.query` the way it applies to every
+`data` field. A request
 the client abandons mid-response — a navigation away from an open SSE
 stream is the everyday case — still closes with `did`, carrying the status
 that was streaming, the duration since its `will`, and
@@ -546,3 +551,21 @@ line rows tint yellow on `warn` and red on `failed`, and a request's group
 row and story view tint from the request's worst line. All three
 prototypes queued as follow-ups (Node emits the retired boundary emoji and
 lacks the tint).
+
+2026-08-29, PHP log store: PHP ships the §2.5 store and the §5
+`/admin/logs` + story viewer on `php/logging-admin`, severity tint
+included, retiring its "treat as absent" deviation for the logs page (the
+other admin filter routes still carry it). §2.2 gains `data.query` on the
+`http.request` will line — the query parameters as an object, `data.path`
+staying the bare path. PHP ships `data.query`; Node and Rails owe the
+store-and-viewer parity and the `data.query` field (Node also still owes
+§2.4's emoji retirement and the tint, above). PHP still owes §2.4's
+⚠️/❌ prefixes.
+
+2026-08-29, storefront browse paths: PHP moves storefront browsing and
+search off the home page's query params onto one-dimension-one-prefix
+paths — `/medium/{medium}`, `/browse/{categoryPath}` (one or two slug
+segments against the category tree's materialized path), `/search?q=` —
+with legacy `/?q=`/`/?medium=` URLs redirecting. §1's `/art/:slug` rule
+stands. Node and Rails owe the same scheme when their storefronts grow
+the equivalent browse surfaces.

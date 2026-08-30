@@ -28,21 +28,21 @@
                     <div>
                         <h4 class="text-xs font-semibold text-ink-muted">Five tiles + drawer <span class="font-normal text-ink-faint">— <code class="font-mono text-[11px]">media-tile-row</code>, tint variant · best-stocked five stay out; "All media" unfolds the rest</span></h4>
                         <div class="mt-3">
-                            @include('shop.partials.media-tile-row', ['browse' => $browse, 'activeMedium' => null, 'term' => null, 'variant' => 'tint'])
+                            @include('shop.partials.media-tile-row', ['browse' => $browse, 'activeMedium' => null, 'variant' => 'tint'])
                         </div>
                     </div>
 
                     <div>
                         <h4 class="text-xs font-semibold text-ink-muted">Cover cards + drawer <span class="font-normal text-ink-faint">— <code class="font-mono text-[11px]">media-tile-row</code>, photo variant · the same row wearing listing covers</span></h4>
                         <div class="mt-3">
-                            @include('shop.partials.media-tile-row', ['browse' => $browse, 'activeMedium' => null, 'term' => null, 'variant' => 'photo'])
+                            @include('shop.partials.media-tile-row', ['browse' => $browse, 'activeMedium' => null, 'variant' => 'photo'])
                         </div>
                     </div>
 
                     <div>
                         <h4 class="text-xs font-semibold text-ink-muted">Gallery sheet <span class="font-normal text-ink-faint">— <code class="font-mono text-[11px]">media-gallery-panel</code> · zero standing chrome; under 640px it presents as a bottom sheet — see Mobile below</span></h4>
                         <div class="mt-3 min-h-64">
-                            @include('shop.partials.media-gallery-panel', ['browse' => $browse, 'activeMedium' => null, 'term' => null])
+                            @include('shop.partials.media-gallery-panel', ['browse' => $browse, 'activeMedium' => null])
                         </div>
                     </div>
                 </div>

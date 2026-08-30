@@ -4,14 +4,13 @@
     // rest — tinted tiles in the `tint` variant, listing cover photos in the
     // `photo` variant (cover cards). The drawer is a native <details>, so it
     // opens, closes, and keyboards without script. `$browse` is
-    // MediumBrowse::forStorefront(); `$activeMedium`/`$term` as elsewhere.
+    // MediumBrowse::forStorefront(); `$activeMedium` as elsewhere.
     $variant ??= 'tint';
     $tints = ['bg-tint-1', 'bg-tint-2', 'bg-tint-3', 'bg-tint-4', 'bg-tint-5'];
     $tileHeight = $variant === 'photo' ? 'h-20' : 'h-16';
     $ranked = collect($browse)->sortByDesc('count')->values();
     $top = $ranked->take(5);
     $rest = $ranked->slice(5)->sortBy('label')->values();
-    $withTerm = fn (array $query): string => route('shop.home', $term !== null ? $query + ['q' => $term] : $query);
 @endphp
 
 @if ($browse !== [])
@@ -20,7 +19,7 @@
             @foreach ($top as $index => $medium)
                 @php $active = $activeMedium === $medium['value']; @endphp
                 @if ($variant === 'photo')
-                    <a href="{{ $withTerm(['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
+                    <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
                        style="background-image: url('{{ $medium['coverUrl'] }}')"
                        class="relative {{ $tileHeight }} overflow-hidden rounded-card bg-cover bg-center hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
                         <span class="absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo"
@@ -30,7 +29,7 @@
                         </span>
                     </a>
                 @else
-                    <a href="{{ $withTerm(['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
+                    <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
                        class="flex {{ $tileHeight }} items-end justify-between gap-2 rounded-card p-3 text-sm font-semibold text-on-tint {{ $tints[$index % 5] }} hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
                         <span class="truncate">{{ $medium['label'] }}</span>
                         <span class="text-[11px] font-semibold opacity-70">{{ $medium['count'] }}</span>
@@ -45,14 +44,14 @@
                 </summary>
                 <div class="absolute inset-x-0 top-full z-10 mt-2 rounded-card border border-line bg-surface p-3 shadow-lg">
                     <div class="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                        <a href="{{ $withTerm([]) }}" @if ($activeMedium === null) aria-current="true" @endif
+                        <a href="{{ route('shop.home') }}" @if ($activeMedium === null) aria-current="true" @endif
                            class="flex h-14 items-end rounded-card bg-ink p-3 text-sm font-semibold text-canvas hover:brightness-110">
                             All art
                         </a>
                         @foreach ($rest as $index => $medium)
                             @php $active = $activeMedium === $medium['value']; @endphp
                             @if ($variant === 'photo')
-                                <a href="{{ $withTerm(['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
+                                <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
                                    style="background-image: url('{{ $medium['coverUrl'] }}')"
                                    class="relative h-14 overflow-hidden rounded-card bg-cover bg-center hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
                                     <span class="absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-2.5 pb-1.5 pt-4 text-on-photo"
@@ -62,7 +61,7 @@
                                     </span>
                                 </a>
                             @else
-                                <a href="{{ $withTerm(['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
+                                <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
                                    class="flex h-14 items-end justify-between gap-2 rounded-card p-3 text-xs font-semibold text-on-tint {{ $tints[$index % 5] }} hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
                                     <span class="truncate">{{ $medium['label'] }}</span>
                                     <span class="text-[10px] font-semibold opacity-70">{{ $medium['count'] }}</span>

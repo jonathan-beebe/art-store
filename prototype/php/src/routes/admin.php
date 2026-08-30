@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\LiftCustomerBlockController;
 use App\Http\Controllers\Admin\LiftListingRemovalController;
 use App\Http\Controllers\Admin\ListingController;
 use App\Http\Controllers\Admin\ListingRemovalController;
+use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MessageController;
 use App\Http\Controllers\Admin\OrderCancellationController;
 use App\Http\Controllers\Admin\OrderController;
@@ -62,4 +63,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
     Route::get('events', EventsController::class)->name('events');
+
+    Route::get('logs', [LogController::class, 'index'])->name('logs.index');
+    Route::get('logs/requests/{requestId}', [LogController::class, 'show'])
+        ->where('requestId', '[A-Za-z0-9_-]{1,64}')
+        ->name('logs.story');
 });

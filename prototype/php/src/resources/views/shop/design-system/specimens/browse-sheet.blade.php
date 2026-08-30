@@ -5,7 +5,7 @@
         @if ($browse === [])
             <p class="text-sm text-ink-muted">No attributed medium yet — seed the catalog to open the sheet.</p>
         @else
-            @include('shop.partials.media-gallery-panel', ['browse' => $browse, 'activeMedium' => null, 'term' => null])
+            @include('shop.partials.media-gallery-panel', ['browse' => $browse, 'activeMedium' => null])
         @endif
 
         <ul class="grid grid-cols-2 gap-3">

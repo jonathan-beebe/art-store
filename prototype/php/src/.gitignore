@@ -20,6 +20,9 @@
 /public/hot
 /public/storage
 /storage/*.key
+/storage/*.sqlite3
+/storage/*.sqlite3-shm
+/storage/*.sqlite3-wal
 /storage/pail
 /vendor
 _ide_helper.php

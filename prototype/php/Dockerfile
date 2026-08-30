@@ -86,6 +86,7 @@ FROM base AS runtime
 ENV APP_ENV=production \
     APP_DEBUG=false \
     DB_DATABASE=/var/www/src/storage/production.sqlite3 \
+    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3 \
     PHP_CLI_SERVER_WORKERS=16
 
 COPY --chown=www-data:www-data src/ ./

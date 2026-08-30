@@ -4,58 +4,47 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Shop\ListingSearch;
 use App\Models\Listing;
+use App\Support\Shop\CategoryBrowse;
 use App\Support\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
+/**
+ * `/` — every for-sale listing, plus the browse rows that lead to the
+ * one-dimension-one-prefix pages: `/medium/{medium}` and
+ * `/browse/{categoryPath}`. The home page itself no longer filters; a
+ * legacy `q` or `medium` on this URL is a bookmark or shared link from
+ * before those pages existed, so it is redirected onto its new home rather
+ * than read here. A `medium` riding alongside a `q` is dropped — the two
+ * never composed correctly (they narrowed to unrelated result sets under
+ * one page) and neither new URL carries the other's axis.
+ */
 final class StorefrontController extends ShopController
 {
     private const LISTINGS_PER_PAGE = 12;
 
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|RedirectResponse
     {
-        $search = ListingSearch::fromInput(
-            $this->submitted($request, 'q'),
-            $this->submitted($request, 'medium'),
-        );
+        $term = $this->submitted($request, 'q');
 
-        return view('shop.home', [
-            'search' => $search,
-            'browse' => MediumBrowse::forStorefront(),
-            'listings' => $this->matching($search)->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),
-        ]);
-    }
-
-    /**
-     * @return Builder<Listing>
-     */
-    private function matching(ListingSearch $search): Builder
-    {
-        $listings = Listing::query()->forSale()->with('seller')->orderByDesc('created_at')->orderByDesc('id');
-
-        if ($search->hasTerm()) {
-            $pattern = $search->likePattern();
-
-            $listings->where(fn (Builder $match): Builder => $match
-                ->where('title', 'like', $pattern)
-                ->orWhere('description', 'like', $pattern)
-                ->orWhereHas('listingAttributes', fn (Builder $attributes): Builder => $attributes
-                    ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
-                    ->whereHas('propertyValue', fn (Builder $values): Builder => $values->where('label', 'like', $pattern))));
+        if ($term !== null) {
+            return redirect()->route('shop.search', ['q' => $term]);
         }
 
-        $listings->ofMediumAttribute($search->medium);
+        $medium = $this->submitted($request, 'medium');
 
-        return $listings;
-    }
+        if ($medium !== null) {
+            return redirect()->route('shop.medium', ['medium' => $medium]);
+        }
 
-    private function submitted(Request $request, string $key): ?string
-    {
-        $value = $request->input($key);
-
-        return is_string($value) ? $value : null;
+        return view('shop.home', [
+            'browse' => MediumBrowse::forStorefront(),
+            'categories' => CategoryBrowse::forStorefront(),
+            'listings' => Listing::query()->forSale()->with('seller')
+                ->orderByDesc('created_at')->orderByDesc('id')
+                ->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),
+        ]);
     }
 }

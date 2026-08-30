@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Shop\AccountController;
+use App\Http\Controllers\Shop\BrowseController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\DeliveryConfirmationController;
@@ -12,17 +13,27 @@ use App\Http\Controllers\Shop\EventsController;
 use App\Http\Controllers\Shop\FavoriteController;
 use App\Http\Controllers\Shop\ListingController;
 use App\Http\Controllers\Shop\ListingQuestionController;
+use App\Http\Controllers\Shop\MediumController;
 use App\Http\Controllers\Shop\MessageController;
 use App\Http\Controllers\Shop\OrderCancellationController;
 use App\Http\Controllers\Shop\OrderController;
 use App\Http\Controllers\Shop\OrderMessageController;
 use App\Http\Controllers\Shop\OrderPaymentController;
+use App\Http\Controllers\Shop\SearchController;
 use App\Http\Controllers\Shop\StorefrontController;
 use App\Http\Controllers\Shop\SupportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::get('/', StorefrontController::class)->name('home');
+    Route::get('/search', SearchController::class)->name('search');
+    Route::get('/medium/{medium}', MediumController::class)->name('medium');
+    // One or two slug segments — the depth the seeded taxonomy actually
+    // reaches (a root, or a root and its child); no route exists for a
+    // grandchild because the catalog has none.
+    Route::get('/browse/{categoryPath}', BrowseController::class)
+        ->where('categoryPath', '[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?')
+        ->name('browse');
     Route::get('/art/{listing:slug}', ListingController::class)->name('listing');
     Route::get('/design-system', DesignSystemController::class)->name('design-system');
     Route::get('/design-system/specimens/{specimen}', DesignSystemSpecimenController::class)->name('design-system.specimen');

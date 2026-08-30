@@ -9,6 +9,8 @@
 | [`escrow.md`](escrow.md)             | Ledger entry types (`held` / `released` / `paid_out`), `payouts:run`, a worked dollar example.              |
 | [`admin.md`](admin.md)               | The admin site: every page and filter, the one guard and the one 404, and why balances are folded from a    |
 |                                      | single read of the ledger.                                                                                  |
+| [`log-store.md`](log-store.md)       | The SQLite mirror of every stdout line, its ingest via a Monolog tap, and the `/admin/logs` viewer with its |
+|                                      | filters, grouping, and story view.                                                                          |
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
 | [`data-model.md`](data-model.md)     | ER diagram generated from `database/migrations/`.                                                           |
