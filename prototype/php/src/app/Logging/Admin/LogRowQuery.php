@@ -28,9 +28,15 @@ final readonly class LogRowQuery
      * alone rather than by `txn_id`. */
     private const string LINE_GROUP_PREFIX = 'line:';
 
-    /** The orchestrator's healthcheck path — the container polls it on an
-     * interval, and its lines are hidden from the default list. */
-    private const string HEALTH_CHECK_PATH = '/health';
+    /** The orchestrator's healthcheck path — Laravel's built-in `/up`
+     * route; the container polls it on an interval, and its lines are
+     * hidden from the default list. */
+    private const string HEALTH_CHECK_PATH = '/up';
+
+    /** The viewer's own path — `/admin/logs` exact, or anything under
+     * `/admin/logs/` (the story view included) — hidden from the default
+     * list the same way the health probe is. */
+    private const string VIEWER_PATH = '/admin/logs';
 
     /** The storefront's own unread-events stream sits at the unprefixed
      * root beside every other shop page, but neither it nor the health
@@ -235,6 +241,10 @@ final readonly class LogRowQuery
             $conditions[] = 'NOT '.$this->healthCheckSql();
         }
 
+        if ($filters->hideViewer) {
+            $conditions[] = 'NOT '.$this->viewerRequestSql();
+        }
+
         return [$conditions, $params];
     }
 
@@ -305,6 +315,28 @@ final readonly class LogRowQuery
               AND healthLine.event = 'http.request'
               AND healthLine.phase = 'will'
               AND (CASE WHEN json_valid(healthLine.data) THEN json_extract(healthLine.data, '$.path') END) = '".self::HEALTH_CHECK_PATH."'
+        )";
+    }
+
+    /**
+     * A line's request opened under the viewer's own path, by the same
+     * correlation `healthCheckSql` uses: the request's opening
+     * `http.request` will-line's `data.path`, `/admin/logs` exact or
+     * anything under `/admin/logs/` — a segment boundary, so a path like
+     * `/admin/logs-export` (were one ever added) would not match. The
+     * `CASE` guard answers `NULL` rather than throwing when `data` is
+     * present but not valid JSON.
+     */
+    private function viewerRequestSql(): string
+    {
+        $path = "(CASE WHEN json_valid(viewerLine.data) THEN json_extract(viewerLine.data, '$.path') END)";
+
+        return "EXISTS (
+            SELECT 1 FROM log_lines viewerLine
+            WHERE viewerLine.request_id = log_lines.request_id
+              AND viewerLine.event = 'http.request'
+              AND viewerLine.phase = 'will'
+              AND ({$path} = '".self::VIEWER_PATH."' OR {$path} LIKE '".self::VIEWER_PATH."/%')
         )";
     }
 
@@ -487,8 +519,8 @@ final readonly class LogRowQuery
             $lines,
             fn (LogRow $line): bool => $line->event === 'http.request' && ($line->phase === 'did' || $line->phase === 'failed'),
         );
-        $openedData = $this->parsedData($opened?->data);
-        $closedData = $this->parsedData($closed?->data);
+        $openedData = LogRequestData::decode($opened?->data);
+        $closedData = LogRequestData::decode($closed?->data);
         $last = $lines[count($lines) - 1] ?? null;
 
         return new LogRequestGroup(
@@ -496,9 +528,9 @@ final readonly class LogRowQuery
             kind: 'request',
             lineCount: count($lines),
             lastTs: $last === null ? '' : $last->ts,
-            method: $this->stringField($openedData, 'method'),
-            path: $this->stringField($openedData, 'path'),
-            status: $this->intField($closedData, 'status'),
+            method: LogRequestData::stringField($openedData, 'method'),
+            path: LogRequestData::stringField($openedData, 'path'),
+            status: LogRequestData::intField($closedData, 'status'),
             durationMs: $closed?->durationMs,
             level: $closed?->level,
             msg: $closed !== null ? $closed->msg : ($opened === null ? null : $opened->msg),
@@ -519,42 +551,5 @@ final readonly class LogRowQuery
         }
 
         return null;
-    }
-
-    /** Stored `data`, parsed for the fields a group summary reads off it.
-     * The mirror invariant means a line can be stored with text that never
-     * parses.
-     *
-     * @return array<array-key, mixed>
-     */
-    private function parsedData(?string $text): array
-    {
-        if ($text === null) {
-            return [];
-        }
-
-        $decoded = json_decode($text, associative: true);
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $data
-     */
-    private function stringField(array $data, string $field): ?string
-    {
-        $value = $data[$field] ?? null;
-
-        return is_string($value) ? $value : null;
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $data
-     */
-    private function intField(array $data, string $field): ?int
-    {
-        $value = $data[$field] ?? null;
-
-        return is_int($value) ? $value : null;
     }
 }

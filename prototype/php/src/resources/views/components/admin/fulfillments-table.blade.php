@@ -3,7 +3,7 @@
 @if ($fulfillments->isEmpty())
     <x-admin.nothing>No fulfillments.</x-admin.nothing>
 @else
-    <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+    <div class="mt-2 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
         <table class="w-full text-left">
             <caption class="sr-only">{{ $caption }}</caption>
             <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -44,4 +44,27 @@
             </tbody>
         </table>
     </div>
+
+    <x-admin.card-list :caption="$caption">
+        @foreach ($fulfillments as $fulfillment)
+            <x-admin.card-row>
+                <a href="{{ route('admin.fulfillments.show', $fulfillment) }}" class="font-medium underline">{{ $fulfillment->id }}</a>
+                <div class="flex items-center justify-between gap-3 text-gray-600 dark:text-gray-400">
+                    <span>{{ $fulfillment->status->label() }}</span>
+                    <span class="tabular-nums text-gray-900 dark:text-gray-100">{{ $fulfillment->net()->format() }}</span>
+                </div>
+                <div class="text-gray-600 dark:text-gray-400">
+                    @if ($showOrder)
+                        <a href="{{ route('admin.orders.show', $fulfillment->order) }}" class="underline">{{ $fulfillment->order->id }}</a>
+                        &middot;
+                    @endif
+                    @if ($showSeller)
+                        <a href="{{ route('admin.sellers.show', $fulfillment->seller) }}" class="underline">{{ $fulfillment->seller->displayName() }}</a>
+                        &middot;
+                    @endif
+                    Shipped {{ $fulfillment->shipped_at?->format('M j, Y') ?? '—' }}
+                </div>
+            </x-admin.card-row>
+        @endforeach
+    </x-admin.card-list>
 @endif

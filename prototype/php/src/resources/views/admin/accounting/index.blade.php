@@ -31,7 +31,7 @@
     @if ($sellers->isEmpty())
         <x-admin.nothing class="mt-4">No sellers yet.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="mt-4 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
             <table class="w-full text-left">
                 <caption class="sr-only">Every seller's escrow reconciled against the ledger</caption>
                 <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -59,5 +59,20 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.card-list class="mt-4" caption="Every seller's escrow reconciled against the ledger">
+            @foreach ($sellers as $seller)
+                @php($balance = $balances->of($seller->id))
+                <x-admin.card-row data-seller="{{ $seller->id }}">
+                    <a href="{{ route('admin.sellers.show', $seller) }}" class="font-medium underline">{{ $seller->displayName() }}</a>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums text-gray-900 dark:text-gray-100">
+                        <span data-cell="held">Held {{ $balance->held->format() }}</span>
+                        <span data-cell="available">Available {{ $balance->available->format() }}</span>
+                        <span data-cell="paid-out">Paid {{ $balance->paidOut->format() }}</span>
+                        <span data-cell="refunded">Refunded {{ $balance->refunded->format() }}</span>
+                    </div>
+                </x-admin.card-row>
+            @endforeach
+        </x-admin.card-list>
     @endif
 </x-layouts.admin>

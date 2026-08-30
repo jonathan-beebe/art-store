@@ -19,7 +19,7 @@
             @enderror
         </div>
 
-        <button type="submit" class="mt-4 rounded border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 font-medium">Refund this fulfillment</button>
+        <button type="submit" class="mt-4 block w-full rounded border border-gray-400 dark:border-gray-600 bg-white dark:bg-gray-900 px-4 py-2 text-center font-medium sm:inline-block sm:w-auto">Refund this fulfillment</button>
     </form>
 @else
     <x-admin.nothing>Nothing left to refund on this fulfillment.</x-admin.nothing>

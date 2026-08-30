@@ -336,3 +336,172 @@ seller their held / available / paid-out balance and their payout history on
 `/seller/earnings` and offers no control that runs one: paying sellers is a
 platform action. The full sequence and the re-run rule are in
 [`escrow.md`](escrow.md).
+
+## Small-screen conventions (DSGN-005)
+
+Question: one Blade template renders both a 390px phone and a desktop — how,
+with the nav menu JS-off and no second template per page?
+
+Every admin page is server-rendered once; Tailwind's `sm:` prefix is the only
+thing that picks which markup a viewport shows. The base (unprefixed) classes
+are the phone layout; `sm:` restores today's desktop layout unchanged. Nothing
+below `sm` is conditionally *rendered* — it is conditionally *hidden* — so a
+test asserting on a link, a data-* attribute, or a filtered row finds it
+regardless of which breakpoint's markup carries it.
+
+```mermaid
+flowchart LR
+    blade["Blade view (one template)"] --> html["one HTML response"]
+    html --> css{"Tailwind sm: breakpoint"}
+    css -->|"< 640px"| mobile["base classes: cards, Menu disclosure, back link"]
+    css -->|">= 640px"| desktop["sm: classes: today's table, inline nav, All-X link"]
+```
+
+**Shell nav** (`resources/views/components/layouts/admin.blade.php`): the
+route/label pairs every admin page links to are declared once in a `$navLinks`
+array and rendered twice — the `sm:flex` inline nav (today's, unchanged) and a
+`<details class="relative sm:hidden">` disclosure whose panel is
+`fixed inset-x-0 top-16`, the same JS-free popover mechanic the logs page's
+More-filters button already uses (`resources/views/admin/logs/index.blade.php`)
+and the same reason: native `<details>`/`<summary>` needs no script, and
+`fixed` positioning lets the panel span the viewport without fighting the
+header row's own width. `<main>` drops `max-w-6xl` below `sm`, restoring it
+(or the `:full-width` opt-out's `w-full px-6`) at `sm` and up.
+
+**Tables → cards.** Two small presentational components,
+`x-admin.card-list` (the bordered/divided outer wrapper a table's own wrapper
+already used) and `x-admin.card-row` (one record's padding), are the shared
+mechanism — not a generic data-driven table renderer. Every table-bearing
+admin page (and the four table components shared between an index and a show
+page — `orders-table`, `listings-table`, `fulfillments-table`,
+`payouts-table`) now renders its `<table>` as `hidden sm:block` and, right
+after it, an `x-admin.card-list` of `x-admin.card-row`s built from the exact
+same loop over the exact same collection. A generic renderer was rejected: the
+columns that matter differ table to table (and some cells are themselves
+links), so a data-driven abstraction would need HTML-safe value injection for
+little gained over authoring each card's two or three lines directly.
+`x-messaging.inbox` (the message list) needed no such conversion — it was
+already a row-per-conversation flex list, never a `<table>`, so it already
+worked below `sm`.
+
+**Dashboard**: below `sm`, `admin/dashboard.blade.php` renders a second,
+`sm:hidden` block — one card per section (Platform money, Listings, Orders,
+Fulfillments, Page views) whose status rows are links into
+`route('admin.listings.index', ['status' => ...])` and its order/fulfillment
+equivalents. Today's static `<dl>` tally grids stay put, `hidden sm:block`,
+unchanged at `sm` and up. Every tally and every `data-*` hook (`data-status`,
+`data-tally`, `data-stat`) stays exactly where it was in the untouched
+desktop block, so the existing zero-row assertions read it there regardless
+of viewport.
+
+**Detail pages**: `x-admin.back-link` renders a `‹ List name` link, `sm:hidden`,
+above the page's `<h1>`; the existing "All X" link in the `<h1>` row gets
+`hidden sm:inline` so the two never show together. Primary action buttons
+(cancel an order, lift a removal, block a customer, refund a fulfillment, run
+the weekly payout, send a message) go `block w-full sm:inline-block sm:w-auto`
+— full width and thumb-reachable below `sm`, today's inline button at `sm` and
+up. The log story view already opened with its own back link
+(`admin/logs/show.blade.php`) before this ticket and needed only a
+`min-h-11` touch target, not a rebuild.
+
+**Logs list breakpoint switch, without JS**: each grouped row's `<summary>`
+now wraps two sibling blocks instead of being the grid row itself — a
+`hidden sm:grid` div carrying today's nine-column grid (unchanged), and a
+`sm:hidden` two-line card (time/status/duration, then method+path, per the
+approved canvas's `Main.dc.html`; actor and session are dropped from the row
+and read from the expanded/story view instead). A **request** group's mobile
+card is a real `<a href="{{ route('admin.logs.story', ...) }}">` — nested
+inside `<summary>`, so tapping it follows the link instead of toggling the
+panel, exactly the way the existing "Open request story" chevron button
+already behaves nested inside the same `<summary>` today. A group with no
+story route (`kind !== 'request'`, e.g. a background line with no
+`request_id`) has nothing to link to, so its mobile card is a plain `<div>`:
+the tap falls through to the native `<details>` toggle, the same in-place
+expansion `sm:` and up already gives every row. Both affordances are always
+in the response; only the `sm:` breakpoint decides which one a tap reaches.
+
+## The `xl`-and-up shell: rail, list, and detail panes (DSGN-006)
+
+Question: at `xl` (1280px) and up, how does one Blade layout become a nav
+rail plus either a list-and-detail pair or a single content pane, while
+staying pixel-identical to DSGN-005's phone-and-desktop rendering below `xl`?
+
+`x-layouts.admin`'s `mode` prop is the one switch, replacing the old
+`full-width` boolean rather than sitting beside it as a second mechanism:
+
+| `mode`          | Below `xl`                          | `xl` and up                                    |
+| --------------- | ------------------------------------ | ----------------------------------------------- |
+| `content`        | today's `max-w-6xl` column (default) | one content pane, full remaining width           |
+| `content-wide`   | today's full-width column (old `full-width: true`) | one content pane, full remaining width |
+| `list`           | the index route's table/cards, unchanged | a `cells` list pane beside an empty-detail prompt |
+| `detail`         | the show route's content, unchanged  | the same content, now the detail pane, beside a `cells` list pane |
+
+`list` and `detail` both take a `cells` named slot — the section's compact,
+two-line rows for the `xl`-and-up list pane. It is never rendered below `xl`
+(the existing table and `x-admin.card-list` cards carry that breakpoint,
+untouched) and it is the same content on both an index and a show page for
+one section, because both call the same `x-admin.<section>-cells` component.
+The below-`xl` header (brand, inline nav, Menu disclosure) gets `xl:hidden`
+in full — nothing inside it changed, so it stays pixel-identical — and its
+brand, section links, and sign-out move into a new `xl:flex` rail sibling
+that has no below-`xl` counterpart to match.
+
+```mermaid
+flowchart TD
+    mode{"mode prop"} -->|content / content-wide| single["one content pane<br/>(dashboard, accounting, ledger,<br/>payouts, stats, logs)"]
+    mode -->|list| indexPane["cells pane + empty-detail prompt<br/>(an index route)"]
+    mode -->|detail| detailPane["cells pane + $slot as the detail pane<br/>(a show route)"]
+```
+
+**The URL mapping needed no new routes.** An index route (`GET
+/admin/orders`) renders `mode="list"`: the list pane's cells with nothing
+selected, and the layout's own generic empty-detail prompt. A show route
+(`GET /admin/orders/{order}`) renders `mode="detail"`: the same cells, with
+the current item's `x-admin.card-row` carrying `aria-current="true"` and a
+highlight, beside the existing detail content unchanged. Each of the six
+list+detail controllers (`Order`, `Seller`, `Customer`, `Listing`,
+`Fulfillment`, `Message`) grew a small private method building that list's
+query once, called from both `index()` and `show()` — `show()` passes the
+result under a `cell*`-prefixed key (`cellOrders`, `cellSellers`, …) so it
+never collides with the singular model the rest of the page reads. The list
+a show page's pane carries is the same default, unfiltered list the index
+route opens with — a show URL carries no query string to filter it by, so
+an item deep in a filtered list will not show highlighted if the
+seller/status filters were never applied to begin with.
+
+**The list is windowed, not paginated (DSGN-006 follow-up).** Sellers/
+customers/listings/orders/fulfillments/messages have no pagination today;
+each section's query is capped at `App\Support\ListPaneWindow::SIZE` (50)
+rows instead of the unbounded `->get()` DSGN-006 originally shipped with —
+real pagination across six controllers was still judged more than this
+follow-up asked for. `ListPaneWindow::of()` runs the query twice, once for
+a `count()` and once `limit()`-ed for the rows, and — on a show route —
+takes a `mustInclude` model so the open item always gets a cell: if the
+capped fetch missed it, one more single-row query (the same filtered
+query, `whereKey()`) fetches and prepends it. A section whose total
+exceeds the window says so in its pane: the header count reads the true
+total, and `x-admin.cell-footer` renders "Showing 50 of 312" beneath the
+list, linking back to the section's own index; a section that fits inside
+the window renders neither. Index and show routes for a section share one
+query, so the below-`xl` table/cards the pane sits beside inherit the same
+cap — the "unchanged" in the table above holds structurally (same markup,
+same components) but no longer means every row past the first fifty.
+
+**The cell hierarchy** every `x-admin.<section>-cells` component follows:
+line 1 is identity (the human-readable name, e.g. the customer on an order
+cell — never a prefixed id) plus when, right-aligned in mono
+(`x-admin.cell-time`, the clock for today or the date otherwise); line 2 is
+state — a status pill (`x-admin.status-badge`, one of `ok`/`warn`/`bad`/the
+default neutral gray), one supporting fact, and the number that matters,
+right-aligned in mono. An anonymous customer has no name, so the id steps
+into line 2's supporting slot rather than leading line 1. Messages keeps its
+existing inbox row shape (`x-messaging.inbox`, which grew an optional
+`selected` prop for the highlight) rather than adopting the two-line
+pattern — it already carried the facts an inbox needs.
+
+**The rail's per-section counts** (`AdminLayoutComposer`) are a bare
+`count()` per section — Sellers, Customers, Listings, Orders,
+Fulfillments — run on every admin page a signed-in admin views, the same
+place the unread-message count was already computed. Accounting, ledger,
+payouts, stats, logs, and the dashboard itself carry no rail count: nothing
+about them is a single cheap query the way a row count is.

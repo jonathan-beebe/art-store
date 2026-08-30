@@ -11,7 +11,8 @@ it('defaults to no filters and health hidden', function (): void {
 
     expect($filters->domain)->toBeNull()
         ->and($filters->level)->toBeNull()
-        ->and($filters->hideHealth)->toBeTrue();
+        ->and($filters->hideHealth)->toBeTrue()
+        ->and($filters->hideViewer)->toBeTrue();
 });
 
 it('clones every field but level when asked without it', function (): void {
@@ -30,6 +31,7 @@ it('clones every field but level when asked without it', function (): void {
         key: 'data.order_id',
         value: 'ord_1',
         hideHealth: false,
+        hideViewer: false,
     );
 
     $withoutLevel = $filters->withoutLevel();
@@ -47,5 +49,6 @@ it('clones every field but level when asked without it', function (): void {
         ->and($withoutLevel->to)->toBe('2026-08-25T00:00:00Z')
         ->and($withoutLevel->key)->toBe('data.order_id')
         ->and($withoutLevel->value)->toBe('ord_1')
-        ->and($withoutLevel->hideHealth)->toBeFalse();
+        ->and($withoutLevel->hideHealth)->toBeFalse()
+        ->and($withoutLevel->hideViewer)->toBeFalse();
 });

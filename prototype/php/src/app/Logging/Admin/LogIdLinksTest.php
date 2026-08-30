@@ -58,3 +58,16 @@ it('wraps every linkable id in the text with an anchor and escapes the rest', fu
 it('escapes text with no linkable id at all', function (): void {
     expect(LogIdLinks::linkify('<no ids here>'))->toBe('&lt;no ids here&gt;');
 });
+
+it('truncates a full id to its prefix plus 8 body characters', function (): void {
+    expect(LogIdLinks::truncate(prefixedTestId('cus')))->toBe('cus_01J5X3M9');
+});
+
+it('leaves an id already at or under the truncated length unchanged', function (): void {
+    expect(LogIdLinks::truncate('req_1'))->toBe('req_1')
+        ->and(LogIdLinks::truncate('req_01J5X3M9'))->toBe('req_01J5X3M9');
+});
+
+it('leaves an id with no prefix separator unchanged', function (): void {
+    expect(LogIdLinks::truncate('nounderscoreid'))->toBe('nounderscoreid');
+});

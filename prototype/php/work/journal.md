@@ -3,10 +3,10 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 4
+- DSGN: 7
 - ARCH: 1
 - FEAT: 35
-- IMPRV: 17
+- IMPRV: 18
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 11
@@ -14,6 +14,25 @@
 
 ## Log
 
+- 2026-08-30:16:59:47 — DSGN-006 — review fix: list panes bounded to a 50-row window (App\Support\ListPaneWindow), the open item prepended when it sorts outside it, footer naming the total; 3073+ tests, make check green
+
+- 2026-08-30:16:55:49 — DSGN-006 — review fix: capped the six list panes' queries at `ListPaneWindow::SIZE` (50), guaranteed the open item a cell outside the window, and added a "Showing N of total" pane footer above it
+- 2026-08-30:16:13:19 — DSGN-006 — resolved: `xl`-and-up admin shell — nav rail, list+detail panes for sellers/customers/listings/orders/fulfillments/messages, full-content panes for the rest; below-`xl` unchanged
+- 2026-08-30:15:44:41 — DSGN-006 — started
+- 2026-08-30:15:38:52 — DSGN-006 — defined: The admin shell is a nav rail with list and detail panes
+
+- 2026-08-30:12:45:02 — DSGN-005 — resolved: admin nav collapses into a JS-free Menu disclosure below sm; every table-bearing index page (and the four table components shared with a show page) renders cards below sm via shared card-list/card-row; dashboard is a drill-down hub; detail pages open with a back link and full-width actions; logs rows link to their story below sm while sm+ keeps the in-place expansion. 3050 tests, 100% coverage, lint clean.
+- 2026-08-30:12:08:44 — DSGN-005 — started
+- 2026-08-30:11:56:09 — DSGN-005 — defined: The admin is small-screen first
+- 2026-08-30:11:41:02 — DSGN-004 — user-review polish 2: actor pill + chevron bound into one non-breaking inline-flex (actor track 136→152px), grouped rows gain a leading caret that rotates open via group-open (summary still announces the state natively)
+- 2026-08-30:11:32:46 — DSGN-004 — user-review polish: actor cell normalized to pill + record chevron (aria-named "View customer/seller <id>"), disclosures open downward from top-aligned rows, grouped-row grid gets min-w-0 cells and retuned tracks so columns align, active level chip takes the domain control's dark fill and toggles off, More-filters becomes a JS-free popover card (viewport takeover below sm, summary kept above it); 3043 tests, lint clean
+- 2026-08-30:08:56:14 — DSGN-004 — review fix: removed the invalid role="table"/"row"/"columnheader"/"cell" overlay from the Requests view (role="row" on <summary> broke native disclosure semantics, WCAG 4.1.2; the structure failed ARIA table requirements regardless); native <details>/<summary> plus data-* hooks kept, column-header strip now aria-hidden="true", page h1 is the list's accessible context; make test/lint/check green, coverage 100%, 3041 tests
+- 2026-08-30:08:45:13 — DSGN-004 — resolved: workflow-first header (domain segmented control, level tallies as the level filter, More-filters disclosure with an active-filter dot), applied-state filter chips, columnar Requests/Lines rows, tinted duration (App\Logging\Admin\LogDurationTint), truncated row-level id chips with full ids in the expanded panel/story, GET /admin/logs with no query redirects to ?domain=shop&group=1, full-width logs pages; reused chore/docs's LogFilterLinks/log-actor/log-ids rather than reimplementing them, merged twice to land on its filter-link/viewer-filter/db-activity work; make check green, coverage 100%, 3041 tests
+- 2026-08-30:08:07:30 — IMPRV-017 — resolved: http.request did lines carry data.db = {queries, total_ms} (App\Support\DbActivity tallies over DB::listen, reset per request in LogRequestStory), zero of each when no query ran, reachable through /admin/logs' any-attribute filter; request-only scope, CLI/txn stories untouched; alignment §2.2/§8 amended, PHP-first, Node/Rails owe the field; make check green, coverage 100%, 2997 tests
+- 2026-08-30:07:52:44 — DSGN-004 — started
+- 2026-08-30:07:52:26 — IMPRV-017 — started
+- 2026-08-30:07:37:27 — IMPRV-017 — defined: request lines carry database query count and time
+- 2026-08-30:07:36:24 — DSGN-004 — defined: Log viewer redesign: workflow-first filters and columnar rows
 - 2026-08-29:18:46:54 — FEAT-034 — resolved: storefront browse and search move to first-class paths (/medium/{medium}, /browse/{categoryPath}, /search?q=) with legacy redirects; stale-q link builder deleted from the three browse partials; browsable gains its first read-side meaning; make check green, coverage 100%, 2989 tests; alignment reconciliation updated
 - 2026-08-29:18:46:54 — IMPRV-016 — resolved: http.request will lines carry data.query (path stays bare); alignment §2.2 amended, PHP-first, Node/Rails owe the field; searches trackable via /admin/logs?key=data.query.q
 - 2026-08-29:13:52:26 — FEAT-033 — resolved: log store + admin log viewer ported from Node per docs/logging.md — LogStore/LogStoreTap ingest mirror, orders:sweep retention prune with --as-of, /admin/logs viewer with full filter set and story view; make check green, coverage 100%, 2960 tests; two dev-env defects fixed en route (.env LOG_CHANNEL drift, cli-server SAPI STDOUT constants)

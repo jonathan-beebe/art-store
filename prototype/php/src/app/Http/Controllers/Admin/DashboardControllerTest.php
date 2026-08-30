@@ -16,6 +16,13 @@ it('renders the admin dashboard', function (): void {
     $response->assertSee('Dashboard');
 });
 
+it('renders no list pane — a full-content section, not list+detail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $response->assertDontSee('xl:w-[400px]', escape: false);
+});
+
 it('links to every page of the directory', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
@@ -24,6 +31,58 @@ it('links to every page of the directory', function (): void {
     $response->assertSee('href="'.route('admin.listings.index').'"', escape: false);
     $response->assertSee('href="'.route('admin.orders.index').'"', escape: false);
     $response->assertSee('href="'.route('admin.fulfillments.index').'"', escape: false);
+});
+
+it('collapses the nav into a Menu disclosure carrying every admin link, below xl', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect($html)->toMatch('/<details class="relative xl:hidden">/');
+    foreach ([
+        route('admin.sellers.index'), route('admin.customers.index'), route('admin.listings.index'),
+        route('admin.orders.index'), route('admin.fulfillments.index'), route('admin.accounting'),
+        route('admin.ledger'), route('admin.payouts.index'), route('admin.stats'), route('admin.logs.index'),
+        route('admin.messages.index'),
+    ] as $href) {
+        // Each link now renders twice — the sm+ inline nav and the mobile
+        // menu grid — so this only proves the mobile grid still carries it,
+        // not that it carries it exactly once.
+        expect(substr_count($html, 'href="'.$href.'"'))->toBeGreaterThanOrEqual(2);
+    }
+});
+
+it('links every status drill row to its filtered list, below sm', function (): void {
+    $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $response->assertSee('href="'.route('admin.listings.index', ['status' => 'for_sale']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.orders.index', ['status' => 'awaiting_payment']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.fulfillments.index', ['status' => 'awaiting_shipment']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.accounting').'"', escape: false);
+    $response->assertSee('href="'.route('admin.stats').'"', escape: false);
+});
+
+it('marks the Dashboard nav link current in the inline nav, the menu panel, and the rail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+});
+
+it('does not mark Dashboard current on another admin page', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(0);
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
 });
 
 it('sends a guest to the admin login page', function (): void {

@@ -10,6 +10,13 @@ use App\Actions\Listings\RecordListingEvent;
 use App\Domain\Analytics\PageViewSite;
 use App\Domain\Listings\ListingEventType;
 
+it('renders no list pane — a full-content section, not list+detail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
+
+    $response->assertOk();
+    $response->assertDontSee('xl:w-[400px]', escape: false);
+});
+
 it('shows page views by day, inside the seven-day window', function (): void {
     $record = app(RecordPageView::class);
     $record(PageViewSite::Shop, '/art/{listing}', $this->moment('2026-08-20 09:00:00'));

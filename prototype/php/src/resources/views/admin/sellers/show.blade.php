@@ -1,7 +1,20 @@
-<x-layouts.admin :title="$seller->displayName().' — Art Store admin'">
+<x-layouts.admin :title="$seller->displayName().' — Art Store admin'" mode="detail">
+    <x-slot:cells>
+        <div class="flex items-baseline gap-2 border-b border-gray-200 p-3 dark:border-gray-800">
+            <h1 class="text-sm font-semibold">Sellers</h1>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $cellSellersTotal }}</span>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <x-admin.sellers-cells :sellers="$cellSellers" :balances="$cellBalances" :selected="$seller" />
+        </div>
+        <x-admin.cell-footer :shown="$cellSellers->count()" :total="$cellSellersTotal" :route="route('admin.sellers.index')" />
+    </x-slot:cells>
+
+    <x-admin.back-link :route="route('admin.sellers.index')" label="Sellers" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">{{ $seller->displayName() }}</h1>
-        <a href="{{ route('admin.sellers.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All sellers</a>
+        <a href="{{ route('admin.sellers.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All sellers</a>
     </div>
 
     <dl class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -41,33 +54,7 @@
     <section aria-labelledby="payouts-heading" class="mt-6">
         <h2 id="payouts-heading" class="font-semibold text-gray-700 dark:text-gray-300">Payouts</h2>
 
-        @if ($payouts->isEmpty())
-            <x-admin.nothing>No payouts yet.</x-admin.nothing>
-        @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-                <table class="w-full text-left">
-                    <caption class="sr-only">Every weekly payout this seller has been paid</caption>
-                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                        <tr>
-                            <th scope="col" class="px-4 py-2 font-semibold">Period</th>
-                            <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
-                            <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                        @foreach ($payouts as $payout)
-                            <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">
-                                    {{ $payout->period_start?->format('M j, Y') }} – {{ $payout->period_end?->format('M j, Y') }}
-                                </th>
-                                <td class="px-4 py-2 text-right tabular-nums">{{ $payout->amount()->format() }}</td>
-                                <td class="px-4 py-2">{{ $payout->paid_at?->format('M j, Y') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+        <x-admin.payouts-table :payouts="$payouts" :show-seller="false" caption="Every weekly payout this seller has been paid" />
     </section>
 
     <section aria-labelledby="message-heading" class="mt-6 max-w-xl">

@@ -55,3 +55,28 @@ it('renders a page with no admin signed in without the count', function (): void
     $response->assertOk();
     $response->assertDontSee('Messages (', escape: false);
 });
+
+it('renders the xl-and-up nav rail with the active section marked (DSGN-006)', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    // Three nav landmarks carry the twelve section links: the below-`xl`
+    // inline nav, its Menu disclosure panel, and the `xl`-and-up rail.
+    expect(substr_count($html, 'aria-label="Admin"'))->toBe(3);
+    // The Orders link is marked current in all three — proof the rail
+    // renders the same active-section logic as the two below-`xl` navs.
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+});
+
+it('marks a section current on the rail from its show route, not only its index', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$seller->id}");
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.sellers.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+});

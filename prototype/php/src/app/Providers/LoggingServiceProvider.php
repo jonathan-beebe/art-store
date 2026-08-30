@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Logging\StoryEvent;
+use App\Support\DbActivity;
 use App\Support\Story;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Events\MigrationsStarted;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -46,6 +48,17 @@ class LoggingServiceProvider extends ServiceProvider
 
         $this->announceMigrations();
         $this->announceNotifications();
+        $this->tallyQueries();
+    }
+
+    /**
+     * Every query, on every connection, feeds the request's running tally —
+     * `LogRequestStory` resets it per request and reads it into the
+     * `http.request` did line's `data.db` (docs/alignment.md §2.2).
+     */
+    private function tallyQueries(): void
+    {
+        DB::listen(DbActivity::listen(...));
     }
 
     private function announceMigrations(): void

@@ -15,6 +15,7 @@ use App\Models\CustomerBlock;
 use App\Models\Fulfillment;
 use App\Models\Message;
 use App\Support\CustomerIdentity;
+use App\Support\ListPaneWindow;
 use Illuminate\Support\Facades\Config;
 use Tests\CapturedStory;
 
@@ -80,6 +81,96 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertSeeInOrder(['Can you review my listing?', "I'll take a look."]);
     expect($first->fresh()?->read_at)->not->toBeNull()
         ->and($second->fresh()?->read_at)->toBeNull();
+});
+
+it('shows the list panes empty-detail prompt on the index route', function (): void {
+    Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
+        ->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertSee('Choose a conversation to read it.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling conversation still on the list', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Rye Press')->id))
+        ->create();
+    $viewed = Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Blue Kiln Studio')->id))
+        ->create();
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    $response->assertSee('Rye Press');
+});
+
+it('caps the list pane at the window size, however many conversations exist', function (): void {
+    $admin = $this->admin();
+    for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
+        Conversation::factory()
+            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
+            ->create();
+    }
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    // The index route renders the same capped list twice — the `xl`-and-up
+    // pane and the below-`xl` inbox `x-messaging.inbox` already carried —
+    // so the window shows up twice over.
+    expect(substr_count((string) $response->getContent(), '<li>'))->toBe(ListPaneWindow::SIZE * 2);
+});
+
+it('keeps the viewed conversation on the list pane even when it sorts outside the window', function (): void {
+    $admin = $this->admin();
+    $viewed = Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Blue Kiln Studio')->id))
+        ->create(['last_message_at' => now()->subDay()]);
+
+    for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
+        Conversation::factory()
+            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
+            ->create(['last_message_at' => now()]);
+    }
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    expect(substr_count((string) $response->getContent(), '<li>'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('says how many conversations the list pane is not showing, linked to the full list', function (): void {
+    $admin = $this->admin();
+    for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
+        Conversation::factory()
+            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
+            ->create();
+    }
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.messages.index').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every conversation', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
+        ->create();
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
 });
 
 it('answers not found for a thread the admin is not in', function (): void {
@@ -267,8 +358,14 @@ it('renders the inbox on a fixed number of queries however many threads the admi
 
     $response = $this->actingAs($admin, 'admin')
         // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews).
-        ->expectsDatabaseQueryCount(7)
+        // countable response (RollUpPageViews). +5 for the nav rail's
+        // per-section counts (DSGN-006, AdminLayoutComposer) — one bare
+        // `count()` per section cheap enough to show, run on every admin
+        // page regardless of which one is rendering. +1 for the list
+        // pane's window total (`ListPaneWindow`, DSGN-006 follow-up) — a
+        // `count()` alongside the capped fetch, so the pane and its footer
+        // can say how many conversations exist beyond the window.
+        ->expectsDatabaseQueryCount(13)
         ->get('/admin/messages');
 
     $response->assertOk();

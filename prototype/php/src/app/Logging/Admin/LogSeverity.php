@@ -57,4 +57,16 @@ enum LogSeverity
             self::None => '',
         };
     }
+
+    /** The matching border for a severity-tinted card — the story header
+     * and a group's own expansion border, everywhere `rowClasses()`'s flat
+     * background wants an edge instead. */
+    public function borderClasses(): string
+    {
+        return match ($this) {
+            self::Error => 'border-red-200 dark:border-red-900',
+            self::Warn => 'border-amber-200 dark:border-amber-900',
+            self::None => 'border-gray-300 dark:border-gray-700',
+        };
+    }
 }

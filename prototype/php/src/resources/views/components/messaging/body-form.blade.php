@@ -10,5 +10,5 @@
         <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
     @enderror
 
-    <button type="submit" class="mt-4 rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">{{ $submitLabel }}</button>
+    <button type="submit" class="mt-4 block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">{{ $submitLabel }}</button>
 </form>

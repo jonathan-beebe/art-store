@@ -27,6 +27,28 @@ final class LogIdLinks
 
     private const string PREFIXED_ID = '/[a-z]{3}_[0-9A-HJKMNP-TV-Z]{26}/';
 
+    /** A row-level id chip shows the prefix plus this many body
+     * characters — enough to tell two ids in the same list apart without
+     * spending the row's width on a full ULID. */
+    private const int TRUNCATED_BODY_LENGTH = 8;
+
+    /** `cus_01J5X3M9A2K8YB7Q4R6T1V0WZE` → `cus_01J5X3M9`, for a collapsed
+     * row's id chips (docs/logging.md's expanded panels and the story view
+     * show the full id instead). An id with no `_`, or one already this
+     * short or shorter, renders as given rather than mangled. */
+    public static function truncate(string $id): string
+    {
+        $separator = strpos($id, '_');
+
+        if ($separator === false) {
+            return $id;
+        }
+
+        $truncatedLength = $separator + 1 + self::TRUNCATED_BODY_LENGTH;
+
+        return strlen($id) > $truncatedLength ? substr($id, 0, $truncatedLength) : $id;
+    }
+
     public static function hrefFor(string $id): ?string
     {
         $prefix = substr($id, 0, 3);

@@ -12,7 +12,9 @@ use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Variant;
+use App\Support\ListPaneWindow;
 
 it('lists every order with its customer', function (): void {
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);
@@ -165,6 +167,30 @@ it('stops offering to cancel a paid order', function (): void {
     $response->assertSee('Refund this fulfillment');
 });
 
+it('keeps the Orders nav link current on an order detail page, not just the index', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $index = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+    $show = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    foreach ([$index, $show] as $response) {
+        $response->assertOk();
+        $html = (string) $response->getContent();
+        // Three: the below-`xl` inline nav, its Menu disclosure, and the
+        // `xl`-and-up rail (DSGN-006).
+        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+    }
+});
+
+it('opens with a back link to the order list, for below sm', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$order->id}");
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/<a href="'.preg_quote(route('admin.orders.index'), '/').'"[^>]*sm:hidden"[^>]*>\s*<svg[\s\S]*?<span>Orders<\/span>/');
+});
+
 it('says so on an order with no refunds', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
 
@@ -172,6 +198,69 @@ it('says so on an order with no refunds', function (): void {
 
     $response->assertOk();
     $response->assertSee('No refunds.');
+});
+
+it('shows the list pane and its empty-detail prompt on the index route', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertSee('Choose an order to see its details.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling order still on the list', function (): void {
+    $ada = Customer::factory()->create(['name' => 'Ada Painter']);
+    $this->orderFor($ada, $this->listing($this->seller()));
+    $viewed = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee($viewed->id);
+    $response->assertSee('Ada Painter');
+    // The open order's own cell in the list pane carries the mark, and no
+    // other cell does.
+    expect(substr_count((string) $response->getContent(), 'aria-current="true"'))->toBe(1);
+});
+
+it('caps the list pane at the window size, however many orders exist', function (): void {
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE);
+});
+
+it('keeps the viewed order on the list pane even when it sorts outside the window', function (): void {
+    $viewed = Order::factory()->create(['placed_at' => now()->subDay()]);
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee($viewed->id);
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('says how many orders the list pane is not showing, linked to the full list', function (): void {
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.orders.index').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every order', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
 });
 
 it('lists the refunds issued on an order', function (): void {

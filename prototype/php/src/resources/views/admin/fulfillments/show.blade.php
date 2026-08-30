@@ -1,7 +1,20 @@
-<x-layouts.admin :title="'Fulfillment '.$fulfillment->id.' — Art Store admin'">
+<x-layouts.admin :title="'Fulfillment '.$fulfillment->id.' — Art Store admin'" mode="detail">
+    <x-slot:cells>
+        <div class="flex items-baseline gap-2 border-b border-gray-200 p-3 dark:border-gray-800">
+            <h1 class="text-sm font-semibold">Fulfillments</h1>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $cellFulfillmentsTotal }}</span>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <x-admin.fulfillments-cells :fulfillments="$cellFulfillments" :selected="$fulfillment" />
+        </div>
+        <x-admin.cell-footer :shown="$cellFulfillments->count()" :total="$cellFulfillmentsTotal" :route="route('admin.fulfillments.index')" />
+    </x-slot:cells>
+
+    <x-admin.back-link :route="route('admin.fulfillments.index')" label="Fulfillments" />
+
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Fulfillment {{ $fulfillment->id }}</h1>
-        <a href="{{ route('admin.fulfillments.index') }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">All fulfillments</a>
+        <a href="{{ route('admin.fulfillments.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All fulfillments</a>
     </div>
 
     <dl class="mt-4 grid gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:grid-cols-2">
