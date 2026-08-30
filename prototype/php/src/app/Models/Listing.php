@@ -507,6 +507,57 @@ class Listing extends Model
     }
 
     /**
+     * The storefront search filter (/search): a listing whose title,
+     * description, or Medium attribute label matches the given LIKE pattern
+     * — {@see \App\Domain\Shop\ListingSearch::likePattern()} builds it, so
+     * this scope takes the pattern rather than the raw term and stays free
+     * of the wildcard-escaping rule the domain owns. Null adds no clause,
+     * the same "empty means all" idiom `ofMediumAttribute` holds.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofSearchTerm(Builder $query, ?string $likePattern): void
+    {
+        if ($likePattern === null) {
+            return;
+        }
+
+        $query->where(fn (Builder $match): Builder => $match
+            ->where('title', 'like', $likePattern)
+            ->orWhere('description', 'like', $likePattern)
+            ->orWhereHas('listingAttributes', fn (Builder $attributes): Builder => $attributes
+                ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
+                ->whereHas('propertyValue', fn (Builder $values): Builder => $values->where('label', 'like', $likePattern))));
+    }
+
+    /**
+     * The storefront category filter (/browse/{categoryPath}): a listing
+     * placed in the given category or one of its descendants. Categories are
+     * matched in PHP rather than a SQL LIKE, the same idiom `ofMediumAttribute`
+     * holds for medium labels — `path` is a materialized path
+     * (`/jewelry/rings/`) and a descendant's starts with its ancestor's, so
+     * `str_starts_with` reads the tree without walking `parent_id`. Null adds
+     * no clause, the same "empty means all" idiom every `of*` scope holds.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofCategoryPathPrefix(Builder $query, ?string $pathPrefix): void
+    {
+        if ($pathPrefix === null) {
+            return;
+        }
+
+        $categoryIds = Category::query()
+            ->get(['id', 'path'])
+            ->filter(fn (Category $category): bool => str_starts_with($category->path, $pathPrefix))
+            ->pluck('id');
+
+        $query->whereIn($query->qualifyColumn('category_id'), $categoryIds);
+    }
+
+    /**
      * The listing page's Medium line: the label of this listing's Medium
      * attribute, or null when it does not carry one — `listing_attributes` is
      * the only place a listing's medium lives (RFCTR-009).

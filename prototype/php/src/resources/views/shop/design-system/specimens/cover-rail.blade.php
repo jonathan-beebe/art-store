@@ -6,7 +6,7 @@
             <p class="px-4 text-sm text-ink-muted">No attributed medium yet — seed the catalog to fill the rail.</p>
         @else
             <div class="px-4">
-                @include('shop.partials.media-cover-rail', ['browse' => $browse, 'activeMedium' => null, 'term' => null])
+                @include('shop.partials.media-cover-rail', ['browse' => $browse, 'activeMedium' => null])
             </div>
         @endif
 

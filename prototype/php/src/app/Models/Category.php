@@ -62,4 +62,14 @@ class Category extends Model
     {
         return $this->hasMany(Listing::class);
     }
+
+    /**
+     * The `{categoryPath}` segment `/browse/{categoryPath}` binds on — the
+     * materialized path with its leading and trailing slashes stripped, the
+     * inverse of how the route resolves it back to a path.
+     */
+    public function browsePath(): string
+    {
+        return trim($this->path, '/');
+    }
 }

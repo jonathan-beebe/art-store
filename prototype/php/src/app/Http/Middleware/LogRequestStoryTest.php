@@ -24,6 +24,18 @@ it('opens and closes the request with a line of its own', function (): void {
         ->and($did['duration_ms'])->toBeInt();
 });
 
+it('carries the query parameters on the opening line, and omits the key without them', function (): void {
+    $log = CapturedStory::capture();
+
+    $this->get('/?medium=ceramic&q=cup');
+
+    expect($log->line('http.request', 'will')['data'])->toBe([
+        'method' => 'GET',
+        'path' => '/',
+        'query' => ['medium' => 'ceramic', 'q' => 'cup'],
+    ]);
+});
+
 it('opens and closes a request that matches no route', function (): void {
     $log = CapturedStory::capture();
 

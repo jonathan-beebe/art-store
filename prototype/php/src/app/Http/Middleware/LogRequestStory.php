@@ -74,10 +74,11 @@ final readonly class LogRequestStory
         Story::follows($requestId);
 
         $path = $this->path($request);
-        $story = Story::for(StoryEvent::HttpRequest)->will("{$request->method()} {$path}", [
+        $story = Story::for(StoryEvent::HttpRequest)->will("{$request->method()} {$path}", array_filter([
             'method' => $request->method(),
             'path' => $path,
-        ]);
+            'query' => $request->query(),
+        ]));
 
         try {
             $response = $next($request);

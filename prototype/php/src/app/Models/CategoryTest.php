@@ -26,3 +26,11 @@ it('grants properties and lists the listings placed in it', function (): void {
     expect($category->categoryProperties()->count())->toBe(1)
         ->and($category->listings()->pluck('id')->all())->toBe([$listing->id]);
 });
+
+it('strips the path down to the /browse/{categoryPath} segment', function (): void {
+    $root = Category::factory()->create(['path' => '/jewelry/']);
+    $child = Category::factory()->childOf($root, 'Rings')->create();
+
+    expect($root->browsePath())->toBe('jewelry')
+        ->and($child->browsePath())->toBe('jewelry/rings');
+});
