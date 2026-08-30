@@ -82,6 +82,33 @@ it('shows every message in order and marks the thread read', function (): void {
         ->and($second->fresh()?->read_at)->toBeNull();
 });
 
+it('shows the list panes empty-detail prompt on the index route', function (): void {
+    Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
+        ->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertSee('Choose a conversation to read it.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling conversation still on the list', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Rye Press')->id))
+        ->create();
+    $viewed = Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Blue Kiln Studio')->id))
+        ->create();
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    $response->assertSee('Rye Press');
+});
+
 it('answers not found for a thread the admin is not in', function (): void {
     $conversation = Conversation::factory()
         ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
@@ -267,8 +294,11 @@ it('renders the inbox on a fixed number of queries however many threads the admi
 
     $response = $this->actingAs($admin, 'admin')
         // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews).
-        ->expectsDatabaseQueryCount(7)
+        // countable response (RollUpPageViews). +5 for the nav rail's
+        // per-section counts (DSGN-006, AdminLayoutComposer) — one bare
+        // `count()` per section cheap enough to show, run on every admin
+        // page regardless of which one is rendering.
+        ->expectsDatabaseQueryCount(12)
         ->get('/admin/messages');
 
     $response->assertOk();

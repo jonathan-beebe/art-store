@@ -151,6 +151,26 @@ it('says so on a customer who has done nothing at all', function (): void {
     $response->assertSee('No merges.');
 });
 
+it('shows the list panes empty-detail prompt on the index route', function (): void {
+    Customer::factory()->create(['name' => 'Ada Painter']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/customers');
+
+    $response->assertOk();
+    $response->assertSee('Choose a customer to see their account.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling customer still on the list', function (): void {
+    Customer::factory()->create(['name' => 'Priya Shopper']);
+    $viewed = Customer::factory()->create(['name' => 'Ada Painter']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Ada Painter');
+    $response->assertSee('Priya Shopper');
+});
+
 it('shows the merge that folded an anonymous visitor into someone else', function (): void {
     $anonymous = $this->anonymousCustomer();
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);

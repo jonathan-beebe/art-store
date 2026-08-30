@@ -12,6 +12,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\PostMessageRequest;
 use App\Models\Conversation;
 use App\Support\RateLimiting\RateLimitGate;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -21,16 +22,10 @@ final class MessageController extends AdminController
 {
     public function index(): View
     {
-        $admin = $this->admin();
-
-        $conversations = Conversation::query()
-            ->withParticipant($admin)
-            ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
-            ->withUnreadCountFor($admin)
-            ->orderByDesc('last_message_at')
-            ->get();
-
-        return view('admin.messages.index', ['conversations' => $conversations, 'viewer' => ActorType::Admin]);
+        return view('admin.messages.index', [
+            'conversations' => $this->conversations(),
+            'viewer' => ActorType::Admin,
+        ]);
     }
 
     public function show(Conversation $conversation, MarkConversationRead $markRead): View
@@ -39,7 +34,25 @@ final class MessageController extends AdminController
 
         $markRead($conversation, $this->admin(), $this->now());
 
-        return view('admin.messages.show', $this->threadView($conversation));
+        return view('admin.messages.show', [
+            ...$this->threadView($conversation),
+            // DSGN-006: the show route's list pane is the same inbox the
+            // index route opens with, with this thread marked current.
+            'cellConversations' => $this->conversations(),
+        ]);
+    }
+
+    /**
+     * @return Collection<int, Conversation>
+     */
+    private function conversations(): Collection
+    {
+        return Conversation::query()
+            ->withParticipant($this->admin())
+            ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
+            ->withUnreadCountFor($this->admin())
+            ->orderByDesc('last_message_at')
+            ->get();
     }
 
     public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -54,7 +67,10 @@ final class MessageController extends AdminController
             // admin was reading re-renders with the reply still in the box.
             $request->flash();
 
-            return $this->tooManyRequests($exceeded, 'admin.messages.show', $this->threadView($conversation));
+            return $this->tooManyRequests($exceeded, 'admin.messages.show', [
+                ...$this->threadView($conversation),
+                'cellConversations' => $this->conversations(),
+            ]);
         }
 
         $postMessage($conversation, $admin, $request->body(), $this->now());

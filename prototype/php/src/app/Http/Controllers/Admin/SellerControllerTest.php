@@ -92,6 +92,26 @@ it('says so on a seller with no listings, fulfillments or payouts at all', funct
     $response->assertSee('No payouts yet.');
 });
 
+it('shows the list panes empty-detail prompt on the index route', function (): void {
+    $this->seller('Blue Kiln Studio');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    $response->assertSee('Choose a seller to see their shop.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling seller still on the list', function (): void {
+    $this->seller('Rye Press');
+    $viewed = $this->seller('Blue Kiln Studio');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    $response->assertSee('Rye Press');
+});
+
 it('answers not found for a value that is not a seller id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$id}")->assertNotFound();
 })->with([

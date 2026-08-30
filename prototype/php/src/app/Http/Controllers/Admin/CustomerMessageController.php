@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Messaging\OpenConversationWithMessage;
+use App\Domain\Customers\StandingFilter;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -35,6 +36,15 @@ final class CustomerMessageController extends AdminController
 
             return $this->tooManyRequests($exceeded, 'admin.customers.show', [
                 'customer' => $customer->loadForConsole(),
+                // DSGN-006: the show page's list pane, the same as
+                // `CustomerController::show` renders it from.
+                'cellCustomers' => Customer::query()
+                    ->inStanding(StandingFilter::All)
+                    ->with('activeBlock')
+                    ->withCount(['orders', 'favorites', 'cartItems'])
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->get(),
             ]);
         }
 

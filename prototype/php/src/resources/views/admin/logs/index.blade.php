@@ -1,4 +1,4 @@
-<x-layouts.admin title="Logs — Art Store admin" :full-width="true">
+<x-layouts.admin title="Logs — Art Store admin" mode="content-wide">
     @if (! $storeAvailable)
         <h1 class="text-xl font-semibold">Logs</h1>
         <x-admin.nothing class="mt-4">The log store is unavailable — <code>LOG_DATABASE_FILE</code> is off or the store failed to open. Every line still goes to stdout.</x-admin.nothing>

@@ -9,6 +9,13 @@ use App\Models\Admin;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 
+it('renders no list pane — a full-content section, not list+detail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/accounting');
+
+    $response->assertOk();
+    $response->assertDontSee('xl:w-[400px]', escape: false);
+});
+
 it('reconciles every seller: held, available, paid out, and refunded', function (): void {
     $admin = Admin::factory()->create();
     $this->deliveredFulfillmentFor($this->seller('Blue Kiln Studio'), priceCents: 10000);

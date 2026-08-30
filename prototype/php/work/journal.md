@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-30:16:13:19 — DSGN-006 — resolved: `xl`-and-up admin shell — nav rail, list+detail panes for sellers/customers/listings/orders/fulfillments/messages, full-content panes for the rest; below-`xl` unchanged
 - 2026-08-30:15:44:41 — DSGN-006 — started
 - 2026-08-30:15:38:52 — DSGN-006 — defined: The admin shell is a nav rail with list and detail panes
 

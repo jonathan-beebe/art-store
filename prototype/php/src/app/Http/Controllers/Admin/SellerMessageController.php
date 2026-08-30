@@ -10,6 +10,7 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ListingStatusTally;
 use App\Http\Requests\Admin\SendMessageRequest;
+use App\Models\LedgerEntry;
 use App\Models\Seller;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
@@ -61,6 +62,10 @@ final class SellerMessageController extends AdminController
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'payouts' => $seller->payouts()->orderByDesc('period_start')->get(),
             'balance' => $seller->escrowBalance(),
+            // DSGN-006: the show page's list pane, the same as
+            // `SellerController::show` renders it from.
+            'cellSellers' => Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id')->get(),
+            'cellBalances' => LedgerEntry::balancesBySeller(),
         ];
     }
 }

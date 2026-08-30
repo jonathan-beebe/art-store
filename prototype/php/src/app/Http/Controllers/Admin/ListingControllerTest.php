@@ -114,6 +114,27 @@ it('shows one listing with its activity and sales', function (): void {
     $response->assertSee($order->id);
 });
 
+it('shows the list panes empty-detail prompt on the index route', function (): void {
+    $this->listing($this->seller(), ['title' => 'Nine Herons']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/listings');
+
+    $response->assertOk();
+    $response->assertSee('Choose a listing to see its details.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling listing still on the list', function (): void {
+    $seller = $this->seller('Blue Kiln Studio');
+    $this->listing($seller, ['title' => 'Rye Harvest']);
+    $viewed = $this->listing($seller, ['title' => 'Nine Herons']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Nine Herons');
+    $response->assertSee('Rye Harvest');
+});
+
 it('shows the active removal and a lift button', function (): void {
     $listing = $this->listing($this->seller());
     app(RemoveListing::class)($listing, ListingRemovalKind::Temporary, 'Under review for a copyright claim.');

@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+it('renders no list pane — a full-content section, not list+detail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
+
+    $response->assertOk();
+    $response->assertDontSee('xl:w-[400px]', escape: false);
+});
+
 it('lists every ledger entry with no filter applied, folding the total of what it shows', function (): void {
     $this->deliveredFulfillmentFor($this->seller('Blue Kiln Studio'), priceCents: 10000);
 

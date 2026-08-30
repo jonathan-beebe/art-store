@@ -174,7 +174,9 @@ it('keeps the Orders nav link current on an order detail page, not just the inde
     foreach ([$index, $show] as $response) {
         $response->assertOk();
         $html = (string) $response->getContent();
-        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
+        // Three: the below-`xl` inline nav, its Menu disclosure, and the
+        // `xl`-and-up rail (DSGN-006).
+        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
     }
 });
 
@@ -194,6 +196,30 @@ it('says so on an order with no refunds', function (): void {
 
     $response->assertOk();
     $response->assertSee('No refunds.');
+});
+
+it('shows the list pane and its empty-detail prompt on the index route', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertSee('Choose an order to see its details.');
+});
+
+it('renders the list pane beside the detail pane, with a sibling order still on the list', function (): void {
+    $ada = Customer::factory()->create(['name' => 'Ada Painter']);
+    $this->orderFor($ada, $this->listing($this->seller()));
+    $viewed = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee($viewed->id);
+    $response->assertSee('Ada Painter');
+    // The open order's own cell in the list pane carries the mark, and no
+    // other cell does.
+    expect(substr_count((string) $response->getContent(), 'aria-current="true"'))->toBe(1);
 });
 
 it('lists the refunds issued on an order', function (): void {

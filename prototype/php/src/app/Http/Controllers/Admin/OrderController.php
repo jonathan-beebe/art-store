@@ -8,6 +8,7 @@ use App\Domain\Orders\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,14 +20,7 @@ final class OrderController extends Controller
         $customerId = $request->filled('customer') ? $request->string('customer')->toString() : null;
 
         return view('admin.orders.index', [
-            'orders' => Order::query()
-                ->ofStatus($status)
-                ->ofCustomer($customerId)
-                ->with('customer')
-                ->withCount('items')
-                ->orderByDesc('placed_at')
-                ->orderByDesc('id')
-                ->get(),
+            'orders' => $this->orders($status, $customerId),
             'customers' => Customer::query()->orderBy('name')->orderBy('id')->get(),
             'status' => $status,
             'statuses' => OrderStatus::cases(),
@@ -44,6 +38,25 @@ final class OrderController extends Controller
                 'fulfillments.seller',
                 'refunds.fulfillment.seller',
             ]),
+            // DSGN-006: the show route's list pane is the same default,
+            // unfiltered list the index route opens with — a show URL
+            // carries no query string to filter it by.
+            'cellOrders' => $this->orders(null, null),
         ]);
+    }
+
+    /**
+     * @return Collection<int, Order>
+     */
+    private function orders(?OrderStatus $status, ?string $customerId): Collection
+    {
+        return Order::query()
+            ->ofStatus($status)
+            ->ofCustomer($customerId)
+            ->with('customer')
+            ->withCount('items')
+            ->orderByDesc('placed_at')
+            ->orderByDesc('id')
+            ->get();
     }
 }

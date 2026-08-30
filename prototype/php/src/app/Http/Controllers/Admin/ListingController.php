@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\OrderItem;
 use App\Models\Seller;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,14 +23,7 @@ final class ListingController extends Controller
         $removed = $request->enum('removed', RemovedFilter::class) ?? RemovedFilter::Any;
 
         return view('admin.listings.index', [
-            'listings' => Listing::query()
-                ->ofStatus($status)
-                ->ofSeller($sellerId)
-                ->ofRemoval($removed)
-                ->with(['seller', 'activeRemoval'])
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->get(),
+            'listings' => $this->listings($status, $sellerId, $removed),
             'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
             'status' => $status,
             'statuses' => ListingStatus::cases(),
@@ -50,6 +44,24 @@ final class ListingController extends Controller
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get(),
+            // DSGN-006: the show route's list pane is the same default,
+            // unfiltered list the index route opens with.
+            'cellListings' => $this->listings(null, null, RemovedFilter::Any),
         ]);
+    }
+
+    /**
+     * @return Collection<int, Listing>
+     */
+    private function listings(?ListingStatus $status, ?string $sellerId, RemovedFilter $removed): Collection
+    {
+        return Listing::query()
+            ->ofStatus($status)
+            ->ofSeller($sellerId)
+            ->ofRemoval($removed)
+            ->with(['seller', 'activeRemoval'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
     }
 }

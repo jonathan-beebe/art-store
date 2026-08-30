@@ -419,3 +419,76 @@ story route (`kind !== 'request'`, e.g. a background line with no
 the tap falls through to the native `<details>` toggle, the same in-place
 expansion `sm:` and up already gives every row. Both affordances are always
 in the response; only the `sm:` breakpoint decides which one a tap reaches.
+
+## The `xl`-and-up shell: rail, list, and detail panes (DSGN-006)
+
+Question: at `xl` (1280px) and up, how does one Blade layout become a nav
+rail plus either a list-and-detail pair or a single content pane, while
+staying pixel-identical to DSGN-005's phone-and-desktop rendering below `xl`?
+
+`x-layouts.admin`'s `mode` prop is the one switch, replacing the old
+`full-width` boolean rather than sitting beside it as a second mechanism:
+
+| `mode`          | Below `xl`                          | `xl` and up                                    |
+| --------------- | ------------------------------------ | ----------------------------------------------- |
+| `content`        | today's `max-w-6xl` column (default) | one content pane, full remaining width           |
+| `content-wide`   | today's full-width column (old `full-width: true`) | one content pane, full remaining width |
+| `list`           | the index route's table/cards, unchanged | a `cells` list pane beside an empty-detail prompt |
+| `detail`         | the show route's content, unchanged  | the same content, now the detail pane, beside a `cells` list pane |
+
+`list` and `detail` both take a `cells` named slot — the section's compact,
+two-line rows for the `xl`-and-up list pane. It is never rendered below `xl`
+(the existing table and `x-admin.card-list` cards carry that breakpoint,
+untouched) and it is the same content on both an index and a show page for
+one section, because both call the same `x-admin.<section>-cells` component.
+The below-`xl` header (brand, inline nav, Menu disclosure) gets `xl:hidden`
+in full — nothing inside it changed, so it stays pixel-identical — and its
+brand, section links, and sign-out move into a new `xl:flex` rail sibling
+that has no below-`xl` counterpart to match.
+
+```mermaid
+flowchart TD
+    mode{"mode prop"} -->|content / content-wide| single["one content pane<br/>(dashboard, accounting, ledger,<br/>payouts, stats, logs)"]
+    mode -->|list| indexPane["cells pane + empty-detail prompt<br/>(an index route)"]
+    mode -->|detail| detailPane["cells pane + $slot as the detail pane<br/>(a show route)"]
+```
+
+**The URL mapping needed no new routes.** An index route (`GET
+/admin/orders`) renders `mode="list"`: the list pane's cells with nothing
+selected, and the layout's own generic empty-detail prompt. A show route
+(`GET /admin/orders/{order}`) renders `mode="detail"`: the same cells, with
+the current item's `x-admin.card-row` carrying `aria-current="true"` and a
+highlight, beside the existing detail content unchanged. Each of the six
+list+detail controllers (`Order`, `Seller`, `Customer`, `Listing`,
+`Fulfillment`, `Message`) grew a small private method building that list
+once, called from both `index()` and `show()` — `show()` passes it under a
+`cell*`-prefixed key (`cellOrders`, `cellSellers`, …) so it never collides
+with the singular model the rest of the page reads. The list a show page's
+pane carries is the same default, unfiltered list the index route opens
+with — a show URL carries no query string to filter it by, so an item deep
+in a filtered list will not show highlighted if the seller/status filters
+were never applied to begin with. Sellers/customers/listings/orders/
+fulfillments have no pagination today (`index()` reads with `->get()`, not
+`->paginate()`), so their list panes carry the whole list rather than a
+page of it; adding real pagination across five controllers was judged more
+than the modest restructuring this ticket asked for, so the panes render
+unpaginated and un-filterable — a deliberate scope cut, not an oversight.
+
+**The cell hierarchy** every `x-admin.<section>-cells` component follows:
+line 1 is identity (the human-readable name, e.g. the customer on an order
+cell — never a prefixed id) plus when, right-aligned in mono
+(`x-admin.cell-time`, the clock for today or the date otherwise); line 2 is
+state — a status pill (`x-admin.status-badge`, one of `ok`/`warn`/`bad`/the
+default neutral gray), one supporting fact, and the number that matters,
+right-aligned in mono. An anonymous customer has no name, so the id steps
+into line 2's supporting slot rather than leading line 1. Messages keeps its
+existing inbox row shape (`x-messaging.inbox`, which grew an optional
+`selected` prop for the highlight) rather than adopting the two-line
+pattern — it already carried the facts an inbox needs.
+
+**The rail's per-section counts** (`AdminLayoutComposer`) are a bare
+`count()` per section — Sellers, Customers, Listings, Orders,
+Fulfillments — run on every admin page a signed-in admin views, the same
+place the unread-message count was already computed. Accounting, ledger,
+payouts, stats, logs, and the dashboard itself carry no rail count: nothing
+about them is a single cheap query the way a row count is.

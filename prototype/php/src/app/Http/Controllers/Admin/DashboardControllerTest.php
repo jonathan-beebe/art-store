@@ -16,6 +16,13 @@ it('renders the admin dashboard', function (): void {
     $response->assertSee('Dashboard');
 });
 
+it('renders no list pane — a full-content section, not list+detail', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $response->assertDontSee('xl:w-[400px]', escape: false);
+});
+
 it('links to every page of the directory', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
@@ -59,13 +66,13 @@ it('links every status drill row to its filtered list, below sm', function (): v
     $response->assertSee('href="'.route('admin.stats').'"', escape: false);
 });
 
-it('marks the Dashboard nav link current in both the inline nav and the menu panel', function (): void {
+it('marks the Dashboard nav link current in the inline nav, the menu panel, and the rail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
     $response->assertOk();
     $html = (string) $response->getContent();
 
-    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
 });
 
 it('does not mark Dashboard current on another admin page', function (): void {
@@ -75,7 +82,7 @@ it('does not mark Dashboard current on another admin page', function (): void {
     $html = (string) $response->getContent();
 
     expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(0);
-    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
+    expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
 });
 
 it('sends a guest to the admin login page', function (): void {
