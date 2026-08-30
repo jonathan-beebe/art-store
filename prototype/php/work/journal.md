@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 4
+- DSGN: 5
 - ARCH: 1
 - FEAT: 35
 - IMPRV: 17
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-30:07:52:44 — DSGN-004 — started
 - 2026-08-29:18:46:54 — FEAT-034 — resolved: storefront browse and search move to first-class paths (/medium/{medium}, /browse/{categoryPath}, /search?q=) with legacy redirects; stale-q link builder deleted from the three browse partials; browsable gains its first read-side meaning; make check green, coverage 100%, 2989 tests; alignment reconciliation updated
 - 2026-08-29:18:46:54 — IMPRV-016 — resolved: http.request will lines carry data.query (path stays bare); alignment §2.2 amended, PHP-first, Node/Rails owe the field; searches trackable via /admin/logs?key=data.query.q
 - 2026-08-29:13:52:26 — FEAT-033 — resolved: log store + admin log viewer ported from Node per docs/logging.md — LogStore/LogStoreTap ingest mirror, orders:sweep retention prune with --as-of, /admin/logs viewer with full filter set and story view; make check green, coverage 100%, 2960 tests; two dev-env defects fixed en route (.env LOG_CHANNEL drift, cli-server SAPI STDOUT constants)
