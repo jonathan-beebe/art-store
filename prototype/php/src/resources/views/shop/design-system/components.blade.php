@@ -50,6 +50,55 @@
         </div>
 
         <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Tiles <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-tile&gt;</code>, golden ratio (1.618:1) at any width</span></h3>
+            <p class="mt-2 max-w-2xl text-sm text-ink-faint">
+                One tile for both browse rows: a photo cover when one exists, a tint fill otherwise — the medium row above and the category grid below both wear it, in and out of a drawer, at the exact same size.
+            </p>
+            @if ($categories === [])
+                <p class="mt-3 text-sm text-ink-muted">No browsable category yet — seed the catalog and its tiles render here.</p>
+            @else
+                @php $tints = ['bg-tint-1', 'bg-tint-2', 'bg-tint-3', 'bg-tint-4', 'bg-tint-5']; @endphp
+                <div class="mt-4 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
+                    @foreach ($categories as $index => $entry)
+                        <x-tile
+                            :href="route('shop.browse', ['categoryPath' => $entry['category']->browsePath()])"
+                            :label="$entry['category']->name"
+                            :count="$entry['count']"
+                            :cover-url="$entry['coverUrl']"
+                            :tint="$tints[$index % 5]"
+                        />
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Section header <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-ui.section-header&gt;</code></span></h3>
+            <div class="mt-4 max-w-2xl space-y-6">
+                <x-ui.section-header title="Browse by medium" />
+                <x-ui.section-header title="Search results" :link-href="route('shop.search')" link-label="Start a search" />
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Featured band <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-featured-band&gt;</code>, live from <code class="font-mono text-xs">config('storefront.featured')</code></span></h3>
+            @if ($featured === null)
+                <p class="mt-3 text-sm text-ink-muted">The configured featured subject names nothing for sale right now — the home page shows no band at all, which is the honest degrade this specimen has nothing further to render.</p>
+            @else
+                <div class="mt-4 overflow-hidden rounded-card border border-line">
+                    <x-featured-band :subject="$featured" />
+                </div>
+            @endif
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Wayfinding footer <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-wayfinding-footer&gt;</code>, the home page's closing section rather than a sitemap</span></h3>
+            <div class="mt-4 overflow-hidden rounded-card border border-line">
+                <x-wayfinding-footer :browse="$browse" :categories="$categories" />
+            </div>
+        </div>
+
+        <div>
             <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Add to cart <span class="normal-case font-normal">— <code class="font-mono text-xs">shop.partials.add-to-cart-button</code>, preview mode</span></h3>
             <div class="mt-4">
                 @include('shop.partials.add-to-cart-button', ['mode' => 'preview', 'listing' => null])

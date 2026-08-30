@@ -42,6 +42,11 @@
         </div>
     </header>
 
+    {{-- Full viewport width, outside `<main>`'s centered column — the
+         featured band's photograph (DSGN-007), say. Unset for every page
+         that has none. --}}
+    {{ $beforeMain ?? '' }}
+
     <main class="mx-auto max-w-6xl px-8 pb-24 pt-12">
         @if (session('error') || $errors->any())
             <x-ui.alert tone="danger" class="mb-10">
@@ -57,6 +62,11 @@
 
         {{ $slot }}
     </main>
+
+    {{-- Full viewport width, outside `<main>`'s centered column — the
+         wayfinding footer (DSGN-007), say. Unset for every page that has
+         none. --}}
+    {{ $afterMain ?? '' }}
 
     <script defer src="{{ asset('live-badge.js') }}"></script>
     <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>

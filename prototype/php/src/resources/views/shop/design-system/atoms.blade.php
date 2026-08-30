@@ -13,6 +13,9 @@
                 <x-ui.button type="button" variant="secondary">Favorite</x-ui.button>
                 <x-ui.button type="button" variant="primary" disabled>Add to cart</x-ui.button>
                 <x-ui.button type="button" variant="secondary" disabled>Favorite</x-ui.button>
+                {{-- A link wearing the button's classes rather than submitting a
+                     form — the featured band's call to action, say. --}}
+                <x-ui.button variant="primary" href="#atoms">See this piece</x-ui.button>
             </div>
         </div>
 

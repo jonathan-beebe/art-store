@@ -26,6 +26,8 @@
     @include('shop.design-system.atoms')
     @include('shop.design-system.components', [
         'browse' => $browse,
+        'categories' => $categories,
+        'featured' => $featured,
         'listings' => $listings,
         'configurable' => $configurable,
         'configuration' => $configuration,
