@@ -336,3 +336,86 @@ seller their held / available / paid-out balance and their payout history on
 `/seller/earnings` and offers no control that runs one: paying sellers is a
 platform action. The full sequence and the re-run rule are in
 [`escrow.md`](escrow.md).
+
+## Small-screen conventions (DSGN-005)
+
+Question: one Blade template renders both a 390px phone and a desktop — how,
+with the nav menu JS-off and no second template per page?
+
+Every admin page is server-rendered once; Tailwind's `sm:` prefix is the only
+thing that picks which markup a viewport shows. The base (unprefixed) classes
+are the phone layout; `sm:` restores today's desktop layout unchanged. Nothing
+below `sm` is conditionally *rendered* — it is conditionally *hidden* — so a
+test asserting on a link, a data-* attribute, or a filtered row finds it
+regardless of which breakpoint's markup carries it.
+
+```mermaid
+flowchart LR
+    blade["Blade view (one template)"] --> html["one HTML response"]
+    html --> css{"Tailwind sm: breakpoint"}
+    css -->|"< 640px"| mobile["base classes: cards, Menu disclosure, back link"]
+    css -->|">= 640px"| desktop["sm: classes: today's table, inline nav, All-X link"]
+```
+
+**Shell nav** (`resources/views/components/layouts/admin.blade.php`): the
+route/label pairs every admin page links to are declared once in a `$navLinks`
+array and rendered twice — the `sm:flex` inline nav (today's, unchanged) and a
+`<details class="relative sm:hidden">` disclosure whose panel is
+`fixed inset-x-0 top-16`, the same JS-free popover mechanic the logs page's
+More-filters button already uses (`resources/views/admin/logs/index.blade.php`)
+and the same reason: native `<details>`/`<summary>` needs no script, and
+`fixed` positioning lets the panel span the viewport without fighting the
+header row's own width. `<main>` drops `max-w-6xl` below `sm`, restoring it
+(or the `:full-width` opt-out's `w-full px-6`) at `sm` and up.
+
+**Tables → cards.** Two small presentational components,
+`x-admin.card-list` (the bordered/divided outer wrapper a table's own wrapper
+already used) and `x-admin.card-row` (one record's padding), are the shared
+mechanism — not a generic data-driven table renderer. Every table-bearing
+admin page (and the four table components shared between an index and a show
+page — `orders-table`, `listings-table`, `fulfillments-table`,
+`payouts-table`) now renders its `<table>` as `hidden sm:block` and, right
+after it, an `x-admin.card-list` of `x-admin.card-row`s built from the exact
+same loop over the exact same collection. A generic renderer was rejected: the
+columns that matter differ table to table (and some cells are themselves
+links), so a data-driven abstraction would need HTML-safe value injection for
+little gained over authoring each card's two or three lines directly.
+`x-messaging.inbox` (the message list) needed no such conversion — it was
+already a row-per-conversation flex list, never a `<table>`, so it already
+worked below `sm`.
+
+**Dashboard**: below `sm`, `admin/dashboard.blade.php` renders a second,
+`sm:hidden` block — one card per section (Platform money, Listings, Orders,
+Fulfillments, Page views) whose status rows are links into
+`route('admin.listings.index', ['status' => ...])` and its order/fulfillment
+equivalents. Today's static `<dl>` tally grids stay put, `hidden sm:block`,
+unchanged at `sm` and up. Every tally and every `data-*` hook (`data-status`,
+`data-tally`, `data-stat`) stays exactly where it was in the untouched
+desktop block, so the existing zero-row assertions read it there regardless
+of viewport.
+
+**Detail pages**: `x-admin.back-link` renders a `‹ List name` link, `sm:hidden`,
+above the page's `<h1>`; the existing "All X" link in the `<h1>` row gets
+`hidden sm:inline` so the two never show together. Primary action buttons
+(cancel an order, lift a removal, block a customer, refund a fulfillment, run
+the weekly payout, send a message) go `block w-full sm:inline-block sm:w-auto`
+— full width and thumb-reachable below `sm`, today's inline button at `sm` and
+up. The log story view already opened with its own back link
+(`admin/logs/show.blade.php`) before this ticket and needed only a
+`min-h-11` touch target, not a rebuild.
+
+**Logs list breakpoint switch, without JS**: each grouped row's `<summary>`
+now wraps two sibling blocks instead of being the grid row itself — a
+`hidden sm:grid` div carrying today's nine-column grid (unchanged), and a
+`sm:hidden` two-line card (time/status/duration, then method+path, per the
+approved canvas's `Main.dc.html`; actor and session are dropped from the row
+and read from the expanded/story view instead). A **request** group's mobile
+card is a real `<a href="{{ route('admin.logs.story', ...) }}">` — nested
+inside `<summary>`, so tapping it follows the link instead of toggling the
+panel, exactly the way the existing "Open request story" chevron button
+already behaves nested inside the same `<summary>` today. A group with no
+story route (`kind !== 'request'`, e.g. a background line with no
+`request_id`) has nothing to link to, so its mobile card is a plain `<div>`:
+the tap falls through to the native `<details>` toggle, the same in-place
+expansion `sm:` and up already gives every row. Both affordances are always
+in the response; only the `sm:` breakpoint decides which one a tap reaches.

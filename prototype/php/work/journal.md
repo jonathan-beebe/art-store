@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-30:12:45:02 — DSGN-005 — resolved: admin nav collapses into a JS-free Menu disclosure below sm; every table-bearing index page (and the four table components shared with a show page) renders cards below sm via shared card-list/card-row; dashboard is a drill-down hub; detail pages open with a back link and full-width actions; logs rows link to their story below sm while sm+ keeps the in-place expansion. 3050 tests, 100% coverage, lint clean.
 - 2026-08-30:12:08:44 — DSGN-005 — started
 - 2026-08-30:11:56:09 — DSGN-005 — defined: The admin is small-screen first
 - 2026-08-30:11:41:02 — DSGN-004 — user-review polish 2: actor pill + chevron bound into one non-breaking inline-flex (actor track 136→152px), grouped rows gain a leading caret that rotates open via group-open (summary still announces the state natively)
