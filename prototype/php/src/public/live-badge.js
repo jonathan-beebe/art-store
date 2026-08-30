@@ -15,6 +15,16 @@
             var label = link.dataset.liveBadge;
             var source = new EventSource(link.dataset.eventsUrl);
 
+            // Left to the browser, an abandoned stream's connection is
+            // released lazily — held slots from left pages queue the next
+            // navigation behind them, and each open stream parks one of the
+            // dev server's workers for the stream's full lifetime. pagehide
+            // also fires entering bfcache, so a restored page's badge goes
+            // static until its next full load.
+            window.addEventListener('pagehide', function () {
+                source.close();
+            });
+
             source.addEventListener('unread', function (event) {
                 var count = Number(event.data);
                 link.textContent = count > 0 ? label + ' (' + count + ')' : label;

@@ -126,16 +126,18 @@ reaches the logger: the chunk goes to stdout verbatim, first, per
 invariant 1; it is split on newlines, a trailing partial carried forward;
 each line is parsed and its column values pushed onto a buffer, a parse
 failure pushing the malformed-line row instead; the buffer flushes off the
-request path, in small batches, scheduled when it goes from empty to
-non-empty and forced early at a size cap.
+request path, in batches of 256 lines, scheduled when it goes from empty to
+non-empty and forced early at the batch size.
 
 The flush is one transaction, one prepared multi-row INSERT — one durable
 write per batch. A logger call happens synchronously inside a request, so
 an unbatched insert per line would put database work, worst case a full
 busy-timeout stall, inside every request; batching bounds that to one
-small insert per tick. A flush failure re-buffers the batch for the next
-tick. Past the buffer's cap, new lines are dropped from the store while
-stdout still carries them, and one notice goes to stderr.
+small insert per tick. 256 rows also keeps one multi-row INSERT's bound
+parameters under SQLite's variable limit. A flush failure re-buffers the
+batch for the next tick. Past the buffer's cap of 10,000 lines, new lines
+are dropped from the store while stdout still carries them, and one notice
+goes to stderr.
 
 A process flushes its buffer on exit, so a short-lived CLI's last lines
 survive without any CLI needing its own flush call; a hard kill loses at
@@ -151,9 +153,9 @@ inside the store would only make the mirror disagree with stdout.
 ## Viewer
 
 Two routes, behind the admin site's existing authentication guard.
-`GET /admin/logs` — the time series, newest first, paginated, filters
-carried through the pager. Empty value means all; unrecognised value
-answers 400. Filters:
+`GET /admin/logs` — the time series, newest first, paginated at 50 rows,
+filters carried through the pager. Empty value means all; unrecognised
+value answers 400. Filters:
 
 - `domain` — a select, placed first, over the three sites (`shop`,
   `seller`, `admin`);
@@ -166,17 +168,25 @@ answers 400. Filters:
   ISO-8601 UTC text sorts chronologically), labelled UTC;
 - `key` / `value` — the any-attribute filter, below;
 - `group=1` — one row per request, below;
-- `health=1` — includes health-check lines, hidden by default, below.
+- `health=1` — includes health-check lines, hidden by default, below;
+- `viewer=1` — includes the viewer's own requests, hidden by default,
+  below.
 
 Four stat tiles (Errors / Warnings / Info / Debug) tally the current filter
 set minus `level`, health-check lines excluded the same as the list; each
 tile links to the same query with `level` set, doubling as the level
 filter's fast path. Rows show `ts` (full ISO — milliseconds matter here),
 level, `event · phase`, the `msg` rendered with its severity prefix
-intact (⚠️ on `warn`, ❌ on `failed`, per alignment.md §2.4),
-`request_id` linked to the story view, the actor, and `duration_ms`. A row
-whose `data` or `error` is present discloses it in a collapsible block —
-the page works with JavaScript absent, like every admin page.
+intact (⚠️ on `warn`, ❌ on `failed`, per alignment.md §2.4), the
+`request_id`, the actor, and `duration_ms`. A line's own ids — request,
+transaction, session, actor — are filter links: tapping one applies that
+filter, carrying the other current filters and landing on page 1; ids the
+row itself has no column for sit as the same links in the row's
+disclosure. A compact chevron beside the request id opens the story view,
+and an actor whose prefix has a detail page gets a separate labeled
+control to the record ("View customer", "View seller"). A row whose
+`data` or `error` is present discloses it in a collapsible block — the
+page works with JavaScript absent, like every admin page.
 
 ### Severity tint
 
@@ -194,17 +204,20 @@ A stored line carries no site field of its own. `?domain=` derives one from
 the line's request: a query correlated on `request_id` against that
 request's opening `http.request` line, prefix-matching `data.path` —
 `/admin*` and `/seller*` claim their site, the storefront claims the
-unprefixed root. `/health` (the orchestrator's probe) and `/events` (each
-site's own unread-events stream) are excluded from the storefront bucket by
-name. A line with no `request_id` matches no domain.
+unprefixed root. The health-probe path (below) and `/events` (each site's
+own unread-events stream) are excluded from the storefront bucket by name.
+A line with no `request_id` matches no domain.
 
 ### The health filter
 
-The container orchestrator polls `GET /health` on an interval; its will/did
-pairs otherwise bury the traffic a founder came to read. `/admin/logs`
-hides a health-check request's lines by default — the request whose opening
-line's path is `/health`, exact, the pair and every line sharing the
-request id — via the same correlation `?domain=` uses. The
+The container orchestrator polls the stack's health probe on an interval;
+its will/did pairs otherwise bury the traffic a founder came to read. The
+probe lives at the framework's preferred path — Node's owned `/health`
+route, Laravel's and Rails's built-in `/up` — and each stack's viewer names
+its own. `/admin/logs` hides a health-check request's lines by default —
+the request whose opening line's path is the probe path, exact, the pair
+and every line sharing the request id — via the same correlation
+`?domain=` uses. The
 `health` checkbox is unchecked by default, so an unchecked submit and a
 fresh visit read the same; `health=1` shows them again. Empty reads as
 hidden, an unrecognised value answers 400, and the state round-trips
@@ -212,9 +225,26 @@ through the form, the pager, and the level tiles, whose tallies exclude
 health-check lines the same as the list.
 
 The health filter always applies, composing with every other filter,
-independent of `?domain=`: `domain=shop` already excludes `/health` by
-name, so `health=1` under `domain=shop` shows nothing new. A line with no
+independent of `?domain=`: `domain=shop` already excludes the probe path
+by name, so `health=1` under `domain=shop` shows nothing new. A line with no
 `request_id` is never treated as a health check.
+
+### The viewer's own requests
+
+Reading logs writes logs: every visit to `/admin/logs` logs its own
+request, and that traffic otherwise fills the list being read.
+`/admin/logs` hides the viewer's own requests by default — the request
+whose opening line's path is `/admin/logs` exact or anything under
+`/admin/logs/` (the story view included), via the same correlation the
+health filter uses. The `viewer` checkbox is unchecked by default;
+`viewer=1` shows them again. Empty reads as hidden, an unrecognised value
+answers 400, and the state round-trips through the form, the pager, and
+the level tiles, whose tallies exclude viewer requests the same as the
+list. The filter always applies, composing with every other filter,
+independent of `?domain=` — `domain=admin` with `viewer` unset still hides
+them. The story view ignores it, so a viewer request stays addressable by
+id. A line with no `request_id` is never treated as viewer traffic; a
+lookalike path (`/admin/logs-export`) is never hidden.
 
 ### Grouped by request
 
@@ -262,9 +292,12 @@ expanded. A well-formed id with no stored lines renders the empty state at
 standard 404. `?txn=` on the list covers the transaction story — no second
 route is needed.
 
-Prefixed ids anywhere in the viewer link where a detail page exists — an
+Two rules govern id links. A line's own ids — request, transaction,
+session, actor — are filter links, per the list view's rule above, with
+the actor's labeled record control beside them. Prefixed ids inside a
+disclosed `data` or `error` block link where a detail page exists — an
 order, customer, seller, listing, fulfillment, outbox message, or
-conversation id alike; a transaction or session id links back into
+conversation id alike; a transaction or session id there links back into
 `/admin/logs` as a filter — one mapping from prefix to route, drawn from
 the admin site's own page table so a link never 404s. A message id renders
 plain: messages have no detail page of their own.
@@ -309,7 +342,9 @@ tests, asserting the same batching and failure-isolation behavior.
 This document is the reference definition alignment.md §2.5 names for the
 log store and the admin log viewer: the table shape, the rowid exception to
 §1, `LOG_DATABASE_FILE` and `LOG_RETENTION_DAYS`, the `/admin/logs` and
-story-view rows in §5. Each prototype's own docs may describe its
-implementation of this contract; the shapes fixed here — the table, the
-three invariants, the filter set, the severity tint — stay shared across
-all three.
+story-view rows in §5. Node and PHP implement it —
+[prototype/node/docs/log-store.md](../prototype/node/docs/log-store.md) and
+[prototype/php/docs/log-store.md](../prototype/php/docs/log-store.md)
+describe each implementation — and Rails is queued (alignment.md §8). The
+shapes fixed here — the table, the three invariants, the filter set, the
+severity tint — stay shared across all three.

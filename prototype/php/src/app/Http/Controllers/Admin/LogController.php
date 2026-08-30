@@ -44,10 +44,10 @@ final class LogController extends Controller
     private const array DEFAULT_LANDING_QUERY = ['domain' => 'shop', 'group' => '1'];
 
     /** The filters `More filters` holds, once domain/level/event have their
-     * own primary controls and health has its own quiet strip affordance —
-     * what an inactive/active indicator on the disclosure is computed
-     * over. */
-    private const array MORE_FILTER_FIELDS = ['request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'health'];
+     * own primary controls and health/viewer have their own quiet strip
+     * affordances — what an inactive/active indicator on the disclosure is
+     * computed over. */
+    private const array MORE_FILTER_FIELDS = ['phase', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'health', 'viewer'];
 
     /** Labels for the applied-state strip's removable chips, in the order
      * they appear. `key`/`value` render as one combined chip. */
@@ -55,6 +55,7 @@ final class LogController extends Controller
         'domain' => 'domain',
         'level' => 'level',
         'event' => 'event',
+        'phase' => 'phase',
         'request' => 'request',
         'txn' => 'txn',
         'session' => 'session',
@@ -97,7 +98,8 @@ final class LogController extends Controller
             'viewLinks' => $this->viewLinks($roundTripped, $grouped),
             'activeFilterChips' => $this->activeFilterChips($roundTripped),
             'moreFiltersActive' => $this->moreFiltersActive($roundTripped),
-            'healthToggle' => $this->healthToggle($roundTripped),
+            'healthToggle' => $this->toggleAffordance($roundTripped, 'health'),
+            'viewerToggle' => $this->toggleAffordance($roundTripped, 'viewer'),
             'filters' => $roundTripped,
             'domains' => LogDomain::cases(),
             'levels' => StoryLevel::cases(),
@@ -279,23 +281,23 @@ final class LogController extends Controller
     }
 
     /**
-     * The quiet "health checks hidden · show" strip affordance and its
-     * reverse — the same query with `health` toggled, every other filter
-     * unchanged.
+     * The quiet "hidden · show" strip affordance a default-hide checkbox
+     * gets (health, viewer) and its reverse — the same query with the
+     * field toggled, every other filter unchanged.
      *
      * @param  array<string, string>  $roundTripped
      * @return array{hidden: bool, href: string}
      */
-    private function healthToggle(array $roundTripped): array
+    private function toggleAffordance(array $roundTripped, string $field): array
     {
-        $hidden = ($roundTripped['health'] ?? null) !== '1';
-        $withoutHealth = collect($roundTripped)->except('health')->all();
+        $hidden = ($roundTripped[$field] ?? null) !== '1';
+        $without = collect($roundTripped)->except($field)->all();
 
         return [
             'hidden' => $hidden,
             'href' => $hidden
-                ? route('admin.logs.index', [...$withoutHealth, 'health' => '1'])
-                : route('admin.logs.index', $withoutHealth),
+                ? route('admin.logs.index', [...$without, $field => '1'])
+                : route('admin.logs.index', $without),
         ];
     }
 }

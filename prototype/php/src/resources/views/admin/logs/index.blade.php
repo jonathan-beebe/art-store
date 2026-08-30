@@ -120,6 +120,10 @@
                             <input id="filter-health" name="health" type="checkbox" value="1" @checked(($filters['health'] ?? null) === '1')>
                             <label for="filter-health" class="text-gray-700 dark:text-gray-300">Include health checks</label>
                         </div>
+                        <div class="flex items-end gap-1.5 pb-2">
+                            <input id="filter-viewer" name="viewer" type="checkbox" value="1" @checked(($filters['viewer'] ?? null) === '1')>
+                            <label for="filter-viewer" class="text-gray-700 dark:text-gray-300">Include log viewer requests</label>
+                        </div>
                     </div>
                 </details>
 
@@ -141,6 +145,13 @@
                     Health checks hidden &middot; <a href="{{ $healthToggle['href'] }}" class="underline">show</a>
                 @else
                     Health checks shown &middot; <a href="{{ $healthToggle['href'] }}" class="underline">hide</a>
+                @endif
+            </span>
+            <span>
+                @if ($viewerToggle['hidden'])
+                    Log viewer traffic hidden &middot; <a href="{{ $viewerToggle['href'] }}" class="underline">show</a>
+                @else
+                    Log viewer traffic shown &middot; <a href="{{ $viewerToggle['href'] }}" class="underline">hide</a>
                 @endif
             </span>
             <span class="flex-1"></span>
@@ -168,8 +179,6 @@
                             $severity = \App\Logging\Admin\LogSeverity::worstOf($group->lines);
                             $summary = \App\Logging\Admin\LogStoryHeader::of($group->lines);
                             $tint = \App\Logging\Admin\LogDurationTint::ofMs($group->durationMs);
-                            $actorHref = $summary->actorId === null ? null : \App\Logging\Admin\LogIdLinks::hrefFor($summary->actorId);
-                            $sessionHref = $summary->sessionId === null ? null : \App\Logging\Admin\LogIdLinks::hrefFor($summary->sessionId);
                         @endphp
                         <details data-group="{{ $group->key }}" data-severity="{{ strtolower($severity->name) }}" class="border-b border-gray-200 dark:border-gray-800 last:border-b-0 {{ $severity->rowClasses() }}">
                             <summary role="row" class="grid {{ $rowGridCols }} min-h-11 cursor-pointer list-none items-center gap-3.5 px-4 py-2 [&::-webkit-details-marker]:hidden">
@@ -191,22 +200,18 @@
                                 <span role="cell" data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
                                 <span role="cell" data-cell="line-count" class="text-gray-500 dark:text-gray-400">{{ $group->lineCount }}</span>
                                 <span role="cell" data-cell="actor">
-                                    @if ($summary->actorId === null)
-                                        <span class="text-gray-300 dark:text-gray-700">—</span>
-                                    @else
-                                        <x-admin.log-id-chip :id="$summary->actorId" :href="$actorHref" />
-                                    @endif
+                                    <x-admin.log-actor :actor-type="$summary->actorType" :actor-id="$summary->actorId" :filters="$filters" :truncate="true" />
                                 </span>
                                 <span role="cell" data-cell="session">
                                     @if ($summary->sessionId === null)
                                         <span class="text-gray-300 dark:text-gray-700">—</span>
                                     @else
-                                        <x-admin.log-id-chip :id="$summary->sessionId" :href="$sessionHref" />
+                                        <x-admin.log-id-chip :id="$summary->sessionId" :href="\App\Logging\Admin\LogFilterLinks::href('session', $summary->sessionId, $filters)" />
                                     @endif
                                 </span>
                                 <span role="cell">
                                     @if ($group->kind === 'request')
-                                        <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story" class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
+                                        <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                                         </a>
                                     @endif
@@ -222,9 +227,10 @@
                                         :session-id="$summary->sessionId"
                                         :actor-type="$summary->actorType"
                                         :actor-id="$summary->actorId"
+                                        :filters="$filters"
                                     />
                                 @endif
-                                <x-admin.log-lines :lines="$group->lines" :open="false" />
+                                <x-admin.log-lines :lines="$group->lines" :open="false" :filters="$filters" />
                             </div>
                         </details>
                     @endforeach
@@ -252,7 +258,6 @@
                             @php
                                 $severity = \App\Logging\Admin\LogSeverity::ofLevel($line->level);
                                 $tint = \App\Logging\Admin\LogDurationTint::ofMs($line->durationMs);
-                                $actorHref = $line->actorId === null ? null : \App\Logging\Admin\LogIdLinks::hrefFor($line->actorId);
                             @endphp
                             <tr data-line="{{ $line->id }}" data-severity="{{ strtolower($severity->name) }}" class="{{ $severity->rowClasses() }}">
                                 <td data-cell="ts" title="{{ $line->ts }}" class="px-4 py-2.5 whitespace-nowrap font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($line->ts) }}</td>
@@ -272,20 +277,20 @@
                                             <pre class="mt-1 overflow-x-auto rounded bg-gray-50 dark:bg-gray-800/50 p-2 text-xs">{!! \App\Logging\Admin\LogIdLinks::linkify(\App\Logging\Admin\LogJson::pretty($line->error)) !!}</pre>
                                         </details>
                                     @endif
+                                    <x-admin.log-ids :line="$line" :filters="$filters" :exclude="['request', 'actor']" />
                                 </td>
                                 <td data-cell="request" class="px-4 py-2.5 whitespace-nowrap">
                                     @if ($line->requestId === null)
                                         <span class="text-gray-300 dark:text-gray-700">—</span>
                                     @else
-                                        <x-admin.log-id-chip :id="$line->requestId" :href="route('admin.logs.story', ['requestId' => $line->requestId])" />
+                                        <x-admin.log-id-chip :id="$line->requestId" :href="\App\Logging\Admin\LogFilterLinks::href('request', $line->requestId, $filters)" />
+                                        <a href="{{ route('admin.logs.story', ['requestId' => $line->requestId]) }}" aria-label="Open request story for {{ $line->requestId }}" class="ml-1 inline-flex h-6 w-6 items-center justify-center rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
+                                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                        </a>
                                     @endif
                                 </td>
                                 <td data-cell="actor" class="px-4 py-2.5 whitespace-nowrap">
-                                    @if ($line->actorId === null)
-                                        {{ $line->actorType ?? '—' }}
-                                    @else
-                                        <x-admin.log-id-chip :id="$line->actorId" :href="$actorHref" />
-                                    @endif
+                                    <x-admin.log-actor :actor-type="$line->actorType" :actor-id="$line->actorId" :filters="$filters" :truncate="true" />
                                 </td>
                                 <td data-cell="duration" class="px-4 py-2.5 text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</td>
                             </tr>

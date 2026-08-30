@@ -5,7 +5,7 @@
             <span>Logs</span>
         </a>
         <span class="text-gray-300 dark:text-gray-700">/</span>
-        <h1 class="font-mono text-base font-semibold text-gray-900 dark:text-gray-100" data-request-id>{{ $requestId }}</h1>
+        <h1 class="font-mono text-base font-semibold text-gray-900 dark:text-gray-100">Request <a data-request-id href="{{ \App\Logging\Admin\LogFilterLinks::href('request', $requestId) }}" class="underline">{{ $requestId }}</a></h1>
     </div>
 
     @if (! $storeAvailable)
@@ -25,13 +25,13 @@
                     <span class="font-mono text-base font-semibold">{{ $header->method }} {{ $header->path }}</span>
                 @endif
                 @if ($header->status !== null)
-                    <span data-stat="status" class="inline-flex rounded px-2 py-0.5 font-mono text-sm font-semibold {{ $header->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $header->status }}</span>
+                    <span class="inline-flex rounded px-2 py-0.5 font-mono text-sm font-semibold {{ $header->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $header->status }}</span>
                 @endif
                 @if ($header->durationMs !== null)
                     <span data-stat="duration" class="font-mono text-sm tabular-nums {{ $tint?->textClasses() ?? 'text-gray-500 dark:text-gray-400' }}">{{ $header->durationMs }} ms</span>
                 @endif
                 <span class="flex-1"></span>
-                <span class="text-xs text-gray-500 dark:text-gray-400" data-stat="lines">{{ $totalCount }} line{{ $totalCount === 1 ? '' : 's' }} &middot; <span data-stat="first">{{ $header->firstTs }}</span> &rarr; <span data-stat="last">{{ $header->lastTs }}</span> UTC</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400" data-stat="lines">{{ $totalCount }} line{{ $totalCount === 1 ? '' : 's' }} &middot; {{ $header->firstTs }} &rarr; {{ $header->lastTs }} UTC</span>
             </div>
 
             <x-admin.log-filter-rail

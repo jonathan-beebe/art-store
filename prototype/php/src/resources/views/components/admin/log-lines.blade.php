@@ -1,11 +1,13 @@
 {{-- One request's lines, oldest first, in the columnar layout: time,
-     level, event · phase, message (with data/error disclosures), tinted
-     duration. What a `group=1` row expands into and the story view's whole
-     body — shared so the two never drift. `:headers="true"` renders the
-     story view's column-label row above the list; an expanded grouped row
-     already carries its own column headers on the collapsed row itself, so
-     it passes `false`. --}}
-@props(['lines', 'open' => false, 'headers' => false])
+     level, event · phase, message (with data/error disclosures and the
+     line's own remaining ids), tinted duration. What a `group=1` row
+     expands into and the story view's whole body — shared so the two
+     never drift. `:headers="true"` renders the story view's column-label
+     row above the list; an expanded grouped row already carries its own
+     column headers on the collapsed row itself, so it passes `false`.
+     `:filters` threads the caller's current filter set into each line's
+     `x-admin.log-ids` disclosure, so those links carry it too. --}}
+@props(['lines', 'open' => false, 'headers' => false, 'filters' => []])
 
 @php
     $gridCols = 'grid-cols-[92px_64px_200px_minmax(0,1fr)_76px]';
@@ -45,6 +47,7 @@
                         <pre class="mt-1 overflow-x-auto rounded bg-gray-50 dark:bg-gray-800/50 p-2 text-xs">{!! \App\Logging\Admin\LogIdLinks::linkify(\App\Logging\Admin\LogJson::pretty($line->error)) !!}</pre>
                     </details>
                 @endif
+                <x-admin.log-ids :line="$line" :filters="$filters" />
             </span>
             <span data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</span>
         </div>

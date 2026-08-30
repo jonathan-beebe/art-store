@@ -200,22 +200,32 @@ subsections, which this implementation matches:
   alone under a `line:<id>` key rather than by `txn_id`.
 - `health=1` — includes health-check request lines, hidden by default via
   the same opening-line correlation `domain` uses.
+- `viewer=1` — includes the log viewer's own requests, hidden by default
+  via the same opening-line correlation: `/admin/logs` exact or anything
+  under `/admin/logs/` (the story view included), independent of
+  `?domain=` — `domain=admin` alone does not show them. The story view
+  itself ignores this filter, so a hidden viewer request's story stays
+  addressable by id.
 
 `index.blade.php` opens with four stat tiles (Errors / Warnings / Info /
 Debug), each `LogRowQuery::levelTallies()`'d against the current filters
 minus `level` and linking to the same query with `level` set — the tiles
 double as the level filter's fast path. Rows show `ts`, level, `event ·
-phase`, `msg`, the linked `request_id`, actor, and `duration_ms`; a row
-whose `data` or `error` is present discloses it, pretty-printed by
+phase`, `msg`, `request_id`, actor, and `duration_ms`; a row whose `data`
+or `error` is present discloses it, pretty-printed by
 `App\Logging\Admin\LogJson`, in a `<details>` block — the page works with
-JavaScript absent, like every other admin page. Pagination is
-`App\Support\Page`, the admin's first pager component
-(`components/admin/pager.blade.php`): total-count-based prev/next over
-`page=N`, the current filter set carried through both links. `Page::of()`
-clamps an out-of-range page onto the nearest real one rather than
-answering 400 — unlike the filter values `LogsQueryRequest` gates, an
-out-of-range page is the same "closest sane thing" treatment every other
-admin list gives a bad page number.
+JavaScript absent, like every other admin page. `request_id` and the
+actor's id are themselves filter links (§ "Filter links and the actor
+control" below), and the request's story is reached instead through a
+compact chevron control next to `request_id`
+(`aria-label="Open request story for <request_id>"`) — same treatment on
+the `group=1` view's row. Pagination is `App\Support\Page`, the admin's
+first pager component (`components/admin/pager.blade.php`):
+total-count-based prev/next over `page=N`, the current filter set carried
+through both links. `Page::of()` clamps an out-of-range page onto the
+nearest real one rather than answering 400 — unlike the filter values
+`LogsQueryRequest` gates, an out-of-range page is the same "closest sane
+thing" treatment every other admin list gives a bad page number.
 
 ### Severity tint
 
@@ -240,7 +250,34 @@ everything else — a `msg_` id, an outbox message id with no admin page —
 renders plain, escaped the same as any other text. Because the map is route
 names rather than hand-built URLs, a link this class produces never 404s.
 `linkify()` is what both `log-lines.blade.php` and the list's inline `data`/
-`error` disclosures print unescaped.
+`error` disclosures print unescaped — a prefixed id found inside those
+blocks still resolves to its detail page exactly as before; nothing below
+changes that.
+
+### Filter links and the actor control
+
+A log item's own `request_id`, `txn_id`, `session_id`, and `actor_id` —
+the ones the row (or the story header) knows about directly, not ids
+merely embedded in `data`/`error` text — render as filter links back into
+`/admin/logs` rather than detail-page links: clicking one sets the
+matching query param (`request`/`txn`/`session`/`actor`) and carries every
+other currently-applied filter along, the same way the pager does, always
+landing on page 1. `App\Logging\Admin\LogFilterLinks::href()` builds that
+URL from the current round-tripped filter set; `components/admin/log-ids.blade.php`
+prints it for whichever of the four ids a line has and the row does not
+already show as its own column — a small "ids" `<details>` alongside the
+data/error blocks, so the normal per-line rows tuck `txn_id`/`session_id`
+there while `log-lines.blade.php` (the `group=1` view's expanded lines and
+the story view) tucks all four, since none of them get a column there.
+
+The actor is the one id that still leads somewhere besides a filter: next
+to the id-as-filter-link, `components/admin/log-actor.blade.php` renders a
+separate "View `<actor_type>`" control to the actor's own admin detail
+page, using the same `LogIdLinks::hrefFor()` map the linkifier draws
+from — so an admin actor, which has no detail page, never grows the
+control. The same component renders the actor everywhere it appears: list
+rows, the story header, and (should a future grouped row start showing an
+actor) group rows.
 
 ### The story view
 
@@ -248,7 +285,11 @@ names rather than hand-built URLs, a link this class produces never 404s.
 (`ts asc, id asc`, capped at `LogRowQuery::STORY_LINE_CAP` = 1,000) and
 builds `App\Logging\Admin\LogStoryHeader` off them: first/last `ts`, the
 root `http.request` `did`/`failed` line's `duration_ms`, and the session and
-actor from the first line that carries each. When the cap hides lines, a
+actor from the first line that carries each. The header's own `request_id`
+(next to the "Request" heading) and session are filter links back into the
+list the same as everywhere else, and the actor gets the same id-link-plus-
+"View `<actor_type>`"-control treatment § "Filter links and the actor
+control" describes. When the cap hides lines, a
 second `storyCount()` query runs only to size the "showing the first 1,000
 of N" notice — the common case never pays for a count it does not need. A
 well-formed id with no stored lines renders the empty state at 200 ("it may

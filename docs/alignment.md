@@ -54,6 +54,22 @@ simply unused there):
 | listing_events                            | `lev`  |
 | listing_faqs                              | `faq`  |
 | listing_removals                          | `rmv`  |
+| categories                                | `cat`  |
+| properties                                | `prp`  |
+| property_values                           | `pvl`  |
+| category_properties                       | `cpr`  |
+| listing_attributes                        | `lat`  |
+| listing_images                            | `img`  |
+| option_axes                               | `axs`  |
+| option_values                             | `ovl`  |
+| variants                                  | `vrt`  |
+| variant_options                           | `vop`  |
+| units                                     | `unt`  |
+| modifiers                                 | `mdf`  |
+| modifier_options                          | `mdo`  |
+| modifier_scopes                           | `mds`  |
+| quantity_breaks                           | `qbk`  |
+| description_sections                      | `dsc`  |
 | carts                                     | `crt`  |
 | cart_items                                | `cti`  |
 | favorites                                 | `fav`  |
@@ -415,9 +431,9 @@ layout is per stack.
 | `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
-| `&actor=&msg=&key=&value=&from=&to=&group=&health=`                     | `key`/`value` filters on any attribute of the stored line; `group=1`     |
-|                                                                         | collapses to one summarized row per request; health checks hidden by     |
-|                                                                         | default                                                                  |
+| `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
+|                                                                         | collapses to one summarized row per request; health checks and the       |
+|                                                                         | viewer's own requests hidden by default                                  |
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
@@ -438,11 +454,21 @@ Decisions carried by this table:
   `value` for equality on it.
 - `/admin/logs`'s `domain` selects one site's requests — `shop` | `seller` |
   `admin`, derived from the request's opening line's path at segment
-  boundaries, the shop bucket excluding `/health` and `/events`. `group=1`
-  renders one summarized row per request and pages count groups.
-  Health-check requests (path `/health`, exact) are hidden unless
-  `health=1`; the level tallies count the visible set. The story view
-  ignores all of it — a request stays addressable by id.
+  boundaries, the shop bucket excluding the health-probe path and
+  `/events`. The health probe lives at the framework's preferred path —
+  Node's owned `/health` route, Laravel's and Rails's built-in `/up` — and
+  each stack's viewer names its own. `group=1` renders one summarized row
+  per request and pages count groups. Health-check requests (the probe
+  path, exact) are hidden unless `health=1`, and the viewer's own requests
+  (path `/admin/logs` at a segment boundary, the story view included) are
+  hidden unless `viewer=1`; the level tallies count the visible set. The
+  story view ignores all of it — a request stays addressable by id.
+- `/admin/logs` ids are filter links: a line's request, transaction,
+  session, and actor ids apply that filter in place, carrying the other
+  current filters; a compact chevron opens the story view; an actor whose
+  prefix has a detail page gets a separate labeled control to the record
+  ("View customer", "View seller"). Ids inside disclosed `data`/`error`
+  blocks keep linking to detail pages.
 - `/admin/logs` tints by severity: a line's row tints yellow when the line
   is `warn`, red when it is `failed`. A request is a conversation — its
   `group=1` row and its story view tint from the request's worst line:
@@ -509,9 +535,9 @@ From `__local__/prototype-alignment.md` §8:
    customer can escape a block by verifying into an unblocked account. Shared
    gap, held for a product decision; no prototype fixes it unilaterally.
 9. The unread stream's client releases its connection when the page is left
-   (Node closes the `EventSource` on `pagehide`) — abandoned streams hold
-   the browser's per-host connection budget and queue the next navigation
-   behind them. PHP and Rails stream clients owe the same release.
+   (Node and PHP close the `EventSource` on `pagehide`) — abandoned streams
+   hold the browser's per-host connection budget and queue the next
+   navigation behind them. Rails's stream client owes the same release.
 
 ## 8. Reconciliation log
 
@@ -569,3 +595,26 @@ segments against the category tree's materialized path), `/search?q=` —
 with legacy `/?q=`/`/?medium=` URLs redirecting. §1's `/art/:slug` rule
 stands. Node and Rails owe the same scheme when their storefronts grow
 the equivalent browse surfaces.
+
+2026-08-30, health probe: the probe path is the framework's preferred one —
+Node's owned `/health` route, Laravel's and Rails's built-in `/up` — and
+each stack's log viewer names its own probe path in the health and domain
+filters. PHP's viewer moves from `/health` to `/up`; §5 and
+`docs/logging.md` reworded to match.
+
+2026-08-30, item configuration: the PHP item configurator (FEAT-025..029,
+DSGN-002/003) is the shared model — `docs/item-configuration.md` is the
+reference for the listing/unit/pricing-mode state machines, the taxonomy
+and configuration data model, and the seller and buyer flow shapes. §1's
+prefix table gains the sixteen configurator tables. Node and Rails owe the
+model when their seller portals grow configuration.
+
+2026-08-30, viewer ergonomics: PHP ships filter-link ids (request,
+transaction, session, actor — applied in place, other filters carried), a
+separate labeled actor control ("View customer" / "View seller") where a
+detail page exists, the chevron story link, and the `viewer=` filter
+hiding `/admin/logs`'s own requests by default. §5's `/admin/logs` row and
+decisions bullets updated; `docs/logging.md` § "Viewer" carries the full
+semantics. Node owes parity when its viewer catches up. PHP also ships §7
+decision 9's stream release — `live-badge.js` closes its `EventSource` on
+`pagehide` — leaving Rails the one stack owing it.

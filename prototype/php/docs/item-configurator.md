@@ -99,8 +99,9 @@ erDiagram
 A category whitelists properties for the listings under it; each grant says
 whether the property is a fixed attribute (`category_properties.usable_as_attribute`,
 feeds `listing_attributes`, not buyer-selectable), a configurator axis
-(`usable_as_axis`, feeds `option_axes`), or both. `required` gates publish
-validation (§6). One tree, no separate seller/buyer taxonomy split. Scales and
+(`usable_as_axis`, feeds `option_axes`), or both. `required` on an
+attribute grant gates publish validation (§6); on an axis-only grant it
+records intent, since no `listing_attributes` row can satisfy it. One tree, no separate seller/buyer taxonomy split. Scales and
 cross-scale value equivalence (ring size 7 US ↔ 54 EU) are out of scope — see
 §7.
 
