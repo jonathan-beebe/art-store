@@ -39,6 +39,10 @@
         <!-- The suite's own output shares this stream; the tests that read log
              lines capture them through the formatter instead. -->
         <env name="LOG_CHANNEL" value="null"/>
+        <!-- docs/logging.md: the store's own tests build one against a temp
+             file or :memory: explicitly. Left on, the whole suite would write
+             a store nothing reads. -->
+        <env name="LOG_DATABASE_FILE" value="off"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

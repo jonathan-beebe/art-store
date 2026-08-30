@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\LogStoreTap;
 use App\Logging\StoryFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -64,6 +65,11 @@ return [
                 // developing against it, and nowhere else.
                 'tracesStacks' => (bool) env('APP_DEBUG', false),
             ],
+            // docs/logging.md: every stdout line is also mirrored into the
+            // log store. The tap runs after the handler above is built, and
+            // appends the store's handler rather than pushing it, so stdout
+            // always writes a line before the store ever sees it.
+            'tap' => [LogStoreTap::class],
         ],
 
         'null' => [
