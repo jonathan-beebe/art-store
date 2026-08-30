@@ -126,16 +126,18 @@ reaches the logger: the chunk goes to stdout verbatim, first, per
 invariant 1; it is split on newlines, a trailing partial carried forward;
 each line is parsed and its column values pushed onto a buffer, a parse
 failure pushing the malformed-line row instead; the buffer flushes off the
-request path, in small batches, scheduled when it goes from empty to
-non-empty and forced early at a size cap.
+request path, in batches of 256 lines, scheduled when it goes from empty to
+non-empty and forced early at the batch size.
 
 The flush is one transaction, one prepared multi-row INSERT — one durable
 write per batch. A logger call happens synchronously inside a request, so
 an unbatched insert per line would put database work, worst case a full
 busy-timeout stall, inside every request; batching bounds that to one
-small insert per tick. A flush failure re-buffers the batch for the next
-tick. Past the buffer's cap, new lines are dropped from the store while
-stdout still carries them, and one notice goes to stderr.
+small insert per tick. 256 rows also keeps one multi-row INSERT's bound
+parameters under SQLite's variable limit. A flush failure re-buffers the
+batch for the next tick. Past the buffer's cap of 10,000 lines, new lines
+are dropped from the store while stdout still carries them, and one notice
+goes to stderr.
 
 A process flushes its buffer on exit, so a short-lived CLI's last lines
 survive without any CLI needing its own flush call; a hard kill loses at
@@ -151,9 +153,9 @@ inside the store would only make the mirror disagree with stdout.
 ## Viewer
 
 Two routes, behind the admin site's existing authentication guard.
-`GET /admin/logs` — the time series, newest first, paginated, filters
-carried through the pager. Empty value means all; unrecognised value
-answers 400. Filters:
+`GET /admin/logs` — the time series, newest first, paginated at 50 rows,
+filters carried through the pager. Empty value means all; unrecognised
+value answers 400. Filters:
 
 - `domain` — a select, placed first, over the three sites (`shop`,
   `seller`, `admin`);
@@ -309,7 +311,9 @@ tests, asserting the same batching and failure-isolation behavior.
 This document is the reference definition alignment.md §2.5 names for the
 log store and the admin log viewer: the table shape, the rowid exception to
 §1, `LOG_DATABASE_FILE` and `LOG_RETENTION_DAYS`, the `/admin/logs` and
-story-view rows in §5. Each prototype's own docs may describe its
-implementation of this contract; the shapes fixed here — the table, the
-three invariants, the filter set, the severity tint — stay shared across
-all three.
+story-view rows in §5. Node and PHP implement it —
+[prototype/node/docs/log-store.md](../prototype/node/docs/log-store.md) and
+[prototype/php/docs/log-store.md](../prototype/php/docs/log-store.md)
+describe each implementation — and Rails is queued (alignment.md §8). The
+shapes fixed here — the table, the three invariants, the filter set, the
+severity tint — stay shared across all three.
