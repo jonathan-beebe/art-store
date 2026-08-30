@@ -9,6 +9,7 @@ use App\Actions\Customers\BlockCustomer;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
+use App\Support\ListPaneWindow;
 
 it('lists every customer with their standing', function (): void {
     $blocked = Customer::factory()->create(['name' => 'Ada Painter']);
@@ -181,4 +182,43 @@ it('shows the merge that folded an anonymous visitor into someone else', functio
     $response->assertOk();
     $response->assertSee('Folded into');
     $response->assertSee($customer->id);
+});
+
+it('caps the list pane at the window size, however many customers exist', function (): void {
+    Customer::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/customers');
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE);
+});
+
+it('keeps the viewed customer on the list pane even when they sort outside the window', function (): void {
+    $viewed = Customer::factory()->create(['name' => 'Ada Painter', 'created_at' => now()->subDay()]);
+    Customer::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Ada Painter');
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('says how many customers the list pane is not showing, linked to the full list', function (): void {
+    Customer::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/customers');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.customers.index').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every customer', function (): void {
+    Customer::factory()->create(['name' => 'Ada Painter']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/customers');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
 });

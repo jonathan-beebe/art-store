@@ -8,7 +8,8 @@ use App\Domain\Orders\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\ListPaneWindow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,9 +19,11 @@ final class OrderController extends Controller
     {
         $status = $request->enum('status', OrderStatus::class);
         $customerId = $request->filled('customer') ? $request->string('customer')->toString() : null;
+        $window = ListPaneWindow::of($this->ordersQuery($status, $customerId));
 
         return view('admin.orders.index', [
-            'orders' => $this->orders($status, $customerId),
+            'orders' => $window->items,
+            'ordersTotal' => $window->total,
             'customers' => Customer::query()->orderBy('name')->orderBy('id')->get(),
             'status' => $status,
             'statuses' => OrderStatus::cases(),
@@ -30,6 +33,11 @@ final class OrderController extends Controller
 
     public function show(Order $order): View
     {
+        // DSGN-006: the show route's list pane is the same default,
+        // unfiltered list the index route opens with — a show URL
+        // carries no query string to filter it by.
+        $window = ListPaneWindow::of($this->ordersQuery(null, null), $order);
+
         return view('admin.orders.show', [
             'order' => $order->load([
                 'customer',
@@ -38,17 +46,15 @@ final class OrderController extends Controller
                 'fulfillments.seller',
                 'refunds.fulfillment.seller',
             ]),
-            // DSGN-006: the show route's list pane is the same default,
-            // unfiltered list the index route opens with — a show URL
-            // carries no query string to filter it by.
-            'cellOrders' => $this->orders(null, null),
+            'cellOrders' => $window->items,
+            'cellOrdersTotal' => $window->total,
         ]);
     }
 
     /**
-     * @return Collection<int, Order>
+     * @return Builder<Order>
      */
-    private function orders(?OrderStatus $status, ?string $customerId): Collection
+    private function ordersQuery(?OrderStatus $status, ?string $customerId): Builder
     {
         return Order::query()
             ->ofStatus($status)
@@ -56,7 +62,6 @@ final class OrderController extends Controller
             ->with('customer')
             ->withCount('items')
             ->orderByDesc('placed_at')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
     }
 }

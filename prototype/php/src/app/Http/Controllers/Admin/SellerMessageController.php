@@ -12,6 +12,7 @@ use App\Domain\Reports\ListingStatusTally;
 use App\Http\Requests\Admin\SendMessageRequest;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
+use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -55,6 +56,14 @@ final class SellerMessageController extends AdminController
      */
     private function sellerPage(Seller $seller): array
     {
+        // DSGN-006: the show page's list pane, windowed the same way
+        // `SellerController::show` windows it (`ListPaneWindow`, DSGN-006
+        // follow-up).
+        $window = ListPaneWindow::of(
+            Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id'),
+            $seller,
+        );
+
         return [
             'seller' => $seller,
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
@@ -62,9 +71,8 @@ final class SellerMessageController extends AdminController
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'payouts' => $seller->payouts()->orderByDesc('period_start')->get(),
             'balance' => $seller->escrowBalance(),
-            // DSGN-006: the show page's list pane, the same as
-            // `SellerController::show` renders it from.
-            'cellSellers' => Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id')->get(),
+            'cellSellers' => $window->items,
+            'cellSellersTotal' => $window->total,
             'cellBalances' => LedgerEntry::balancesBySeller(),
         ];
     }

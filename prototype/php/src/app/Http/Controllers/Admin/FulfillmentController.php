@@ -8,7 +8,8 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Fulfillment;
 use App\Models\Seller;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\ListPaneWindow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -19,9 +20,11 @@ final class FulfillmentController extends Controller
     {
         $status = $request->enum('status', FulfillmentStatus::class);
         $sellerId = $request->filled('seller') ? $request->string('seller')->toString() : null;
+        $window = ListPaneWindow::of($this->fulfillmentsQuery($status, $sellerId));
 
         return view('admin.fulfillments.index', [
-            'fulfillments' => $this->fulfillments($status, $sellerId),
+            'fulfillments' => $window->items,
+            'fulfillmentsTotal' => $window->total,
             'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
             'status' => $status,
             'statuses' => FulfillmentStatus::cases(),
@@ -31,6 +34,10 @@ final class FulfillmentController extends Controller
 
     public function show(Fulfillment $fulfillment): View
     {
+        // DSGN-006: the show route's list pane is the same default,
+        // unfiltered list the index route opens with.
+        $window = ListPaneWindow::of($this->fulfillmentsQuery(null, null), $fulfillment);
+
         return view('admin.fulfillments.show', [
             'fulfillment' => $fulfillment->load([
                 'seller',
@@ -42,23 +49,21 @@ final class FulfillmentController extends Controller
                 'ledgerEntries',
                 'refund',
             ]),
-            // DSGN-006: the show route's list pane is the same default,
-            // unfiltered list the index route opens with.
-            'cellFulfillments' => $this->fulfillments(null, null),
+            'cellFulfillments' => $window->items,
+            'cellFulfillmentsTotal' => $window->total,
         ]);
     }
 
     /**
-     * @return Collection<int, Fulfillment>
+     * @return Builder<Fulfillment>
      */
-    private function fulfillments(?FulfillmentStatus $status, ?string $sellerId): Collection
+    private function fulfillmentsQuery(?FulfillmentStatus $status, ?string $sellerId): Builder
     {
         return Fulfillment::query()
             ->ofStatus($status)
             ->ofSeller($sellerId)
             ->with(['order.customer', 'seller'])
             ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
     }
 }

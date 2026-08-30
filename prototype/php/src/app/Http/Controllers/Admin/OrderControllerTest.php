@@ -12,7 +12,9 @@ use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Variant;
+use App\Support\ListPaneWindow;
 
 it('lists every order with its customer', function (): void {
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);
@@ -220,6 +222,45 @@ it('renders the list pane beside the detail pane, with a sibling order still on 
     // The open order's own cell in the list pane carries the mark, and no
     // other cell does.
     expect(substr_count((string) $response->getContent(), 'aria-current="true"'))->toBe(1);
+});
+
+it('caps the list pane at the window size, however many orders exist', function (): void {
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE);
+});
+
+it('keeps the viewed order on the list pane even when it sorts outside the window', function (): void {
+    $viewed = Order::factory()->create(['placed_at' => now()->subDay()]);
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee($viewed->id);
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('says how many orders the list pane is not showing, linked to the full list', function (): void {
+    Order::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.orders.index').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every order', function (): void {
+    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
 });
 
 it('lists the refunds issued on an order', function (): void {

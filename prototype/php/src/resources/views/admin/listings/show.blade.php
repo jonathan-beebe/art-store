@@ -2,11 +2,12 @@
     <x-slot:cells>
         <div class="flex items-baseline gap-2 border-b border-gray-200 p-3 dark:border-gray-800">
             <h1 class="text-sm font-semibold">Listings</h1>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $cellListings->count() }}</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $cellListingsTotal }}</span>
         </div>
         <div class="flex-1 overflow-y-auto">
             <x-admin.listings-cells :listings="$cellListings" :selected="$listing" />
         </div>
+        <x-admin.cell-footer :shown="$cellListings->count()" :total="$cellListingsTotal" :route="route('admin.listings.index')" />
     </x-slot:cells>
 
     <x-admin.back-link :route="route('admin.listings.index')" label="Listings" />

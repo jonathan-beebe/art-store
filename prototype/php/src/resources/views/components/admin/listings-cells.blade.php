@@ -20,6 +20,7 @@
         <x-admin.card-row
             href="{{ route('admin.listings.show', $listing) }}"
             :aria-current="$isSelected ? 'true' : null"
+            data-pane-cell="{{ $listing->id }}"
             class="{{ $isSelected ? 'bg-gray-100 dark:bg-gray-800' : '' }}"
         >
             <div class="flex items-baseline gap-2">

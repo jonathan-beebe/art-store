@@ -10,7 +10,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\OrderItem;
 use App\Models\Seller;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\ListPaneWindow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -21,9 +22,11 @@ final class ListingController extends Controller
         $status = $request->enum('status', ListingStatus::class);
         $sellerId = $request->filled('seller') ? $request->string('seller')->toString() : null;
         $removed = $request->enum('removed', RemovedFilter::class) ?? RemovedFilter::Any;
+        $window = ListPaneWindow::of($this->listingsQuery($status, $sellerId, $removed));
 
         return view('admin.listings.index', [
-            'listings' => $this->listings($status, $sellerId, $removed),
+            'listings' => $window->items,
+            'listingsTotal' => $window->total,
             'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
             'status' => $status,
             'statuses' => ListingStatus::cases(),
@@ -35,6 +38,10 @@ final class ListingController extends Controller
 
     public function show(Listing $listing): View
     {
+        // DSGN-006: the show route's list pane is the same default,
+        // unfiltered list the index route opens with.
+        $window = ListPaneWindow::of($this->listingsQuery(null, null, RemovedFilter::Any), $listing);
+
         return view('admin.listings.show', [
             'listing' => $listing->load(['seller', 'activeRemoval'])->loadEventCounts()->loadCount('favorites'),
             'removals' => $listing->removals()->orderByDesc('created_at')->orderByDesc('id')->get(),
@@ -44,16 +51,15 @@ final class ListingController extends Controller
                 ->orderByDesc('created_at')
                 ->orderByDesc('id')
                 ->get(),
-            // DSGN-006: the show route's list pane is the same default,
-            // unfiltered list the index route opens with.
-            'cellListings' => $this->listings(null, null, RemovedFilter::Any),
+            'cellListings' => $window->items,
+            'cellListingsTotal' => $window->total,
         ]);
     }
 
     /**
-     * @return Collection<int, Listing>
+     * @return Builder<Listing>
      */
-    private function listings(?ListingStatus $status, ?string $sellerId, RemovedFilter $removed): Collection
+    private function listingsQuery(?ListingStatus $status, ?string $sellerId, RemovedFilter $removed): Builder
     {
         return Listing::query()
             ->ofStatus($status)
@@ -61,7 +67,6 @@ final class ListingController extends Controller
             ->ofRemoval($removed)
             ->with(['seller', 'activeRemoval'])
             ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
     }
 }

@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Domain\Listings\ListingStatus;
+use App\Models\Seller;
+use App\Support\ListPaneWindow;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 
@@ -110,6 +112,46 @@ it('renders the list pane beside the detail pane, with a sibling seller still on
     $response->assertOk();
     $response->assertSee('Blue Kiln Studio');
     $response->assertSee('Rye Press');
+});
+
+it('caps the list pane at the window size, however many sellers exist', function (): void {
+    Seller::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE);
+});
+
+it('keeps the viewed seller on the list pane even when they sort outside the window', function (): void {
+    $viewed = $this->seller('Blue Kiln Studio');
+    Seller::where('id', $viewed->id)->update(['created_at' => now()->subDay()]);
+    Seller::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Blue Kiln Studio');
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('says how many sellers the list pane is not showing, linked to the full list', function (): void {
+    Seller::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.sellers.index').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every seller', function (): void {
+    $this->seller('Blue Kiln Studio');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
 });
 
 it('answers not found for a value that is not a seller id, the same as an unknown one', function (string $id): void {

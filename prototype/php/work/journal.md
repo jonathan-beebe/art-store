@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-30:16:55:49 — DSGN-006 — review fix: capped the six list panes' queries at `ListPaneWindow::SIZE` (50), guaranteed the open item a cell outside the window, and added a "Showing N of total" pane footer above it
 - 2026-08-30:16:13:19 — DSGN-006 — resolved: `xl`-and-up admin shell — nav rail, list+detail panes for sellers/customers/listings/orders/fulfillments/messages, full-content panes for the rest; below-`xl` unchanged
 - 2026-08-30:15:44:41 — DSGN-006 — started
 - 2026-08-30:15:38:52 — DSGN-006 — defined: The admin shell is a nav rail with list and detail panes

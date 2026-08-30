@@ -11,6 +11,7 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\SendMessageRequest;
 use App\Models\Customer;
+use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -34,17 +35,23 @@ final class CustomerMessageController extends AdminController
             // box.
             $request->flash();
 
-            return $this->tooManyRequests($exceeded, 'admin.customers.show', [
-                'customer' => $customer->loadForConsole(),
-                // DSGN-006: the show page's list pane, the same as
-                // `CustomerController::show` renders it from.
-                'cellCustomers' => Customer::query()
+            // DSGN-006: the show page's list pane, windowed the same way
+            // `CustomerController::show` windows it (`ListPaneWindow`,
+            // DSGN-006 follow-up).
+            $window = ListPaneWindow::of(
+                Customer::query()
                     ->inStanding(StandingFilter::All)
                     ->with('activeBlock')
                     ->withCount(['orders', 'favorites', 'cartItems'])
                     ->orderByDesc('created_at')
-                    ->orderByDesc('id')
-                    ->get(),
+                    ->orderByDesc('id'),
+                $customer,
+            );
+
+            return $this->tooManyRequests($exceeded, 'admin.customers.show', [
+                'customer' => $customer->loadForConsole(),
+                'cellCustomers' => $window->items,
+                'cellCustomersTotal' => $window->total,
             ]);
         }
 

@@ -460,19 +460,32 @@ selected, and the layout's own generic empty-detail prompt. A show route
 the current item's `x-admin.card-row` carrying `aria-current="true"` and a
 highlight, beside the existing detail content unchanged. Each of the six
 list+detail controllers (`Order`, `Seller`, `Customer`, `Listing`,
-`Fulfillment`, `Message`) grew a small private method building that list
-once, called from both `index()` and `show()` — `show()` passes it under a
-`cell*`-prefixed key (`cellOrders`, `cellSellers`, …) so it never collides
-with the singular model the rest of the page reads. The list a show page's
-pane carries is the same default, unfiltered list the index route opens
-with — a show URL carries no query string to filter it by, so an item deep
-in a filtered list will not show highlighted if the seller/status filters
-were never applied to begin with. Sellers/customers/listings/orders/
-fulfillments have no pagination today (`index()` reads with `->get()`, not
-`->paginate()`), so their list panes carry the whole list rather than a
-page of it; adding real pagination across five controllers was judged more
-than the modest restructuring this ticket asked for, so the panes render
-unpaginated and un-filterable — a deliberate scope cut, not an oversight.
+`Fulfillment`, `Message`) grew a small private method building that list's
+query once, called from both `index()` and `show()` — `show()` passes the
+result under a `cell*`-prefixed key (`cellOrders`, `cellSellers`, …) so it
+never collides with the singular model the rest of the page reads. The list
+a show page's pane carries is the same default, unfiltered list the index
+route opens with — a show URL carries no query string to filter it by, so
+an item deep in a filtered list will not show highlighted if the
+seller/status filters were never applied to begin with.
+
+**The list is windowed, not paginated (DSGN-006 follow-up).** Sellers/
+customers/listings/orders/fulfillments/messages have no pagination today;
+each section's query is capped at `App\Support\ListPaneWindow::SIZE` (50)
+rows instead of the unbounded `->get()` DSGN-006 originally shipped with —
+real pagination across six controllers was still judged more than this
+follow-up asked for. `ListPaneWindow::of()` runs the query twice, once for
+a `count()` and once `limit()`-ed for the rows, and — on a show route —
+takes a `mustInclude` model so the open item always gets a cell: if the
+capped fetch missed it, one more single-row query (the same filtered
+query, `whereKey()`) fetches and prepends it. A section whose total
+exceeds the window says so in its pane: the header count reads the true
+total, and `x-admin.cell-footer` renders "Showing 50 of 312" beneath the
+list, linking back to the section's own index; a section that fits inside
+the window renders neither. Index and show routes for a section share one
+query, so the below-`xl` table/cards the pane sits beside inherit the same
+cap — the "unchanged" in the table above holds structurally (same markup,
+same components) but no longer means every row past the first fifty.
 
 **The cell hierarchy** every `x-admin.<section>-cells` component follows:
 line 1 is identity (the human-readable name, e.g. the customer on an order

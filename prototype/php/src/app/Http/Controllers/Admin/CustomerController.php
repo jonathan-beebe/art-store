@@ -7,7 +7,8 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Customers\StandingFilter;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\ListPaneWindow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -18,9 +19,11 @@ final class CustomerController extends Controller
         // An empty `standing=` is what the console submits for "All
         // customers", and it reads as no filter at all.
         $standing = $request->enum('standing', StandingFilter::class) ?? StandingFilter::All;
+        $window = ListPaneWindow::of($this->customersQuery($standing));
 
         return view('admin.customers.index', [
-            'customers' => $this->customers($standing),
+            'customers' => $window->items,
+            'customersTotal' => $window->total,
             'standing' => $standing,
             'standings' => StandingFilter::cases(),
         ]);
@@ -28,25 +31,27 @@ final class CustomerController extends Controller
 
     public function show(Customer $customer): View
     {
+        // DSGN-006: the show route's list pane is the same default,
+        // unfiltered list the index route opens with.
+        $window = ListPaneWindow::of($this->customersQuery(StandingFilter::All), $customer);
+
         return view('admin.customers.show', [
             'customer' => $customer->loadForConsole(),
-            // DSGN-006: the show route's list pane is the same default,
-            // unfiltered list the index route opens with.
-            'cellCustomers' => $this->customers(StandingFilter::All),
+            'cellCustomers' => $window->items,
+            'cellCustomersTotal' => $window->total,
         ]);
     }
 
     /**
-     * @return Collection<int, Customer>
+     * @return Builder<Customer>
      */
-    private function customers(StandingFilter $standing): Collection
+    private function customersQuery(StandingFilter $standing): Builder
     {
         return Customer::query()
             ->inStanding($standing)
             ->with('activeBlock')
             ->withCount(['orders', 'favorites', 'cartItems'])
             ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
     }
 }
