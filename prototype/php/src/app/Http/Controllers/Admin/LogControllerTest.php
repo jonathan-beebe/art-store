@@ -8,14 +8,30 @@ use App\Logging\LogStore;
 use Tests\LogViewerFixtures as Fixtures;
 
 it('sends a guest to the admin login page from the list and the story view', function (): void {
-    $this->get('/admin/logs')->assertRedirect(route('auth.admin.login'));
+    $this->get('/admin/logs?domain=')->assertRedirect(route('auth.admin.login'));
     $this->get('/admin/logs/requests/req_1')->assertRedirect(route('auth.admin.login'));
 });
+
+it('redirects a query-string-less landing to the default domain, grouped', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+
+    $response->assertRedirect(route('admin.logs.index', ['domain' => 'shop', 'group' => 1]));
+});
+
+it('does not redirect when any query parameter is present, even an empty one', function (string $query): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/logs?{$query}");
+
+    $response->assertOk();
+})->with([
+    'an empty domain' => 'domain=',
+    'an unrelated param' => 'page=1',
+    'the canonical default itself' => 'domain=shop&group=1',
+]);
 
 it('renders a friendly unavailable state on both pages when the store is off', function (): void {
     // LOG_DATABASE_FILE=off for the whole suite (phpunit.xml), so the
     // container's default LogStore is already disabled here.
-    $index = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $index = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
     $index->assertOk()->assertSee('log store is unavailable');
 
     $story = $this->actingAs($this->admin(), 'admin')->get('/admin/logs/requests/req_1');
@@ -30,7 +46,7 @@ it('lists lines newest first and tints warn and failed rows', function (): void 
     ]);
     $this->app->instance(LogStore::class, $store);
 
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
 
     $response->assertOk()
         ->assertSeeInOrder(['a failed line', 'a warning line', 'an ordinary line'])
@@ -41,7 +57,7 @@ it('lists lines newest first and tints warn and failed rows', function (): void 
         ->assertSee('bg-amber-50', false);
 });
 
-it('narrows the list by level and round-trips the choice through the filter form', function (): void {
+it('narrows the list by level and marks the level chip current', function (): void {
     $store = Fixtures::store([
         Fixtures::line(['msg' => 'an info line', 'level' => 'info']),
         Fixtures::line(['msg' => 'a warning line', 'level' => 'warn']),
@@ -52,8 +68,10 @@ it('narrows the list by level and round-trips the choice through the filter form
 
     $response->assertOk()
         ->assertSee('a warning line')
-        ->assertDontSee('an info line')
-        ->assertSee('<option value="warn" selected', false);
+        ->assertDontSee('an info line');
+
+    $html = (string) $response->getContent();
+    expect($html)->toMatch('/data-stat="level-warn"\s+aria-current="true"/');
 });
 
 it('shows the four level tiles with counts and links that set the level filter', function (): void {
@@ -65,7 +83,7 @@ it('shows the four level tiles with counts and links that set the level filter',
     ]);
     $this->app->instance(LogStore::class, $store);
 
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
 
     $response->assertOk()
         ->assertSee('data-stat="level-error"', false)
@@ -103,7 +121,7 @@ it('hides health-check lines by default and shows them with health=1', function 
     ]);
     $this->app->instance(LogStore::class, $store);
 
-    $hidden = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $hidden = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
     $hidden->assertOk()->assertDontSee('GET /health 200');
 
     $shown = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?health=1');
@@ -142,7 +160,7 @@ it('paginates 50 to a page, newest first, with filters carried through the pager
     $store = Fixtures::store($lines);
     $this->app->instance(LogStore::class, $store);
 
-    $page1 = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $page1 = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
     $page1->assertOk()->assertSee('Page 1 of 2')->assertSee('line 054')->assertDontSee('line 004');
     expect(substr_count((string) $page1->getContent(), 'data-line="'))->toBe(50);
 
@@ -165,7 +183,11 @@ it('groups by request and tints the group by its worst line', function (): void 
         ->assertSee('data-severity="error"', false)
         ->assertSee(route('admin.logs.story', ['requestId' => 'req_1']), false)
         ->assertSee('GET /checkout broke')
-        ->assertSee('2 lines');
+        ->assertSee('data-cell="line-count"', false);
+
+    $html = (string) $response->getContent();
+    preg_match('/data-cell="line-count"[^>]*>\s*(\d+)/s', $html, $match);
+    expect($match[1] ?? null)->toBe('2');
 });
 
 it('tints a group yellow when its worst line only warns, never fails', function (): void {
@@ -207,7 +229,7 @@ it('renders the story header from the root will/did pair, and links session and 
         ->assertSee(route('admin.logs.index', ['session' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
 
     $html = (string) $response->getContent();
-    preg_match('/data-stat="duration".*?<dd[^>]*>\s*(\d+)/s', $html, $match);
+    preg_match('/data-stat="duration"[^>]*>\s*(\d+)/s', $html, $match);
     expect($match[1] ?? null)->toBe('20');
 });
 
@@ -222,7 +244,7 @@ it('reads the root close duration from a failed close the same as a did close', 
 
     $response->assertOk()->assertSee('data-severity="error"', false)->assertSee('bg-red-50', false);
     $html = (string) $response->getContent();
-    preg_match('/data-stat="duration".*?<dd[^>]*>\s*(\d+)/s', $html, $match);
+    preg_match('/data-stat="duration"[^>]*>\s*(\d+)/s', $html, $match);
     expect($match[1] ?? null)->toBe('30');
 });
 
@@ -260,7 +282,7 @@ it('links a prefixed id inside a disclosed data block', function (): void {
     ]);
     $this->app->instance(LogStore::class, $store);
 
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs');
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
 
     $response->assertOk()->assertSee(route('admin.orders.show', ['ord_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
 });

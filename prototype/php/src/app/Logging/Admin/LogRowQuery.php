@@ -487,8 +487,8 @@ final readonly class LogRowQuery
             $lines,
             fn (LogRow $line): bool => $line->event === 'http.request' && ($line->phase === 'did' || $line->phase === 'failed'),
         );
-        $openedData = $this->parsedData($opened?->data);
-        $closedData = $this->parsedData($closed?->data);
+        $openedData = LogRequestData::decode($opened?->data);
+        $closedData = LogRequestData::decode($closed?->data);
         $last = $lines[count($lines) - 1] ?? null;
 
         return new LogRequestGroup(
@@ -496,9 +496,9 @@ final readonly class LogRowQuery
             kind: 'request',
             lineCount: count($lines),
             lastTs: $last === null ? '' : $last->ts,
-            method: $this->stringField($openedData, 'method'),
-            path: $this->stringField($openedData, 'path'),
-            status: $this->intField($closedData, 'status'),
+            method: LogRequestData::stringField($openedData, 'method'),
+            path: LogRequestData::stringField($openedData, 'path'),
+            status: LogRequestData::intField($closedData, 'status'),
             durationMs: $closed?->durationMs,
             level: $closed?->level,
             msg: $closed !== null ? $closed->msg : ($opened === null ? null : $opened->msg),
@@ -519,42 +519,5 @@ final readonly class LogRowQuery
         }
 
         return null;
-    }
-
-    /** Stored `data`, parsed for the fields a group summary reads off it.
-     * The mirror invariant means a line can be stored with text that never
-     * parses.
-     *
-     * @return array<array-key, mixed>
-     */
-    private function parsedData(?string $text): array
-    {
-        if ($text === null) {
-            return [];
-        }
-
-        $decoded = json_decode($text, associative: true);
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $data
-     */
-    private function stringField(array $data, string $field): ?string
-    {
-        $value = $data[$field] ?? null;
-
-        return is_string($value) ? $value : null;
-    }
-
-    /**
-     * @param  array<array-key, mixed>  $data
-     */
-    private function intField(array $data, string $field): ?int
-    {
-        $value = $data[$field] ?? null;
-
-        return is_int($value) ? $value : null;
     }
 }

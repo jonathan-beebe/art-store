@@ -1,7 +1,11 @@
-<x-layouts.admin :title="'Request '.$requestId.' — Art Store admin'">
-    <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">Request <span data-request-id>{{ $requestId }}</span></h1>
-        <a href="{{ route('admin.logs.index', ['request' => $requestId]) }}" class="underline">Open in the log list</a>
+<x-layouts.admin :title="'Request '.$requestId.' — Art Store admin'" :full-width="true">
+    <div class="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+        <a href="{{ route('admin.logs.index') }}" class="inline-flex items-center gap-1.5 hover:text-gray-900 dark:hover:text-gray-100">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 4L6 8l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            <span>Logs</span>
+        </a>
+        <span class="text-gray-300 dark:text-gray-700">/</span>
+        <h1 class="font-mono text-base font-semibold text-gray-900 dark:text-gray-100" data-request-id>{{ $requestId }}</h1>
     </div>
 
     @if (! $storeAvailable)
@@ -9,45 +13,34 @@
     @elseif (count($lines) === 0)
         <x-admin.nothing class="mt-4">No lines are stored for this request. It may be outside the retention window.</x-admin.nothing>
     @else
-        @php $severity = \App\Logging\Admin\LogSeverity::worstOf($lines); @endphp
-        <dl data-severity="{{ strtolower($severity->name) }}" class="mt-4 grid grid-cols-1 gap-3 rounded border border-gray-300 dark:border-gray-700 p-1 sm:grid-cols-3 {{ $severity->rowClasses() }}">
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="lines">
-                <dt class="text-gray-600 dark:text-gray-400">Lines</dt>
-                <dd class="mt-1 text-lg font-semibold tabular-nums">{{ $totalCount }}</dd>
+        @php
+            $severity = \App\Logging\Admin\LogSeverity::worstOf($lines);
+            $tint = \App\Logging\Admin\LogDurationTint::ofMs($header->durationMs);
+        @endphp
+
+        {{-- Request header card: tinted by the worst line in the story --}}
+        <div data-severity="{{ strtolower($severity->name) }}" class="mt-4 flex flex-col gap-3 rounded border p-4 {{ $severity->borderClasses() }} {{ $severity->rowClasses() !== '' ? $severity->rowClasses() : 'bg-white dark:bg-gray-900' }}">
+            <div class="flex flex-wrap items-center gap-3">
+                @if ($header->method !== null || $header->path !== null)
+                    <span class="font-mono text-base font-semibold">{{ $header->method }} {{ $header->path }}</span>
+                @endif
+                @if ($header->status !== null)
+                    <span data-stat="status" class="inline-flex rounded px-2 py-0.5 font-mono text-sm font-semibold {{ $header->status >= 400 ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300' }}">{{ $header->status }}</span>
+                @endif
+                @if ($header->durationMs !== null)
+                    <span data-stat="duration" class="font-mono text-sm tabular-nums {{ $tint?->textClasses() ?? 'text-gray-500 dark:text-gray-400' }}">{{ $header->durationMs }} ms</span>
+                @endif
+                <span class="flex-1"></span>
+                <span class="text-xs text-gray-500 dark:text-gray-400" data-stat="lines">{{ $totalCount }} line{{ $totalCount === 1 ? '' : 's' }} &middot; <span data-stat="first">{{ $header->firstTs }}</span> &rarr; <span data-stat="last">{{ $header->lastTs }}</span> UTC</span>
             </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="first">
-                <dt class="text-gray-600 dark:text-gray-400">First line</dt>
-                <dd class="mt-1 text-lg font-semibold tabular-nums">{{ $header->firstTs ?? '—' }}</dd>
-            </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="last">
-                <dt class="text-gray-600 dark:text-gray-400">Last line</dt>
-                <dd class="mt-1 text-lg font-semibold tabular-nums">{{ $header->lastTs ?? '—' }}</dd>
-            </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="duration">
-                <dt class="text-gray-600 dark:text-gray-400">Duration (ms)</dt>
-                <dd class="mt-1 text-lg font-semibold tabular-nums">{{ $header->durationMs ?? '—' }}</dd>
-            </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="session">
-                <dt class="text-gray-600 dark:text-gray-400">Session</dt>
-                <dd class="mt-1 text-lg font-semibold">
-                    @if ($header->sessionId === null)
-                        —
-                    @else
-                        {!! \App\Logging\Admin\LogIdLinks::linkify($header->sessionId) !!}
-                    @endif
-                </dd>
-            </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2" data-stat="actor">
-                <dt class="text-gray-600 dark:text-gray-400">Actor</dt>
-                <dd class="mt-1 text-lg font-semibold">
-                    @if ($header->actorId === null)
-                        {{ $header->actorType ?? '—' }}
-                    @else
-                        {{ $header->actorType }} {!! \App\Logging\Admin\LogIdLinks::linkify($header->actorId) !!}
-                    @endif
-                </dd>
-            </div>
-        </dl>
+
+            <x-admin.log-filter-rail
+                :txn-id="$header->txnId"
+                :session-id="$header->sessionId"
+                :actor-type="$header->actorType"
+                :actor-id="$header->actorId"
+            />
+        </div>
 
         @if ($totalCount > count($lines))
             <p data-cap-notice class="mt-4 rounded border border-amber-500 bg-white dark:bg-gray-900 p-3 text-amber-700 dark:text-amber-400">
@@ -55,6 +48,8 @@
             </p>
         @endif
 
-        <x-admin.log-lines :lines="$lines" :open="true" />
+        <div class="mt-4 overflow-hidden rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <x-admin.log-lines :lines="$lines" :open="true" :headers="true" />
+        </div>
     @endif
 </x-layouts.admin>
