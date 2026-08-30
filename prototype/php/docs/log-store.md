@@ -10,7 +10,7 @@ Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogRetentionDay
 `app/Providers/LogStoreServiceProvider.php`, `config/log_store.php`,
 `app/Logging/Admin/*.php`, `app/Http/Requests/Admin/LogsQueryRequest.php`,
 `app/Http/Controllers/Admin/LogController.php`, `app/Support/Page.php`,
-`resources/views/admin/logs/`, `resources/views/components/admin/{log-lines,pager}.blade.php`,
+`resources/views/admin/logs/`, `resources/views/components/admin/{log-lines,log-id-chip,log-filter-rail,log-actor,log-ids,pager}.blade.php`,
 `app/Console/Commands/SweepOrders.php`.
 
 Three invariants govern the design:
@@ -207,25 +207,93 @@ subsections, which this implementation matches:
   itself ignores this filter, so a hidden viewer request's story stays
   addressable by id.
 
-`index.blade.php` opens with four stat tiles (Errors / Warnings / Info /
-Debug), each `LogRowQuery::levelTallies()`'d against the current filters
-minus `level` and linking to the same query with `level` set — the tiles
-double as the level filter's fast path. Rows show `ts`, level, `event ·
-phase`, `msg`, `request_id`, actor, and `duration_ms`; a row whose `data`
-or `error` is present discloses it, pretty-printed by
-`App\Logging\Admin\LogJson`, in a `<details>` block — the page works with
-JavaScript absent, like every other admin page. `request_id` and the
-actor's id are themselves filter links (§ "Filter links and the actor
-control" below), and the request's story is reached instead through a
-compact chevron control next to `request_id`
-(`aria-label="Open request story for <request_id>"`) — same treatment on
-the `group=1` view's row. Pagination is `App\Support\Page`, the admin's
-first pager component (`components/admin/pager.blade.php`):
-total-count-based prev/next over `page=N`, the current filter set carried
-through both links. `Page::of()` clamps an out-of-range page onto the
-nearest real one rather than answering 400 — unlike the filter values
-`LogsQueryRequest` gates, an out-of-range page is the same "closest sane
-thing" treatment every other admin list gives a bad page number.
+### Layout: workflow-first, columnar (DSGN-004)
+
+A landing visit — `GET /admin/logs` with no query string at all —
+redirects to `/admin/logs?domain=shop&group=1`: the view a founder means
+by "the log viewer", not the union of every filter left at its widest
+default. Any query parameter present, even an empty one (`?domain=`), is
+a deliberate visit and skips the redirect; the check is `$request->query()
+=== []` in `LogController::index`, run before the store is touched. This
+is a URL-shape convenience — the filter semantics underneath (empty means
+all, per `docs/alignment.md` §5) do not change, and every filter is still
+reachable at `?domain=` to see everything.
+
+The header bar puts three controls at primary weight — domain (a
+segmented control: All/shop/seller/admin), level, and event — and tucks
+everything else behind a `<details>` "More filters" disclosure: phase,
+request/txn/session/actor/msg/from/to/key/value, and the health and
+viewer checkboxes. A small dot on the disclosure's summary marks when a
+hidden filter is active. The four level counts (`LogRowQuery::levelTallies()`
+against the current filters minus `level`) are now the level filter itself
+— clickable chips, `aria-current="true"` on the active one — rather than a
+separate stat-tile strip that only echoed the `<select>` below it. Domain,
+level, and the Requests/Lines view toggle are plain links that already
+carry the full current filter set in their own `href`; three hidden
+`<input>`s (`domain`, `level`, `group`) inside the one `<form method="GET">`
+are what keep a More-filters submit or the event/phase selects from
+dropping them, since a GET form submission replaces the query string with
+only the fields the form itself declares.
+
+An applied-state strip below the header shows every active filter as a
+removable chip (`href` = the same query with that one param gone — `key`
+and `value` collapse into one chip, since a `value` never applies without
+a `key`), plus a quiet "health checks hidden · show" / "log viewer traffic
+hidden · show" pair and the current result count ("N requests match" /
+"N lines match").
+
+The Requests (`group=1`) view is a columnar grid — time, request
+(method+path), status, a tinted duration, line count, actor, session, a
+story chevron — one native `<details>`/`<summary>` per request; that
+disclosure pair is the accessible pattern for expand-in-place, so the row
+carries no ARIA table role laid over it (a `role="row"` on `<summary>`
+would override its own native disclosure semantics, and the structure
+fails ARIA table requirements regardless — the role-less `<details>`
+sits between table and row, and the expanded panel is an illegal owned
+child of a table row). The visual column-header strip above the rows is
+`aria-hidden="true"`; the chevron's own `aria-label="Open request story
+for <request_id>"` is the row's accessible name for that action, and the
+page's own "Logs" `<h1>` is the list's accessible context — no extra
+heading needed. The Lines (ungrouped) view keeps the `<table>` FEAT-033
+shipped, restyled to the same columnar rhythm: tabular numerals, a level
+badge, a tinted duration.
+Expanding a grouped row opens `components/admin/log-filter-rail.blade.php`
+(the request's own id rail — see below) above its lines,
+`components/admin/log-lines.blade.php` unchanged underneath. Time cells
+everywhere show `App\Logging\Admin\LogTimestamp::timeOfDay()` — the
+`HH:MM:SS.mmm` slice of the fixed-shape `ts` — with the full ISO instant
+in the cell's `title`.
+
+Pagination is unchanged: `App\Support\Page`, `components/admin/pager.blade.php`,
+total-count-based prev/next over `page=N` with the current filter set
+carried through both links. `Page::of()` clamps an out-of-range page onto
+the nearest real one rather than answering 400.
+
+The logs pages (list and story) render inside `x-layouts.admin
+:full-width="true"`, which opts the `<main>` out of the shell's `max-w-6xl`
+reading column; every other admin page keeps the narrower default.
+
+### Truncated row id chips
+
+A row id chip — actor, session, or (in the Lines table) request — shows a
+truncated id in a collapsed row: the prefix plus 8 body characters
+(`cus_01J5X3M9`, via `App\Logging\Admin\LogIdLinks::truncate()`), with the
+link's `href`, `title`, and accessible name still carrying the full id.
+`components/admin/log-id-chip.blade.php` renders this (`:truncate="true"`
+by default); `components/admin/log-actor.blade.php` grew the same
+`:truncate` prop for its own id text. An expanded row's filter rail and
+the story view render every id in full — truncation is a collapsed row's
+concession to width, not a rule those places need.
+
+### Duration tint
+
+`App\Logging\Admin\LogDurationTint::ofMs()` selects one of three tints —
+green (`Fast`, at or under 300ms), orange (`Slow`, 301–600ms), or red
+(`Bad`, over 600ms) — server-side, so the threshold lives in one PHP value
+object with its own sidecar test rather than a Blade conditional repeated
+at every duration cell. `textClasses()` supplies the Tailwind pair (light
+and dark) for whichever cell prints a `duration_ms`: the columnar rows,
+the grouped view's summary, and the story header.
 
 ### Severity tint
 
@@ -275,28 +343,46 @@ to the id-as-filter-link, `components/admin/log-actor.blade.php` renders a
 separate "View `<actor_type>`" control to the actor's own admin detail
 page, using the same `LogIdLinks::hrefFor()` map the linkifier draws
 from — so an admin actor, which has no detail page, never grows the
-control. The same component renders the actor everywhere it appears: list
-rows, the story header, and (should a future grouped row start showing an
-actor) group rows.
+control. The same component renders the actor everywhere it appears: Lines
+rows, Requests rows (`App\Logging\Admin\LogStoryHeader::of($group->lines)`
+reads a group's actor/session/txn off its own lines the same way the story
+header does, so the two never carry two read-models for one fact), and the
+story header.
 
 ### The story view
 
 `LogController::show` reads one request's lines via `LogRowQuery::storyRows()`
 (`ts asc, id asc`, capped at `LogRowQuery::STORY_LINE_CAP` = 1,000) and
-builds `App\Logging\Admin\LogStoryHeader` off them: first/last `ts`, the
-root `http.request` `did`/`failed` line's `duration_ms`, and the session and
-actor from the first line that carries each. The header's own `request_id`
-(next to the "Request" heading) and session are filter links back into the
-list the same as everywhere else, and the actor gets the same id-link-plus-
-"View `<actor_type>`"-control treatment § "Filter links and the actor
-control" describes. When the cap hides lines, a
-second `storyCount()` query runs only to size the "showing the first 1,000
-of N" notice — the common case never pays for a count it does not need. A
-well-formed id with no stored lines renders the empty state at 200 ("it may
-be outside the retention window"); a malformed id — the route's `where()`
-constraint refuses it before the controller runs — falls through to the
-site's standard 404. `?txn=` on the list view covers the transaction
-story; the story route needs no second endpoint for it.
+builds `App\Logging\Admin\LogStoryHeader` off them: first/last `ts`; the
+root `http.request` open line's `method`/`path` and close line's `status`
+(`App\Logging\Admin\LogRequestData`, the small JSON-field reader
+`LogRowQuery`'s own group summary shares); the close line's `duration_ms`;
+and the session, actor, and txn from the first line that carries each.
+`LogRequestGroup` (the `group=1` row's own summary) does not carry these
+same session/actor/txn facts, so a Requests-view row builds
+`LogStoryHeader::of($group->lines)` over its own lines to read them — one
+read-model, reused rather than duplicated.
+
+A breadcrumb ("Logs" back-link, then the request id) opens the page; the
+id itself is `data-request-id`, a filter link
+(`App\Logging\Admin\LogFilterLinks::href('request', $requestId)`) back
+into the list — the page's one entry point into the filtered list, so
+there is no second "open in the log list" link beside it. Below that, a
+header card tinted by `LogSeverity::worstOf()` (border and background both,
+`LogSeverity::borderClasses()`/`rowClasses()`) shows the root
+method/path/status, the tinted duration
+(`LogDurationTint::ofMs($header->durationMs)`), and the line count and
+span; `components/admin/log-filter-rail.blade.php` — the same "Filter by"
+id rail an expanded Requests row opens into — renders the txn/session/actor
+filter links and the actor's "View `<actor_type>`" control beneath it. When
+the cap hides lines, a second `storyCount()` query runs only to size the
+"showing the first 1,000 of N" notice — the common case never pays for a
+count it does not need. A well-formed id with no stored lines renders the
+empty state at 200 ("it may be outside the retention window"); a malformed
+id — the route's `where()` constraint refuses it before the controller
+runs — falls through to the site's standard 404. `?txn=` on the list view
+covers the transaction story; the story route needs no second endpoint for
+it.
 
 ## Retention
 

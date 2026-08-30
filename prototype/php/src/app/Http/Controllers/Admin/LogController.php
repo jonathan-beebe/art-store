@@ -14,6 +14,7 @@ use App\Logging\StoryEvent;
 use App\Logging\StoryLevel;
 use App\Logging\StoryPhase;
 use App\Support\Page;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
 /**
@@ -26,16 +27,50 @@ final class LogController extends Controller
 {
     private const int ROWS_PER_PAGE = 50;
 
-    /** What each level's stat tile is titled, in display order. */
-    private const array LEVEL_TILES = [
+    /** What each level chip is titled, in display order — the four also
+     * double as the level filter, so a chip's own href sets it. */
+    private const array LEVEL_LABELS = [
         'error' => 'Errors',
         'warn' => 'Warnings',
         'info' => 'Info',
         'debug' => 'Debug',
     ];
 
-    public function index(LogsQueryRequest $request): View
+    /** A landing visit — no query string at all — opens on the shop
+     * domain, grouped by request: the view a founder means by "the log
+     * viewer", not the union of every filter left at its widest default.
+     * Any query parameter present, even an empty one, is a deliberate
+     * visit and skips this. */
+    private const array DEFAULT_LANDING_QUERY = ['domain' => 'shop', 'group' => '1'];
+
+    /** The filters `More filters` holds, once domain/level/event have their
+     * own primary controls and health/viewer have their own quiet strip
+     * affordances — what an inactive/active indicator on the disclosure is
+     * computed over. */
+    private const array MORE_FILTER_FIELDS = ['phase', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'health', 'viewer'];
+
+    /** Labels for the applied-state strip's removable chips, in the order
+     * they appear. `key`/`value` render as one combined chip. */
+    private const array CHIP_LABELS = [
+        'domain' => 'domain',
+        'level' => 'level',
+        'event' => 'event',
+        'phase' => 'phase',
+        'request' => 'request',
+        'txn' => 'txn',
+        'session' => 'session',
+        'actor' => 'actor',
+        'msg' => 'message',
+        'from' => 'from',
+        'to' => 'to',
+    ];
+
+    public function index(LogsQueryRequest $request): View|RedirectResponse
     {
+        if ($request->query() === []) {
+            return redirect()->route('admin.logs.index', self::DEFAULT_LANDING_QUERY);
+        }
+
         $store = app(LogStore::class);
         $roundTripped = $request->roundTrippedFilters();
 
@@ -58,7 +93,13 @@ final class LogController extends Controller
             'grouped' => $grouped,
             'lines' => $grouped ? [] : $query->rows($filters, $page->limit, $page->offset),
             'groups' => $grouped ? $query->groups($filters, $page->limit, $page->offset) : [],
-            'tiles' => $this->levelTiles($query->levelTallies($filters), $roundTripped),
+            'levelChips' => $this->levelChips($query->levelTallies($filters), $roundTripped),
+            'domainLinks' => $this->domainLinks($roundTripped),
+            'viewLinks' => $this->viewLinks($roundTripped, $grouped),
+            'activeFilterChips' => $this->activeFilterChips($roundTripped),
+            'moreFiltersActive' => $this->moreFiltersActive($roundTripped),
+            'healthToggle' => $this->toggleAffordance($roundTripped, 'health'),
+            'viewerToggle' => $this->toggleAffordance($roundTripped, 'viewer'),
             'filters' => $roundTripped,
             'domains' => LogDomain::cases(),
             'levels' => StoryLevel::cases(),
@@ -101,26 +142,162 @@ final class LogController extends Controller
     }
 
     /**
-     * The four tiles, each linking to the same query with `level` set.
+     * The four level chips, each linking to the same query with `level`
+     * set — they double as the level filter's fast path, replacing the
+     * old separate stat-tile strip.
      *
      * @param  array<string, int>  $tallies
      * @param  array<string, string>  $roundTripped
-     * @return list<array{level: string, label: string, count: int, href: string}>
+     * @return list<array{level: string, label: string, count: int, href: string, active: bool}>
      */
-    private function levelTiles(array $tallies, array $roundTripped): array
+    private function levelChips(array $tallies, array $roundTripped): array
     {
         $withoutLevel = collect($roundTripped)->except('level')->all();
+        $current = $roundTripped['level'] ?? null;
 
-        $tiles = [];
-        foreach (self::LEVEL_TILES as $level => $label) {
-            $tiles[] = [
+        $chips = [];
+        foreach (self::LEVEL_LABELS as $level => $label) {
+            $chips[] = [
                 'level' => $level,
                 'label' => $label,
                 'count' => $tallies[$level] ?? 0,
                 'href' => route('admin.logs.index', [...$withoutLevel, 'level' => $level]),
+                'active' => $current === $level,
             ];
         }
 
-        return $tiles;
+        return $chips;
+    }
+
+    /**
+     * The domain segmented control: "All" clears the filter, each named
+     * site sets it, every other filter carried through unchanged.
+     *
+     * @param  array<string, string>  $roundTripped
+     * @return list<array{label: string, href: string, active: bool}>
+     */
+    private function domainLinks(array $roundTripped): array
+    {
+        $withoutDomain = collect($roundTripped)->except('domain')->all();
+        $current = $roundTripped['domain'] ?? null;
+
+        $links = [[
+            'label' => 'All',
+            'href' => route('admin.logs.index', $withoutDomain),
+            'active' => $current === null,
+        ]];
+
+        foreach (LogDomain::cases() as $domain) {
+            $links[] = [
+                'label' => $domain->value,
+                'href' => route('admin.logs.index', [...$withoutDomain, 'domain' => $domain->value]),
+                'active' => $current === $domain->value,
+            ];
+        }
+
+        return $links;
+    }
+
+    /**
+     * The Requests/Lines view toggle: `group=1` versus its absence, every
+     * other filter carried through unchanged.
+     *
+     * @param  array<string, string>  $roundTripped
+     * @return list<array{label: string, href: string, active: bool}>
+     */
+    private function viewLinks(array $roundTripped, bool $grouped): array
+    {
+        $withoutGroup = collect($roundTripped)->except('group')->all();
+
+        return [
+            [
+                'label' => 'Requests',
+                'href' => route('admin.logs.index', [...$withoutGroup, 'group' => '1']),
+                'active' => $grouped,
+            ],
+            [
+                'label' => 'Lines',
+                'href' => route('admin.logs.index', $withoutGroup),
+                'active' => ! $grouped,
+            ],
+        ];
+    }
+
+    /**
+     * The applied-state strip's removable chips — every primary and
+     * More-filters value currently set, each linking to the same query
+     * with itself removed. `key`/`value` collapse into one chip since a
+     * `value` never applies without a `key`.
+     *
+     * @param  array<string, string>  $roundTripped
+     * @return list<array{label: string, text: string, href: string}>
+     */
+    private function activeFilterChips(array $roundTripped): array
+    {
+        $chips = [];
+
+        foreach (self::CHIP_LABELS as $field => $label) {
+            if (! array_key_exists($field, $roundTripped)) {
+                continue;
+            }
+
+            $chips[] = [
+                'label' => $label,
+                'text' => "{$label}: {$roundTripped[$field]}",
+                'href' => route('admin.logs.index', collect($roundTripped)->except($field)->all()),
+            ];
+        }
+
+        if (array_key_exists('key', $roundTripped)) {
+            $key = $roundTripped['key'];
+            $value = $roundTripped['value'] ?? null;
+
+            $chips[] = [
+                'label' => 'attribute',
+                'text' => $value === null ? "{$key} present" : "{$key}: {$value}",
+                'href' => route('admin.logs.index', collect($roundTripped)->except(['key', 'value'])->all()),
+            ];
+        }
+
+        return $chips;
+    }
+
+    /**
+     * Whether the More-filters disclosure holds a value the primary
+     * controls and the applied-state strip's health affordance do not
+     * already surface on their own.
+     *
+     * @param  array<string, string>  $roundTripped
+     */
+    private function moreFiltersActive(array $roundTripped): bool
+    {
+        foreach (self::MORE_FILTER_FIELDS as $field) {
+            if (array_key_exists($field, $roundTripped)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The quiet "hidden · show" strip affordance a default-hide checkbox
+     * gets (health, viewer) and its reverse — the same query with the
+     * field toggled, every other filter unchanged.
+     *
+     * @param  array<string, string>  $roundTripped
+     * @return array{hidden: bool, href: string}
+     */
+    private function toggleAffordance(array $roundTripped, string $field): array
+    {
+        $hidden = ($roundTripped[$field] ?? null) !== '1';
+        $without = collect($roundTripped)->except($field)->all();
+
+        return [
+            'hidden' => $hidden,
+            'href' => $hidden
+                ? route('admin.logs.index', [...$without, $field => '1'])
+                : route('admin.logs.index', $without),
+        ];
     }
 }

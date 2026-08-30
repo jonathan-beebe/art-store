@@ -1,4 +1,7 @@
-@props(['title' => 'Art Store admin'])
+{{-- `full-width` opts a page out of the admin shell's `max-w-6xl` reading
+     column — the log viewer's columnar rows earn the extra width; every
+     other admin page keeps the narrower default. --}}
+@props(['title' => 'Art Store admin', 'fullWidth' => false])
 
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -48,7 +51,7 @@
         </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-6">
+    <main @class(['py-6', 'mx-auto max-w-6xl px-4' => ! $fullWidth, 'w-full px-6' => $fullWidth])>
         @if (session('status'))
             <p role="status" class="mb-4 rounded border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-green-900 dark:text-green-200">{{ session('status') }}</p>
         @endif
