@@ -102,8 +102,7 @@ properties, `pvl` property_values, `cpr` category_properties, `lat`
 listing_attributes, `axs` option_axes, `ovl` option_values, `vrt` variants,
 `vop` variant_options, `unt` units, `mdf` modifiers, `mdo` modifier_options,
 `mds` modifier_scopes, `qbk` quantity_breaks, `dsc` description_sections,
-`img` listing_images. (Entry in alignment.md §1's prefix table is pending —
-see Open items.)
+`img` listing_images — all recorded in alignment.md §1's prefix table.
 
 ### Taxonomy layer
 
@@ -269,17 +268,10 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
 
 ## Open items
 
-- **Alignment prefixes.** The sixteen new table prefixes above are absent
-  from alignment.md §1's prefix table; recording them there is the open
-  decision.
 - **Rollout.** PHP only, beta. Node and Rails owe the model when their
-  seller portals grow configuration.
+  seller portals grow configuration (alignment.md §8, 2026-08-30).
 - **Cart-time reservation.** Units have zero `reserved` state; two shoppers
   can cart one piece and placement decides. Held as a product decision.
-- **Publish-gate wording.** The design doc's "every `required` grant"
-  phrasing is unsatisfiable for an axis-only required grant (Ring Size);
-  the implemented and intended gate is `required && usable_as_attribute`,
-  as stated above (FEAT-029).
 - **Deferred by design** (`item-configurator.md` §9): cross-scale size
   equivalence, digital delivery, linked add-on products, bespoke
   post-checkout workflow, `file_upload`/`date` modifier kinds, property

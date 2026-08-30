@@ -29,9 +29,10 @@ flowchart LR
   reverse. Admins are seeded; the admin site has no sign-up.
 - Each site carries its own `/events` unread-count stream under its prefix
   (`/events`, `/seller/events`, `/admin/events`).
-- `GET /health` is the orchestrator's probe. It and `/events` are system
-  paths: the log viewer's `domain=shop` bucket excludes both by name
-  ([logging.md](logging.md)).
+- The orchestrator's health probe lives at the framework's preferred path:
+  Node's owned `/health` route, Laravel's and Rails's built-in `/up`. It and
+  `/events` are system paths: the log viewer's `domain=shop` bucket excludes
+  both by name ([logging.md](logging.md)).
 
 ## Identifiers in URLs
 
@@ -96,9 +97,6 @@ Query parameters hold state within a page; paths hold the dimension.
 
 ## Open items
 
-- PHP serves its probe at `/up` (Laravel's built-in), while this contract,
-  the log viewer's health filter, and Node all name `/health`. PHP owes the
-  move to `/health`.
 - PHP's admin filter routes outside `/admin/logs` still treat an
   unrecognised value as absent; §5 says 400 (alignment.md §8, 2026-08-29
   entry).

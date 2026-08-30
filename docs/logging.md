@@ -168,17 +168,25 @@ value answers 400. Filters:
   ISO-8601 UTC text sorts chronologically), labelled UTC;
 - `key` / `value` — the any-attribute filter, below;
 - `group=1` — one row per request, below;
-- `health=1` — includes health-check lines, hidden by default, below.
+- `health=1` — includes health-check lines, hidden by default, below;
+- `viewer=1` — includes the viewer's own requests, hidden by default,
+  below.
 
 Four stat tiles (Errors / Warnings / Info / Debug) tally the current filter
 set minus `level`, health-check lines excluded the same as the list; each
 tile links to the same query with `level` set, doubling as the level
 filter's fast path. Rows show `ts` (full ISO — milliseconds matter here),
 level, `event · phase`, the `msg` rendered with its severity prefix
-intact (⚠️ on `warn`, ❌ on `failed`, per alignment.md §2.4),
-`request_id` linked to the story view, the actor, and `duration_ms`. A row
-whose `data` or `error` is present discloses it in a collapsible block —
-the page works with JavaScript absent, like every admin page.
+intact (⚠️ on `warn`, ❌ on `failed`, per alignment.md §2.4), the
+`request_id`, the actor, and `duration_ms`. A line's own ids — request,
+transaction, session, actor — are filter links: tapping one applies that
+filter, carrying the other current filters and landing on page 1; ids the
+row itself has no column for sit as the same links in the row's
+disclosure. A compact chevron beside the request id opens the story view,
+and an actor whose prefix has a detail page gets a separate labeled
+control to the record ("View customer", "View seller"). A row whose
+`data` or `error` is present discloses it in a collapsible block — the
+page works with JavaScript absent, like every admin page.
 
 ### Severity tint
 
@@ -196,17 +204,20 @@ A stored line carries no site field of its own. `?domain=` derives one from
 the line's request: a query correlated on `request_id` against that
 request's opening `http.request` line, prefix-matching `data.path` —
 `/admin*` and `/seller*` claim their site, the storefront claims the
-unprefixed root. `/health` (the orchestrator's probe) and `/events` (each
-site's own unread-events stream) are excluded from the storefront bucket by
-name. A line with no `request_id` matches no domain.
+unprefixed root. The health-probe path (below) and `/events` (each site's
+own unread-events stream) are excluded from the storefront bucket by name.
+A line with no `request_id` matches no domain.
 
 ### The health filter
 
-The container orchestrator polls `GET /health` on an interval; its will/did
-pairs otherwise bury the traffic a founder came to read. `/admin/logs`
-hides a health-check request's lines by default — the request whose opening
-line's path is `/health`, exact, the pair and every line sharing the
-request id — via the same correlation `?domain=` uses. The
+The container orchestrator polls the stack's health probe on an interval;
+its will/did pairs otherwise bury the traffic a founder came to read. The
+probe lives at the framework's preferred path — Node's owned `/health`
+route, Laravel's and Rails's built-in `/up` — and each stack's viewer names
+its own. `/admin/logs` hides a health-check request's lines by default —
+the request whose opening line's path is the probe path, exact, the pair
+and every line sharing the request id — via the same correlation
+`?domain=` uses. The
 `health` checkbox is unchecked by default, so an unchecked submit and a
 fresh visit read the same; `health=1` shows them again. Empty reads as
 hidden, an unrecognised value answers 400, and the state round-trips
@@ -214,9 +225,26 @@ through the form, the pager, and the level tiles, whose tallies exclude
 health-check lines the same as the list.
 
 The health filter always applies, composing with every other filter,
-independent of `?domain=`: `domain=shop` already excludes `/health` by
-name, so `health=1` under `domain=shop` shows nothing new. A line with no
+independent of `?domain=`: `domain=shop` already excludes the probe path
+by name, so `health=1` under `domain=shop` shows nothing new. A line with no
 `request_id` is never treated as a health check.
+
+### The viewer's own requests
+
+Reading logs writes logs: every visit to `/admin/logs` logs its own
+request, and that traffic otherwise fills the list being read.
+`/admin/logs` hides the viewer's own requests by default — the request
+whose opening line's path is `/admin/logs` exact or anything under
+`/admin/logs/` (the story view included), via the same correlation the
+health filter uses. The `viewer` checkbox is unchecked by default;
+`viewer=1` shows them again. Empty reads as hidden, an unrecognised value
+answers 400, and the state round-trips through the form, the pager, and
+the level tiles, whose tallies exclude viewer requests the same as the
+list. The filter always applies, composing with every other filter,
+independent of `?domain=` — `domain=admin` with `viewer` unset still hides
+them. The story view ignores it, so a viewer request stays addressable by
+id. A line with no `request_id` is never treated as viewer traffic; a
+lookalike path (`/admin/logs-export`) is never hidden.
 
 ### Grouped by request
 
@@ -264,9 +292,12 @@ expanded. A well-formed id with no stored lines renders the empty state at
 standard 404. `?txn=` on the list covers the transaction story — no second
 route is needed.
 
-Prefixed ids anywhere in the viewer link where a detail page exists — an
+Two rules govern id links. A line's own ids — request, transaction,
+session, actor — are filter links, per the list view's rule above, with
+the actor's labeled record control beside them. Prefixed ids inside a
+disclosed `data` or `error` block link where a detail page exists — an
 order, customer, seller, listing, fulfillment, outbox message, or
-conversation id alike; a transaction or session id links back into
+conversation id alike; a transaction or session id there links back into
 `/admin/logs` as a filter — one mapping from prefix to route, drawn from
 the admin site's own page table so a link never 404s. A message id renders
 plain: messages have no detail page of their own.
