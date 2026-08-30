@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Domain\Identifiers\PrefixedId;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tests\CapturedStory;
@@ -17,10 +18,17 @@ it('opens and closes the request with a line of its own', function (): void {
     $will = $log->line('http.request', 'will');
     $did = $log->line('http.request', 'did');
 
+    /** @var array<string, mixed> $didData */
+    $didData = $did['data'];
+    /** @var array<string, mixed> $db */
+    $db = $didData['db'];
+
     expect($will['msg'])->toBe('GET /')
         ->and($will['data'])->toBe(['method' => 'GET', 'path' => '/'])
         ->and($did['msg'])->toBe('GET / 200')
-        ->and($did['data'])->toBe(['status' => 200])
+        ->and($didData['status'])->toBe(200)
+        ->and($db['queries'])->toBeInt()
+        ->and($db['total_ms'])->toBeNumeric()
         ->and($did['duration_ms'])->toBeInt();
 });
 
@@ -44,7 +52,7 @@ it('opens and closes a request that matches no route', function (): void {
     $response->assertNotFound();
 
     expect($log->line('http.request', 'will')['msg'])->toBe('GET /nothing-is-here')
-        ->and($log->line('http.request', 'did')['data'])->toBe(['status' => 404]);
+        ->and($log->line('http.request', 'did')['data'])->toBe(['status' => 404, 'db' => ['queries' => 0, 'total_ms' => 0]]);
 });
 
 it('opens and closes a request the forgery guard refuses', function (): void {
@@ -61,7 +69,7 @@ it('opens and closes a request the forgery guard refuses', function (): void {
     $response->assertStatus(419);
 
     expect($log->line('http.request', 'will')['msg'])->toBe('POST /forgery-check')
-        ->and($log->line('http.request', 'did')['data'])->toBe(['status' => 419]);
+        ->and($log->line('http.request', 'did')['data'])->toBe(['status' => 419, 'db' => ['queries' => 0, 'total_ms' => 0]]);
 });
 
 it('echoes the request id it minted', function (): void {
@@ -124,6 +132,66 @@ it('keeps a magic-link token out of the path it logs', function (): void {
         'path' => '/auth/magic/{token}',
     ])
         ->and($log->raw())->not->toContain($token);
+});
+
+it('reports zero database work on the closing line when no query ran', function (): void {
+    // No `web` group: a session-backed request would carry its own
+    // reads/writes, which is exactly the noise this route avoids.
+    Route::get('/no-query', fn (): string => 'ok');
+
+    $log = CapturedStory::capture();
+
+    $this->get('/no-query');
+
+    /** @var array<string, mixed> $data */
+    $data = $log->line('http.request', 'did')['data'];
+
+    expect($data['db'])->toBe(['queries' => 0, 'total_ms' => 0]);
+});
+
+it('counts and sums the queries a request ran onto its closing line', function (): void {
+    Route::get('/query-test', function (): string {
+        DB::select('select 1');
+        DB::select('select 1');
+
+        return 'ok';
+    });
+
+    $log = CapturedStory::capture();
+
+    $this->get('/query-test');
+
+    /** @var array<string, mixed> $data */
+    $data = $log->line('http.request', 'did')['data'];
+    /** @var array<string, mixed> $db */
+    $db = $data['db'];
+
+    expect($db['queries'])->toBe(2)
+        ->and($db['total_ms'])->toBeNumeric()
+        ->and($db['total_ms'])->toBeGreaterThanOrEqual(0);
+});
+
+it("does not leak one request's query tally into the next", function (): void {
+    Route::get('/query-test', function (): string {
+        DB::select('select 1');
+        DB::select('select 1');
+
+        return 'ok';
+    });
+    Route::get('/no-query', fn (): string => 'ok');
+
+    $log = CapturedStory::capture();
+
+    $this->get('/query-test');
+    $this->get('/no-query');
+
+    $lines = $log->linesFor('http.request');
+    $secondDid = array_values(array_filter($lines, fn (array $line): bool => $line['phase'] === 'did'))[1];
+
+    /** @var array<string, mixed> $data */
+    $data = $secondDid['data'];
+
+    expect($data['db'])->toBe(['queries' => 0, 'total_ms' => 0]);
 });
 
 it('says the request failed and lets the exception through', function (): void {
