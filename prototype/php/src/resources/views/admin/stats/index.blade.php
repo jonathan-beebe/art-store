@@ -7,7 +7,7 @@
         @if (empty($days))
             <x-admin.nothing class="mt-2">No page views recorded yet.</x-admin.nothing>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="mt-2 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
                 <table class="w-full text-left">
                     <caption class="sr-only">Page views for the last seven days</caption>
                     <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -26,6 +26,17 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-admin.card-list caption="Page views for the last seven days">
+                @foreach ($days as $day)
+                    <x-admin.card-row data-day="{{ $day['day'] }}">
+                        <div class="flex items-center justify-between gap-3">
+                            <span>{{ $day['day'] }}</span>
+                            <span class="tabular-nums" data-cell="count">{{ $day['count'] }}</span>
+                        </div>
+                    </x-admin.card-row>
+                @endforeach
+            </x-admin.card-list>
         @endif
     </section>
 
@@ -35,7 +46,7 @@
         @if (empty($patterns))
             <x-admin.nothing class="mt-2">No page views recorded yet.</x-admin.nothing>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="mt-2 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
                 <table class="w-full text-left">
                     <caption class="sr-only">Page views by site and route pattern, busiest first</caption>
                     <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -56,6 +67,18 @@
                     </tbody>
                 </table>
             </div>
+
+            <x-admin.card-list caption="Page views by site and route pattern, busiest first">
+                @foreach ($patterns as $pattern)
+                    <x-admin.card-row data-pattern="{{ $pattern['site'] }} {{ $pattern['pathPattern'] }}">
+                        <span class="font-mono">{{ $pattern['pathPattern'] }}</span>
+                        <div class="flex items-center justify-between gap-3 text-gray-600 dark:text-gray-400">
+                            <span>{{ $pattern['site'] }}</span>
+                            <span class="tabular-nums text-gray-900 dark:text-gray-100" data-cell="count">{{ $pattern['count'] }}</span>
+                        </div>
+                    </x-admin.card-row>
+                @endforeach
+            </x-admin.card-list>
         @endif
     </section>
 

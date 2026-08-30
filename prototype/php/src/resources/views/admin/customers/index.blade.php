@@ -8,7 +8,7 @@
     @if ($customers->isEmpty())
         <x-admin.nothing class="mt-4">No customers match.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="mt-4 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
             <table class="w-full text-left">
                 <caption class="sr-only">Every customer on the platform, anonymous visitors included</caption>
                 <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -49,5 +49,26 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.card-list class="mt-4" caption="Every customer on the platform, anonymous visitors included">
+            @foreach ($customers as $customer)
+                <x-admin.card-row>
+                    <a href="{{ route('admin.customers.show', $customer) }}" class="font-medium underline">{{ $customer->displayName() }}</a>
+                    <div class="flex items-center justify-between gap-3 text-gray-600 dark:text-gray-400">
+                        @if ($customer->activeBlock)
+                            <span class="text-red-700 dark:text-red-400">Blocked</span>
+                        @elseif ($customer->isAnonymous())
+                            <span>Anonymous</span>
+                        @elseif ($customer->isVerified())
+                            <span>Verified</span>
+                        @else
+                            <span>Unverified</span>
+                        @endif
+                        <span>{{ $customer->email ?? '—' }}</span>
+                    </div>
+                    <div class="text-gray-600 dark:text-gray-400">{{ $customer->orders_count }} order{{ $customer->orders_count === 1 ? '' : 's' }} &middot; {{ $customer->favorites_count }} favorite{{ $customer->favorites_count === 1 ? '' : 's' }} &middot; {{ $customer->cart_items_count }} cart line{{ $customer->cart_items_count === 1 ? '' : 's' }}</div>
+                </x-admin.card-row>
+            @endforeach
+        </x-admin.card-list>
     @endif
 </x-layouts.admin>

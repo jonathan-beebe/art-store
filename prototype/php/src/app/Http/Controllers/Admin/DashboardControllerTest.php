@@ -26,6 +26,39 @@ it('links to every page of the directory', function (): void {
     $response->assertSee('href="'.route('admin.fulfillments.index').'"', escape: false);
 });
 
+it('collapses the nav into a Menu disclosure carrying every admin link, below sm', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $html = (string) $response->getContent();
+
+    expect($html)->toMatch('/<details class="relative sm:hidden">/');
+    foreach ([
+        route('admin.sellers.index'), route('admin.customers.index'), route('admin.listings.index'),
+        route('admin.orders.index'), route('admin.fulfillments.index'), route('admin.accounting'),
+        route('admin.ledger'), route('admin.payouts.index'), route('admin.stats'), route('admin.logs.index'),
+        route('admin.messages.index'),
+    ] as $href) {
+        // Each link now renders twice — the sm+ inline nav and the mobile
+        // menu grid — so this only proves the mobile grid still carries it,
+        // not that it carries it exactly once.
+        expect(substr_count($html, 'href="'.$href.'"'))->toBeGreaterThanOrEqual(2);
+    }
+});
+
+it('links every status drill row to its filtered list, below sm', function (): void {
+    $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertOk();
+    $response->assertSee('href="'.route('admin.listings.index', ['status' => 'for_sale']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.orders.index', ['status' => 'awaiting_payment']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.fulfillments.index', ['status' => 'awaiting_shipment']).'"', escape: false);
+    $response->assertSee('href="'.route('admin.accounting').'"', escape: false);
+    $response->assertSee('href="'.route('admin.stats').'"', escape: false);
+});
+
 it('sends a guest to the admin login page', function (): void {
     $response = $this->get('/admin');
 

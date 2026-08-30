@@ -28,7 +28,7 @@
     @if ($entries->isEmpty())
         <x-admin.nothing class="mt-4">No ledger entries match this filter.</x-admin.nothing>
     @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div class="mt-4 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
             <table class="w-full text-left">
                 <caption class="sr-only">Every ledger entry matching the filter above</caption>
                 <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -53,5 +53,20 @@
                 </tbody>
             </table>
         </div>
+
+        <x-admin.card-list class="mt-4" caption="Every ledger entry matching the filter above">
+            @foreach ($entries as $entry)
+                <x-admin.card-row data-entry="{{ $entry->id }}">
+                    <div class="flex items-center justify-between gap-3">
+                        <span data-cell="type" class="font-medium">{{ $entry->type->label() }}</span>
+                        <span class="tabular-nums text-gray-900 dark:text-gray-100">{{ $entry->amount()->format() }}</span>
+                    </div>
+                    <div class="text-gray-600 dark:text-gray-400" data-cell="seller">
+                        <a href="{{ route('admin.sellers.show', $entry->seller) }}" class="underline">{{ $entry->seller->displayName() }}</a>
+                    </div>
+                    <div class="text-gray-600 dark:text-gray-400">{{ $entry->occurred_at?->format('M j, Y g:i A') }}</div>
+                </x-admin.card-row>
+            @endforeach
+        </x-admin.card-list>
     @endif
 </x-layouts.admin>

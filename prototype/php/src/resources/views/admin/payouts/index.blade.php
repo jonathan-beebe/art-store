@@ -15,39 +15,9 @@
                 <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
             @enderror
         </div>
-        <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Run weekly payout</button>
+        <button type="submit" class="block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Run weekly payout</button>
         <span class="text-gray-600 dark:text-gray-400">Settles every seller's released escrow for the week ending before this date, or today when left blank.</span>
     </form>
 
-    @if ($payouts->isEmpty())
-        <x-admin.nothing class="mt-4">No payouts yet.</x-admin.nothing>
-    @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-            <table class="w-full text-left">
-                <caption class="sr-only">Every weekly payout, newest period first</caption>
-                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <tr>
-                        <th scope="col" class="px-4 py-2 font-semibold">Period</th>
-                        <th scope="col" class="px-4 py-2 font-semibold">Seller</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Amount</th>
-                        <th scope="col" class="px-4 py-2 font-semibold">Paid</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                    @foreach ($payouts as $payout)
-                        <tr>
-                            <th scope="row" class="px-4 py-2 font-normal">
-                                {{ $payout->period_start?->format('M j, Y') }} – {{ $payout->period_end?->format('M j, Y') }}
-                            </th>
-                            <td class="px-4 py-2">
-                                <a href="{{ route('admin.sellers.show', $payout->seller) }}" class="underline">{{ $payout->seller->displayName() }}</a>
-                            </td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ $payout->amount()->format() }}</td>
-                            <td class="px-4 py-2">{{ $payout->paid_at?->format('M j, Y') }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
+    <x-admin.payouts-table :payouts="$payouts" caption="Every weekly payout, newest period first" />
 </x-layouts.admin>

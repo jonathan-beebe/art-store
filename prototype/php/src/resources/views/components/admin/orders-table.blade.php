@@ -3,7 +3,7 @@
 @if ($orders->isEmpty())
     <x-admin.nothing>No orders.</x-admin.nothing>
 @else
-    <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+    <div class="mt-2 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
         <table class="w-full text-left">
             <caption class="sr-only">{{ $caption }}</caption>
             <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
@@ -38,4 +38,23 @@
             </tbody>
         </table>
     </div>
+
+    <x-admin.card-list :caption="$caption">
+        @foreach ($orders as $order)
+            <x-admin.card-row>
+                <a href="{{ route('admin.orders.show', $order) }}" class="font-medium underline">{{ $order->id }}</a>
+                <div class="flex items-center justify-between gap-3 text-gray-600 dark:text-gray-400">
+                    <span>{{ $order->status->label() }}</span>
+                    <span class="tabular-nums text-gray-900 dark:text-gray-100">{{ $order->total()->format() }}</span>
+                </div>
+                <div class="text-gray-600 dark:text-gray-400">
+                    @if ($showCustomer)
+                        <a href="{{ route('admin.customers.show', $order->customer) }}" class="underline">{{ $order->customer->displayName() }}</a>
+                        &middot;
+                    @endif
+                    {{ $order->items_count }} item{{ $order->items_count === 1 ? '' : 's' }} &middot; {{ $order->placed_at?->format('M j, Y') }}
+                </div>
+            </x-admin.card-row>
+        @endforeach
+    </x-admin.card-list>
 @endif
