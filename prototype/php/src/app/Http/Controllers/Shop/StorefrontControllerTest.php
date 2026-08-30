@@ -217,3 +217,33 @@ it('renders no featured band, without error, when the configured listing is no l
     $response->assertOk();
     $response->assertDontSee('Featured');
 });
+
+it('preloads the two latin webfont subsets ahead of the stylesheet', function (): void {
+    $response = $this->get('/');
+
+    $response->assertOk();
+
+    $html = (string) $response->getContent();
+    $preloads = substr_count($html, 'rel="preload" as="font"');
+    // Vite hashes the built filename, so anchor on the tag, not the name.
+    // Both markers must exist before their order means anything.
+    expect($html)->toContain('rel="preload" as="font"')->toContain('rel="stylesheet"');
+
+    $firstPreload = (int) strpos($html, 'rel="preload" as="font"');
+    $stylesheet = (int) strpos($html, 'rel="stylesheet"');
+
+    // Both faces, each carrying `crossorigin` — a font preload without it
+    // fetches a copy the page cannot use — and both ahead of the stylesheet,
+    // which is the whole point: discovery must not wait on CSS parsing.
+    expect($preloads)->toBe(2)
+        ->and($html)->toContain('young-serif-latin.woff2')
+        ->and($html)->toContain('karla-latin.woff2')
+        ->and(substr_count($html, 'as="font" type="font/woff2"'))->toBe(2)
+        ->and($firstPreload)->toBeLessThan($stylesheet);
+});
+
+it('preloads no extended-latin subset, which most visits never reach', function (): void {
+    $response = $this->get('/');
+
+    expect((string) $response->getContent())->not->toContain('rel="preload" as="font" type="font/woff2" href="'.asset('fonts/karla-latin-ext.woff2'));
+});

@@ -6,6 +6,19 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }}</title>
+
+    {{-- The two faces every shop page paints with, fetched in parallel with
+         the stylesheet rather than after it. Without this the browser cannot
+         discover a font until app.css has downloaded AND parsed, so the
+         fallback paints first and `font-display: swap` visibly swaps it out.
+         `crossorigin` is required even same-origin — fonts are fetched in
+         CORS mode, and a preload without it downloads a second copy the
+         page never uses. Only the latin subsets: latin-ext serves
+         characters this store's copy rarely reaches, and preloading it
+         would spend bandwidth on most visitors to help few. --}}
+    <link rel="preload" as="font" type="font/woff2" href="{{ asset('fonts/young-serif-latin.woff2') }}" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="{{ asset('fonts/karla-latin.woff2') }}" crossorigin>
+
     @vite(['resources/css/app.css'])
     <x-theme-css />
 </head>
