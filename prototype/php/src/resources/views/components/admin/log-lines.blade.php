@@ -29,11 +29,11 @@
             $severity = \App\Logging\Admin\LogSeverity::ofLevel($line->level);
             $tint = \App\Logging\Admin\LogDurationTint::ofMs($line->durationMs);
         @endphp
-        <div data-line="{{ $line->id }}" data-severity="{{ strtolower($severity->name) }}" class="grid {{ $gridCols }} gap-3 items-baseline px-4 py-2.5 {{ $severity->rowClasses() !== '' ? $severity->rowClasses() : 'bg-white dark:bg-gray-900' }}">
-            <span data-cell="ts" title="{{ $line->ts }}" class="font-mono text-xs text-gray-500 dark:text-gray-400 tabular-nums">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($line->ts) }}</span>
+        <div data-line="{{ $line->id }}" data-severity="{{ strtolower($severity->name) }}" class="grid {{ $gridCols }} gap-3 items-start px-4 py-2.5 {{ $severity->rowClasses() !== '' ? $severity->rowClasses() : 'bg-white dark:bg-gray-900' }}">
+            <span data-cell="ts" title="{{ $line->ts }}" class="pt-0.5 font-mono text-xs text-gray-500 dark:text-gray-400 tabular-nums">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($line->ts) }}</span>
             <span data-cell="level" class="inline-flex justify-self-start rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300">{{ $line->level ?? '—' }}</span>
-            <span data-cell="event" class="font-mono text-xs text-gray-600 dark:text-gray-400">{{ $line->event ?? '—' }}@if ($line->phase !== null) &middot; {{ $line->phase }}@endif</span>
-            <span data-cell="msg" class="flex flex-col gap-1.5">
+            <span data-cell="event" title="{{ $line->event }}{{ $line->phase !== null ? ' · '.$line->phase : '' }}" class="truncate pt-0.5 font-mono text-xs text-gray-600 dark:text-gray-400">{{ $line->event ?? '—' }}@if ($line->phase !== null) &middot; {{ $line->phase }}@endif</span>
+            <span data-cell="msg" class="flex flex-col gap-1.5 pt-0.5">
                 <span>{{ $line->msg ?? '—' }}</span>
                 @if ($line->data !== null)
                     <details @if ($open) open @endif>
@@ -49,7 +49,7 @@
                 @endif
                 <x-admin.log-ids :line="$line" :filters="$filters" />
             </span>
-            <span data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</span>
+            <span data-cell="duration" class="pt-0.5 text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</span>
         </div>
     @endforeach
 </div>

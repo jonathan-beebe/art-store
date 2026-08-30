@@ -144,7 +144,9 @@ final class LogController extends Controller
     /**
      * The four level chips, each linking to the same query with `level`
      * set — they double as the level filter's fast path, replacing the
-     * old separate stat-tile strip.
+     * old separate stat-tile strip. The already-active chip links back to
+     * the query with `level` removed instead, so tapping it again clears
+     * the filter — the same toggle `toggleAffordance()` gives health/viewer.
      *
      * @param  array<string, int>  $tallies
      * @param  array<string, string>  $roundTripped
@@ -157,12 +159,13 @@ final class LogController extends Controller
 
         $chips = [];
         foreach (self::LEVEL_LABELS as $level => $label) {
+            $active = $current === $level;
             $chips[] = [
                 'level' => $level,
                 'label' => $label,
                 'count' => $tallies[$level] ?? 0,
-                'href' => route('admin.logs.index', [...$withoutLevel, 'level' => $level]),
-                'active' => $current === $level,
+                'href' => route('admin.logs.index', $active ? $withoutLevel : [...$withoutLevel, 'level' => $level]),
+                'active' => $active,
             ];
         }
 

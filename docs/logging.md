@@ -183,8 +183,9 @@ transaction, session, actor — are filter links: tapping one applies that
 filter, carrying the other current filters and landing on page 1; ids the
 row itself has no column for sit as the same links in the row's
 disclosure. A compact chevron beside the request id opens the story view,
-and an actor whose prefix has a detail page gets a separate labeled
-control to the record ("View customer", "View seller"). A row whose
+and an actor whose prefix has a detail page gets the same chevron
+treatment to the record, its accessible name naming the actor ("View
+customer <id>", "View seller <id>"). A row whose
 `data` or `error` is present discloses it in a collapsible block — the
 page works with JavaScript absent, like every admin page.
 
@@ -294,7 +295,7 @@ route is needed.
 
 Two rules govern id links. A line's own ids — request, transaction,
 session, actor — are filter links, per the list view's rule above, with
-the actor's labeled record control beside them. Prefixed ids inside a
+the actor's record chevron beside them. Prefixed ids inside a
 disclosed `data` or `error` block link where a detail page exists — an
 order, customer, seller, listing, fulfillment, outbox message, or
 conversation id alike; a transaction or session id there links back into

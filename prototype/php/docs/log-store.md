@@ -226,14 +226,32 @@ request/txn/session/actor/msg/from/to/key/value, and the health and
 viewer checkboxes. A small dot on the disclosure's summary marks when a
 hidden filter is active. The four level counts (`LogRowQuery::levelTallies()`
 against the current filters minus `level`) are now the level filter itself
-— clickable chips, `aria-current="true"` on the active one — rather than a
-separate stat-tile strip that only echoed the `<select>` below it. Domain,
-level, and the Requests/Lines view toggle are plain links that already
-carry the full current filter set in their own `href`; three hidden
-`<input>`s (`domain`, `level`, `group`) inside the one `<form method="GET">`
-are what keep a More-filters submit or the event/phase selects from
-dropping them, since a GET form submission replaces the query string with
-only the fields the form itself declares.
+— clickable chips, `aria-current="true"` on the active one. An inactive
+chip keeps its severity tint (red border for Errors, amber for Warnings);
+the active chip takes the same dark-fill treatment
+(`bg-gray-900 dark:bg-gray-100`, inverted text) the domain segmented
+control's selected segment uses, and its `href` points back to the same
+query with `level` removed — tapping the active chip again clears the
+filter, the same toggle `LogController::toggleAffordance()` gives
+health/viewer. Domain, level, and the Requests/Lines view toggle are
+plain links that already carry the full current filter set in their own
+`href`; three hidden `<input>`s (`domain`, `level`, `group`) inside the
+one `<form method="GET">` are what keep a More-filters submit or the
+event/phase selects from dropping them, since a GET form submission
+replaces the query string with only the fields the form itself declares.
+
+"More filters" opens as a popover rather than reflowing the page beneath
+it: a floating card (`sm:absolute`, right-aligned under the button, its
+own `sm:w-[28rem]` two-column grid of fields) on `sm` and up, a fixed
+viewport takeover (`inset-x-0 bottom-0`, scrolling its own content) below
+it. Both keep the fields in the one `<form method="GET">` the header bar
+already opened, with their own Apply/Clear pair at the panel's bottom
+alongside the header bar's own. Native `<details>`/`<summary>` is still
+what opens and closes it — no `<dialog>`, so no focus trap and no
+JS-driven close; the mobile takeover's only close path is tapping the
+summary again, so the summary carries `relative z-20` against the panel's
+`z-10` to guarantee it stays visible and tappable above the panel
+regardless of the exact height of everything stacked above it.
 
 An applied-state strip below the header shows every active filter as a
 removable chip (`href` = the same query with that one param gone — `key`
@@ -250,19 +268,34 @@ carries no ARIA table role laid over it (a `role="row"` on `<summary>`
 would override its own native disclosure semantics, and the structure
 fails ARIA table requirements regardless — the role-less `<details>`
 sits between table and row, and the expanded panel is an illegal owned
-child of a table row). The visual column-header strip above the rows is
-`aria-hidden="true"`; the chevron's own `aria-label="Open request story
-for <request_id>"` is the row's accessible name for that action, and the
-page's own "Logs" `<h1>` is the list's accessible context — no extra
-heading needed. The Lines (ungrouped) view keeps the `<table>` FEAT-033
-shipped, restyled to the same columnar rhythm: tabular numerals, a level
-badge, a tinted duration.
+child of a table row). The header strip and every row share one
+`$rowGridCols` fixed-pixel `grid-cols-[...]` template (only the
+method+path track is `minmax(0,1fr)`), so every column starts at the same
+x regardless of content; the actor and session columns additionally carry
+`min-w-0` — without it, a grid item's default automatic minimum size is
+its content's own min-content width, which for an unbreakable pill (or a
+pill plus the actor's chevron button) can exceed a fixed-width track and
+overflow into the next column rather than shrinking or wrapping to fit
+it. The visual column-header strip above the rows is `aria-hidden="true"`;
+the chevron's own `aria-label="Open request story for <request_id>"` is
+the row's accessible name for that action, and the page's own "Logs"
+`<h1>` is the list's accessible context — no extra heading needed. The
+Lines (ungrouped) view keeps the `<table>` FEAT-033 shipped, restyled to
+the same columnar rhythm: tabular numerals, a level badge, a tinted
+duration; every body cell is `align-top`, so a line's `data`/`error`/`ids`
+`<details>` grows the row downward when opened rather than re-centering
+it.
 Expanding a grouped row opens `components/admin/log-filter-rail.blade.php`
 (the request's own id rail — see below) above its lines,
-`components/admin/log-lines.blade.php` unchanged underneath. Time cells
-everywhere show `App\Logging\Admin\LogTimestamp::timeOfDay()` — the
-`HH:MM:SS.mmm` slice of the fixed-shape `ts` — with the full ISO instant
-in the cell's `title`.
+`components/admin/log-lines.blade.php` unchanged underneath — its own
+grid rows are `items-start` for the same reason the Lines table is
+`align-top`, with a little top padding on the plain-text cells to sit
+level with the level badge's own padding. Time cells everywhere show
+`App\Logging\Admin\LogTimestamp::timeOfDay()` — the `HH:MM:SS.mmm` slice
+of the fixed-shape `ts` — with the full ISO instant in the cell's `title`;
+the event cell truncates the same way, with the full `event`/`phase` pair
+in its own `title`, since a handful of `StoryEvent` values (the
+`moderation.*` ones) run past the column's fixed width.
 
 Pagination is unchanged: `App\Support\Page`, `components/admin/pager.blade.php`,
 total-count-based prev/next over `page=N` with the current filter set
@@ -280,10 +313,12 @@ truncated id in a collapsed row: the prefix plus 8 body characters
 (`cus_01J5X3M9`, via `App\Logging\Admin\LogIdLinks::truncate()`), with the
 link's `href`, `title`, and accessible name still carrying the full id.
 `components/admin/log-id-chip.blade.php` renders this (`:truncate="true"`
-by default); `components/admin/log-actor.blade.php` grew the same
-`:truncate` prop for its own id text. An expanded row's filter rail and
-the story view render every id in full — truncation is a collapsed row's
-concession to width, not a rule those places need.
+by default); `components/admin/log-actor.blade.php` renders the actor id
+through this same component (`:truncate` passed through), so an actor
+pill is the pill — same markup, same truncation rule — not a lookalike.
+An expanded row's filter rail and the story view render every id in full
+— truncation is a collapsed row's concession to width, not a rule those
+places need.
 
 ### Duration tint
 
@@ -339,15 +374,22 @@ there while `log-lines.blade.php` (the `group=1` view's expanded lines and
 the story view) tucks all four, since none of them get a column there.
 
 The actor is the one id that still leads somewhere besides a filter: next
-to the id-as-filter-link, `components/admin/log-actor.blade.php` renders a
-separate "View `<actor_type>`" control to the actor's own admin detail
-page, using the same `LogIdLinks::hrefFor()` map the linkifier draws
-from — so an admin actor, which has no detail page, never grows the
-control. The same component renders the actor everywhere it appears: Lines
-rows, Requests rows (`App\Logging\Admin\LogStoryHeader::of($group->lines)`
-reads a group's actor/session/txn off its own lines the same way the story
-header does, so the two never carry two read-models for one fact), and the
-story header.
+to the id-as-filter-link pill, `components/admin/log-actor.blade.php`
+renders a chevron button — visually identical to the request cell's own
+story chevron, same border/rounded/size classes and inline right-chevron
+svg — to the actor's own admin detail page, using the same
+`LogIdLinks::hrefFor()` map the linkifier draws from, so an admin actor,
+which has no detail page, never grows it. There is no separate visible
+"customer"/"seller" label any more — the pill's own id prefix already
+carries the type, and the chevron's `aria-label="View <actor_type>
+<actor_id>"` is its accessible name. The same component renders the actor
+everywhere it appears: Lines rows, Requests rows
+(`App\Logging\Admin\LogStoryHeader::of($group->lines)` reads a group's
+actor/session/txn off its own lines the same way the story header does,
+so the two never carry two read-models for one fact), the story header,
+and the expanded row's/story's own `components/admin/log-filter-rail.blade.php`
+"Filter by" rail, which renders the actor through this same component
+rather than duplicating its markup.
 
 ### The story view
 

@@ -4,7 +4,13 @@
         <x-admin.nothing class="mt-4">The log store is unavailable — <code>LOG_DATABASE_FILE</code> is off or the store failed to open. Every line still goes to stdout.</x-admin.nothing>
     @else
         @php
-            $rowGridCols = 'grid-cols-[92px_minmax(0,1fr)_56px_76px_56px_112px_112px_32px]';
+            // Fixed-width tracks for everything but the method+path column,
+            // so the header strip and every summary row share the exact
+            // same template and every column starts at the same x — actor
+            // is widened past the reference 112px to fit its pill plus the
+            // chevron button DSGN-004 added it (Change 1), so the two never
+            // wrap onto a second line at the common case.
+            $rowGridCols = 'grid-cols-[96px_minmax(0,1fr)_52px_76px_60px_136px_116px_28px]';
         @endphp
 
         {{-- Header bar: title, primary controls, More filters --}}
@@ -30,13 +36,19 @@
                 <div role="group" aria-label="Level" class="flex gap-2">
                     @foreach ($levelChips as $chip)
                         @php
-                            $chipClasses = match ($chip['level']) {
+                            $idleClasses = match ($chip['level']) {
                                 'error' => 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400',
                                 'warn' => 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400',
                                 default => 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400',
                             };
+                            // Active takes the same dark-fill treatment the domain segmented
+                            // control's selected segment uses, replacing the severity-tinted
+                            // idle border/background.
+                            $chipClasses = $chip['active']
+                                ? 'border-gray-900 dark:border-gray-100 bg-gray-900 dark:bg-gray-100 font-medium text-white dark:text-gray-900'
+                                : $idleClasses;
                         @endphp
-                        <a href="{{ $chip['href'] }}" data-stat="level-{{ $chip['level'] }}" @if ($chip['active']) aria-current="true" @endif class="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm {{ $chipClasses }} {{ $chip['active'] ? 'ring-2 ring-gray-900 dark:ring-gray-100' : '' }}">
+                        <a href="{{ $chip['href'] }}" data-stat="level-{{ $chip['level'] }}" @if ($chip['active']) aria-current="true" @endif class="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm {{ $chipClasses }}">
                             <span>{{ $chip['label'] }}</span>
                             <span data-count class="font-semibold tabular-nums">{{ $chip['count'] }}</span>
                         </a>
@@ -61,8 +73,14 @@
                     @endforeach
                 </div>
 
-                <details class="w-full sm:w-auto">
-                    <summary class="inline-flex cursor-pointer items-center gap-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">
+                <details class="relative w-full sm:w-auto">
+                    {{-- `relative z-20`, above the panel's own `z-10`, is what
+                         keeps this button visible and tappable once the panel
+                         is open — on top of it regardless of the panel's
+                         exact `top` offset below, since native `<details>`
+                         gives us no other JS-free way to close the mobile
+                         takeover. --}}
+                    <summary class="relative z-20 inline-flex cursor-pointer items-center gap-1.5 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400">
                         <span>More filters</span>
                         @if ($moreFiltersActive)
                             <span aria-hidden="true" class="inline-block h-1.5 w-1.5 rounded-full bg-gray-900 dark:bg-gray-100"></span>
@@ -70,59 +88,77 @@
                         @endif
                     </summary>
 
-                    <div class="mt-3 grid grid-cols-1 gap-3 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div>
-                            <label for="filter-phase" class="block font-medium text-gray-700 dark:text-gray-300">Phase</label>
-                            <select id="filter-phase" name="phase" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                <option value="">All</option>
-                                @foreach ($phases as $phase)
-                                    <option value="{{ $phase->value }}" @selected(($filters['phase'] ?? null) === $phase->value)>{{ $phase->value }}</option>
-                                @endforeach
-                            </select>
+                    {{-- A floating card on sm+: absolute, right-aligned under
+                         the button, on top of the rows/chips beneath — opening
+                         it never reflows the header or the list. Below sm: a
+                         fixed viewport takeover instead, scrolling its own
+                         content; `top-32` is a best-effort clearance for the
+                         nav bar plus this header card above it — the
+                         `summary`'s own stacking above (see its comment) is
+                         what actually guarantees it stays visible whatever
+                         that height turns out to be in practice. --}}
+                    <div class="fixed inset-x-0 bottom-0 top-32 z-10 flex flex-col overflow-y-auto rounded-t border-t border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-lg sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-full sm:right-0 sm:mt-2 sm:w-[28rem] sm:rounded sm:border">
+                        <h2 class="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                                <label for="filter-phase" class="block font-medium text-gray-700 dark:text-gray-300">Phase</label>
+                                <select id="filter-phase" name="phase" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                    <option value="">All</option>
+                                    @foreach ($phases as $phase)
+                                        <option value="{{ $phase->value }}" @selected(($filters['phase'] ?? null) === $phase->value)>{{ $phase->value }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="filter-request" class="block font-medium text-gray-700 dark:text-gray-300">Request id</label>
+                                <input id="filter-request" name="request" type="text" value="{{ $filters['request'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-txn" class="block font-medium text-gray-700 dark:text-gray-300">Transaction id</label>
+                                <input id="filter-txn" name="txn" type="text" value="{{ $filters['txn'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-session" class="block font-medium text-gray-700 dark:text-gray-300">Session id</label>
+                                <input id="filter-session" name="session" type="text" value="{{ $filters['session'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-actor" class="block font-medium text-gray-700 dark:text-gray-300">Actor id</label>
+                                <input id="filter-actor" name="actor" type="text" value="{{ $filters['actor'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-msg" class="block font-medium text-gray-700 dark:text-gray-300">Message contains</label>
+                                <input id="filter-msg" name="msg" type="text" value="{{ $filters['msg'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-from" class="block font-medium text-gray-700 dark:text-gray-300">From (UTC instant)</label>
+                                <input id="filter-from" name="from" type="text" placeholder="2026-08-24T00:00:00Z" value="{{ $filters['from'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-to" class="block font-medium text-gray-700 dark:text-gray-300">To (UTC instant)</label>
+                                <input id="filter-to" name="to" type="text" placeholder="2026-08-25T00:00:00Z" value="{{ $filters['to'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-key" class="block font-medium text-gray-700 dark:text-gray-300">Attribute key</label>
+                                <input id="filter-key" name="key" type="text" placeholder="data.order_id" value="{{ $filters['key'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div>
+                                <label for="filter-value" class="block font-medium text-gray-700 dark:text-gray-300">Attribute value</label>
+                                <input id="filter-value" name="value" type="text" value="{{ $filters['value'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            </div>
+                            <div class="flex items-end gap-1.5 pb-2">
+                                <input id="filter-health" name="health" type="checkbox" value="1" @checked(($filters['health'] ?? null) === '1')>
+                                <label for="filter-health" class="text-gray-700 dark:text-gray-300">Include health checks</label>
+                            </div>
+                            <div class="flex items-end gap-1.5 pb-2">
+                                <input id="filter-viewer" name="viewer" type="checkbox" value="1" @checked(($filters['viewer'] ?? null) === '1')>
+                                <label for="filter-viewer" class="text-gray-700 dark:text-gray-300">Include log viewer requests</label>
+                            </div>
                         </div>
-                        <div>
-                            <label for="filter-request" class="block font-medium text-gray-700 dark:text-gray-300">Request id</label>
-                            <input id="filter-request" name="request" type="text" value="{{ $filters['request'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-txn" class="block font-medium text-gray-700 dark:text-gray-300">Transaction id</label>
-                            <input id="filter-txn" name="txn" type="text" value="{{ $filters['txn'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-session" class="block font-medium text-gray-700 dark:text-gray-300">Session id</label>
-                            <input id="filter-session" name="session" type="text" value="{{ $filters['session'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-actor" class="block font-medium text-gray-700 dark:text-gray-300">Actor id</label>
-                            <input id="filter-actor" name="actor" type="text" value="{{ $filters['actor'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-msg" class="block font-medium text-gray-700 dark:text-gray-300">Message contains</label>
-                            <input id="filter-msg" name="msg" type="text" value="{{ $filters['msg'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-from" class="block font-medium text-gray-700 dark:text-gray-300">From (UTC instant)</label>
-                            <input id="filter-from" name="from" type="text" placeholder="2026-08-24T00:00:00Z" value="{{ $filters['from'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-to" class="block font-medium text-gray-700 dark:text-gray-300">To (UTC instant)</label>
-                            <input id="filter-to" name="to" type="text" placeholder="2026-08-25T00:00:00Z" value="{{ $filters['to'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-key" class="block font-medium text-gray-700 dark:text-gray-300">Attribute key</label>
-                            <input id="filter-key" name="key" type="text" placeholder="data.order_id" value="{{ $filters['key'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div>
-                            <label for="filter-value" class="block font-medium text-gray-700 dark:text-gray-300">Attribute value</label>
-                            <input id="filter-value" name="value" type="text" value="{{ $filters['value'] ?? '' }}" class="mt-1 w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                        </div>
-                        <div class="flex items-end gap-1.5 pb-2">
-                            <input id="filter-health" name="health" type="checkbox" value="1" @checked(($filters['health'] ?? null) === '1')>
-                            <label for="filter-health" class="text-gray-700 dark:text-gray-300">Include health checks</label>
-                        </div>
-                        <div class="flex items-end gap-1.5 pb-2">
-                            <input id="filter-viewer" name="viewer" type="checkbox" value="1" @checked(($filters['viewer'] ?? null) === '1')>
-                            <label for="filter-viewer" class="text-gray-700 dark:text-gray-300">Include log viewer requests</label>
+
+                        <div class="mt-4 flex items-center gap-3 border-t border-gray-200 dark:border-gray-800 pt-3">
+                            <button type="submit" class="rounded bg-gray-900 dark:bg-gray-100 px-4 py-1.5 text-sm font-medium text-white dark:text-gray-900">Apply filters</button>
+                            <a href="{{ route('admin.logs.index') }}" class="text-sm text-gray-600 dark:text-gray-400 underline">Clear</a>
                         </div>
                     </div>
                 </details>
@@ -199,10 +235,10 @@
                                 </span>
                                 <span data-cell="duration" class="text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
                                 <span data-cell="line-count" class="text-gray-500 dark:text-gray-400">{{ $group->lineCount }}</span>
-                                <span data-cell="actor">
+                                <span data-cell="actor" class="min-w-0">
                                     <x-admin.log-actor :actor-type="$summary->actorType" :actor-id="$summary->actorId" :filters="$filters" :truncate="true" />
                                 </span>
-                                <span data-cell="session">
+                                <span data-cell="session" class="min-w-0">
                                     @if ($summary->sessionId === null)
                                         <span class="text-gray-300 dark:text-gray-700">—</span>
                                     @else
@@ -260,10 +296,10 @@
                                 $tint = \App\Logging\Admin\LogDurationTint::ofMs($line->durationMs);
                             @endphp
                             <tr data-line="{{ $line->id }}" data-severity="{{ strtolower($severity->name) }}" class="{{ $severity->rowClasses() }}">
-                                <td data-cell="ts" title="{{ $line->ts }}" class="px-4 py-2.5 whitespace-nowrap font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($line->ts) }}</td>
-                                <td data-cell="level" class="px-4 py-2.5"><span class="inline-flex rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300">{{ $line->level ?? '—' }}</span></td>
-                                <td data-cell="event" class="px-4 py-2.5 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-gray-400">{{ $line->event ?? '—' }}@if ($line->phase !== null) &middot; {{ $line->phase }}@endif</td>
-                                <td data-cell="msg" class="px-4 py-2.5">
+                                <td data-cell="ts" title="{{ $line->ts }}" class="px-4 py-2.5 align-top whitespace-nowrap font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($line->ts) }}</td>
+                                <td data-cell="level" class="px-4 py-2.5 align-top"><span class="inline-flex rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300">{{ $line->level ?? '—' }}</span></td>
+                                <td data-cell="event" class="px-4 py-2.5 align-top whitespace-nowrap font-mono text-xs text-gray-600 dark:text-gray-400">{{ $line->event ?? '—' }}@if ($line->phase !== null) &middot; {{ $line->phase }}@endif</td>
+                                <td data-cell="msg" class="px-4 py-2.5 align-top">
                                     {{ $line->msg ?? '—' }}
                                     @if ($line->data !== null)
                                         <details class="mt-1">
@@ -279,7 +315,7 @@
                                     @endif
                                     <x-admin.log-ids :line="$line" :filters="$filters" :exclude="['request', 'actor']" />
                                 </td>
-                                <td data-cell="request" class="px-4 py-2.5 whitespace-nowrap">
+                                <td data-cell="request" class="px-4 py-2.5 align-top whitespace-nowrap">
                                     @if ($line->requestId === null)
                                         <span class="text-gray-300 dark:text-gray-700">—</span>
                                     @else
@@ -289,10 +325,10 @@
                                         </a>
                                     @endif
                                 </td>
-                                <td data-cell="actor" class="px-4 py-2.5 whitespace-nowrap">
+                                <td data-cell="actor" class="px-4 py-2.5 align-top whitespace-nowrap">
                                     <x-admin.log-actor :actor-type="$line->actorType" :actor-id="$line->actorId" :filters="$filters" :truncate="true" />
                                 </td>
-                                <td data-cell="duration" class="px-4 py-2.5 text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</td>
+                                <td data-cell="duration" class="px-4 py-2.5 align-top text-right font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $line->durationMs === null ? '—' : $line->durationMs.' ms' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

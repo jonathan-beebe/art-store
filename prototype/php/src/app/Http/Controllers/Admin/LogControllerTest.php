@@ -74,6 +74,26 @@ it('narrows the list by level and marks the level chip current', function (): vo
     expect($html)->toMatch('/data-stat="level-warn"\s+aria-current="true"/');
 });
 
+it('gives the active level chip the domain controls dark-fill treatment and a href that clears it', function (): void {
+    $store = Fixtures::store([
+        Fixtures::line(['level' => 'warn']),
+    ]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?level=warn&domain=');
+
+    $response->assertOk();
+
+    $html = (string) $response->getContent();
+    preg_match('/href="([^"]*)"\s+data-stat="level-warn"[^>]*class="([^"]*)"/s', $html, $active);
+    preg_match('/href="([^"]*)"\s+data-stat="level-error"[^>]*class="([^"]*)"/s', $html, $inactive);
+
+    expect(html_entity_decode($active[1] ?? ''))->toBe(route('admin.logs.index'))
+        ->and($active[2] ?? '')->toContain('bg-gray-900')->toContain('dark:bg-gray-100')
+        ->and(html_entity_decode($inactive[1] ?? ''))->toBe(route('admin.logs.index', ['level' => 'error']))
+        ->and($inactive[2] ?? '')->not->toContain('bg-gray-900');
+});
+
 it('shows the four level tiles with counts and links that set the level filter', function (): void {
     $store = Fixtures::store([
         Fixtures::line(['level' => 'error', 'phase' => 'failed']),
@@ -258,6 +278,35 @@ it('tints a group yellow when its worst line only warns, never fails', function 
     $response->assertOk()->assertSee('data-severity="warn"', false)->assertSee('bg-amber-50', false);
 });
 
+it('keeps every More-filters field and its own Apply/Clear controls in the popover panel', function (): void {
+    $store = Fixtures::store([Fixtures::line(['msg' => 'an ordinary line'])]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=&phase=will&txn=txn_01J5X3M9A2K8YB7Q4R6T1V0WZE&session=ses_01J5X3M9A2K8YB7Q4R6T1V0WZE&actor=cus_01J5X3M9A2K8YB7Q4R6T1V0WZE&msg=ordinary&key=data.x&value=1');
+
+    $response->assertOk()
+        ->assertSee('<h2', false)
+        ->assertSee('>Filters<', false)
+        ->assertSee('id="filter-phase"', false)
+        ->assertSee('id="filter-request"', false)
+        ->assertSee('id="filter-txn"', false)
+        ->assertSee('id="filter-session"', false)
+        ->assertSee('id="filter-actor"', false)
+        ->assertSee('id="filter-msg"', false)
+        ->assertSee('id="filter-from"', false)
+        ->assertSee('id="filter-to"', false)
+        ->assertSee('id="filter-key"', false)
+        ->assertSee('id="filter-value"', false)
+        ->assertSee('id="filter-health"', false)
+        ->assertSee('id="filter-viewer"', false)
+        ->assertSee('Apply filters')
+        // The round-tripped values still fill their fields back in — the
+        // markup move didn't drop any of them.
+        ->assertSee('value="txn_01J5X3M9A2K8YB7Q4R6T1V0WZE"', false)
+        ->assertSee('value="cus_01J5X3M9A2K8YB7Q4R6T1V0WZE"', false)
+        ->assertSee('value="ordinary"', false);
+});
+
 it('shows the empty state when no line matches the filters', function (): void {
     $store = Fixtures::store([Fixtures::line(['msg' => 'an ordinary line'])]);
     $this->app->instance(LogStore::class, $store);
@@ -281,7 +330,7 @@ it('renders the story header from the root will/did pair, and links session and 
         ->assertSee('2026-08-24T09:00:00.000Z')
         ->assertSee('2026-08-24T09:00:00.020Z')
         ->assertSee(route('admin.customers.show', ['cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
-        ->assertSee('View customer')
+        ->assertSee('aria-label="View customer cus_01J5X3M9A2K8YB7Q4R6T1V0WZE"', false)
         ->assertSee(route('admin.logs.index', ['actor' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
         ->assertSee(route('admin.logs.index', ['session' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
 
@@ -358,7 +407,7 @@ it('renders a rows request id as a filter link carrying an existing filter, plus
         ->assertSee(route('admin.logs.story', ['requestId' => 'req_1']), false);
 });
 
-it('renders a rows actor id as a filter link and a separate View control to its detail page', function (): void {
+it('renders a rows actor id as a filter link pill and a separate chevron control to its detail page', function (): void {
     $store = Fixtures::store([
         Fixtures::line(['actor_type' => 'customer', 'actor_id' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']),
     ]);
@@ -369,10 +418,10 @@ it('renders a rows actor id as a filter link and a separate View control to its 
     $response->assertOk()
         ->assertSee(route('admin.logs.index', ['actor' => 'cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
         ->assertSee(route('admin.customers.show', ['cus_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
-        ->assertSee('View customer');
+        ->assertSee('aria-label="View customer cus_01J5X3M9A2K8YB7Q4R6T1V0WZE"', false);
 });
 
-it('omits the actor View control when the actors prefix has no detail page', function (): void {
+it('omits the actor chevron control when the actors prefix has no detail page', function (): void {
     $store = Fixtures::store([
         Fixtures::line(['actor_type' => 'admin', 'actor_id' => 'adm_01J5X3M9A2K8YB7Q4R6T1V0WZE']),
     ]);
@@ -382,7 +431,7 @@ it('omits the actor View control when the actors prefix has no detail page', fun
 
     $response->assertOk()
         ->assertSee(route('admin.logs.index', ['actor' => 'adm_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
-        ->assertDontSee('View admin');
+        ->assertDontSee('aria-label="View admin', false);
 });
 
 it('tucks a rows txn and session ids into its ids disclosure when the row does not already show them', function (): void {

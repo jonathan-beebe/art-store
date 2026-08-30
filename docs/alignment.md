@@ -469,9 +469,10 @@ Decisions carried by this table:
 - `/admin/logs` ids are filter links: a line's request, transaction,
   session, and actor ids apply that filter in place, carrying the other
   current filters; a compact chevron opens the story view; an actor whose
-  prefix has a detail page gets a separate labeled control to the record
-  ("View customer", "View seller"). Ids inside disclosed `data`/`error`
-  blocks keep linking to detail pages.
+  prefix has a detail page gets a chevron control to the record, its
+  accessible name naming the actor ("View customer <id>", "View seller
+  <id>"). Ids inside disclosed `data`/`error` blocks keep linking to
+  detail pages.
 - `/admin/logs` tints by severity: a line's row tints yellow when the line
   is `warn`, red when it is `failed`. A request is a conversation — its
   `group=1` row and its story view tint from the request's worst line:
