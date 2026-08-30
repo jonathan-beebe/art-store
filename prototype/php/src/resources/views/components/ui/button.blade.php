@@ -1,4 +1,4 @@
-@props(['variant' => 'primary'])
+@props(['variant' => 'primary', 'href' => null])
 
 @php
     $classes = match ($variant) {
@@ -7,4 +7,10 @@
     };
 @endphp
 
-<button {{ $attributes->merge(['type' => 'submit', 'class' => $classes]) }}>{{ $slot }}</button>
+@if ($href !== null)
+    {{-- A link styled as the button, for a "way in" that navigates rather
+         than submits — the featured band's call to action, say. --}}
+    <a href="{{ $href }}" {{ $attributes->merge(['class' => $classes]) }}>{{ $slot }}</a>
+@else
+    <button {{ $attributes->merge(['type' => 'submit', 'class' => $classes]) }}>{{ $slot }}</button>
+@endif

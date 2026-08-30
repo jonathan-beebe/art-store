@@ -47,9 +47,29 @@ views need no `dark:` variants.
   `red-*`, or other raw palette utilities, and no `dark:` variants.
   (Seller and admin keep their gray `dark:` idiom for now.)
 - Atoms live in `resources/views/components/ui/` (`button`, `chip`,
-  `badge`, `avatar`, `alert`, `input`, `select`, `textarea`, `label`)
-  and carry the canonical control styling; shared partials that need
-  `@disabled`-style directives keep raw elements with token classes.
+  `badge`, `avatar`, `alert`, `input`, `select`, `textarea`, `label`,
+  `section-header`) and carry the canonical control styling; shared
+  partials that need `@disabled`-style directives keep raw elements
+  with token classes. `<x-ui.button>` takes an optional `href`: given
+  one it renders an `<a>` wearing the button's classes instead of a
+  `<button type="submit">`, for a "way in" that navigates rather than
+  submits a form.
+- The home page's browse vocabulary (DSGN-007) lives beside
+  `listing-card` at the top of `resources/views/components/`:
+  `<x-tile>` is the golden-ratio (1.618:1) browse tile — a photo cover
+  when one exists, a tint fill otherwise — shared by the medium row,
+  its drawer, and the category grid, so a tile is the exact same
+  markup and size everywhere it renders; `<x-featured-band>` and
+  `<x-wayfinding-footer>` render into the shop layout's `beforeMain`
+  and `afterMain` slots (full viewport width, outside `<main>`'s
+  centered column — set by whichever page needs them, unset elsewhere).
+  `App\Support\Shop\FeaturedSubject::resolve()` reads
+  `config('storefront.featured')` — a listing slug or a `/browse`
+  category path, set by hand — and answers null (no band, no broken
+  card, no substitute) when what it names is missing or no longer for
+  sale. `App\Support\Shop\CategoryBrowse` carries a `coverUrl` per
+  category the same way `MediumBrowse` does, nullable since a category
+  can be genuinely empty.
 - `App\Support\DesignTokensTest` enforces WCAG AA (4.5:1) on every
   promised text/background pairing in both modes, so a palette edit
   that breaks readability fails the suite.

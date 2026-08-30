@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-08-30:17:45:58 — DSGN-007 — resolved: home opens on a configured featured band (FeaturedSubject, absent when its subject is gone), golden-ratio x-tile shared by the medium row and its push-down drawer at one grid and one size, category tiles gain cover photos via CategoryBrowse, three-then-nine listing sets, wayfinding footer; new components carry /design-system specimens
 - 2026-08-30:17:20:26 — DSGN-007 — started
 
 - 2026-08-30:17:07:48 — DSGN-007 — defined: The storefront home is an invitation to explore

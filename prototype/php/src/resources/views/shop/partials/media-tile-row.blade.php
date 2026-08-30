@@ -1,74 +1,67 @@
 @php
-    // The capped tile row (design-system exploration): the five best-stocked
-    // media keep their tiles in one row and an "All media" tile unfolds the
-    // rest — tinted tiles in the `tint` variant, listing cover photos in the
-    // `photo` variant (cover cards). The drawer is a native <details>, so it
-    // opens, closes, and keyboards without script. `$browse` is
-    // MediumBrowse::forStorefront(); `$activeMedium` as elsewhere.
+    // The capped tile row (DSGN-007): the five best-stocked media keep their
+    // tiles in one row and an "All media" tile unfolds the rest — tinted
+    // tiles in the `tint` variant, listing cover photos in the `photo`
+    // variant (cover cards). Both the row and the drawer share ONE grid
+    // (`grid-cols-3 sm:grid-cols-6`) and ONE tile (`<x-tile>`, golden ratio
+    // at any width), so the revealed rows read as more of the same surface
+    // rather than a second, smaller component. The drawer is the row's own
+    // `<details>` grid item, `open:`-spanning every column when it opens —
+    // a nested grid at the same column count and gap lands its tiles on the
+    // same tracks, and because it is normal flow rather than an absolute
+    // overlay, opening it pushes the rest of the page down. Native
+    // `<details>`, so it opens, closes, and keyboards without script.
+    // `$browse` is `MediumBrowse::forStorefront()`; `$activeMedium` as
+    // elsewhere.
     $variant ??= 'tint';
     $tints = ['bg-tint-1', 'bg-tint-2', 'bg-tint-3', 'bg-tint-4', 'bg-tint-5'];
-    $tileHeight = $variant === 'photo' ? 'h-20' : 'h-16';
     $ranked = collect($browse)->sortByDesc('count')->values();
     $top = $ranked->take(5);
     $rest = $ranked->slice(5)->sortBy('label')->values();
 @endphp
 
 @if ($browse !== [])
-    <nav aria-label="Browse by medium" class="relative">
+    <nav aria-label="Browse by medium">
         <div class="grid grid-cols-3 gap-3 sm:grid-cols-6">
             @foreach ($top as $index => $medium)
-                @php $active = $activeMedium === $medium['value']; @endphp
-                @if ($variant === 'photo')
-                    <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
-                       style="background-image: url('{{ $medium['coverUrl'] }}')"
-                       class="relative {{ $tileHeight }} overflow-hidden rounded-card bg-cover bg-center hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-                        <span class="absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo"
-                              style="background-image: linear-gradient(to top, rgb(26 17 12 / 0.72), rgb(26 17 12 / 0))">
-                            <span class="truncate text-sm font-bold">{{ $medium['label'] }}</span>
-                            <span class="text-[11px] opacity-75">{{ $medium['count'] }}</span>
-                        </span>
-                    </a>
-                @else
-                    <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
-                       class="flex {{ $tileHeight }} items-end justify-between gap-2 rounded-card p-3 text-sm font-semibold text-on-tint {{ $tints[$index % 5] }} hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-                        <span class="truncate">{{ $medium['label'] }}</span>
-                        <span class="text-[11px] font-semibold opacity-70">{{ $medium['count'] }}</span>
-                    </a>
-                @endif
+                <x-tile
+                    :href="route('shop.medium', ['medium' => $medium['value']])"
+                    :label="$medium['label']"
+                    :count="$medium['count']"
+                    :cover-url="$variant === 'photo' ? $medium['coverUrl'] : null"
+                    :tint="$tints[$index % 5]"
+                    :active="$activeMedium === $medium['value']"
+                />
             @endforeach
 
-            <details class="group">
-                <summary class="flex {{ $tileHeight }} cursor-pointer list-none items-end justify-between gap-2 rounded-card border border-line-strong bg-surface p-3 text-sm font-semibold text-ink hover:border-accent [&::-webkit-details-marker]:hidden">
+            <details class="group col-span-1 open:col-span-3 sm:open:col-span-6">
+                {{-- Closed, this is one more tile in the row, so it keeps the
+                     golden ratio. Open, the details spans every column, and a
+                     ratio against that width would compute to a ~770px-tall
+                     bar above the revealed tiles — so the open state drops the
+                     ratio and sits as a header over its own grid. --}}
+                <summary class="flex aspect-[1.618/1] cursor-pointer list-none items-end justify-between gap-2 rounded-card border border-line-strong bg-surface p-3 text-sm font-semibold text-ink hover:border-accent group-open:aspect-auto group-open:items-center [&::-webkit-details-marker]:hidden">
                     All media
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="mb-1 shrink-0 transition-transform group-open:rotate-180"><path d="M2.5 4.5 L6 8 L9.5 4.5"></path></svg>
                 </summary>
-                <div class="absolute inset-x-0 top-full z-10 mt-2 rounded-card border border-line bg-surface p-3 shadow-lg">
-                    <div class="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                        <a href="{{ route('shop.home') }}" @if ($activeMedium === null) aria-current="true" @endif
-                           class="flex h-14 items-end rounded-card bg-ink p-3 text-sm font-semibold text-canvas hover:brightness-110">
-                            All art
-                        </a>
-                        @foreach ($rest as $index => $medium)
-                            @php $active = $activeMedium === $medium['value']; @endphp
-                            @if ($variant === 'photo')
-                                <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
-                                   style="background-image: url('{{ $medium['coverUrl'] }}')"
-                                   class="relative h-14 overflow-hidden rounded-card bg-cover bg-center hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-                                    <span class="absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-2.5 pb-1.5 pt-4 text-on-photo"
-                                          style="background-image: linear-gradient(to top, rgb(26 17 12 / 0.72), rgb(26 17 12 / 0))">
-                                        <span class="truncate text-xs font-bold">{{ $medium['label'] }}</span>
-                                        <span class="text-[10px] opacity-75">{{ $medium['count'] }}</span>
-                                    </span>
-                                </a>
-                            @else
-                                <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
-                                   class="flex h-14 items-end justify-between gap-2 rounded-card p-3 text-xs font-semibold text-on-tint {{ $tints[$index % 5] }} hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-                                    <span class="truncate">{{ $medium['label'] }}</span>
-                                    <span class="text-[10px] font-semibold opacity-70">{{ $medium['count'] }}</span>
-                                </a>
-                            @endif
-                        @endforeach
-                    </div>
+                <div class="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+                    <x-tile
+                        :href="route('shop.home')"
+                        label="All art"
+                        :active="$activeMedium === null"
+                        tint="bg-ink"
+                        tint-text="text-canvas"
+                    />
+                    @foreach ($rest as $index => $medium)
+                        <x-tile
+                            :href="route('shop.medium', ['medium' => $medium['value']])"
+                            :label="$medium['label']"
+                            :count="$medium['count']"
+                            :cover-url="$variant === 'photo' ? $medium['coverUrl'] : null"
+                            :tint="$tints[$index % 5]"
+                            :active="$activeMedium === $medium['value']"
+                        />
+                    @endforeach
                 </div>
             </details>
         </div>

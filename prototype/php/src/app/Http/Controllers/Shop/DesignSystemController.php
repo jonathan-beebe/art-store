@@ -9,6 +9,8 @@ use App\Support\Configurator\ConfiguratorInput;
 use App\Support\Configurator\ConfiguratorPageResolver;
 use App\Support\Contrast;
 use App\Support\DesignTokens;
+use App\Support\Shop\CategoryBrowse;
+use App\Support\Shop\FeaturedSubject;
 use App\Support\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
@@ -48,6 +50,8 @@ final class DesignSystemController extends ShopController
             'themeName' => DesignTokens::themeName(),
             'pairings' => $this->ratedPairings(),
             'browse' => MediumBrowse::forStorefront(),
+            'categories' => CategoryBrowse::forStorefront(),
+            'featured' => FeaturedSubject::resolve(),
             'listings' => $listings,
             'configurable' => $configurable,
             'configuration' => $configurable === null
