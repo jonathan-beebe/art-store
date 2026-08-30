@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-30:08:45:13 — DSGN-004 — resolved: workflow-first header (domain segmented control, level tallies as the level filter, More-filters disclosure with an active-filter dot), applied-state filter chips, columnar Requests/Lines rows, tinted duration (App\Logging\Admin\LogDurationTint), truncated row-level id chips with full ids in the expanded panel/story, GET /admin/logs with no query redirects to ?domain=shop&group=1, full-width logs pages; reused chore/docs's LogFilterLinks/log-actor/log-ids rather than reimplementing them, merged twice to land on its filter-link/viewer-filter/db-activity work; make check green, coverage 100%, 3041 tests
 - 2026-08-30:08:07:30 — IMPRV-017 — resolved: http.request did lines carry data.db = {queries, total_ms} (App\Support\DbActivity tallies over DB::listen, reset per request in LogRequestStory), zero of each when no query ran, reachable through /admin/logs' any-attribute filter; request-only scope, CLI/txn stories untouched; alignment §2.2/§8 amended, PHP-first, Node/Rails owe the field; make check green, coverage 100%, 2997 tests
 - 2026-08-30:07:52:44 — DSGN-004 — started
 - 2026-08-30:07:52:26 — IMPRV-017 — started
