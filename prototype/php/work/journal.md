@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 6
+- DSGN: 7
 - ARCH: 1
 - FEAT: 35
 - IMPRV: 18
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-08-30:15:38:52 — DSGN-006 — defined: The admin shell is a nav rail with list and detail panes
 
 - 2026-08-30:12:45:02 — DSGN-005 — resolved: admin nav collapses into a JS-free Menu disclosure below sm; every table-bearing index page (and the four table components shared with a show page) renders cards below sm via shared card-list/card-row; dashboard is a drill-down hub; detail pages open with a back link and full-width actions; logs rows link to their story below sm while sm+ keeps the in-place expansion. 3050 tests, 100% coverage, lint clean.
 - 2026-08-30:12:08:44 — DSGN-005 — started
