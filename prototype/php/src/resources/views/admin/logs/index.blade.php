@@ -280,11 +280,13 @@
                                      navigate to) stays a plain row, so the tap
                                      falls through to the native toggle instead. --}}
                                 @if ($group->kind === 'request')
+                                    {{-- No leading caret here: this card navigates to
+                                         the story rather than expanding, so the
+                                         open/closed affordance would promise
+                                         something the tap never does. The trailing
+                                         chevron carries the meaning instead. --}}
                                     <a href="{{ route('admin.logs.story', ['requestId' => $group->key]) }}" aria-label="Open request story for {{ $group->key }}" class="flex min-h-11 flex-col gap-1 px-4 py-2 sm:hidden">
                                         <div class="flex items-center gap-2">
-                                            <span aria-hidden="true" class="flex flex-shrink-0 items-center text-gray-400 dark:text-gray-600">
-                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="transition-transform group-open:rotate-90"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
-                                            </span>
                                             <span title="{{ $group->lastTs }}" class="font-mono text-xs tabular-nums text-gray-500 dark:text-gray-400">{{ \App\Logging\Admin\LogTimestamp::timeOfDay($group->lastTs) }}</span>
                                             @if ($group->status === null)
                                                 <span class="text-gray-300 dark:text-gray-700">—</span>
@@ -295,7 +297,7 @@
                                             <span class="font-mono text-xs tabular-nums {{ $tint?->textClasses() ?? 'text-gray-400 dark:text-gray-600' }}">{{ $group->durationMs === null ? '—' : $group->durationMs.' ms' }}</span>
                                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="flex-shrink-0 text-gray-400 dark:text-gray-600"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                                         </div>
-                                        <div class="truncate pl-[22px] font-mono text-xs font-semibold">{{ $mobileHeadline }}</div>
+                                        <div class="truncate font-mono text-xs font-semibold">{{ $mobileHeadline }}</div>
                                     </a>
                                 @else
                                     <div class="flex min-h-11 flex-col gap-1 px-4 py-2 sm:hidden">
