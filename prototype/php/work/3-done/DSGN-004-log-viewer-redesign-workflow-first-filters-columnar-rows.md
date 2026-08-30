@@ -98,9 +98,9 @@ Duration gets a server-selected tint — `App\Logging\Admin\LogDurationTint`
 (green ≤300ms / orange 301–600ms / red >600ms), its own sidecar test.
 `App\Logging\Admin\LogTimestamp::timeOfDay()` slices `HH:MM:SS.mmm` for
 every row's time cell, full ISO in `title`. The Requests view is a
-columnar `role="table"` grid (not a literal `<table>` — grouping and
-in-place `<details>` expansion do not fit one); the Lines view keeps its
-`<table>`, restyled to match. `App\Logging\Admin\LogStoryHeader` grew
+columnar grid of native `<details>`/`<summary>` rows (not a literal
+`<table>` — grouping and in-place expansion do not fit one); the Lines
+view keeps its `<table>`, restyled to match. `App\Logging\Admin\LogStoryHeader` grew
 `method`/`path`/`status`/`txnId` (reading the root `http.request` pair the
 same way `LogRowQuery::summarizeRequestGroup` already did — the shared
 JSON-field reader extracted to `App\Logging\Admin\LogRequestData` so
@@ -124,3 +124,23 @@ text pattern for the new inline `data-stat`/`data-cell` markup shape (no
 behavior change, only where the digit sits in the DOM); two new tests
 cover the redirect and its "any query parameter" bypass. make check green
 (lint → assets → coverage), coverage 100%, 3041 tests.
+
+2026-08-30 — Review fix: the Requests view had grown an ARIA-table overlay
+(`role="table"`/`role="row"`/`role="columnheader"`/`role="cell"`) meant as
+a grid-semantics stand-in for the missing `<table>`. Reviewer caught it as
+both invalid and harmful — `role="row"` on `<summary>` overrides the
+element's own native disclosure semantics (screen readers lose the
+expand/collapse affordance, WCAG 4.1.2), and the structure fails ARIA
+table requirements regardless (the role-less `<details>` sits between
+table and row; the expanded panel is an illegal owned child of a table
+row). Removed every one of those roles — the wrapper, the visual
+column-header strip, `<summary>`, and the cell spans — keeping the grid
+classes and every `data-*` hook as they were. The column-header strip is
+now `aria-hidden="true"` (a sighted-only visual aid; its sr-only "Open"
+label went with it, since the chevron's own `aria-label` already names
+the action) and the page's "Logs" `<h1>` is the list's accessible
+context — no replacement heading needed. `role="group"` on the
+domain/level/view segmented controls was untouched (valid there). No test
+asserted the removed roles, so none needed updating. make test, make
+lint, make check all green afterward; coverage 100%, 3041 tests
+unchanged.

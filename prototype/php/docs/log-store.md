@@ -244,11 +244,19 @@ hidden · show" pair and the current result count ("N requests match" /
 
 The Requests (`group=1`) view is a columnar grid — time, request
 (method+path), status, a tinted duration, line count, actor, session, a
-story chevron — one `<details>` per request, `role="table"`/`role="row"`/
-`role="cell"` on the container since it is not a literal `<table>` (the
-grouping and in-place expansion do not fit one). The Lines
-(ungrouped) view keeps the `<table>` FEAT-033 shipped, restyled to the
-same columnar rhythm: tabular numerals, a level badge, a tinted duration.
+story chevron — one native `<details>`/`<summary>` per request; that
+disclosure pair is the accessible pattern for expand-in-place, so the row
+carries no ARIA table role laid over it (a `role="row"` on `<summary>`
+would override its own native disclosure semantics, and the structure
+fails ARIA table requirements regardless — the role-less `<details>`
+sits between table and row, and the expanded panel is an illegal owned
+child of a table row). The visual column-header strip above the rows is
+`aria-hidden="true"`; the chevron's own `aria-label="Open request story
+for <request_id>"` is the row's accessible name for that action, and the
+page's own "Logs" `<h1>` is the list's accessible context — no extra
+heading needed. The Lines (ungrouped) view keeps the `<table>` FEAT-033
+shipped, restyled to the same columnar rhythm: tabular numerals, a level
+badge, a tinted duration.
 Expanding a grouped row opens `components/admin/log-filter-rail.blade.php`
 (the request's own id rail — see below) above its lines,
 `components/admin/log-lines.blade.php` unchanged underneath. Time cells
