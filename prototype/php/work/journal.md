@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 5
+- DSGN: 6
 - ARCH: 1
 - FEAT: 35
 - IMPRV: 18
@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-30:12:08:44 — DSGN-005 — started
+- 2026-08-30:11:56:09 — DSGN-005 — defined: The admin is small-screen first
 - 2026-08-30:11:41:02 — DSGN-004 — user-review polish 2: actor pill + chevron bound into one non-breaking inline-flex (actor track 136→152px), grouped rows gain a leading caret that rotates open via group-open (summary still announces the state natively)
 - 2026-08-30:11:32:46 — DSGN-004 — user-review polish: actor cell normalized to pill + record chevron (aria-named "View customer/seller <id>"), disclosures open downward from top-aligned rows, grouped-row grid gets min-w-0 cells and retuned tracks so columns align, active level chip takes the domain control's dark fill and toggles off, More-filters becomes a JS-free popover card (viewport takeover below sm, summary kept above it); 3043 tests, lint clean
 - 2026-08-30:08:56:14 — DSGN-004 — review fix: removed the invalid role="table"/"row"/"columnheader"/"cell" overlay from the Requests view (role="row" on <summary> broke native disclosure semantics, WCAG 4.1.2; the structure failed ARIA table requirements regardless); native <details>/<summary> plus data-* hooks kept, column-header strip now aria-hidden="true", page h1 is the list's accessible context; make test/lint/check green, coverage 100%, 3041 tests
