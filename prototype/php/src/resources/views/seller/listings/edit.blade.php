@@ -38,7 +38,7 @@
                 @else
                     <div class="mt-2 flex items-center gap-2">
                         @foreach (array_slice($imagesSummary['urls'], 0, 3) as $url)
-                            <img src="{{ $url }}" alt="" class="h-16 w-16 flex-shrink-0 rounded border border-gray-300 dark:border-gray-700 object-cover">
+                            <img src="{{ $url }}" alt="{{ $listing->title }}" class="h-16 w-16 flex-shrink-0 rounded border border-gray-300 dark:border-gray-700 object-cover">
                         @endforeach
                         @if ($imagesSummary['count'] > 3)
                             <div class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded border border-gray-300 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400">+{{ $imagesSummary['count'] - 3 }}</div>

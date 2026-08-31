@@ -27,7 +27,7 @@
                         <tr>
                             <th scope="row" class="px-4 py-3 font-normal">
                                 <span class="flex items-center gap-3">
-                                    <img src="{{ $listing->imageUrl() }}" alt="" width="48" height="48" class="h-12 w-12 rounded object-cover">
+                                    <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}" width="48" height="48" class="h-12 w-12 rounded object-cover">
                                     <a href="{{ route('seller.listings.show', $listing->id) }}" class="font-medium underline">{{ $listing->title }}</a>
                                 </span>
                             </th>
