@@ -9,9 +9,9 @@
     <table class="w-full border-collapse text-sm">
         <thead>
             <tr class="bg-gray-50 dark:bg-gray-800 text-left">
-                <th class="p-2 font-medium text-gray-700 dark:text-gray-300">Label</th>
-                <th class="p-2 font-medium text-gray-700 dark:text-gray-300">Value</th>
-                <th class="p-2 font-medium text-gray-700 dark:text-gray-300">Value</th>
+                <th scope="col" class="p-2 font-medium text-gray-700 dark:text-gray-300">Label</th>
+                <th scope="col" class="p-2 font-medium text-gray-700 dark:text-gray-300">Value</th>
+                <th scope="col" class="p-2 font-medium text-gray-700 dark:text-gray-300">Value</th>
             </tr>
         </thead>
         <tbody>

@@ -8,6 +8,7 @@ use App\Models\Listing;
 use App\Support\Shop\MediumBrowse;
 use App\Support\Shop\MediumOptions;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * `/medium/{medium}` — for-sale listings carrying the given Medium
@@ -29,7 +30,8 @@ final class MediumController extends ShopController
             'medium' => $medium,
             'label' => $label,
             'browse' => MediumBrowse::forStorefront(),
-            'listings' => Listing::query()->forSale()->with('seller')
+            'listings' => Listing::query()->forSale()
+                ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
                 ->orderByDesc('created_at')->orderByDesc('id')
                 ->ofMediumAttribute($medium)
                 ->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),

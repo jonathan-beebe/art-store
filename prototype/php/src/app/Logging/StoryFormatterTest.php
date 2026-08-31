@@ -40,6 +40,42 @@ function payload(LogRecord $record, bool $tracesStacks = false): array
     return $decoded;
 }
 
+/**
+ * A throwable whose reason and data come from real constructor arguments
+ * rather than literals returned straight out of the interface methods, so a
+ * fixed test value can be null or empty without PHPStan narrowing
+ * `CarriesErrorData`'s `?string`/`array` return types down to something
+ * that could never match the interface.
+ *
+ * @param  array<string, mixed>  $data
+ */
+function errorDataException(string $message, ?string $reason, array $data): RuntimeException&CarriesErrorData
+{
+    return new class($message, $reason, $data) extends RuntimeException implements CarriesErrorData
+    {
+        /**
+         * @param  array<string, mixed>  $data
+         */
+        public function __construct(string $message, private readonly ?string $reason, private readonly array $data)
+        {
+            parent::__construct($message);
+        }
+
+        public function errorReason(): ?string
+        {
+            return $this->reason;
+        }
+
+        /**
+         * @return array<string, mixed>
+         */
+        public function errorData(): array
+        {
+            return $this->data;
+        }
+    };
+}
+
 it('writes the timestamp as ISO-8601 UTC with milliseconds', function (): void {
     expect(payload(record()))->toHaveKey('ts', '2026-08-23T16:00:00.001Z');
 });
@@ -90,6 +126,42 @@ it('gives a line the framework wrote on its own an event and a phase', function 
     'an error ends something' => [Level::Error, 'failed'],
 ]);
 
+it('prefixes a warn line\'s msg with a warning mark', function (): void {
+    $line = payload(record(
+        ['event' => 'rate_limit.exceed', 'phase' => 'refused'],
+        Level::Warning,
+        'too many magic_link_request requests',
+    ));
+
+    expect($line['msg'])->toBe('⚠️ too many magic_link_request requests');
+});
+
+it('prefixes a failed line\'s msg with a failure mark', function (): void {
+    $line = payload(record(
+        ['event' => 'http.request', 'phase' => 'failed'],
+        Level::Error,
+        'POST /checkout broke',
+    ));
+
+    expect($line['msg'])->toBe('❌ POST /checkout broke');
+});
+
+it('prefixes the framework\'s own error-level line too, once it falls back to the failed phase', function (): void {
+    $line = payload(record([], Level::Error, 'something the framework said'));
+
+    expect($line['phase'])->toBe('failed')
+        ->and($line['msg'])->toBe('❌ something the framework said');
+});
+
+it('leaves an info, debug, or did line\'s msg bare', function (Level $level, string $phase): void {
+    $line = payload(record(['event' => 'order.place', 'phase' => $phase], $level, 'placed the order'));
+
+    expect($line['msg'])->toBe('placed the order');
+})->with([
+    'debug' => [Level::Debug, 'will'],
+    'info' => [Level::Info, 'did'],
+]);
+
 it('reads the exception the record carries as the error object', function (): void {
     $line = payload(record([
         'event' => 'http.request',
@@ -100,6 +172,30 @@ it('reads the exception the record carries as the error object', function (): vo
     expect($line['error'])->toBe([
         'type' => RuntimeException::class,
         'message' => 'the checkout broke',
+    ]);
+});
+
+it('folds an exception\'s reason and data into the error object when it carries them', function (): void {
+    $error = errorDataException('the order could not be placed', 'stock_conflict', ['order_id' => 'ord_01J00000000000000000000ABC']);
+
+    $line = payload(record(['event' => 'order.place', 'phase' => 'failed', 'exception' => $error], Level::Error));
+
+    expect($line['error'])->toBe([
+        'type' => $error::class,
+        'message' => 'the order could not be placed',
+        'reason' => 'stock_conflict',
+        'data' => ['order_id' => 'ord_01J00000000000000000000ABC'],
+    ]);
+});
+
+it('leaves reason and data off the error object when a CarriesErrorData exception has neither', function (): void {
+    $error = errorDataException('broke', null, []);
+
+    $line = payload(record(['event' => 'order.place', 'phase' => 'failed', 'exception' => $error], Level::Error));
+
+    expect($line['error'])->toBe([
+        'type' => $error::class,
+        'message' => 'broke',
     ]);
 });
 

@@ -8,6 +8,7 @@ use App\Domain\Shop\ListingSearch;
 use App\Models\Listing;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 
 /**
@@ -39,7 +40,8 @@ final class SearchController extends ShopController
      */
     private function matching(ListingSearch $search): Builder
     {
-        return Listing::query()->forSale()->with('seller')
+        return Listing::query()->forSale()
+            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->orderByDesc('created_at')->orderByDesc('id')
             ->ofSearchTerm($search->likePattern());
     }

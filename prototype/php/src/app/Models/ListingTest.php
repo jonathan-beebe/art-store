@@ -11,6 +11,8 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
 use DomainException;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
@@ -185,6 +187,30 @@ it('drops for_sale from the transitions it offers while removed', function (): v
     ListingRemoval::factory()->create(['listing_id' => $listing->id]);
 
     expect($listing->availableTransitions())->toBe([]);
+});
+
+it('reads the eager-loaded activeRemoval relation rather than a fresh query', function (): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::Sold]);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+    $listing->load('activeRemoval');
+
+    $removalQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$removalQueries): void {
+        $removalQueries += str_contains($query->sql, 'listing_removals') ? 1 : 0;
+    });
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([])
+        ->and($removalQueries)->toBe(0);
+});
+
+it('falls back to a fresh check when the relation was not eager-loaded', function (): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::Sold]);
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([ListingStatus::ForSale]);
+
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([]);
 });
 
 it('narrows the admin list by removal state', function (RemovedFilter $filter, string $expectedTitle): void {
@@ -388,6 +414,36 @@ it('reads the lowest-position image as the cover', function (): void {
     $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
 
     expect($listing->imageUrl())->toEndWith('/storage/listings/first.png');
+});
+
+it('reads the cover from an eager-loaded images relation rather than a fresh query', function (): void {
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/second.png', 'position' => 1]);
+    $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
+
+    $loaded = Listing::query()
+        ->with(['images' => fn (Relation $images): Relation => $images->orderBy('position')])
+        ->findOrFail($listing->id);
+
+    expect($loaded->relationLoaded('images'))->toBeTrue();
+
+    $queries = 0;
+    DB::listen(function () use (&$queries): void {
+        $queries++;
+    });
+
+    expect($loaded->imageUrl())->toEndWith('/storage/listings/first.png')
+        ->and($queries)->toBe(0);
+});
+
+it('renders a placeholder from an eager-loaded but empty images relation', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron']);
+
+    $loaded = Listing::query()
+        ->with(['images' => fn (Relation $images): Relation => $images->orderBy('position')])
+        ->findOrFail($listing->id);
+
+    expect($loaded->imageUrl())->toStartWith('data:image/svg+xml;base64,');
 });
 
 it('sells items off its quantity', function (): void {

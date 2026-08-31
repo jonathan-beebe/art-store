@@ -21,7 +21,7 @@ final class AccountingController extends Controller
         $balances = LedgerEntry::balancesBySeller();
 
         return view('admin.accounting.index', [
-            'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
+            'sellers' => Seller::query()->orderedForFilter()->get(),
             'balances' => $balances,
             'totals' => PlatformMoney::of($balances->total(), Fulfillment::platformFees()),
         ]);

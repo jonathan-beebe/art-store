@@ -8,6 +8,8 @@ use App\Actions\Messaging\MarkConversationRead;
 use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Message;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('counts the messages across every thread the admin has not read', function (): void {
     $admin = $this->admin();
@@ -68,6 +70,25 @@ it('renders the xl-and-up nav rail with the active section marked (DSGN-006)', f
     // The Orders link is marked current in all three — proof the rail
     // renders the same active-section logic as the two below-`xl` navs.
     expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+});
+
+it('reads the unread count and every nav badge in one query', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()
+        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
+        ->create();
+    Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
+
+    $composerQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$composerQueries): void {
+        $composerQueries += str_contains($query->sql, 'select (select count(*)') ? 1 : 0;
+    });
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/orders');
+
+    $response->assertOk();
+    expect($composerQueries)->toBe(1);
 });
 
 it('marks a section current on the rail from its show route, not only its index', function (): void {

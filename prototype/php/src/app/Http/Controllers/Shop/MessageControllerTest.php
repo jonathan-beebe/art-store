@@ -44,6 +44,19 @@ it('keeps another visitors threads off the inbox', function (): void {
     $response->assertDontSee($listing->title);
 });
 
+it('paginates the inbox at twenty threads', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    Conversation::factory()->listingQuestion()->count(21)->create(['customer_id' => $visitor->id]);
+
+    $first = $this->get('/messages');
+    $second = $this->get('/messages?page=2');
+
+    $first->assertOk();
+    $second->assertOk();
+    expect(substr_count((string) $first->getContent(), '<li>'))->toBe(20);
+    expect(substr_count((string) $second->getContent(), '<li>'))->toBe(1);
+});
+
 it('shows every message in order and marks the thread read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller();

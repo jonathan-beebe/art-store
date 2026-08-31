@@ -179,7 +179,7 @@ final class Story
      */
     public function refused(string $message, array $data = []): self
     {
-        return $this->write(StoryPhase::Refused, $this->event->refusalLevel(), $message, $data)->close();
+        return $this->write(StoryPhase::Refused, $this->event->refusalLevel(), $message, $data, $this->elapsed())->close();
     }
 
     /**

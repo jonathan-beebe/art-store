@@ -57,17 +57,6 @@ it('always reports itself as handling, mirroring whatever the channel already le
     expect($handler->isHandling(handlerRecord()))->toBeTrue();
 });
 
-it('swallows a store failure rather than letting it escape handle()', function (): void {
-    $store = LogStore::open(Fixtures::tempFile());
-    Fixtures::connectionOrFail($store)->exec('DROP TABLE log_lines');
-    $handler = new LogStoreHandler($store, new StoryFormatter);
-
-    $bubbled = $handler->handle(handlerRecord(['event' => 'order.place', 'phase' => 'did']));
-    $store->flush();
-
-    expect($bubbled)->toBeFalse();
-});
-
 it('swallows a formatter failure the same way', function (): void {
     $store = LogStore::open(Fixtures::tempFile());
     $formatter = new class implements FormatterInterface

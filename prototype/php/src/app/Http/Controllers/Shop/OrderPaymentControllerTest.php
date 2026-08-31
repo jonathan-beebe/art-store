@@ -67,6 +67,18 @@ it('sends a paid order back to the order page', function () use ($unpaidOrderFor
     $this->get(route('shop.order.pay', $order))->assertRedirect(route('shop.order', $order));
 });
 
+it('refuses to charge a paid order again, taking no second payment', function () use ($unpaidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $unpaidOrderFor($shopper);
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->post(route('shop.order.pay', $order), ['card_number' => '4242 4242 4242 4242']);
+
+    $response->assertRedirect(route('shop.order', $order));
+    expect($order->refresh()->status)->toBe(OrderStatus::Paid)
+        ->and($order->payments()->count())->toBe(1);
+});
+
 it('sends a blocked customer back with the reason instead of charging the card', function () use ($unpaidOrderFor): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());
     $order = $unpaidOrderFor($shopper);

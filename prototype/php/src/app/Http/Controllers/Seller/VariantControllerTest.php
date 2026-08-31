@@ -15,6 +15,7 @@ use App\Models\OrderItem;
 use App\Models\Variant;
 use App\Models\VariantOption;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists the listing’s sparse variants with a derived price', function (): void {
     $seller = $this->seller();
@@ -173,6 +174,9 @@ it('trips the listing-write limit adding a variant', function (): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
+    // An axis-free listing keeps a single variant, so this starts from none:
+    // a pre-seeded one would refuse the priming create outright and leave
+    // the count assertion proving the wrong rule.
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['quantity' => 1]);
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['quantity' => 1, 'sku' => 'Second']);
@@ -181,18 +185,25 @@ it('trips the listing-write limit adding a variant', function (): void {
     expect(Variant::where('listing_id', $listing->id)->count())->toBe(1);
 });
 
-it('trips the listing-write limit updating a variant', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $variant = Variant::factory()->create(['listing_id' => $listing->id, 'sku' => 'Old']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['quantity' => 1]);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$variant->id}", ['sku' => 'New', 'quantity' => 1]);
+    $response = match ($action) {
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$variant->id}", ['sku' => 'New', 'quantity' => 1]),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($variant->fresh()?->sku)->toBe('Old');
-});
+    match ($action) {
+        'updating' => expect($variant->fresh()?->sku)->toBe('Old'),
+        'removing' => expect(Variant::find($variant->id))->not->toBeNull(),
+    };
+})->with(['updating', 'removing']);
 
 it('A3: offers the one combination added and refuses the sibling combination never added', function (): void {
     $seller = $this->seller();
@@ -422,19 +433,6 @@ it('refuses to remove another sellers variant', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
 
     $response->assertNotFound();
-    expect(Variant::find($variant->id))->not->toBeNull();
-});
-
-it('trips the listing-write limit removing a variant', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", ['quantity' => 1]);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
-
-    $response->assertStatus(429);
     expect(Variant::find($variant->id))->not->toBeNull();
 });
 

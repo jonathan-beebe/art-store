@@ -358,14 +358,15 @@ it('renders the inbox on a fixed number of queries however many threads the admi
 
     $response = $this->actingAs($admin, 'admin')
         // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews). +5 for the nav rail's
-        // per-section counts (DSGN-006, AdminLayoutComposer) — one bare
-        // `count()` per section cheap enough to show, run on every admin
-        // page regardless of which one is rendering. +1 for the list
-        // pane's window total (`ListPaneWindow`, DSGN-006 follow-up) — a
-        // `count()` alongside the capped fetch, so the pane and its footer
-        // can say how many conversations exist beyond the window.
-        ->expectsDatabaseQueryCount(13)
+        // countable response (RollUpPageViews). +1 for the nav rail's
+        // unread-message badge and its five per-section counts (DSGN-006,
+        // AdminLayoutComposer) — one combined query of scalar subqueries,
+        // run on every admin page regardless of which one is rendering.
+        // +1 for the list pane's window total (`ListPaneWindow`, DSGN-006
+        // follow-up) — a `count()` alongside the capped fetch, so the pane
+        // and its footer can say how many conversations exist beyond the
+        // window.
+        ->expectsDatabaseQueryCount(8)
         ->get('/admin/messages');
 
     $response->assertOk();

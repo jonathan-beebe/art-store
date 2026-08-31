@@ -21,8 +21,7 @@
     <a href="{{ $href }}" @if ($active) aria-current="true" @endif
        style="background-image: url('{{ $coverUrl }}')"
        class="relative flex aspect-[1.618/1] items-end overflow-hidden rounded-card bg-cover bg-center hover:brightness-105 {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-        <span class="relative flex w-full items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo"
-              style="background-image: linear-gradient(to top, rgb(26 17 12 / 0.72), rgb(26 17 12 / 0))">
+        <span class="bg-photo-scrim relative flex w-full items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo">
             <span class="truncate text-sm font-bold">{{ $label }}</span>
             @if ($count !== null)
                 <span class="text-[11px] opacity-75">{{ $count }}</span>

@@ -59,6 +59,18 @@ it('escapes text with no linkable id at all', function (): void {
     expect(LogIdLinks::linkify('<no ids here>'))->toBe('&lt;no ids here&gt;');
 });
 
+it('renders a script payload in stored JSON inert through the viewer pipeline', function (): void {
+    $orderId = prefixedTestId('ord');
+    $stored = (string) json_encode(['note' => '<script>alert("harry")</script>', 'order_id' => $orderId]);
+
+    $html = LogIdLinks::linkify(LogJson::pretty($stored));
+
+    expect($html)
+        ->not->toContain('<script>')
+        ->toContain('&lt;script&gt;alert(\\&quot;harry\\&quot;)&lt;/script&gt;')
+        ->toContain('<a href="'.e(route('admin.orders.show', [$orderId])).'" class="underline">'.$orderId.'</a>');
+});
+
 it('truncates a full id to its prefix plus 8 body characters', function (): void {
     expect(LogIdLinks::truncate(prefixedTestId('cus')))->toBe('cus_01J5X3M9');
 });

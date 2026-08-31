@@ -68,5 +68,7 @@
                 </x-admin.card-row>
             @endforeach
         </x-admin.card-list>
+
+        <x-admin.cell-footer :shown="$entries->count()" :total="$entriesTotal" :route="route('admin.ledger')" />
     @endif
 </x-layouts.admin>

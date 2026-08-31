@@ -1,6 +1,7 @@
 @php
     use App\Domain\Configurator\DescriptionSectionKind;
     use App\Support\Configurator\DescriptionSectionKindWord;
+    use App\Support\Configurator\DescriptionSectionRows;
     use App\Support\Ordinal;
 @endphp
 
@@ -42,14 +43,11 @@
                         <x-form.field name="title" label="Title" maxlength="255" :value="$section->title" />
 
                         @if ($section->kind === DescriptionSectionKind::SizeChart)
-                            @php $rows = array_merge($section->body_json ?? [], array_fill(0, 3, ['label' => '', 'value1' => '', 'value2' => ''])); @endphp
-                            @include('seller.listings.description-sections._size-chart-rows', ['rows' => $rows, 'idPrefix' => $section->id])
+                            @include('seller.listings.description-sections._size-chart-rows', ['rows' => DescriptionSectionRows::sizeChart($section->body_json), 'idPrefix' => $section->id])
                         @elseif ($section->kind === DescriptionSectionKind::Specs)
-                            @php $rows = array_merge($section->body_json ?? [], array_fill(0, 3, ['label' => '', 'value' => ''])); @endphp
-                            @include('seller.listings.description-sections._spec-rows', ['rows' => $rows, 'idPrefix' => $section->id])
+                            @include('seller.listings.description-sections._spec-rows', ['rows' => DescriptionSectionRows::specs($section->body_json), 'idPrefix' => $section->id])
                         @elseif ($section->kind === DescriptionSectionKind::Faq)
-                            @php $rows = array_merge($section->body_json ?? [], array_fill(0, 3, ['question' => '', 'answer' => ''])); @endphp
-                            @include('seller.listings.description-sections._faq-rows', ['rows' => $rows, 'idPrefix' => $section->id])
+                            @include('seller.listings.description-sections._faq-rows', ['rows' => DescriptionSectionRows::faq($section->body_json), 'idPrefix' => $section->id])
                         @else
                             <x-form.field name="body_md" label="What buyers read" type="textarea" class="w-full" rows="3" :value="$section->body_md" />
                         @endif
@@ -82,11 +80,11 @@
                         <x-form.field name="title" label="Title" maxlength="255" />
 
                         @if ($addKind === DescriptionSectionKind::SizeChart)
-                            @include('seller.listings.description-sections._size-chart-rows', ['rows' => array_fill(0, 3, ['label' => '', 'value1' => '', 'value2' => '']), 'idPrefix' => 'new'])
+                            @include('seller.listings.description-sections._size-chart-rows', ['rows' => DescriptionSectionRows::sizeChart(null), 'idPrefix' => 'new'])
                         @elseif ($addKind === DescriptionSectionKind::Specs)
-                            @include('seller.listings.description-sections._spec-rows', ['rows' => array_fill(0, 3, ['label' => '', 'value' => '']), 'idPrefix' => 'new'])
+                            @include('seller.listings.description-sections._spec-rows', ['rows' => DescriptionSectionRows::specs(null), 'idPrefix' => 'new'])
                         @elseif ($addKind === DescriptionSectionKind::Faq)
-                            @include('seller.listings.description-sections._faq-rows', ['rows' => array_fill(0, 3, ['question' => '', 'answer' => '']), 'idPrefix' => 'new'])
+                            @include('seller.listings.description-sections._faq-rows', ['rows' => DescriptionSectionRows::faq(null), 'idPrefix' => 'new'])
                         @else
                             <x-form.field name="body_md" label="What buyers read" type="textarea" class="w-full" rows="3" />
                         @endif

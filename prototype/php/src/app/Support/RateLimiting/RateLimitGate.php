@@ -29,13 +29,15 @@ final readonly class RateLimitGate
     /**
      * @throws RateLimitExceeded when $key has spent $name's budget
      */
-    public function check(RateLimitName $name, string $key): void
+    public function check(RateLimitName $name, string|EmailRateLimitKey $key): void
     {
         $this->checkEach($name, [$key]);
     }
 
     /**
-     * @param  list<string>  $keys  independent budgets checked under the same limit
+     * @param  list<string|EmailRateLimitKey>  $keys  independent budgets checked under the same limit —
+     *                                                an `EmailRateLimitKey` for an address, a plain
+     *                                                string for anything else (docs/alignment.md §3)
      *
      * @throws RateLimitExceeded when any of $keys has spent $name's budget
      */
@@ -48,7 +50,7 @@ final readonly class RateLimitGate
         }
 
         foreach ($keys as $key) {
-            $limiterKey = $this->limiterKey($name, $key);
+            $limiterKey = $this->limiterKey($name, self::storageKey($key));
 
             if ($this->limiter->tooManyAttempts($limiterKey, $setting->maxAttempts)) {
                 $this->refuse($name, $key, $this->limiter->availableIn($limiterKey));
@@ -56,7 +58,7 @@ final readonly class RateLimitGate
         }
 
         foreach ($keys as $key) {
-            $this->limiter->hit($this->limiterKey($name, $key), $setting->decaySeconds);
+            $this->limiter->hit($this->limiterKey($name, self::storageKey($key)), $setting->decaySeconds);
         }
     }
 
@@ -73,14 +75,35 @@ final readonly class RateLimitGate
         return "{$name->value}:{$key}";
     }
 
-    private function refuse(RateLimitName $name, string $key, int $retryAfterSeconds): never
+    private function refuse(RateLimitName $name, string|EmailRateLimitKey $key, int $retryAfterSeconds): never
     {
+        $logged = self::loggedKey($key);
+
         Story::for(StoryEvent::RateLimitExceed)->refused("too many {$name->value} requests", [
             'limit' => $name->value,
-            'key' => $key,
+            'key' => $logged,
             'retry_after_seconds' => $retryAfterSeconds,
         ]);
 
-        throw new RateLimitExceeded($name, $key, $retryAfterSeconds);
+        throw new RateLimitExceeded($name, $logged, $retryAfterSeconds);
+    }
+
+    /**
+     * The limiter's own bucket identity — stable across a redeploy, since it
+     * decides which counter a hit lands on.
+     */
+    private static function storageKey(string|EmailRateLimitKey $key): string
+    {
+        return $key instanceof EmailRateLimitKey ? $key->key() : $key;
+    }
+
+    /**
+     * What a `rate_limit.exceed` line, or the exception a catcher logs
+     * itself, is allowed to carry (docs/alignment.md §3): never the full
+     * digest an `EmailRateLimitKey` counts the budget against.
+     */
+    private static function loggedKey(string|EmailRateLimitKey $key): string
+    {
+        return $key instanceof EmailRateLimitKey ? $key->logged() : $key;
     }
 }

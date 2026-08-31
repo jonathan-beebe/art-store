@@ -10,6 +10,8 @@ use Illuminate\Contracts\View\View;
 
 final class OrderController extends ShopController
 {
+    private const ORDERS_PER_PAGE = 20;
+
     public function index(): View
     {
         return view('shop.orders', [
@@ -17,7 +19,7 @@ final class OrderController extends ShopController
                 ->with('items')
                 ->orderByDesc('placed_at')
                 ->orderByDesc('id')
-                ->get(),
+                ->paginate(self::ORDERS_PER_PAGE),
         ]);
     }
 

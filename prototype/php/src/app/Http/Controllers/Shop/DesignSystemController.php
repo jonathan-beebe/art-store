@@ -13,6 +13,7 @@ use App\Support\Shop\CategoryBrowse;
 use App\Support\Shop\FeaturedSubject;
 use App\Support\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 /**
@@ -40,9 +41,18 @@ final class DesignSystemController extends ShopController
         $listings = Listing::query()->forSale()->with('seller')
             ->orderByDesc('created_at')->orderByDesc('id')->limit(3)->get();
 
+        // The same predicate ConfiguratorPageResolver::hasConfigurator()
+        // checks per listing, asked of the database instead: one query for
+        // the first for-sale listing carrying any configurator row, rather
+        // than fetching a page of listings and testing each in PHP.
         $configurable = Listing::query()->forSale()->with('seller')
-            ->orderByDesc('created_at')->orderByDesc('id')->limit(25)->get()
-            ->first(fn (Listing $listing): bool => ConfiguratorPageResolver::hasConfigurator($listing));
+            ->where(function (Builder $query): void {
+                $query->whereHas('optionAxes')
+                    ->orWhereHas('variants')
+                    ->orWhereHas('modifiers')
+                    ->orWhereHas('quantityBreaks');
+            })
+            ->orderByDesc('created_at')->orderByDesc('id')->first();
 
         $focus = $request->query('focus');
 

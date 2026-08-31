@@ -6,6 +6,7 @@ namespace App\Support\Shop;
 
 use App\Models\Category;
 use App\Models\Listing;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
 
 /**
@@ -42,7 +43,9 @@ final readonly class FeaturedSubject
 
     private static function resolveListing(string $slug): ?self
     {
-        $listing = Listing::query()->forSale()->with('seller')->where('slug', $slug)->first();
+        $listing = Listing::query()->forSale()
+            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->where('slug', $slug)->first();
 
         if ($listing === null) {
             return null;
@@ -78,6 +81,7 @@ final readonly class FeaturedSubject
         }
 
         $cover = (clone $inCategory)
+            ->with(['images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->withCount('favorites')
             ->orderByDesc('favorites_count')
             ->orderByDesc('created_at')

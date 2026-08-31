@@ -22,8 +22,7 @@
             <a href="{{ route('shop.medium', ['medium' => $medium['value']]) }}" @if ($active) aria-current="true" @endif
                style="background-image: url('{{ $medium['coverUrl'] }}')"
                class="relative h-20 w-36 shrink-0 snap-start overflow-hidden rounded-card bg-cover bg-center {{ $active ? 'outline-2 outline-offset-2 outline-accent' : '' }}">
-                <span class="absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo"
-                      style="background-image: linear-gradient(to top, rgb(26 17 12 / 0.72), rgb(26 17 12 / 0))">
+                <span class="bg-photo-scrim absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo">
                     <span class="truncate text-sm font-bold">{{ $medium['label'] }}</span>
                     <span class="text-[11px] opacity-75">{{ $medium['count'] }}</span>
                 </span>

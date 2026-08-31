@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('renders the token registry, pairings, and specimen notes on an empty catalog', function (): void {
     $response = $this->get('/design-system');
@@ -44,6 +46,32 @@ it('renders real listings and the browse row once the catalog has them', functio
     $response->assertSee('Ceramic');
     $response->assertDontSee('No for-sale listing yet');
     $response->assertDontSee('No attributed medium yet');
+});
+
+it('finds the configurable specimen listing with one query, not one probe per candidate', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Plain One']);
+    $this->listing($seller, ['title' => 'Plain Two']);
+    $configurable = $this->listing($seller, ['title' => 'Goblin-Wrought Ring']);
+    $metal = app(CreateOptionAxis::class)($configurable, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    app(GenerateVariants::class)($configurable);
+
+    // A standalone `->exists()` probe compiles to `select exists(select *
+    // from ... ) as exists` — the shape the old per-listing PHP loop fired
+    // once per candidate per table. `whereHas()` embeds the same EXISTS
+    // clause inside the listings query itself, so the fixed lookup produces
+    // none of these.
+    $standaloneExistsProbes = 0;
+    DB::listen(function (QueryExecuted $query) use (&$standaloneExistsProbes): void {
+        $standaloneExistsProbes += str_starts_with($query->sql, 'select exists(') ? 1 : 0;
+    });
+
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('Goblin-Wrought Ring');
+    expect($standaloneExistsProbes)->toBe(0);
 });
 
 it('renders the category-picker explorations with live counts and covers', function (): void {

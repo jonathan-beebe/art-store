@@ -11,6 +11,7 @@ use App\Models\ModifierOption;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists the listing’s modifiers', function (): void {
     $seller = $this->seller();
@@ -112,43 +113,27 @@ it('refuses removing another sellers modifier', function (): void {
     expect(Modifier::find($modifier->id))->not->toBeNull();
 });
 
-it('trips the listing-write limit adding a modifier', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", ['kind' => 'text', 'prompt' => 'First', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", ['kind' => 'text', 'prompt' => 'Second', 'position' => 1]);
-
-    $response->assertStatus(429);
-    expect(Modifier::where('listing_id', $listing->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating a modifier', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Old']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", ['kind' => 'text', 'prompt' => 'Consumes budget', 'position' => 0]);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}", ['kind' => 'text', 'prompt' => 'New', 'position' => 0]);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", ['kind' => 'text', 'prompt' => 'Second', 'position' => 1]),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}", ['kind' => 'text', 'prompt' => 'New', 'position' => 0]),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/modifiers/{$modifier->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($modifier->fresh()?->prompt)->toBe('Old');
-});
-
-it('trips the listing-write limit removing a modifier', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers", ['kind' => 'text', 'prompt' => 'Consumes budget', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/modifiers/{$modifier->id}");
-
-    $response->assertStatus(429);
-    expect(Modifier::find($modifier->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(Modifier::where('listing_id', $listing->id)->count())->toBe(2),
+        'updating' => expect($modifier->fresh()?->prompt)->toBe('Old'),
+        'removing' => expect(Modifier::find($modifier->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
 
 it('names the screen and gives an honest intro and a back link', function (): void {
     $seller = $this->seller();

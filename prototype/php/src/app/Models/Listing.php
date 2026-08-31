@@ -159,7 +159,10 @@ class Listing extends Model
 
     /**
      * A fresh read rather than the loaded relation, so a caller that never
-     * eager-loaded `activeRemoval` still gets an answer under strict mode.
+     * eager-loaded `activeRemoval` still gets an answer under strict mode —
+     * load-bearing for a caller that checks, writes a removal, then checks
+     * this same instance again in the same request (moderation actions and
+     * their tests both do).
      */
     public function currentRemoval(): ?ListingRemoval
     {
@@ -229,6 +232,24 @@ class Listing extends Model
     public function availableTransitions(): array
     {
         return ListingAvailability::availableTransitions($this->status, $this->hasActiveRemoval());
+    }
+
+    /**
+     * The same transitions {@see self::availableTransitions()} computes, but
+     * read off an eager-loaded `activeRemoval` relation instead of a fresh
+     * `hasActiveRemoval()` query — for a caller rendering many rows at once
+     * (the seller listings index) that already eager-loaded the relation
+     * across the whole set. Falls back to the fresh check when the relation
+     * was not eager-loaded, so a caller that skips the eager load still gets
+     * a correct answer, just without the saving.
+     *
+     * @return list<ListingStatus>
+     */
+    public function availableTransitionsFromEagerLoad(): array
+    {
+        $hasActiveRemoval = $this->relationLoaded('activeRemoval') ? $this->activeRemoval !== null : $this->hasActiveRemoval();
+
+        return ListingAvailability::availableTransitions($this->status, $hasActiveRemoval);
     }
 
     /**
@@ -348,13 +369,17 @@ class Listing extends Model
 
     /**
      * The cover — the lowest-position row in `images` — or a placeholder
-     * drawn from the title when the listing carries no image yet. A fresh
-     * query rather than the loaded relation, so a caller that never
-     * eager-loaded `images` still gets an answer under strict mode.
+     * drawn from the title when the listing carries no image yet. A caller
+     * that eager-loaded `images` ordered by `position` is read from that
+     * loaded collection rather than issuing a fresh query; a caller that
+     * never eager-loaded it still gets an answer, via a query of its own,
+     * under strict mode.
      */
     public function imageUrl(): string
     {
-        $cover = $this->images()->orderBy('position')->first();
+        $cover = $this->relationLoaded('images')
+            ? $this->images->first()
+            : $this->images()->orderBy('position')->first();
 
         return $cover === null
             ? PlaceholderImage::dataUri($this->title)

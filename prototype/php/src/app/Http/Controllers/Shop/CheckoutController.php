@@ -8,7 +8,6 @@ use App\Actions\Auth\SendMagicLink;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Auth\ActorType;
-use App\Domain\Auth\EmailNormalizer;
 use App\Domain\Cart\CartTotals;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Orders\BlockedLine;
@@ -19,6 +18,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\CheckoutRequest;
 use App\Models\Cart;
 use App\Models\Customer;
+use App\Support\RateLimiting\EmailRateLimitKey;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -69,7 +69,7 @@ final class CheckoutController extends ShopController
             // budget just above, so a trip on either leaves no order behind.
             if (! $purchaser->isEmailVerified()) {
                 $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
-                    'email:'.hash('sha256', EmailNormalizer::normalize($request->email())),
+                    EmailRateLimitKey::for($request->email()),
                     'ip:'.$request->ip(),
                 ]);
             }

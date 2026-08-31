@@ -9,6 +9,7 @@ use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Unit;
 use App\Models\Variant;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists a variant’s units and its derived available count', function (): void {
     $seller = $this->seller();
@@ -130,20 +131,7 @@ it('answers not found updating a unit from another variant', function (): void {
     $response->assertNotFound();
 });
 
-it('trips the listing-write limit adding a unit', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/{$variant->id}/units", ['label' => '#1']);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/{$variant->id}/units", ['label' => '#2']);
-
-    $response->assertStatus(429);
-    expect(Unit::where('variant_id', $variant->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating a unit', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -151,13 +139,20 @@ it('trips the listing-write limit updating a unit', function (): void {
     $unit = Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#1']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/{$variant->id}/units", ['label' => '#2']);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$variant->id}/units/{$unit->id}", [
-        'label' => '#1', 'state' => UnitState::Sold->value,
-    ]);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants/{$variant->id}/units", ['label' => '#3']),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/variants/{$variant->id}/units/{$unit->id}", [
+            'label' => '#1', 'state' => UnitState::Sold->value,
+        ]),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($unit->fresh()?->state)->toBe(UnitState::Available);
-});
+    match ($action) {
+        'adding' => expect(Unit::where('variant_id', $variant->id)->count())->toBe(2),
+        'updating' => expect($unit->fresh()?->state)->toBe(UnitState::Available),
+    };
+})->with(['adding', 'updating']);
 
 it('C1: renders each piece’s name, condition, measurements, and price, and lists them the same way in the buyer panel', function (): void {
     $seller = $this->seller();
@@ -307,6 +302,35 @@ it('shows an expanded edit form for the piece named in the edit query parameter'
     $response->assertSee('Mark as');
     $response->assertSee('Cancel');
     $response->assertDontSee('State</label>', false);
+});
+
+it('labels the edit form’s measurement inputs for assistive tech', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    $unit = Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#09']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units?edit={$unit->id}");
+
+    $response->assertOk();
+    $response->assertSee('for="spec-'.$unit->id.'-label-0"', false);
+    $response->assertSee('id="spec-'.$unit->id.'-label-0"', false);
+    $response->assertSee('for="spec-'.$unit->id.'-value-0"', false);
+    $response->assertSee('id="spec-'.$unit->id.'-value-0"', false);
+});
+
+it('labels the add-a-piece form’s measurement inputs for assistive tech', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units");
+
+    $response->assertOk();
+    $response->assertSee('for="spec-add-label-0"', false);
+    $response->assertSee('id="spec-add-label-0"', false);
+    $response->assertSee('for="spec-add-value-0"', false);
+    $response->assertSee('id="spec-add-value-0"', false);
 });
 
 it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {

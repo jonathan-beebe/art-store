@@ -87,7 +87,7 @@ it('logs the trip as rate_limit.exceed at warn with the email hashed rather than
 
     expect($line['level'])->toBe('warn')
         ->and($data['limit'])->toBe('magic_link_request')
-        ->and($data['key'])->toStartWith('email:')
+        ->and($data['key'])->toMatch('/^sha256:[0-9a-f]{16}$/')
         ->and($data['key'])->not->toContain('shopper@example.com')
         ->and($log->raw())->not->toContain('shopper@example.com');
 });

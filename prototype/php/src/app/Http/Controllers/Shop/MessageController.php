@@ -19,6 +19,8 @@ use Illuminate\View\View;
 
 final class MessageController extends ShopController
 {
+    private const CONVERSATIONS_PER_PAGE = 20;
+
     public function index(): View
     {
         $visitor = $this->visitor();
@@ -28,7 +30,7 @@ final class MessageController extends ShopController
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
             ->withUnreadCountFor($visitor)
             ->orderByDesc('last_message_at')
-            ->get();
+            ->paginate(self::CONVERSATIONS_PER_PAGE);
 
         return view('shop.messages.index', ['conversations' => $conversations, 'viewer' => ActorType::Customer]);
     }

@@ -13,7 +13,7 @@
 @if ($listing->images->count() > 1)
     <div class="{{ $compact ? 'mt-2' : 'mt-4' }} grid grid-cols-4 {{ $compact ? 'gap-1' : 'gap-3' }}">
         @foreach ($listing->images->skip(1)->values() as $image)
-            <img src="{{ $image->url() }}" alt="{{ $listing->title }} — photo {{ $loop->iteration + 1 }}"
+            <img src="{{ $image->url() }}" alt="{{ $listing->title }} — photo {{ $loop->iteration + 1 }}" loading="lazy"
                  class="aspect-square w-full rounded-field object-cover">
         @endforeach
     </div>

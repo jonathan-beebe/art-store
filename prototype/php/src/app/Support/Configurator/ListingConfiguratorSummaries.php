@@ -33,12 +33,6 @@ use LogicException;
 final class ListingConfiguratorSummaries
 {
     /**
-     * A variant at or below this available quantity reads as low on stock on
-     * the choices summary card.
-     */
-    private const int LOW_STOCK_MAX_QUANTITY = 3;
-
-    /**
      * The most option labels a choice's summary line names before the rest
      * collapse into an "N more" count.
      */
@@ -123,10 +117,7 @@ final class ListingConfiguratorSummaries
             'axes' => $axisLines,
             'offeredCount' => $variants->where('enabled', true)->count(),
             'totalCombinations' => $totalCombinations,
-            'lowStockCount' => $variants->filter(fn (Variant $variant): bool => $variant->enabled
-                && ! $variant->is_serialized
-                && $variant->quantity !== null
-                && $variant->quantity <= self::LOW_STOCK_MAX_QUANTITY)->count(),
+            'lowStockCount' => $variants->filter(fn (Variant $variant): bool => $variant->isLowOnStock())->count(),
             'combinationsUrl' => route('seller.listings.variants.index', $listing),
         ];
     }

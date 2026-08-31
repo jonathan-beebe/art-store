@@ -11,6 +11,7 @@ use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\Seller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -21,6 +22,10 @@ use Illuminate\View\View;
  * "cheap" means here; a section with nothing that cheap to show (accounting,
  * ledger, payouts, stats, logs, the dashboard itself) carries no count at
  * all rather than one worth a real query.
+ *
+ * The six counts read as scalar subqueries of one row, rather than one
+ * query apiece — a page renders the same six numbers for one round trip
+ * to the database instead of six.
  */
 final readonly class AdminLayoutComposer
 {
@@ -32,14 +37,33 @@ final readonly class AdminLayoutComposer
             return;
         }
 
-        $view->with('unreadMessageCount', Message::query()->unreadInInboxOf($admin)->count());
+        /**
+         * @var object{
+         *     unread_messages: int|string,
+         *     sellers: int|string,
+         *     customers: int|string,
+         *     listings: int|string,
+         *     orders: int|string,
+         *     fulfillments: int|string,
+         * } $counts
+         */
+        $counts = DB::query()
+            ->selectSub(Message::query()->unreadInInboxOf($admin)->selectRaw('count(*)'), 'unread_messages')
+            ->selectSub(Seller::query()->selectRaw('count(*)'), 'sellers')
+            ->selectSub(Customer::query()->selectRaw('count(*)'), 'customers')
+            ->selectSub(Listing::query()->selectRaw('count(*)'), 'listings')
+            ->selectSub(Order::query()->selectRaw('count(*)'), 'orders')
+            ->selectSub(Fulfillment::query()->selectRaw('count(*)'), 'fulfillments')
+            ->sole();
+
+        $view->with('unreadMessageCount', (int) $counts->unread_messages);
 
         $view->with('navCounts', [
-            'admin.sellers.index' => Seller::query()->count(),
-            'admin.customers.index' => Customer::query()->count(),
-            'admin.listings.index' => Listing::query()->count(),
-            'admin.orders.index' => Order::query()->count(),
-            'admin.fulfillments.index' => Fulfillment::query()->count(),
+            'admin.sellers.index' => (int) $counts->sellers,
+            'admin.customers.index' => (int) $counts->customers,
+            'admin.listings.index' => (int) $counts->listings,
+            'admin.orders.index' => (int) $counts->orders,
+            'admin.fulfillments.index' => (int) $counts->fulfillments,
         ]);
     }
 }

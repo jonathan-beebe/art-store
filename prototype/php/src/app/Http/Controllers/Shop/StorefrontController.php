@@ -9,6 +9,7 @@ use App\Support\Shop\CategoryBrowse;
 use App\Support\Shop\FeaturedSubject;
 use App\Support\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -44,7 +45,9 @@ final class StorefrontController extends ShopController
             return redirect()->route('shop.medium', ['medium' => $medium]);
         }
 
-        $newest = Listing::query()->forSale()->with('seller')->orderByDesc('created_at')->orderByDesc('id');
+        $newest = Listing::query()->forSale()
+            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->orderByDesc('created_at')->orderByDesc('id');
 
         return view('shop.home', [
             'featured' => FeaturedSubject::resolve(),

@@ -23,7 +23,7 @@ final class PayoutController extends Controller
                 ->orderByDesc('period_start')
                 ->orderByDesc('id')
                 ->get(),
-            'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
+            'sellers' => Seller::query()->orderedForFilter()->get(),
             'sellerId' => $sellerId,
         ]);
     }

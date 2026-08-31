@@ -10,6 +10,8 @@
     <x-theme-css />
 </head>
 <body class="supports-dark h-full bg-gray-100 dark:bg-gray-950 font-sans text-sm text-gray-900 dark:text-gray-100 antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-gray-900 focus:px-4 focus:py-2 focus:font-medium focus:text-white dark:focus:bg-gray-100 dark:focus:text-gray-900">Skip to content</a>
+
     <x-debug-alert />
 
     <header class="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
@@ -23,7 +25,7 @@
                     <a href="{{ route('seller.orders.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Orders</a>
                     <a href="{{ route('seller.earnings') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Earnings</a>
                     <a href="{{ route('seller.notifications.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Notifications</a>
-                    <a href="{{ route('seller.messages.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" data-live-badge="Messages" data-events-url="{{ route('seller.events') }}">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
+                    <a href="{{ route('seller.messages.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" data-live-badge="Messages" data-events-url="{{ route('seller.events') }}" aria-live="polite" aria-atomic="true">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                     <a href="{{ route('seller.support') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Support</a>
                 </nav>
             @endauth
@@ -43,7 +45,7 @@
         </div>
     </header>
 
-    <main class="mx-auto max-w-6xl px-4 py-6">
+    <main id="main-content" class="mx-auto max-w-6xl px-4 py-6">
         @if (session('status'))
             <p role="status" class="mb-4 rounded border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-green-900 dark:text-green-200">{{ session('status') }}</p>
         @endif

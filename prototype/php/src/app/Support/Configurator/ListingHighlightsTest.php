@@ -8,6 +8,7 @@ use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\Property;
 use App\Models\PropertyValue;
+use Illuminate\Support\Facades\DB;
 
 it('renders nothing for a listing with no attributes', function (): void {
     $listing = Listing::factory()->create();
@@ -61,4 +62,22 @@ it('lists more than one property in the order the attributes were set', function
         ['name' => 'Material', 'values' => ['Walnut']],
         ['name' => 'Color', 'values' => ['Black']],
     ]);
+});
+
+it('reads an eager-loaded relation without firing a query of its own', function (): void {
+    $material = Property::factory()->create(['name' => 'Material']);
+    $walnut = PropertyValue::factory()->create(['property_id' => $material->id, 'label' => 'Walnut']);
+    $listing = Listing::factory()->create();
+    ListingAttribute::factory()->create(['listing_id' => $listing->id, 'property_id' => $material->id, 'property_value_id' => $walnut->id]);
+    $listing->load(['listingAttributes.property', 'listingAttributes.propertyValue']);
+
+    $queries = 0;
+    DB::listen(function () use (&$queries): void {
+        $queries++;
+    });
+
+    $highlights = ListingHighlights::forStorefront($listing);
+
+    expect($highlights)->toBe([['name' => 'Material', 'values' => ['Walnut']]])
+        ->and($queries)->toBe(0);
 });
