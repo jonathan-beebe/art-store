@@ -348,13 +348,17 @@ class Listing extends Model
 
     /**
      * The cover — the lowest-position row in `images` — or a placeholder
-     * drawn from the title when the listing carries no image yet. A fresh
-     * query rather than the loaded relation, so a caller that never
-     * eager-loaded `images` still gets an answer under strict mode.
+     * drawn from the title when the listing carries no image yet. A caller
+     * that eager-loaded `images` ordered by `position` is read from that
+     * loaded collection rather than issuing a fresh query; a caller that
+     * never eager-loaded it still gets an answer, via a query of its own,
+     * under strict mode.
      */
     public function imageUrl(): string
     {
-        $cover = $this->images()->orderBy('position')->first();
+        $cover = $this->relationLoaded('images')
+            ? $this->images->first()
+            : $this->images()->orderBy('position')->first();
 
         return $cover === null
             ? PlaceholderImage::dataUri($this->title)

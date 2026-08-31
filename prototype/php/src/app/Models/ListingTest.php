@@ -11,6 +11,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
 use DomainException;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
@@ -388,6 +389,36 @@ it('reads the lowest-position image as the cover', function (): void {
     $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
 
     expect($listing->imageUrl())->toEndWith('/storage/listings/first.png');
+});
+
+it('reads the cover from an eager-loaded images relation rather than a fresh query', function (): void {
+    $listing = $this->listing($this->seller());
+    $this->listingImage($listing, ['path' => 'listings/second.png', 'position' => 1]);
+    $this->listingImage($listing, ['path' => 'listings/first.png', 'position' => 0]);
+
+    $loaded = Listing::query()
+        ->with(['images' => fn (Relation $images): Relation => $images->orderBy('position')])
+        ->findOrFail($listing->id);
+
+    expect($loaded->relationLoaded('images'))->toBeTrue();
+
+    $queries = 0;
+    DB::listen(function () use (&$queries): void {
+        $queries++;
+    });
+
+    expect($loaded->imageUrl())->toEndWith('/storage/listings/first.png')
+        ->and($queries)->toBe(0);
+});
+
+it('renders a placeholder from an eager-loaded but empty images relation', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Blue Heron']);
+
+    $loaded = Listing::query()
+        ->with(['images' => fn (Relation $images): Relation => $images->orderBy('position')])
+        ->findOrFail($listing->id);
+
+    expect($loaded->imageUrl())->toStartWith('data:image/svg+xml;base64,');
 });
 
 it('sells items off its quantity', function (): void {
