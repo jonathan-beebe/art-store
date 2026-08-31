@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\LedgerEntry;
+use App\Support\ListPaneWindow;
+
 it('renders no list pane — a full-content section, not list+detail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
 
@@ -99,4 +102,45 @@ it('says so rather than showing an empty table when nothing matches the filter',
 
 it('sends a guest to the admin login page', function (): void {
     $this->get('/admin/ledger')->assertRedirect(route('auth.admin.login'));
+});
+
+it('caps the rendered entries at the window size, however many exist', function (): void {
+    LedgerEntry::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
+
+    $response->assertOk();
+    preg_match_all('/data-entry="([^"]+)"/', (string) $response->getContent(), $matches);
+    expect(array_unique($matches[1]))->toHaveCount(ListPaneWindow::SIZE);
+});
+
+it('says how many ledger entries the window is not showing, linked to the full list', function (): void {
+    LedgerEntry::factory()->count(ListPaneWindow::SIZE + 5)->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+    $response->assertSee('href="'.route('admin.ledger').'"', escape: false);
+});
+
+it('says nothing about a window that already holds every entry', function (): void {
+    $this->deliveredFulfillmentFor($this->seller(), priceCents: 10000);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
+});
+
+it('folds the totals over every matching entry, not just the rendered window', function (): void {
+    $seller = $this->seller('Blue Kiln Studio');
+    LedgerEntry::factory()->count(ListPaneWindow::SIZE + 5)->held()->create(['seller_id' => $seller->id, 'amount_cents' => 100]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
+
+    $response->assertOk();
+    // Each entry sits on its own fulfillment, so nothing offsets it — the
+    // fold must add all 55, not just the 50 the window renders.
+    $response->assertSee('data-stat="held">$55.00', false);
 });
