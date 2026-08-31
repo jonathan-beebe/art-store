@@ -5,14 +5,22 @@
 - RSRCH: 2
 - DSGN: 8
 - ARCH: 1
-- FEAT: 35
-- IMPRV: 19
+- FEAT: 37
+- IMPRV: 20
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 11
 - BUG: 15
 
 ## Log
+
+- 2026-08-30:20:57:50 — FEAT-036 — refined: restore moves out of the admin app into a standalone tool — env-secret auth, works when the commerce DB cannot boot; IMPRV-019 becomes a dependency
+
+- 2026-08-30:19:52:37 — FEAT-036 — defined: Restore the store from a backup through the admin
+
+- 2026-08-30:19:52:37 — FEAT-035 — defined: Automated hourly snapshots and a nightly backup
+
+- 2026-08-30:19:48:22 — IMPRV-019 — defined: Serve production with FrankenPHP instead of artisan serve
 
 - 2026-08-30:18:20:33 — IMPRV-018 — defined: The home page costs 109 queries
 

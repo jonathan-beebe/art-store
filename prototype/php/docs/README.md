@@ -13,6 +13,9 @@
 |                                      | filters, grouping, and story view.                                                                          |
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
+| [`backups.md`](backups.md)           | **Design, not yet built.** The hourly SQLite snapshot and the nightly archive to Cloudflare R2, why they    |
+|                                      | run inside the web service, the disk floor that keeps them from taking the store down, and                  |
+|                                      | `/admin/backups`.                                                                                           |
 | [`data-model.md`](data-model.md)     | ER diagram generated from `database/migrations/`.                                                           |
 | [`item-configurator.md`](item-configurator.md) | The item configurator: taxonomy, option axes, sparse variants, serialized units, scoped modifiers, |
 |                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
