@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-31:13:43:34 — IMPRV-019 — follow-up: first Render deploy died at the server exec (frankenphp: Operation not permitted, exit 126) — the base image's cap_net_bind_service file capability is refused by Render's sandboxed runtime while local Docker grants it; fixed with setcap -r in the runtime stage and make run-image now runs --cap-drop=ALL --security-opt no-new-privileges to carry Render's restrictions locally (d150bdf); pre-fix image fails the hardened target, fixed image serves /up, /, and statics under it
+
 - 2026-08-31:11:54:08 — IMPRV-019 — done: the production image serves with FrankenPHP — runtime stage rebased onto pinned dunglas/frankenphp (classic per-request mode, Octane/worker mode deferred), docker/Caddyfile serves public/ on :8000 with statics bypassing PHP and trusted_proxies via CADDY_TRUSTED_PROXIES (Caddy rejects Laravel's `*`, so the two variables stay separate), composer deploy chain ends in frankenphp run, PHP_CLI_SERVER_WORKERS gone from runtime, dev stack unchanged (387fe36); live-verified: /up 200, statics logged no http.request line, IMPRV-020's SSE close survives the SAPI swap (disconnected: true at 8043ms), page load 0.0525s under 12 held streams; reviewer accepted, its doc advisory (messaging.md/review.md worker-budget framing) fixed in the same commit
 
 - 2026-08-31:11:25:00 — IMPRV-019 — started
