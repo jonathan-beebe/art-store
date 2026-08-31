@@ -107,7 +107,15 @@ it('reads a refusal as info, because a rule held rather than something breaking'
 
     expect($line['level'])->toBe('info')
         ->and($line['msg'])->toBe('That listing is no longer for sale.')
-        ->and($line)->not->toHaveKey('duration_ms');
+        ->and($line['duration_ms'])->toBeInt();
+});
+
+it('leaves duration_ms off a refusal with no will before it', function (): void {
+    $log = CapturedStory::capture();
+
+    Story::for(StoryEvent::ListingView)->refused('a view of this listing was already counted this hour');
+
+    expect($log->line('listing.view', 'refused'))->not->toHaveKey('duration_ms');
 });
 
 it('drops the listing-view collapse to debug so it cannot drown the stream', function (): void {
