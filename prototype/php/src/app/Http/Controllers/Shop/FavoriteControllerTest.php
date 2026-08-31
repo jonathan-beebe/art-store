@@ -49,6 +49,16 @@ it('removes the favorite when favorited twice', function (): void {
         ->toBe([ListingEventType::Favorite, ListingEventType::Unfavorite]);
 });
 
+it('favorites a listing the seller has since archived', function (): void {
+    $this->visitor();
+    $listing = $this->listing($this->seller(), ['slug' => 'winter-elm']);
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $this->post('/art/winter-elm/favorite');
+
+    expect(Favorite::sole()->listing_id)->toBe($listing->id);
+});
+
 it('survives the merge when favorited before signing in', function (): void {
     $this->visitor();
     Customer::factory()->create(['email' => 'shopper@example.com']);
