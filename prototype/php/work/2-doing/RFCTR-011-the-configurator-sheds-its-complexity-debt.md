@@ -63,3 +63,35 @@ Advisory.
 
 - Commit 0c8700b — the gate and baseline this ticket shrinks
 - Commits 573b98d / f0c6a0f — configurator feature and its query-side trim
+
+## Working
+
+- `ConfiguratorPublishValidation::check()` (22) and
+  `ConfigurationPricer::baseAndSurchargeLines()` (9) split into one private
+  method per rule/branch, called in the same order; every existing sidecar
+  test passed unmodified, so no characterization tests were needed for
+  those two.
+- `ConfiguratorPageResolver` (class 51) gave up three phases as their own
+  collaborators, matching the `ListingPagePresenter` / `ListingHighlights`
+  precedent: `SelectedAxisValues` (the axis-defaults-and-selection block),
+  `ModifiersPresentation` (the modifier loop plus the four
+  `resolve*Answer()` methods, `resolveMeasurementAnswer()` restructured
+  from nested ternaries to a guard clause plus two one-line helpers to
+  clear its own 9), and `SerializedUnitsPresentation` (the old
+  `buildUnitsPresentation()`, 12). The combo-key map build, the
+  quantity-tier build, and the configuration-snapshot build stayed as
+  private methods on the resolver — small enough on their own once out of
+  `resolve()`'s body. `hasConfigurator` and `buildAxesPresentation` were
+  never flagged and are untouched.
+- Confirmed with the vendored `tomasvotruba/cognitive-complexity` source
+  that `||` and `match` never add to its score (only `&&`, ternaries, and
+  the control-flow keywords do) and that "class" complexity is a flat sum
+  over every method — both shaped which blocks were worth extracting.
+- Each unit's existing sidecar suite passed unmodified both before and
+  after its refactor, so no characterization tests were written for
+  hidden behavior; the three new collaborators got their own direct
+  sidecars instead (project convention: one `*Test.php` per class),
+  exercising the shapes `resolve()` used to produce only as private-method
+  side effects.
+- `make analyse` confirmed all six baseline entries went stale
+  (`ignore.unmatched`) before they were deleted, and clean after.

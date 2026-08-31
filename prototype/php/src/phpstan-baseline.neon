@@ -29,27 +29,3 @@ parameters:
 			identifier: complexity.functionLike
 			count: 1
 			path: app/Logging/Admin/LogRowQuery.php
-
-		-
-			message: '#^Class cognitive complexity is 51, keep it under 50$#'
-			identifier: complexity.classLike
-			count: 1
-			path: app/Support/Configurator/ConfiguratorPageResolver.php
-
-		-
-			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:buildUnitsPresentation\(\)" is 12, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Support/Configurator/ConfiguratorPageResolver.php
-
-		-
-			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:resolve\(\)" is 17, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Support/Configurator/ConfiguratorPageResolver.php
-
-		-
-			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:resolveMeasurementAnswer\(\)" is 9, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Support/Configurator/ConfiguratorPageResolver.php
