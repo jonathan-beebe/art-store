@@ -46,6 +46,22 @@ it('lists the orders of the visitor', function (): void {
     $response->assertDontSee('Winter Elm');
 });
 
+it('paginates the order history at twenty, newest first', function (): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    for ($index = 1; $index <= 21; $index++) {
+        $this->orderFor($shopper, $this->listing($seller));
+    }
+
+    $first = $this->get('/orders');
+    $second = $this->get('/orders?page=2');
+
+    $first->assertOk();
+    $second->assertOk();
+    expect(substr_count((string) $first->getContent(), '<li class="flex flex-wrap'))->toBe(20);
+    expect(substr_count((string) $second->getContent(), '<li class="flex flex-wrap'))->toBe(1);
+});
+
 it('groups the items by seller with their fulfillment status', function () use ($paidOrderFor): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());
     $order = $paidOrderFor($shopper);

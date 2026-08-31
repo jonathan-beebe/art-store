@@ -22,5 +22,7 @@
                 </li>
             @endforeach
         </ul>
+
+        <div class="mt-8">{{ $orders->links() }}</div>
     @endif
 </x-layouts.shop>
