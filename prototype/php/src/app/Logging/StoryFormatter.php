@@ -149,10 +149,12 @@ final readonly class StoryFormatter implements FormatterInterface
 
     /**
      * The framework logs an exception under `exception` and so does the
-     * story, so one reading serves both.
+     * story, so one reading serves both. `reason` and `data` join
+     * `type`/`message` only when the exception is a `CarriesErrorData`
+     * that has something to say (docs/alignment.md §2.1).
      *
      * @param  array<mixed>  $context
-     * @return array<string, string>|null
+     * @return array<string, mixed>|null
      */
     private function error(array $context): ?array
     {
@@ -165,7 +167,18 @@ final readonly class StoryFormatter implements FormatterInterface
         return array_filter([
             'type' => $error::class,
             'message' => $error->getMessage(),
+            'reason' => $error instanceof CarriesErrorData ? $error->errorReason() : null,
+            'data' => $error instanceof CarriesErrorData ? $this->nonEmpty($error->errorData()) : null,
             'stack' => $this->tracesStacks ? $error->getTraceAsString() : null,
-        ], fn (?string $value): bool => $value !== null);
+        ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
+     */
+    private function nonEmpty(array $data): ?array
+    {
+        return $data === [] ? null : $data;
     }
 }
