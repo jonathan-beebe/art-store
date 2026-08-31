@@ -9,7 +9,7 @@
 ])
 
 {{--
-    The golden-ratio browse tile (DSGN-007): 1.618:1 at any width, via
+    The golden-ratio browse tile: 1.618:1 at any width, via
     `aspect-[1.618/1]` rather than a fixed height — a fixed height only holds
     the ratio at one column count. One component for both the medium row's
     tiles (photo covers) and the category grid's tiles (photo cover when

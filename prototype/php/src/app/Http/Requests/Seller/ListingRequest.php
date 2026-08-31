@@ -312,7 +312,7 @@ final class ListingRequest extends FormRequest
                 continue;
             }
 
-            if ($this->flagIncompleteRow($validator, $key, $index, $label, $price, $isValidPrice, $labelMessage, $priceMessage)) {
+            if (self::isRowComplete($validator, $key, $index, $label, $price, $isValidPrice, $labelMessage, $priceMessage)) {
                 $completeCount++;
             }
         }
@@ -343,11 +343,11 @@ final class ListingRequest extends FormRequest
     }
 
     /**
-     * Adds the label and/or price error a half-filled or unparseable row
-     * carries, and reports whether the row is complete — a present label
-     * and a price that parses.
+     * Whether the row is complete — a present label and a price that
+     * parses — after recording the label and/or price error a half-filled
+     * or unparseable row carries.
      */
-    private function flagIncompleteRow(Validator $validator, string $key, int|string $index, ?string $label, ?string $price, Closure $isValidPrice, string $labelMessage, string $priceMessage): bool
+    private static function isRowComplete(Validator $validator, string $key, int|string $index, ?string $label, ?string $price, Closure $isValidPrice, string $labelMessage, string $priceMessage): bool
     {
         if ($label === null) {
             $validator->errors()->add("{$key}.{$index}.label", $labelMessage);
