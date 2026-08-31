@@ -31,32 +31,8 @@ final class OptionValueRequest extends FormRequest
     {
         return [
             'label' => ['required', 'string', 'max:255'],
-            'surcharge' => ['nullable', 'string', function (string $attribute, mixed $value, Closure $fail): void {
-                if (! PriceDifferenceInput::isValid(is_string($value) ? $value : null)) {
-                    $fail('The price difference is an amount in dollars, like 8.50 or -2.00.');
-                }
-            }],
-            // A `standalone` choice's option needs its own price; an
-            // `add_on` choice never reads this field, so a form for one
-            // (every form this screen renders today) posts with it absent
-            // and stays unaffected.
-            'price' => [function (string $attribute, mixed $value, Closure $fail): void {
-                $raw = is_string($value) ? $value : null;
-
-                if ($this->optionAxis()->pricing_mode !== PricingMode::Standalone) {
-                    return;
-                }
-
-                if ($raw === null || trim($raw) === '') {
-                    $fail('This choice prices each option on its own — give it a price.');
-
-                    return;
-                }
-
-                if (! AbsolutePriceInput::isValid($raw)) {
-                    $fail('The price is an amount in dollars, like 18.00.');
-                }
-            }],
+            'surcharge' => ['nullable', 'string', $this->surchargeRule()],
+            'price' => [$this->priceRule()],
             'is_default' => ['nullable', 'boolean'],
             'position' => ['required', 'integer', 'min:0'],
             'property_value_id' => ['nullable', 'string', Rule::exists('property_values', 'id')],
@@ -111,5 +87,40 @@ final class OptionValueRequest extends FormRequest
         return $axis instanceof OptionAxis
             ? $axis
             : throw new RuntimeException('The option value route binds an option axis.');
+    }
+
+    private function surchargeRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if (! PriceDifferenceInput::isValid(is_string($value) ? $value : null)) {
+                $fail('The price difference is an amount in dollars, like 8.50 or -2.00.');
+            }
+        };
+    }
+
+    /**
+     * A `standalone` choice's option needs its own price; an `add_on` choice
+     * never reads this field, so a form for one (every form this screen
+     * renders today) posts with it absent and stays unaffected.
+     */
+    private function priceRule(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $raw = is_string($value) ? $value : null;
+
+            if ($this->optionAxis()->pricing_mode !== PricingMode::Standalone) {
+                return;
+            }
+
+            if ($raw === null || trim($raw) === '') {
+                $fail('This choice prices each option on its own — give it a price.');
+
+                return;
+            }
+
+            if (! AbsolutePriceInput::isValid($raw)) {
+                $fail('The price is an amount in dollars, like 18.00.');
+            }
+        };
     }
 }
