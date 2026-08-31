@@ -63,6 +63,12 @@ final readonly class LogRowQuery
      * numeric value. */
     private const string NUMERIC_VALUE = '/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/';
 
+    /** A line's group key, computed in SQL so the count, the page, and the
+     * grouping agree without materializing the filtered set in PHP: its
+     * `request_id` when it has one, `line:<id>` when it doesn't — the same
+     * key `LogRow::groupKey()` computes for a fetched row. */
+    private const string GROUP_KEY_SQL = "COALESCE(request_id, '".self::LINE_GROUP_PREFIX."' || id)";
+
     public function __construct(private PDO $connection) {}
 
     /** How many lines match `$filters`, independent of which page of them
@@ -144,10 +150,17 @@ final readonly class LogRowQuery
     }
 
     /** How many groups the current filters hold — a request counts once no
-     * matter how many of its lines match. */
+     * matter how many of its lines match. Grouped and counted in SQL, so
+     * the filtered set is never materialized in PHP just to count it. */
     public function countGroups(LogRowFilters $filters): int
     {
-        return count($this->groupActivity($filters));
+        [$where, $params] = $this->whereClause($filters);
+        $statement = $this->connection->prepare(
+            'SELECT COUNT(*) FROM (SELECT 1 FROM log_lines'.$where.' GROUP BY '.self::GROUP_KEY_SQL.')',
+        );
+        $statement->execute($params);
+
+        return (int) $statement->fetchColumn();
     }
 
     /**
@@ -159,20 +172,20 @@ final readonly class LogRowQuery
      */
     public function groups(LogRowFilters $filters, int $limit, int $offset): array
     {
-        $pageKeys = array_slice($this->groupActivity($filters), $offset, $limit);
+        $keys = $this->groupKeysPage($filters, $limit, $offset);
 
-        if ($pageKeys === []) {
+        if ($keys === []) {
             return [];
         }
 
         $linesByKey = [];
-        foreach ($this->linesForGroupKeys(array_column($pageKeys, 'key')) as $line) {
+        foreach ($this->linesForGroupKeys($keys) as $line) {
             $linesByKey[$line->groupKey()][] = $line;
         }
 
         return array_map(
-            fn (array $entry): LogRequestGroup => $this->summarizeGroup($entry['key'], $linesByKey[$entry['key']] ?? []),
-            $pageKeys,
+            fn (string $key): LogRequestGroup => $this->summarizeGroup($key, $linesByKey[$key] ?? []),
+            $keys,
         );
     }
 
@@ -393,45 +406,25 @@ final readonly class LogRowQuery
     }
 
     /**
-     * Every group's key and most recent line's `ts`, across the whole
-     * filtered set. Reads the filtered set once and groups it in memory;
-     * retention bounds the table the same way the `msg` scan already
-     * relies on.
+     * One page of group keys, newest activity first — `MAX(ts) desc` with
+     * the key itself as the tiebreak, both folded in SQL over the whole
+     * filtered set rather than materialized in PHP just to sort and slice.
      *
-     * @return list<array{key: string, lastTs: string}>
+     * @return list<string>
      */
-    private function groupActivity(LogRowFilters $filters): array
+    private function groupKeysPage(LogRowFilters $filters, int $limit, int $offset): array
     {
         [$where, $params] = $this->whereClause($filters);
-        $statement = $this->connection->prepare("SELECT id, ts, request_id FROM log_lines{$where}");
-        $statement->execute($params);
+        $statement = $this->connection->prepare(
+            'SELECT '.self::GROUP_KEY_SQL." AS group_key FROM log_lines{$where}
+             GROUP BY group_key ORDER BY MAX(ts) DESC, group_key DESC LIMIT ? OFFSET ?",
+        );
+        $statement->execute([...$params, $limit, $offset]);
 
-        $lastTsByKey = [];
+        /** @var list<array{group_key: string}> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        /** @var array{id: int|string, ts: string, request_id: string|null} $row */
-        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $key = $row['request_id'] ?? self::LINE_GROUP_PREFIX.$row['id'];
-            $current = $lastTsByKey[$key] ?? null;
-
-            if ($current === null || $row['ts'] > $current) {
-                $lastTsByKey[$key] = $row['ts'];
-            }
-        }
-
-        $activity = [];
-        foreach ($lastTsByKey as $key => $lastTs) {
-            $activity[] = ['key' => $key, 'lastTs' => $lastTs];
-        }
-
-        usort($activity, function (array $a, array $b): int {
-            if ($a['lastTs'] !== $b['lastTs']) {
-                return $a['lastTs'] < $b['lastTs'] ? 1 : -1;
-            }
-
-            return $a['key'] < $b['key'] ? 1 : -1;
-        });
-
-        return $activity;
+        return array_map(fn (array $row): string => $row['group_key'], $rows);
     }
 
     /**
