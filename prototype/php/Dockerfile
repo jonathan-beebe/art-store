@@ -95,6 +95,13 @@ RUN install-php-extensions gd intl pdo_sqlite zip
 # Render's shell-less Docker Command field invokes.
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
+# The base image grants the binary cap_net_bind_service so a non-root user
+# can bind ports 80/443. This server binds 8000, and a sandboxed runtime
+# (Render's) refuses to exec a file-capability binary at all — the whole
+# deploy dies with EPERM before the server starts — so the capability comes
+# off.
+RUN setcap -r /usr/local/bin/frankenphp
+
 WORKDIR /var/www/src
 
 # The database lives under storage/ so one persistent volume covers both the
