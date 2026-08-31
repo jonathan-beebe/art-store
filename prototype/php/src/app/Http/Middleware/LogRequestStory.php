@@ -13,6 +13,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 /**
@@ -43,6 +44,14 @@ final readonly class LogRequestStory
      * travels on the request instead. bootstrap/app.php reads it there.
      */
     public const string REQUEST_ID_ATTRIBUTE = 'story.request_id';
+
+    /**
+     * A streamed response's `did` line waits for the stream to finish, which
+     * is after this middleware has already been re-resolved for `terminate()`
+     * — so the open story travels on the request instead of an instance
+     * property, the same way REQUEST_ID_ATTRIBUTE does.
+     */
+    private const string OPEN_STORY_ATTRIBUTE = 'story.open';
 
     private const string REQUEST_ID_PREFIX = 'req';
 
@@ -96,6 +105,19 @@ final readonly class LogRequestStory
 
         $response->headers->set(self::REQUEST_ID_HEADER, $requestId);
 
+        if ($response instanceof StreamedResponse) {
+            // Left at its default, PHP kills the script on the write that
+            // first fails after the client is gone — every line after it,
+            // this middleware's terminate() included, never runs. This opts
+            // out, so the stream's own connection_aborted() check is what
+            // decides when to stop.
+            ignore_user_abort(true);
+
+            $request->attributes->set(self::OPEN_STORY_ATTRIBUTE, $story);
+
+            return $response;
+        }
+
         $status = $response->getStatusCode();
         $story->did("{$request->method()} {$path} {$status}", [
             'status' => $status,
@@ -103,6 +125,34 @@ final readonly class LogRequestStory
         ]);
 
         return $response;
+    }
+
+    /**
+     * The closing half of a streamed response's story: `handle()` returns
+     * before the stream body has run, so the `did` line that covers the held
+     * connection is written here instead, once the framework calls this
+     * after the response has finished sending. A request that never opened a
+     * stream stashed nothing, so there is nothing to close.
+     */
+    public function terminate(Request $request, Response $response): void
+    {
+        $story = $request->attributes->get(self::OPEN_STORY_ATTRIBUTE);
+
+        if (! $story instanceof Story) {
+            return;
+        }
+
+        $path = $this->path($request);
+        $status = $response->getStatusCode();
+
+        // PHP learns a stream's client is gone only from a failed write, so
+        // the eventStream loop this closes has already broken out by the
+        // time the abort is visible here.
+        $story->did("{$request->method()} {$path} {$status}", [
+            'status' => $status,
+            'db' => DbActivity::snapshot(),
+            'disconnected' => connection_aborted() === 1 ? true : null,
+        ]);
     }
 
     private function requestId(Request $request): string
