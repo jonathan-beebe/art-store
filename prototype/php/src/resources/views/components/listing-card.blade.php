@@ -8,7 +8,7 @@
 
 <article class="flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface">
     <a href="{{ route('shop.listing', $listing) }}" class="block">
-        <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}"
+        <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}" loading="lazy"
              class="aspect-square w-full object-cover">
     </a>
     <div class="flex flex-1 flex-col gap-2 p-4">
