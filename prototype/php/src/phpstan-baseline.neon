@@ -7,12 +7,6 @@ parameters:
 			path: app/Actions/Cart/AddToCart.php
 
 		-
-			message: '#^Cognitive complexity for "App\\Http\\Requests\\Seller\\DescriptionSectionRequest\:\:completeRows\(\)" is 9, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Http/Requests/Seller/DescriptionSectionRequest.php
-
-		-
 			message: '#^Cognitive complexity for "App\\Http\\Requests\\Seller\\ListingRequest\:\:validateRows\(\)" is 16, keep it under 8$#'
 			identifier: complexity.functionLike
 			count: 1
