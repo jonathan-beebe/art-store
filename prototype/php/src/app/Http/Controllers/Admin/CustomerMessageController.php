@@ -35,24 +35,7 @@ final class CustomerMessageController extends AdminController
             // box.
             $request->flash();
 
-            // DSGN-006: the show page's list pane, windowed the same way
-            // `CustomerController::show` windows it (`ListPaneWindow`,
-            // DSGN-006 follow-up).
-            $window = ListPaneWindow::of(
-                Customer::query()
-                    ->inStanding(StandingFilter::All)
-                    ->with('activeBlock')
-                    ->withCount(['orders', 'favorites', 'cartItems'])
-                    ->orderByDesc('created_at')
-                    ->orderByDesc('id'),
-                $customer,
-            );
-
-            return $this->tooManyRequests($exceeded, 'admin.customers.show', [
-                'customer' => $customer->loadForConsole(),
-                'cellCustomers' => $window->items,
-                'cellCustomersTotal' => $window->total,
-            ]);
+            return $this->tooManyRequests($exceeded, 'admin.customers.show', $this->customerPage($customer));
         }
 
         $conversation = $send(
@@ -63,5 +46,33 @@ final class CustomerMessageController extends AdminController
         );
 
         return redirect()->route('admin.messages.show', $conversation);
+    }
+
+    /**
+     * The customer page the message form sits on, the same data
+     * `CustomerController::show` renders it from.
+     *
+     * @return array<string, mixed>
+     */
+    private function customerPage(Customer $customer): array
+    {
+        // DSGN-006: the show page's list pane, windowed the same way
+        // `CustomerController::show` windows it (`ListPaneWindow`, DSGN-006
+        // follow-up).
+        $window = ListPaneWindow::of(
+            Customer::query()
+                ->inStanding(StandingFilter::All)
+                ->with('activeBlock')
+                ->withCount(['orders', 'favorites', 'cartItems'])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+            $customer,
+        );
+
+        return [
+            'customer' => $customer->loadForConsole(),
+            'cellCustomers' => $window->items,
+            'cellCustomersTotal' => $window->total,
+        ];
     }
 }
