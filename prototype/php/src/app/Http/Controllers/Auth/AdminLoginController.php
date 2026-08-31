@@ -6,11 +6,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\SendMagicLink;
 use App\Domain\Auth\ActorType;
-use App\Domain\Auth\EmailNormalizer;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendAdminMagicLinkRequest;
+use App\Support\RateLimiting\EmailRateLimitKey;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -42,7 +42,7 @@ final class AdminLoginController extends Controller
     {
         try {
             $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
-                'email:'.hash('sha256', EmailNormalizer::normalize($request->email())),
+                EmailRateLimitKey::for($request->email()),
                 'ip:'.$request->ip(),
             ]);
         } catch (RateLimitExceeded $exceeded) {
