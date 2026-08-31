@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-08-31:10:17:30 — DSGN-008 — done: the design system is audited, accurate, and complete — full rendered sweep of storefront (anonymous session), seller, and admin (live magic-link sessions) against /design-system; home page joins the layouts section, browse wireframe relabeled with the category variant, 2-up→3-up caption fixed, mobile explorations (buy bar, swipe gallery, cover rail) self-label unshipped with the browse sheet as the shipped pattern, on-photo/photo-scrim rated via Contrast::compositeOver() (7.2 AA floor), card-fields and order-item-detail demos added, theme.php contract scoped to the storefront (3ffa5c8); reviewer accepted with one advisory follow-up (serialized-unit Piece line absent from the order-item preview); larger follow-ups recorded in the ticket: seller/admin wear zero Warm Craft tokens, browse pill vs x-ui.chip divergence, ticket ids in code comments repo-wide
+
+- 2026-08-31:09:18:53 — DSGN-008 — started
+
 - 2026-08-31:09:18:30 — IMPRV-020 — done: the request story closes when a stream actually ends — LogRequestStory defers a StreamedResponse's did to terminate(), stashing the open Story on the request attributes; duration_ms covers the held stream, data.db the tick queries, data.disconnected: true marks a client that left; ignore_user_abort keeps terminate() reachable past the failed write (30fc6e8); four new sidecar tests, live-curl verified (26s lifetime, 5s abandon), reviewer accepted with no rework items
 
 - 2026-08-31:08:26:09 — IMPRV-020 — started
