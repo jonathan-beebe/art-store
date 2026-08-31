@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-31:07:01:30 — RFCTR-011 — started
+
 - 2026-08-31:06:54:25 — RFCTR-013 — defined: the complexity baseline's last two entries
 
 - 2026-08-31:06:54:25 — RFCTR-012 — defined: seller request row validation under the ceiling

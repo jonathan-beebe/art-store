@@ -46,21 +46,53 @@ final readonly class ConfiguratorPublishValidation
         array $attributedPropertyIds = [],
         array $standaloneOptions = [],
     ): array {
+        return [
+            ...self::variantIssues($axisIds, $variants),
+            ...self::requiredAttributeIssues($requiredAttributePropertyIds, $attributedPropertyIds),
+            ...self::standaloneOptionIssues($standaloneOptions),
+            ...self::optionCountIssues($optionCountsPerAxis),
+            ...self::thresholdIssues($variants, $modifierCount, $quantityBreakCount, $sectionCount),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $axisIds
+     * @param  list<VariantSnapshot>  $variants
+     * @return list<PublishIssue>
+     */
+    private static function variantIssues(array $axisIds, array $variants): array
+    {
         $issues = [];
 
         foreach ($variants as $variant) {
-            if ($variant->enabled && $variant->priceCents < 0) {
+            if (! $variant->enabled) {
+                continue;
+            }
+
+            if ($variant->priceCents < 0) {
                 $issues[] = PublishIssue::of('variant_priced_negative', "Variant {$variant->id} is priced below zero.", $variant->id);
             }
 
-            if ($variant->enabled && array_diff($axisIds, $variant->axisIdsCovered) !== []) {
+            if (array_diff($axisIds, $variant->axisIdsCovered) !== []) {
                 $issues[] = PublishIssue::of('variant_missing_axis_value', "Variant {$variant->id} does not carry a value for every axis.", $variant->id);
             }
 
-            if ($variant->enabled && $variant->isSerialized && $variant->availableUnitCount < 1) {
+            if ($variant->isSerialized && $variant->availableUnitCount < 1) {
                 $issues[] = PublishIssue::of('serialized_variant_has_no_units', "Serialized variant {$variant->id} has no available unit.", $variant->id);
             }
         }
+
+        return $issues;
+    }
+
+    /**
+     * @param  list<string>  $requiredAttributePropertyIds
+     * @param  list<string>  $attributedPropertyIds
+     * @return list<PublishIssue>
+     */
+    private static function requiredAttributeIssues(array $requiredAttributePropertyIds, array $attributedPropertyIds): array
+    {
+        $issues = [];
 
         foreach ($requiredAttributePropertyIds as $propertyId) {
             if (! in_array($propertyId, $attributedPropertyIds, true)) {
@@ -68,19 +100,48 @@ final readonly class ConfiguratorPublishValidation
             }
         }
 
+        return $issues;
+    }
+
+    /**
+     * @param  list<StandaloneOptionSnapshot>  $standaloneOptions
+     * @return list<PublishIssue>
+     */
+    private static function standaloneOptionIssues(array $standaloneOptions): array
+    {
+        $issues = [];
+
         foreach ($standaloneOptions as $option) {
             if ($option->priceCents === null || $option->priceCents < 0) {
                 $issues[] = PublishIssue::of('option_missing_price', "Option {$option->id} has no price.", $option->id);
             }
         }
 
+        return $issues;
+    }
+
+    /**
+     * @param  list<int>  $optionCountsPerAxis
+     * @return list<PublishIssue>
+     */
+    private static function optionCountIssues(array $optionCountsPerAxis): array
+    {
         foreach ($optionCountsPerAxis as $count) {
             if ($count > self::MAX_OPTIONS_PER_AXIS) {
-                $issues[] = PublishIssue::of('axis_too_many_options', 'An axis holds more than '.self::MAX_OPTIONS_PER_AXIS.' options.');
-
-                break;
+                return [PublishIssue::of('axis_too_many_options', 'An axis holds more than '.self::MAX_OPTIONS_PER_AXIS.' options.')];
             }
         }
+
+        return [];
+    }
+
+    /**
+     * @param  list<VariantSnapshot>  $variants
+     * @return list<PublishIssue>
+     */
+    private static function thresholdIssues(array $variants, int $modifierCount, int $quantityBreakCount, int $sectionCount): array
+    {
+        $issues = [];
 
         if (count($variants) > self::MAX_VARIANTS) {
             $issues[] = PublishIssue::of('too_many_variants', 'The listing holds more than '.self::MAX_VARIANTS.' variants.');
