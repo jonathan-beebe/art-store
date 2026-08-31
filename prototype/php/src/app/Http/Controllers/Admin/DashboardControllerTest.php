@@ -23,6 +23,13 @@ it('has a skip-to-content link targeting the main landmark', function (): void {
     $response->assertSee('<main id="main-content"', escape: false);
 });
 
+it('announces the live Messages badge to assistive tech', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertSee('data-live-badge="Messages"', false);
+    $response->assertSee('aria-live="polite" aria-atomic="true"', false);
+});
+
 it('renders no list pane — a full-content section, not list+detail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 

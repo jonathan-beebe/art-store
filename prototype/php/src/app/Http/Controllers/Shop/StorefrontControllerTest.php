@@ -28,6 +28,13 @@ it('has a skip-to-content link targeting the main landmark', function (): void {
     $response->assertSee('<main id="main-content"', escape: false);
 });
 
+it('announces the live Messages badge to assistive tech', function (): void {
+    $response = $this->get('/');
+
+    $response->assertSee('data-live-badge="Messages"', false);
+    $response->assertSee('aria-live="polite" aria-atomic="true"', false);
+});
+
 it('shows the listings cover image on its shop card', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Harbour at Dawn']);

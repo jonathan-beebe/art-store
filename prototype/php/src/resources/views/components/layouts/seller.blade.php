@@ -25,7 +25,7 @@
                     <a href="{{ route('seller.orders.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Orders</a>
                     <a href="{{ route('seller.earnings') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Earnings</a>
                     <a href="{{ route('seller.notifications.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Notifications</a>
-                    <a href="{{ route('seller.messages.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" data-live-badge="Messages" data-events-url="{{ route('seller.events') }}">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
+                    <a href="{{ route('seller.messages.index') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" data-live-badge="Messages" data-events-url="{{ route('seller.events') }}" aria-live="polite" aria-atomic="true">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                     <a href="{{ route('seller.support') }}" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">Support</a>
                 </nav>
             @endauth
