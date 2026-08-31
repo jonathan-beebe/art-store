@@ -1,7 +1,7 @@
 ---
 id: RFCTR-012
 type: refactor
-status: open
+status: resolved
 created: 2026-08-31
 ---
 

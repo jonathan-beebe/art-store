@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-08-31:08:00:24 — RFCTR-012 — done: seller request row validation under the ceiling — OptionValueRequest rule closures become surchargeRule()/priceRule(), DescriptionSectionRequest's row mapping extracts to rowValues(), ListingRequest::validateRows() reads normalize → skip blank → flag via three helpers; scores 9→0, 9→5, 16→6, three baseline entries deleted, sidecars unmodified (f1493f5, b7aca11, 98d16ec); reviewer accepted with two minor follow-ups queued (flagIncompleteRow naming, sibling staticness)
+
+- 2026-08-31:07:56:46 — RFCTR-013 — started
+
 - 2026-08-31:07:32:55 — RFCTR-011 — done: configurator complexity cleared — ConfiguratorPageResolver splits into SelectedAxisValues, ModifiersPresentation, SerializedUnitsPresentation collaborators; publish validation flattens to per-rule-family methods; pricer's line builder dispatches; six baseline entries deleted, sidecars unmodified, gate green (c385f06, 2e2097b); reviewer accepted with two pre-existing advisories (positional tuples idiom, cross-family issue order unpinned)
 
 - 2026-08-31:07:27:05 — RFCTR-012 — started
