@@ -285,8 +285,13 @@ uploaded listing images together. FrankenPHP serves `public/build/*` and
 occupy a PHP process — and hands every other request to PHP in classic
 per-request mode, the same as `artisan serve`; Octane-style worker mode is
 not in use, since `App\Logging\LogStore` assumes one request per process.
-Capacity is governed by FrankenPHP's own threading rather than a fixed
-worker count, so there is no `PHP_CLI_SERVER_WORKERS` equivalent to set.
+Capacity is governed by FrankenPHP's thread pool. `docker/Caddyfile` pins
+the floor at 16 threads (`FRANKENPHP_NUM_THREADS` overrides) with
+on-demand growth to 40 (`FRANKENPHP_MAX_THREADS`) — sized above the dev
+stack's sixteen `artisan serve` workers, because FrankenPHP's own default
+(2×CPU) collapses to two threads on a one-CPU instance and a pair of held
+SSE streams then parks the whole pool. There is no `PHP_CLI_SERVER_WORKERS`
+equivalent; these two variables are the knob.
 
 Build it:
 
