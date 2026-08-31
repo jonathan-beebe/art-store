@@ -6,13 +6,15 @@
 - DSGN: 1
 - ARCH: 1
 - FEAT: 22
-- IMPRV: 4
+- IMPRV: 5
 - MAINT: 4
 - A11Y: 1
 - RFCTR: 16
 - BUG: 6
 
 ## Log
+
+- 2026-08-31:18:08:55 — IMPRV-004 — defined: the commit gate pays only for what changed (seeded from php IMPRV-021)
 
 - 2026-08-24:12:30:00 — MAINT-003 — done: docs and README refreshed against the code, route walk with no 5xx, hook demonstrated refusing a failing commit, Node-lane alignment fixes; 1262 runs / 4506 assertions / 100% lines
 - 2026-08-24:10:05:00 — MAINT-003 — started
