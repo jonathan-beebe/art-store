@@ -32,6 +32,19 @@ it('refuses a second refund', function (): void {
     expect(Refund::count())->toBe(1);
 });
 
+it('refuses an invalid reason', function (mixed $reason): void {
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->post("/admin/fulfillments/{$fulfillment->id}/refund", ['reason' => $reason]);
+
+    $response->assertSessionHasErrors('reason');
+    expect(Refund::count())->toBe(0);
+})->with([
+    'missing' => [''],
+    'over the character limit' => [str_repeat('a', 501)],
+]);
+
 it('refuses to refund a fulfillment on an unpaid order', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
     $fulfillment = $order->fulfillments()->sole();
