@@ -58,6 +58,36 @@ it('names an option-less combo label generically', function (): void {
     expect($variant->comboLabel())->toBe('This combination');
 });
 
+it('flags an offered, tracked combination at the low-stock threshold as low on stock', function (): void {
+    $variant = Variant::factory()->create(['quantity' => Variant::LOW_STOCK_MAX_QUANTITY]);
+
+    expect($variant->isLowOnStock())->toBeTrue();
+});
+
+it('does not flag a combination above the low-stock threshold', function (): void {
+    $variant = Variant::factory()->create(['quantity' => Variant::LOW_STOCK_MAX_QUANTITY + 1]);
+
+    expect($variant->isLowOnStock())->toBeFalse();
+});
+
+it('never flags an untracked combination as low on stock', function (): void {
+    $variant = Variant::factory()->create(['quantity' => null]);
+
+    expect($variant->isLowOnStock())->toBeFalse();
+});
+
+it('never flags a combination not offered as low on stock', function (): void {
+    $variant = Variant::factory()->disabled()->create(['quantity' => 1]);
+
+    expect($variant->isLowOnStock())->toBeFalse();
+});
+
+it('never flags a serialized combination as low on stock — its stock reads off its pieces', function (): void {
+    $variant = Variant::factory()->create(['is_serialized' => true, 'quantity' => 1]);
+
+    expect($variant->isLowOnStock())->toBeFalse();
+});
+
 it('counts only its available units', function (): void {
     $variant = Variant::factory()->serialized()->create();
     Unit::factory()->count(2)->create(['variant_id' => $variant->id]);

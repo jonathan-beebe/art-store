@@ -6,10 +6,6 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\OptionAxis> $axes */
     /** @var \Illuminate\Support\Collection<int, \App\Models\Variant> $variants */
 
-    // A combination's own stock reads as low at the same threshold the
-    // editor hub's summary card already uses.
-    $lowStockMaxQuantity = 3;
-
     $noChoices = $axes->isEmpty();
 
     // With no choices there is at most one combination — the schema's empty
@@ -61,7 +57,6 @@
                                 @foreach ($variants as $variant)
                                     @php
                                         $buyersPayFromChoices = VariantBuyerPrice::withoutOverride($listing->price(), $variant);
-                                        $isLowStock = $variant->quantity !== null && $variant->quantity <= $lowStockMaxQuantity;
                                     @endphp
                                     <tr id="{{ $variant->id }}" class="{{ $variant->enabled ? '' : 'bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600' }}">
                                         <td class="px-3 py-2 font-medium">{{ $variant->comboLabel() }}</td>
@@ -104,7 +99,7 @@
                                                     @else
                                                         <label for="quantity-{{ $variant->id }}" class="sr-only">In stock</label>
                                                         <input id="quantity-{{ $variant->id }}" name="quantity" type="number" step="1" min="0" value="{{ old('quantity', $variant->quantity) }}" class="mt-1 block w-20 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                                        @if ($isLowStock)
+                                                        @if ($variant->isLowOnStock())
                                                             <span class="font-medium text-amber-700 dark:text-amber-500">low</span>
                                                         @endif
                                                     @endif

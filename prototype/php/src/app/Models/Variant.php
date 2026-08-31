@@ -30,6 +30,12 @@ use Override;
 #[Fillable(['listing_id', 'combo_key', 'sku', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
 class Variant extends Model
 {
+    /**
+     * A variant at or below this available quantity reads as low on stock,
+     * on both the choices summary card and the combinations table.
+     */
+    public const int LOW_STOCK_MAX_QUANTITY = 3;
+
     /** @use HasFactory<VariantFactory> */
     use HasFactory;
 
@@ -118,6 +124,20 @@ class Variant extends Model
         $labels = $this->options->map(fn (VariantOption $option): ?string => $option->optionValue?->label)->filter()->values();
 
         return $labels->isEmpty() ? 'This combination' : $labels->implode(' · ');
+    }
+
+    /**
+     * Whether this combination is worth flagging as running low: it is
+     * offered, tracked (not serialized — a piece listing's stock reads off
+     * its units instead), and its remaining count is at or under the
+     * threshold. An untracked (null) quantity never reads as low.
+     */
+    public function isLowOnStock(): bool
+    {
+        return $this->enabled
+            && ! $this->is_serialized
+            && $this->quantity !== null
+            && $this->quantity <= self::LOW_STOCK_MAX_QUANTITY;
     }
 
     public function availability(): VariantAvailability
