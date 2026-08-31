@@ -9,15 +9,33 @@
     <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @foreach ($pairings as $pair)
             <div class="overflow-hidden rounded-card border border-line">
-                <div class="px-5 py-6" style="background: var(--ui-{{ $pair['bg'] }})">
-                    <p class="text-lg font-medium" style="color: var(--ui-{{ $pair['fg'] }})">Wheel-thrown, glazed in satin oat white.</p>
-                </div>
-                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-surface px-4 py-2.5">
-                    <span class="text-xs font-semibold text-ink">{{ $pair['fg'] }} <span class="font-normal text-ink-faint">on</span> {{ $pair['bg'] }}</span>
-                    <span class="flex gap-1.5 font-mono text-[11px]">
-                        <span class="rounded-full px-2 py-0.5 {{ $pair['lightAa'] ? 'bg-success-surface text-success' : 'bg-danger-surface text-danger' }}">light {{ number_format($pair['light'], 1) }}</span>
-                        <span class="rounded-full px-2 py-0.5 {{ $pair['darkAa'] ? 'bg-success-surface text-success' : 'bg-danger-surface text-danger' }}">dark {{ number_format($pair['dark'], 1) }}</span>
-                    </span>
+                @if ($pair['bg'] === 'photo-scrim')
+                    {{-- photo-scrim is a gradient over an unknown photo, never
+                         a flat fill — this swatch shows it the way it ships:
+                         the real .bg-photo-scrim gradient over a plain white
+                         ground standing in for the lightest photo it could
+                         sit on. --}}
+                    <div class="relative h-32 bg-white">
+                        <span class="bg-photo-scrim absolute inset-x-0 bottom-0 flex items-baseline justify-between gap-2 px-3 pb-2 pt-6 text-on-photo">
+                            <p class="text-lg font-medium">Wheel-thrown, glazed in satin oat white.</p>
+                        </span>
+                    </div>
+                @else
+                    <div class="px-5 py-6" style="background: var(--ui-{{ $pair['bg'] }})">
+                        <p class="text-lg font-medium" style="color: var(--ui-{{ $pair['fg'] }})">Wheel-thrown, glazed in satin oat white.</p>
+                    </div>
+                @endif
+                <div class="border-t border-line bg-surface px-4 py-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs font-semibold text-ink">{{ $pair['fg'] }} <span class="font-normal text-ink-faint">on</span> {{ $pair['bg'] }}</span>
+                        <span class="flex gap-1.5 font-mono text-[11px]">
+                            <span class="rounded-full px-2 py-0.5 {{ $pair['lightAa'] ? 'bg-success-surface text-success' : 'bg-danger-surface text-danger' }}">light {{ number_format($pair['light'], 1) }}</span>
+                            <span class="rounded-full px-2 py-0.5 {{ $pair['darkAa'] ? 'bg-success-surface text-success' : 'bg-danger-surface text-danger' }}">dark {{ number_format($pair['dark'], 1) }}</span>
+                        </span>
+                    </div>
+                    @if ($pair['bg'] === 'photo-scrim')
+                        <p class="mt-1 text-[11px] text-ink-faint">Rated against the scrim composited over a worst-case white photo — the real photograph beneath it only ever makes this darker.</p>
+                    @endif
                 </div>
             </div>
         @endforeach

@@ -40,17 +40,42 @@ final class Contrast
     }
 
     /**
+     * Alpha-blends a translucent `#rrggbb` fill over an opaque `#rrggbb`
+     * ground, per-channel, and returns the resulting opaque `#rrggbb`. What
+     * a contrast check needs before rating a translucent fill: the ratio
+     * belongs to what the eye actually sees, not the fill's own color.
+     */
+    public static function compositeOver(string $fillHex, float $alpha, string $groundHex): string
+    {
+        [$fillRed, $fillGreen, $fillBlue] = self::channels($fillHex);
+        [$groundRed, $groundGreen, $groundBlue] = self::channels($groundHex);
+
+        return sprintf(
+            '#%02x%02x%02x',
+            (int) round($fillRed * $alpha + $groundRed * (1 - $alpha)),
+            (int) round($fillGreen * $alpha + $groundGreen * (1 - $alpha)),
+            (int) round($fillBlue * $alpha + $groundBlue * (1 - $alpha)),
+        );
+    }
+
+    /**
      * Relative luminance of a `#rrggbb` color per WCAG 2.
      */
     private static function luminance(string $hex): float
     {
+        [$red, $green, $blue] = self::channels($hex);
+
+        return 0.2126 * self::channel($red / 255) + 0.7152 * self::channel($green / 255) + 0.0722 * self::channel($blue / 255);
+    }
+
+    /**
+     * @return array{int, int, int}
+     */
+    private static function channels(string $hex): array
+    {
         $value = ltrim($hex, '#');
 
-        $red = self::channel(hexdec(substr($value, 0, 2)) / 255);
-        $green = self::channel(hexdec(substr($value, 2, 2)) / 255);
-        $blue = self::channel(hexdec(substr($value, 4, 2)) / 255);
-
-        return 0.2126 * $red + 0.7152 * $green + 0.0722 * $blue;
+        return [(int) hexdec(substr($value, 0, 2)), (int) hexdec(substr($value, 2, 2)), (int) hexdec(substr($value, 4, 2))];
     }
 
     private static function channel(float $value): float

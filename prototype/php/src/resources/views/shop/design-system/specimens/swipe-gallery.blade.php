@@ -1,4 +1,6 @@
 <x-specimen-layout title="Swipe gallery — specimen">
+    <x-ui.alert tone="notice" class="m-4">Exploration — not shipped. The listing page shows a cover photo and thumbnail grid; this swipe carousel stays here as an unshipped alternative.</x-ui.alert>
+
     @php
         $listing = $listings->first();
         $images = $listing?->images ?? collect();

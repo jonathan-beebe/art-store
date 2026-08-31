@@ -61,3 +61,9 @@ it('shows the single photo with a nudge when a listing has no gallery yet', func
     $response->assertOk();
     $response->assertSee('One photo on this listing');
 });
+
+it('marks the buy bar, swipe gallery, and cover rail specimens as unshipped explorations on their own page', function (): void {
+    $this->get('/design-system/specimens/buy-bar')->assertOk()->assertSee('Exploration — not shipped', false);
+    $this->get('/design-system/specimens/swipe-gallery')->assertOk()->assertSee('Exploration — not shipped', false);
+    $this->get('/design-system/specimens/cover-rail')->assertOk()->assertSee('Exploration — not shipped', false);
+});

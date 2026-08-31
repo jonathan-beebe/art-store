@@ -36,3 +36,18 @@ it('passes large-text AA at 3.0 and fails just under it', function (): void {
     expect(Contrast::meetsAaLarge(3.0))->toBeTrue()
         ->and(Contrast::meetsAaLarge(2.99))->toBeFalse();
 });
+
+it('composites a fully opaque fill as the fill color, ignoring the ground', function (): void {
+    expect(Contrast::compositeOver('#1a110c', 1.0, '#ffffff'))->toEqual('#1a110c');
+});
+
+it('composites a fully transparent fill as the ground color, ignoring the fill', function (): void {
+    expect(Contrast::compositeOver('#1a110c', 0.0, '#ffffff'))->toEqual('#ffffff');
+});
+
+it('blends a translucent fill toward its ground by the alpha', function (): void {
+    // photo-scrim over a worst-case white photo, at the 0.72 stop
+    // resources/css/app.css's .bg-photo-scrim gradient reaches: rgb(26,17,12)
+    // * 0.72 + rgb(255,255,255) * 0.28 rounds to rgb(90,84,80).
+    expect(Contrast::compositeOver('#1a110c', 0.72, '#ffffff'))->toEqual('#5a5450');
+});

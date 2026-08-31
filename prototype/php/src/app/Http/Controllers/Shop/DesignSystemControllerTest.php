@@ -115,3 +115,72 @@ it('renders the configurator specimen live: selections reprice on this page', fu
     $repriced->assertOk();
     $repriced->assertSee('$128.00');
 });
+
+it('documents the home page as a third layout shape and names the browse-shape variants correctly', function (): void {
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    // The home page's own anatomy.
+    $response->assertSee('Home — storefront root');
+    $response->assertSee('Featured band');
+    $response->assertSee('Just listed');
+    $response->assertSee('More to explore');
+    $response->assertSee('wayfinding footer');
+    // listing-grid.blade.php never renders 1-up.
+    $response->assertSee('2-up → 3-up as the viewport grows', false);
+    $response->assertDontSee('1-up → 2-up → 3-up');
+    // The browse wireframe now names /medium and covers /browse's shape.
+    $response->assertSee('Medium — browse');
+    $response->assertSee('/browse/{categoryPath}', false);
+});
+
+it('presents the browse sheet as the shipped mobile pattern and the rest as explorations', function (): void {
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('the shipped pattern', false);
+    $response->assertSee('an exploration the product does not currently wear', false);
+    $response->assertDontSee('sticky buy bar, swipe galleries');
+});
+
+it('rates on-photo on photo-scrim honestly, composited over a worst-case white photo', function (): void {
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('on-photo');
+    $response->assertSee('photo-scrim');
+    $response->assertSee('worst-case white photo', false);
+    // Still meets AA in both modes, alongside every other rated pairing.
+    $response->assertDontSee('bg-danger-surface text-danger">light');
+    $response->assertDontSee('bg-danger-surface text-danger">dark');
+});
+
+it('renders the card fields component live, with checkout\'s fake-card guidance', function (): void {
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('Card number');
+    $response->assertSee('4242 4242 4242 4242');
+});
+
+it('notes no order-item-detail specimen exists until a listing resolves a variant', function (): void {
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('No configured for-sale listing yet');
+});
+
+it('renders a real order line for order-item-detail from the configurator specimen listing', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Goblin-Wrought Ring', 'price_cents' => 12000]);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+
+    $response = $this->get('/design-system');
+
+    $response->assertOk();
+    $response->assertSee('Order item detail');
+    $response->assertSee('Metal:', false);
+    $response->assertSee('Gold');
+    $response->assertDontSee('No configured for-sale listing yet');
+});

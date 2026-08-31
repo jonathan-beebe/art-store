@@ -31,6 +31,7 @@
         'listings' => $listings,
         'configurable' => $configurable,
         'configuration' => $configuration,
+        'orderItemPreview' => $orderItemPreview,
         'focusId' => $focusId,
     ])
     @include('shop.design-system.mobile')
