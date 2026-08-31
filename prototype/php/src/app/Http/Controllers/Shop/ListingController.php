@@ -44,6 +44,7 @@ final class ListingController extends ShopController
                 'seller', 'faqs',
                 'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position'),
                 'images' => fn (Relation $query): Relation => $query->orderBy('position'),
+                'listingAttributes.property', 'listingAttributes.propertyValue',
             ]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),

@@ -26,7 +26,9 @@ final class ListingHighlights
         $byPropertyId = [];
         $order = [];
 
-        foreach ($listing->listingAttributes()->with(['property', 'propertyValue'])->get() as $attribute) {
+        $listing->loadMissing(['listingAttributes.property', 'listingAttributes.propertyValue']);
+
+        foreach ($listing->listingAttributes as $attribute) {
             if ($attribute->property->name === 'Medium') {
                 continue;
             }
