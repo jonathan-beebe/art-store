@@ -12,6 +12,7 @@ use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
 use DomainException;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
@@ -186,6 +187,30 @@ it('drops for_sale from the transitions it offers while removed', function (): v
     ListingRemoval::factory()->create(['listing_id' => $listing->id]);
 
     expect($listing->availableTransitions())->toBe([]);
+});
+
+it('reads the eager-loaded activeRemoval relation rather than a fresh query', function (): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::Sold]);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+    $listing->load('activeRemoval');
+
+    $removalQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$removalQueries): void {
+        $removalQueries += str_contains($query->sql, 'listing_removals') ? 1 : 0;
+    });
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([])
+        ->and($removalQueries)->toBe(0);
+});
+
+it('falls back to a fresh check when the relation was not eager-loaded', function (): void {
+    $listing = $this->listing($this->seller(), ['status' => ListingStatus::Sold]);
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([ListingStatus::ForSale]);
+
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    expect($listing->availableTransitionsFromEagerLoad())->toBe([]);
 });
 
 it('narrows the admin list by removal state', function (RemovedFilter $filter, string $expectedTitle): void {

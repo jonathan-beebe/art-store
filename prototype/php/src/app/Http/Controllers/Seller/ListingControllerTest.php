@@ -27,8 +27,10 @@ use App\Models\Variant;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\Sequence;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @param  array<string, mixed>  $overrides
@@ -92,6 +94,23 @@ it('shows the event counts for each listing', function (): void {
             && $listing->favorites_count === 0
             && $listing->cart_adds_count === 1;
     });
+});
+
+it('resolves every rows available transitions without a removal query per row', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Harbour at Dawn']);
+    $this->listing($seller, ['title' => 'Winter Elm']);
+    $this->listing($seller, ['title' => 'Sunset Ridge']);
+
+    $removalQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$removalQueries): void {
+        $removalQueries += str_contains($query->sql, 'listing_removals') ? 1 : 0;
+    });
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    expect($removalQueries)->toBe(1);
 });
 
 it('shows a placeholder thumbnail for a listing without an image', function (): void {

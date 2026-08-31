@@ -41,7 +41,7 @@
                                 <span class="flex flex-wrap items-center gap-2">
                                     <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-1">Edit</a>
 
-                                    @foreach ($listing->availableTransitions() as $next)
+                                    @foreach ($listing->availableTransitionsFromEagerLoad() as $next)
                                         <form method="POST" action="{{ route('seller.listings.status', $listing->id) }}">
                                             @csrf
                                             <input type="hidden" name="status" value="{{ $next->value }}">

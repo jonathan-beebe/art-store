@@ -34,7 +34,7 @@ final class ListingController extends SellerController
     public function index(): View
     {
         return view('seller.listings.index', [
-            'listings' => $this->seller()->listings()->withEventCounts()->orderByDesc('created_at')->orderByDesc('id')->get(),
+            'listings' => $this->seller()->listings()->withEventCounts()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
         ]);
     }
 
