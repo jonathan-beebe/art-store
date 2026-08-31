@@ -16,6 +16,13 @@ it('renders the admin dashboard', function (): void {
     $response->assertSee('Dashboard');
 });
 
+it('has a skip-to-content link targeting the main landmark', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
+
+    $response->assertSee('<a href="#main-content"', escape: false);
+    $response->assertSee('<main id="main-content"', escape: false);
+});
+
 it('renders no list pane — a full-content section, not list+detail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 

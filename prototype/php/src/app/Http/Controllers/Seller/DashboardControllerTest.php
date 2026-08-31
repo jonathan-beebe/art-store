@@ -22,6 +22,13 @@ it('renders the seller dashboard', function (): void {
     $response->assertSee('Dashboard');
 });
 
+it('has a skip-to-content link targeting the main landmark', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
+
+    $response->assertSee('<a href="#main-content"', escape: false);
+    $response->assertSee('<main id="main-content"', escape: false);
+});
+
 it('links the built stylesheet', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
 

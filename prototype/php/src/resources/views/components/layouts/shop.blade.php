@@ -23,6 +23,8 @@
     <x-theme-css />
 </head>
 <body class="supports-dark h-full bg-canvas font-body text-ink antialiased">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-accent focus:px-4 focus:py-2 focus:font-medium focus:text-on-accent">Skip to content</a>
+
     <x-debug-alert />
 
     <header class="border-b border-line">
@@ -60,7 +62,7 @@
          that has none. --}}
     {{ $beforeMain ?? '' }}
 
-    <main class="mx-auto max-w-6xl px-8 pb-24 pt-12">
+    <main id="main-content" class="mx-auto max-w-6xl px-8 pb-24 pt-12">
         @if (session('error') || $errors->any())
             <x-ui.alert tone="danger" class="mb-10">
                 @if (session('error'))

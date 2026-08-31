@@ -57,6 +57,8 @@
     <x-theme-css />
 </head>
 <body class="supports-dark h-full bg-gray-100 dark:bg-gray-950 font-sans text-sm text-gray-900 dark:text-gray-100 antialiased xl:flex xl:h-screen xl:flex-col xl:overflow-hidden">
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-gray-900 focus:px-4 focus:py-2 focus:font-medium focus:text-white dark:focus:bg-gray-100 dark:focus:text-gray-900">Skip to content</a>
+
     <x-debug-alert />
 
     {{-- Below `xl`: today's header, untouched — brand, inline nav / Menu
@@ -194,7 +196,7 @@
             </div>
         @endif
 
-        <main class="py-6 px-4 {{ $belowXlMainClasses }} @if ($mode === 'list') xl:hidden @else xl:flex xl:min-w-0 xl:flex-1 xl:flex-col xl:overflow-y-auto xl:max-w-none xl:mx-0 xl:px-6 xl:py-6 @endif">
+        <main id="main-content" class="py-6 px-4 {{ $belowXlMainClasses }} @if ($mode === 'list') xl:hidden @else xl:flex xl:min-w-0 xl:flex-1 xl:flex-col xl:overflow-y-auto xl:max-w-none xl:mx-0 xl:px-6 xl:py-6 @endif">
             @if (session('status'))
                 <p role="status" class="mb-4 rounded border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-green-900 dark:text-green-200">{{ session('status') }}</p>
             @endif

@@ -21,6 +21,13 @@ it('shows a for sale listing with its artist and price', function (): void {
     $response->assertSee('$245.00');
 });
 
+it('has a skip-to-content link targeting the main landmark', function (): void {
+    $response = $this->get('/');
+
+    $response->assertSee('<a href="#main-content"', escape: false);
+    $response->assertSee('<main id="main-content"', escape: false);
+});
+
 it('shows the listings cover image on its shop card', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Harbour at Dawn']);
