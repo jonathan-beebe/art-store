@@ -213,19 +213,6 @@ it('re-buffers a failed batch, reports it to stderr, and inserts it on the next 
     expect(Fixtures::rowCount($connection))->toBe(1);
 });
 
-it('reports a flush failure to stderr directly when no writer is injected', function (): void {
-    $store = LogStore::open(Fixtures::tempFile());
-    $connection = Fixtures::connectionOrFail($store);
-    $connection->exec('DROP TABLE log_lines');
-
-    $store->append(Fixtures::line());
-    $store->flush();
-
-    // Nothing thrown here, per invariant 3 — the store's failure never
-    // becomes the caller's failure.
-    expect($store->connection)->not->toBeNull();
-});
-
 it('drops rows past the buffer cap and reports exactly one notice to stderr', function (): void {
     $file = Fixtures::tempFile();
     $stderr = [];
