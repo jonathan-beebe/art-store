@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Listings\ListingStatus;
 use App\Models\Category;
+use App\Models\Favorite;
 use App\Models\ListingRemoval;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('shows a for sale listing with its artist and price', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
@@ -133,6 +136,47 @@ it('shows a category tile\'s photo cover when a for-sale listing supplies one, a
     // The empty category still renders a tile — a tint fill, never a broken
     // `background-image: url('')`.
     $response->assertDontSee("background-image: url('')", escape: false);
+});
+
+it('runs a query count that holds steady as the categories, mediums, and listings it shows grow (IMPRV-018)', function (): void {
+    $seller = $this->seller();
+
+    // Fifteen root categories, each with a favorited for-sale listing of
+    // its own — the old per-category loop cost two or more queries apiece
+    // on top of this.
+    foreach (range(1, 15) as $index) {
+        $category = Category::factory()->create(['name' => "Category $index", 'path' => "/category-$index/"]);
+        $listing = $this->listing($seller, ['category_id' => $category->id]);
+        Favorite::factory()->create(['listing_id' => $listing->id]);
+    }
+
+    // Fifteen mediums, each with an imaged, favorited for-sale listing —
+    // the old per-medium loop cost the same shape of query per medium.
+    foreach (range(1, 15) as $index) {
+        $listing = $this->listing($seller);
+        $this->mediumAttribute($listing, "Medium $index");
+        $this->listingImage($listing);
+        Favorite::factory()->create(['listing_id' => $listing->id]);
+    }
+
+    // Twenty more for-sale listings to fill Just listed and More to
+    // explore, each carrying its own cover image.
+    foreach (range(1, 20) as $index) {
+        $listing = $this->listing($seller, ['created_at' => moment(sprintf('2026-08-01 00:%02d:00', $index))]);
+        $this->listingImage($listing);
+    }
+
+    $queries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries++;
+    });
+
+    $this->get('/')->assertOk();
+
+    // A fixed ceiling. Fifteen categories and fifteen mediums at even one
+    // query apiece already exceeds it, so a per-item read anywhere in the
+    // page trips this. The actual count at this seed size is 29.
+    expect($queries)->toBeLessThan(35);
 });
 
 it('shows a flashed magic link in the debug alert', function (): void {
