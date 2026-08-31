@@ -9,10 +9,16 @@
 - IMPRV: 21
 - MAINT: 5
 - A11Y: 1
-- RFCTR: 11
+- RFCTR: 14
 - BUG: 15
 
 ## Log
+
+- 2026-08-31:06:54:25 — RFCTR-013 — defined: the complexity baseline's last two entries
+
+- 2026-08-31:06:54:25 — RFCTR-012 — defined: seller request row validation under the ceiling
+
+- 2026-08-31:06:54:25 — RFCTR-011 — defined: the configurator sheds its complexity debt
 
 - 2026-08-31:06:36:30 — FEAT-037 — defined: archived listings stay visitable and legible in the logs
 
