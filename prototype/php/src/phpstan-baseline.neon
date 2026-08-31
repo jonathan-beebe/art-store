@@ -1,13 +1,2 @@
 parameters:
-	ignoreErrors:
-		-
-			message: '#^Cognitive complexity for "App\\Actions\\Cart\\AddToCart\:\:__invoke\(\)" is 9, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Actions/Cart/AddToCart.php
-
-		-
-			message: '#^Cognitive complexity for "App\\Logging\\Admin\\LogRowQuery\:\:conditions\(\)" is 10, keep it under 8$#'
-			identifier: complexity.functionLike
-			count: 1
-			path: app/Logging/Admin/LogRowQuery.php
+	ignoreErrors: []

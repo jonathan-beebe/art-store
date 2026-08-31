@@ -65,14 +65,7 @@ final readonly class AddToCart
             function (Story $story) use ($cart, $listing, $item, $held, $quantity, $raises, $now, $listingHasVariants, $variant, $unitId, $configuration, $answers, $fingerprint): CartItem {
                 CustomerStanding::assertCanShop($cart->loadMissing('customer')->customer->blockReason());
 
-                $item->quantity = $listingHasVariants
-                    ? ConfiguredCartQuantity::withinStock(
-                        $held + $quantity,
-                        $variant !== null && $variant->availability()->available,
-                        $variant !== null && $variant->is_serialized,
-                        $variant?->quantity,
-                    )
-                    : CartQuantity::withinStock($held + $quantity, $listing->quantity, $listing->status, $listing->hasActiveRemoval());
+                $item->quantity = $this->resolveQuantity($listingHasVariants, $listing, $variant, $held + $quantity);
                 $item->variant_id = $variant?->id;
                 $item->unit_id = $unitId;
                 $item->configuration_json = $configuration === [] ? null : $configuration;
@@ -92,5 +85,19 @@ final readonly class AddToCart
                 return $item;
             },
         );
+    }
+
+    /** {@see AddToCart::__invoke()}'s `$listingHasVariants` doc explains why
+     * a listing routes to one stock check or the other, never both. */
+    private function resolveQuantity(bool $listingHasVariants, Listing $listing, ?Variant $variant, int $requestedQuantity): int
+    {
+        return $listingHasVariants
+            ? ConfiguredCartQuantity::withinStock(
+                $requestedQuantity,
+                $variant !== null && $variant->availability()->available,
+                $variant !== null && $variant->is_serialized,
+                $variant?->quantity,
+            )
+            : CartQuantity::withinStock($requestedQuantity, $listing->quantity, $listing->status, $listing->hasActiveRemoval());
     }
 }
