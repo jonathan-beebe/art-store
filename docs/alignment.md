@@ -500,7 +500,7 @@ target the stack has no use for still exists and prints one line saying so.
 | `lint`                                 | style + static analysis, read-only (`eslint`+`tsc`; `pint --test`+`phpstan`; `rubocop`)                   |
 | `lint-fix`                             | the auto-fixable subset applied                                                                           |
 | `assets`                               | build CSS/JS                                                                                              |
-| `check`                                | `lint` → `assets` → `coverage`; the commit gate                                                           |
+| `check`                                | `lint` → `assets` → `coverage`; the full gate, run once per branch before a PR (and again by CI)          |
 | `migrate`, `fresh`, `seed`             | schema and data                                                                                           |
 | `routes`                               | print the route table                                                                                     |
 | `payouts`, `sweep`, `outbox`           | the scheduled jobs, by hand (`AS_OF=`, `DIR=` as today)                                                   |
@@ -513,13 +513,30 @@ target the stack has no use for still exists and prints one line saying so.
 container. Published ports still collide; `make up` in two checkouts of the
 same prototype is refused by Docker, as intended.
 
+php also answers `precommit` (IMPRV-021): lint + the ungated suite in one
+container, the per-commit gate described in §6.2. It is not (yet) shared
+vocabulary — node and rails have no equivalent target, so it is not in the
+table above; a sibling ticket in each may add one, matching name pending.
+
 ### 6.2 Commit gate
 
-`.githooks/pre-commit` at the repository root runs `make -C prototype/<x>
-check` for every prototype with staged changes outside `work/` and `docs/`.
-`make hooks` at the root installs it. CI (`.github/workflows/<x>.yml`) runs
-the same `make check` per prototype on push and pull request, so the hook and
-CI cannot disagree.
+`.githooks/pre-commit` at the repository root runs each prototype's
+per-commit gate for every prototype with staged changes outside `work/` and
+`docs/`; `make hooks` at the root installs it. The per-commit gate differs
+by prototype today:
+
+- php runs `make precommit` (lint + the ungated suite, one container;
+  IMPRV-021). `make check` — the full gate — runs once per branch instead,
+  at PR time: whoever opens the PR runs `make check` by hand or lets CI run
+  it (below), and a change that drops a line of coverage or fails static
+  analysis is still caught there before merge.
+- node and rails still run their full `make check` on every commit.
+
+CI (`.github/workflows/<x>.yml`) runs `make check` per prototype on push and
+pull request for all three, unconditionally of what the pre-commit hook did
+locally — for php this is what actually enforces the full gate before
+merge, since the hook no longer does. A red test suite still blocks a
+commit in every prototype, per-commit gate or full gate alike.
 
 ## 7. Decisions recorded
 
