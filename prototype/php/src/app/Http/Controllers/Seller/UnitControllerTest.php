@@ -304,6 +304,35 @@ it('shows an expanded edit form for the piece named in the edit query parameter'
     $response->assertDontSee('State</label>', false);
 });
 
+it('labels the edit form’s measurement inputs for assistive tech', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    $unit = Unit::factory()->create(['variant_id' => $variant->id, 'label' => '#09']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units?edit={$unit->id}");
+
+    $response->assertOk();
+    $response->assertSee('for="spec-'.$unit->id.'-label-0"', false);
+    $response->assertSee('id="spec-'.$unit->id.'-label-0"', false);
+    $response->assertSee('for="spec-'.$unit->id.'-value-0"', false);
+    $response->assertSee('id="spec-'.$unit->id.'-value-0"', false);
+});
+
+it('labels the add-a-piece form’s measurement inputs for assistive tech', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units");
+
+    $response->assertOk();
+    $response->assertSee('for="spec-add-label-0"', false);
+    $response->assertSee('id="spec-add-label-0"', false);
+    $response->assertSee('for="spec-add-value-0"', false);
+    $response->assertSee('id="spec-add-value-0"', false);
+});
+
 it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

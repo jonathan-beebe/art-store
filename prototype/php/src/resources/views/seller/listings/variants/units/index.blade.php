@@ -44,8 +44,10 @@
                                         <div class="mt-1 flex flex-col gap-2">
                                             @foreach ($piece['specRows'] as $i => $row)
                                                 <div class="flex flex-wrap gap-2">
-                                                    <input type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label", $row['label']) }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                                    <input type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value", $row['value']) }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <label for="spec-{{ $piece['id'] }}-label-{{ $i }}" class="sr-only">Measurement label</label>
+                                                    <input id="spec-{{ $piece['id'] }}-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label", $row['label']) }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <label for="spec-{{ $piece['id'] }}-value-{{ $i }}" class="sr-only">Measurement value</label>
+                                                    <input id="spec-{{ $piece['id'] }}-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value", $row['value']) }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                 </div>
                                             @endforeach
                                         </div>
@@ -107,8 +109,10 @@
                         <div class="mt-1 flex flex-col gap-2">
                             @for ($i = 0; $i < 3; $i++)
                                 <div class="flex flex-wrap gap-2">
-                                    <input type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label") }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
-                                    <input type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value") }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                    <label for="spec-add-label-{{ $i }}" class="sr-only">Measurement label</label>
+                                    <input id="spec-add-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label") }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                    <label for="spec-add-value-{{ $i }}" class="sr-only">Measurement value</label>
+                                    <input id="spec-add-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value") }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
                                 </div>
                             @endfor
                         </div>
