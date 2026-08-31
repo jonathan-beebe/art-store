@@ -19,12 +19,12 @@
     @if ($slot->isNotEmpty())
         {{ $slot }}
     @elseif ($type === 'textarea')
-        <textarea id="{{ $name }}" name="{{ $name }}" @required($required) aria-describedby="{{ $describedBy }}"
+        <textarea id="{{ $name }}" name="{{ $name }}" @required($required) aria-describedby="{{ $describedBy }}" @if ($errors->has($name)) aria-invalid="true" @endif
                   {{ $attributes->except('class')->merge(['class' => 'mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2']) }}>{{ old($name, $value) }}</textarea>
     @else
         <input id="{{ $name }}" name="{{ $name }}" type="{{ $type }}"
                @unless ($type === 'file') value="{{ old($name, $value) }}" @endunless
-               @required($required) aria-describedby="{{ $describedBy }}"
+               @required($required) aria-describedby="{{ $describedBy }}" @if ($errors->has($name)) aria-invalid="true" @endif
                {{ $attributes->except('class')->merge(['class' => 'mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2']) }}>
     @endif
 
