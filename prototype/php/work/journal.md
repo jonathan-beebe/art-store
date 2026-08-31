@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-08-30:22:04:42 — IMPRV-018 — resolved: home page's per-item queries collapsed — CategoryBrowse and MediumBrowse each fold their per-item cover+count lookups into one pass over the for-sale catalogue ordered by the cover tie-break rule; listing-card's imageUrl() reads eager-loaded images when present, and /, /browse, /medium, /search now eager-load them; bounding test (DB::listen) holds GET / under a fixed query ceiling at 15 categories/mediums; real counts at a heavier seed: / 92→29, /browse 25→14, /medium 55→27, /search 22→11; make check green, coverage 100%, 3127 tests
+
 - 2026-08-30:20:57:50 — FEAT-036 — refined: restore moves out of the admin app into a standalone tool — env-secret auth, works when the commerce DB cannot boot; IMPRV-019 becomes a dependency
 
 - 2026-08-30:19:52:37 — FEAT-036 — defined: Restore the store from a backup through the admin
