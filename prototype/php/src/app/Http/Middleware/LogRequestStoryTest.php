@@ -44,6 +44,18 @@ it('carries the query parameters on the opening line, and omits the key without 
     ]);
 });
 
+it('redacts a query parameter shaped like an email address', function (): void {
+    $log = CapturedStory::capture();
+
+    $this->get('/?q=harry%40hogwarts.example');
+
+    expect($log->line('http.request', 'will')['data'])->toBe([
+        'method' => 'GET',
+        'path' => '/',
+        'query' => ['q' => '[redacted]'],
+    ]);
+});
+
 it('opens and closes a request that matches no route', function (): void {
     $log = CapturedStory::capture();
 

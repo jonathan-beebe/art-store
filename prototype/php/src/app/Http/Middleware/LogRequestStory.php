@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Logging\StoryEvent;
+use App\Support\DataRedaction;
 use App\Support\DbActivity;
 use App\Support\IdMint;
 use App\Support\Story;
@@ -79,7 +80,10 @@ final readonly class LogRequestStory
         $story = Story::for(StoryEvent::HttpRequest)->will("{$request->method()} {$path}", array_filter([
             'method' => $request->method(),
             'path' => $path,
-            'query' => $request->query(),
+            // §2.1's redaction rule applies to the query string the same as
+            // every other `data` field (§2.2) — a visitor's own typing, not
+            // a fact the story wrote for itself.
+            'query' => DataRedaction::redact($request->query()),
         ]));
 
         try {
