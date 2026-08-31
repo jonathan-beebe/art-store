@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-08-31:09:18:30 — IMPRV-020 — done: the request story closes when a stream actually ends — LogRequestStory defers a StreamedResponse's did to terminate(), stashing the open Story on the request attributes; duration_ms covers the held stream, data.db the tick queries, data.disconnected: true marks a client that left; ignore_user_abort keeps terminate() reachable past the failed write (30fc6e8); four new sidecar tests, live-curl verified (26s lifetime, 5s abandon), reviewer accepted with no rework items
+
+- 2026-08-31:08:26:09 — IMPRV-020 — started
+
 - 2026-08-31:08:15:12 — RFCTR-013 — done: the complexity baseline is empty — LogRowQuery::conditions() extracts columnEqualityConditions() (10→7), AddToCart::__invoke() extracts resolveQuantity() (9→6); last two baseline entries deleted, phpstan-baseline.neon kept as an empty list, sidecars unmodified, gate green (188c30c); reviewer accepted with no rework items
 
 - 2026-08-31:08:08:16 — DSGN-008 — defined: the design system is audited, accurate, and complete
