@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 8
+- DSGN: 9
 - ARCH: 1
 - FEAT: 38
 - IMPRV: 21
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-08-31:08:08:16 — DSGN-008 — defined: the design system is audited, accurate, and complete
 
 - 2026-08-31:08:00:24 — RFCTR-012 — done: seller request row validation under the ceiling — OptionValueRequest rule closures become surchargeRule()/priceRule(), DescriptionSectionRequest's row mapping extracts to rowValues(), ListingRequest::validateRows() reads normalize → skip blank → flag via three helpers; scores 9→0, 9→5, 16→6, three baseline entries deleted, sidecars unmodified (f1493f5, b7aca11, 98d16ec); reviewer accepted with two minor follow-ups queued (flagIncompleteRow naming, sibling staticness)
 
