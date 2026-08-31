@@ -22,7 +22,9 @@ use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\ListingEvent;
 use App\Models\ListingRemoval;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 it('adds a listing to the cart and records the event', function (): void {
@@ -436,4 +438,26 @@ it('prices the wedding invitations quantity break into the cart line', function 
 
     $cartPage = $this->get('/cart');
     $cartPage->assertSee('$270.00');
+});
+
+it('renders configured lines without a variant query per line', function (): void {
+    $this->visitor();
+    $seller = $this->seller();
+    foreach (['ring-one', 'ring-two', 'ring-three'] as $slug) {
+        $listing = $this->listing($seller, ['slug' => $slug, 'price_cents' => 5000]);
+        $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+        app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+        app(GenerateVariants::class)($listing);
+        $this->post("/cart/{$slug}");
+    }
+
+    $variantQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$variantQueries): void {
+        $variantQueries += str_contains($query->sql, 'from "variant') ? 1 : 0;
+    });
+
+    $response = $this->get('/cart');
+
+    $response->assertOk();
+    expect($variantQueries)->toBe(2);
 });

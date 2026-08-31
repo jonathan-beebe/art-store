@@ -93,7 +93,7 @@ class CartItem extends Model
      */
     public function currentBreakdown(): PriceBreakdown
     {
-        $variant = $this->hasVariant() ? $this->variant()->with('options.optionValue')->firstOrFail() : null;
+        $variant = $this->currentVariant();
         $selectedOptionValues = $variant === null
             ? []
             : array_values($variant->options->map(fn (VariantOption $option): ?OptionValue => $option->optionValue)->filter()->all());
@@ -102,7 +102,7 @@ class CartItem extends Model
             $this->listing,
             $selectedOptionValues,
             $variant,
-            $this->unit_id === null ? null : $this->unit()->first(),
+            $this->currentUnit(),
             $this->rawAnswers(),
             $this->quantity,
         );
@@ -115,17 +115,51 @@ class CartItem extends Model
      */
     public function currentAvailability(): OptionAvailability
     {
-        if (! $this->hasVariant()) {
+        $variant = $this->currentVariant();
+
+        if ($variant === null) {
             return OptionAvailability::selectable();
         }
-
-        $variant = $this->variant()->firstOrFail();
 
         if (! $variant->enabled) {
             return OptionAvailability::notOffered();
         }
 
         return $variant->availability()->available ? OptionAvailability::selectable() : OptionAvailability::outOfStock();
+    }
+
+    /**
+     * The line's variant, read off an eager-loaded relation whenever the
+     * caller (the cart page) already fetched one — falling back to a load
+     * only when it did not, so neither price nor availability re-queries a
+     * relation the controller already brought back.
+     */
+    private function currentVariant(): ?Variant
+    {
+        if (! $this->hasVariant()) {
+            return null;
+        }
+
+        $this->loadMissing('variant.options.optionValue');
+
+        return $this->variant;
+    }
+
+    /**
+     * The line's unit, read the same way {@see self::currentVariant()} reads
+     * the variant — never touching the relation attribute when there is no
+     * unit_id to resolve, since accessing it at all is what triggers a lazy
+     * load.
+     */
+    private function currentUnit(): ?Unit
+    {
+        if ($this->unit_id === null) {
+            return null;
+        }
+
+        $this->loadMissing('unit');
+
+        return $this->unit;
     }
 
     /**

@@ -17,7 +17,7 @@ final class CartController extends ShopController
 {
     public function show(): View
     {
-        $cart = $this->visitor()->cart()->load('items.listing.seller', 'items.variant', 'items.unit');
+        $cart = $this->visitor()->cart()->load('items.listing.seller', 'items.variant.options.optionValue', 'items.unit');
 
         return view('shop.cart', [
             'cart' => $cart,
