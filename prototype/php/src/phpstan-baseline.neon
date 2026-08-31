@@ -1,0 +1,67 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Cognitive complexity for "App\\Actions\\Cart\\AddToCart\:\:__invoke\(\)" is 9, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Actions/Cart/AddToCart.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Domain\\Configurator\\ConfiguratorPublishValidation\:\:check\(\)" is 22, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Domain/Configurator/ConfiguratorPublishValidation.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Http\\Requests\\Seller\\DescriptionSectionRequest\:\:completeRows\(\)" is 9, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Http/Requests/Seller/DescriptionSectionRequest.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Http\\Requests\\Seller\\ListingRequest\:\:validateRows\(\)" is 16, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Http/Requests/Seller/ListingRequest.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Http\\Requests\\Seller\\OptionValueRequest\:\:rules\(\)" is 9, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Http/Requests/Seller/OptionValueRequest.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Logging\\Admin\\LogRowQuery\:\:conditions\(\)" is 10, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Logging/Admin/LogRowQuery.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfigurationPricer\:\:baseAndSurchargeLines\(\)" is 9, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Support/Configurator/ConfigurationPricer.php
+
+		-
+			message: '#^Class cognitive complexity is 51, keep it under 50$#'
+			identifier: complexity.classLike
+			count: 1
+			path: app/Support/Configurator/ConfiguratorPageResolver.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:buildUnitsPresentation\(\)" is 12, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Support/Configurator/ConfiguratorPageResolver.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:resolve\(\)" is 17, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Support/Configurator/ConfiguratorPageResolver.php
+
+		-
+			message: '#^Cognitive complexity for "App\\Support\\Configurator\\ConfiguratorPageResolver\:\:resolveMeasurementAnswer\(\)" is 9, keep it under 8$#'
+			identifier: complexity.functionLike
+			count: 1
+			path: app/Support/Configurator/ConfiguratorPageResolver.php

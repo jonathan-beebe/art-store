@@ -1,9 +1,17 @@
 includes:
     - vendor/larastan/larastan/extension.neon
     - vendor/pestphp/pest/extension.neon
+    - vendor/tomasvotruba/cognitive-complexity/config/extension.neon
+    # The complexity debt standing when the gate arrived, worked off ticket
+    # by ticket; an entry a refactor clears must leave with it, and phpstan
+    # fails on entries that no longer match, so the list only shrinks.
+    - phpstan-baseline.neon
 
 parameters:
     level: max
+    cognitive_complexity:
+        class: 50
+        function: 8
     parseModelCastsMethod: true
     checkConfigTypes: true
     configDirectories:
