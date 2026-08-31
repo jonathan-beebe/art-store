@@ -326,14 +326,18 @@ make run-image APP_KEY=<base64 key>
 ```
 
 Equivalent to
-`docker run --rm -p 8100:8000 -e APP_KEY=<key> art-store-php composer run deploy`
-(port 8100, so it never collides with `make up`'s 8000). `APP_KEY` is the one
+`docker run --rm --cap-drop=ALL --security-opt no-new-privileges -p 8100:8000 -e APP_KEY=<key> art-store-php composer run deploy`
+(port 8100, so it never collides with `make up`'s 8000). The `--cap-drop` and
+`--security-opt` flags emulate the restrictions of Render's sandboxed
+production runtime — no capabilities, no privilege gains — so a boot that
+passes here predicts a boot that passes there. `APP_KEY` is the one
 variable with no default; mint one with
 `docker run --rm art-store-php php artisan key:generate --show`. Mount the
 declared volume to persist state across restarts:
 
 ```sh
-docker run --rm -p 8100:8000 \
+docker run --rm --cap-drop=ALL --security-opt no-new-privileges \
+  -p 8100:8000 \
   -v art-store-php-storage:/var/www/src/storage \
   -e APP_KEY=<base64 key> \
   art-store-php composer run deploy

@@ -177,6 +177,21 @@ process model.
   abandon run closed with `disconnected: true`, `duration_ms: 8043` — the
   stream-close story survives the SAPI swap unchanged; 12 held streams and
   a page load answers in 0.0525s. `make check` green.
+- 2026-08-31, post-resolution — the first Render deploy failed at the server
+  exec: `sh: 1: frankenphp: Operation not permitted`, exit 126, after
+  migrate and seed completed. Cause: the base image grants the binary
+  `cap_net_bind_service=ep` (for binding 80/443), and Render's sandboxed
+  runtime refuses to exec a file-capability binary; local Docker's default
+  runtime grants the capability, which is why every local check passed.
+  Reproduced locally with `--cap-drop=ALL` (byte-identical error). Fix:
+  `setcap -r /usr/local/bin/frankenphp` in the runtime stage (the server
+  binds 8000 and needs no capability), and `make run-image` now runs with
+  `--cap-drop=ALL --security-opt no-new-privileges` so the local
+  verification target carries Render's restrictions — the pre-fix image
+  fails it, the fixed image boots, serves `/up`, `/`, and statics under it.
+  Lesson recorded: local Docker's default privileges over-promise what a
+  sandboxed production runtime grants; verify the production image under
+  the production posture.
 - Validation review: accept, no blocking defects. Its checks: boots clean
   with `CADDY_TRUSTED_PROXIES` unset; traversal and dotfile probes
   (`--path-as-is`, encoded variants, `/.env`, the sqlite files) all 404;

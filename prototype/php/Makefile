@@ -98,5 +98,10 @@ image: ## build the production image (the Dockerfile's runtime target)
 
 # Runs the image built by `make image` standalone, on a host port that does not
 # collide with `make up`'s 8000. APP_KEY must come from the environment.
-run-image: ## run the production image standalone on port 8100
-	docker run --rm -p 8100:8000 -e APP_KEY=$(APP_KEY) art-store-php composer run deploy
+# --cap-drop and --security-opt emulate the restrictions of Render's sandboxed
+# production runtime, which grants no capabilities and no privilege gains —
+# an image that only boots with Docker's default privileges fails there, so
+# this target refuses it too.
+run-image: ## run the production image standalone on port 8100, under production-shaped restrictions
+	docker run --rm --cap-drop=ALL --security-opt no-new-privileges \
+		-p 8100:8000 -e APP_KEY=$(APP_KEY) art-store-php composer run deploy
