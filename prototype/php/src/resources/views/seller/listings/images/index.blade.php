@@ -17,19 +17,19 @@
                         <form method="POST" action="{{ route('seller.listings.images.reorder', [$listing, $image]) }}">
                             @csrf
                             <input type="hidden" name="direction" value="up">
-                            <button type="submit" class="rounded bg-gray-900/70 px-1.5 py-0.5 text-xs text-white" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
+                            <button type="submit" class="inline-flex min-h-6 min-w-6 items-center justify-center rounded bg-gray-900/70 px-1.5 py-0.5 text-xs text-white" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
                         </form>
                         <form method="POST" action="{{ route('seller.listings.images.reorder', [$listing, $image]) }}">
                             @csrf
                             <input type="hidden" name="direction" value="down">
-                            <button type="submit" class="rounded bg-gray-900/70 px-1.5 py-0.5 text-xs text-white" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
+                            <button type="submit" class="inline-flex min-h-6 min-w-6 items-center justify-center rounded bg-gray-900/70 px-1.5 py-0.5 text-xs text-white" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
                         </form>
                     </div>
 
                     <form method="POST" action="{{ route('seller.listings.images.destroy', [$listing, $image]) }}" class="absolute bottom-2 right-2">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="rounded-full bg-gray-900/70 px-2 py-0.5 text-xs text-white">Remove</button>
+                        <button type="submit" class="inline-flex min-h-6 min-w-6 items-center justify-center rounded-full bg-gray-900/70 px-2 py-0.5 text-xs text-white">Remove</button>
                     </form>
                 </div>
             @endforeach
