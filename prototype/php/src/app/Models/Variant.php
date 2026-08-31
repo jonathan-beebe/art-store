@@ -107,6 +107,19 @@ class Variant extends Model
         return $this->units()->where('state', UnitState::Available)->count();
     }
 
+    /**
+     * This combination's name for the seller: its option labels, in choice
+     * order, joined the way the buyer-view breakdown joins them. The
+     * schema's empty combo key (a listing with no choices offers at most
+     * one) has no options at all, so it falls back to a generic name.
+     */
+    public function comboLabel(): string
+    {
+        $labels = $this->options->map(fn (VariantOption $option): ?string => $option->optionValue?->label)->filter()->values();
+
+        return $labels->isEmpty() ? 'This combination' : $labels->implode(' · ');
+    }
+
     public function availability(): VariantAvailability
     {
         return VariantAvailability::resolve($this->enabled, $this->is_serialized, $this->availableUnitCount(), $this->quantity);

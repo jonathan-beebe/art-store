@@ -38,6 +38,26 @@ it('resolves its price to the override, ignoring surcharges', function (): void 
     expect($variant->resolvedPrice(Money::fromCents(2000))->cents)->toBe(9900);
 });
 
+it('joins its option labels, in choice order, as its combo label', function (): void {
+    $variant = Variant::factory()->create();
+    $house = OptionAxis::factory()->create(['listing_id' => $variant->listing_id]);
+    $size = OptionAxis::factory()->create(['listing_id' => $variant->listing_id]);
+    $gryffindor = OptionValue::factory()->create(['axis_id' => $house->id, 'label' => 'Gryffindor']);
+    $large = OptionValue::factory()->create(['axis_id' => $size->id, 'label' => 'Large']);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $house->id, 'option_value_id' => $gryffindor->id]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $size->id, 'option_value_id' => $large->id]);
+
+    $reloaded = Variant::query()->with('options.optionValue')->findOrFail($variant->id);
+
+    expect($reloaded->comboLabel())->toBe('Gryffindor · Large');
+});
+
+it('names an option-less combo label generically', function (): void {
+    $variant = Variant::factory()->create();
+
+    expect($variant->comboLabel())->toBe('This combination');
+});
+
 it('counts only its available units', function (): void {
     $variant = Variant::factory()->serialized()->create();
     Unit::factory()->count(2)->create(['variant_id' => $variant->id]);

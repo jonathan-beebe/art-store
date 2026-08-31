@@ -6,14 +6,6 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\OptionAxis> $axes */
     /** @var \Illuminate\Support\Collection<int, \App\Models\Variant> $variants */
 
-    // A combination's name for the seller: its option labels, in choice
-    // order, joined the way the buyer-view breakdown joins them.
-    $comboLabel = function (\App\Models\Variant $variant): string {
-        $labels = $variant->options->map(fn ($option) => $option->optionValue?->label)->filter()->values();
-
-        return $labels->isEmpty() ? 'This combination' : $labels->implode(' · ');
-    };
-
     // A combination's own stock reads as low at the same threshold the
     // editor hub's summary card already uses.
     $lowStockMaxQuantity = 3;
@@ -72,7 +64,7 @@
                                         $isLowStock = $variant->quantity !== null && $variant->quantity <= $lowStockMaxQuantity;
                                     @endphp
                                     <tr id="{{ $variant->id }}" class="{{ $variant->enabled ? '' : 'bg-gray-50 dark:bg-gray-800/30 text-gray-400 dark:text-gray-600' }}">
-                                        <td class="px-3 py-2 font-medium">{{ $comboLabel($variant) }}</td>
+                                        <td class="px-3 py-2 font-medium">{{ $variant->comboLabel() }}</td>
 
                                         <td class="px-3 py-2">
                                             @if (! $variant->enabled)
