@@ -56,3 +56,33 @@ Advisory.
 
 - Commit 0c8700b — the gate and baseline this ticket shrinks
 - Commit 010f363 — `DescriptionSectionRows`, the row-shaping precedent
+
+## Working
+
+Existing sidecars already pinned every branch touched (both-blank, missing
+label, missing price, invalid price, and complete rows for the versions and
+extras row sets; is_array/half-filled/complete rows for the description
+section kinds; blank/invalid/valid surcharge and standalone/add-on price
+paths for option values) — confirmed 139 passing before touching any
+production code, so no characterization tests were added.
+
+`OptionValueRequest::rules()`: the two inline rule closures (surcharge,
+price) moved to `surchargeRule()`/`priceRule()`, private methods returning
+`Closure` — the same shape `ListingRequest::absolutePrice()` already used.
+Score 9 → 0 (the two extracted methods score 5 and 4).
+
+`DescriptionSectionRequest::completeRows()`: the inner per-row `foreach`
+building the label/value/etc. map moved to `rowValues()`. Score 9 → 5 (new
+method scores 3).
+
+`ListingRequest::validateRows()`: the per-row label/price extraction moved
+to `rowLabelAndPrice()`/`filledField()`, and the per-row error-flagging plus
+completeness check moved to `flagIncompleteRow()`. Score 16 → 6 (new methods
+score 0, 3, 4).
+
+Hand-simulated the vendored `tomasvotruba/cognitive-complexity` analyzer
+(`NestingNodeVisitor` + `ComplexityAffectingNodeFinder`) against each method
+before touching code — every predicted score matched what `make analyse`
+reported once the baseline entries were deleted. Nothing resisted the
+ceiling; each closure/loop extraction dropped the enclosing method well
+under 8 in one pass.
