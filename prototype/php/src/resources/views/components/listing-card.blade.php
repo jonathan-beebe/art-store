@@ -2,6 +2,8 @@
 
 @php
     use App\Domain\Listings\ListingStockLabel;
+
+    $sellerDisplayName = $listing->seller->displayName();
 @endphp
 
 <article class="flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface">
@@ -11,8 +13,8 @@
     </a>
     <div class="flex flex-1 flex-col gap-2 p-4">
         <p class="flex items-center gap-2 text-xs text-ink-faint">
-            <x-ui.avatar :name="$listing->seller->displayName()" size="xs" />
-            {{ $listing->seller->displayName() }}
+            <x-ui.avatar :name="$sellerDisplayName" size="xs" />
+            {{ $sellerDisplayName }}
         </p>
         <h2 class="font-display text-base leading-snug text-ink">
             <a href="{{ route('shop.listing', $listing) }}" class="hover:text-accent">{{ $listing->title }}</a>
