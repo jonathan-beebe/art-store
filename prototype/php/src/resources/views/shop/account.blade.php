@@ -43,5 +43,7 @@
                 </li>
             @endforeach
         </ul>
+
+        <div class="mt-8 max-w-2xl">{{ $notifications->links() }}</div>
     @endif
 </x-layouts.shop>

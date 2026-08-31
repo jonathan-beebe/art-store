@@ -73,6 +73,22 @@ it('leaves another customer notification alone', function () use ($notify): void
     expect($notification->refresh()->read_at)->toBeNull();
 });
 
+it('paginates notifications at twenty, showing the rest on a second page', function () use ($notify): void {
+    $shopper = Customer::factory()->create();
+    $this->actingAs($shopper, 'customer');
+    for ($index = 1; $index <= 21; $index++) {
+        $notify($shopper, sprintf('ord_%026d', $index));
+    }
+
+    $first = $this->get('/account');
+    $second = $this->get('/account?page=2');
+
+    $first->assertOk();
+    $second->assertOk();
+    expect(substr_count((string) $first->getContent(), 'Mark as read'))->toBe(20);
+    expect(substr_count((string) $second->getContent(), 'Mark as read'))->toBe(1);
+});
+
 it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
     $this->actingAs(Customer::factory()->create(), 'customer');
 
