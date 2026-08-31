@@ -78,6 +78,16 @@
   --radius-field: var(--ui-radius-field);
 }
 
+/* The photo scrim (DSGN-007's cover cards, tile row, and media drawer): the
+   fade behind on-photo text over a background photo. One definition, over
+   the theme's `--ui-photo-scrim` token, so the three places that need it
+   never drift from each other or hand-copy the color. */
+@layer components {
+  .bg-photo-scrim {
+    background-image: linear-gradient(to top, rgb(from var(--ui-photo-scrim) r g b / 0.72), rgb(from var(--ui-photo-scrim) r g b / 0));
+  }
+}
+
 /* The select caret, drawn by hand: the native arrow hugs the rounded
    border with no way to move it, so `.select-caret` hides it and paints a
    chevron with real margin. A data-URI cannot read custom properties, so

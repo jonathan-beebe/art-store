@@ -86,5 +86,6 @@ return [
         'tint-5' => ['light' => '#c47f5a', 'dark' => '#c47f5a', 'group' => 'tint', 'role' => 'Category and avatar fill'],
         'on-tint' => ['light' => '#3a2412', 'dark' => '#3a2412', 'group' => 'tint', 'role' => 'Text on tint fills'],
         'on-photo' => ['light' => '#fffbf3', 'dark' => '#fffbf3', 'group' => 'tint', 'role' => 'Text on photo scrims'],
+        'photo-scrim' => ['light' => '#1a110c', 'dark' => '#1a110c', 'group' => 'tint', 'role' => 'Base color for the gradient behind on-photo text'],
     ],
 ];
