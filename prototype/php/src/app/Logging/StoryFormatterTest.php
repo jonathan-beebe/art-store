@@ -90,6 +90,42 @@ it('gives a line the framework wrote on its own an event and a phase', function 
     'an error ends something' => [Level::Error, 'failed'],
 ]);
 
+it('prefixes a warn line\'s msg with a warning mark', function (): void {
+    $line = payload(record(
+        ['event' => 'rate_limit.exceed', 'phase' => 'refused'],
+        Level::Warning,
+        'too many magic_link_request requests',
+    ));
+
+    expect($line['msg'])->toBe('⚠️ too many magic_link_request requests');
+});
+
+it('prefixes a failed line\'s msg with a failure mark', function (): void {
+    $line = payload(record(
+        ['event' => 'http.request', 'phase' => 'failed'],
+        Level::Error,
+        'POST /checkout broke',
+    ));
+
+    expect($line['msg'])->toBe('❌ POST /checkout broke');
+});
+
+it('prefixes the framework\'s own error-level line too, once it falls back to the failed phase', function (): void {
+    $line = payload(record([], Level::Error, 'something the framework said'));
+
+    expect($line['phase'])->toBe('failed')
+        ->and($line['msg'])->toBe('❌ something the framework said');
+});
+
+it('leaves an info, debug, or did line\'s msg bare', function (Level $level, string $phase): void {
+    $line = payload(record(['event' => 'order.place', 'phase' => $phase], $level, 'placed the order'));
+
+    expect($line['msg'])->toBe('placed the order');
+})->with([
+    'debug' => [Level::Debug, 'will'],
+    'info' => [Level::Info, 'did'],
+]);
+
 it('reads the exception the record carries as the error object', function (): void {
     $line = payload(record([
         'event' => 'http.request',

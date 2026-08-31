@@ -32,6 +32,12 @@ final readonly class StoryFormatter implements FormatterInterface
 
     private const int JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
 
+    /** docs/alignment.md §2.4: derived from the line's level and phase in
+     * one place, never picked at a call site. */
+    private const string WARN_PREFIX = '⚠️ ';
+
+    private const string FAILED_PREFIX = '❌ ';
+
     /**
      * @param  bool  $tracesStacks  development shows the stack behind a
      *                              failure; a deployed environment does not
@@ -58,13 +64,14 @@ final readonly class StoryFormatter implements FormatterInterface
     {
         $context = $record->context;
         $level = $this->level($record->level);
+        $phase = $this->text($context, 'phase') ?? $this->phase($level)->value;
 
         return array_filter([
             'ts' => $record->datetime->setTimezone(new DateTimeZone('UTC'))->format(self::TIMESTAMP),
             'level' => $level->value,
             'event' => $this->text($context, 'event') ?? self::FRAMEWORK_EVENT,
-            'phase' => $this->text($context, 'phase') ?? $this->phase($level)->value,
-            'msg' => $record->message,
+            'phase' => $phase,
+            'msg' => $this->prefixed($record->message, $level, $phase),
             'request_id' => $this->text($context, 'request_id'),
             'session_id' => $this->text($context, 'session_id'),
             'actor_type' => $this->text($context, 'actor_type'),
@@ -74,6 +81,20 @@ final readonly class StoryFormatter implements FormatterInterface
             'error' => $this->error($context),
             'duration_ms' => $this->duration($context),
         ], fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * The `msg` prefix that makes a warning or a failure stand out to a
+     * person reading plain stdout (docs/alignment.md §2.4): every `warn`
+     * line gets ⚠️, every `failed` line gets ❌, everything else is bare.
+     */
+    private function prefixed(string $message, StoryLevel $level, string $phase): string
+    {
+        return match (true) {
+            $phase === StoryPhase::Failed->value => self::FAILED_PREFIX.$message,
+            $level === StoryLevel::Warn => self::WARN_PREFIX.$message,
+            default => $message,
+        };
     }
 
     private function level(Level $level): StoryLevel

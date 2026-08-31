@@ -248,7 +248,7 @@ it('ends the unit of work as failed when something nobody planned for escapes it
     $line = $log->line('order.place', 'failed');
 
     expect($line['level'])->toBe('error')
-        ->and($line['msg'])->toBe('placing an order from the cart broke')
+        ->and($line['msg'])->toBe('❌ placing an order from the cart broke')
         ->and($line['error'])->toBe(['type' => RuntimeException::class, 'message' => 'the orders table is gone'])
         ->and($line['data'])->toBe(['cart_id' => 'crt_01J00000000000000000000ABC'])
         ->and($line['duration_ms'])->toBeInt();
