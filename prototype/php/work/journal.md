@@ -3,16 +3,36 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 8
+- DSGN: 9
 - ARCH: 1
 - FEAT: 38
 - IMPRV: 21
 - MAINT: 5
 - A11Y: 1
-- RFCTR: 11
+- RFCTR: 14
 - BUG: 15
 
 ## Log
+
+- 2026-08-31:08:15:12 — RFCTR-013 — done: the complexity baseline is empty — LogRowQuery::conditions() extracts columnEqualityConditions() (10→7), AddToCart::__invoke() extracts resolveQuantity() (9→6); last two baseline entries deleted, phpstan-baseline.neon kept as an empty list, sidecars unmodified, gate green (188c30c); reviewer accepted with no rework items
+
+- 2026-08-31:08:08:16 — DSGN-008 — defined: the design system is audited, accurate, and complete
+
+- 2026-08-31:08:00:24 — RFCTR-012 — done: seller request row validation under the ceiling — OptionValueRequest rule closures become surchargeRule()/priceRule(), DescriptionSectionRequest's row mapping extracts to rowValues(), ListingRequest::validateRows() reads normalize → skip blank → flag via three helpers; scores 9→0, 9→5, 16→6, three baseline entries deleted, sidecars unmodified (f1493f5, b7aca11, 98d16ec); reviewer accepted with two minor follow-ups queued (flagIncompleteRow naming, sibling staticness)
+
+- 2026-08-31:07:56:46 — RFCTR-013 — started
+
+- 2026-08-31:07:32:55 — RFCTR-011 — done: configurator complexity cleared — ConfiguratorPageResolver splits into SelectedAxisValues, ModifiersPresentation, SerializedUnitsPresentation collaborators; publish validation flattens to per-rule-family methods; pricer's line builder dispatches; six baseline entries deleted, sidecars unmodified, gate green (c385f06, 2e2097b); reviewer accepted with two pre-existing advisories (positional tuples idiom, cross-family issue order unpinned)
+
+- 2026-08-31:07:27:05 — RFCTR-012 — started
+
+- 2026-08-31:07:01:30 — RFCTR-011 — started
+
+- 2026-08-31:06:54:25 — RFCTR-013 — defined: the complexity baseline's last two entries
+
+- 2026-08-31:06:54:25 — RFCTR-012 — defined: seller request row validation under the ceiling
+
+- 2026-08-31:06:54:25 — RFCTR-011 — defined: the configurator sheds its complexity debt
 
 - 2026-08-31:06:36:30 — FEAT-037 — defined: archived listings stay visitable and legible in the logs
 

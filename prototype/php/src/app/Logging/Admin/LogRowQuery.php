@@ -215,15 +215,7 @@ final readonly class LogRowQuery
      */
     private function conditions(LogRowFilters $filters): array
     {
-        $conditions = [];
-        $params = [];
-
-        foreach ($this->columnEqualities($filters) as [$column, $value]) {
-            if ($value !== null) {
-                $conditions[] = "{$column} = ?";
-                $params[] = $value;
-            }
-        }
+        [$conditions, $params] = $this->columnEqualityConditions($filters);
 
         if ($filters->domain !== null) {
             $conditions[] = $this->domainCondition($filters->domain);
@@ -256,6 +248,24 @@ final readonly class LogRowQuery
 
         if ($filters->hideViewer) {
             $conditions[] = 'NOT '.$this->viewerRequestSql();
+        }
+
+        return [$conditions, $params];
+    }
+
+    /**
+     * @return array{0: list<string>, 1: list<mixed>}
+     */
+    private function columnEqualityConditions(LogRowFilters $filters): array
+    {
+        $conditions = [];
+        $params = [];
+
+        foreach ($this->columnEqualities($filters) as [$column, $value]) {
+            if ($value !== null) {
+                $conditions[] = "{$column} = ?";
+                $params[] = $value;
+            }
         }
 
         return [$conditions, $params];

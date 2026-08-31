@@ -306,31 +306,60 @@ final class ListingRequest extends FormRequest
         $completeCount = 0;
 
         foreach ($rows as $index => $row) {
-            $label = is_array($row) ? ($row['label'] ?? null) : null;
-            $price = is_array($row) ? ($row['price'] ?? null) : null;
-            $hasLabel = is_string($label) && trim($label) !== '';
-            $hasPrice = is_string($price) && trim($price) !== '';
+            [$label, $price] = self::rowLabelAndPrice($row);
 
-            if (! $hasLabel && ! $hasPrice) {
+            if ($label === null && $price === null) {
                 continue;
             }
 
-            if (! $hasLabel) {
-                $validator->errors()->add("{$key}.{$index}.label", $labelMessage);
-            }
-
-            if (! $hasPrice) {
-                $validator->errors()->add("{$key}.{$index}.price", $priceMessage);
-            } elseif (! $isValidPrice($price)) {
-                $validator->errors()->add("{$key}.{$index}.price", $priceMessage);
-            }
-
-            if ($hasLabel && $hasPrice && $isValidPrice($price)) {
+            if (self::isRowComplete($validator, $key, $index, $label, $price, $isValidPrice, $labelMessage, $priceMessage)) {
                 $completeCount++;
             }
         }
 
         return $completeCount;
+    }
+
+    /**
+     * A row's label and price, each present only once it is a non-blank
+     * string — the row-set fields post as strings or are absent, never as
+     * another scalar type.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private static function rowLabelAndPrice(mixed $row): array
+    {
+        return [
+            self::filledField($row, 'label'),
+            self::filledField($row, 'price'),
+        ];
+    }
+
+    private static function filledField(mixed $row, string $key): ?string
+    {
+        $value = is_array($row) ? ($row[$key] ?? null) : null;
+
+        return is_string($value) && trim($value) !== '' ? $value : null;
+    }
+
+    /**
+     * Whether the row is complete — a present label and a price that
+     * parses — after recording the label and/or price error a half-filled
+     * or unparseable row carries.
+     */
+    private static function isRowComplete(Validator $validator, string $key, int|string $index, ?string $label, ?string $price, Closure $isValidPrice, string $labelMessage, string $priceMessage): bool
+    {
+        if ($label === null) {
+            $validator->errors()->add("{$key}.{$index}.label", $labelMessage);
+        }
+
+        $validPrice = $price !== null && $isValidPrice($price);
+
+        if (! $validPrice) {
+            $validator->errors()->add("{$key}.{$index}.price", $priceMessage);
+        }
+
+        return $label !== null && $validPrice;
     }
 
     /**

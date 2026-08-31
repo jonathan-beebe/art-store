@@ -44,6 +44,9 @@ Zero or one argument:
 
 - You are only orchestrating these changes, you are not writing code. 
 - Use separate agents running the `Sonnet` model for writing tests, code, and comments. 
+  Be as efficient as you can in offloading work to haiku and sonnet models. You are concerned 
+  with managing the work to the goal/outcome, and are responsible for the quality of the 
+  committed work. Iterate with the agents as needed to ensure quality.
 - Instruct these agents:
   - Use `/write-comment` for any code comments.
   - Use `/write-class` for any classes.

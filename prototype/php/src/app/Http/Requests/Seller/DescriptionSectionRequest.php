@@ -122,10 +122,7 @@ final class DescriptionSectionRequest extends FormRequest
                 continue;
             }
 
-            $values = [];
-            foreach ($columns as $column) {
-                $values[$column] = is_string($row[$column] ?? null) ? trim($row[$column]) : '';
-            }
+            $values = $this->rowValues($row, $columns);
 
             if (in_array('', $values, true)) {
                 continue;
@@ -135,5 +132,20 @@ final class DescriptionSectionRequest extends FormRequest
         }
 
         return $rows === [] ? null : $rows;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $row
+     * @param  list<string>  $columns
+     * @return array<string, string>
+     */
+    private function rowValues(array $row, array $columns): array
+    {
+        $values = [];
+        foreach ($columns as $column) {
+            $values[$column] = is_string($row[$column] ?? null) ? trim($row[$column]) : '';
+        }
+
+        return $values;
     }
 }

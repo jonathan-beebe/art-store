@@ -109,18 +109,35 @@ final class ConfigurationPricer
         $axisById = $listing->optionAxes->keyBy('id');
         $hasStandaloneAxis = $axisById->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone);
 
-        if (! $hasStandaloneAxis) {
-            $lines = [PriceBreakdownLine::of('Base price', $listing->price(), signed: false)];
+        return $hasStandaloneAxis
+            ? self::itemizedLines($axisById, $selectedOptionValues)
+            : self::baseWithSurchargeLines($listing, $selectedOptionValues);
+    }
 
-            foreach ($selectedOptionValues as $value) {
-                if ($value->surcharge_cents !== 0) {
-                    $lines[] = PriceBreakdownLine::of($value->label, $value->surcharge());
-                }
+    /**
+     * @param  list<OptionValue>  $selectedOptionValues
+     * @return list<PriceBreakdownLine>
+     */
+    private static function baseWithSurchargeLines(Listing $listing, array $selectedOptionValues): array
+    {
+        $lines = [PriceBreakdownLine::of('Base price', $listing->price(), signed: false)];
+
+        foreach ($selectedOptionValues as $value) {
+            if ($value->surcharge_cents !== 0) {
+                $lines[] = PriceBreakdownLine::of($value->label, $value->surcharge());
             }
-
-            return $lines;
         }
 
+        return $lines;
+    }
+
+    /**
+     * @param  Collection<string, OptionAxis>  $axisById
+     * @param  list<OptionValue>  $selectedOptionValues
+     * @return list<PriceBreakdownLine>
+     */
+    private static function itemizedLines(Collection $axisById, array $selectedOptionValues): array
+    {
         $lines = [];
 
         foreach ($selectedOptionValues as $value) {
