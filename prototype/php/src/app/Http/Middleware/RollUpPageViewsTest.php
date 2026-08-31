@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Domain\Analytics\PageViewSite;
-use App\Models\Admin;
 use App\Models\PageViewCount;
+use Illuminate\Support\Facades\Route;
 
 it('rolls a countable GET up into one row', function (): void {
     $this->get('/admin/login');
@@ -56,10 +56,9 @@ it('counts nothing for a response that is not 2xx', function (): void {
 });
 
 it('counts nothing for a response that is not HTML', function (): void {
-    $admin = Admin::factory()->create();
+    Route::get('/json-test', fn () => response()->json(['ok' => true]));
 
-    $this->actingAs($admin, 'admin')->get('/admin/events')
-        ->assertHeader('Content-Type', 'text/event-stream; charset=UTF-8');
+    $this->getJson('/json-test')->assertOk();
 
     expect(PageViewCount::query()->count())->toBe(0);
 });

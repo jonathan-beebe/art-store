@@ -5,30 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Domain\Identifiers\PrefixedId;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Sleep;
 use RuntimeException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\CapturedStory;
-
-/**
- * `connection_aborted()` is unqualified in LogRequestStory, so PHP resolves
- * it against this namespace before falling back to the global function —
- * this override stands in only while a test sets the global below, and
- * defers to the real function otherwise.
- */
-function connection_aborted(): int
-{
-    $override = $GLOBALS['test_connection_aborted'] ?? null;
-
-    return is_int($override) ? $override : \connection_aborted();
-}
-
-afterEach(function (): void {
-    unset($GLOBALS['test_connection_aborted']);
-});
 
 it('opens and closes the request with a line of its own', function (): void {
     $log = CapturedStory::capture();
@@ -240,89 +220,4 @@ it('says the request failed and lets the exception through', function (): void {
     expect($line['level'])->toBe('error')
         ->and($line['error'])->toBe(['type' => RuntimeException::class, 'message' => 'the page broke'])
         ->and($line['duration_ms'])->toBeInt();
-});
-
-it('holds a streamed response open through handle(), closing it once terminate() runs with the stream carrying its own cost', function (): void {
-    $middleware = new LogRequestStory;
-    $log = CapturedStory::capture();
-    $request = Request::create('/stream-test');
-
-    $response = $middleware->handle($request, fn (): StreamedResponse => new StreamedResponse(function (): void {
-        DB::select('select 1');
-        Sleep::for(20)->milliseconds();
-    }));
-
-    expect($response)->toBeInstanceOf(StreamedResponse::class)
-        ->and($log->linesFor('http.request'))->toHaveCount(1);
-
-    ob_start();
-    $response->sendContent();
-    ob_end_clean();
-
-    expect($log->linesFor('http.request'))->toHaveCount(1);
-
-    $middleware->terminate($request, $response);
-
-    /** @var array<string, mixed> $did */
-    $did = $log->line('http.request', 'did');
-    /** @var array<string, mixed> $data */
-    $data = $did['data'];
-    /** @var array<string, mixed> $db */
-    $db = $data['db'];
-
-    expect($log->linesFor('http.request'))->toHaveCount(2)
-        ->and($did['msg'])->toBe('GET /stream-test 200')
-        ->and($data['status'])->toBe(200)
-        ->and($db['queries'])->toBe(1)
-        ->and($did['duration_ms'])->toBeGreaterThanOrEqual(15)
-        ->and($data)->not->toHaveKey('disconnected');
-});
-
-it('closes the request story exactly once for a route that streams', function (): void {
-    $log = CapturedStory::capture();
-
-    $response = $this->get('/events');
-
-    $response->assertOk();
-    expect($log->linesFor('http.request'))->toHaveCount(2)
-        ->and($log->line('http.request', 'did')['data'])->toHaveKey('status', 200);
-});
-
-it('carries disconnected on the closing line when the stream client is gone', function (): void {
-    $middleware = new LogRequestStory;
-    $log = CapturedStory::capture();
-    $request = Request::create('/stream-test');
-
-    $response = $middleware->handle($request, fn (): StreamedResponse => new StreamedResponse(function (): void {}));
-
-    ob_start();
-    $response->sendContent();
-    ob_end_clean();
-
-    $GLOBALS['test_connection_aborted'] = 1;
-    $middleware->terminate($request, $response);
-
-    /** @var array<string, mixed> $data */
-    $data = $log->line('http.request', 'did')['data'];
-
-    expect($data['disconnected'])->toBeTrue();
-});
-
-it('omits disconnected on the closing line when the stream client is still there', function (): void {
-    $middleware = new LogRequestStory;
-    $log = CapturedStory::capture();
-    $request = Request::create('/stream-test');
-
-    $response = $middleware->handle($request, fn (): StreamedResponse => new StreamedResponse(function (): void {}));
-
-    ob_start();
-    $response->sendContent();
-    ob_end_clean();
-
-    $middleware->terminate($request, $response);
-
-    /** @var array<string, mixed> $data */
-    $data = $log->line('http.request', 'did')['data'];
-
-    expect($data)->not->toHaveKey('disconnected');
 });
