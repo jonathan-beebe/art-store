@@ -10,6 +10,8 @@ use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Notifications\OrderShipped;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('counts the items the visitor is carrying', function (): void {
     $visitor = $this->visitor();
@@ -66,6 +68,41 @@ it('carries the counts onto every storefront page without the controller passing
     $this->get('/cart')->assertSee('Cart (0)');
     $this->get('/favorites')->assertSee('Cart (0)');
     $this->get('/orders')->assertSee('Cart (0)');
+});
+
+it('reads the cart count and both unread counts in one query', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    app(AddToCart::class)(
+        $visitor->cart(),
+        $this->listing($this->seller(), ['quantity' => 3]),
+        2,
+        $this->moment('2026-08-20 08:00:00'),
+    );
+    $visitor->notify(new OrderShipped('ord_00000000000000000000000001', 'Royal Mail', 'RM1'));
+
+    $composerQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$composerQueries): void {
+        $composerQueries += str_contains($query->sql, 'select (select coalesce(sum(quantity)') ? 1 : 0;
+    });
+
+    $response = $this->actingAs($visitor, 'customer')->get('/');
+
+    $response->assertOk()->assertSee('Cart (2)')->assertSee('Account (1)');
+    expect($composerQueries)->toBe(1);
+});
+
+it('reads the counts in one query even for a visitor with no cart yet', function (): void {
+    $this->visitor();
+
+    $composerQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$composerQueries): void {
+        $composerQueries += str_contains($query->sql, 'select (select coalesce(sum(quantity)') ? 1 : 0;
+    });
+
+    $response = $this->get('/');
+
+    $response->assertOk()->assertSee('Cart (0)');
+    expect($composerQueries)->toBe(1);
 });
 
 it('renders a page with no storefront visitor without the counts', function (): void {
