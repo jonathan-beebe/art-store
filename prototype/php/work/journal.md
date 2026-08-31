@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-08-31:17:31:57 — IMPRV-021 — started
 - 2026-08-31:17:25:32 — IMPRV-021 — rescoped: per commit runs tests (and maybe lint) in one fast container; the full check moves to PR time
 - 2026-08-31:17:18:17 — IMPRV-021 — defined: the commit gate pays only for what changed
 
