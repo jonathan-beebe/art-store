@@ -40,10 +40,11 @@ smoke: ## the smoke walk only
 coverage: ## the suite with the coverage gate (100% lines) and its HTML report
 	docker compose run --rm app composer test:coverage
 
-# Style plus static analysis, read-only: Pint's --test mode, then PHPStan.
+# Style plus static analysis, read-only: Pint's --test mode, then PHPStan, in
+# one container (`lint:all` composes the two composer scripts) rather than
+# two spawns.
 lint: ## style + static analysis, read-only (pint --test, then phpstan)
-	docker compose run --rm --no-deps --entrypoint composer app lint
-	docker compose run --rm --no-deps --entrypoint composer app analyse
+	docker compose run --rm --no-deps --entrypoint composer app lint:all
 
 # The auto-fixable subset of `lint`: Pint rewrites files in place.
 lint-fix: ## the auto-fixable subset applied (pint)

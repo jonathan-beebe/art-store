@@ -75,6 +75,10 @@
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/pint --test"
         ],
+        "lint:all": [
+            "@lint",
+            "@analyse"
+        ],
         "lint:fix": [
             "Composer\\Config::disableProcessTimeout",
             "@php vendor/bin/pint"
