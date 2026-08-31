@@ -275,11 +275,18 @@ prototype/php/
 `Dockerfile` has four targets. `dev` is today's bind-mount workflow — `make
 build` and `make up` build this target, unchanged. `build` installs the
 production vendor tree and compiles the Vite bundle at image build time
-rather than at container start. `runtime` is the production image: no bind
-mount, `APP_ENV=production`, `USER www-data`, a `HEALTHCHECK` against `/up`,
-and the SQLite file at `storage/production.sqlite3` so the one declared
-volume (`/var/www/src/storage`) holds the database and the uploaded listing
-images together.
+rather than at container start. `runtime` is the production image, rebased
+on the official FrankenPHP PHP 8.3 image rather than `dev`'s `php:8.3-cli`:
+no bind mount, `APP_ENV=production`, `USER www-data`, a `HEALTHCHECK`
+against `/up`, and the SQLite file at `storage/production.sqlite3` so the
+one declared volume (`/var/www/src/storage`) holds the database and the
+uploaded listing images together. FrankenPHP serves `public/build/*` and
+`public/storage/*` itself, from `docker/Caddyfile` — those requests never
+occupy a PHP process — and hands every other request to PHP in classic
+per-request mode, the same as `artisan serve`; Octane-style worker mode is
+not in use, since `App\Logging\LogStore` assumes one request per process.
+Capacity is governed by FrankenPHP's own threading rather than a fixed
+worker count, so there is no `PHP_CLI_SERVER_WORKERS` equivalent to set.
 
 Build it:
 
@@ -293,7 +300,7 @@ Equivalent to `docker build --target runtime -t art-store-php .` from
 The image boots through `composer run deploy`: recreate the storage skeleton
 (a freshly mounted volume starts empty), `migrate --force`, `db:seed --force`
 (the demo half skips itself once a seller row exists, so the chain re-runs on
-every boot), then `artisan serve` on port 8000. On Render, set the Docker
+every boot), then `frankenphp run` on port 8000. On Render, set the Docker
 Command to `composer run deploy` — the field does not pass through a shell,
 and composer supplies the shell for the chain.
 
@@ -303,6 +310,14 @@ in the debug banner on the page that asked for it, and the deploy chain
 seeds the demo catalog and accounts on first boot. Behind Render's proxy,
 set `TRUSTED_PROXIES=*` so generated URLs and cookies follow the forwarded
 https scheme.
+
+That variable is Laravel's own trust and unrelated to Caddy's: Caddy only
+honors forwarded headers from a remote it trusts, and its `static` IP-range
+list has no `*` wildcard. `docker/Caddyfile`'s `trusted_proxies` defaults to
+the private-address ranges a same-host or private-network proxy connects
+from; set `CADDY_TRUSTED_PROXIES` (space-separated CIDRs or addresses) to
+add a fronting platform's own address when it connects from outside those
+ranges.
 
 Run it locally:
 
@@ -334,9 +349,11 @@ Full list with next steps in [`docs/review.md`](docs/review.md).
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
 - Seeded listings render a generated placeholder SVG rather than artwork.
-- Each open messaging tab holds an SSE worker for as long as it stays open;
-  `PHP_CLI_SERVER_WORKERS=16` is what bounds concurrent readers. A closed
-  tab's worker comes back within one tick. See `docs/messaging.md`.
+- Each open messaging tab holds an SSE connection for as long as it stays
+  open. In `dev` (`docker-compose.yml`), `PHP_CLI_SERVER_WORKERS=16` bounds
+  concurrent readers to that count; the production image has no such bound —
+  see [Deployment](#deployment). A closed tab's connection comes back within
+  one tick either way. See `docs/messaging.md`.
 - A merged cart keeps a line whose listing carries an active removal, at
   whatever quantity it clamps to; checkout refuses it and names the item
   rather than the merge dropping it.

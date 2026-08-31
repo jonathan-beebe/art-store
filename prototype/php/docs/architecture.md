@@ -681,7 +681,7 @@ flowchart LR
 prototype/php/
   README.md            how to run, serve, test
   docker-compose.yml   one service: app
-  Dockerfile           php:8.3-cli + composer + node + gd + pcov + sqlite
+  Dockerfile           php:8.3-cli dev/build + FrankenPHP runtime; composer + node + gd + pcov + sqlite
   Makefile             host-side wrappers over docker compose
   docs/                architecture + feature docs (this folder, indexed in docs/README.md)
   work/                tickets and journal (orchestration only)

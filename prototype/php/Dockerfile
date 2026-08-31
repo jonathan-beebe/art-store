@@ -75,32 +75,52 @@ RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessio
 RUN npm ci --no-audit --no-fund && npm run build
 
 # ---------------------------------------------------------------------------
-# runtime: production configuration, non-root, no bind mount. `composer run
-# deploy` migrates, seeds, and serves; nothing runs at plain container start
-# beyond the server itself. APP_KEY must arrive from the environment.
+# runtime: production configuration, non-root, no bind mount. FrankenPHP
+# serves public/ directly and hands only PHP-routed requests to the runtime;
+# `composer run deploy` migrates, seeds, and starts it. APP_KEY must arrive
+# from the environment. This stage rebases off the official FrankenPHP image
+# rather than `base` — classic per-request mode only (no Octane/worker mode:
+# App\Logging\LogStore assumes one request per process).
 # ---------------------------------------------------------------------------
-FROM base AS runtime
+FROM dunglas/frankenphp:1.12.7-php8.3.33-bookworm AS runtime
+
+# The image ships gd/intl/zip uncompiled and pdo_sqlite already built in;
+# passing all four is idempotent and keeps this list matching `base`'s. gd is
+# what lets `UploadedFile::fake()->image()` and the seeder's placeholder
+# artwork build real image bytes, so it needs freetype+jpeg support, not a
+# gd build with neither.
+RUN install-php-extensions gd intl pdo_sqlite zip
+
+# Composer runs the deploy chain (`composer run deploy`), which is what
+# Render's shell-less Docker Command field invokes.
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+WORKDIR /var/www/src
 
 # The database lives under storage/ so one persistent volume covers both the
 # SQLite file and the uploaded listing images (storage/app/public).
 ENV APP_ENV=production \
     APP_DEBUG=false \
     DB_DATABASE=/var/www/src/storage/production.sqlite3 \
-    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3 \
-    PHP_CLI_SERVER_WORKERS=16
+    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3
 
 COPY --chown=www-data:www-data src/ ./
 COPY --chown=www-data:www-data --from=build /var/www/src/vendor ./vendor
 COPY --chown=www-data:www-data --from=build /var/www/src/bootstrap/cache ./bootstrap/cache
 COPY --chown=www-data:www-data --from=build /var/www/src/public/build ./public/build
 
+COPY docker/Caddyfile /etc/frankenphp/Caddyfile
+
 # The storage skeleton Laravel writes into, and the public/storage symlink
 # that serves uploads (what `artisan storage:link` creates in dev). A volume
 # mounted over storage/ starts empty, so `composer run deploy` recreates the
-# skeleton on every boot.
+# skeleton on every boot. Caddy also writes under XDG_CONFIG_HOME/XDG_DATA_HOME
+# (an autosaved config, its certificate storage) even with `auto_https off`;
+# the base image points both at /config and /data, owned by root there, so
+# www-data needs them handed over too.
 RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs \
     && ln -sfn /var/www/src/storage/app/public public/storage \
-    && chown -R www-data:www-data storage bootstrap/cache
+    && chown -R www-data:www-data storage bootstrap/cache "$XDG_CONFIG_HOME" "$XDG_DATA_HOME"
 
 USER www-data
 
@@ -109,4 +129,4 @@ VOLUME ["/var/www/src/storage"]
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=5 \
     CMD ["curl", "-fsS", "http://127.0.0.1:8000/up"]
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]
+CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile", "--adapter", "caddyfile"]
