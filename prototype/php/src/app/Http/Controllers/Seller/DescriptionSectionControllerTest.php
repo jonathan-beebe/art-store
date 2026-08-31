@@ -25,6 +25,16 @@ it('lists the listing’s sections in position order', function (): void {
     $response->assertSee('Care instructions');
 });
 
+it('gives the size-chart table’s header cells a column scope for assistive tech', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/description-sections?kind=size_chart");
+
+    $response->assertOk();
+    $response->assertSee('<th scope="col"', false);
+});
+
 it('IMPRV-015: the buyer panel preserves this screens own query params across a live refresh', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
