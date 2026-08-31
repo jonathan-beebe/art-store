@@ -6,13 +6,16 @@
 - DSGN: 9
 - ARCH: 1
 - FEAT: 38
-- IMPRV: 21
+- IMPRV: 22
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
+
+- 2026-08-31:17:25:32 — IMPRV-021 — rescoped: per commit runs tests (and maybe lint) in one fast container; the full check moves to PR time
+- 2026-08-31:17:18:17 — IMPRV-021 — defined: the commit gate pays only for what changed
 
 - 2026-08-31:14:08:35 — IMPRV-019 — follow-up: production ran on two PHP threads — FrankenPHP defaults num_threads to 2×CPU, Render's one-CPU free instance got 2, and two reconnecting SSE streams parked the whole pool so every page queued in front of PHP; the swap had dropped artisan serve's explicit 16-worker sizing; Caddyfile now pins num_threads 16 / max_threads 40 (FRANKENPHP_NUM_THREADS/FRANKENPHP_MAX_THREADS override) under the rule that production serves more than dev; verified on a --cpus=1 hardened container (boot line num_threads:16,max_threads:40)
 
