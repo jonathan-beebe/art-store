@@ -1,5 +1,7 @@
 <x-specimen-layout title="Cover rail — specimen">
     <div class="flex flex-col gap-4 py-4">
+        <x-ui.alert tone="notice" class="mx-4">Exploration — not shipped. The shipped mobile browse pattern is the media-gallery-panel bottom sheet (see the Browse sheet specimen); this cover-card rail stays here as an unshipped alternative.</x-ui.alert>
+
         <h1 class="px-4 font-display text-2xl leading-tight text-ink">Hand-made art, straight from the artist</h1>
 
         @if ($browse === [])

@@ -1,4 +1,6 @@
 <x-specimen-layout title="Buy bar — specimen">
+    <x-ui.alert tone="notice" class="m-4">Exploration — not shipped. The listing page shows price and Add to cart in the normal flow; this pinned bar stays here as an unshipped alternative.</x-ui.alert>
+
     @php $listing = $listings->first(); @endphp
 
     @if ($listing === null)

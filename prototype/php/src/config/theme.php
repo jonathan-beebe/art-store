@@ -8,12 +8,14 @@ declare(strict_types=1);
 |--------------------------------------------------------------------------
 |
 | The single source of truth for the storefront's visual language. Every
-| color is a semantic role, not a raw palette entry: views only ever say
-| `bg-canvas` or `text-ink-muted`, and this file decides what those mean —
-| in light and in dark. `App\Support\DesignTokens` turns this file into
-| the CSS custom properties every layout emits (`<x-theme-css />`), and
-| `resources/css/app.css` maps Tailwind utilities onto those properties,
-| so retheming the site is editing this file and nothing else.
+| color is a semantic role, not a raw palette entry: storefront views only
+| ever say `bg-canvas` or `text-ink-muted`, and this file decides what
+| those mean — in light and in dark. Seller and admin views style
+| themselves in raw Tailwind and stay outside this contract. `App\Support\DesignTokens`
+| turns this file into the CSS custom properties every layout emits
+| (`<x-theme-css />`), and `resources/css/app.css` maps Tailwind utilities
+| onto those properties, so retheming the storefront is editing this file
+| and nothing else.
 |
 | `/design-system` renders this same registry as paint chips, pairings,
 | and specimens, so the page can never drift from the shipped CSS.

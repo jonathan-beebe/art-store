@@ -106,6 +106,24 @@
         </div>
 
         <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Card fields <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-card-fields&gt;</code>, worn by checkout and pay</span></h3>
+            <div class="mt-4 max-w-sm rounded-card border border-line bg-surface p-6">
+                <x-card-fields />
+            </div>
+        </div>
+
+        <div>
+            <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Order item detail <span class="normal-case font-normal">— <code class="font-mono text-xs">&lt;x-order-item-detail&gt;</code>, worn by order pages</span></h3>
+            @if ($orderItemPreview === null)
+                <p class="mt-3 text-sm text-ink-muted">No configured for-sale listing yet — give one axes and a variant and its order line renders here.</p>
+            @else
+                <div class="mt-4 max-w-sm rounded-card border border-line bg-surface p-6">
+                    <x-order-item-detail :item="$orderItemPreview" />
+                </div>
+            @endif
+        </div>
+
+        <div>
             <h3 class="text-sm font-semibold uppercase tracking-wide text-ink-faint">Configurator <span class="normal-case font-normal">— <code class="font-mono text-xs">shop.partials.configurator</code>, live preview</span></h3>
             @if ($configurable === null)
                 <p class="mt-3 text-sm text-ink-muted">No configurable for-sale listing yet — give one options and the live configurator renders here.</p>
