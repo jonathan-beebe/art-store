@@ -25,7 +25,7 @@ final class FulfillmentController extends Controller
         return view('admin.fulfillments.index', [
             'fulfillments' => $window->items,
             'fulfillmentsTotal' => $window->total,
-            'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
+            'sellers' => Seller::query()->orderedForFilter()->get(),
             'status' => $status,
             'statuses' => FulfillmentStatus::cases(),
             'sellerId' => $sellerId,

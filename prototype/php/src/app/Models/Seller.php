@@ -10,6 +10,8 @@ use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\SellerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -110,5 +112,17 @@ class Seller extends Authenticatable
     public function displayName(): string
     {
         return $this->shop_name ?? $this->name ?? $this->email;
+    }
+
+    /**
+     * The full seller list, ordered the way every admin seller-filter
+     * dropdown presents it.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function orderedForFilter(Builder $query): void
+    {
+        $query->orderBy('shop_name')->orderBy('email');
     }
 }

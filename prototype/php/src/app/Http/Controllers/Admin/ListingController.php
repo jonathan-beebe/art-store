@@ -27,7 +27,7 @@ final class ListingController extends Controller
         return view('admin.listings.index', [
             'listings' => $window->items,
             'listingsTotal' => $window->total,
-            'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
+            'sellers' => Seller::query()->orderedForFilter()->get(),
             'status' => $status,
             'statuses' => ListingStatus::cases(),
             'sellerId' => $sellerId,

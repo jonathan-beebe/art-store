@@ -36,7 +36,7 @@ final class LedgerController extends Controller
             // partial ledger reads as a partial balance. The fold needs
             // every matching movement, not just the rendered window.
             'totals' => LedgerBalance::from(array_values($filtered->get()->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all())),
-            'sellers' => Seller::query()->orderBy('shop_name')->orderBy('email')->get(),
+            'sellers' => Seller::query()->orderedForFilter()->get(),
             'entryTypes' => LedgerEntryType::cases(),
             'selectedSeller' => $sellerId,
             'selectedType' => $type,
