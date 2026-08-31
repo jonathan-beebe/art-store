@@ -1,7 +1,7 @@
 ---
 id: IMPRV-019
 type: improvement
-status: open
+status: resolved
 created: 2026-08-30
 ---
 
@@ -129,3 +129,60 @@ process model.
   that set `PHP_CLI_SERVER_WORKERS=16` comes from its M8.
 - `IMPRV-017` — request lines carry query count and time, the instrumentation
   that makes a before/after on this measurable.
+
+## Working
+
+- 2026-08-31 — re-validated: the runtime stage still ends in `artisan serve`
+  (`Dockerfile:112`), `composer run deploy`'s last line is the same server,
+  and `PHP_CLI_SERVER_WORKERS=16` still governs capacity. The issue applies.
+- Design:
+  - `runtime` stage rebases onto the official FrankenPHP PHP 8.3 image
+    (classic per-request mode; Octane/worker mode stays out per the ticket),
+    installing the same gd/intl/pdo_sqlite/zip extensions. `dev` and `build`
+    stages stay on `php:8.3-cli` — the bind-mount workflow is untouched.
+  - A Caddyfile serves `public/` via `php_server` on plain :8000 with
+    `auto_https off`; Caddy answers static assets (build bundle, the
+    `public/storage` symlink) without a PHP process.
+  - `composer run deploy` keeps its skeleton/migrate/seed chain; the last
+    line becomes the FrankenPHP server so the Render Docker Command stays
+    `composer run deploy`.
+  - `USER www-data` survives; Caddy's config/data dirs get writable
+    XDG paths. The `/up` healthcheck, port 8000, the storage volume, and the
+    baked `public/storage` symlink all survive.
+  - Forwarded scheme/IP: Caddy forwards `X-Forwarded-*` only from proxies it
+    trusts, so the Caddyfile must trust the platform proxy for
+    `TRUSTED_PROXIES=*` to keep meaning what the README says.
+  - Regression to prove live: IMPRV-020's stream-close story
+    (`terminate()`, `connection_aborted`, `ignore_user_abort`) under the
+    FrankenPHP SAPI — full-lifetime and abandoned SSE curls against the
+    production image.
+  - `docs/backups.md` reconciliation stays with the backups tickets — this
+    ticket lands first.
+- 2026-08-31 — delivered. Runtime stage FROM
+  `dunglas/frankenphp:1.12.7-php8.3.33-bookworm` (FrankenPHP, PHP, and
+  Debian all pinned); gd/intl/pdo_sqlite/zip via `install-php-extensions`;
+  `docker/Caddyfile` with `auto_https off`, `:8000`, `root *
+  /var/www/src/public`, `encode zstd gzip`, `php_server`, and
+  `trusted_proxies static private_ranges {$CADDY_TRUSTED_PROXIES}`;
+  composer `deploy`'s last line runs `frankenphp run`; XDG config/data dirs
+  chowned for `www-data`; `PHP_CLI_SERVER_WORKERS` dropped from the runtime
+  env. Dev/build stages, compose stack, and Makefile untouched.
+- Deviation from the design sketch: Caddy's `static` IP module rejects `*`
+  as a CIDR, so its proxy trust is the separate `CADDY_TRUSTED_PROXIES`
+  (space-separated CIDRs, empty ⇒ private ranges only) beside Laravel's
+  `TRUSTED_PROXIES`; the README documents both.
+- Live evidence against the built image: `/up` 200; storefront renders;
+  `/build/assets/*.css` and `/storage/listings/*.jpg` answered with no
+  `http.request` story line (statics bypass PHP); SSE full run 26.2s,
+  abandon run closed with `disconnected: true`, `duration_ms: 8043` — the
+  stream-close story survives the SAPI swap unchanged; 12 held streams and
+  a page load answers in 0.0525s. `make check` green.
+- Validation review: accept, no blocking defects. Its checks: boots clean
+  with `CADDY_TRUSTED_PROXIES` unset; traversal and dotfile probes
+  (`--path-as-is`, encoded variants, `/.env`, the sqlite files) all 404;
+  Caddy's admin port stays unpublished; curl/frankenphp/php on `www-data`'s
+  PATH; healthcheck reaches healthy. Its one substantive advisory —
+  `docs/messaging.md` and `docs/review.md` still framing
+  `PHP_CLI_SERVER_WORKERS` as the production bound — fixed in this ticket:
+  both now scope the worker budget to the dev stack and name the
+  production thread pool.

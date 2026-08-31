@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-08-31:11:54:08 — IMPRV-019 — done: the production image serves with FrankenPHP — runtime stage rebased onto pinned dunglas/frankenphp (classic per-request mode, Octane/worker mode deferred), docker/Caddyfile serves public/ on :8000 with statics bypassing PHP and trusted_proxies via CADDY_TRUSTED_PROXIES (Caddy rejects Laravel's `*`, so the two variables stay separate), composer deploy chain ends in frankenphp run, PHP_CLI_SERVER_WORKERS gone from runtime, dev stack unchanged (387fe36); live-verified: /up 200, statics logged no http.request line, IMPRV-020's SSE close survives the SAPI swap (disconnected: true at 8043ms), page load 0.0525s under 12 held streams; reviewer accepted, its doc advisory (messaging.md/review.md worker-budget framing) fixed in the same commit
+
+- 2026-08-31:11:25:00 — IMPRV-019 — started
+
 - 2026-08-31:10:17:30 — DSGN-008 — done: the design system is audited, accurate, and complete — full rendered sweep of storefront (anonymous session), seller, and admin (live magic-link sessions) against /design-system; home page joins the layouts section, browse wireframe relabeled with the category variant, 2-up→3-up caption fixed, mobile explorations (buy bar, swipe gallery, cover rail) self-label unshipped with the browse sheet as the shipped pattern, on-photo/photo-scrim rated via Contrast::compositeOver() (7.2 AA floor), card-fields and order-item-detail demos added, theme.php contract scoped to the storefront (3ffa5c8); reviewer accepted with one advisory follow-up (serialized-unit Piece line absent from the order-item preview); larger follow-ups recorded in the ticket: seller/admin wear zero Warm Craft tokens, browse pill vs x-ui.chip divergence, ticket ids in code comments repo-wide
 
 - 2026-08-31:09:18:53 — DSGN-008 — started
