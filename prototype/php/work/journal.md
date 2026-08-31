@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-08-31:07:32:55 — RFCTR-011 — done: configurator complexity cleared — ConfiguratorPageResolver splits into SelectedAxisValues, ModifiersPresentation, SerializedUnitsPresentation collaborators; publish validation flattens to per-rule-family methods; pricer's line builder dispatches; six baseline entries deleted, sidecars unmodified, gate green (c385f06, 2e2097b); reviewer accepted with two pre-existing advisories (positional tuples idiom, cross-family issue order unpinned)
+
+- 2026-08-31:07:27:05 — RFCTR-012 — started
+
 - 2026-08-31:07:01:30 — RFCTR-011 — started
 
 - 2026-08-31:06:54:25 — RFCTR-013 — defined: the complexity baseline's last two entries
