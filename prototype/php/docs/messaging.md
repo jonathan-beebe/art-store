@@ -306,13 +306,15 @@ Chrome and Firefox), which also bounds how long a stale connection can hold
 anything. The tick interval and the deadline are named constants on
 `UnreadCountStream`: `TICK_SECONDS = 2`, `LIFETIME_SECONDS = 25`.
 
-Two costs, stated rather than hidden. One open stream holds one PHP worker for
-as long as its tab stays open: `artisan serve` runs PHP's built-in server,
-which handles one request per worker, so `PHP_CLI_SERVER_WORKERS` is set to
-`16` in `docker-compose.yml` (alongside `--no-reload`, which the built-in
-server requires for that variable to take effect at all) and the number of
-concurrent readers this prototype supports is that value minus the workers
-pages need. Measured against the running container (RSRCH-001 M8): twelve
+Two costs, stated rather than hidden. One open stream holds one request slot
+for as long as its tab stays open. The dev stack (`make up`) serves with
+`artisan serve`, PHP's built-in one-request-per-worker server, so
+`PHP_CLI_SERVER_WORKERS` is set to `16` in `docker-compose.yml` (alongside
+`--no-reload`, which the built-in server requires for that variable to take
+effect at all) and the dev stack's concurrent readers are that value minus
+the workers pages need; the production image serves with FrankenPHP, whose
+thread pool governs capacity instead. Measured against the dev container
+(RSRCH-001 M8): twelve
 streams held open still answer a page load in 0.11-0.12 s, and twelve streams
 whose browsers are gone answer it in 0.08-0.29 s. Past sixteen readers a page
 load waits for a worker to come back. And the generator polls — one `count`

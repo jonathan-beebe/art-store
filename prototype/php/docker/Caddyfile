@@ -1,0 +1,21 @@
+# Classic per-request mode: no `worker` block. Octane-style worker mode
+# keeps one PHP process across requests, which App\Logging\LogStore's
+# per-request state assumes it never has to survive.
+{
+	frankenphp
+	auto_https off
+	servers {
+		# private_ranges covers a same-host or private-network proxy;
+		# CADDY_TRUSTED_PROXIES adds a fronting platform's own address
+		# (space-separated) when that isn't enough. A distinct variable
+		# from Laravel's own TRUSTED_PROXIES (see bootstrap/app.php): that
+		# one also accepts `*`, which this static IP-range list cannot.
+		trusted_proxies static private_ranges {$CADDY_TRUSTED_PROXIES}
+	}
+}
+
+:8000 {
+	root * /var/www/src/public
+	encode zstd gzip
+	php_server
+}

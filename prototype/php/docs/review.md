@@ -292,9 +292,11 @@ unread badge — on the four points where the two designs actually differ.
   restating the rule.
 - **The live badge.** This design polls: `UnreadCountStream` re-reads the
   actor's count on a fixed tick for a fixed lifetime (`TICK_SECONDS = 2`,
-  `LIFETIME_SECONDS = 25`), bounded because `artisan serve`'s one-worker-per-request
-  model means an open tab holds a worker for as long as it stays open — the
-  reason `PHP_CLI_SERVER_WORKERS` is raised to 16. An abandoned stream is
+  `LIFETIME_SECONDS = 25`), bounded because an open tab holds its request
+  for the stream's whole lifetime — under the dev stack's `artisan serve`
+  that is one of a fixed count of workers, the reason `docker-compose.yml`
+  raises `PHP_CLI_SERVER_WORKERS` to 16; the production image's FrankenPHP
+  thread pool carries the streams without that fixed bound. An abandoned stream is
   reclaimed within one tick: the generator yields a frame every tick, and a
   failed write is how PHP learns the client is gone (see `docs/messaging.md`
   § "The live badge").
@@ -334,11 +336,11 @@ unread badge — on the four points where the two designs actually differ.
    silently.** The create path flashes the failure; the update path does not.
 4. **Seeded listings carry a generated placeholder SVG**, not artwork, and the
    seeder writes no `refunds` row — seed data shows the happy path only.
-5. **Every open messaging tab holds an SSE worker for its whole lifetime.**
-   `PHP_CLI_SERVER_WORKERS = 16` is what bounds concurrent readers, and a
-   deployment that wants more needs a server that is not `artisan serve`. An
-   abandoned stream frees its worker within one tick. See `docs/messaging.md`
-   § "The live badge".
+5. **Every open messaging tab holds an SSE request for its whole lifetime.**
+   Under the dev stack's `artisan serve`, `PHP_CLI_SERVER_WORKERS = 16`
+   bounds concurrent readers; the production image serves with FrankenPHP,
+   whose thread pool takes that fixed bound off. An abandoned stream frees
+   its slot within one tick. See `docs/messaging.md` § "The live badge".
 6. **A cookieless client of `/events` mints a `customers` row per request**,
    the same as any other storefront route with no `customer_id` cookie — a
    crawler that ignores cookies holds one worker per reconnect. Bounded, not a
