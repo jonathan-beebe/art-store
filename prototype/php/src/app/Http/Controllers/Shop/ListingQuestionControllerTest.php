@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
@@ -193,4 +196,23 @@ it('trips the conversation-open limit, handing the listing back with the questio
     $response->assertSee('Ask Rye Press a question');
     $response->assertSee('>Is this signed?</textarea>', escape: false);
     expect(Conversation::count())->toBe(1);
+});
+
+it('re-renders a configured listing on the rate limit with its configurator and highlights intact', function (): void {
+    Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $listing = $this->listing($this->seller('Rye Press'), ['slug' => 'ring']);
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal');
+    app(AddOptionValue::class)($metal, 'Gold', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $this->attribute($listing, 'Material', 'Sterling Silver');
+    $this->visitor();
+    $this->post('/art/harbour-at-dawn/questions', ['body' => 'Does this ship framed?']);
+
+    $response = $this->post('/art/ring/questions', ['body' => 'Is this signed?']);
+
+    $response->assertStatus(429);
+    $response->assertSee('Metal');
+    $response->assertSee('Material');
+    $response->assertSee('Sterling Silver');
 });

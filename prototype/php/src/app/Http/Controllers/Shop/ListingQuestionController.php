@@ -5,15 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Messaging\OpenConversationWithMessage;
-use App\Domain\Listings\ListingAvailability;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\AskSellerRequest;
-use App\Models\Customer;
 use App\Models\Listing;
-use App\Support\Configurator\ConfiguratorInput;
-use App\Support\Configurator\ConfiguratorPageResolver;
+use App\Support\Configurator\ListingPagePresenter;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -37,7 +34,7 @@ final class ListingQuestionController extends ShopController
             // box.
             $request->flash();
 
-            return $this->tooManyRequests($exceeded, 'shop.listing', $this->listingPage($listing, $visitor, $request));
+            return $this->tooManyRequests($exceeded, 'shop.listing', ListingPagePresenter::forShop($listing, $visitor, $request));
         }
 
         $conversation = $ask(
@@ -48,25 +45,5 @@ final class ListingQuestionController extends ShopController
         );
 
         return redirect()->route('shop.messages.show', $conversation);
-    }
-
-    /**
-     * The listing page the question form sits on, the same data
-     * `ListingController` renders it from. The view it records there is not
-     * part of it: a trip leaves the world alone.
-     *
-     * @return array<string, mixed>
-     */
-    private function listingPage(Listing $listing, Customer $visitor, AskSellerRequest $request): array
-    {
-        $hasConfigurator = ConfiguratorPageResolver::hasConfigurator($listing);
-
-        return [
-            'listing' => $listing->load('seller', 'faqs'),
-            'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
-            'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
-            'hasConfigurator' => $hasConfigurator,
-            'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
-        ];
     }
 }
