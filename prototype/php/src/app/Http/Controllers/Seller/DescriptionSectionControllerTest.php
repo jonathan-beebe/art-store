@@ -11,6 +11,7 @@ use App\Models\DescriptionSection;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists the listing’s sections in position order', function (): void {
     $seller = $this->seller();
@@ -268,40 +269,24 @@ it('refuses removing another sellers section', function (): void {
     expect(DescriptionSection::find($section->id))->not->toBeNull();
 });
 
-it('trips the listing-write limit adding a section', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/description-sections", ['kind' => 'text']);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/description-sections", ['kind' => 'text']);
-
-    $response->assertStatus(429);
-    expect(DescriptionSection::where('listing_id', $listing->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating a section', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $section = DescriptionSection::factory()->create(['listing_id' => $listing->id, 'kind' => DescriptionSectionKind::Text]);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/description-sections", ['kind' => 'text']);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/description-sections/{$section->id}", ['kind' => 'care']);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/description-sections", ['kind' => 'text']),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/description-sections/{$section->id}", ['kind' => 'care']),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/description-sections/{$section->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($section->fresh()?->kind)->toBe(DescriptionSectionKind::Text);
-});
-
-it('trips the listing-write limit removing a section', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $section = DescriptionSection::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/description-sections", ['kind' => 'text']);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/description-sections/{$section->id}");
-
-    $response->assertStatus(429);
-    expect(DescriptionSection::find($section->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(DescriptionSection::where('listing_id', $listing->id)->count())->toBe(2),
+        'updating' => expect($section->fresh()?->kind)->toBe(DescriptionSectionKind::Text),
+        'removing' => expect(DescriptionSection::find($section->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
