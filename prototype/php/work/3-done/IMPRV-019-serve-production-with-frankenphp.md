@@ -192,6 +192,22 @@ process model.
   Lesson recorded: local Docker's default privileges over-promise what a
   sandboxed production runtime grants; verify the production image under
   the production posture.
+- 2026-08-31, second post-resolution finding — production was notably
+  slower than before the swap: FrankenPHP's thread pool defaults to
+  2×CPU, which on Render's one-CPU free instance is two threads
+  (`num_threads:2` in the boot line), and two held SSE streams (the
+  operator's own admin and storefront tabs, reconnecting on close) parked
+  the whole pool — every page request queued in front of PHP, invisible
+  to `duration_ms`, which starts at `will` after a thread is granted.
+  The `artisan serve` deployment carried an explicit sizing decision
+  (`PHP_CLI_SERVER_WORKERS=16`, RSRCH-001 M8); the swap dropped the
+  variable and inherited the default. Ruled out: OPcache (enabled in the
+  image), the app itself (`db.total_ms` ~10ms). Fix: the Caddyfile pins
+  `num_threads` 16 / `max_threads` 40 (`FRANKENPHP_NUM_THREADS` /
+  `FRANKENPHP_MAX_THREADS` override), stated rule: production serves
+  more than dev, never less. Verified on a `--cpus=1` container: boot
+  line reads `num_threads:16,max_threads:40`, `/up` healthy under the
+  hardened flags.
 - Validation review: accept, no blocking defects. Its checks: boots clean
   with `CADDY_TRUSTED_PROXIES` unset; traversal and dotfile probes
   (`--path-as-is`, encoded variants, `/.env`, the sqlite files) all 404;
