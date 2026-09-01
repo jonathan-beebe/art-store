@@ -8,8 +8,12 @@ use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Models\Payout;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\PendingCommand;
 use RuntimeException;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 
 /**
  * `$this->artisan()` hands back an exit code when console output is not mocked
@@ -57,6 +61,16 @@ it('settles as of the application clock when --as-of is omitted', function () us
     $pending($this->artisan('payouts:run'))
         ->expectsOutputToContain('2026-08-17 to 2026-08-23')
         ->assertSuccessful();
+});
+
+it('lets an exception from the payout action escape the command uncaught, unlike orders:sweep', function (): void {
+    Schema::drop('ledger_entries');
+
+    $command = app(RunWeeklyPayouts::class);
+    $command->setLaravel($this->app);
+
+    expect(fn () => $command->run(new ArrayInput(['--as-of' => '2026-08-24']), new NullOutput))
+        ->toThrow(QueryException::class);
 });
 
 it('names every paid seller', function () use ($pending): void {
