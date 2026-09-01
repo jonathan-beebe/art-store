@@ -139,8 +139,9 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
 
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews).
-        ->expectsDatabaseQueryCount(7)
+        // countable response (RollUpPageViews); +2 for the seller layout's
+        // awaiting-shipment count and unread-notifications check.
+        ->expectsDatabaseQueryCount(9)
         ->get('/seller');
 
     $response->assertOk();

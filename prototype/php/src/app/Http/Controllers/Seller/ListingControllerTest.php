@@ -457,8 +457,9 @@ it('renders the activity page on a fixed number of queries however many events t
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
         // countable response (RollUpPageViews); +1 for the active-removal
-        // eager load.
-        ->expectsDatabaseQueryCount(7)
+        // eager load; +2 for the seller layout's awaiting-shipment count
+        // and unread-notifications check.
+        ->expectsDatabaseQueryCount(9)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
