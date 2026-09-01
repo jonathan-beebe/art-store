@@ -15,23 +15,15 @@ it('keeps a quantity within stock', function (int $requested, int $stock, int $e
     'a quantity capped at the stock on hand' => [9, 5, 5],
 ]);
 
-it('rejects a listing with nothing left', function (): void {
-    expect(fn () => CartQuantity::withinStock(1, 0, ListingStatus::ForSale, hasActiveRemoval: false))
-        ->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
-});
-
-it('rejects a listing that is not for sale', function (ListingStatus $status): void {
-    expect(fn () => CartQuantity::withinStock(1, 5, $status, hasActiveRemoval: false))
+it('rejects a listing that cannot be sold', function (?int $available, ListingStatus $status, bool $hasActiveRemoval): void {
+    expect(fn () => CartQuantity::withinStock(1, $available, $status, $hasActiveRemoval))
         ->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
 })->with([
-    'a draft that was never public' => [ListingStatus::Draft],
-    'a listing the seller archived' => [ListingStatus::Archived],
+    'nothing left in stock' => [0, ListingStatus::ForSale, false],
+    'a draft that was never public' => [5, ListingStatus::Draft, false],
+    'a listing the seller archived' => [5, ListingStatus::Archived, false],
+    'a listing an admin has removed from the storefront' => [5, ListingStatus::ForSale, true],
 ]);
-
-it('rejects a listing an admin has removed from the storefront', function (): void {
-    expect(fn () => CartQuantity::withinStock(1, 5, ListingStatus::ForSale, hasActiveRemoval: true))
-        ->toThrow(DomainRuleViolation::class, 'That listing is no longer for sale.');
-});
 
 it('rejects a request below one', function (): void {
     expect(fn () => CartQuantity::withinStock(0, 5, ListingStatus::ForSale, hasActiveRemoval: false))->toThrow(InvalidArgumentException::class);
