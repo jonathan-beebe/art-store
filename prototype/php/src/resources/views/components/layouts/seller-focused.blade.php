@@ -149,13 +149,15 @@
         </main>
 
         <div class="w-full shrink-0 border-t border-gray-200 px-4 py-6 sm:px-6 lg:w-96 lg:border-t-0 lg:border-l lg:px-6 dark:border-white/10">
-            @isset($preview)
-                <div class="flex flex-col gap-4">
+            {{-- Every section shows the buyer preview; a page overrides the
+                 slot only to pin an input or add a caption beside it. --}}
+            <div class="flex flex-col gap-4">
+                @isset($preview)
                     {{ $preview }}
-                </div>
-            @else
-                <p class="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-500">No preview for this screen.</p>
-            @endisset
+                @else
+                    <x-seller.buyer-view :listing="$listing" />
+                @endisset
+            </div>
         </div>
     </div>
 
