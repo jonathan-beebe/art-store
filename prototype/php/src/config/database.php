@@ -40,9 +40,16 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            // The same pragma trio the log store sets on its own file
+            // (app/Logging/LogStore.php): WAL keeps readers and the writer
+            // out of each other's way and turns a commit into one appended
+            // fsync — the rollback journal's create/sync/delete churn is
+            // what made single-row writes cross the slow-query threshold on
+            // a bind-mounted dev database. Harmless on `:memory:` (the test
+            // connection), where SQLite ignores the journal_mode switch.
+            'busy_timeout' => 5000,
+            'journal_mode' => 'wal',
+            'synchronous' => 'normal',
             'transaction_mode' => 'DEFERRED',
         ],
 
