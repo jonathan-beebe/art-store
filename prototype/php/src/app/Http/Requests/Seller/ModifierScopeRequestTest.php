@@ -32,8 +32,8 @@ it('refuses an option value that belongs to a different listing’s axis', funct
 it('reads the always radio as no option values even with boxes still checked', function (): void {
     $seller = test()->seller();
     $listing = test()->listing($seller);
-    $axis = \App\Models\OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $value = \App\Models\OptionValue::factory()->create(['axis_id' => $axis->id]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
     $request = ModifierScopeRequest::create('/whatever', 'POST', ['when' => 'always', 'option_value_id' => [$value->id]]);
 
     expect($request->optionValues())->toBe([]);
