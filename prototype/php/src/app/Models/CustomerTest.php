@@ -9,15 +9,12 @@ use App\Domain\Customers\StandingFilter;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
-it('is anonymous when it has no email', function (): void {
-    expect((new Customer)->isAnonymous())->toBeTrue();
-});
-
-it('is not anonymous once it has an email', function (): void {
-    $customer = new Customer(['email' => 'shopper@example.com']);
-
-    expect($customer->isAnonymous())->toBeFalse();
-});
+it('is anonymous only when it has no email', function (?string $email, bool $expected): void {
+    expect((new Customer(['email' => $email]))->isAnonymous())->toBe($expected);
+})->with([
+    'no email' => [null, true],
+    'has an email' => ['shopper@example.com', false],
+]);
 
 it('is verified once its address is confirmed', function (): void {
     expect($this->verifiedCustomer()->isVerified())->toBeTrue()
