@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\Money\Money;
 use App\Models\Seller;
 use App\Notifications\ItemSold;
+use App\Notifications\OrderShipped;
 use Illuminate\Notifications\DatabaseNotification;
 
 $notify = function (Seller $seller, string $orderId): DatabaseNotification {
@@ -53,6 +54,22 @@ it('stops offering to mark a read notification read', function () use ($notify):
     $response = $this->actingAs($seller, 'seller')->get('/seller/notifications');
 
     $response->assertDontSee('Mark as read');
+});
+
+it('answers not found marking a customer notification read even when its id matches the sellers own', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $customer->notify(new OrderShipped('ord_00000000000000000000000041', 'Royal Mail', 'RM123'));
+    $notification = $customer->notifications()->firstOrFail();
+    // The policy reads `notifiable_type` and `notifiable_id` together — forcing
+    // the id half to collide with the seller's own proves the type half is
+    // what still refuses it, not an id that never actually matches in practice.
+    $notification->forceFill(['notifiable_id' => $seller->id])->save();
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/notifications/{$notification->id}/read");
+
+    $response->assertNotFound();
+    expect($notification->refresh()->read_at)->toBeNull();
 });
 
 it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
