@@ -13,7 +13,7 @@ it('lists one section per configurator page, in the order the hub lists them', f
         'Basics',
         'Photos',
         'Pricing & options',
-        'Variants',
+        'Combinations',
         'Questions',
         'Quantity discounts',
         'Description sections',
