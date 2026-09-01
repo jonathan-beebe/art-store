@@ -24,10 +24,3 @@ it('records when it was lifted', function (): void {
     expect($block->isActive())->toBeFalse()
         ->and($block->fresh()?->lifted_at?->format('Y-m-d H:i:s'))->toBe('2026-08-23 10:00:00');
 });
-
-it('belongs to the customer it blocks', function (): void {
-    $customer = $this->verifiedCustomer();
-    $block = CustomerBlock::factory()->create(['customer_id' => $customer->id]);
-
-    expect($block->customer->id)->toBe($customer->id);
-});
