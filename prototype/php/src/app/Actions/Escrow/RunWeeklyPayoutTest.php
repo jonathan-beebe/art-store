@@ -74,6 +74,18 @@ it('does not pay out money still held in escrow', function (): void {
         ->and(Payout::query()->count())->toBe(0);
 });
 
+it('pays nothing when a seller\'s available balance nets to exactly zero', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor($seller, priceCents: 45000, deliveredAt: $this->moment('2026-08-21 11:00:00'));
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'Dispute.', $this->moment('2026-08-22 10:00:00'));
+
+    $payouts = app(RunWeeklyPayout::class)($this->moment('2026-08-24 09:00:00'));
+
+    expect($seller->escrowBalance()->available->cents)->toBe(0)
+        ->and($payouts)->toBe([])
+        ->and(Payout::query()->count())->toBe(0);
+});
+
 it('waits for the next run when a delivery lands after the period ends', function (): void {
     $this->deliveredFulfillmentFor($this->seller(), priceCents: 45000, deliveredAt: $this->moment('2026-08-24 11:00:00'));
 
