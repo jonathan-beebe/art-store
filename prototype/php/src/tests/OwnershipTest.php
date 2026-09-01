@@ -90,7 +90,12 @@ it('carries a populated seller_id on every table a seller owns', function () use
         expect(in_array('seller_id', (new $modelClass)->getFillable(), true))->toBeTrue("{$modelClass} does not mass-assign seller_id.");
 
         $row = Factory::factoryForModel($modelClass)->createOne();
-        expect($row->getAttribute('seller_id'))->not->toBeNull("{$modelClass}'s factory left seller_id unpopulated.");
+        $sellerId = $row->getAttribute('seller_id');
+        expect($sellerId)->not->toBeNull("{$modelClass}'s factory left seller_id unpopulated.");
+
+        $seller = $row->loadMissing('seller')->getRelationValue('seller');
+        assert($seller instanceof Seller);
+        expect($seller->id)->toBe($sellerId, "{$modelClass}'s seller() relation does not resolve to its own seller_id.");
     }
 });
 
@@ -102,7 +107,12 @@ it('carries a populated customer_id on every table a customer owns', function ()
         expect(in_array('customer_id', (new $modelClass)->getFillable(), true))->toBeTrue("{$modelClass} does not mass-assign customer_id.");
 
         $row = Factory::factoryForModel($modelClass)->createOne();
-        expect($row->getAttribute('customer_id'))->not->toBeNull("{$modelClass}'s factory left customer_id unpopulated.");
+        $customerId = $row->getAttribute('customer_id');
+        expect($customerId)->not->toBeNull("{$modelClass}'s factory left customer_id unpopulated.");
+
+        $customer = $row->loadMissing('customer')->getRelationValue('customer');
+        assert($customer instanceof Customer);
+        expect($customer->id)->toBe($customerId, "{$modelClass}'s customer() relation does not resolve to its own customer_id.");
     }
 });
 
@@ -111,6 +121,10 @@ it('carries a populated seller_id on a refund, fulfillment-scoped rather than or
 
     expect(Schema::hasColumn('refunds', 'seller_id'))->toBeTrue();
     expect($refund->seller_id)->not->toBeNull();
+
+    $seller = $refund->seller()->first();
+    assert($seller instanceof Seller);
+    expect($seller->id)->toBe($refund->seller_id);
 });
 
 it('gives every seller-owned row created through its action the same seller_id its listing carries', function (): void {
