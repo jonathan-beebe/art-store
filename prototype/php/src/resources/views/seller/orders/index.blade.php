@@ -1,43 +1,22 @@
 <x-layouts.seller title="Orders — Art Store seller">
-    <h1 class="text-xl font-semibold">Orders</h1>
-
-    @foreach ($groups as $group)
-        <section aria-labelledby="group-{{ $group['status']->value }}" class="mt-6">
-            <h2 id="group-{{ $group['status']->value }}" class="font-semibold text-gray-700 dark:text-gray-300">
-                {{ $group['label'] }} ({{ $group['fulfillments']->count() }})
-            </h2>
-
-            @if ($group['fulfillments']->isEmpty())
-                <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">Nothing here.</p>
-            @else
-                <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-                    <table class="w-full text-left">
-                        <caption class="sr-only">{{ $group['label'] }} orders</caption>
-                        <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                            <tr>
-                                <th scope="col" class="px-4 py-2 font-semibold">Order</th>
-                                <th scope="col" class="px-4 py-2 font-semibold">Buyer</th>
-                                <th scope="col" class="px-4 py-2 font-semibold">Items</th>
-                                <th scope="col" class="px-4 py-2 text-right font-semibold">Net</th>
-                                <th scope="col" class="px-4 py-2 font-semibold">Placed</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                            @foreach ($group['fulfillments'] as $fulfillment)
-                                <tr>
-                                    <th scope="row" class="px-4 py-2 font-normal">
-                                        <a href="{{ route('seller.orders.show', $fulfillment->id) }}" class="font-medium underline">{{ $fulfillment->order_id }}</a>
-                                    </th>
-                                    <td class="px-4 py-2">{{ $fulfillment->order->shipping_name }}</td>
-                                    <td class="px-4 py-2">{{ $fulfillment->order->items->pluck('title')->join(', ') }}</td>
-                                    <td class="px-4 py-2 text-right tabular-nums">{{ $fulfillment->net()->format() }}</td>
-                                    <td class="px-4 py-2">{{ $fulfillment->order->placed_at?->format('M j, Y') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+    <div class="h-[calc(100dvh-7rem)] overflow-hidden rounded-lg border border-gray-200 dark:border-white/10">
+        <x-seller.list-detail mobile="list">
+            <x-slot:listHeader>
+                <div class="flex items-baseline gap-2">
+                    <h1 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Orders</h1>
+                    @if ($needsActionCount > 0)
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $needsActionCount }} need action</span>
+                    @endif
                 </div>
-            @endif
-        </section>
-    @endforeach
+            </x-slot:listHeader>
+
+            <x-slot:list>
+                <x-seller.fulfillment-cells :fulfillments="$fulfillments" />
+            </x-slot:list>
+
+            <div class="hidden h-full items-center justify-center p-8 lg:flex">
+                <p class="text-sm text-gray-500 dark:text-gray-500">Choose an order to see its details.</p>
+            </div>
+        </x-seller.list-detail>
+    </div>
 </x-layouts.seller>
