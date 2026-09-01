@@ -37,7 +37,7 @@ it('answers not found for another sellers fulfillment', function (string $abilit
     /** @var Response $response */
     expect($response->denied())->toBeTrue()
         ->and($response->status())->toBe(404);
-})->with(['view', 'update', 'ship']);
+})->with(['view', 'update', 'ship', 'decline']);
 
 it('offers the shipment form only while the fulfillment awaits shipment', function () use ($awaitingShipment): void {
     $seller = $this->seller();
@@ -46,6 +46,15 @@ it('offers the shipment form only while the fulfillment awaits shipment', functi
     expect($policy->ship($seller, $awaitingShipment($seller))->allowed())->toBeTrue()
         ->and($policy->ship($seller, $this->shippedFulfillmentFor($seller))->allowed())->toBeFalse()
         ->and($policy->ship($seller, $this->deliveredFulfillmentFor($seller))->allowed())->toBeFalse();
+});
+
+it('offers the decline form only while the fulfillment awaits shipment', function () use ($awaitingShipment): void {
+    $seller = $this->seller();
+    $policy = new FulfillmentPolicy;
+
+    expect($policy->decline($seller, $awaitingShipment($seller))->allowed())->toBeTrue()
+        ->and($policy->decline($seller, $this->shippedFulfillmentFor($seller))->allowed())->toBeFalse()
+        ->and($policy->decline($seller, $this->deliveredFulfillmentFor($seller))->allowed())->toBeFalse();
 });
 
 it('offers delivery confirmation to the buying customer only once shipped', function () use ($awaitingShipment): void {
