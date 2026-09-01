@@ -6,7 +6,6 @@ namespace App\Support\RateLimiting;
 
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\RateLimiting\RateLimitValue;
-use Illuminate\Support\Env;
 use InvalidArgumentException;
 
 /**
@@ -16,39 +15,51 @@ use InvalidArgumentException;
  * exercise that file directly rather than the parser it calls, which
  * `App\Domain\RateLimiting\RateLimitValueTest` already covers on its own.
  *
- * `env()` answers from Dotenv's repository, which `.env` fills at boot, so
- * these write through that repository rather than `putenv()`, whose value it
- * shadows. Each case starts from all seven variables cleared and gets back
- * whatever `.env` gave them, so the file reads the same on a checkout that
- * sets them and one that does not.
+ * These write `$_ENV`/`$_SERVER`/`putenv()` directly rather than through
+ * `Illuminate\Support\Env::getRepository()`: that repository is immutable
+ * once a process has ever seen a value for a key (`.env` supplies every
+ * `RATE_LIMIT_*` variable on every boot), so a second `set()` for the same
+ * key silently no-ops under Pest's `--parallel` worker, which boots the
+ * application once before running a file's tests rather than once per
+ * process the way a serial run does. `env()` still reads through that same
+ * repository, and its reader chain checks `$_SERVER`, then `$_ENV`, then
+ * `putenv()`, so a case that only wrote one of the three would still read
+ * back a stale value out of the others. Each case starts from all seven
+ * variables cleared and gets back whatever `.env` gave them, so the file
+ * reads the same on a checkout that sets them and one that does not.
  */
+function setRateLimitEnv(string $variable, ?string $value): void
+{
+    if ($value === null) {
+        putenv($variable);
+        unset($_ENV[$variable], $_SERVER[$variable]);
+
+        return;
+    }
+
+    putenv("{$variable}={$value}");
+    $_ENV[$variable] = $value;
+    $_SERVER[$variable] = $value;
+}
 
 /** @var array<string, string|null> $shipped */
 $shipped = [];
 
 beforeEach(function () use (&$shipped): void {
-    $repository = Env::getRepository();
-
     foreach (RateLimitName::cases() as $limit) {
-        $shipped[$limit->envVariable()] = $repository->get($limit->envVariable());
-        $repository->clear($limit->envVariable());
+        $shipped[$limit->envVariable()] = getenv($limit->envVariable()) ?: null;
+        setRateLimitEnv($limit->envVariable(), null);
     }
 });
 
 afterEach(function () use (&$shipped): void {
-    $repository = Env::getRepository();
-
     foreach ($shipped as $variable => $value) {
-        if ($value === null) {
-            $repository->clear($variable);
-        } else {
-            $repository->set($variable, $value);
-        }
+        setRateLimitEnv($variable, $value);
     }
 });
 
 it('refuses to boot when a rate limit env variable is malformed', function (): void {
-    Env::getRepository()->set('RATE_LIMIT_CHECKOUT', 'not-a-limit');
+    setRateLimitEnv('RATE_LIMIT_CHECKOUT', 'not-a-limit');
 
     expect(fn () => require config_path('rate_limits.php'))
         ->toThrow(InvalidArgumentException::class, 'RATE_LIMIT_CHECKOUT must be');

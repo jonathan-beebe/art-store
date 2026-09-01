@@ -13,7 +13,13 @@ use Symfony\Component\Finder\Finder;
  */
 it('gives every class under app a sidecar test', function (): void {
     /** @var array<string, string> $exceptions */
-    $exceptions = [];
+    $exceptions = [
+        // Overrides two protected framework hooks with no logic of its own
+        // (see its docblock); routes/consoleTest.php covers the schedule
+        // load it keeps, and every Console\Commands sidecar test passing at
+        // all covers the Finder scan it drops.
+        'app/Console/Kernel.php' => 'covered by routes/consoleTest.php and the Console\Commands sidecar tests',
+    ];
 
     $base = dirname(__DIR__);
 
