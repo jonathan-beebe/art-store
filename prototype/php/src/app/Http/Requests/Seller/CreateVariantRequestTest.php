@@ -37,6 +37,23 @@ it('refuses a combination that already has a variant row, naming it', function (
     expect(Variant::where('listing_id', $listing->id)->count())->toBe(1);
 });
 
+it('refuses an option value that belongs to a different listing’s axis', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $otherListing = $this->listing($seller);
+    $otherAxis = OptionAxis::factory()->create(['listing_id' => $otherListing->id]);
+    $otherValue = OptionValue::factory()->create(['axis_id' => $otherAxis->id]);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/variants", [
+        'option_value_id' => [$axis->id => $otherValue->id],
+        'quantity' => 1,
+    ]);
+
+    $response->assertSessionHasErrors("option_value_id.{$axis->id}");
+    expect(Variant::where('listing_id', $listing->id)->count())->toBe(0);
+});
+
 it('skips the combination rule rather than 500 when an axis value does not exist at all', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
