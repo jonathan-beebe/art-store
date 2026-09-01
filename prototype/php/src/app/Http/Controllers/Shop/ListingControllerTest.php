@@ -183,7 +183,7 @@ it('shows no questions and answers section for a listing with none published', f
     $response->assertDontSee('Questions &amp; answers', escape: false);
 });
 
-it('D1: renders the listings page sections as separated titled blocks in order', function (): void {
+it('renders the listings page sections as separated titled blocks in order', function (): void {
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
     DescriptionSection::factory()->create([
         'listing_id' => $listing->id,
@@ -205,7 +205,7 @@ it('D1: renders the listings page sections as separated titled blocks in order',
     $response->assertSeeInOrder(['How to order', 'Orders print Mondays.', 'Care', 'Hand wash cold.']);
 });
 
-it('D3: renders a size chart on the listing page as a real table', function (): void {
+it('renders a size chart on the listing page as a real table', function (): void {
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
     DescriptionSection::factory()->json(DescriptionSectionKind::SizeChart, [
         ['label' => 'S', 'value1' => '36 in', 'value2' => '27 in'],
@@ -226,7 +226,7 @@ it('shows no page sections for a listing with none', function (): void {
     $response->assertDontSee('<table', false);
 });
 
-it('A10: preselects the rings axis defaults and prices the page concretely at first paint, one whole price never a range', function (): void {
+it('preselects the rings axis defaults and prices the page concretely at first paint, one whole price never a range', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'ring', 'price_cents' => 12000]);
     $metal = app(CreateOptionAxis::class)($listing, 'Metal');

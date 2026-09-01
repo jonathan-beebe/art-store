@@ -275,7 +275,7 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $cartPage->assertSee('$266.00');
 });
 
-it('C7: prices an exact measurement between two presets, inside the sellers min', function (): void {
+it('prices an exact measurement between two presets, inside the sellers min', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'belt', 'price_cents' => 2000]);
     $leather = app(CreateOptionAxis::class)($listing, 'Leather');
