@@ -5,12 +5,11 @@
     use App\Support\Ordinal;
 @endphp
 
-<x-layouts.seller :title="'Listing page sections — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Listing page sections — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
     <h1 class="mt-2 text-xl font-semibold">Listing page sections</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Build the page in sections that render like a real product page — no ALL-CAPS headers, no size chart pasted as a wall of numbers.</p>
 
-    <x-seller.editor-layout>
             @foreach ($sections as $section)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <div class="flex flex-wrap items-baseline gap-2">
@@ -21,12 +20,12 @@
                         <form method="POST" action="{{ route('seller.listings.description-sections.reorder', [$listing, $section]) }}" class="contents">
                             @csrf
                             <input type="hidden" name="direction" value="up">
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
+                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
                         </form>
                         <form method="POST" action="{{ route('seller.listings.description-sections.reorder', [$listing, $section]) }}" class="contents">
                             @csrf
                             <input type="hidden" name="direction" value="down">
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
+                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
                         </form>
                         <form method="POST" action="{{ route('seller.listings.description-sections.destroy', [$listing, $section]) }}" class="contents">
                             @csrf
@@ -111,12 +110,11 @@
                 <p class="mt-3 text-gray-600 dark:text-gray-400">Reusing one section across all your listings — the same disclaimer on 40 pages, edited once — is <x-seller.coming-pill />. Until then it's per listing.</p>
             </div>
 
-        <x-slot:panel>
-            <x-seller.buyer-view :listing="$listing" />
+    <x-slot:preview>
+        <x-seller.buyer-view :listing="$listing" />
 
-            @if ($sections->isEmpty())
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">Nothing here yet — a section you add on the left shows up here exactly as buyers will read it.</p>
-            @endif
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+        @if ($sections->isEmpty())
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">Nothing here yet — a section you add on the left shows up here exactly as buyers will read it.</p>
+        @endif
+    </x-slot:preview>
+</x-layouts.seller-focused>

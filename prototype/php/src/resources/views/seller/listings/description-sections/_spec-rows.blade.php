@@ -11,9 +11,9 @@
         @foreach ($rows as $i => $row)
             <div class="flex flex-wrap gap-2">
                 <label for="spec-{{ $idPrefix }}-label-{{ $i }}" class="sr-only">Label</label>
-                <input id="spec-{{ $idPrefix }}-label-{{ $i }}" type="text" name="spec[{{ $i }}][label]" value="{{ old("spec.$i.label", $row['label'] ?? '') }}" placeholder="Label, like Material" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                <input id="spec-{{ $idPrefix }}-label-{{ $i }}" type="text" name="spec[{{ $i }}][label]" value="{{ old("spec.$i.label", $row['label'] ?? '') }}" placeholder="Label, like Material" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                 <label for="spec-{{ $idPrefix }}-value-{{ $i }}" class="sr-only">Value</label>
-                <input id="spec-{{ $idPrefix }}-value-{{ $i }}" type="text" name="spec[{{ $i }}][value]" value="{{ old("spec.$i.value", $row['value'] ?? '') }}" placeholder="Value, like Cotton" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                <input id="spec-{{ $idPrefix }}-value-{{ $i }}" type="text" name="spec[{{ $i }}][value]" value="{{ old("spec.$i.value", $row['value'] ?? '') }}" placeholder="Value, like Cotton" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
             </div>
         @endforeach
     </div>

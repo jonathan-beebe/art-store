@@ -15,12 +15,11 @@
     $piecesVariant = $variants->first(fn ($variant) => $variant->is_serialized);
 @endphp
 
-<x-layouts.seller :title="'Combinations & stock — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Combinations & stock — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.option-axes.index', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">← {{ $listing->title }} › Choices</a></p>
     <h1 class="mt-2 text-xl font-semibold">Combinations &amp; stock</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Buyers can only buy a combination you make. Each one tracks its own stock, and each shows the price a buyer would pay — change it only where your costs really differ.</p>
 
-    <x-seller.editor-layout>
             @if ($noChoices)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <p class="font-semibold text-gray-700 dark:text-gray-300">Every piece one of a kind?</p>
@@ -98,7 +97,7 @@
                                                         <p class="mt-1">—</p>
                                                     @else
                                                         <label for="quantity-{{ $variant->id }}" class="sr-only">In stock</label>
-                                                        <input id="quantity-{{ $variant->id }}" name="quantity" type="number" step="1" min="0" value="{{ old('quantity', $variant->quantity) }}" class="mt-1 block w-20 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                        <input id="quantity-{{ $variant->id }}" name="quantity" type="number" step="1" min="0" value="{{ old('quantity', $variant->quantity) }}" class="mt-1 block w-20 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                         @if ($variant->isLowOnStock())
                                                             <span class="font-medium text-amber-700 dark:text-amber-500">low</span>
                                                         @endif
@@ -107,12 +106,12 @@
 
                                                 <div>
                                                     <label for="sku-{{ $variant->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Your code</label>
-                                                    <input id="sku-{{ $variant->id }}" name="sku" type="text" maxlength="255" value="{{ old('sku', $variant->sku) }}" class="mt-1 block w-32 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <input id="sku-{{ $variant->id }}" name="sku" type="text" maxlength="255" value="{{ old('sku', $variant->sku) }}" class="mt-1 block w-32 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                 </div>
 
                                                 <div>
                                                     <label for="price_override-{{ $variant->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Set your own price</label>
-                                                    <input id="price_override-{{ $variant->id }}" name="price_override" type="text" placeholder="from choices" value="{{ old('price_override', $variant->price_override_cents === null ? null : number_format($variant->price_override_cents / 100, 2, '.', '')) }}" class="mt-1 block w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <input id="price_override-{{ $variant->id }}" name="price_override" type="text" placeholder="from choices" value="{{ old('price_override', $variant->price_override_cents === null ? null : number_format($variant->price_override_cents / 100, 2, '.', '')) }}" class="mt-1 block w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                     @error('price_override')
                                                         <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
                                                     @enderror
@@ -163,7 +162,7 @@
                                 @foreach ($axes as $axis)
                                     <div>
                                         <label for="option_value_id-{{ $axis->id }}" class="block font-medium text-gray-700 dark:text-gray-300">{{ $axis->name }}</label>
-                                        <select id="option_value_id-{{ $axis->id }}" name="option_value_id[{{ $axis->id }}]" required class="mt-1 block rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                        <select id="option_value_id-{{ $axis->id }}" name="option_value_id[{{ $axis->id }}]" required class="mt-1 block rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                             @foreach ($axis->optionValues as $value)
                                                 <option value="{{ $value->id }}">{{ $value->label }}</option>
                                             @endforeach
@@ -173,7 +172,7 @@
 
                                 <x-form.field name="quantity" label="Stock" type="number" step="1" min="0" value="1" />
 
-                                <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add it</button>
+                                <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-4 py-2">Add it</button>
                             </form>
 
                             <form method="POST" action="{{ route('seller.listings.variants.generate', $listing) }}" class="ml-auto text-gray-600 dark:text-gray-400">
@@ -194,7 +193,7 @@
                         <span class="text-gray-700 dark:text-gray-300">Where</span>
 
                         <label for="bulk-option-value" class="sr-only">Choice and option</label>
-                        <select id="bulk-option-value" name="option_value_id" required class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                        <select id="bulk-option-value" name="option_value_id" required class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                             @foreach ($axes as $axis)
                                 @foreach ($axis->optionValues as $value)
                                     <option value="{{ $value->id }}">{{ $axis->name }} is {{ $value->label }}</option>
@@ -203,12 +202,12 @@
                         </select>
 
                         <label for="bulk-enabled" class="sr-only">Set to</label>
-                        <select id="bulk-enabled" name="enabled" required class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                        <select id="bulk-enabled" name="enabled" required class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                             <option value="0">stop offering them</option>
                             <option value="1">offer them</option>
                         </select>
 
-                        <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Apply</button>
+                        <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-4 py-2">Apply</button>
                     </form>
 
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-gray-500 dark:text-gray-500">
@@ -240,8 +239,7 @@
                 </div>
             @endif
 
-        <x-slot:panel>
-            <x-seller.buyer-view :listing="$listing" caption="unavailable options grey out with the reason" />
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+    <x-slot:preview>
+        <x-seller.buyer-view :listing="$listing" caption="unavailable options grey out with the reason" />
+    </x-slot:preview>
+</x-layouts.seller-focused>

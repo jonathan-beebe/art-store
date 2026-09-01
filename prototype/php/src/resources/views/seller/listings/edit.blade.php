@@ -3,7 +3,7 @@
     use App\Support\Configurator\PublishIssuePresenter;
 @endphp
 
-<x-layouts.seller :title="$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
         <span class="rounded-full border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-0.5 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -11,7 +11,6 @@
         </span>
     </div>
 
-    <x-seller.editor-layout>
             <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                 <div class="flex items-baseline gap-2">
                     <p class="font-semibold text-gray-700 dark:text-gray-300">Your item</p>
@@ -192,8 +191,7 @@
                 <p class="text-gray-600 dark:text-gray-400">Editing a live listing never changes an order that's already placed — every order keeps the exact price and choices its buyer agreed to.</p>
             @endif
 
-        <x-slot:panel>
-            <x-seller.buyer-view :listing="$listing" />
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+    <x-slot:preview>
+        <x-seller.buyer-view :listing="$listing" />
+    </x-slot:preview>
+</x-layouts.seller-focused>

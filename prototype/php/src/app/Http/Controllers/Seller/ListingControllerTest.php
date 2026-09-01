@@ -922,7 +922,11 @@ it('DSGN-001 progressive disclosure: shows five invitations and no machinery for
 
     $response->assertDontSee('Choices you offer');
     $response->assertDontSee('Questions you ask the buyer');
-    $response->assertDontSee('Quantity discounts');
+    // The focused layout's section rail always names "Quantity discounts" as
+    // a nav link, so the summary card's own heading is what this asserts
+    // against — not the bare phrase, which the rail carries regardless of
+    // configuration state.
+    $response->assertDontSee('<p class="font-semibold text-gray-700 dark:text-gray-300">Quantity discounts</p>', false);
     $response->assertDontSee('Listing page sections');
     $response->assertDontSee('Individual pieces');
     $response->assertDontSee('Configurator');
