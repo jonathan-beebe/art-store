@@ -34,6 +34,14 @@ it('counts its listings by status without loading one', function (): void {
     ]);
 });
 
+it('orders the filter list by shop name, then email, with a null shop name sorting first', function (): void {
+    $noShopName = Seller::factory()->create(['shop_name' => null, 'email' => 'z@example.com']);
+    $blue = $this->seller('Blue Kiln Studio');
+    $rye = $this->seller('Rye Press');
+
+    expect(Seller::query()->orderedForFilter()->pluck('id')->all())->toBe([$noShopName->id, $blue->id, $rye->id]);
+});
+
 it('reads its escrow balance out of one grouped query', function (): void {
     $seller = $this->seller();
     $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
