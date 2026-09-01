@@ -7,29 +7,20 @@ namespace App\Http\Requests\Admin;
 use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 
-it('refuses a reply longer than the message limit', function (): void {
+it('refuses a reply that is empty or longer than the message limit', function (string $body): void {
     $admin = $this->admin();
     $conversation = Conversation::factory()
         ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
         ->create();
 
     $response = $this->actingAs($admin, 'admin')
-        ->post("/admin/messages/{$conversation->id}", ['body' => str_repeat('a', 2001)]);
+        ->post("/admin/messages/{$conversation->id}", ['body' => $body]);
 
     $response->assertSessionHasErrors('body');
-});
-
-it('refuses an empty reply', function (): void {
-    $admin = $this->admin();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
-        ->create();
-
-    $response = $this->actingAs($admin, 'admin')
-        ->post("/admin/messages/{$conversation->id}", ['body' => '']);
-
-    $response->assertSessionHasErrors('body');
-});
+})->with([
+    'empty' => [''],
+    'longer than the limit' => [str_repeat('a', 2001)],
+]);
 
 it('answers not found for a thread the admin is not in before it validates the form', function (): void {
     $conversation = Conversation::factory()
