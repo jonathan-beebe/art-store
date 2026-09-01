@@ -41,6 +41,37 @@ it('has no latest payment before the first attempt', function (): void {
     expect($order->latestPayment)->toBeNull();
 });
 
+it('resolves the approved attempt even when a later attempt is declined', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+    Payment::factory()->declined()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    $approved = Payment::factory()->approved()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:05:00'),
+    ]);
+    Payment::factory()->declined()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:10:00'),
+    ]);
+
+    expect($order->approvedPayment()->sole()->is($approved))->toBeTrue();
+});
+
+it('is cancellable only before payment', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    expect($order->isCancellable())->toBeTrue();
+
+    $order->update(['status' => OrderStatus::Paid]);
+
+    expect($order->refresh()->isCancellable())->toBeFalse();
+});
+
 it('blocks a line the placement plan finds unavailable', function (string $reasonKind, string $expectedTitle, UnavailableReason $expectedReason): void {
     $customer = $this->verifiedCustomer();
 
