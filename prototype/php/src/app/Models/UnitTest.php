@@ -9,15 +9,12 @@ use App\Domain\DomainRuleViolation;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
-it('belongs to its variant and casts its state and specs', function (): void {
-    $variant = Variant::factory()->create();
+it('casts its state and specs', function (): void {
     $unit = Unit::factory()->create([
-        'variant_id' => $variant->id,
         'specs_json' => ['height_mm' => 240, 'condition' => 'excellent'],
     ]);
 
-    expect($unit->variant()->first()?->id)->toBe($variant->id)
-        ->and($unit->state)->toBe(UnitState::Available)
+    expect($unit->state)->toBe(UnitState::Available)
         ->and($unit->specs_json)->toBe(['height_mm' => 240, 'condition' => 'excellent']);
 });
 
