@@ -249,6 +249,18 @@ it('keeps a slash and a unicode character as they were written', function (): vo
     expect($data['path'])->toBe('/café/listings');
 });
 
+it('substitutes an invalid UTF-8 byte in the message with the replacement character', function (): void {
+    $line = payload(record(['event' => 'order.place', 'phase' => 'did'], Level::Info, "bad byte \xB1\x31 here"));
+
+    expect($line['msg'])->toBe("bad byte \u{FFFD}1 here");
+});
+
+it('substitutes an invalid UTF-8 byte inside context data the same way', function (): void {
+    $line = payload(record(['event' => 'order.place', 'phase' => 'did', 'data' => ['note' => "\xB1\x31"]]));
+
+    expect($line['data'])->toBe(['note' => "\u{FFFD}1"]);
+});
+
 it('formats the timestamp of a record already in UTC unchanged', function (): void {
     $record = new LogRecord(
         datetime: new DateTimeImmutable('2026-08-23T18:00:00.019000', new DateTimeZone('UTC')),

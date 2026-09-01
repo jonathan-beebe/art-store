@@ -102,62 +102,38 @@ it('names support as the topic of an admin thread', function (): void {
     );
 });
 
-it('links to the admin thread once that site registers its route', function (): void {
-    expect(Route::has('admin.messages.show'))->toBeTrue();
-    $admin = $this->admin();
-    $seller = $this->seller();
-    $conversation = Conversation::factory()->adminSeller()->create([
-        'admin_id' => $admin->id,
-        'seller_id' => $seller->id,
-    ]);
-    $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
+it('links to the thread on the recipient site once its route exists', function (string $kind, string $senderKey, string $recipientKey, string $routeName): void {
+    expect(Route::has($routeName))->toBeTrue();
+
+    $participants = [
+        'admin' => $this->admin(),
+        'seller' => $this->seller(),
+        'customer' => $this->verifiedCustomer(),
+    ];
+
+    $conversation = match ($kind) {
+        'adminSeller' => Conversation::factory()->adminSeller()->create([
+            'admin_id' => $participants['admin']->id,
+            'seller_id' => $participants['seller']->id,
+        ]),
+        'listingQuestion' => Conversation::factory()->listingQuestion()->create([
+            'seller_id' => $participants['seller']->id,
+            'customer_id' => $participants['customer']->id,
+        ]),
+    };
+    $message = Message::factory()->from($participants[$senderKey])->create(['conversation_id' => $conversation->id]);
     Notification::fake();
 
     app(NotifyOfMessage::class)->handle(new MessagePosted($message, $this->moment('2026-08-20 10:00:00')));
 
+    $recipient = $participants[$recipientKey];
     Notification::assertSentTo(
-        $admin,
+        $recipient,
         MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($admin)['url'] === route('admin.messages.show', $conversation),
+        fn (MessageReceived $notification): bool => $notification->toArray($recipient)['url'] === route($routeName, $conversation),
     );
-});
-
-it('links to the thread on the recipient site once its route exists', function (): void {
-    expect(Route::has('seller.messages.show'))->toBeTrue();
-    $seller = $this->seller();
-    $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-    ]);
-    $message = Message::factory()->from($customer)->create(['conversation_id' => $conversation->id]);
-    Notification::fake();
-
-    app(NotifyOfMessage::class)->handle(new MessagePosted($message, $this->moment('2026-08-20 10:00:00')));
-
-    Notification::assertSentTo(
-        $seller,
-        MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($seller)['url'] === route('seller.messages.show', $conversation),
-    );
-});
-
-it('links to the storefront thread once that site registers its route', function (): void {
-    expect(Route::has('shop.messages.show'))->toBeTrue();
-    $seller = $this->seller();
-    $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-    ]);
-    $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
-    Notification::fake();
-
-    app(NotifyOfMessage::class)->handle(new MessagePosted($message, $this->moment('2026-08-20 10:00:00')));
-
-    Notification::assertSentTo(
-        $customer,
-        MessageReceived::class,
-        fn (MessageReceived $notification): bool => $notification->toArray($customer)['url'] === route('shop.messages.show', $conversation),
-    );
-});
+})->with([
+    'admin thread' => ['adminSeller', 'seller', 'admin', 'admin.messages.show'],
+    'seller thread' => ['listingQuestion', 'customer', 'seller', 'seller.messages.show'],
+    'customer thread' => ['listingQuestion', 'seller', 'customer', 'shop.messages.show'],
+]);

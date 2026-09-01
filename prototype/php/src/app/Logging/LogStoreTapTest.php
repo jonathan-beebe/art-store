@@ -96,9 +96,7 @@ it('falls back to a fresh StoryFormatter when the first handler is not formattab
 it('does nothing for a logger not backed by a Monolog\Logger', function (): void {
     $logger = new ApplicationLogger(new NullLogger);
 
+    // Nothing to assert on the handler stack — a PSR logger with no
+    // Monolog handlers of its own has none to append after.
     (new LogStoreTap(LogStore::open('off')))($logger);
-
-    // No exception, and nothing to assert on the handler stack — a PSR
-    // logger with no Monolog handlers of its own has none to append after.
-    expect(true)->toBeTrue();
-});
+})->throwsNoExceptions();
