@@ -111,8 +111,9 @@ it('renders on a fixed number of queries however many entries the ledger holds',
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
         // countable response (RollUpPageViews); +2 for the seller layout's
-        // awaiting-shipment count and unread-notifications check.
-        ->expectsDatabaseQueryCount(10)
+        // awaiting-shipment count and unread-notifications check; +1 for the
+        // earnings page's own open-orders stat tile.
+        ->expectsDatabaseQueryCount(11)
         ->get('/seller/earnings');
 
     $response->assertOk();
