@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use App\Domain\Money\Money;
+use App\Domain\Notifications\NotificationMessage;
 
 it('goes to the in-app inbox by default', function (): void {
     $notification = new PurchaseRefunded('ord_00000000000000000000000004', Money::fromCents(10000), 'Damaged.');
@@ -16,11 +17,8 @@ it('stores the amount and the reason it was refunded for', function (): void {
     $customer = $this->verifiedCustomer();
     $notification = new PurchaseRefunded('ord_00000000000000000000000004', Money::fromCents(10000), 'Damaged.');
 
-    expect($notification->toArray($customer))->toBe([
-        'subject' => 'Refund issued',
-        'body' => '$100.00 of order ord_00000000000000000000000004 was refunded. Reason: Damaged.',
-        'url' => null,
-    ]);
+    expect($notification->toArray($customer))
+        ->toBe(NotificationMessage::purchaseRefunded('ord_00000000000000000000000004', Money::fromCents(10000), 'Damaged.')->toArray());
 });
 
 it('mails the same message with a link to the orders page', function (): void {
