@@ -1,7 +1,7 @@
 ---
 id: IMPRV-024
 type: improvement
-status: open
+status: resolved
 created: 2026-09-01
 ---
 
@@ -23,7 +23,10 @@ the commit rhythm.
 ## Outcome
 
 make test runs the full suite green with pest reporting a total duration
-under 30 seconds. The suite's coverage stays intact — no test is deleted or
+under 30 seconds. (Amended 2026-09-01 at acceptance: the measured floor at 8
+parallel workers on the 8-CPU Docker VM is ~40s with 35–65s run-to-run spread
+from host load; the parallel suite ships at that bar, and a follow-up may
+re-open the 30s target if it still matters.) The suite's coverage stays intact — no test is deleted or
 weakened to reach the number, and the make check coverage floor still passes
 at 100%. make precommit and make check keep their current shapes.
 
@@ -194,3 +197,7 @@ added since it was written). No test deleted, skipped, or weakened.
 `make test`/`make precommit`/`make check` unchanged — all three still call
 `composer test`/`composer test:coverage`; only those scripts' own
 implementation moved.
+
+2026-09-01 acceptance: shipped at the amended bar by the human's decision —
+serial 93s → parallel ~40s floor on this machine; under-30s not demonstrably
+reachable on an 8-CPU VM without structural test surgery.
