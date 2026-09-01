@@ -15,3 +15,17 @@ it('refuses a direction other than up or down', function (): void {
 
     $response->assertSessionHasErrors('direction');
 });
+
+it('validates up and down as legal directions', function (string $direction): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $first = $this->listingImage($listing, ['position' => 0]);
+    $second = $this->listingImage($listing, ['position' => 1]);
+    $target = $direction === 'up' ? $second : $first;
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/images/{$target->id}/reorder", [
+        'direction' => $direction,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+})->with(['up', 'down']);
