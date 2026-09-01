@@ -281,6 +281,18 @@ it('prunes nothing when every stored row is at or after the cutoff', function ()
         ->and(Fixtures::rowCount($connection))->toBe(1);
 });
 
+it('keeps a row whose ts exactly equals the cutoff', function (): void {
+    $store = LogStore::open(Fixtures::tempFile());
+    $connection = Fixtures::connectionOrFail($store);
+    $store->append(Fixtures::line('order.place', '2026-08-05T00:00:00.000Z'));
+    $store->flush();
+
+    $deleted = $store->prune(new DateTimeImmutable('2026-08-05T00:00:00Z'));
+
+    expect($deleted)->toBe(0)
+        ->and(Fixtures::rowCount($connection))->toBe(1);
+});
+
 it('lets a prune failure propagate, rather than swallowing it like append()/flush() do', function (): void {
     $store = LogStore::open(Fixtures::tempFile());
     $connection = Fixtures::connectionOrFail($store);
