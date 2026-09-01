@@ -6,13 +6,18 @@
 - DSGN: 9
 - ARCH: 1
 - FEAT: 38
-- IMPRV: 21
+- IMPRV: 22
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
+
+- 2026-08-31:18:22:04 — IMPRV-021 — done: php's per-commit gate is now `make precommit` (Pint + PHPStan + the ungated suite, one container); `make check` (lint → assets → coverage-gated suite) moved to a once-per-branch pre-PR gate, backstopped by the existing php CI workflow (make check on push/PR). Levers: PHPStan result cache persisted via phpstan.neon's tmpDir (cold 49.8–57.0s → warm 8.7s), lint composed into one container (54.9s/2 containers → 24.1s/1). Per-commit cost ~209s/4 containers → ~87–135s/1 container (noisy shared-laptop measurements; representative clean run 87.1s); full `make check` also got faster as a side effect (~209s → ~155–164s). Pest --parallel tried, not adopted: reproducibly breaks 5/3204 tests (Env::getRepository()->set() is a no-op under ParaTest in LogStoreConfigTest/RateLimitsConfigTest), root-caused and recorded as a follow-up rather than shipped flaky. §6.1's coverage-report-on-every-commit question flagged, not resolved unilaterally. Seeded node IMPRV-033, rails IMPRV-004 for their own fast paths. 3204 tests, 100% coverage, make check green
+- 2026-08-31:17:31:57 — IMPRV-021 — started
+- 2026-08-31:17:25:32 — IMPRV-021 — rescoped: per commit runs tests (and maybe lint) in one fast container; the full check moves to PR time
+- 2026-08-31:17:18:17 — IMPRV-021 — defined: the commit gate pays only for what changed
 
 - 2026-08-31:14:08:35 — IMPRV-019 — follow-up: production ran on two PHP threads — FrankenPHP defaults num_threads to 2×CPU, Render's one-CPU free instance got 2, and two reconnecting SSE streams parked the whole pool so every page queued in front of PHP; the swap had dropped artisan serve's explicit 16-worker sizing; Caddyfile now pins num_threads 16 / max_threads 40 (FRANKENPHP_NUM_THREADS/FRANKENPHP_MAX_THREADS override) under the rule that production serves more than dev; verified on a --cpus=1 hardened container (boot line num_threads:16,max_threads:40)
 

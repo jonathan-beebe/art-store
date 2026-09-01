@@ -9,6 +9,10 @@ includes:
 
 parameters:
     level: max
+    # The result cache lives in the bind-mounted src tree (gitignored) rather
+    # than the container's own /tmp, so a warm cache survives the container
+    # `docker compose run` discards after every invocation.
+    tmpDir: .phpstan-cache
     cognitive_complexity:
         class: 50
         function: 8

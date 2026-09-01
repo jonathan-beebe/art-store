@@ -58,5 +58,15 @@ prototype; the other two must match.
 ## Commit gate
 
 `make hooks` at the repository root installs `.githooks/pre-commit`, which
-runs `make -C prototype/<x> check` for every prototype a commit touches
-(outside `work/` and `docs/`). `make check` is lint → assets → tests.
+runs a per-commit gate for every prototype a commit touches (outside `work/`
+and `docs/`). `make check` (lint → assets → coverage-gated tests) is the
+full gate: it runs once per branch before a PR opens (CI runs it again on
+push/PR as the backstop), not on every commit.
+
+- php's per-commit gate is `make precommit`: lint (Pint + PHPStan) and the
+  ungated test suite, in one container. No asset build, no coverage
+  instrumentation, no HTML report — those only pay off once per branch.
+- node and rails still run their full `make check` on every commit; IMPRV-021
+  seeded a fast-path ticket for each.
+
+A red test suite still blocks a commit either way.

@@ -1,4 +1,4 @@
-.PHONY: help up down build assets shell test smoke coverage lint lint-fix check migrate fresh seed routes payouts sweep outbox analyse logs image run-image
+.PHONY: help up down build assets shell test smoke coverage lint lint-fix check precommit migrate fresh seed routes payouts sweep outbox analyse logs image run-image
 
 .DEFAULT_GOAL := help
 
@@ -40,10 +40,11 @@ smoke: ## the smoke walk only
 coverage: ## the suite with the coverage gate (100% lines) and its HTML report
 	docker compose run --rm app composer test:coverage
 
-# Style plus static analysis, read-only: Pint's --test mode, then PHPStan.
+# Style plus static analysis, read-only: Pint's --test mode, then PHPStan, in
+# one container (`lint:all` composes the two composer scripts) rather than
+# two spawns.
 lint: ## style + static analysis, read-only (pint --test, then phpstan)
-	docker compose run --rm --no-deps --entrypoint composer app lint
-	docker compose run --rm --no-deps --entrypoint composer app analyse
+	docker compose run --rm --no-deps --entrypoint composer app lint:all
 
 # The auto-fixable subset of `lint`: Pint rewrites files in place.
 lint-fix: ## the auto-fixable subset applied (pint)
@@ -55,8 +56,20 @@ lint-fix: ## the auto-fixable subset applied (pint)
 analyse: ## PHPStan alone
 	docker compose run --rm --no-deps --entrypoint composer app analyse
 
-# The commit gate: lint, then the asset build, then the coverage-gated suite.
-check: lint assets coverage ## lint -> assets -> coverage; the commit gate
+# The per-commit gate (IMPRV-021): style + static analysis, then the
+# ungated suite, in one container spawn — no asset build, no coverage
+# instrumentation, no HTML report. `.githooks/pre-commit` runs this on every
+# commit that touches prototype/php outside work/ and docs/; `check` (below)
+# still runs once before a PR, and CI (.github/workflows/php.yml) runs
+# `check` again on push/PR as the backstop. Not part of the docs/alignment.md
+# §6.1 vocabulary (php-local for now; node/rails may name their own
+# equivalent differently).
+precommit: ## the commit gate: lint + ungated tests, one container
+	docker compose run --rm app sh -c "composer lint:all && composer test"
+
+# The full gate, run once per branch before a PR opens rather than per
+# commit: lint, then the asset build, then the coverage-gated suite.
+check: lint assets coverage ## lint -> assets -> coverage; the pre-PR gate
 
 migrate: ## apply pending migrations
 	docker compose run --rm app php artisan migrate
