@@ -16,6 +16,7 @@ it('parses a count and window into seconds, per unit', function (string $raw, in
     'seconds' => ['5/30s', 5, 30],
     'minutes' => ['5/15m', 5, 900],
     'hours' => ['5/1h', 5, 3600],
+    'a zero-length window is not rejected, decaying instantly' => ['5/0s', 5, 0],
 ]);
 
 it('disables the limit for "off"', function (): void {
