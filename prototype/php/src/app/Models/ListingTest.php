@@ -522,6 +522,19 @@ it('reads true once every combination has a variant row', function (): void {
     expect($listing->everyVariantCombinationExists())->toBeTrue();
 });
 
+it('narrows by status and by seller, with a null filter adding no clause', function (): void {
+    $sellerA = $this->seller('Blue Kiln Studio');
+    $sellerB = $this->seller('Rye Press');
+    $forSale = $this->listing($sellerA);
+    $draft = $this->listing($sellerA, ['status' => ListingStatus::Draft]);
+    $this->listing($sellerB);
+
+    expect(Listing::query()->ofStatus(ListingStatus::Draft)->pluck('id')->all())->toBe([$draft->id])
+        ->and(Listing::query()->ofStatus(null)->count())->toBe(3)
+        ->and(Listing::query()->ofSeller($sellerA->id)->pluck('id')->all())->toEqualCanonicalizing([$forSale->id, $draft->id])
+        ->and(Listing::query()->ofSeller(null)->count())->toBe(3);
+});
+
 it('counts every status across every seller\'s listings, in one row each', function (): void {
     $this->listing($this->seller(), ['status' => ListingStatus::Draft]);
     $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
