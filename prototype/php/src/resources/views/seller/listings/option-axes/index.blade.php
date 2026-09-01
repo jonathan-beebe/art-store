@@ -19,12 +19,11 @@
     $addChoiceUrl = route('seller.listings.option-axes.index', $listing);
 @endphp
 
-<x-layouts.seller :title="'Choices you offer — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Choices you offer — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
     <h1 class="mt-2 text-xl font-semibold">Choices you offer</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Each choice becomes a dropdown on your listing. Say up front whether its options are each priced on their own, or add to your price — every option follows that choice's rule.</p>
 
-    <x-seller.editor-layout>
             @forelse ($axes as $axis)
                 @php $isStandalone = $axis->pricing_mode === PricingMode::Standalone; @endphp
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -221,12 +220,11 @@
 
             <p class="text-gray-600 dark:text-gray-400">Every option ships on this listing's timeline. A per-option timeline ("silver ships tomorrow, gold takes 3 weeks") isn't available yet.</p>
 
-        <x-slot:panel>
-            <x-seller.buyer-view :listing="$listing" />
+    <x-slot:preview>
+        <x-seller.buyer-view :listing="$listing" />
 
-            @if ($axes->isNotEmpty())
-                <p class="mt-4 text-sm text-gray-500 dark:text-gray-500">Buyers land on this listing with its preselected options already chosen, so the page opens at a concrete price. Picking a different option updates the total before checkout — no surprises at the end.</p>
-            @endif
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+        @if ($axes->isNotEmpty())
+            <p class="mt-4 text-sm text-gray-500 dark:text-gray-500">Buyers land on this listing with its preselected options already chosen, so the page opens at a concrete price. Picking a different option updates the total before checkout — no surprises at the end.</p>
+        @endif
+    </x-slot:preview>
+</x-layouts.seller-focused>

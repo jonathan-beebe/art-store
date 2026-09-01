@@ -7,7 +7,7 @@
     $nextModifierPosition = $modifiers->isEmpty() ? 0 : $modifiers->max('position') + 1;
 @endphp
 
-<x-layouts.seller :title="'Questions you ask the buyer — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Questions you ask the buyer — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
     <h1 class="mt-2 text-xl font-semibold">Questions you ask the buyer</h1>
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">
@@ -15,7 +15,6 @@
         A question can charge for the work it asks for, and it only appears when it applies.
     </p>
 
-    <x-seller.editor-layout>
             @foreach ($modifiers as $modifier)
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <form method="POST" action="{{ route('seller.listings.modifiers.update', [$listing, $modifier]) }}" class="flex flex-col gap-3">
@@ -312,21 +311,20 @@
 
             <p class="text-gray-600 dark:text-gray-400">Gift wrap or rush turnaround? Keep them as their own listings for now &mdash; add-on checkboxes on this listing aren't available yet.</p>
 
-        <x-slot:panel>
-            @if ($preview === null)
-                <x-seller.buyer-view :listing="$listing" />
-            @else
-                {{-- Pinned to the modifier's stored scope, never the request
-                     (ScopedListingPreview::resolve reads only stored data) —
-                     a live form here would accept a seller's clicks and then
-                     silently discard them, so this pair renders disabled
-                     rather than falsely interactive (IMPRV-015). --}}
-                <x-seller.buyer-view :listing="$listing" :input="$preview->appliesInput" :caption="$preview->appliesCaption" :interactive="false" />
-                <div>
-                    <x-seller.buyer-view :listing="$listing" :input="$preview->otherInput" :caption="$preview->otherCaption" :interactive="false" />
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">The question isn't greyed out &mdash; it simply isn't there. Nothing to ignore, nothing to explain in the description.</p>
-                </div>
-            @endif
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+    <x-slot:preview>
+        @if ($preview === null)
+            <x-seller.buyer-view :listing="$listing" />
+        @else
+            {{-- Pinned to the modifier's stored scope, never the request
+                 (ScopedListingPreview::resolve reads only stored data) —
+                 a live form here would accept a seller's clicks and then
+                 silently discard them, so this pair renders disabled
+                 rather than falsely interactive (IMPRV-015). --}}
+            <x-seller.buyer-view :listing="$listing" :input="$preview->appliesInput" :caption="$preview->appliesCaption" :interactive="false" />
+            <div>
+                <x-seller.buyer-view :listing="$listing" :input="$preview->otherInput" :caption="$preview->otherCaption" :interactive="false" />
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-500">The question isn't greyed out &mdash; it simply isn't there. Nothing to ignore, nothing to explain in the description.</p>
+            </div>
+        @endif
+    </x-slot:preview>
+</x-layouts.seller-focused>
