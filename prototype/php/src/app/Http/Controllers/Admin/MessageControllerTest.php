@@ -9,6 +9,7 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\RateLimiting\RateLimitValue;
+use App\Models\Admin;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
@@ -18,6 +19,31 @@ use App\Support\CustomerIdentity;
 use App\Support\ListPaneWindow;
 use Illuminate\Support\Facades\Config;
 use Tests\CapturedStory;
+use Tests\TestCase;
+
+/**
+ * The rail and drawer render the same nav-item markup, so every other
+ * section's own count chip (Sellers, Customers, ...) can coincidentally
+ * match a bare `>1</span>` too — this isolates one link's own `<a>...</a>`
+ * block before checking it for a chip.
+ */
+function navLinkMarkup(string $html, string $href): string
+{
+    preg_match('#<a\s+href="'.preg_quote($href, '#').'"[^>]*>[\s\S]*?</a>#', $html, $matches);
+
+    return $matches[0] ?? '';
+}
+
+/**
+ * The nav rail and drawer each carry the tool list as `<li>` elements
+ * (DSGN-006's admin redesign) — Accounting carries the same chrome and no
+ * `<li>` of its own (unlike the dashboard's directory links), so its count
+ * isolates what a list pane itself renders.
+ */
+function chromeListItemCount(TestCase $test, Admin $admin): int
+{
+    return substr_count((string) $test->actingAs($admin, 'admin')->get('/admin/accounting')->getContent(), '<li>');
+}
 
 it('lists the admins threads newest first with who, what, and unread count', function (): void {
     $admin = $this->admin();
@@ -118,13 +144,15 @@ it('caps the list pane at the window size, however many conversations exist', fu
             ->create();
     }
 
+    $chromeListItems = chromeListItemCount($this, $admin);
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
-    // The index route renders the same capped list twice — the `xl`-and-up
-    // pane and the below-`xl` inbox `x-messaging.inbox` already carried —
-    // so the window shows up twice over.
-    expect(substr_count((string) $response->getContent(), '<li>'))->toBe(ListPaneWindow::SIZE * 2);
+    // The index route renders the same capped list twice — the `lg`-and-up
+    // pane and the below-`lg` inbox `x-messaging.inbox` already carried —
+    // so the window shows up twice over, on top of the nav rail/drawer's
+    // own `<li>` chrome (subtracted out above).
+    expect(substr_count((string) $response->getContent(), '<li>') - $chromeListItems)->toBe(ListPaneWindow::SIZE * 2);
 });
 
 it('keeps the viewed conversation on the list pane even when it sorts outside the window', function (): void {
@@ -139,11 +167,12 @@ it('keeps the viewed conversation on the list pane even when it sorts outside th
             ->create(['last_message_at' => now()]);
     }
 
+    $chromeListItems = chromeListItemCount($this, $admin);
     $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
 
     $response->assertOk();
     $response->assertSee('Blue Kiln Studio');
-    expect(substr_count((string) $response->getContent(), '<li>'))->toBe(ListPaneWindow::SIZE + 1);
+    expect(substr_count((string) $response->getContent(), '<li>') - $chromeListItems)->toBe(ListPaneWindow::SIZE + 1);
 });
 
 it('says how many conversations the list pane is not showing, linked to the full list', function (): void {
@@ -290,7 +319,7 @@ it('carries a sellers support request to the admin and the answer back', functio
     $inbox->assertSee('Blue Kiln Studio');
     $inbox->assertSee('My payout is late.');
     $inbox->assertSee('1 unread');
-    $inbox->assertSee('Messages (1)', escape: false);
+    expect(navLinkMarkup((string) $inbox->getContent(), route('admin.messages.index')))->toContain('>1</span>');
 
     $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => 'Paid this morning.'])
