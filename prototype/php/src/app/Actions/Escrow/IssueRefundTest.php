@@ -9,6 +9,7 @@ use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Models\LedgerEntry;
 use App\Models\Refund;
+use Illuminate\Database\QueryException;
 
 it('writes the refund row, the reversing entry, and the order total together', function (): void {
     $fulfillment = $this->paidFulfillmentFor($this->seller(), priceCents: 10000);
@@ -40,6 +41,16 @@ it('names the approved payment it reverses', function (): void {
     );
 
     expect($refund->payment_id)->toBe($fulfillment->order->payments()->sole()->id);
+});
+
+it('collides on the refunds table\'s unique fulfillment_id constraint when called twice for the same fulfillment', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller(), priceCents: 10000);
+    app(IssueRefund::class)($fulfillment, ActorType::Admin, $this->admin()->id, 'First refund.', $this->moment('2026-08-23 09:00:00'));
+
+    expect(fn () => app(IssueRefund::class)($fulfillment, ActorType::Admin, $this->admin()->id, 'Second refund.', $this->moment('2026-08-23 09:05:00')))
+        ->toThrow(QueryException::class);
+
+    expect(Refund::count())->toBe(1);
 });
 
 it('refuses an order no card ever cleared', function (): void {
