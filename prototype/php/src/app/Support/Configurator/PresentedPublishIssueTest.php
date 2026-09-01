@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support\Configurator;
 
-it('carries a message, a fix label, and a fix url', function (): void {
+it('names every field passed to it, in order', function (): void {
     $presented = PresentedPublishIssue::of('A plain sentence.', 'Fix it in Choices', 'https://example.test/fix');
 
     expect($presented->message)->toBe('A plain sentence.')
