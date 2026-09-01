@@ -91,9 +91,9 @@ it('gives the active level chip the domain controls dark-fill treatment and a hr
     preg_match('/href="([^"]*)"\s+data-stat="level-error"[^>]*class="([^"]*)"/s', $html, $inactive);
 
     expect(html_entity_decode($active[1] ?? ''))->toBe(route('admin.logs.index'))
-        ->and($active[2] ?? '')->toContain('bg-gray-900')->toContain('dark:bg-gray-100')
+        ->and($active[2] ?? '')->toContain('bg-stone-900')->toContain('dark:bg-stone-100')
         ->and(html_entity_decode($inactive[1] ?? ''))->toBe(route('admin.logs.index', ['level' => 'error']))
-        ->and($inactive[2] ?? '')->not->toContain('bg-gray-900');
+        ->and($inactive[2] ?? '')->not->toContain('bg-stone-900');
 });
 
 it('shows the four level tiles with counts and links that set the level filter', function (): void {
@@ -445,7 +445,7 @@ it('tucks a rows txn and session ids into its ids disclosure when the row does n
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
 
     $response->assertOk()
-        ->assertSee('<summary class="cursor-pointer text-gray-500">ids</summary>', false)
+        ->assertSee('<summary class="cursor-pointer text-stone-500">ids</summary>', false)
         ->assertSee(route('admin.logs.index', ['txn' => 'txn_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false)
         ->assertSee(route('admin.logs.index', ['session' => 'ses_01J5X3M9A2K8YB7Q4R6T1V0WZE']), false);
 });
