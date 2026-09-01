@@ -29,6 +29,16 @@ it('hands the stock of a swept order back to the storefront', function (): void 
         ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
+it('sweeps an order placed exactly at the cutoff instant', function (): void {
+    $order = $this->orderFor($this->anonymousCustomer(), $this->listing($this->seller()));
+    $order->update(['placed_at' => $this->moment('2026-08-20 10:00:00')]);
+
+    $cancelled = app(SweepStaleOrders::class)($this->moment('2026-08-21 10:00:00'), 24);
+
+    expect($cancelled)->toHaveCount(1)
+        ->and($order->fresh()?->status)->toBe(OrderStatus::Cancelled);
+});
+
 it('leaves an order younger than the cutoff alone', function (): void {
     $order = $this->orderFor($this->anonymousCustomer(), $this->listing($this->seller()));
     $order->update(['placed_at' => $this->moment('2026-08-21 09:00:00')]);

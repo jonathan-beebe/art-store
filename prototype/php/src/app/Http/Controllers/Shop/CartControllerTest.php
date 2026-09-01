@@ -12,7 +12,7 @@ use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingEventType;
@@ -257,8 +257,8 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Engraving Font', required: true);
     $block = app(AddModifierOption::class)($font, 'Block', 0, 0);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', required: true, charLimit: 20);
-    app(ScopeModifier::class)($font, [$outside]);
-    app(ScopeModifier::class)($text, [$outside]);
+    app(SetModifierScope::class)($font, [$outside]);
+    app(SetModifierScope::class)($text, [$outside]);
 
     $post = [
         'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],
@@ -365,7 +365,7 @@ it('hides the mugs personalization box and never charges its flat fee when blank
     $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
     app(GenerateVariants::class)($listing);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $response = $this->post('/cart/mug');
 

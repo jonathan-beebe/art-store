@@ -17,8 +17,8 @@ it('updates every field a modifier can carry', function (): void {
         'Measured in millimeters.',
         true,
         2,
-        0,
-        null,
+        500,
+        20,
         'mm',
         10.0,
         100.0,
@@ -33,5 +33,7 @@ it('updates every field a modifier can carry', function (): void {
         ->and($updated->unit)->toBe('mm')
         ->and($updated->min_value)->toBe(10.0)
         ->and($updated->max_value)->toBe(100.0)
-        ->and($updated->rate_cents_per_unit)->toBe(50);
+        ->and($updated->rate_cents_per_unit)->toBe(50)
+        ->and($modifier->fresh()?->add_on_price_cents)->toBe(500)
+        ->and($modifier->fresh()?->char_limit)->toBe(20);
 });

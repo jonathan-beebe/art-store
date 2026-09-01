@@ -46,3 +46,13 @@ it('refuses to blank out a standalone option’s price', function (): void {
 
     app(UpdateOptionValue::class)($value, $value->label, 0, false, 0, null, null);
 })->throws(DomainRuleViolation::class, 'Every option on this choice needs its own price.');
+
+it('syncs the listing’s derived price to the standalone default option’s new price', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 5000]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->priced(1800)->default()->create(['axis_id' => $axis->id]);
+
+    app(UpdateOptionValue::class)($value, $value->label, 0, true, 0, null, 2400);
+
+    expect($listing->refresh()->price_cents)->toBe(2400);
+});

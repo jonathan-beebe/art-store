@@ -8,7 +8,7 @@ use App\Actions\Configurator\AddModifierOption;
 use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
 
 it('leaves out a modifier whose scope excludes the current selection', function (): void {
@@ -17,7 +17,7 @@ it('leaves out a modifier whose scope excludes the current selection', function 
     app(AddOptionValue::class)($axis, 'Blank', 0, isDefault: true);
     $personalized = app(AddOptionValue::class)($axis, 'Personalized', 300);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Note');
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $modifierModels = $listing->modifiers()->with('options')->orderBy('position')->get();
     [$presentation] = ModifiersPresentation::build($modifierModels, [], []);

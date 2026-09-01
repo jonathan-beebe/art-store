@@ -8,6 +8,7 @@ use App\Actions\Cart\AddToCart;
 use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
+use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
@@ -211,3 +212,26 @@ it('refuses to charge an order that is already paid', function (): void {
 
     $finalizeOrder($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:05:00'));
 })->throws(DomainException::class);
+
+it('refuses to charge a cancelled order', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
+    app(CancelOrder::class)($order, $this->moment('2026-08-20 09:30:00'));
+
+    $finalize = fn () => app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($finalize)->toThrow(DomainRuleViolation::class, 'cannot move from cancelled')
+        ->and($order->refresh()->payments()->count())->toBe(0);
+});
+
+it('refuses to charge a refunded order', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
+    foreach ($order->fulfillments()->orderBy('id')->get() as $fulfillment) {
+        app(DeclineFulfillment::class)($fulfillment, 'Damaged.', $this->moment('2026-08-21 09:00:00'));
+    }
+    expect($order->fresh()?->status)->toBe(OrderStatus::Refunded);
+
+    $finalize = fn () => app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-21 10:00:00'));
+
+    expect($finalize)->toThrow(DomainRuleViolation::class, 'cannot move from refunded')
+        ->and($order->refresh()->payments()->count())->toBe(1);
+});
