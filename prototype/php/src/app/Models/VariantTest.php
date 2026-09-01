@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PricingMode;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Money\Money;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
@@ -16,6 +17,15 @@ it('resolves its price as the base plus its option surcharges', function (): voi
     VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
 
     expect($variant->resolvedPrice(Money::fromCents(2000))->cents)->toBe(2500);
+});
+
+it('resolves its price to its standalone option\'s own price rather than the base', function (): void {
+    $variant = Variant::factory()->create();
+    $axis = OptionAxis::factory()->create(['listing_id' => $variant->listing_id, 'pricing_mode' => PricingMode::Standalone]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'price_cents' => 3000]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    expect($variant->resolvedPrice(Money::fromCents(2000))->cents)->toBe(3000);
 });
 
 it('resolves its price to the override, ignoring surcharges', function (): void {
