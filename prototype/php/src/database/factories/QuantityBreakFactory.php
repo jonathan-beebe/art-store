@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Listing;
 use App\Models\QuantityBreak;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -22,6 +23,7 @@ class QuantityBreakFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'min_qty' => 10,
             'discount_bps' => 500,
         ];

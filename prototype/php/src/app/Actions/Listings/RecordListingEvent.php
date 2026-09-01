@@ -31,6 +31,7 @@ final readonly class RecordListingEvent
 
         return ListingEvent::create([
             'listing_id' => $listing->id,
+            'seller_id' => $listing->seller_id,
             'customer_id' => $customerId,
             'type' => $type,
             'occurred_at' => $now,

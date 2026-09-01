@@ -13,11 +13,13 @@ return new class extends Migration
         Schema::create('modifier_scopes', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('modifier_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('option_value_id', 30)->constrained()->cascadeOnDelete();
             $table->timestamps();
 
             // Zero rows for a modifier means it shows product-wide.
             $table->unique(['modifier_id', 'option_value_id']);
+            $table->index('seller_id');
         });
     }
 

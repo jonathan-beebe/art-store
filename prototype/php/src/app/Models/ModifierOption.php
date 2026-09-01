@@ -18,7 +18,7 @@ use Override;
  * its own price delta — a select modifier prices per chosen option rather
  * than the modifier's own flat add-on.
  */
-#[Fillable(['modifier_id', 'label', 'add_on_price_cents', 'position'])]
+#[Fillable(['modifier_id', 'seller_id', 'label', 'add_on_price_cents', 'position'])]
 class ModifierOption extends Model
 {
     /** @use HasFactory<ModifierOptionFactory> */
@@ -44,6 +44,12 @@ class ModifierOption extends Model
     public function modifier(): BelongsTo
     {
         return $this->belongsTo(Modifier::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     public function addOn(): Money

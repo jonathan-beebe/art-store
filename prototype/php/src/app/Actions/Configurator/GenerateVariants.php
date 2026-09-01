@@ -54,10 +54,11 @@ final readonly class GenerateVariants
                     continue;
                 }
 
-                $variant = $listing->variants()->create(['combo_key' => $comboKey->value]);
+                $variant = $listing->variants()->create(['seller_id' => $listing->seller_id, 'combo_key' => $comboKey->value]);
 
                 foreach ($axes as $index => $axis) {
                     $variant->options()->create([
+                        'seller_id' => $variant->seller_id,
                         'axis_id' => $axis->id,
                         'option_value_id' => $combination[$index]->id,
                     ]);

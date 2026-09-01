@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\Customer;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -25,6 +26,7 @@ class OrderItemFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
+            'customer_id' => Customer::factory(),
             'listing_id' => Listing::factory(),
             'seller_id' => Seller::factory(),
             'title' => fake()->sentence(3),

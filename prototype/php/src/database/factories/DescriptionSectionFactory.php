@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Domain\Configurator\DescriptionSectionKind;
 use App\Models\DescriptionSection;
 use App\Models\Listing;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class DescriptionSectionFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'position' => 0,
             'kind' => DescriptionSectionKind::Text,
             'title' => fake()->sentence(3),

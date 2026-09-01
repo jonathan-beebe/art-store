@@ -8,6 +8,7 @@ use App\Domain\Listings\ListingEventType;
 use App\Models\Customer;
 use App\Models\Listing;
 use App\Models\ListingEvent;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -24,6 +25,7 @@ class ListingEventFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'customer_id' => Customer::factory(),
             'type' => ListingEventType::View,
             'occurred_at' => now(),

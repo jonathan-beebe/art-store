@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('variant_options', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('variant_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('axis_id', 30)->constrained('option_axes')->cascadeOnDelete();
             $table->foreignUlid('option_value_id', 30)->constrained()->cascadeOnDelete();
             $table->timestamps();
@@ -20,6 +21,7 @@ return new class extends Migration
             // One value per axis per variant.
             $table->unique(['variant_id', 'axis_id']);
             $table->index('option_value_id');
+            $table->index('seller_id');
         });
     }
 

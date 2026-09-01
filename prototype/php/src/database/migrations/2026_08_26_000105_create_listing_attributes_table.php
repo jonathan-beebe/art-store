@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('listing_attributes', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('property_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('property_value_id', 30)->constrained()->cascadeOnDelete();
             $table->timestamps();
@@ -22,6 +23,7 @@ return new class extends Migration
             // uniqueness spans all three rather than just the pair.
             $table->unique(['listing_id', 'property_id', 'property_value_id'], 'listing_attributes_unique');
             $table->index('listing_id');
+            $table->index('seller_id');
         });
     }
 

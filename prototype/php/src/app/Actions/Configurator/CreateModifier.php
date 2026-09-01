@@ -33,6 +33,7 @@ final readonly class CreateModifier
             $addOnPriceCents, $charLimit, $unit, $minValue, $maxValue, $rateCentsPerUnit,
         ): Modifier {
             $modifier = $listing->modifiers()->create([
+                'seller_id' => $listing->seller_id,
                 'kind' => $kind,
                 'prompt' => $prompt,
                 'instructions' => $instructions,

@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('order_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->string('status');
             $table->unsignedInteger('amount_cents');
             $table->string('card_last_four');
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['order_id', 'processed_at']);
+            $table->index(['customer_id', 'processed_at']);
         });
     }
 

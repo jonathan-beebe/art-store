@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('description_sections', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->unsignedInteger('position');
             $table->string('kind');
             $table->string('title')->nullable();
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['listing_id', 'position']);
+            $table->index('seller_id');
         });
     }
 

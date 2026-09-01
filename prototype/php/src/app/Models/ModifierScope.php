@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * One option value a {@see Modifier} is gated to show for. Zero rows for a
  * modifier means it shows product-wide.
  */
-#[Fillable(['modifier_id', 'option_value_id'])]
+#[Fillable(['modifier_id', 'seller_id', 'option_value_id'])]
 class ModifierScope extends Model
 {
     /** @use HasFactory<ModifierScopeFactory> */
@@ -32,6 +32,12 @@ class ModifierScope extends Model
     public function modifier(): BelongsTo
     {
         return $this->belongsTo(Modifier::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<OptionValue, $this> */

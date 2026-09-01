@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read Property $property
  * @property-read PropertyValue $propertyValue
  */
-#[Fillable(['listing_id', 'property_id', 'property_value_id'])]
+#[Fillable(['listing_id', 'seller_id', 'property_id', 'property_value_id'])]
 class ListingAttribute extends Model
 {
     /** @use HasFactory<ListingAttributeFactory> */
@@ -36,6 +36,12 @@ class ListingAttribute extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<Property, $this> */

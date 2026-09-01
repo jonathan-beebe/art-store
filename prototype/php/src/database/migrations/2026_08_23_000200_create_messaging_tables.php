@@ -52,6 +52,7 @@ return new class extends Migration
         Schema::create('listing_faqs', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->string('question');
             $table->text('answer');
             $table->foreignUlid('source_message_id', 30)->nullable()->constrained('messages')->nullOnDelete();
@@ -59,6 +60,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['listing_id', 'created_at'], 'listing_faqs_listing_index');
+            $table->index('seller_id', 'listing_faqs_seller_index');
         });
     }
 

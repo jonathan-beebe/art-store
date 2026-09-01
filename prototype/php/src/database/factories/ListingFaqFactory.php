@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Models\Listing;
 use App\Models\ListingFaq;
 use App\Models\Message;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class ListingFaqFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'question' => fake()->sentence().'?',
             'answer' => fake()->paragraph(),
             'source_message_id' => null,

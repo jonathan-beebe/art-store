@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('modifiers', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->string('kind');
             $table->string('prompt');
             $table->text('instructions')->nullable();
@@ -31,6 +32,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('listing_id');
+            $table->index('seller_id');
         });
     }
 

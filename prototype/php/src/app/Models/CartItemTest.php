@@ -17,6 +17,7 @@ it('converts itself into the cart line the listing it holds prices', function ()
     $cart = $this->cartFor($this->anonymousCustomer());
     $item = CartItem::create([
         'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
         'listing_id' => $listing->id,
         'quantity' => 3,
         'fingerprint' => CartLineFingerprint::of(null, null, [])->value,
@@ -43,6 +44,7 @@ it('re-resolves a configured line price from the live variant', function (): voi
     $cart = $this->cartFor($this->anonymousCustomer());
     $item = CartItem::create([
         'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
         'listing_id' => $listing->id,
         'variant_id' => $variant->id,
         'quantity' => 2,
@@ -68,6 +70,7 @@ it('prices a text modifiers flat answer on an axis-free listing, matching a conf
     $cart = $this->cartFor($this->anonymousCustomer());
     $item = CartItem::create([
         'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
         'listing_id' => $listing->id,
         'quantity' => 2,
         'answers_json' => [$note->id => ['prompt' => 'Note', 'answer' => 'Congrats!', 'raw' => 'Congrats!']],
@@ -86,6 +89,7 @@ it('prices a measurement modifiers rated answer on an axis-free listing', functi
     $cart = $this->cartFor($this->anonymousCustomer());
     $item = CartItem::create([
         'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
         'listing_id' => $listing->id,
         'quantity' => 1,
         'answers_json' => [$length->id => ['prompt' => 'Length', 'answer' => '10 in', 'raw' => '10']],
@@ -107,6 +111,7 @@ it('reports a configured line unavailable once its variant is disabled', functio
     $cart = $this->cartFor($this->anonymousCustomer());
     $item = CartItem::create([
         'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
         'listing_id' => $listing->id,
         'variant_id' => $variant->id,
         'quantity' => 1,

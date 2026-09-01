@@ -13,12 +13,14 @@ return new class extends Migration
         Schema::create('listing_events', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('customer_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('type');
             $table->timestamp('occurred_at');
             $table->timestamps();
 
             $table->index(['listing_id', 'type']);
+            $table->index(['seller_id', 'occurred_at']);
         });
     }
 

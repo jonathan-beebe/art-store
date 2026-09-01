@@ -6,7 +6,7 @@ namespace App\Domain\Customers;
 
 it('covers every table holding a customer foreign key that a merge blindly re-points', function (): void {
     expect(array_keys(CustomerOwnedTables::all()))
-        ->toBe(['orders', 'listing_events', 'customer_blocks']);
+        ->toBe(['orders', 'order_items', 'fulfillments', 'payments', 'refunds', 'listing_events', 'customer_blocks']);
 });
 
 it('names the column holding the customer for every table', function (): void {

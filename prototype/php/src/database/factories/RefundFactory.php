@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Domain\Auth\ActorType;
+use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Order;
 use App\Models\Refund;
@@ -25,7 +26,9 @@ class RefundFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
+            'customer_id' => Customer::factory(),
             'fulfillment_id' => Fulfillment::factory(),
+            'seller_id' => Seller::factory(),
             'payment_id' => null,
             'amount_cents' => 10000,
             'reason' => 'The piece arrived damaged.',

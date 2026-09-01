@@ -17,7 +17,7 @@ use Override;
  * One quantity-break tier a listing offers: at `min_qty` or more, the
  * resolved unit price carries a `discount_bps` discount.
  */
-#[Fillable(['listing_id', 'min_qty', 'discount_bps'])]
+#[Fillable(['listing_id', 'seller_id', 'min_qty', 'discount_bps'])]
 class QuantityBreak extends Model
 {
     /** @use HasFactory<QuantityBreakFactory> */
@@ -43,6 +43,12 @@ class QuantityBreak extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     public function toDomain(): QuantityDiscount

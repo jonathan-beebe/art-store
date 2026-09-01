@@ -794,9 +794,9 @@ it('DSGN-001 progressive disclosure: shows summary cards with craft copy for a c
     $small = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '11 oz', 'is_default' => true, 'position' => 0]);
     $large = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '15 oz', 'surcharge_cents' => 400, 'position' => 1]);
     $small11 = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a', 'enabled' => true]);
-    $small11->options()->create(['axis_id' => $axis->id, 'option_value_id' => $small->id]);
+    $small11->options()->create(['seller_id' => $small11->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $small->id]);
     $large15 = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'b', 'enabled' => true]);
-    $large15->options()->create(['axis_id' => $axis->id, 'option_value_id' => $large->id]);
+    $large15->options()->create(['seller_id' => $large15->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $large->id]);
 
     Modifier::factory()->required()->create([
         'listing_id' => $listing->id,
@@ -1009,7 +1009,7 @@ it('reaches the negative-priced-combination publish issue end to end', function 
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
     $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
     $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a', 'price_override_cents' => -500]);
-    $variant->options()->create(['axis_id' => $axis->id, 'option_value_id' => $value->id]);
+    $variant->options()->create(['seller_id' => $variant->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 
@@ -1123,7 +1123,7 @@ it('E2: shows every publish issue at once, each naming its fix and linking to th
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
     $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
     $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a', 'price_override_cents' => -500]);
-    $variant->options()->create(['axis_id' => $axis->id, 'option_value_id' => $value->id]);
+    $variant->options()->create(['seller_id' => $variant->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
 

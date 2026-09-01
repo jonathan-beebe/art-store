@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('units', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('variant_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->string('label');
             $table->string('state')->default(UnitState::Available->value);
             $table->text('condition_note')->nullable();
@@ -23,6 +24,7 @@ return new class extends Migration
 
             $table->unique(['variant_id', 'label']);
             $table->index(['variant_id', 'state']);
+            $table->index(['seller_id', 'state']);
         });
     }
 

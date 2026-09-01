@@ -32,7 +32,10 @@ final readonly class SetModifierScope
             $modifier->scopes()->whereNotIn('option_value_id', array_map(fn (OptionValue $value): string => $value->id, $optionValues))->delete();
 
             $scopes = array_map(
-                fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(['option_value_id' => $value->id]),
+                fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(
+                    ['option_value_id' => $value->id],
+                    ['seller_id' => $modifier->seller_id],
+                ),
                 $optionValues,
             );
 

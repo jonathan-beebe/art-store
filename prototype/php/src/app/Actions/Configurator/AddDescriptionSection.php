@@ -27,6 +27,7 @@ final readonly class AddDescriptionSection
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $position, $kind, $title, $bodyMd, $bodyJson): DescriptionSection {
             $section = $listing->descriptionSections()->create([
+                'seller_id' => $listing->seller_id,
                 'position' => $position,
                 'kind' => $kind,
                 'title' => $title,

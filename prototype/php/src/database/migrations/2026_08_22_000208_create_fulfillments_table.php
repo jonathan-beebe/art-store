@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('fulfillments', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('order_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->string('status')->default(FulfillmentStatus::AwaitingShipment->value);
             $table->string('carrier')->nullable();
@@ -27,6 +28,7 @@ return new class extends Migration
 
             $table->unique(['order_id', 'seller_id']);
             $table->index(['seller_id', 'status']);
+            $table->index(['customer_id', 'status']);
         });
     }
 

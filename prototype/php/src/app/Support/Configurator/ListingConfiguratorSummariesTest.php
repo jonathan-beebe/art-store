@@ -91,9 +91,9 @@ it('summarizes a choice, its priced option, and its combination coverage', funct
     $large = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => '15 oz', 'surcharge_cents' => 400, 'position' => 1]);
 
     $enabled = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a', 'enabled' => true]);
-    $enabled->options()->create(['axis_id' => $axis->id, 'option_value_id' => $large->id]);
+    $enabled->options()->create(['seller_id' => $enabled->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $large->id]);
     $disabled = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'b', 'enabled' => false]);
-    $disabled->options()->create(['axis_id' => $axis->id, 'option_value_id' => $small->id]);
+    $disabled->options()->create(['seller_id' => $disabled->seller_id, 'axis_id' => $axis->id, 'option_value_id' => $small->id]);
 
     /** @var array{axes: list<array{name: string, displayedLabels: list<string>, priceDeltas: list<string>, moreCount: int}>, offeredCount: int, totalCombinations: int, lowStockCount: int, combinationsUrl: string} $summary */
     $summary = ListingConfiguratorSummaries::choices($listing);

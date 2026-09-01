@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
 
-#[Fillable(['order_id', 'status', 'amount_cents', 'card_last_four', 'decline_reason', 'processed_at'])]
+#[Fillable(['order_id', 'customer_id', 'status', 'amount_cents', 'card_last_four', 'decline_reason', 'processed_at'])]
 class Payment extends Model
 {
     /** @use HasFactory<PaymentFactory> */
@@ -46,6 +46,12 @@ class Payment extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function amount(): Money

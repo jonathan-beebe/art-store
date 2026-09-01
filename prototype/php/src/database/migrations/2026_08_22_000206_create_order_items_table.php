@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('order_items', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('order_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             // Title and price are snapshots: an order reads the same after the
@@ -34,6 +35,8 @@ return new class extends Migration
             $table->text('answers_json')->nullable();
             $table->text('price_breakdown_json')->nullable();
             $table->timestamps();
+
+            $table->index('customer_id');
         });
     }
 

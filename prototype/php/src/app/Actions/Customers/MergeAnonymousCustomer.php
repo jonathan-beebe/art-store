@@ -179,6 +179,7 @@ final readonly class MergeAnonymousCustomer
 
         foreach ($plan->cartLines as $line) {
             $survivor->items()->create([
+                'customer_id' => $survivor->customer_id,
                 'listing_id' => $line->listingId,
                 'quantity' => $line->quantity,
                 'variant_id' => $line->variantId,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Domain\Configurator\UnitState;
+use App\Models\Seller;
 use App\Models\Unit;
 use App\Models\Variant;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -23,6 +24,7 @@ class UnitFactory extends Factory
     {
         return [
             'variant_id' => Variant::factory(),
+            'seller_id' => Seller::factory(),
             'label' => '#'.fake()->unique()->numberBetween(1, 999999),
             'state' => UnitState::Available,
             'condition_note' => null,

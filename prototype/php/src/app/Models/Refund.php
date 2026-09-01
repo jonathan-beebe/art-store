@@ -22,7 +22,7 @@ use Override;
  * @property-read Fulfillment $fulfillment
  */
 #[Fillable([
-    'order_id', 'fulfillment_id', 'payment_id', 'amount_cents',
+    'order_id', 'customer_id', 'fulfillment_id', 'seller_id', 'payment_id', 'amount_cents',
     'reason', 'issued_by_type', 'issued_by_id',
 ])]
 class Refund extends Model
@@ -54,10 +54,22 @@ class Refund extends Model
         return $this->belongsTo(Order::class);
     }
 
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     /** @return BelongsTo<Fulfillment, $this> */
     public function fulfillment(): BelongsTo
     {
         return $this->belongsTo(Fulfillment::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<Payment, $this> */

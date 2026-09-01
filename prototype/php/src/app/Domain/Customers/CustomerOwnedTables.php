@@ -22,6 +22,10 @@ final class CustomerOwnedTables
     {
         return [
             'orders' => 'customer_id',
+            'order_items' => 'customer_id',
+            'fulfillments' => 'customer_id',
+            'payments' => 'customer_id',
+            'refunds' => 'customer_id',
             'listing_events' => 'customer_id',
             'customer_blocks' => 'customer_id',
         ];
@@ -38,6 +42,7 @@ final class CustomerOwnedTables
         return [
             'favorites' => 'folded by CustomerMergePlan — the union of both customers\' favorites, de-duplicated, applied with updates and deletes',
             'carts' => 'folded by CustomerMergePlan — quantities summed per listing and clamped to stock, applied to the one cart that survives the merge',
+            'cart_items' => 'recreated by MergeAnonymousCustomer::foldCart() from the folded cart plan, which sets customer_id to the surviving cart\'s owner directly',
             'conversations' => 'moved by Conversation::moveCustomer(), which carries subject_key along with customer_id',
             'customer_merges' => 'the merge record itself — anonymous_customer_id names the row being merged, customer_id the survivor, and a merge does not rewrite its own trail',
         ];
