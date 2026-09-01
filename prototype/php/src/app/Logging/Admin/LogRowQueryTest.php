@@ -25,25 +25,24 @@ it('counts and pages rows newest first, tiebreaking on id within one ts', functi
     expect($page2)->toHaveCount(1)->and($page2[0]->msg)->toBe('first');
 });
 
-it('filters on each mirrored column equality', function (): void {
+it('filters on each mirrored column equality', function (LogRowFilters $filters): void {
     $query = Fixtures::query([
         Fixtures::line(['level' => 'warn', 'phase' => 'refused', 'event' => 'order.pay', 'request_id' => 'req_1', 'txn_id' => 'txn_1', 'session_id' => 'ses_1', 'actor_id' => 'cus_1', 'msg' => 'target']),
         Fixtures::line(['level' => 'info', 'phase' => 'did', 'event' => 'order.place', 'request_id' => 'req_2', 'txn_id' => 'txn_2', 'session_id' => 'ses_2', 'actor_id' => 'cus_2', 'msg' => 'other']),
     ]);
 
-    foreach ([
-        new LogRowFilters(level: 'warn'),
-        new LogRowFilters(phase: 'refused'),
-        new LogRowFilters(event: 'order.pay'),
-        new LogRowFilters(requestId: 'req_1'),
-        new LogRowFilters(txnId: 'txn_1'),
-        new LogRowFilters(sessionId: 'ses_1'),
-        new LogRowFilters(actorId: 'cus_1'),
-    ] as $filters) {
-        $rows = $query->rows($filters, 50, 0);
-        expect($rows)->toHaveCount(1)->and($rows[0]->msg)->toBe('target');
-    }
-});
+    $rows = $query->rows($filters, 50, 0);
+
+    expect($rows)->toHaveCount(1)->and($rows[0]->msg)->toBe('target');
+})->with([
+    'level' => [new LogRowFilters(level: 'warn')],
+    'phase' => [new LogRowFilters(phase: 'refused')],
+    'event' => [new LogRowFilters(event: 'order.pay')],
+    'request id' => [new LogRowFilters(requestId: 'req_1')],
+    'txn id' => [new LogRowFilters(txnId: 'txn_1')],
+    'session id' => [new LogRowFilters(sessionId: 'ses_1')],
+    'actor id' => [new LogRowFilters(actorId: 'cus_1')],
+]);
 
 it('derives each lines domain from its own requests opening line path', function (): void {
     $query = Fixtures::query([
