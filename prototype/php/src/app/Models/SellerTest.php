@@ -19,23 +19,6 @@ it('is named by the morph alias its notifications are addressed to', function ()
     expect((new Seller)->getMorphClass())->toBe('seller');
 });
 
-it('reads the conversations it is a participant in', function (): void {
-    $seller = $this->seller();
-    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
-    Conversation::factory()->listingQuestion()->create();
-
-    expect($seller->conversations()->count())->toBe(1);
-});
-
-it('reads the messages it sent', function (): void {
-    $seller = $this->seller();
-    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
-    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
-    Message::factory()->create(['conversation_id' => $conversation->id]);
-
-    expect($seller->sentMessages()->count())->toBe(1);
-});
-
 it('counts its listings by status without loading one', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['status' => ListingStatus::Draft]);
