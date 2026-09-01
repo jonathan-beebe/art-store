@@ -74,6 +74,17 @@ it('takes a refund before release back out of escrow, reading it as a positive a
         ->and($balance->refunded->cents)->toBe(9000);
 });
 
+it('takes only the refunded part out of escrow when the refund is partial', function (): void {
+    $balance = LedgerBalance::from([
+        LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
+        LedgerMovement::of(LedgerEntryType::Refunded, Money::fromCents(-3000), 'ful_1'),
+    ]);
+
+    expect($balance->held->cents)->toBe(6000)
+        ->and($balance->available->cents)->toBe(0)
+        ->and($balance->refunded->cents)->toBe(3000);
+});
+
 it('drops the available balance on a refund after release', function (): void {
     $balance = LedgerBalance::from([
         LedgerMovement::of(LedgerEntryType::Held, Money::fromCents(9000), 'ful_1'),
