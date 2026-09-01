@@ -595,7 +595,8 @@ flowchart LR
   `app/Notifications`, `app/Policies`, `app/Providers`, and `app/Support`;
   `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
-  `app/View/Composers`, and `tests/SmokeTest.php`;
+  `app/View/Composers`, `tests/SmokeTest.php`, and
+  `tests/ConfiguratorSmokeTest.php`;
   `Tests\TestCase` alone for `routes/`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
   `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
@@ -641,9 +642,10 @@ flowchart LR
   list of exceptions (classes covered by another file's tests, or with no
   independently testable behavior); a second assertion fails if any
   exception's sidecar now exists, so the list can only shrink.
-- One exception to the sidecar rule: `tests/SmokeTest.php`, the end-to-end
-  walk, has no production file to sit beside. It is its own `Smoke` testsuite
-  (`make smoke`) and runs inside `make test` as well.
+- One exception to the sidecar rule: `tests/SmokeTest.php` (the backbone
+  walk) and `tests/ConfiguratorSmokeTest.php` (the two configurator walks)
+  have no production file to sit beside. Both run inside the `Smoke`
+  testsuite (`make smoke`) and inside `make test` as well.
 - Core tests (`app/Domain/**`) need no app boot, no database, no doubles.
 - Coordination tests (controllers, actions, commands) run against in-memory
   SQLite; they drive HTTP and assert on rendered HTML and database state.
