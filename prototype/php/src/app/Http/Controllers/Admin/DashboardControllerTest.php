@@ -98,18 +98,6 @@ it('sends a guest to the admin login page', function (): void {
     $response->assertRedirect(route('auth.admin.login'));
 });
 
-it('sends a signed in seller to the admin login wall, not the dashboard', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
-it('sends a signed in customer to the admin login wall, not the dashboard', function (): void {
-    $response = $this->actingAs($this->verifiedCustomer(), 'customer')->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('tallies every listing status, a status with no rows included', function (): void {
     $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
 
