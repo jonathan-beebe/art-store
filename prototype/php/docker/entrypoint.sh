@@ -35,16 +35,45 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-if [ ! -d vendor ]; then
+# Stamp lives inside vendor/ so it dies with vendor: a deleted or fresh
+# vendor directory has no stamp, which falls through to install same as the
+# missing-directory case ever did.
+COMPOSER_INPUTS_HASH=vendor/.composer-inputs-hash
+composer_inputs_hash() {
+    sha256sum composer.json composer.lock | LC_ALL=C sort | sha256sum | cut -d' ' -f1
+}
+
+inputs_hash="$(composer_inputs_hash)"
+if [ -d vendor ] \
+    && [ -f "$COMPOSER_INPUTS_HASH" ] \
+    && [ "$(cat "$COMPOSER_INPUTS_HASH")" = "$inputs_hash" ]; then
+    echo "entrypoint: composer inputs unchanged, skipping install"
+else
+    echo "entrypoint: composer inputs changed, installing"
     composer install --no-interaction --prefer-dist
+    printf '%s\n' "$inputs_hash" > "$COMPOSER_INPUTS_HASH"
 fi
 
 if ! grep -q '^APP_KEY=base64:' .env; then
     php artisan key:generate --force
 fi
 
-if [ ! -d node_modules ]; then
+# Same shape as the composer stamp above: lives inside node_modules/ so it
+# dies with it.
+NPM_INPUTS_HASH=node_modules/.npm-inputs-hash
+npm_inputs_hash() {
+    sha256sum package.json package-lock.json | LC_ALL=C sort | sha256sum | cut -d' ' -f1
+}
+
+inputs_hash="$(npm_inputs_hash)"
+if [ -d node_modules ] \
+    && [ -f "$NPM_INPUTS_HASH" ] \
+    && [ "$(cat "$NPM_INPUTS_HASH")" = "$inputs_hash" ]; then
+    echo "entrypoint: npm inputs unchanged, skipping install"
+else
+    echo "entrypoint: npm inputs changed, installing"
     npm install --no-audit --no-fund
+    printf '%s\n' "$inputs_hash" > "$NPM_INPUTS_HASH"
 fi
 
 # The entrypoint runs on every `docker compose run` as well as on `up`, so the

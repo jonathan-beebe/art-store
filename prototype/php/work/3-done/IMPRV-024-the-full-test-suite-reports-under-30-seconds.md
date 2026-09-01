@@ -201,3 +201,11 @@ implementation moved.
 2026-09-01 acceptance: shipped at the amended bar by the human's decision —
 serial 93s → parallel ~40s floor on this machine; under-30s not demonstrably
 reachable on an 8-CPU VM without structural test surgery.
+
+2026-09-01 follow-up: the FunctionOverrides autoload entry exposed a
+stale-vendor gap — docker/entrypoint.sh installed composer/npm deps only
+when the directory was missing, so an existing vendor never picked up the
+new files autoload and FakeCardTest's override test failed there. The
+entrypoint now stamp-hashes composer.json+lock and package.json+lock
+(the bundle_inputs_hash idiom) and reinstalls when they change.
+
