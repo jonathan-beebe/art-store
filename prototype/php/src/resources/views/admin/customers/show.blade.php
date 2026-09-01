@@ -168,12 +168,12 @@
     </section>
 
     <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
-        <h2 id="message-heading" class="font-semibold text-gray-700 dark:text-gray-300">Message customer</h2>
+        <h2 id="message-heading" class="font-semibold text-stone-700 dark:text-stone-300">Message customer</h2>
 
         <x-messaging.body-form
             :action="route('admin.customers.messages', $customer)"
             label="Message"
-            class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4"
+            class="mt-2"
         />
     </section>
 </x-layouts.admin>
