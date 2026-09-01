@@ -11,9 +11,9 @@
         @foreach ($rows as $i => $row)
             <div class="flex flex-col gap-1 sm:flex-row sm:flex-wrap">
                 <label for="faq-{{ $idPrefix }}-question-{{ $i }}" class="sr-only">Question</label>
-                <input id="faq-{{ $idPrefix }}-question-{{ $i }}" type="text" name="faq[{{ $i }}][question]" value="{{ old("faq.$i.question", $row['question'] ?? '') }}" placeholder="Question" class="flex-1 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                <input id="faq-{{ $idPrefix }}-question-{{ $i }}" type="text" name="faq[{{ $i }}][question]" value="{{ old("faq.$i.question", $row['question'] ?? '') }}" placeholder="Question" class="flex-1 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                 <label for="faq-{{ $idPrefix }}-answer-{{ $i }}" class="sr-only">Answer</label>
-                <input id="faq-{{ $idPrefix }}-answer-{{ $i }}" type="text" name="faq[{{ $i }}][answer]" value="{{ old("faq.$i.answer", $row['answer'] ?? '') }}" placeholder="Answer" class="flex-1 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                <input id="faq-{{ $idPrefix }}-answer-{{ $i }}" type="text" name="faq[{{ $i }}][answer]" value="{{ old("faq.$i.answer", $row['answer'] ?? '') }}" placeholder="Answer" class="flex-1 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
             </div>
         @endforeach
     </div>

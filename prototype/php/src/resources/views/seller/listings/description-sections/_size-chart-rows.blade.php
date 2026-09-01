@@ -19,15 +19,15 @@
                 <tr class="border-b border-gray-100 dark:border-gray-800">
                     <td class="p-1">
                         <label for="size-chart-{{ $idPrefix }}-label-{{ $i }}" class="sr-only">Label</label>
-                        <input id="size-chart-{{ $idPrefix }}-label-{{ $i }}" type="text" name="size_chart[{{ $i }}][label]" value="{{ old("size_chart.$i.label", $row['label'] ?? '') }}" placeholder="S" class="w-full rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                        <input id="size-chart-{{ $idPrefix }}-label-{{ $i }}" type="text" name="size_chart[{{ $i }}][label]" value="{{ old("size_chart.$i.label", $row['label'] ?? '') }}" placeholder="S" class="w-full rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                     </td>
                     <td class="p-1">
                         <label for="size-chart-{{ $idPrefix }}-value1-{{ $i }}" class="sr-only">Value</label>
-                        <input id="size-chart-{{ $idPrefix }}-value1-{{ $i }}" type="text" name="size_chart[{{ $i }}][value1]" value="{{ old("size_chart.$i.value1", $row['value1'] ?? '') }}" placeholder="36 in" class="w-full rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                        <input id="size-chart-{{ $idPrefix }}-value1-{{ $i }}" type="text" name="size_chart[{{ $i }}][value1]" value="{{ old("size_chart.$i.value1", $row['value1'] ?? '') }}" placeholder="36 in" class="w-full rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                     </td>
                     <td class="p-1">
                         <label for="size-chart-{{ $idPrefix }}-value2-{{ $i }}" class="sr-only">Value</label>
-                        <input id="size-chart-{{ $idPrefix }}-value2-{{ $i }}" type="text" name="size_chart[{{ $i }}][value2]" value="{{ old("size_chart.$i.value2", $row['value2'] ?? '') }}" placeholder="27 in" class="w-full rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                        <input id="size-chart-{{ $idPrefix }}-value2-{{ $i }}" type="text" name="size_chart[{{ $i }}][value2]" value="{{ old("size_chart.$i.value2", $row['value2'] ?? '') }}" placeholder="27 in" class="w-full rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                     </td>
                 </tr>
             @endforeach

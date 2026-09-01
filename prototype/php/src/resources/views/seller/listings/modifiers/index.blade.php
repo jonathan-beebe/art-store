@@ -36,7 +36,7 @@
                         <div>
                             <label for="prompt-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">The question</label>
                             <input id="prompt-{{ $modifier->id }}" name="prompt" type="text" required maxlength="255" value="{{ old('prompt', $modifier->prompt) }}"
-                                   class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                   class="mt-1 block w-full rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                         </div>
 
                         <div>
@@ -44,7 +44,7 @@
                                 A note under it <span class="font-normal text-gray-600 dark:text-gray-400">&mdash; optional</span>
                             </label>
                             <input id="instructions-{{ $modifier->id }}" name="instructions" type="text" value="{{ old('instructions', $modifier->instructions) }}"
-                                   class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                   class="mt-1 block w-full rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                         </div>
 
                         @if ($modifier->kind === ModifierKind::Text)
@@ -53,7 +53,7 @@
                                     <label for="char_limit-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Longest answer</label>
                                     <div class="mt-1 flex items-center gap-2">
                                         <input id="char_limit-{{ $modifier->id }}" name="char_limit" type="number" step="1" min="1" value="{{ old('char_limit', $modifier->char_limit) }}"
-                                               class="w-20 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                               class="w-20 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                         <span class="text-gray-600 dark:text-gray-400">letters &mdash; buyers see the limit before they type.</span>
                                     </div>
                                 </div>
@@ -64,7 +64,7 @@
                                     <label for="add_on_price-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Extra charge for this</label>
                                     <div class="mt-1 flex items-center gap-2">
                                         <input id="add_on_price-{{ $modifier->id }}" name="add_on_price" type="text" value="{{ old('add_on_price', PriceDifferenceInput::format($modifier->add_on_price_cents)) }}"
-                                               class="w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                               class="w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                         <span class="text-gray-600 dark:text-gray-400">buyers who don't see this question never pay it</span>
                                     </div>
                                 </div>
@@ -86,7 +86,7 @@
                                 <div>
                                     <label for="unit-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Unit</label>
                                     <input id="unit-{{ $modifier->id }}" name="unit" type="text" value="{{ old('unit', $modifier->unit) }}"
-                                           class="mt-1 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                           class="mt-1 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                     <p class="mt-1 text-gray-600 dark:text-gray-400">Inches, cm, mm&hellip;</p>
                                 </div>
                             </div>
@@ -95,12 +95,12 @@
                                 <div>
                                     <label for="min_value-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Smallest allowed</label>
                                     <input id="min_value-{{ $modifier->id }}" name="min_value" type="number" step="any" value="{{ old('min_value', $modifier->min_value) }}"
-                                           class="mt-1 w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                           class="mt-1 w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                 </div>
                                 <div>
                                     <label for="max_value-{{ $modifier->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Largest allowed</label>
                                     <input id="max_value-{{ $modifier->id }}" name="max_value" type="number" step="any" value="{{ old('max_value', $modifier->max_value) }}"
-                                           class="mt-1 w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                           class="mt-1 w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                 </div>
                                 <span class="pb-2 text-gray-600 dark:text-gray-400">within limits you set</span>
                             </div>
@@ -112,7 +112,7 @@
                                     </label>
                                     <input id="rate-{{ $modifier->id }}" name="rate" type="text"
                                            value="{{ old('rate', $modifier->rate_cents_per_unit === null ? '' : PriceDifferenceInput::format($modifier->rate_cents_per_unit)) }}"
-                                           class="mt-1 w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                           class="mt-1 w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                 </div>
 
                                 <label class="flex items-center gap-2 pb-2">
@@ -141,13 +141,13 @@
 
                                             <label for="label-{{ $option->id }}" class="sr-only">Option label</label>
                                             <input id="label-{{ $option->id }}" name="label" type="text" required maxlength="255" value="{{ old('label', $option->label) }}"
-                                                   class="w-40 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                   class="w-40 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
 
                                             <label for="add_on_price-{{ $option->id }}" class="sr-only">Price difference</label>
                                             <input id="add_on_price-{{ $option->id }}" name="add_on_price" type="text" value="{{ old('add_on_price', PriceDifferenceInput::format($option->add_on_price_cents)) }}"
-                                                   class="w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                   class="w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
 
-                                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Save</button>
+                                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Save</button>
                                         </form>
 
                                         <form method="POST" action="{{ route('seller.listings.modifiers.options.destroy', [$listing, $modifier, $option]) }}" class="contents">
@@ -172,13 +172,13 @@
 
                                 <label for="new-label-{{ $modifier->id }}" class="sr-only">New option</label>
                                 <input id="new-label-{{ $modifier->id }}" name="label" type="text" required maxlength="255" placeholder="New option"
-                                       class="w-40 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                       class="w-40 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
 
                                 <label for="new-add_on_price-{{ $modifier->id }}" class="sr-only">Price difference</label>
                                 <input id="new-add_on_price-{{ $modifier->id }}" name="add_on_price" type="text" placeholder="+$0.00" value="0.00"
-                                       class="w-24 rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                       class="w-24 rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
 
-                                <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add option</button>
+                                <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-4 py-2">Add option</button>
                             </form>
                         </div>
                     @endif
@@ -225,7 +225,7 @@
                                 </p>
                             @endif
 
-                            <button type="submit" class="mt-2 rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Save</button>
+                            <button type="submit" class="mt-2 rounded-md border border-gray-400 dark:border-gray-600 px-4 py-2">Save</button>
                         </form>
                     @endif
 

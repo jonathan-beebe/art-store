@@ -27,15 +27,15 @@
                             <label for="min_qty-{{ $break->id }}" class="sr-only">Items</label>
                             <input id="min_qty-{{ $break->id }}" name="min_qty" type="number" step="1" min="2" required
                                    value="{{ old('min_qty', $break->min_qty) }}"
-                                   class="w-20 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                                   class="w-20 rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                             <span class="text-gray-700 dark:text-gray-300">items,</span>
                             <label for="discount_percent-{{ $break->id }}" class="sr-only">Percent off</label>
                             <input id="discount_percent-{{ $break->id }}" name="discount_percent" type="text" inputmode="decimal" required
                                    value="{{ old('discount_percent', QuantityBreakPercent::format($break->discount_bps)) }}"
-                                   class="w-16 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                                   class="w-16 rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                             <span class="text-gray-700 dark:text-gray-300">% off each</span>
 
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Save</button>
+                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-1 text-sm">Save</button>
 
                             @error('min_qty')
                                 <span class="w-full text-xs text-red-700 dark:text-red-400">{{ $message }}</span>
@@ -67,14 +67,14 @@
                     <span class="text-gray-700 dark:text-gray-300">From</span>
                     <label for="new-min_qty" class="sr-only">Items</label>
                     <input id="new-min_qty" name="min_qty" type="number" step="1" min="2" required value="{{ old('min_qty') }}"
-                           class="w-20 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                           class="w-20 rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                     <span class="text-gray-700 dark:text-gray-300">items,</span>
                     <label for="new-discount_percent" class="sr-only">Percent off</label>
                     <input id="new-discount_percent" name="discount_percent" type="text" inputmode="decimal" required value="{{ old('discount_percent') }}"
-                           class="w-16 rounded border border-gray-400 dark:border-gray-600 px-2 py-1">
+                           class="w-16 rounded-md border border-gray-400 dark:border-gray-600 px-2 py-1">
                     <span class="text-gray-700 dark:text-gray-300">% off each</span>
 
-                    <button type="submit" class="ml-auto rounded border border-gray-400 dark:border-gray-600 px-4 py-2">Add a breakpoint</button>
+                    <button type="submit" class="ml-auto rounded-md border border-gray-400 dark:border-gray-600 px-4 py-2">Add a breakpoint</button>
                 </form>
 
                 <p class="mt-3 text-gray-600 dark:text-gray-400">Per-item prices shown at your {{ $basePrice->format() }} base. The discount applies to whatever the buyer configures — paper upgrades included.</p>

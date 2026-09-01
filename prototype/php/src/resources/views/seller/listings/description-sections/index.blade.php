@@ -20,12 +20,12 @@
                         <form method="POST" action="{{ route('seller.listings.description-sections.reorder', [$listing, $section]) }}" class="contents">
                             @csrf
                             <input type="hidden" name="direction" value="up">
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
+                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->first)>&uarr;<span class="sr-only">Move up</span></button>
                         </form>
                         <form method="POST" action="{{ route('seller.listings.description-sections.reorder', [$listing, $section]) }}" class="contents">
                             @csrf
                             <input type="hidden" name="direction" value="down">
-                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
+                            <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-2 py-0.5 text-sm" @disabled($loop->last)>&darr;<span class="sr-only">Move down</span></button>
                         </form>
                         <form method="POST" action="{{ route('seller.listings.description-sections.destroy', [$listing, $section]) }}" class="contents">
                             @csrf
