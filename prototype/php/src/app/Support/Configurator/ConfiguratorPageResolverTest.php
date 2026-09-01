@@ -12,7 +12,7 @@ use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\PricingMode;
 use LogicException;
@@ -116,7 +116,7 @@ it('shows a modifier only once its scope matches the selection, mug style', func
     $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
     app(GenerateVariants::class)($listing);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $blankConfiguration = ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::of([], null, [], 1));
     expect($blankConfiguration->modifiers)->toBeEmpty()
