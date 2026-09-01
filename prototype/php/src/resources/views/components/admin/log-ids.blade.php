@@ -16,7 +16,7 @@
 
 @if ($ids->isNotEmpty())
     <details class="mt-1">
-        <summary class="cursor-pointer text-gray-500">ids</summary>
+        <summary class="cursor-pointer text-stone-500">ids</summary>
         <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             @foreach ($ids as $param => $id)
                 <a href="{{ \App\Logging\Admin\LogFilterLinks::href($param, $id, $filters) }}" class="underline">{{ $id }}</a>
