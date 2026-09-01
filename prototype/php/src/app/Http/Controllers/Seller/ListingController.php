@@ -102,7 +102,7 @@ final class ListingController extends SellerController
         $window = ListPaneWindow::of($this->listingsQuery(), $listing);
 
         return view('seller.listings.show', [
-            'listing' => $listing->loadEventCounts()->load(['activeRemoval', 'category']),
+            'listing' => $listing->loadEventCounts()->load(['activeRemoval', 'category', 'images']),
             'days' => ActivityTimeline::lastDays(
                 $listing->eventCountsByDateSince(ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
                 $endsOn,

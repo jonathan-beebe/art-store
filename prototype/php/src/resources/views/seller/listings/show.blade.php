@@ -63,10 +63,17 @@
                 @endif
 
                 <div class="mt-6 grid gap-8 lg:grid-cols-2">
-                    <div class="flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-lg bg-gray-50 text-gray-400 inset-ring inset-ring-gray-200 dark:bg-white/5 dark:text-gray-500 dark:inset-ring-white/10">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-8"><path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0 0 21.75 19.5V4.5A1.5 1.5 0 0 0 20.25 3H3.75A1.5 1.5 0 0 0 2.25 4.5v15A1.5 1.5 0 0 0 3.75 21Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <span class="text-xs">Photos</span>
-                    </div>
+                    @if ($listing->images->isNotEmpty())
+                        <div class="flex flex-col gap-2">
+                            <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}" class="aspect-[4/3] w-full rounded-lg object-cover inset-ring inset-ring-gray-200 dark:inset-ring-white/10">
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $listing->images->count() }} {{ \Illuminate\Support\Str::plural('photo', $listing->images->count()) }}</p>
+                        </div>
+                    @else
+                        <div class="flex aspect-[4/3] flex-col items-center justify-center gap-2 rounded-lg bg-gray-50 text-gray-400 inset-ring inset-ring-gray-200 dark:bg-white/5 dark:text-gray-500 dark:inset-ring-white/10">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-8"><path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0 0 21.75 19.5V4.5A1.5 1.5 0 0 0 20.25 3H3.75A1.5 1.5 0 0 0 2.25 4.5v15A1.5 1.5 0 0 0 3.75 21Z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span class="text-xs">No photos yet</span>
+                        </div>
+                    @endif
 
                     <dl class="divide-y divide-gray-200 dark:divide-white/10">
                         <div class="flex items-center justify-between gap-4 py-3">

@@ -122,6 +122,27 @@ it('shows a placeholder thumbnail for a listing without an image', function (): 
     $response->assertSee($listing->imageUrl(), escape: false);
 });
 
+it('shows the cover photo and photo count on the detail pane', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $cover = $this->listingImage($listing, ['position' => 0]);
+    $this->listingImage($listing, ['position' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertSee($cover->url(), escape: false)
+        ->assertSee('2 photos');
+});
+
+it('shows the no-photos placeholder on the detail pane for a listing without images', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertSee('No photos yet');
+});
+
 it('DSGN-006 shows the list panes empty-detail prompt on the index route', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'Harbour at Dusk']);
@@ -592,8 +613,9 @@ it('renders the activity page on a fixed number of queries however many events t
         // the query); +2 for the seller layout's awaiting-shipment count
         // and unread-notifications check; +4 for the list pane's window
         // (DSGN-006: a count and a capped select, each with its own
-        // activeRemoval and images eager load).
-        ->expectsDatabaseQueryCount(13)
+        // activeRemoval and images eager load); +1 for the detail pane's
+        // own images load behind the photos block.
+        ->expectsDatabaseQueryCount(14)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
