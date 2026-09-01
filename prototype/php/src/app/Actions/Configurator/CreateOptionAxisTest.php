@@ -36,3 +36,13 @@ it('creates a standalone-priced axis when asked', function (): void {
 
     expect($axis->pricing_mode)->toBe(PricingMode::Standalone);
 });
+
+it('syncs the listing’s derived price once it gains a standalone axis', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
+
+    app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
+
+    // The new axis has no options yet, so its default contributes nothing —
+    // the listing's seller-typed price is overwritten as soon as any axis is standalone.
+    expect($listing->refresh()->price_cents)->toBe(0);
+});
