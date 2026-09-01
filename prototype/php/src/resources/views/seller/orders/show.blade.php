@@ -1,4 +1,4 @@
-<x-layouts.seller :title="'Order '.$fulfillment- :bleed="true">order_id.' — Art Store seller'">
+<x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'" :bleed="true">
     @php
         $tint = match ($fulfillment->status) {
             \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',

@@ -1,4 +1,4 @@
-<x-layouts.seller :title="$conversation- :bleed="true">counterpartName($viewer).' — Art Store seller'">
+<x-layouts.seller :title="$conversation->counterpartName($viewer).' — Art Store seller'" :bleed="true">
     <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>

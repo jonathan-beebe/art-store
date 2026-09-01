@@ -1,4 +1,4 @@
-<x-layouts.seller :title="$listing- :bleed="true">title.' — Art Store seller'">
+<x-layouts.seller :title="$listing->title.' — Art Store seller'" :bleed="true">
     <x-slot:mobileTitle>{{ $listing->title }}</x-slot:mobileTitle>
 
     <div class="h-[calc(100dvh-4rem)] overflow-hidden">
