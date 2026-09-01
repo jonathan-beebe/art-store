@@ -52,3 +52,14 @@ it('allows an update that keeps the same pricing mode even with options present'
 
     expect($updated->name)->toBe('Renamed');
 });
+
+it('syncs the listing’s derived price once the axis becomes standalone', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
+    $axis = OptionAxis::factory()->addOn()->create(['listing_id' => $listing->id]);
+
+    app(UpdateOptionAxis::class)($axis, $axis->name, null, 0, PricingMode::Standalone);
+
+    // No options yet, so its default contributes nothing — the seller-typed
+    // price is overwritten as soon as the axis is standalone.
+    expect($listing->refresh()->price_cents)->toBe(0);
+});
