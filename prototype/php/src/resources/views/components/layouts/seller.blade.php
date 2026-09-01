@@ -1,4 +1,4 @@
-@props(['title' => 'Seller portal'])
+@props(['title' => 'Seller portal', 'bleed' => false])
 
 @php
     $seller = auth('seller')->user();
@@ -170,7 +170,10 @@
                 </ul>
             </nav>
 
-            <main id="main-content" class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            {{-- A bleeding page owns its own edges: list/detail tools fill the
+                 viewport under the top bar, so the gutter moves into their rows. --}}
+            <main id="main-content" @class(['min-w-0 flex-1', 'px-4 py-6 sm:px-6 lg:px-8' => ! $bleed])>
+                <div @class(['px-4 pt-4 sm:px-6 lg:px-8' => $bleed])>
                 @if (session('status'))
                     <p role="status" class="mb-4 rounded border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-green-900 dark:text-green-200">{{ session('status') }}</p>
                 @endif
@@ -182,6 +185,7 @@
                         @endforeach
                     </div>
                 @endif
+                </div>
 
                 {{ $slot }}
             </main>

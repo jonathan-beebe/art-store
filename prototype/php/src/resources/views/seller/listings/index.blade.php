@@ -1,11 +1,5 @@
-<x-layouts.seller title="Listings — Art Store seller">
-    {{--
-        Cancels the layout's own gutter and vertical padding at `lg`+ so the
-        split pane can run the full height beneath the top bar, the way
-        Listings.dc.html draws it — below `lg` the list is a normal page,
-        so it keeps the layout's padding and scrolls with the document.
-    --}}
-    <div class="lg:-mx-8 lg:-my-6 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+<x-layouts.seller title="Listings — Art Store seller" :bleed="true">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail>
             <x-slot:listHeader>
                 @include('seller.listings._list-header', ['total' => $listingsTotal])

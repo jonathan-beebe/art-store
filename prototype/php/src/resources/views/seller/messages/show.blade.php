@@ -1,5 +1,5 @@
-<x-layouts.seller :title="$conversation->counterpartName($viewer).' — Art Store seller'">
-    <div class="-mx-4 -my-6 h-[calc(100dvh-4rem)] sm:-mx-6 lg:-mx-8">
+<x-layouts.seller :title="$conversation- :bleed="true">counterpartName($viewer).' — Art Store seller'">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
                 <div class="flex items-baseline justify-between gap-x-2">

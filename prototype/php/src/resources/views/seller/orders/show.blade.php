@@ -1,4 +1,4 @@
-<x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'">
+<x-layouts.seller :title="'Order '.$fulfillment- :bleed="true">order_id.' — Art Store seller'">
     @php
         $tint = match ($fulfillment->status) {
             \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
@@ -19,7 +19,7 @@
         ])->filter()->implode(', ');
     @endphp
 
-    <div class="h-[calc(100dvh-7rem)] overflow-hidden rounded-lg border border-gray-200 dark:border-white/10">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
                 <div class="flex items-baseline gap-2">

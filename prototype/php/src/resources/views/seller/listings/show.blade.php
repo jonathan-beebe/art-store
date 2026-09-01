@@ -1,7 +1,7 @@
-<x-layouts.seller :title="$listing->title.' — Art Store seller'">
+<x-layouts.seller :title="$listing- :bleed="true">title.' — Art Store seller'">
     <x-slot:mobileTitle>{{ $listing->title }}</x-slot:mobileTitle>
 
-    <div class="lg:-mx-8 lg:-my-6 lg:h-[calc(100dvh-4rem)] lg:overflow-hidden">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
                 @include('seller.listings._list-header', ['total' => $cellListingsTotal])

@@ -1,7 +1,5 @@
-<x-layouts.seller title="Messages — Art Store seller">
-    {{-- Cancels the layout's `<main>` padding so the list-detail pane fills
-         exactly the viewport height left under the sticky top bar. --}}
-    <div class="-mx-4 -my-6 h-[calc(100dvh-4rem)] sm:-mx-6 lg:-mx-8">
+<x-layouts.seller title="Messages — Art Store seller" :bleed="true">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail>
             <x-slot:listHeader>
                 <div class="flex items-baseline justify-between gap-x-2">

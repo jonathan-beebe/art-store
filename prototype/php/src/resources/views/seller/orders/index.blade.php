@@ -1,5 +1,5 @@
-<x-layouts.seller title="Orders — Art Store seller">
-    <div class="h-[calc(100dvh-7rem)] overflow-hidden rounded-lg border border-gray-200 dark:border-white/10">
+<x-layouts.seller title="Orders — Art Store seller" :bleed="true">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="list">
             <x-slot:listHeader>
                 <div class="flex items-baseline gap-2">
