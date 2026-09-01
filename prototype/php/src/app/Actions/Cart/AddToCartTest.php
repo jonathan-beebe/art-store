@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
+use App\Actions\Configurator\AddOptionValue;
+use App\Actions\Configurator\CreateModifier;
+use App\Actions\Configurator\CreateOptionAxis;
+use App\Actions\Configurator\GenerateVariants;
+use App\Domain\Configurator\ModifierKind;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingEventType;
 use App\Models\CustomerBlock;
@@ -95,4 +100,39 @@ it('records the add as a listing event', function (): void {
 
     expect($event->type)->toBe(ListingEventType::CartAdd)
         ->and($event->customer_id)->toBe($customer->id);
+});
+
+it('clamps a configured line’s quantity to the variant’s own stock, not the listing’s', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller());
+    $axis = app(CreateOptionAxis::class)($listing, 'Size');
+    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 2]);
+
+    $item = app(AddToCart::class)($cart, $listing, 9, $this->moment('2026-08-20 09:00:00'), listingHasVariants: true, variant: $variant);
+
+    expect($item->quantity)->toBe(2);
+});
+
+it('gives two distinct configurations of the same listing separate cart lines', function (): void {
+    $cart = $this->cartFor($this->verifiedCustomer());
+    $listing = $this->listing($this->seller(), ['quantity' => 5]);
+    $note = app(CreateModifier::class)($listing, ModifierKind::Text, 'Note', addOnPriceCents: 300);
+    $addToCart = app(AddToCart::class);
+    $now = $this->moment('2026-08-20 09:00:00');
+
+    $addToCart(
+        $cart, $listing, 1, $now,
+        answers: [$note->id => ['prompt' => 'Note', 'answer' => 'Happy Birthday', 'raw' => 'Happy Birthday']],
+        fingerprintAnswers: [$note->id => 'Happy Birthday'],
+    );
+    $addToCart(
+        $cart, $listing, 1, $now,
+        answers: [$note->id => ['prompt' => 'Note', 'answer' => 'Congrats!', 'raw' => 'Congrats!']],
+        fingerprintAnswers: [$note->id => 'Congrats!'],
+    );
+
+    expect($cart->items()->count())->toBe(2);
 });
