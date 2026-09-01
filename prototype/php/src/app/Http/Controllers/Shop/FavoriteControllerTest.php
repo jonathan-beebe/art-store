@@ -14,6 +14,16 @@ use App\Models\ListingRemoval;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 
+it('says an empty favorites page is empty', function (): void {
+    $this->visitor();
+
+    $response = $this->get('/favorites');
+
+    $response->assertOk();
+    $response->assertSee('Nothing saved yet. Tap Favorite on any piece you want to come back to.');
+    $response->assertDontSee('<article', escape: false);
+});
+
 it('favorites a listing and records the event', function (): void {
     $visitor = $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);

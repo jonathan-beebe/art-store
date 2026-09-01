@@ -11,6 +11,16 @@ use App\Models\CustomerBlock;
 use App\Models\Message;
 use Illuminate\Support\Facades\Config;
 
+it('says an empty inbox is empty', function (): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $response = $this->get('/messages');
+
+    $response->assertOk();
+    $response->assertSee('Nothing yet.');
+    $response->assertDontSee('<li>', escape: false);
+});
+
 it('lists the visitors threads newest first with who, what, and unread count', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller('Blue Kiln Studio');
