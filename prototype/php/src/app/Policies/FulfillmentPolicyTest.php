@@ -75,7 +75,7 @@ it('answers not found when another customer confirms delivery', function (): voi
         ->and($response->status())->toBe(404);
 });
 
-it('refuses a state it cannot reach without hiding the row', function (): void {
+it('leaves an already-shipped fulfillment visible while refusing to ship it again', function (): void {
     $seller = $this->seller();
 
     $response = (new FulfillmentPolicy)->ship($seller, $this->shippedFulfillmentFor($seller));
