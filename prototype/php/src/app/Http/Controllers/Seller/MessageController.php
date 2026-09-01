@@ -11,7 +11,9 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\PostMessageRequest;
 use App\Models\Conversation;
+use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
@@ -21,16 +23,13 @@ final class MessageController extends SellerController
 {
     public function index(): View
     {
-        $seller = $this->seller();
+        $window = ListPaneWindow::of($this->conversationsQuery());
 
-        $conversations = Conversation::query()
-            ->withParticipant($seller)
-            ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
-            ->withUnreadCountFor($seller)
-            ->orderByDesc('last_message_at')
-            ->get();
-
-        return view('seller.messages.index', ['conversations' => $conversations, 'viewer' => ActorType::Seller]);
+        return view('seller.messages.index', [
+            'conversations' => $window->items,
+            'conversationsTotal' => $window->total,
+            'viewer' => ActorType::Seller,
+        ]);
     }
 
     public function show(Conversation $conversation, MarkConversationRead $markRead): View
@@ -39,7 +38,15 @@ final class MessageController extends SellerController
 
         $markRead($conversation, $this->seller(), $this->now());
 
-        return view('seller.messages.show', $this->threadView($conversation));
+        // DSGN-006: the show route's list pane is the same inbox the index
+        // route opens with, with this thread marked current.
+        $window = ListPaneWindow::of($this->conversationsQuery(), $conversation);
+
+        return view('seller.messages.show', [
+            ...$this->threadView($conversation),
+            'cellConversations' => $window->items,
+            'cellConversationsTotal' => $window->total,
+        ]);
     }
 
     public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
@@ -54,12 +61,30 @@ final class MessageController extends SellerController
             // seller was reading re-renders with the reply still in the box.
             $request->flash();
 
-            return $this->tooManyRequests($exceeded, 'seller.messages.show', $this->threadView($conversation));
+            $window = ListPaneWindow::of($this->conversationsQuery(), $conversation);
+
+            return $this->tooManyRequests($exceeded, 'seller.messages.show', [
+                ...$this->threadView($conversation),
+                'cellConversations' => $window->items,
+                'cellConversationsTotal' => $window->total,
+            ]);
         }
 
         $postMessage($conversation, $seller, $request->body(), $this->now());
 
         return redirect()->route('seller.messages.show', $conversation);
+    }
+
+    /**
+     * @return Builder<Conversation>
+     */
+    private function conversationsQuery(): Builder
+    {
+        return Conversation::query()
+            ->withParticipant($this->seller())
+            ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
+            ->withUnreadCountFor($this->seller())
+            ->orderByDesc('last_message_at');
     }
 
     /**
