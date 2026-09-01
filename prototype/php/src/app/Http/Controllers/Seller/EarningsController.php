@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Escrow\LedgerEntryType;
+use App\Domain\Orders\FulfillmentStatus;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\View\View;
 
@@ -21,6 +22,7 @@ final class EarningsController extends SellerController
                 ->orderByDesc('id')
                 ->get(),
             'balance' => $seller->escrowBalance(),
+            'openOrders' => $seller->fulfillments()->where('status', FulfillmentStatus::AwaitingShipment)->count(),
             'refunds' => $seller->ledgerEntries()
                 ->ofType(LedgerEntryType::Refunded)
                 ->with('fulfillment')
