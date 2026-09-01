@@ -29,8 +29,8 @@ it('counts each medium and covers it with its most-favorited listing image', fun
 
 it('falls back to the newest listing when nothing is favorited', function (): void {
     $seller = $this->seller();
-    $older = $this->listing($seller, ['created_at' => moment('2026-08-01 10:00:00')]);
-    $newer = $this->listing($seller, ['created_at' => moment('2026-08-20 10:00:00')]);
+    $older = $this->listing($seller, ['created_at' => $this->moment('2026-08-01 10:00:00')]);
+    $newer = $this->listing($seller, ['created_at' => $this->moment('2026-08-20 10:00:00')]);
     $this->mediumAttribute($older, 'Ceramic');
     $this->mediumAttribute($newer, 'Ceramic');
     $this->listingImage($newer);
