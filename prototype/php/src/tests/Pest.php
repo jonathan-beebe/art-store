@@ -42,6 +42,7 @@ pest()->extend(Tests\StorefrontTestCase::class)->in(
     '../app/Http/Requests/Shop',
     '../app/View/Composers',
     'SmokeTest.php',
+    'ConfiguratorSmokeTest.php',
 );
 
 pest()->extend(Tests\TestCase::class)->in('../app/Logging', '../routes');
