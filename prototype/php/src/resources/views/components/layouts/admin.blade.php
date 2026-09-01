@@ -84,7 +84,6 @@
                         href="{{ route('admin.messages.index') }}"
                         @if ($messagesActive) aria-current="page" @endif
                         class="whitespace-nowrap {{ $messagesActive ? 'border-b-2 border-gray-900 dark:border-gray-100 font-medium text-gray-900 dark:text-gray-100' : 'border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100' }}"
-                        data-live-badge="Messages" data-events-url="{{ route('admin.events') }}" aria-live="polite" aria-atomic="true"
                     >Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                 </nav>
             @endauth
@@ -118,7 +117,6 @@
                                     href="{{ route('admin.messages.index') }}"
                                     @if ($messagesActive) aria-current="page" @endif
                                     class="flex min-h-11 items-center rounded border px-3 {{ $messagesActive ? 'border-gray-900 dark:border-gray-100 bg-gray-900 dark:bg-gray-100 font-medium text-white dark:text-gray-900' : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300' }}"
-                                    data-live-badge="Messages" data-events-url="{{ route('admin.events') }}" aria-live="polite" aria-atomic="true"
                                 >Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
                             </nav>
 
@@ -172,7 +170,6 @@
                         href="{{ route('admin.messages.index') }}"
                         @if ($messagesActive) aria-current="page" @endif
                         class="flex min-h-9 items-center justify-between gap-2 rounded px-2.5 {{ $messagesActive ? 'bg-gray-100 font-medium text-gray-900 dark:bg-gray-800 dark:text-gray-100' : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800/60' }}"
-                        data-live-badge="Messages" data-events-url="{{ route('admin.events') }}" aria-live="polite" aria-atomic="true"
                     ><span>Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</span></a>
                 </nav>
 
@@ -222,6 +219,5 @@
         @endif
     </div>
 
-    <script defer src="{{ asset('live-badge.js') }}"></script>
 </body>
 </html>

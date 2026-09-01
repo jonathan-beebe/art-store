@@ -44,7 +44,7 @@
                 <a href="{{ route('shop.favorites') }}" class="hover:text-accent">Favorites</a>
                 <a href="{{ route('shop.cart') }}" class="hover:text-accent">Cart @isset($cartItemCount)({{ $cartItemCount }})@endisset</a>
                 <a href="{{ route('shop.orders') }}" class="hover:text-accent">Orders</a>
-                <a href="{{ route('shop.messages.index') }}" class="hover:text-accent" data-live-badge="Messages" data-events-url="{{ route('shop.events') }}" aria-live="polite" aria-atomic="true">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
+                <a href="{{ route('shop.messages.index') }}" class="hover:text-accent">Messages @if (! empty($unreadMessageCount))({{ $unreadMessageCount }})@endif</a>
 
                 @auth('customer')
                     <a href="{{ route('shop.account') }}" class="hover:text-accent">
@@ -83,7 +83,6 @@
          none. --}}
     {{ $afterMain ?? '' }}
 
-    <script defer src="{{ asset('live-badge.js') }}"></script>
     <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>
 </body>
 </html>

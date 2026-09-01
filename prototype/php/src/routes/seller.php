@@ -8,7 +8,6 @@ use App\Http\Controllers\Seller\DeclineController;
 use App\Http\Controllers\Seller\DescriptionSectionController;
 use App\Http\Controllers\Seller\DescriptionSectionReorderController;
 use App\Http\Controllers\Seller\EarningsController;
-use App\Http\Controllers\Seller\EventsController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
@@ -102,7 +101,6 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
-    Route::get('events', EventsController::class)->name('events');
 
     Route::get('support', SupportController::class)->name('support');
 });

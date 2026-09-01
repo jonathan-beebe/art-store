@@ -10,15 +10,13 @@ services:
       - "8000:8000"
     environment:
       # artisan serve is PHP's built-in server: one worker handles one
-      # request at a time, and the live unread badge holds a request open
-      # for up to UnreadCountStream::LIFETIME_SECONDS, so a page load waits
-      # whenever every worker is parked on a stream. A worker comes back
-      # within one UnreadCountStream::TICK_SECONDS of its tab closing: the
-      # stream writes a frame every tick, and a failed write is how PHP
-      # learns the client is gone. 16 covers the twelve concurrent streams
-      # RSRCH-001 M8 opens with room left for the page requests browsing
-      # generates; each worker costs about 5 MiB of the container.
+      # request at a time. The unread badge is a server-rendered count only
+      # (no stream, no client polling), so nothing holds a worker open —
+      # every request finishes and frees its worker in the same request
+      # cycle. 4 covers ordinary concurrent browsing (a page's own asset
+      # and XHR requests) with no held-connection cost to size against;
+      # each worker costs about 5 MiB of the container.
       # --no-reload below is required for PHP_CLI_SERVER_WORKERS to take
       # effect at all.
-      PHP_CLI_SERVER_WORKERS: "16"
+      PHP_CLI_SERVER_WORKERS: "4"
     command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000", "--no-reload"]

@@ -29,13 +29,6 @@ it('has a skip-to-content link targeting the main landmark', function (): void {
     $response->assertSee('<main id="main-content"', escape: false);
 });
 
-it('announces the live Messages badge to assistive tech', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
-
-    $response->assertSee('data-live-badge="Messages"', false);
-    $response->assertSee('aria-live="polite" aria-atomic="true"', false);
-});
-
 it('links the built stylesheet', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
 

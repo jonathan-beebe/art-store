@@ -2,19 +2,17 @@
 # keeps one PHP process across requests, which App\Logging\LogStore's
 # per-request state assumes it never has to survive.
 {
-	# Left unset, the thread pool defaults to 2×CPU — two threads on a
-	# one-CPU instance, which a pair of held SSE unread-badge streams
-	# (25s apiece, reconnecting on close) parks continuously, queueing
-	# every page request in front of PHP. The floor is sized above the
-	# dev stack's sixteen `artisan serve` workers — production serves
-	# more than dev, never less — and max_threads adds on-demand
-	# headroom for stream-heavy moments without holding the memory
-	# permanently. Parked streams sleep between ticks and share OPcache,
-	# so a thread's cost is small; active-request memory is what bounds
-	# the ceiling on a 512MB instance.
+	# The unread badge is a server-rendered count only now (no stream, no
+	# client polling), so nothing in this application holds a request open:
+	# every request is an ordinary ~10ms round trip that finishes and frees
+	# its thread. The pool is sized for concurrent-request throughput, not
+	# for held connections — a modest explicit floor rather than
+	# FrankenPHP's own default (2×CPU, which is 2 threads on this
+	# instance's single CPU), with headroom for a burst of concurrent
+	# requests. FRANKENPHP_NUM_THREADS / FRANKENPHP_MAX_THREADS override.
 	frankenphp {
-		num_threads {$FRANKENPHP_NUM_THREADS:16}
-		max_threads {$FRANKENPHP_MAX_THREADS:40}
+		num_threads {$FRANKENPHP_NUM_THREADS:4}
+		max_threads {$FRANKENPHP_MAX_THREADS:8}
 	}
 	auto_https off
 	servers {
