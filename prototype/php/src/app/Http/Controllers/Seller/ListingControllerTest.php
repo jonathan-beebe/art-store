@@ -26,7 +26,6 @@ use App\Models\Seller;
 use App\Models\Variant;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -1015,103 +1014,6 @@ it('reaches the negative-priced-combination publish issue end to end', function 
 
     $response->assertSee("buyers can't be charged a negative amount.");
     $response->assertSee(route('seller.listings.variants.index', $listing).'#'.$variant->id, escape: false);
-});
-
-it('reaches the combination-missing-a-choice publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => 'a']);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('pick one for each before it can be offered', escape: false);
-    $response->assertSee(route('seller.listings.variants.index', $listing).'#'.$variant->id, escape: false);
-});
-
-it('reaches the empty-serialized-piece-list publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id, 'combo_key' => 'a']);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee("the piece list is empty — there's nothing to sell yet.");
-    $response->assertSee(route('seller.listings.variants.units.index', [$listing, $variant]), escape: false);
-});
-
-it('reaches the missing-required-item-fact publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $category = Category::factory()->create();
-    $property = Property::factory()->create();
-    CategoryProperty::factory()->create([
-        'category_id' => $category->id,
-        'property_id' => $property->id,
-        'usable_as_attribute' => true,
-        'required' => true,
-    ]);
-    $listing = $this->listing($seller, ['category_id' => $category->id, 'status' => ListingStatus::Draft]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee("Say what it's made of — buyers filter by it.");
-    $response->assertSee(route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id, escape: false);
-});
-
-it('reaches the too-many-options publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    OptionValue::factory()->count(71)->sequence(fn (Sequence $sequence) => ['position' => $sequence->index])->create(['axis_id' => $axis->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('trim its list before this can go live', escape: false);
-    $response->assertSee(route('seller.listings.option-axes.index', $listing), escape: false);
-});
-
-it('reaches the too-many-combinations publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    Variant::factory()->count(501)->sequence(fn (Sequence $sequence) => ['combo_key' => (string) $sequence->index])->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('holds more combinations than the platform allows', escape: false);
-    $response->assertSee(route('seller.listings.variants.index', $listing), escape: false);
-});
-
-it('reaches the too-many-questions publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    Modifier::factory()->count(6)->sequence(fn (Sequence $sequence) => ['position' => $sequence->index])->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('asks more questions than the platform allows', escape: false);
-    $response->assertSee(route('seller.listings.modifiers.index', $listing), escape: false);
-});
-
-it('reaches the too-many-discounts publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    QuantityBreak::factory()->count(11)->sequence(fn (Sequence $sequence) => ['min_qty' => 2 + $sequence->index])->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('holds more quantity discounts than the platform allows', escape: false);
-    $response->assertSee(route('seller.listings.quantity-breaks.index', $listing), escape: false);
-});
-
-it('reaches the too-many-sections publish issue end to end', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['status' => ListingStatus::Draft]);
-    DescriptionSection::factory()->count(16)->sequence(fn (Sequence $sequence) => ['position' => $sequence->index])->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/edit");
-
-    $response->assertSee('holds more page sections than the platform allows', escape: false);
-    $response->assertSee(route('seller.listings.description-sections.index', $listing), escape: false);
 });
 
 it('E2: shows every publish issue at once, each naming its fix and linking to the owning field', function (): void {
