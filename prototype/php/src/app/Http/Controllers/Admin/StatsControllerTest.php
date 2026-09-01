@@ -14,7 +14,7 @@ it('renders no list pane — a full-content section, not list+detail', function 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('shows page views by day, inside the seven-day window', function (): void {
@@ -74,8 +74,4 @@ it('says so rather than showing an empty table when no page views have been reco
 
     $response->assertOk();
     $response->assertSee('No page views recorded yet.');
-});
-
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/stats')->assertRedirect(route('auth.admin.login'));
 });

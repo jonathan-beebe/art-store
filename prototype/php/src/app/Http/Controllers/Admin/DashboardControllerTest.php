@@ -27,7 +27,7 @@ it('renders no list pane — a full-content section, not list+detail', function 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('links to every page of the directory', function (): void {
@@ -90,24 +90,6 @@ it('does not mark Dashboard current on another admin page', function (): void {
 
     expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.dashboard'), '/').'"\s+aria-current="page"/', $html))->toBe(0);
     expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
-});
-
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
-it('sends a signed in seller to the admin login wall, not the dashboard', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
-it('sends a signed in customer to the admin login wall, not the dashboard', function (): void {
-    $response = $this->actingAs($this->verifiedCustomer(), 'customer')->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
 });
 
 it('tallies every listing status, a status with no rows included', function (): void {

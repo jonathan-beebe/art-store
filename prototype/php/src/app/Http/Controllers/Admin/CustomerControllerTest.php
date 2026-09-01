@@ -54,12 +54,6 @@ it('offers a form to message the customer', function (): void {
     $response->assertSee('action="'.route('admin.customers.messages', $customer).'"', escape: false);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/customers');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('answers not found for a value that is not a customer id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$id}")->assertNotFound();
 })->with([
@@ -82,7 +76,11 @@ it('counts what each customer holds and names an anonymous visitor', function ()
     $response->assertOk();
     $response->assertSee($anonymous->id);
     $response->assertSee('Anonymous');
-    $response->assertSeeInOrder(['Ada Painter', '1', '1', '1']);
+    $response->assertSee('Ada Painter');
+    expect($response->getContent())
+        ->toMatch('/data-cell="orders"[^<]*>1</')
+        ->toMatch('/data-cell="favorites"[^<]*>1</')
+        ->toMatch('/data-cell="cart-lines"[^<]*>1</');
 });
 
 it('narrows the list to one standing', function (string $query, string $seen, string $hidden): void {

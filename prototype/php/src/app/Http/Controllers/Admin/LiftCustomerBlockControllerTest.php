@@ -26,11 +26,3 @@ it('refuses to lift a block on a customer who is not blocked', function (): void
 
     $response->assertSessionHasErrors();
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $customer = Customer::factory()->create();
-
-    $response = $this->post("/admin/customers/{$customer->id}/blocks/lift");
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

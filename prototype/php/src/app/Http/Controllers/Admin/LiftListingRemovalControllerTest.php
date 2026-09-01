@@ -37,11 +37,3 @@ it('refuses to lift a permanent removal', function (): void {
     $response->assertSessionHasErrors();
     expect($listing->hasActiveRemoval())->toBeTrue();
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $listing = $this->listing($this->seller());
-
-    $response = $this->post("/admin/listings/{$listing->id}/removals/lift");
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

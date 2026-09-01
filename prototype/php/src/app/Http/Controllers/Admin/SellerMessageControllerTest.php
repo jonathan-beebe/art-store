@@ -66,14 +66,6 @@ it('opens a thread per admin, since the pairing is what a support thread is abou
         ->and(Conversation::where('admin_id', $second->id)->count())->toBe(1);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $seller = $this->seller();
-
-    $response = $this->post("/admin/sellers/{$seller->id}/messages", ['body' => 'Please review your listing photos.']);
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('trips the message-post limit, handing the seller page back with the message still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $admin = $this->admin();

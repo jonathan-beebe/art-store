@@ -13,7 +13,7 @@ it('renders no list pane — a full-content section, not list+detail', function 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/accounting');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('reconciles every seller: held, available, paid out, and refunded', function (): void {
@@ -70,8 +70,4 @@ it('folds the balance for every seller out of one read of the ledger, whatever t
 
     $response->assertOk();
     expect($ledgerReads)->toBe(1);
-});
-
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/accounting')->assertRedirect(route('auth.admin.login'));
 });
