@@ -27,6 +27,17 @@ it('logs every ledger entry as it is written', function (): void {
         ]);
 });
 
+it('names the payout it settled when one is set', function (): void {
+    $log = CapturedStory::capture();
+
+    $entry = LedgerEntry::factory()->paidOut()->create();
+
+    $data = $log->line('ledger.write', 'did')['data'];
+    assert(is_array($data));
+
+    expect($data['payout_id'])->toBe($entry->payout_id);
+});
+
 it('joins the entry to the unit of work that wrote it', function (): void {
     $log = CapturedStory::capture();
 

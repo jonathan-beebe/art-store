@@ -11,12 +11,12 @@ it('resolves nothing for a missing cookie', function (): void {
     expect(app(ResolveCustomerFromCookie::class)(null))->toBeNull();
 });
 
-it('resolves nothing for a cookie that is not an integer', function (): void {
+it('resolves nothing for a malformed cookie value', function (): void {
     expect(app(ResolveCustomerFromCookie::class)('not-an-id'))->toBeNull();
 });
 
-it('resolves nothing for a cookie pointing at a customer that no longer exists', function (): void {
-    expect(app(ResolveCustomerFromCookie::class)('999999'))->toBeNull();
+it('resolves nothing for a well-formed cookie pointing at a customer that no longer exists', function (): void {
+    expect(app(ResolveCustomerFromCookie::class)('cus_01ARZ3NDEKTSV4RRFFQ69G5FAV'))->toBeNull();
 });
 
 it('resolves the customer the cookie names directly', function (): void {

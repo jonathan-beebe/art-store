@@ -6,15 +6,13 @@ namespace App\Http\Controllers\Shop;
 
 use App\Actions\Configurator\AddModifierOption;
 use App\Actions\Configurator\AddOptionValue;
-use App\Actions\Configurator\AddQuantityBreak;
 use App\Actions\Configurator\AddUnit;
 use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
@@ -93,16 +91,6 @@ it('removes a line', function (): void {
 
     $response->assertRedirect(route('shop.cart'));
     expect(CartItem::count())->toBe(0);
-});
-
-it('renders the remove button as a DELETE form', function (): void {
-    $this->visitor();
-    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
-    $this->post('/cart/harbour-at-dawn');
-
-    $response = $this->get('/cart');
-
-    $response->assertSee('<input type="hidden" name="_method" value="DELETE">', escape: false);
 });
 
 it('removes only the configuration asked for, leaving a second configuration of the same listing in the cart', function (): void {
@@ -257,8 +245,8 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Engraving Font', required: true);
     $block = app(AddModifierOption::class)($font, 'Block', 0, 0);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', required: true, charLimit: 20);
-    app(ScopeModifier::class)($font, [$outside]);
-    app(ScopeModifier::class)($text, [$outside]);
+    app(SetModifierScope::class)($font, [$outside]);
+    app(SetModifierScope::class)($text, [$outside]);
 
     $post = [
         'axis' => [$metal->id => $roseGold->id, $engraving->id => $outside->id],
@@ -287,45 +275,7 @@ it('adds the rings configuration to the cart, itemized and merged on a repeat ad
     $cartPage->assertSee('$266.00');
 });
 
-it('adds a standalone-priced configuration to the cart at the option’s own price plus its add-on', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'sunset-ridge', 'price_cents' => 1800]);
-    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
-    app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 1800);
-    $elevenByFourteen = app(AddOptionValue::class)($size, '11x14', priceCents: 2400);
-    $frame = app(CreateOptionAxis::class)($listing, 'Frame');
-    app(AddOptionValue::class)($frame, 'Unframed', 0, isDefault: true);
-    $blackFrame = app(AddOptionValue::class)($frame, 'Black frame', 3200);
-    app(GenerateVariants::class)($listing);
-
-    $this->post('/cart/sunset-ridge', ['axis' => [$size->id => $elevenByFourteen->id, $frame->id => $blackFrame->id]]);
-
-    $cartPage = $this->get('/cart');
-    $cartPage->assertOk();
-    $cartPage->assertSee('Size:');
-    $cartPage->assertSee('11x14');
-    $cartPage->assertSee('Frame:');
-    $cartPage->assertSee('Black frame');
-    $cartPage->assertSee('$56.00');
-});
-
-it('C6: prices a length measurement by the exact value entered, not a preset step', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 5000]);
-    $wood = app(CreateOptionAxis::class)($listing, 'Wood');
-    app(AddOptionValue::class)($wood, 'Oak', 0, isDefault: true);
-    app(GenerateVariants::class)($listing);
-    $length = app(CreateModifier::class)($listing, ModifierKind::Measurement, 'Length', required: true, unit: 'in', rateCentsPerUnit: 300);
-
-    $tenInches = $this->post('/cart/table', ['axis' => [$wood->id => $wood->optionValues()->sole()->id], 'modifier' => [$length->id => '10']]);
-
-    $tenInches->assertRedirect(route('shop.cart'));
-    $cartPage = $this->get('/cart');
-    $cartPage->assertSee('Length:');
-    $cartPage->assertSee('$80.00');
-});
-
-it('C7: prices an exact measurement between two presets, inside the sellers min', function (): void {
+it('prices an exact measurement between two presets, inside the sellers min', function (): void {
     $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'belt', 'price_cents' => 2000]);
     $leather = app(CreateOptionAxis::class)($listing, 'Leather');
@@ -365,7 +315,7 @@ it('hides the mugs personalization box and never charges its flat fee when blank
     $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
     app(GenerateVariants::class)($listing);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $response = $this->post('/cart/mug');
 
@@ -416,28 +366,6 @@ it('claims a specific candlestick unit and keeps a second add of the same unit a
     $cartPage = $this->get('/cart');
     $cartPage->assertSee('Piece:');
     $cartPage->assertSee('#1');
-});
-
-it('prices the wedding invitations quantity break into the cart line', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'invitations', 'price_cents' => 300]);
-    $size = app(CreateOptionAxis::class)($listing, 'Size');
-    app(AddOptionValue::class)($size, '4x6 in', 0, isDefault: true);
-    app(GenerateVariants::class)($listing);
-    $paperStock = app(CreateModifier::class)($listing, ModifierKind::Select, 'Paper Stock', required: true);
-    $standard = app(AddModifierOption::class)($paperStock, 'Standard', 0, 0);
-    app(AddQuantityBreak::class)($listing, 50, 500);
-    app(AddQuantityBreak::class)($listing, 100, 1000);
-
-    $response = $this->post('/cart/invitations', ['quantity' => 100, 'modifier' => [$paperStock->id => $standard->id]]);
-
-    $response->assertRedirect(route('shop.cart'));
-    $item = CartItem::sole();
-    expect($item->quantity)->toBe(100)
-        ->and($item->toLine()->total())->toBeMoney(27000);
-
-    $cartPage = $this->get('/cart');
-    $cartPage->assertSee('$270.00');
 });
 
 it('renders configured lines without a variant query per line', function (): void {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Domain\Notifications\NotificationMessage;
+
 it('goes to the in-app inbox by default', function (): void {
     expect((new MessageReceived('Blue Vase', null))->via($this->seller()))->toBe(['database']);
 });
@@ -15,11 +17,8 @@ it('follows the channels the config names', function (): void {
 });
 
 it('stores the subject, body, and url of the message', function (): void {
-    expect((new MessageReceived('Blue Vase', 'https://example.test/messages/1'))->toArray($this->seller()))->toBe([
-        'subject' => 'New message',
-        'body' => 'You have a new message about Blue Vase.',
-        'url' => 'https://example.test/messages/1',
-    ]);
+    expect((new MessageReceived('Blue Vase', 'https://example.test/messages/1'))->toArray($this->seller()))
+        ->toBe(NotificationMessage::messageReceived('Blue Vase', 'https://example.test/messages/1')->toArray());
 });
 
 it('mails a link to the thread when one is known', function (): void {

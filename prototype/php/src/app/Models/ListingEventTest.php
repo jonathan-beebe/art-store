@@ -24,16 +24,6 @@ it('counts a day of events by type in one row each', function (): void {
         ]);
 });
 
-it('reads the listing and customer it was recorded for', function (): void {
-    $listing = $this->listing($this->seller());
-    $customer = $this->anonymousCustomer();
-    app(RecordListingEvent::class)($listing, $customer->id, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
-    $event = $listing->events()->sole();
-
-    expect($event->listing()->sole()->is($listing))->toBeTrue()
-        ->and($event->customer?->is($customer))->toBeTrue();
-});
-
 it('leaves events before the window out', function (): void {
     $listing = $this->listing($this->seller());
     $record = app(RecordListingEvent::class);

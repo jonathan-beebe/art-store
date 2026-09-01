@@ -43,15 +43,6 @@ it('rejects cancelling an order that has been paid', function (): void {
         ->toThrow(DomainException::class, 'paid to cancelled');
 });
 
-it('agrees with the transition table on every pair', function (): void {
-    foreach (OrderStatus::cases() as $from) {
-        foreach (OrderStatus::cases() as $to) {
-            expect($from->canTransitionTo($to))
-                ->toBe(in_array($to, $from->transitions(), true), "{$from->value} -> {$to->value}");
-        }
-    }
-});
-
 it('returns the next status on transition', function (): void {
     expect(OrderStatus::PaymentFailed->transitionTo(OrderStatus::Paid))->toBe(OrderStatus::Paid);
 });

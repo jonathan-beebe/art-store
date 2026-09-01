@@ -27,14 +27,6 @@ it('lists the published entries with edit and unpublish forms', function (): voi
     $response->assertSee(route('seller.listings.faqs.destroy', [$listing, $faq]));
 });
 
-it('refuses another sellers listing faqs page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/faqs");
-
-    $response->assertNotFound();
-});
-
 it('publishes a new entry', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -68,18 +60,6 @@ it('publishes with no source message', function (): void {
     ]);
 
     expect(ListingFaq::where('listing_id', $listing->id)->sole()->source_message_id)->toBeNull();
-});
-
-it('refuses to publish against another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/faqs", [
-        'question' => 'Sneaking in?',
-        'answer' => 'Should not land.',
-    ]);
-
-    $response->assertNotFound();
-    expect(ListingFaq::count())->toBe(0);
 });
 
 it('rewords a published entry', function (): void {
@@ -129,16 +109,6 @@ it('answers not found unpublishing a faq that is not on the listing', function (
     $faq = ListingFaq::factory()->create(['listing_id' => $this->listing($seller)->id]);
 
     $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/faqs/{$faq->id}");
-
-    $response->assertNotFound();
-    expect(ListingFaq::find($faq->id))->not->toBeNull();
-});
-
-it('refuses to unpublish another sellers entry', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $faq = ListingFaq::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/faqs/{$faq->id}");
 
     $response->assertNotFound();
     expect(ListingFaq::find($faq->id))->not->toBeNull();

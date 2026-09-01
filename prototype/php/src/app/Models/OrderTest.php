@@ -41,59 +41,74 @@ it('has no latest payment before the first attempt', function (): void {
     expect($order->latestPayment)->toBeNull();
 });
 
-it('reads the items, fulfillments, and customer behind it', function (): void {
+it('resolves the approved attempt even when a later attempt is declined', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+    Payment::factory()->declined()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    $approved = Payment::factory()->approved()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:05:00'),
+    ]);
+    Payment::factory()->declined()->create([
+        'order_id' => $order->id,
+        'amount_cents' => $order->total_cents,
+        'processed_at' => $this->moment('2026-08-20 10:10:00'),
+    ]);
+
+    expect($order->approvedPayment()->sole()->is($approved))->toBeTrue();
+});
+
+it('is cancellable only before payment', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+
+    expect($order->isCancellable())->toBeTrue();
+
+    $order->update(['status' => OrderStatus::Paid]);
+
+    expect($order->refresh()->isCancellable())->toBeFalse();
+});
+
+it('blocks a line the placement plan finds unavailable', function (string $reasonKind, string $expectedTitle, UnavailableReason $expectedReason): void {
     $customer = $this->verifiedCustomer();
-    $order = $this->orderFor($customer, $this->listing($this->seller()));
 
-    expect($order->items()->count())->toBe(1)
-        ->and($order->fulfillments()->count())->toBe(1)
-        ->and($order->customer->is($customer))->toBeTrue();
-});
+    if ($reasonKind === 'sold_out') {
+        $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 1]);
+        $order = $this->orderFor($customer, $listing);
+        $plan = $order->load('items.listing')->placementPlan();
+    } elseif ($reasonKind === 'removed') {
+        $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 2]);
+        $order = $this->orderFor($customer, $listing);
+        ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+        $plan = $order->load('items.listing')->placementPlan();
+    } else {
+        $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
+        $axis = app(CreateOptionAxis::class)($listing, 'Size');
+        app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
+        app(GenerateVariants::class)($listing);
+        $variant = $listing->variants()->sole();
+        $variant->update(['quantity' => 1]);
 
-it('plans placement from its items against the listings behind them', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 1]);
-    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+        $cart = $this->cartFor($customer);
+        app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
+        $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
 
-    $plan = $order->load('items.listing')->placementPlan();
+        $variant->update(['quantity' => 0]);
 
-    expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
-});
-
-it('blocks a line whose listing carries an active removal, even while for sale', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm', 'quantity' => 2]);
-    $order = $this->orderFor($this->verifiedCustomer(), $listing);
-    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
-
-    $plan = $order->load('items.listing')->placementPlan();
-
-    expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
-});
-
-it('plans a configured lines placement off its variant rather than the listing quantity', function (): void {
-    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee']);
-    $axis = app(CreateOptionAxis::class)($listing, 'Size');
-    app(AddOptionValue::class)($axis, 'M', 0, isDefault: true);
-    app(GenerateVariants::class)($listing);
-    $variant = $listing->variants()->sole();
-    $variant->update(['quantity' => 1]);
-
-    $customer = $this->verifiedCustomer();
-    $cart = $this->cartFor($customer);
-    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'), listingHasVariants: true, variant: $variant);
-    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
-
-    $variant->update(['quantity' => 0]);
-
-    $plan = $order->load('items.listing', 'items.variant')->placementPlan();
+        $plan = $order->load('items.listing', 'items.variant')->placementPlan();
+    }
 
     expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Line Art Cat Tee')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
-});
+        ->and($plan->blocked[0]->title)->toBe($expectedTitle)
+        ->and($plan->blocked[0]->reason)->toBe($expectedReason);
+})->with([
+    'sold out by its own placement' => ['sold_out', 'Winter Elm', UnavailableReason::SoldOut],
+    'removed even while for sale' => ['removed', 'Winter Elm', UnavailableReason::Removed],
+    'sold out via its variant rather than the listing quantity' => ['variant_sold_out', 'Line Art Cat Tee', UnavailableReason::SoldOut],
+]);
 
 it('counts every status the table holds, in one row each', function (): void {
     $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));

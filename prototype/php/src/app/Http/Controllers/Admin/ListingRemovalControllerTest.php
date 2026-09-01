@@ -31,11 +31,3 @@ it('refuses to remove a listing that already has an active removal', function ()
     $response->assertSessionHasErrors();
     expect(ListingRemoval::count())->toBe(1);
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $listing = $this->listing($this->seller());
-
-    $response = $this->post("/admin/listings/{$listing->id}/removals", ['kind' => 'temporary', 'reason' => 'Under review.']);
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

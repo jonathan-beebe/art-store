@@ -7,6 +7,16 @@ namespace App\Http\Controllers\Shop;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Category;
 
+it('says a category with nothing in it has nothing in it', function (): void {
+    Category::factory()->create(['name' => 'Jewelry', 'path' => '/jewelry/']);
+
+    $response = $this->get('/browse/jewelry');
+
+    $response->assertOk();
+    $response->assertSee('No art matches that yet.');
+    $response->assertDontSee('<article', escape: false);
+});
+
 it('lists for-sale listings placed directly in the category', function (): void {
     $jewelry = Category::factory()->create(['name' => 'Jewelry', 'path' => '/jewelry/']);
     $seller = $this->seller();

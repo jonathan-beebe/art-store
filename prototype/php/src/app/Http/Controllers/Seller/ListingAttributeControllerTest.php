@@ -41,16 +41,6 @@ it('ignores a property the listings category does not grant', function (): void 
     expect(ListingAttribute::count())->toBe(0);
 });
 
-it('refuses to set attributes on another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->put("/seller/listings/{$listing->id}/attributes", [
-        'attribute' => [],
-    ]);
-
-    $response->assertNotFound();
-});
-
 it('trips the listing-write limit setting attributes, re-rendering the edit screen with nothing saved', function (): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();

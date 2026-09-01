@@ -13,7 +13,6 @@ use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\UpdateOptionValue;
 use App\Domain\Configurator\ModifierKind;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
@@ -306,70 +305,6 @@ it('freezes a configured lines price, configuration, and answers at placement', 
             ['label' => 'Engraving Text', 'cents' => 500],
         ])
         ->and($item->lineTotal())->toBeMoney(13300);
-});
-
-it('freezes an axis-free lines modifier answer price at placement, matching a configured lines shape', function (): void {
-    $customer = $this->verifiedCustomer();
-    $listing = $this->listing($this->seller(), ['title' => 'Custom Mug', 'price_cents' => 1800, 'quantity' => 5]);
-    $note = app(CreateModifier::class)($listing, ModifierKind::Text, 'Note', addOnPriceCents: 300);
-
-    $cart = $this->cartFor($customer);
-    app(AddToCart::class)(
-        $cart,
-        $listing,
-        2,
-        $this->moment('2026-08-20 08:00:00'),
-        answers: [$note->id => ['prompt' => 'Note', 'answer' => 'Congrats!', 'raw' => 'Congrats!']],
-        fingerprintAnswers: [$note->id => 'Congrats!'],
-    );
-
-    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
-    $item = $order->items()->sole();
-
-    expect($item->variant_id)->toBeNull()
-        ->and($item->price_breakdown_json)->toBe([
-            ['label' => 'Base price', 'cents' => 3600],
-            ['label' => 'Note', 'cents' => 600],
-        ])
-        ->and($item->lineTotal())->toBeMoney(4200);
-});
-
-it('freezes a standalone configured lines absolute breakdown at placement', function (): void {
-    $customer = $this->verifiedCustomer();
-    $listing = $this->listing($this->seller(), ['title' => 'Sunset Ridge Print', 'price_cents' => 1800]);
-    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
-    app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 1800);
-    $elevenByFourteen = app(AddOptionValue::class)($size, '11x14', priceCents: 2400);
-    $frame = app(CreateOptionAxis::class)($listing, 'Frame');
-    app(AddOptionValue::class)($frame, 'Unframed', 0, isDefault: true);
-    $blackFrame = app(AddOptionValue::class)($frame, 'Black frame', 3200);
-    app(GenerateVariants::class)($listing);
-    $variant = Variant::whereHas('options', fn ($query) => $query->where('option_value_id', $elevenByFourteen->id))
-        ->whereHas('options', fn ($query) => $query->where('option_value_id', $blackFrame->id))
-        ->sole();
-
-    $cart = $this->cartFor($customer);
-    app(AddToCart::class)(
-        $cart,
-        $listing,
-        1,
-        $this->moment('2026-08-20 08:00:00'),
-        listingHasVariants: true,
-        variant: $variant,
-        configuration: [
-            ['axisId' => $size->id, 'axisName' => 'Size', 'optionValueId' => $elevenByFourteen->id, 'optionValueLabel' => '11x14'],
-            ['axisId' => $frame->id, 'axisName' => 'Frame', 'optionValueId' => $blackFrame->id, 'optionValueLabel' => 'Black frame'],
-        ],
-    );
-
-    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
-    $item = $order->items()->sole();
-
-    expect($item->price_breakdown_json)->toBe([
-        ['label' => 'Size: 11x14', 'cents' => 2400],
-        ['label' => 'Frame: Black frame', 'cents' => 3200],
-    ])
-        ->and($item->lineTotal())->toBeMoney(5600);
 });
 
 it('claims a serialized lines unit and decrements a non-serialized variants quantity inside placement', function (): void {

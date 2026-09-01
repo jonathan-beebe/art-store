@@ -176,12 +176,6 @@ it('ignores a destination on another host', function () use ($flashedLink): void
     $response->assertRedirect(route('shop.account'));
 });
 
-it('keeps a customer link out of the seller portal', function () use ($customerLinkFor): void {
-    $response = $this->get($customerLinkFor('shopper@example.com', '/seller/dashboard'));
-
-    $response->assertRedirect(route('shop.account'));
-});
-
 it('signs an existing admin in and lands them on the admin dashboard', function () use ($adminLinkFor): void {
     Admin::factory()->create(['email' => 'ops@example.com']);
 
@@ -203,33 +197,29 @@ it('answers 404 and creates no admin when the row a link was issued for is gone'
     $this->assertGuest('admin');
 });
 
-it('keeps a customer link out of the admin site', function () use ($flashedLink): void {
-    $this->post('/login', ['email' => 'shopper@example.com']);
-    MagicLink::sole()->forceFill(['redirect_to' => '/admin'])->save();
+it('keeps a magic link from landing outside the portal it was issued for', function (
+    string $email,
+    string $loginRoute,
+    bool $accountMustAlreadyExist,
+    string $target,
+    string $expectedLandingRoute,
+) use ($flashedLink): void {
+    if ($accountMustAlreadyExist) {
+        Admin::factory()->create(['email' => $email]);
+    }
+
+    $this->post($loginRoute, ['email' => $email]);
+    MagicLink::sole()->forceFill(['redirect_to' => $target])->save();
 
     $response = $this->get($flashedLink());
 
-    $response->assertRedirect(route('shop.account'));
-});
-
-it('keeps a seller link out of the admin site', function () use ($flashedLink): void {
-    $this->post('/seller/login', ['email' => 'artist@example.com']);
-    MagicLink::sole()->forceFill(['redirect_to' => '/admin'])->save();
-
-    $response = $this->get($flashedLink());
-
-    $response->assertRedirect(route('seller.dashboard'));
-});
-
-it('keeps an admin link out of the seller portal', function () use ($flashedLink): void {
-    Admin::factory()->create(['email' => 'ops@example.com']);
-    $this->post('/admin/login', ['email' => 'ops@example.com']);
-    MagicLink::sole()->forceFill(['redirect_to' => '/seller/dashboard'])->save();
-
-    $response = $this->get($flashedLink());
-
-    $response->assertRedirect(route('admin.dashboard'));
-});
+    $response->assertRedirect(route($expectedLandingRoute));
+})->with([
+    'a customer link out of the seller portal' => ['shopper@example.com', '/login', false, '/seller/dashboard', 'shop.account'],
+    'a customer link out of the admin site' => ['shopper@example.com', '/login', false, '/admin', 'shop.account'],
+    'a seller link out of the admin site' => ['artist@example.com', '/seller/login', false, '/admin', 'seller.dashboard'],
+    'an admin link out of the seller portal' => ['ops@example.com', '/admin/login', true, '/seller/dashboard', 'admin.dashboard'],
+]);
 
 it('trips the verification limit by ip, answering 429 before the link is even read', function () use ($customerLinkFor): void {
     Config::set('rate_limits.magic_link_consume', RateLimitValue::parse('1/15m', 'RATE_LIMIT_MAGIC_LINK_CONSUME'));

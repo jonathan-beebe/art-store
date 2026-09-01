@@ -4,6 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Fulfillment\MarkShipped;
+
+it('includes only the item whose own seller still has a fulfillment awaiting shipment', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
+    $shippedFulfillment = $order->fulfillments()->firstOrFail();
+    app(MarkShipped::class)($shippedFulfillment, 'USPS', 'TRACK1', $this->moment('2026-08-21 09:00:00'));
+
+    $stillAwaitingItem = $order->items()->where('seller_id', '!=', $shippedFulfillment->seller_id)->sole();
+
+    expect(OrderItem::query()->awaitingShipment()->pluck('id')->all())->toBe([$stillAwaitingItem->id]);
+});
+
 it('reads the price it was bought at as money', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
 

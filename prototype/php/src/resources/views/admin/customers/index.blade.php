@@ -52,9 +52,9 @@
                                     <span class="text-gray-600 dark:text-gray-400">Unverified</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ $customer->orders_count }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ $customer->favorites_count }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ $customer->cart_items_count }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums" data-cell="orders">{{ $customer->orders_count }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums" data-cell="favorites">{{ $customer->favorites_count }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums" data-cell="cart-lines">{{ $customer->cart_items_count }}</td>
                         </tr>
                     @endforeach
                 </tbody>

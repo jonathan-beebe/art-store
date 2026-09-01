@@ -16,32 +16,6 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
-it('reads its configurator rows through their relations', function (): void {
-    $category = Category::factory()->create();
-    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    OptionValue::factory()->create(['axis_id' => $axis->id]);
-    Variant::factory()->create(['listing_id' => $listing->id]);
-    Modifier::factory()->create(['listing_id' => $listing->id]);
-    QuantityBreak::factory()->create(['listing_id' => $listing->id]);
-    DescriptionSection::factory()->create(['listing_id' => $listing->id]);
-    $property = Property::factory()->create();
-    $propertyValue = PropertyValue::factory()->create(['property_id' => $property->id]);
-    ListingAttribute::factory()->create([
-        'listing_id' => $listing->id,
-        'property_id' => $property->id,
-        'property_value_id' => $propertyValue->id,
-    ]);
-
-    expect($listing->category()->first()?->id)->toBe($category->id)
-        ->and($listing->optionAxes()->count())->toBe(1)
-        ->and($listing->variants()->count())->toBe(1)
-        ->and($listing->modifiers()->count())->toBe(1)
-        ->and($listing->quantityBreaks()->count())->toBe(1)
-        ->and($listing->descriptionSections()->count())->toBe(1)
-        ->and($listing->listingAttributes()->count())->toBe(1);
-});
-
 it('has no publish issues with no configurator data', function (): void {
     $listing = $this->listing($this->seller());
 
@@ -119,14 +93,6 @@ it('ignores a required grant belonging to another category', function (): void {
     $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
 
     expect($listing->publishIssues())->toBe([]);
-});
-
-it('reads the faqs published on it', function (): void {
-    $listing = $this->listing($this->seller());
-    ListingFaq::factory()->create(['listing_id' => $listing->id]);
-    ListingFaq::factory()->create(['listing_id' => $this->listing($this->seller())->id]);
-
-    expect($listing->faqs()->count())->toBe(1);
 });
 
 it('surfaces only listings for sale on the storefront', function (): void {
@@ -531,21 +497,6 @@ it('refuses a status transition the lifecycle does not allow, and leaves the row
         ->and($listing)->toHaveStatus(ListingStatus::Draft);
 });
 
-it('reads the order items it was bought through', function (): void {
-    $listing = $this->listing($this->seller());
-    $order = $this->orderFor($this->verifiedCustomer(), $listing);
-
-    expect($listing->orderItems()->pluck('order_id')->all())->toBe([$order->id]);
-});
-
-it('reads the favorites it was added to', function (): void {
-    $listing = $this->listing($this->seller());
-    $customer = $this->anonymousCustomer();
-    Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
-
-    expect($listing->favorites()->pluck('customer_id')->all())->toBe([$customer->id]);
-});
-
 it('reads false for an axis-free listing regardless of its one legacy variant', function (): void {
     $listing = $this->listing($this->seller());
     Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => '']);
@@ -569,6 +520,19 @@ it('reads true once every combination has a variant row', function (): void {
     Variant::factory()->create(['listing_id' => $listing->id, 'combo_key' => $only->id]);
 
     expect($listing->everyVariantCombinationExists())->toBeTrue();
+});
+
+it('narrows by status and by seller, with a null filter adding no clause', function (): void {
+    $sellerA = $this->seller('Blue Kiln Studio');
+    $sellerB = $this->seller('Rye Press');
+    $forSale = $this->listing($sellerA);
+    $draft = $this->listing($sellerA, ['status' => ListingStatus::Draft]);
+    $this->listing($sellerB);
+
+    expect(Listing::query()->ofStatus(ListingStatus::Draft)->pluck('id')->all())->toBe([$draft->id])
+        ->and(Listing::query()->ofStatus(null)->count())->toBe(3)
+        ->and(Listing::query()->ofSeller($sellerA->id)->pluck('id')->all())->toEqualCanonicalizing([$forSale->id, $draft->id])
+        ->and(Listing::query()->ofSeller(null)->count())->toBe(3);
 });
 
 it('counts every status across every seller\'s listings, in one row each', function (): void {

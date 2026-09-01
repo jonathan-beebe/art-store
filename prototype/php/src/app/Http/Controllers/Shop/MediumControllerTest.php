@@ -4,6 +4,20 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+it('says a medium page with nothing on it has nothing on it', function (): void {
+    // A medium only resolves once some for-sale listing carries it, so the
+    // grid's own empty state shows only past the first page: one listing
+    // establishes 'ceramic', and page 2 of that one-listing result is empty.
+    $listing = $this->listing($this->seller());
+    $this->mediumAttribute($listing, 'Ceramic');
+
+    $response = $this->get('/medium/ceramic?page=2');
+
+    $response->assertOk();
+    $response->assertSee('No art matches that yet.');
+    $response->assertDontSee('<article', escape: false);
+});
+
 it('narrows to one medium', function (): void {
     $seller = $this->seller();
     $oil = $this->listing($seller, ['title' => 'Harbour at Dawn']);

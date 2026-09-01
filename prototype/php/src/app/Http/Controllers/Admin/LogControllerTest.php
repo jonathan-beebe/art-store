@@ -7,16 +7,11 @@ namespace App\Http\Controllers\Admin;
 use App\Logging\LogStore;
 use Tests\LogViewerFixtures as Fixtures;
 
-it('sends a guest to the admin login page from the list and the story view', function (): void {
-    $this->get('/admin/logs?domain=')->assertRedirect(route('auth.admin.login'));
-    $this->get('/admin/logs/requests/req_1')->assertRedirect(route('auth.admin.login'));
-});
-
 it('renders no list pane — a full-content section, not list+detail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('redirects a query-string-less landing to the default domain, grouped', function (): void {

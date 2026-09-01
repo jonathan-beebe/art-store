@@ -192,6 +192,35 @@ it('summarizes a required, priced, scoped question', function (): void {
         ->and($summary[0]['scopeNote'])->toBe('only asked when Version is Hand-lettered');
 });
 
+it('joins two scoped values on the same axis with "or"', function (): void {
+    $listing = $this->listing($this->seller());
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Version']);
+    $handLettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
+    $foiled = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Foiled']);
+    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
+    ModifierScope::factory()->create(['modifier_id' => $modifier->id, 'option_value_id' => $handLettered->id]);
+    ModifierScope::factory()->create(['modifier_id' => $modifier->id, 'option_value_id' => $foiled->id]);
+
+    $summary = ListingConfiguratorSummaries::questions($listing);
+
+    expect($summary[0]['scopeNote'] ?? null)->toBe('only asked when Version is Hand-lettered or Foiled');
+});
+
+it('joins a modifier scoped across two axes with "and"', function (): void {
+    $listing = $this->listing($this->seller());
+    $version = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Version']);
+    $handLettered = OptionValue::factory()->create(['axis_id' => $version->id, 'label' => 'Hand-lettered']);
+    $color = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Color']);
+    $gold = OptionValue::factory()->create(['axis_id' => $color->id, 'label' => 'Gold']);
+    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
+    ModifierScope::factory()->create(['modifier_id' => $modifier->id, 'option_value_id' => $handLettered->id]);
+    ModifierScope::factory()->create(['modifier_id' => $modifier->id, 'option_value_id' => $gold->id]);
+
+    $summary = ListingConfiguratorSummaries::questions($listing);
+
+    expect($summary[0]['scopeNote'] ?? null)->toBe('only asked when Version is Hand-lettered and Color is Gold');
+});
+
 it('summarizes an unscoped, unpriced, optional question', function (): void {
     $listing = $this->listing($this->seller());
     Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Any notes?']);

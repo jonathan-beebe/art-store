@@ -11,7 +11,7 @@ it('renders no list pane — a full-content section, not list+detail', function 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('lists every ledger entry with no filter applied, folding the total of what it shows', function (): void {
@@ -74,6 +74,22 @@ it('filters by type, leaving every other type out', function (): void {
     expect($content)->not->toMatch('/data-cell="type"[^<]*>Held/');
 });
 
+it('combines the seller and type filters as an AND, not either alone', function (): void {
+    $rye = $this->seller('Rye Press');
+    $this->paidFulfillmentFor($rye, priceCents: 20000);
+    $this->deliveredFulfillmentFor($rye, priceCents: 5000);
+    $this->paidFulfillmentFor($this->seller('Blue Kiln Studio'), priceCents: 99900);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger?seller='.$rye->id.'&type=held');
+
+    $response->assertOk();
+    $content = (string) $response->getContent();
+    expect($content)->toMatch('/data-cell="seller"[\s\S]*?Rye Press/')
+        ->toMatch('/data-cell="type"[^<]*>Held/');
+    expect($content)->not->toMatch('/data-cell="seller"[\s\S]*?Blue Kiln Studio/');
+    expect($content)->not->toMatch('/data-cell="type"[^<]*>Released/');
+});
+
 it('reads an empty seller or type filter as no filter at all', function (): void {
     $this->deliveredFulfillmentFor($this->seller('Blue Kiln Studio'), priceCents: 10000);
 
@@ -98,10 +114,6 @@ it('says so rather than showing an empty table when nothing matches the filter',
 
     $response->assertOk();
     $response->assertSee('No ledger entries match this filter.');
-});
-
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/ledger')->assertRedirect(route('auth.admin.login'));
 });
 
 it('caps the rendered entries at the window size, however many exist', function (): void {

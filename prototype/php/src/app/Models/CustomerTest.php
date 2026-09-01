@@ -6,92 +6,23 @@ namespace App\Models;
 
 use App\Actions\Cart\AddToCart;
 use App\Domain\Customers\StandingFilter;
-use App\Domain\Money\Money;
-use App\Notifications\ItemSold;
-use App\Notifications\OrderShipped;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
-it('is anonymous when it has no email', function (): void {
-    expect((new Customer)->isAnonymous())->toBeTrue();
-});
-
-it('is not anonymous once it has an email', function (): void {
-    $customer = new Customer(['email' => 'shopper@example.com']);
-
-    expect($customer->isAnonymous())->toBeFalse();
-});
+it('is anonymous only when it has no email', function (?string $email, bool $expected): void {
+    expect((new Customer(['email' => $email]))->isAnonymous())->toBe($expected);
+})->with([
+    'no email' => [null, true],
+    'has an email' => ['shopper@example.com', false],
+]);
 
 it('is verified once its address is confirmed', function (): void {
     expect($this->verifiedCustomer()->isVerified())->toBeTrue()
         ->and($this->anonymousCustomer()->isVerified())->toBeFalse();
 });
 
-it('reads the orders it placed', function (): void {
-    $customer = $this->verifiedCustomer();
-    $order = $this->orderFor($customer, $this->listing($this->seller()));
-    $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
-
-    expect($customer->orders()->pluck('id')->all())->toBe([$order->id]);
-});
-
-it('reads the carts it filled', function (): void {
-    $customer = $this->anonymousCustomer();
-    $cart = $this->cartFor($customer);
-    $this->cartFor($this->anonymousCustomer());
-
-    expect($customer->carts()->pluck('id')->all())->toBe([$cart->id]);
-});
-
-it('reads its favorites and the listings behind them', function (): void {
-    $customer = $this->anonymousCustomer();
-    $listing = $this->listing($this->seller());
-    $this->listing($this->seller());
-    Favorite::factory()->create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
-
-    expect($customer->favorites()->count())->toBe(1)
-        ->and($customer->favoriteListings()->pluck('listings.id')->all())->toBe([$listing->id]);
-});
-
-it('reads the notifications addressed to it', function (): void {
-    $customer = $this->verifiedCustomer();
-    $customer->notify(new OrderShipped('ord_00000000000000000000000004', 'USPS', '94001'));
-    $this->seller()->notify(new ItemSold('ord_00000000000000000000000005', Money::fromCents(9000)));
-
-    expect($customer->notifications()->count())->toBe(1)
-        ->and($customer->unreadNotifications()->count())->toBe(1);
-});
-
 it('is named by the morph alias its notifications are addressed to', function (): void {
     expect((new Customer)->getMorphClass())->toBe('customer');
-});
-
-it('reads the conversations it is a participant in', function (): void {
-    $customer = $this->anonymousCustomer();
-    Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
-    Conversation::factory()->listingQuestion()->create();
-
-    expect($customer->conversations()->count())->toBe(1);
-});
-
-it('reads the messages it sent', function (): void {
-    $customer = $this->anonymousCustomer();
-    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $customer->id]);
-    Message::factory()->from($customer)->create(['conversation_id' => $conversation->id]);
-    Message::factory()->create(['conversation_id' => $conversation->id]);
-
-    expect($customer->sentMessages()->count())->toBe(1);
-});
-
-it('reads the listing events it left', function (): void {
-    $customer = $this->anonymousCustomer();
-    ListingEvent::factory()->create([
-        'listing_id' => $this->listing($this->seller())->id,
-        'customer_id' => $customer->id,
-        'occurred_at' => $this->moment('2026-08-20 09:00:00'),
-    ]);
-
-    expect($customer->listingEvents()->count())->toBe(1);
 });
 
 it('gives a customer without a cart one', function (): void {
@@ -101,12 +32,6 @@ it('gives a customer without a cart one', function (): void {
 
     expect($cart->customer_id)->toBe($customer->id)
         ->and(Cart::count())->toBe(1);
-});
-
-it('returns the same cart twice', function (): void {
-    $customer = $this->anonymousCustomer();
-
-    expect($customer->cart()->id)->toBe($customer->cart()->id);
 });
 
 it('reads the customer\'s existing cart rather than creating another', function (): void {
@@ -168,17 +93,6 @@ it('reads every line across the carts it holds', function (): void {
         ->and($customer->cartItems()->sum('quantity'))->toBe(2);
 });
 
-it('reads the merges it stands on either side of', function (): void {
-    $customer = $this->verifiedCustomer();
-    $anonymous = $this->anonymousCustomer();
-    CustomerMerge::create(['anonymous_customer_id' => $anonymous->id, 'customer_id' => $customer->id]);
-
-    expect($customer->mergesAsCustomer()->count())->toBe(1)
-        ->and($customer->mergesAsAnonymous()->count())->toBe(0)
-        ->and($anonymous->mergesAsAnonymous()->count())->toBe(1)
-        ->and($anonymous->mergesAsCustomer()->count())->toBe(0);
-});
-
 it('narrows to one standing', function (): void {
     $verified = $this->verifiedCustomer();
     $anonymous = $this->anonymousCustomer();
@@ -205,4 +119,20 @@ it('re-reads the locked row rather than trusting the instance it was handed', fu
     Customer::whereKey($customer->id)->update(['name' => 'Rey Alvarez']);
 
     expect($customer->takeForModeration()->name)->toBe('Rey Alvarez');
+});
+
+it('loads console relations with orders and blocks newest first', function (): void {
+    $customer = $this->verifiedCustomer();
+    $seller = $this->seller();
+    $older = $this->orderFor($customer, $this->listing($seller));
+    $older->update(['placed_at' => $this->moment('2026-08-19 09:00:00')]);
+    $newer = $this->orderFor($customer, $this->listing($seller));
+    $newer->update(['placed_at' => $this->moment('2026-08-20 09:00:00')]);
+    $firstBlock = CustomerBlock::factory()->lifted()->create(['customer_id' => $customer->id]);
+    $secondBlock = CustomerBlock::factory()->create(['customer_id' => $customer->id]);
+
+    $loaded = $customer->loadForConsole();
+
+    expect($loaded->orders->pluck('id')->all())->toBe([$newer->id, $older->id])
+        ->and($loaded->blocks->pluck('id')->all())->toBe([$secondBlock->id, $firstBlock->id]);
 });

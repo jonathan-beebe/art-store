@@ -44,7 +44,7 @@ arch('controllers do not reach around Eloquent with the DB facade')
 
 arch('models do not depend on the coordination layer')
     ->expect('App\Models')
-    ->not->toUse(['App\Http', 'App\Console']);
+    ->not->toUse(['App\Http', 'App\Console', 'App\Actions', 'App\Policies', 'App\Events', 'App\Listeners']);
 
 /*
 |--------------------------------------------------------------------------

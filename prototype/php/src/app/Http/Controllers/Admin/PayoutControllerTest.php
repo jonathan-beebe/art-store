@@ -10,7 +10,7 @@ it('renders no list pane — a full-content section, not list+detail', function 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/payouts');
 
     $response->assertOk();
-    $response->assertDontSee('xl:w-[400px]', escape: false);
+    $response->assertSee('<main id="main-content" data-layout="full"', escape: false);
 });
 
 it('lists every payout across every seller', function (): void {
@@ -40,8 +40,14 @@ it('narrows the list to one seller', function (): void {
     $response->assertDontSee('$50.00');
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/payouts');
+it('shows the empty state when the filtered seller has no payouts', function (): void {
+    $blueKiln = $this->seller('Blue Kiln Studio');
+    $ryePress = $this->seller('Rye Press');
+    Payout::create(['seller_id' => $blueKiln->id, 'period_start' => '2026-08-10', 'period_end' => '2026-08-16', 'amount_cents' => 9000, 'paid_at' => '2026-08-17 00:00:00']);
 
-    $response->assertRedirect(route('auth.admin.login'));
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/payouts?seller={$ryePress->id}");
+
+    $response->assertOk();
+    $response->assertSee('No payouts yet.');
+    $response->assertDontSee('$90.00');
 });

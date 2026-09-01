@@ -11,7 +11,7 @@ use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
 use App\Models\CartItem;
 
@@ -55,7 +55,7 @@ it('refuses a required text modifier left blank', function (): void {
     $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
     app(GenerateVariants::class)($listing);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $response = $this->post('/cart/mug', ['axis' => [$personalization->id => $personalized->id]]);
 
@@ -71,7 +71,7 @@ it('accepts a configuration with its required modifier answered', function (): v
     $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
     app(GenerateVariants::class)($listing);
     $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(ScopeModifier::class)($text, [$personalized]);
+    app(SetModifierScope::class)($text, [$personalized]);
 
     $response = $this->post('/cart/mug', [
         'axis' => [$personalization->id => $personalized->id],

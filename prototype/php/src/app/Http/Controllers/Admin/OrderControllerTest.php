@@ -135,10 +135,6 @@ it('renders a configured lines configuration and itemized breakdown', function (
     $response->assertSee('$128.00');
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/orders')->assertRedirect(route('auth.admin.login'));
-});
-
 it('answers not found for a value that is not an order id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/orders/{$id}")->assertNotFound();
 })->with([

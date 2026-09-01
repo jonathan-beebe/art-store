@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Domain\Configurator\PricingMode;
 use App\Domain\DomainRuleViolation;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
@@ -27,3 +28,16 @@ it('refuses to delete an axis a variant still selects a value from', function ()
 
     app(DeleteOptionAxis::class)($axis);
 })->throws(DomainRuleViolation::class);
+
+it('syncs the listing’s derived price, dropping the deleted axis’s contribution', function (): void {
+    $listing = $this->listing($this->seller());
+    $metal = app(CreateOptionAxis::class)($listing, 'Metal', pricingMode: PricingMode::Standalone);
+    app(AddOptionValue::class)($metal, 'Gold', isDefault: true, priceCents: 1800);
+    $size = app(CreateOptionAxis::class)($listing, 'Size', pricingMode: PricingMode::Standalone);
+    app(AddOptionValue::class)($size, '8x10', isDefault: true, priceCents: 2400);
+    expect($listing->refresh()->price_cents)->toBe(4200);
+
+    app(DeleteOptionAxis::class)($metal);
+
+    expect($listing->refresh()->price_cents)->toBe(2400);
+});

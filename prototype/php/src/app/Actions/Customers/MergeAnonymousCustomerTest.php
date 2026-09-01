@@ -199,92 +199,37 @@ it('gives the verified customer a cart when neither side had one', function (): 
     expect(Cart::where('customer_id', $verified->id)->count())->toBe(1);
 });
 
-it('sums cart quantities for a listing in both carts', function (): void {
-    $listing = $this->listing($this->seller(), ['quantity' => 10]);
+it('sums cart quantities across both carts and clamps the sum to the listing\'s stock, both visible on the merged cart', function (): void {
+    $summed = $this->listing($this->seller(), ['quantity' => 10]);
+    $clamped = $this->listing($this->seller(), ['quantity' => 4]);
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
-    CartItem::factory()->create(['cart_id' => $this->cartFor($anonymous)->id, 'listing_id' => $listing->id, 'quantity' => 2]);
-    CartItem::factory()->create(['cart_id' => $this->cartFor($verified)->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    $anonymousCart = $this->cartFor($anonymous);
+    $verifiedCart = $this->cartFor($verified);
+    CartItem::factory()->create(['cart_id' => $anonymousCart->id, 'listing_id' => $summed->id, 'quantity' => 2]);
+    CartItem::factory()->create(['cart_id' => $verifiedCart->id, 'listing_id' => $summed->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $anonymousCart->id, 'listing_id' => $clamped->id, 'quantity' => 3]);
+    CartItem::factory()->create(['cart_id' => $verifiedCart->id, 'listing_id' => $clamped->id, 'quantity' => 3]);
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    $cart = $verified->cart();
-    expect($cart->items()->count())->toBe(1)
-        ->and($cart->items()->first()?->quantity)->toBe(3);
+    $items = $verified->cart()->items()->get();
+    expect($items->firstWhere('listing_id', $summed->id)?->quantity)->toBe(3)
+        ->and($items->firstWhere('listing_id', $clamped->id)?->quantity)->toBe(4);
 });
 
-it('clamps a summed cart quantity to the listing\'s stock', function (): void {
-    $listing = $this->listing($this->seller(), ['quantity' => 4]);
+it('moves an anonymous favorite the verified customer lacks and drops the one they both had, visible on the verified customer', function (): void {
+    $moved = $this->listing($this->seller());
+    $duplicated = $this->listing($this->seller());
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
-    CartItem::factory()->create(['cart_id' => $this->cartFor($anonymous)->id, 'listing_id' => $listing->id, 'quantity' => 3]);
-    CartItem::factory()->create(['cart_id' => $this->cartFor($verified)->id, 'listing_id' => $listing->id, 'quantity' => 3]);
+    Favorite::factory()->create(['customer_id' => $anonymous->id, 'listing_id' => $moved->id]);
+    Favorite::factory()->create(['customer_id' => $anonymous->id, 'listing_id' => $duplicated->id]);
+    Favorite::factory()->create(['customer_id' => $verified->id, 'listing_id' => $duplicated->id]);
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    expect($verified->cart()->items()->first()?->quantity)->toBe(4);
-});
-
-it('drops a cart line whose listing has nothing left in stock', function (): void {
-    $listing = $this->listing($this->seller(), ['quantity' => 0]);
-    $anonymous = Customer::factory()->anonymous()->create();
-    $verified = Customer::factory()->create();
-    CartItem::factory()->create(['cart_id' => $this->cartFor($anonymous)->id, 'listing_id' => $listing->id, 'quantity' => 2]);
-
-    app(MergeAnonymousCustomer::class)($anonymous, $verified);
-
-    expect($verified->cart()->items()->count())->toBe(0);
-});
-
-it('keeps a disjoint line from each side of the merge', function (): void {
-    $anonymousListing = $this->listing($this->seller(), ['quantity' => 5]);
-    $verifiedListing = $this->listing($this->seller(), ['quantity' => 5]);
-    $anonymous = Customer::factory()->anonymous()->create();
-    $verified = Customer::factory()->create();
-    CartItem::factory()->create(['cart_id' => $this->cartFor($anonymous)->id, 'listing_id' => $anonymousListing->id, 'quantity' => 1]);
-    CartItem::factory()->create(['cart_id' => $this->cartFor($verified)->id, 'listing_id' => $verifiedListing->id, 'quantity' => 1]);
-
-    app(MergeAnonymousCustomer::class)($anonymous, $verified);
-
-    expect($verified->cart()->items()->pluck('listing_id')->sort()->values()->all())
-        ->toBe(collect([$anonymousListing->id, $verifiedListing->id])->sort()->values()->all());
-});
-
-it('moves an anonymous favorite the verified customer does not already have', function (): void {
-    $listing = $this->listing($this->seller());
-    $anonymous = Customer::factory()->anonymous()->create();
-    $verified = Customer::factory()->create();
-    Favorite::factory()->create(['customer_id' => $anonymous->id, 'listing_id' => $listing->id]);
-
-    app(MergeAnonymousCustomer::class)($anonymous, $verified);
-
-    expect(Favorite::where('customer_id', $verified->id)->where('listing_id', $listing->id)->exists())->toBeTrue()
+    expect(Favorite::where('customer_id', $verified->id)->where('listing_id', $moved->id)->exists())->toBeTrue()
+        ->and(Favorite::where('listing_id', $duplicated->id)->count())->toBe(1)
         ->and(Favorite::where('customer_id', $anonymous->id)->exists())->toBeFalse();
-});
-
-it('drops a duplicate favorite instead of leaving two rows for the same listing', function (): void {
-    $listing = $this->listing($this->seller());
-    $anonymous = Customer::factory()->anonymous()->create();
-    $verified = Customer::factory()->create();
-    Favorite::factory()->create(['customer_id' => $anonymous->id, 'listing_id' => $listing->id]);
-    Favorite::factory()->create(['customer_id' => $verified->id, 'listing_id' => $listing->id]);
-
-    app(MergeAnonymousCustomer::class)($anonymous, $verified);
-
-    expect(Favorite::where('listing_id', $listing->id)->count())->toBe(1)
-        ->and(Favorite::where('customer_id', $anonymous->id)->exists())->toBeFalse();
-});
-
-it('loses nothing when the anonymous side favorited nothing and the verified side favorited two listings', function (): void {
-    $seller = $this->seller();
-    $first = $this->listing($seller);
-    $second = $this->listing($seller);
-    $anonymous = Customer::factory()->anonymous()->create();
-    $verified = Customer::factory()->create();
-    Favorite::factory()->create(['customer_id' => $verified->id, 'listing_id' => $first->id]);
-    Favorite::factory()->create(['customer_id' => $verified->id, 'listing_id' => $second->id]);
-
-    app(MergeAnonymousCustomer::class)($anonymous, $verified);
-
-    expect(Favorite::where('customer_id', $verified->id)->count())->toBe(2);
 });

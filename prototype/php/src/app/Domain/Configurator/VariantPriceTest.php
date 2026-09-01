@@ -29,3 +29,25 @@ it('uses the override instead of base plus surcharges when one is set', function
 it('is just the base price with no surcharges', function (): void {
     expect(VariantPrice::resolve(Money::fromCents(1000), null, [])->amount->cents)->toBe(1000);
 });
+
+it('sums multiple standalone prices as the replacement base, ignoring the listing base price', function (): void {
+    $price = VariantPrice::resolve(
+        Money::fromCents(9999),
+        null,
+        [],
+        [Money::fromCents(1200), Money::fromCents(800)],
+    );
+
+    expect($price->amount->cents)->toBe(2000);
+});
+
+it('adds surcharges on top of the summed standalone prices', function (): void {
+    $price = VariantPrice::resolve(
+        Money::fromCents(9999),
+        null,
+        [Money::fromCents(500), Money::fromCents(150)],
+        [Money::fromCents(1200), Money::fromCents(800)],
+    );
+
+    expect($price->amount->cents)->toBe(2650);
+});

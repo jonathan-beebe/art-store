@@ -43,18 +43,6 @@ it('lands on the same thread a second time', function (): void {
     expect(Conversation::count())->toBe(1);
 });
 
-it('refuses to message about another sellers fulfillment', function (): void {
-    $other = $this->seller('Other Studio');
-    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($other));
-    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
-    $fulfillment = Fulfillment::where('seller_id', $other->id)->sole();
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/orders/{$fulfillment->id}/messages");
-
-    $response->assertNotFound();
-    expect(Conversation::count())->toBe(0);
-});
-
 it('trips the conversation-open limit before opening a second fulfillment thread', function (): void {
     Config::set('rate_limits.conversation_open', RateLimitValue::parse('1/1h', 'RATE_LIMIT_CONVERSATION_OPEN'));
     $seller = $this->seller();

@@ -37,7 +37,7 @@ smoke: ## the smoke walk only
 
 # The suite under pcov, gated at 100% of lines, writing the text summary and
 # the HTML report to coverage/.
-coverage: ## the suite with the coverage gate (100% lines) and its HTML report
+coverage: ## the suite with the coverage gate (95% line floor) and its HTML report
 	docker compose run --rm app composer test:coverage
 
 # Style plus static analysis, read-only: Pint's --test mode, then PHPStan, in

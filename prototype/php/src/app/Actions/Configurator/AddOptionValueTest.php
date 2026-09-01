@@ -53,3 +53,12 @@ it('leaves price_cents null on an add-on option even if one is passed', function
     expect($value->price_cents)->toBeNull()
         ->and($value->surcharge_cents)->toBe(3200);
 });
+
+it('syncs the listing’s derived price to the new standalone default option', function (): void {
+    $listing = $this->listing($this->seller(), ['price_cents' => 5000]);
+    $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id]);
+
+    app(AddOptionValue::class)($axis, '8x10', isDefault: true, priceCents: 1800);
+
+    expect($listing->refresh()->price_cents)->toBe(1800);
+});

@@ -108,7 +108,10 @@ class Order extends Model
      */
     public function approvedPayment(): HasOne
     {
-        return $this->payments()->one()->where('status', PaymentStatus::Approved)->latestOfMany('processed_at');
+        return $this->payments()->one()->ofMany(
+            ['processed_at' => 'max'],
+            fn (Builder $query) => $query->where('status', PaymentStatus::Approved),
+        );
     }
 
     /**

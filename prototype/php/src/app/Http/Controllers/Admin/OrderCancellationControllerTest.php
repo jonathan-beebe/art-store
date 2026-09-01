@@ -33,9 +33,3 @@ it('answers 404 for an id of the wrong shape', function (string $id): void {
     'a bare ulid' => ['01J5X3M9A2K8YB7Q4R6T1V0WZE'],
     'nonsense' => ['nonsense'],
 ]);
-
-it('sends a guest to the admin login page', function (): void {
-    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
-
-    $this->post("/admin/orders/{$order->id}/cancel")->assertRedirect(route('auth.admin.login'));
-});

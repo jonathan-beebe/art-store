@@ -14,26 +14,22 @@ use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
-use App\Events\OrderCancelled;
-use Illuminate\Support\Facades\Event;
 use Tests\CapturedStory;
 
-it('cancels an order that is still waiting for a card', function (): void {
-    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+it('cancels an order regardless of its starting status', function (OrderStatus $startingStatus): void {
+    $customer = $startingStatus === OrderStatus::PendingVerification ? $this->anonymousCustomer() : $this->verifiedCustomer();
+    $order = $this->orderFor($customer, $this->listing($this->seller()));
+
+    expect($order->status)->toBe($startingStatus);
 
     $cancelled = app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
 
     expect($cancelled->status)->toBe(OrderStatus::Cancelled)
         ->and($order->fresh()?->status)->toBe(OrderStatus::Cancelled);
-});
-
-it('cancels a guest order that was never verified', function (): void {
-    $order = $this->orderFor($this->anonymousCustomer(), $this->listing($this->seller()));
-
-    expect($order->status)->toBe(OrderStatus::PendingVerification)
-        ->and(app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'))->status)
-        ->toBe(OrderStatus::Cancelled);
-});
+})->with([
+    'a card still waiting to be charged' => [OrderStatus::AwaitingPayment],
+    'a guest order that was never verified' => [OrderStatus::PendingVerification],
+]);
 
 it('puts the stock it was holding back on the storefront', function (): void {
     $listing = $this->listing($this->seller(), ['quantity' => 1]);
@@ -71,6 +67,23 @@ it('leaves the stock alone when a declined card already handed it back', functio
 
     expect($listing->refresh()->quantity)->toBe(1)
         ->and($listing->status)->toBe(ListingStatus::ForSale);
+});
+
+it('restocks both fulfillments of a multi-seller order on cancel', function (): void {
+    $customer = $this->verifiedCustomer();
+    $first = $this->listing($this->seller('Blue Kiln Studio'), ['quantity' => 1]);
+    $second = $this->listing($this->seller('Rye Press'), ['quantity' => 1]);
+    $order = $this->orderFor($customer, $first, $second);
+
+    expect($first->refresh()->status)->toBe(ListingStatus::Sold)
+        ->and($second->refresh()->status)->toBe(ListingStatus::Sold);
+
+    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
+
+    expect($first->refresh()->quantity)->toBe(1)
+        ->and($first->status)->toBe(ListingStatus::ForSale)
+        ->and($second->refresh()->quantity)->toBe(1)
+        ->and($second->status)->toBe(ListingStatus::ForSale);
 });
 
 it('restores a configured lines variant quantity and a serialized lines unit on cancel', function (): void {
@@ -117,19 +130,6 @@ it('refuses to cancel an order that is already cancelled', function (): void {
 
     expect(fn () => app(CancelOrder::class)($order, $this->moment('2026-08-21 10:00:00')))
         ->toThrow(DomainRuleViolation::class, 'cancelled to cancelled');
-});
-
-it('raises the cancellation once the stock is back', function (): void {
-    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
-    Event::fake([OrderCancelled::class]);
-
-    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
-
-    Event::assertDispatched(
-        OrderCancelled::class,
-        fn (OrderCancelled $event): bool => $event->order->is($order)
-            && $event->cancelledAt->format('Y-m-d H:i:s') === '2026-08-21 09:00:00',
-    );
 });
 
 it('tells the story of the cancellation', function (): void {

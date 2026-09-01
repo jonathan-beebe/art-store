@@ -45,6 +45,10 @@
     $messagesActive = request()->routeIs('admin.messages.*');
     $belowXlMainClasses = $mode === 'content-wide' ? 'w-full sm:px-6' : 'sm:mx-auto sm:max-w-6xl';
     $isPaned = in_array($mode, ['list', 'detail'], true);
+    // A full-content page carries no list pane (`$isPaned` is false) — the
+    // marker every `assertDontSee('xl:w-[400px]')`-style test now reads
+    // instead of an incidental Tailwind class.
+    $mainLayoutAttr = $isPaned ? '' : ' data-layout="full"';
 @endphp
 
 <!DOCTYPE html>
@@ -188,12 +192,12 @@
                  cells (below `xl` the list is `$slot`'s own table/cards,
                  unchanged). Shared between a section's index and show view
                  so both render the exact same list. --}}
-            <div class="hidden xl:flex xl:w-[400px] xl:shrink-0 xl:flex-col xl:overflow-y-auto xl:border-r xl:border-gray-300 xl:bg-white dark:xl:border-gray-700 dark:xl:bg-gray-900">
+            <div data-layout="split" class="hidden xl:flex xl:w-[400px] xl:shrink-0 xl:flex-col xl:overflow-y-auto xl:border-r xl:border-gray-300 xl:bg-white dark:xl:border-gray-700 dark:xl:bg-gray-900">
                 {{ $cells ?? '' }}
             </div>
         @endif
 
-        <main id="main-content" class="py-6 px-4 {{ $belowXlMainClasses }} @if ($mode === 'list') xl:hidden @else xl:flex xl:min-w-0 xl:flex-1 xl:flex-col xl:overflow-y-auto xl:max-w-none xl:mx-0 xl:px-6 xl:py-6 @endif">
+        <main id="main-content"{!! $mainLayoutAttr !!} class="py-6 px-4 {{ $belowXlMainClasses }} @if ($mode === 'list') xl:hidden @else xl:flex xl:min-w-0 xl:flex-1 xl:flex-col xl:overflow-y-auto xl:max-w-none xl:mx-0 xl:px-6 xl:py-6 @endif">
             @if (session('status'))
                 <p role="status" class="mb-4 rounded border border-green-300 dark:border-green-900 bg-green-50 dark:bg-green-950/40 p-3 text-green-900 dark:text-green-200">{{ session('status') }}</p>
             @endif

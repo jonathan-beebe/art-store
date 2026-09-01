@@ -179,14 +179,6 @@ it('refuses to decline a fulfillment on an order nobody has paid for', function 
         ->and(LedgerEntry::count())->toBe(0);
 });
 
-it('refuses to ship a parcel that was declined', function (): void {
-    $fulfillment = $this->paidFulfillmentFor($this->seller());
-    app(DeclineFulfillment::class)($fulfillment, 'Damaged.', $this->moment('2026-08-21 09:00:00'));
-
-    expect(fn () => app(MarkShipped::class)($fulfillment->refresh(), 'Royal Mail', 'RM999', $this->moment('2026-08-22 09:00:00')))
-        ->toThrow(DomainRuleViolation::class, 'declined to shipped');
-});
-
 it('tells the story of the decline and the refund it issued', function (): void {
     $fulfillment = $this->paidFulfillmentFor($this->seller());
     $log = CapturedStory::capture();

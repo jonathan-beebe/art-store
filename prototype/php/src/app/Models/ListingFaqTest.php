@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-it('reads the listing it answers a question about', function (): void {
-    $listing = $this->listing($this->seller());
-    $faq = ListingFaq::factory()->create(['listing_id' => $listing->id]);
+it('reads the message an answer was lifted from, or none when published from scratch', function (bool $hasSourceMessage): void {
+    $message = $hasSourceMessage ? Message::factory()->create() : null;
+    $faq = $message !== null
+        ? ListingFaq::factory()->fromMessage($message)->create()
+        : ListingFaq::factory()->create();
 
-    expect($faq->listing->is($listing))->toBeTrue();
-});
-
-it('reads the message an answer was lifted from', function (): void {
-    $message = Message::factory()->create();
-    $faq = ListingFaq::factory()->fromMessage($message)->create();
-
-    expect($faq->sourceMessage?->is($message))->toBeTrue();
-});
-
-it('has no source message when published from scratch', function (): void {
-    expect(ListingFaq::factory()->create()->sourceMessage)->toBeNull();
-});
+    if ($hasSourceMessage) {
+        expect($faq->sourceMessage?->is($message))->toBeTrue();
+    } else {
+        expect($faq->sourceMessage)->toBeNull();
+    }
+})->with([
+    'lifted from a message' => [true],
+    'published from scratch' => [false],
+]);

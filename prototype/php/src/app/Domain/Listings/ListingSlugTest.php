@@ -26,3 +26,7 @@ it('falls back to a word when the title slugs to nothing', function (): void {
 it('ignores what is already taken for its base', function (): void {
     expect(ListingSlug::base('Harbour at Dusk'))->toBe('harbour-at-dusk');
 });
+
+it('transliterates accented characters to their plain ascii letter', function (): void {
+    expect(ListingSlug::base('Café Élan'))->toBe('cafe-elan');
+});

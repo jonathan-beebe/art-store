@@ -4,34 +4,17 @@ declare(strict_types=1);
 
 namespace App\Domain\Analytics;
 
-it('counts a successful HTML GET', function (): void {
-    expect(PageViewCountability::isCountable('GET', 200, 'text/html'))->toBeTrue();
-});
-
-it('reads the method without regard to case', function (): void {
-    expect(PageViewCountability::isCountable('get', 200, 'text/html'))->toBeTrue();
-});
-
-it('still counts a content type carrying a charset parameter', function (): void {
-    expect(PageViewCountability::isCountable('GET', 200, 'text/html; charset=UTF-8'))->toBeTrue();
-});
-
-it('does not count a non-GET request', function (): void {
-    expect(PageViewCountability::isCountable('POST', 200, 'text/html'))->toBeFalse();
-});
-
-it('does not count a status below 200', function (): void {
-    expect(PageViewCountability::isCountable('GET', 101, 'text/html'))->toBeFalse();
-});
-
-it('does not count a status at or above 300', function (): void {
-    expect(PageViewCountability::isCountable('GET', 404, 'text/html'))->toBeFalse();
-});
-
-it('does not count a missing content type', function (): void {
-    expect(PageViewCountability::isCountable('GET', 200, null))->toBeFalse();
-});
-
-it('does not count a non-HTML content type', function (): void {
-    expect(PageViewCountability::isCountable('GET', 200, 'application/json'))->toBeFalse();
-});
+it('reads whether a request counts as a page view', function (string $method, int $status, ?string $contentType, bool $expected): void {
+    expect(PageViewCountability::isCountable($method, $status, $contentType))->toBe($expected);
+})->with([
+    'a successful HTML GET counts' => ['GET', 200, 'text/html', true],
+    'the method reads without regard to case' => ['get', 200, 'text/html', true],
+    'a content type carrying a charset parameter still counts' => ['GET', 200, 'text/html; charset=UTF-8', true],
+    'a non-GET request does not count' => ['POST', 200, 'text/html', false],
+    'a status below 200 does not count' => ['GET', 101, 'text/html', false],
+    'a status at or above 300 does not count' => ['GET', 404, 'text/html', false],
+    'the boundary just under 300 counts' => ['GET', 299, 'text/html', true],
+    'the boundary at 300 does not count' => ['GET', 300, 'text/html', false],
+    'a missing content type does not count' => ['GET', 200, null, false],
+    'a non-HTML content type does not count' => ['GET', 200, 'application/json', false],
+]);

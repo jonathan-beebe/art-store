@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\UnavailableReason;
+use LogicException;
 
 it('reads its items as cart lines', function (): void {
     $seller = $this->seller();
@@ -29,53 +30,39 @@ it('reads no lines for an empty cart', function (): void {
     expect($cart->lines())->toBe([]);
 });
 
-it('reads the customer it belongs to', function (): void {
+it('blocks a line the placement plan finds unavailable', function (string $reasonKind, UnavailableReason $expectedReason): void {
     $customer = $this->anonymousCustomer();
     $cart = $this->cartFor($customer);
 
-    expect($cart->customer()->sole()->is($customer))->toBeTrue();
-});
+    $listing = match ($reasonKind) {
+        'off_sale' => $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]),
+        'removed' => $this->listing($this->seller(), ['title' => 'Winter Elm']),
+        'sold_out' => $this->listing($this->seller(), ['title' => 'Line Art Cat Tee', 'quantity' => 50]),
+        default => throw new LogicException("unhandled reason kind {$reasonKind}"),
+    };
 
-it('plans placement from its items against the listings behind them', function (): void {
-    $customer = $this->anonymousCustomer();
-    $cart = $this->cartFor($customer);
-    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]);
-    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
+    $variantId = null;
 
-    $plan = $cart->load('items.listing')->placementPlan();
+    if ($reasonKind === 'removed') {
+        ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+    }
 
-    expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Harbour at Dawn')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::OffSale);
-});
+    if ($reasonKind === 'sold_out') {
+        $variantId = Variant::factory()->create(['listing_id' => $listing->id, 'quantity' => 0])->id;
+    }
 
-it('blocks a line whose listing carries an active removal, even while for sale', function (): void {
-    $customer = $this->anonymousCustomer();
-    $cart = $this->cartFor($customer);
-    $listing = $this->listing($this->seller(), ['title' => 'Winter Elm']);
-    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
-    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'quantity' => 1]);
-
-    $plan = $cart->load('items.listing')->placementPlan();
-
-    expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Winter Elm')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::Removed);
-});
-
-it('plans a configured lines placement off its variant rather than the listing quantity', function (): void {
-    $customer = $this->anonymousCustomer();
-    $cart = $this->cartFor($customer);
-    $listing = $this->listing($this->seller(), ['title' => 'Line Art Cat Tee', 'quantity' => 50]);
-    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'quantity' => 0]);
-    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'variant_id' => $variant->id, 'quantity' => 1]);
+    CartItem::factory()->create(['cart_id' => $cart->id, 'listing_id' => $listing->id, 'variant_id' => $variantId, 'quantity' => 1]);
 
     $plan = $cart->load('items.listing', 'items.variant')->placementPlan();
 
     expect($plan->isPlaceable())->toBeFalse()
-        ->and($plan->blocked[0]->title)->toBe('Line Art Cat Tee')
-        ->and($plan->blocked[0]->reason)->toBe(UnavailableReason::SoldOut);
-});
+        ->and($plan->blocked[0]->title)->toBe($listing->title)
+        ->and($plan->blocked[0]->reason)->toBe($expectedReason);
+})->with([
+    'off sale' => ['off_sale', UnavailableReason::OffSale],
+    'removed even while for sale' => ['removed', UnavailableReason::Removed],
+    'sold out via its variant rather than the listing quantity' => ['sold_out', UnavailableReason::SoldOut],
+]);
 
 it('tells two configurations of the same listing apart when only one is blocked', function (): void {
     $customer = $this->anonymousCustomer();

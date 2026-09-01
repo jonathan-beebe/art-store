@@ -13,7 +13,7 @@ use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Configurator\ScopeModifier;
+use App\Actions\Configurator\SetModifierScope;
 use App\Actions\Listings\CreateListing;
 use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\Configurator\ModifierKind;
@@ -122,10 +122,10 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Engraving Font', required: true, position: 0);
         app(AddModifierOption::class)($font, 'Block', 0, 0);
         app(AddModifierOption::class)($font, 'Script', 0, 1);
-        app(ScopeModifier::class)($font, [$outside, $both]);
+        app(SetModifierScope::class)($font, [$outside, $both]);
 
         $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Engraving Text', instructions: 'Up to 20 characters.', required: true, position: 1, charLimit: 20);
-        app(ScopeModifier::class)($text, [$outside, $both]);
+        app(SetModifierScope::class)($text, [$outside, $both]);
 
         $this->attribute($listing, 'Medium', 'Metal');
 
@@ -156,7 +156,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
         app(GenerateVariants::class)($listing);
 
         $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', instructions: 'One name or short word.', required: true, charLimit: 16);
-        app(ScopeModifier::class)($text, [$personalized]);
+        app(SetModifierScope::class)($text, [$personalized]);
 
         $this->attribute($listing, 'Medium', 'Ceramic');
 

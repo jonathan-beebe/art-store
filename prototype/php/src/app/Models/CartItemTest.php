@@ -101,6 +101,33 @@ it('prices a measurement modifiers rated answer on an axis-free listing', functi
         ->and($item->toLine()->total())->toBeMoney(4500);
 });
 
+it('reports a configured line out of stock once its variant sells through', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = app(CreateOptionAxis::class)($listing, 'Color');
+    app(AddOptionValue::class)($axis, 'Red', 0, isDefault: true);
+    app(GenerateVariants::class)($listing);
+    $variant = $listing->variants()->sole();
+    $variant->update(['quantity' => 1]);
+    $cart = $this->cartFor($this->anonymousCustomer());
+    $item = CartItem::create([
+        'cart_id' => $cart->id,
+        'customer_id' => $cart->customer_id,
+        'listing_id' => $listing->id,
+        'variant_id' => $variant->id,
+        'quantity' => 1,
+        'fingerprint' => CartLineFingerprint::of($variant->id, null, [])->value,
+    ]);
+
+    expect($item->currentAvailability()->selectable)->toBeTrue();
+
+    $variant->update(['quantity' => 0]);
+    $item->refresh();
+
+    expect($item->currentAvailability()->selectable)->toBeFalse()
+        ->and($item->currentAvailability()->reason)->toBe('out of stock');
+});
+
 it('reports a configured line unavailable once its variant is disabled', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

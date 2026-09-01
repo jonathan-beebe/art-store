@@ -62,7 +62,7 @@ it('leaves out a removed listing even while its status still says for sale', fun
 it('shows the three newest for-sale listings under Just listed and the next nine under More to explore, leaving the rest out', function (): void {
     $seller = $this->seller();
     for ($index = 1; $index <= 13; $index++) {
-        $this->listing($seller, ['title' => sprintf('Study No %02d', $index), 'created_at' => moment(sprintf('2026-08-01 00:%02d:00', $index))]);
+        $this->listing($seller, ['title' => sprintf('Study No %02d', $index), 'created_at' => $this->moment(sprintf('2026-08-01 00:%02d:00', $index))]);
     }
 
     $response = $this->get('/');
@@ -169,7 +169,7 @@ it('runs a query count that holds steady as the categories, mediums, and listing
     // Twenty more for-sale listings to fill Just listed and More to
     // explore, each carrying its own cover image.
     foreach (range(1, 20) as $index) {
-        $listing = $this->listing($seller, ['created_at' => moment(sprintf('2026-08-01 00:%02d:00', $index))]);
+        $listing = $this->listing($seller, ['created_at' => $this->moment(sprintf('2026-08-01 00:%02d:00', $index))]);
         $this->listingImage($listing);
     }
 
