@@ -120,3 +120,19 @@ it('re-reads the locked row rather than trusting the instance it was handed', fu
 
     expect($customer->takeForModeration()->name)->toBe('Rey Alvarez');
 });
+
+it('loads console relations with orders and blocks newest first', function (): void {
+    $customer = $this->verifiedCustomer();
+    $seller = $this->seller();
+    $older = $this->orderFor($customer, $this->listing($seller));
+    $older->update(['placed_at' => $this->moment('2026-08-19 09:00:00')]);
+    $newer = $this->orderFor($customer, $this->listing($seller));
+    $newer->update(['placed_at' => $this->moment('2026-08-20 09:00:00')]);
+    $firstBlock = CustomerBlock::factory()->lifted()->create(['customer_id' => $customer->id]);
+    $secondBlock = CustomerBlock::factory()->create(['customer_id' => $customer->id]);
+
+    $loaded = $customer->loadForConsole();
+
+    expect($loaded->orders->pluck('id')->all())->toBe([$newer->id, $older->id])
+        ->and($loaded->blocks->pluck('id')->all())->toBe([$secondBlock->id, $firstBlock->id]);
+});
