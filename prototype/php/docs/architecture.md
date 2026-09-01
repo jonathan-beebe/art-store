@@ -651,6 +651,13 @@ flowchart LR
   SQLite; they drive HTTP and assert on rendered HTML and database state.
   `Event::fake([...])` and `Notification::fake()` cover "something was sent";
   what an inbox shows is asserted through the page that renders it.
+- Accepted concurrency gap: the suite runs on `sqlite :memory:` with a single
+  connection, so every `lockForUpdate()` and rate-limit-atomicity claim is
+  pinned by SQL shape only — a test asserts the compiled query contains
+  `for update`, not that a second connection actually blocks on it. Real lock
+  contention and concurrent rate-limit races cannot be exercised this way;
+  closing that gap needs a database that supports concurrent connections
+  under the test runner.
 - Coverage via `pcov`: `composer test:coverage` (`make coverage`) runs the
   suite gated at 100% of lines (`--min=100`), prints a text summary, and
   writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
