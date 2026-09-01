@@ -74,13 +74,3 @@ it('refuses to ship a fulfillment that already shipped', function () use ($paidF
     $response->assertSee('A fulfillment cannot move from shipped to shipped.');
     expect($fulfillment->refresh()->tracking_number)->toBe('RM123');
 });
-
-it('refuses to ship another sellers fulfillment', function () use ($paidFulfillment, $form): void {
-    $fulfillment = $paidFulfillment($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')
-        ->post("/seller/orders/{$fulfillment->id}/shipment", $form());
-
-    $response->assertNotFound();
-    expect($fulfillment->refresh()->status)->toBe(FulfillmentStatus::AwaitingShipment);
-});

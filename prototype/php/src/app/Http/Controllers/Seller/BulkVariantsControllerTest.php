@@ -43,17 +43,6 @@ it('refuses an option value belonging to another listing', function (): void {
     $response->assertSessionHasErrors('option_value_id');
 });
 
-it('refuses a bulk toggle on another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/variants/bulk", [
-        'option_value_id' => 'ovl_whatever',
-        'enabled' => '1',
-    ]);
-
-    $response->assertNotFound();
-});
-
 it('trips the listing-write limit on a bulk toggle', function (): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();

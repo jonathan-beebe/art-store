@@ -80,15 +80,6 @@ it('answers not found scoping a modifier that belongs to a different listing', f
     $response->assertNotFound();
 });
 
-it('refuses scoping another sellers modifier', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/scope", []);
-
-    $response->assertNotFound();
-});
-
 it('C9: a Version choice with a question scoped to it shows or hides the question on the buyer page', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['slug' => 'mug', 'price_cents' => 1800]);

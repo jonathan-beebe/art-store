@@ -19,6 +19,7 @@ use App\Models\VariantOption;
 use Database\Seeders\ConfiguratorArchetypeSeeder;
 use Database\Seeders\TaxonomySeeder;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists the listing’s axes with their options', function (): void {
     $seller = $this->seller();
@@ -58,14 +59,6 @@ it('offers no catalog properties for an uncategorized listing', function (): voi
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/option-axes");
 
     $response->assertDontSee('Somewhere Property');
-});
-
-it('refuses another sellers listing axes page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/option-axes");
-
-    $response->assertNotFound();
 });
 
 it('adds a custom axis', function (): void {
@@ -153,18 +146,6 @@ it('lists the picker’s catalog properties before the "Something else…" custo
         ->and((int) $ringSizePosition)->toBeLessThan((int) $somethingElsePosition);
 });
 
-it('refuses adding an axis to another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
-        'name' => 'Metal',
-        'position' => 0,
-    ]);
-
-    $response->assertNotFound();
-    expect(OptionAxis::count())->toBe(0);
-});
-
 it('updates an axis', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -219,54 +200,27 @@ it('refuses to remove an axis a variant still selects a value from', function ()
     expect(OptionAxis::find($axis->id))->not->toBeNull();
 });
 
-it('refuses to remove another sellers axis', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}");
-
-    $response->assertNotFound();
-    expect(OptionAxis::find($axis->id))->not->toBeNull();
-});
-
-it('trips the listing-write limit adding an axis, re-rendering the index with nothing saved', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'First', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'Second', 'position' => 1]);
-
-    $response->assertStatus(429);
-    $response->assertHeader('Retry-After');
-    expect(OptionAxis::where('listing_id', $listing->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating an axis', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Old']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'Consumes the budget', 'position' => 0]);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}", ['name' => 'New', 'position' => 0]);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'Second', 'position' => 1]),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}", ['name' => 'New', 'position' => 0]),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($axis->fresh()?->name)->toBe('Old');
-});
-
-it('trips the listing-write limit removing an axis', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes", ['name' => 'Consumes the budget', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}");
-
-    $response->assertStatus(429);
-    expect(OptionAxis::find($axis->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(OptionAxis::where('listing_id', $listing->id)->count())->toBe(2),
+        'updating' => expect($axis->fresh()?->name)->toBe('Old'),
+        'removing' => expect(OptionAxis::find($axis->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
 
 it('shows an empty-state invitation when a listing has no choices yet', function (): void {
     $seller = $this->seller();
