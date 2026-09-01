@@ -38,3 +38,42 @@ it('prefers the request over the given defaults once the request carries a value
         ->and($input->unitId)->toBe('unt_2')
         ->and($input->quantity)->toBe(3);
 });
+
+it('drops a tampered axis selection whose key or value is not a string', function (): void {
+    $input = ConfiguratorInput::fromRaw(
+        [0 => 'value-id', 'axis-id' => 42, 'good-axis' => 'good-value'],
+        null,
+        [],
+        '1',
+    );
+
+    expect($input->axisSelections)->toBe(['good-axis' => 'good-value']);
+});
+
+it('drops a nested-array axis value', function (): void {
+    $input = ConfiguratorInput::fromRaw(
+        ['axis-id' => ['nested' => 'value']],
+        null,
+        [],
+        '1',
+    );
+
+    expect($input->axisSelections)->toBe([]);
+});
+
+it('drops a tampered modifier answer whose key or value is not a string', function (): void {
+    $input = ConfiguratorInput::fromRaw(
+        [],
+        null,
+        [0 => 'answer', 'modifier-id' => ['nested'], 'good-modifier' => 'answer'],
+        '1',
+    );
+
+    expect($input->modifierAnswers)->toBe(['good-modifier' => 'answer']);
+});
+
+it('falls back to the default quantity when the raw quantity is not a digit string', function (): void {
+    $input = ConfiguratorInput::fromRaw([], null, [], 'abc');
+
+    expect($input->quantity)->toBe(1);
+});
