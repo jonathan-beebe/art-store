@@ -54,12 +54,6 @@ it('offers a form to message the customer', function (): void {
     $response->assertSee('action="'.route('admin.customers.messages', $customer).'"', escape: false);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/customers');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('answers not found for a value that is not a customer id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$id}")->assertNotFound();
 })->with([

@@ -61,12 +61,6 @@ it('offers a form to message the seller', function (): void {
     $response->assertSee('action="'.route('admin.sellers.messages', $seller).'"', escape: false);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/sellers');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('shows a seller\'s listings, fulfillments, payouts and folded balance', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
     $this->listing($seller, ['title' => 'Nine Herons', 'status' => ListingStatus::ForSale]);

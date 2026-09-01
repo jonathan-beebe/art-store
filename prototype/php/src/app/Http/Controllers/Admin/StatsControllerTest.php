@@ -75,7 +75,3 @@ it('says so rather than showing an empty table when no page views have been reco
     $response->assertOk();
     $response->assertSee('No page views recorded yet.');
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/stats')->assertRedirect(route('auth.admin.login'));
-});

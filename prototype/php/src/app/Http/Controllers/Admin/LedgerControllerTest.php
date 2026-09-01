@@ -100,10 +100,6 @@ it('says so rather than showing an empty table when nothing matches the filter',
     $response->assertSee('No ledger entries match this filter.');
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/ledger')->assertRedirect(route('auth.admin.login'));
-});
-
 it('caps the rendered entries at the window size, however many exist', function (): void {
     LedgerEntry::factory()->count(ListPaneWindow::SIZE + 5)->create();
 

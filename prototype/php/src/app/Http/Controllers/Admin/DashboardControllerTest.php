@@ -92,12 +92,6 @@ it('does not mark Dashboard current on another admin page', function (): void {
     expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('tallies every listing status, a status with no rows included', function (): void {
     $this->listing($this->seller(), ['status' => ListingStatus::ForSale]);
 

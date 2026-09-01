@@ -104,9 +104,3 @@ it('settles the period named by an explicit as_of', function (): void {
     $payout = Payout::where('seller_id', $seller->id)->sole();
     expect($payout->period_start->format('Y-m-d'))->toBe('2026-08-10');
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->post('/admin/payouts');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

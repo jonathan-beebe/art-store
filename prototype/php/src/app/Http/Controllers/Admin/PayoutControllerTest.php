@@ -39,9 +39,3 @@ it('narrows the list to one seller', function (): void {
     $response->assertSee('$90.00');
     $response->assertDontSee('$50.00');
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/payouts');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

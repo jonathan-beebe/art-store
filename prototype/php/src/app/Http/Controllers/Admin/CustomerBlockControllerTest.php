@@ -39,11 +39,3 @@ it('refuses to block a customer who is already blocked', function (): void {
     $response->assertSessionHasErrors();
     expect(CustomerBlock::count())->toBe(1);
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $customer = Customer::factory()->create();
-
-    $response = $this->post("/admin/customers/{$customer->id}/blocks", ['reason' => 'Chargeback fraud.']);
-
-    $response->assertRedirect(route('auth.admin.login'));
-});

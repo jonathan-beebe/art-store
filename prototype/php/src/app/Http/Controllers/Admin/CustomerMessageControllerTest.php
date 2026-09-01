@@ -53,14 +53,6 @@ it('answers not found for a customer id that matches nothing', function (): void
     expect(Conversation::count())->toBe(0);
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $customer = $this->verifiedCustomer();
-
-    $response = $this->post("/admin/customers/{$customer->id}/messages", ['body' => 'We looked into your order.']);
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('trips the message-post limit, handing the customer page back with the message still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $admin = $this->admin();

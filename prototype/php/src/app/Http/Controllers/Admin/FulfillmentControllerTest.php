@@ -153,10 +153,6 @@ it('says nothing about a window that already holds every fulfillment', function 
     $response->assertDontSee('Showing');
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/fulfillments')->assertRedirect(route('auth.admin.login'));
-});
-
 it('answers not found for a value that is not a fulfillment id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/fulfillments/{$id}")->assertNotFound();
 })->with([

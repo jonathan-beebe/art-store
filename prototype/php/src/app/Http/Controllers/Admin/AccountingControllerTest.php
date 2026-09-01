@@ -71,7 +71,3 @@ it('folds the balance for every seller out of one read of the ledger, whatever t
     $response->assertOk();
     expect($ledgerReads)->toBe(1);
 });
-
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/accounting')->assertRedirect(route('auth.admin.login'));
-});

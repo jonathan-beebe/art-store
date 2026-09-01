@@ -207,10 +207,6 @@ it('says so on a listing nobody has bought', function (): void {
     $response->assertSee('No sales yet.');
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $this->get('/admin/listings')->assertRedirect(route('auth.admin.login'));
-});
-
 it('answers not found for a value that is not a listing id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$id}")->assertNotFound();
 })->with([

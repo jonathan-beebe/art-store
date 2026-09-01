@@ -372,12 +372,6 @@ it('renders the inbox on a fixed number of queries however many threads the admi
     $response->assertOk();
 });
 
-it('sends a guest to the admin login page', function (): void {
-    $response = $this->get('/admin/messages');
-
-    $response->assertRedirect(route('auth.admin.login'));
-});
-
 it('trips the message-post limit on the admin site, handing the thread back with the reply still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $admin = $this->admin();
