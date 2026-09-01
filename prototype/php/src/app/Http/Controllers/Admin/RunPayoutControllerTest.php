@@ -48,6 +48,14 @@ it('flashes the count and the amount', function (): void {
         && str_contains($status, '$90.00'));
 });
 
+it('flashes a zero count and total when nothing settled', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->post('/admin/payouts');
+
+    $response->assertRedirect(route('admin.payouts.index'));
+    $response->assertSessionHas('status', 'Weekly payout run: 0 payout(s) totalling $0.00.');
+    expect(Payout::count())->toBe(0);
+});
+
 it('pays out every seller with released escrow', function (): void {
     $blueKiln = $this->seller('Blue Kiln Studio');
     $ryePress = $this->seller('Rye Press');
