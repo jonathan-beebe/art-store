@@ -20,8 +20,11 @@ use App\Models\OptionAxis;
 use App\Models\OrderItem;
 use App\Support\Configurator\ListingBasicsPageData;
 use App\Support\Configurator\ListingEditPageData;
+use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -33,8 +36,11 @@ final class ListingController extends SellerController
 
     public function index(): View
     {
+        $window = ListPaneWindow::of($this->listingsQuery());
+
         return view('seller.listings.index', [
-            'listings' => $this->seller()->listings()->withEventCounts()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
+            'listings' => $window->items,
+            'listingsTotal' => $window->total,
         ]);
     }
 
@@ -90,9 +96,13 @@ final class ListingController extends SellerController
         $this->authorize('view', $listing);
 
         $endsOn = $this->now();
+        // DSGN-006: the show route's list pane is the same default,
+        // unfiltered list the index route opens with, mirroring the admin
+        // listings pane (App\Http\Controllers\Admin\ListingController).
+        $window = ListPaneWindow::of($this->listingsQuery(), $listing);
 
         return view('seller.listings.show', [
-            'listing' => $listing->loadEventCounts()->load('activeRemoval'),
+            'listing' => $listing->loadEventCounts()->load(['activeRemoval', 'category']),
             'days' => ActivityTimeline::lastDays(
                 $listing->eventCountsByDateSince(ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
                 $endsOn,
@@ -100,6 +110,8 @@ final class ListingController extends SellerController
             ),
             'windowDays' => self::ACTIVITY_WINDOW_DAYS,
             'sales' => $this->sales($listing),
+            'cellListings' => $window->items,
+            'cellListingsTotal' => $window->total,
         ]);
     }
 
@@ -202,5 +214,26 @@ final class ListingController extends SellerController
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
+    }
+
+    /**
+     * The seller's own listings, newest first — the list pane's source for
+     * both the index route and a show route's pane (DSGN-006). Carries the
+     * `images` eager load the pane's thumbnails need and the
+     * `activeRemoval` eager load its status badge needs.
+     *
+     * @return Builder<Listing>
+     */
+    private function listingsQuery(): Builder
+    {
+        return Listing::query()
+            ->ofSeller($this->seller()->id)
+            ->withEventCounts()
+            ->with([
+                'activeRemoval',
+                'images' => fn (Relation $images): Relation => $images->orderBy('position'),
+            ])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 }
