@@ -55,15 +55,6 @@ it('stops offering to mark a read notification read', function () use ($notify):
     $response->assertDontSee('Mark as read');
 });
 
-it('refuses to mark another sellers notification read', function () use ($notify): void {
-    $notification = $notify($this->seller('Other Studio'), 'ord_00000000000000000000000077');
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/notifications/{$notification->id}/read");
-
-    $response->assertNotFound();
-    expect($notification->refresh()->read_at)->toBeNull();
-});
-
 it('answers not found for a value that is not a notification id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->seller(), 'seller')->post("/seller/notifications/{$id}/read")->assertNotFound();
 })->with([

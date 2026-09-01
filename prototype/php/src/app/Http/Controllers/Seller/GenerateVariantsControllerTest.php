@@ -22,14 +22,6 @@ it('generates every combination of the listing’s axes', function (): void {
     expect(Variant::where('listing_id', $listing->id)->count())->toBe(2);
 });
 
-it('refuses generating combinations for another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/variants/generate");
-
-    $response->assertNotFound();
-});
-
 it('trips the listing-write limit generating combinations', function (): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();

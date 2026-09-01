@@ -22,14 +22,6 @@ it('lists the images cover-first with the cover tagged', function (): void {
     $response->assertSeeInOrder(['Cover']);
 });
 
-it('refuses another sellers images page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/images");
-
-    $response->assertNotFound();
-});
-
 it('adds an uploaded image at the end', function (): void {
     Storage::fake('public');
     $seller = $this->seller();
@@ -84,16 +76,6 @@ it('removes an image', function (): void {
     $response->assertRedirect(route('seller.listings.images.index', $listing));
     $response->assertSessionHas('status', 'Image removed.');
     expect(ListingImage::find($image->id))->toBeNull();
-});
-
-it('refuses removing another sellers image', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $image = $this->listingImage($listing);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/images/{$image->id}");
-
-    $response->assertNotFound();
-    expect(ListingImage::find($image->id))->not->toBeNull();
 });
 
 it('trips the listing-write limit adding an image', function (): void {

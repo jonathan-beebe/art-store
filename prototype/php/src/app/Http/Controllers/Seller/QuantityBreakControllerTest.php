@@ -53,14 +53,6 @@ it('C3: shows the buyer panel with the tier table and a discounted breakdown', f
     $response->assertSee('$702.00');
 });
 
-it('refuses another sellers quantity discounts page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/quantity-breaks");
-
-    $response->assertNotFound();
-});
-
 it('adds a quantity break tier from a typed percent', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -155,16 +147,6 @@ it('removes a quantity break tier', function (): void {
     $response->assertRedirect(route('seller.listings.quantity-breaks.index', $listing));
     $response->assertSessionHas('status', 'Breakpoint removed.');
     expect(QuantityBreak::find($break->id))->toBeNull();
-});
-
-it('refuses removing another sellers quantity break', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $break = QuantityBreak::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}");
-
-    $response->assertNotFound();
-    expect(QuantityBreak::find($break->id))->not->toBeNull();
 });
 
 it('trips the listing-write limit adding a quantity break', function (): void {

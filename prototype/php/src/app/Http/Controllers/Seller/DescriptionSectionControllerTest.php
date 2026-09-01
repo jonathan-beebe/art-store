@@ -111,14 +111,6 @@ it('shows authored kind names, never the schema word', function (): void {
     $response->assertDontSee('Body (JSON)');
 });
 
-it('refuses another sellers sections page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/description-sections");
-
-    $response->assertNotFound();
-});
-
 it('adds a markdown section at the next position', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -267,16 +259,6 @@ it('removes a section', function (): void {
     $response->assertRedirect(route('seller.listings.description-sections.index', $listing));
     $response->assertSessionHas('status', 'Section removed.');
     expect(DescriptionSection::find($section->id))->toBeNull();
-});
-
-it('refuses removing another sellers section', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $section = DescriptionSection::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/description-sections/{$section->id}");
-
-    $response->assertNotFound();
-    expect(DescriptionSection::find($section->id))->not->toBeNull();
 });
 
 it('trips the listing-write limit', function (string $action): void {

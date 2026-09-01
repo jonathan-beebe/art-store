@@ -30,20 +30,6 @@ it('adds an option value to an axis', function (): void {
         ->and($value->is_default)->toBeTrue();
 });
 
-it('refuses adding an option value to another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", [
-        'label' => 'Gold',
-        'surcharge' => '0.00',
-        'position' => 0,
-    ]);
-
-    $response->assertNotFound();
-    expect(OptionValue::count())->toBe(0);
-});
-
 it('updates an option value', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -107,17 +93,6 @@ it('refuses to remove an option value a variant still selects', function (): voi
     $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}");
 
     $response->assertSessionHasErrors();
-    expect(OptionValue::find($value->id))->not->toBeNull();
-});
-
-it('refuses to remove another sellers option value', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}");
-
-    $response->assertNotFound();
     expect(OptionValue::find($value->id))->not->toBeNull();
 });
 

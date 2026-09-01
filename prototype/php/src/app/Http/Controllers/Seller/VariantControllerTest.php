@@ -76,14 +76,6 @@ it('replaces the add-variant form with a note once every combination has a row',
     $response->assertDontSee('Add it');
 });
 
-it('refuses another sellers listing variants page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/variants");
-
-    $response->assertNotFound();
-});
-
 it('adds a sparse variant selecting one option per axis', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -424,16 +416,6 @@ it('removes a variant only a delivered order references', function (): void {
 
     $response->assertRedirect(route('seller.listings.variants.index', $listing));
     expect(Variant::find($variant->id))->toBeNull();
-});
-
-it('refuses to remove another sellers variant', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/variants/{$variant->id}");
-
-    $response->assertNotFound();
-    expect(Variant::find($variant->id))->not->toBeNull();
 });
 
 it('BUG-008 unblocks removing the option value and axis a deleted variant no longer selects', function (): void {

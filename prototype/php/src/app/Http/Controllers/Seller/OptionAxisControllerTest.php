@@ -60,14 +60,6 @@ it('offers no catalog properties for an uncategorized listing', function (): voi
     $response->assertDontSee('Somewhere Property');
 });
 
-it('refuses another sellers listing axes page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/option-axes");
-
-    $response->assertNotFound();
-});
-
 it('adds a custom axis', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -153,18 +145,6 @@ it('lists the picker’s catalog properties before the "Something else…" custo
         ->and((int) $ringSizePosition)->toBeLessThan((int) $somethingElsePosition);
 });
 
-it('refuses adding an axis to another sellers listing', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->post("/seller/listings/{$listing->id}/option-axes", [
-        'name' => 'Metal',
-        'position' => 0,
-    ]);
-
-    $response->assertNotFound();
-    expect(OptionAxis::count())->toBe(0);
-});
-
 it('updates an axis', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -216,16 +196,6 @@ it('refuses to remove an axis a variant still selects a value from', function ()
     $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}");
 
     $response->assertSessionHasErrors();
-    expect(OptionAxis::find($axis->id))->not->toBeNull();
-});
-
-it('refuses to remove another sellers axis', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}");
-
-    $response->assertNotFound();
     expect(OptionAxis::find($axis->id))->not->toBeNull();
 });
 

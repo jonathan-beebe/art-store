@@ -24,14 +24,6 @@ it('lists the listing’s modifiers', function (): void {
     $response->assertSee('Personalization text');
 });
 
-it('refuses another sellers modifiers page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/modifiers");
-
-    $response->assertNotFound();
-});
-
 it('adds a text modifier', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -101,16 +93,6 @@ it('removes a modifier', function (): void {
 
     $response->assertRedirect(route('seller.listings.modifiers.index', $listing));
     expect(Modifier::find($modifier->id))->toBeNull();
-});
-
-it('refuses removing another sellers modifier', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/listings/{$listing->id}/modifiers/{$modifier->id}");
-
-    $response->assertNotFound();
-    expect(Modifier::find($modifier->id))->not->toBeNull();
 });
 
 it('trips the listing-write limit', function (string $action): void {

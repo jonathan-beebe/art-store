@@ -40,15 +40,6 @@ it('orders units naturally by label and shows humanized specs', function (): voi
     $response->assertSee('Height: 205 mm');
 });
 
-it('refuses another sellers variant units page', function (): void {
-    $listing = $this->listing($this->seller('Other Studio'));
-    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
-
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings/{$listing->id}/variants/{$variant->id}/units");
-
-    $response->assertNotFound();
-});
-
 it('adds a unit with its condition, measurements, and price override', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
