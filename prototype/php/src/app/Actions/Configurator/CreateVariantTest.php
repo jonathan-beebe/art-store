@@ -44,6 +44,13 @@ it('clears quantity on a serialized variant regardless of what was passed', func
         ->and($variant->is_serialized)->toBeTrue();
 });
 
+it('persists enabled: false at creation', function (): void {
+    $variant = app(CreateVariant::class)($this->listing($this->seller()), [], enabled: false);
+
+    expect($variant->enabled)->toBeFalse()
+        ->and($variant->fresh()?->enabled)->toBeFalse();
+});
+
 it('refuses a combination that already has a variant row instead of a raw constraint violation', function (): void {
     $listing = $this->listing($this->seller());
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id, 'name' => 'Metal']);
