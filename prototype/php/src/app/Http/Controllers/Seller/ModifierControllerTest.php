@@ -84,6 +84,21 @@ it('updates a modifier', function (): void {
         ->and($updated?->required)->toBeTrue();
 });
 
+it('answers not found updating a modifier from another listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $otherListing = $this->listing($seller);
+    $modifier = Modifier::factory()->create(['listing_id' => $otherListing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}", [
+        'kind' => 'text',
+        'prompt' => 'New prompt',
+        'position' => 0,
+    ]);
+
+    $response->assertNotFound();
+});
+
 it('removes a modifier', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

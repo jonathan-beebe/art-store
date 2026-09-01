@@ -45,6 +45,22 @@ it('updates a modifier option', function (): void {
         ->and($updated?->add_on_price_cents)->toBe(450);
 });
 
+it('answers not found updating a modifier option from another modifier', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $modifier = Modifier::factory()->select()->create(['listing_id' => $listing->id]);
+    $otherModifier = Modifier::factory()->select()->create(['listing_id' => $listing->id]);
+    $option = ModifierOption::factory()->create(['modifier_id' => $otherModifier->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options/{$option->id}", [
+        'label' => 'New',
+        'add_on_price' => '0.00',
+        'position' => 0,
+    ]);
+
+    $response->assertNotFound();
+});
+
 it('removes a modifier option', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

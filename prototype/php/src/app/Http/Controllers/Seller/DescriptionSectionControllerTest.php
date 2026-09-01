@@ -249,6 +249,20 @@ it('updates a section', function (): void {
         ->and($updated?->body_md)->toBe('Colors may vary.');
 });
 
+it('answers not found updating a section from another listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $otherListing = $this->listing($seller);
+    $section = DescriptionSection::factory()->create(['listing_id' => $otherListing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/description-sections/{$section->id}", [
+        'kind' => 'disclaimer',
+        'body_md' => 'Colors may vary.',
+    ]);
+
+    $response->assertNotFound();
+});
+
 it('removes a section', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);

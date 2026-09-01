@@ -48,6 +48,22 @@ it('updates an option value', function (): void {
         ->and($value->fresh()?->surcharge_cents)->toBe(-250);
 });
 
+it('answers not found updating an option value from another axis', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $otherAxis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
+    $value = OptionValue::factory()->create(['axis_id' => $otherAxis->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}", [
+        'label' => 'New',
+        'surcharge' => '0.00',
+        'position' => 0,
+    ]);
+
+    $response->assertNotFound();
+});
+
 it('unsets the previous default when saving another option as preselected', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['slug' => 'two-tone-ring']);

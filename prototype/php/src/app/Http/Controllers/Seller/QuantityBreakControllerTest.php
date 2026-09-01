@@ -138,6 +138,20 @@ it('updates a quantity break tier past the cap, since it replaces an existing on
         ->and($break->fresh()?->discount_bps)->toBe(2000);
 });
 
+it('answers not found updating a quantity break from another listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $otherListing = $this->listing($seller);
+    $break = QuantityBreak::factory()->create(['listing_id' => $otherListing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}", [
+        'min_qty' => 10,
+        'discount_percent' => '10',
+    ]);
+
+    $response->assertNotFound();
+});
+
 it('removes a quantity break tier', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
