@@ -9,19 +9,11 @@ namespace App\Domain\Payments;
 | preg_replace() override
 |--------------------------------------------------------------------------
 |
-| PHP resolves an unqualified function call from the innermost namespace
-| first, so this shadows the built-in for FakeCard alone: normally it
-| forwards to the real preg_replace(), letting the test below force the
-| null result the real function can return but this suite cannot trigger
-| with an ordinary card number.
+| tests/FunctionOverrides.php declares the App\Domain\Payments\preg_replace()
+| override this file forces below; see that file for why it lives there
+| rather than here.
 |
 */
-$GLOBALS['fakeCardForcePregReplaceNull'] = false;
-
-function preg_replace(string $pattern, string $replacement, string $subject): ?string
-{
-    return $GLOBALS['fakeCardForcePregReplaceNull'] ? null : \preg_replace($pattern, $replacement, $subject);
-}
 
 it('treats a preg_replace failure as an invalid, empty-numbered card', function (): void {
     $GLOBALS['fakeCardForcePregReplaceNull'] = true;

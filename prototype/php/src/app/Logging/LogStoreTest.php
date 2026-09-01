@@ -216,13 +216,18 @@ it('re-buffers a failed batch, reports it to stderr, and inserts it on the next 
 it('drops rows past the buffer cap and reports exactly one notice to stderr', function (): void {
     $file = Fixtures::tempFile();
     $stderr = [];
-    $store = LogStore::open($file, stderrWriter: function (string $chunk) use (&$stderr): void {
-        $stderr[] = $chunk;
-    });
+    $bufferCap = 50;
+    $store = LogStore::open(
+        $file,
+        stderrWriter: function (string $chunk) use (&$stderr): void {
+            $stderr[] = $chunk;
+        },
+        bufferCap: $bufferCap,
+    );
     $connection = Fixtures::connectionOrFail($store);
     $connection->exec('DROP TABLE log_lines');
 
-    for ($i = 0; $i < 10_050; $i++) {
+    for ($i = 0; $i < $bufferCap + 5; $i++) {
         $store->append(Fixtures::line());
     }
 
@@ -233,7 +238,7 @@ it('drops rows past the buffer cap and reports exactly one notice to stderr', fu
 
     $store->flush();
 
-    expect(Fixtures::rowCount($connection))->toBe(10_000);
+    expect(Fixtures::rowCount($connection))->toBe($bufferCap);
 });
 
 it('never crashes flush() even when the injected stderr writer itself throws', function (): void {

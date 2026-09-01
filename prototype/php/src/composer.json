@@ -36,7 +36,10 @@
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/"
-        }
+        },
+        "files": [
+            "tests/FunctionOverrides.php"
+        ]
     },
     "scripts": {
         "setup": [
@@ -61,7 +64,7 @@
         ],
         "test": [
             "Composer\\Config::disableProcessTimeout",
-            "@php -d memory_limit=1G vendor/bin/pest"
+            "@php -d memory_limit=1G vendor/bin/pest --parallel --passthru-php='-d memory_limit=1G'"
         ],
         "test:coverage": [
             "Composer\\Config::disableProcessTimeout",

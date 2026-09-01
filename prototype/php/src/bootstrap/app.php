@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Console\Commands\RunWeeklyPayouts;
+use App\Console\Commands\SweepOrders;
+use App\Console\Kernel as AppConsoleKernel;
 use App\Domain\DomainRuleViolation;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Http\Middleware\LogRequestStory;
@@ -11,6 +14,7 @@ use App\Http\Middleware\RollUpPageViews;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Requests\Shop\ShopRequest;
 use Illuminate\Auth\Middleware\Authenticate;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,11 +22,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\Response;
 
-return Application::configure(basePath: dirname(__DIR__))
+$app = Application::configure(basePath: dirname(__DIR__))
     // Listener discovery reflects over every file under app/Listeners, and the
     // sidecar test beside each listener is one of them. AppServiceProvider
     // names the event/listener pairs instead.
     ->withEvents(discover: false)
+    // Named explicitly rather than left to the default directory scan:
+    // `App\Console\Kernel` (bound below) is what turns that scan off, and
+    // this is what fills the gap it leaves — see the class's docblock.
+    ->withCommands([RunWeeklyPayouts::class, SweepOrders::class])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -136,3 +144,10 @@ return Application::configure(basePath: dirname(__DIR__))
             return $response;
         });
     })->create();
+
+// `withKernels()` (called inside `Application::configure()`, above) binds
+// the base Kernel unconditionally, so nothing resolves `App\Console\Kernel`
+// without this rebinding it here.
+$app->singleton(ConsoleKernel::class, AppConsoleKernel::class);
+
+return $app;

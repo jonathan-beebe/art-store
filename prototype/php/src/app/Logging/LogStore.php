@@ -110,6 +110,7 @@ final class LogStore
     private function __construct(
         public readonly ?PDO $connection,
         private readonly Closure $stderrWriter,
+        private readonly int $bufferCap = self::BUFFER_CAP,
     ) {}
 
     /**
@@ -122,20 +123,23 @@ final class LogStore
      * here reaches the caller. `stdoutWriter`/`stderrWriter` are injectable
      * so a test can watch what would otherwise go to the real streams;
      * `registerShutdown` so a test can trigger the exit flush itself rather
-     * than waiting for the process to end.
+     * than waiting for the process to end; `bufferCap` so a test can reach
+     * the drop path in rows rather than the production `BUFFER_CAP` count.
      */
     public static function open(
         string $file,
         ?Closure $stdoutWriter = null,
         ?Closure $stderrWriter = null,
         ?Closure $registerShutdown = null,
+        ?int $bufferCap = null,
     ): self {
         $stdoutWriter ??= self::defaultWriter('php://stdout');
         $stderrWriter ??= self::defaultWriter('php://stderr');
         $registerShutdown ??= register_shutdown_function(...);
+        $bufferCap ??= self::BUFFER_CAP;
 
         if ($file === self::OFF) {
-            return new self(null, $stderrWriter);
+            return new self(null, $stderrWriter, $bufferCap);
         }
 
         try {
@@ -155,10 +159,10 @@ final class LogStore
         } catch (Throwable $e) {
             self::warnDisabled($stdoutWriter, $file, $e);
 
-            return new self(null, $stderrWriter);
+            return new self(null, $stderrWriter, $bufferCap);
         }
 
-        $store = new self($connection, $stderrWriter);
+        $store = new self($connection, $stderrWriter, $bufferCap);
         $registerShutdown($store->flush(...));
 
         return $store;
@@ -175,7 +179,7 @@ final class LogStore
             return;
         }
 
-        if (count($this->buffer) >= self::BUFFER_CAP) {
+        if (count($this->buffer) >= $this->bufferCap) {
             $this->announceDrop();
 
             return;
@@ -301,7 +305,7 @@ final class LogStore
 
         $this->dropAnnounced = true;
         $this->reportFailure(new RuntimeException(
-            sprintf('buffer full at %d rows; dropping new rows until a flush succeeds', self::BUFFER_CAP),
+            sprintf('buffer full at %d rows; dropping new rows until a flush succeeds', $this->bufferCap),
         ));
     }
 

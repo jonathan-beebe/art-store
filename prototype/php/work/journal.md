@@ -14,7 +14,11 @@
 
 ## Log
 
+- 2026-09-01:10:19:52 — IMPRV-024 — follow-up: the FunctionOverrides autoload entry exposed entrypoint.sh's stale-vendor gap (deps installed only when the directory was missing, so an existing vendor kept a stale autoload map and the FakeCard override test failed); composer and npm installs now stamp-hash their json+lock inputs and reinstall on change
+- 2026-09-01:10:02:54 — IMPRV-024 — done: composer test runs pest --parallel, serial 93s → ~40s floor at 8 workers; bar amended at acceptance (under-30s unreachable on the 8-cpu docker vm); three isolation bugs fixed, 3222 tests, coverage 100%
+- 2026-09-01:09:28:32 — IMPRV-024 — measured: composer test runs pest --parallel (fixed the three isolation bugs IMPRV-021 recorded, plus console-kernel discovery swallowing 14 sidecar tests); 3222 tests, 0 failures, coverage 100%; duration 35–65s across runs on the 8-cpu docker vm at 8 workers (serial baseline 93s) — the under-30s outcome is unmet there, decision pending
 - 2026-09-01:08:45:59 — IMPRV-023 — done: every seller-owned table carries seller_id, every customer-owned table customer_id (refunds both), OwnershipTest enforces the invariant across 28 models
+- 2026-09-01:08:04:02 — IMPRV-024 — started
 - 2026-09-01:07:57:12 — IMPRV-023 — started
 - 2026-09-01:07:51:52 — IMPRV-024 — defined: the full test suite reports under 30 seconds
 - 2026-09-01:07:36:35 — IMPRV-022 — done: a query past LOG_SLOW_QUERY_MS (default 50, off disables) writes a warn query.exceed line with source, duration_ms, sql, threshold_ms
