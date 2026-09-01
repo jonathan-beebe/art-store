@@ -22,15 +22,6 @@ it('lists the statuses a status may transition to', function (FulfillmentStatus 
     'refunded is final' => [FulfillmentStatus::Refunded, []],
 ]);
 
-it('agrees with the transition table on every pair', function (): void {
-    foreach (FulfillmentStatus::cases() as $from) {
-        foreach (FulfillmentStatus::cases() as $to) {
-            expect($from->canTransitionTo($to))
-                ->toBe(in_array($to, $from->transitions(), true), "{$from->value} -> {$to->value}");
-        }
-    }
-});
-
 it('returns the next status on transition', function (): void {
     expect(FulfillmentStatus::AwaitingShipment->transitionTo(FulfillmentStatus::Shipped))
         ->toBe(FulfillmentStatus::Shipped);

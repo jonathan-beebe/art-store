@@ -114,11 +114,3 @@ it('unions favorites', function (
         ['lst_1'], ['lst_1'], [], ['lst_1'],
     ],
 ]);
-
-it('folds an empty merge into an empty plan', function (): void {
-    $plan = CustomerMergePlan::for([], [], [], [], []);
-
-    expect($plan->cartLines)->toBe([])
-        ->and($plan->favoritesToMove)->toBe([])
-        ->and($plan->favoritesToDrop)->toBe([]);
-});

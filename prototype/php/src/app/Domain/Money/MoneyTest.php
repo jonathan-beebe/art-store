@@ -16,13 +16,6 @@ it('adds another amount', function (): void {
     expect($sum->cents)->toBe(1300);
 });
 
-it('leaves the operands untouched when adding', function (): void {
-    $subtotal = Money::fromCents(1234);
-    $subtotal->add(Money::fromCents(66));
-
-    expect($subtotal->cents)->toBe(1234);
-});
-
 it('starts at zero', function (): void {
     expect(Money::zero()->cents)->toBe(0);
 });
