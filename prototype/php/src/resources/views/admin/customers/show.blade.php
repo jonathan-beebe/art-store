@@ -231,7 +231,7 @@
         <x-messaging.body-form
             :action="route('admin.customers.messages', $customer)"
             label="Message"
-            class="mt-2 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4"
+            class="mt-2"
         />
     </section>
 </x-layouts.admin>
