@@ -19,7 +19,7 @@
     <span class="inline-flex items-center gap-1 whitespace-nowrap">
         <x-admin.log-id-chip :id="$actorId" :href="\App\Logging\Admin\LogFilterLinks::href('actor', $actorId, $filters)" :truncate="$truncate" />
         @if ($entityHref !== null)
-            <a href="{{ $entityHref }}" aria-label="View {{ $actorType }} {{ $actorId }}" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-500 dark:hover:border-gray-500">
+            <a href="{{ $entityHref }}" aria-label="View {{ $actorType }} {{ $actorId }}" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-stone-600 dark:text-stone-400 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700 hover:bg-stone-50 dark:hover:bg-white/10">
                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
             </a>
         @endif
