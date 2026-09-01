@@ -76,7 +76,11 @@ it('counts what each customer holds and names an anonymous visitor', function ()
     $response->assertOk();
     $response->assertSee($anonymous->id);
     $response->assertSee('Anonymous');
-    $response->assertSeeInOrder(['Ada Painter', '1', '1', '1']);
+    $response->assertSee('Ada Painter');
+    expect($response->getContent())
+        ->toMatch('/data-cell="orders"[^<]*>1</')
+        ->toMatch('/data-cell="favorites"[^<]*>1</')
+        ->toMatch('/data-cell="cart-lines"[^<]*>1</');
 });
 
 it('narrows the list to one standing', function (string $query, string $seen, string $hidden): void {
