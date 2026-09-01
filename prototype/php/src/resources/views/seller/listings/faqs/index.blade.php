@@ -1,4 +1,4 @@
-<x-layouts.seller :title="'Questions & answers — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Questions & answers — '.$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Questions &amp; answers</h1>
         <a href="{{ route('seller.listings.show', $listing) }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">Back to listing</a>
@@ -35,4 +35,4 @@
             @endforeach
         </ul>
     @endif
-</x-layouts.seller>
+</x-layouts.seller-focused>
