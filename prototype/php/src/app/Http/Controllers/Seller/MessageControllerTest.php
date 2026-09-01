@@ -82,8 +82,12 @@ it('renders the inbox on a fixed number of queries however many threads the sell
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
         // countable response (RollUpPageViews); +2 for the seller layout's
-        // awaiting-shipment count and unread-notifications check.
-        ->expectsDatabaseQueryCount(9)
+        // awaiting-shipment count and unread-notifications check; +1 for
+        // the list pane's window total (`ListPaneWindow`, DSGN-006
+        // follow-up) — a `count()` alongside the capped fetch, so the pane
+        // and its footer can say how many conversations exist beyond the
+        // window.
+        ->expectsDatabaseQueryCount(10)
         ->get('/seller/messages');
 
     $response->assertOk();
