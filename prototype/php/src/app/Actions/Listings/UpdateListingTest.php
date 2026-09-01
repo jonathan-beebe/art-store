@@ -109,6 +109,28 @@ it('keeps attribute rows the new category still grants', function (): void {
     expect($listing->listingAttributes()->count())->toBe(1);
 });
 
+it('clears every listing attribute when the category is cleared to none', function (): void {
+    $category = Category::factory()->create();
+    $property = Property::factory()->create();
+    $value = PropertyValue::factory()->create(['property_id' => $property->id]);
+    CategoryProperty::factory()->create([
+        'category_id' => $category->id,
+        'property_id' => $property->id,
+        'usable_as_attribute' => true,
+    ]);
+    $listing = $this->listing($this->seller(), ['category_id' => $category->id]);
+    ListingAttribute::factory()->create([
+        'listing_id' => $listing->id,
+        'property_id' => $property->id,
+        'property_value_id' => $value->id,
+    ]);
+
+    app(UpdateListing::class)($listing, ListingDraft::of('Harbour at Dawn', 'Oil on linen.', '12 x 16 in', Money::fromCents(9900), 1, null));
+
+    expect($listing->refresh()->category_id)->toBeNull()
+        ->and($listing->listingAttributes()->count())->toBe(0);
+});
+
 it('leaves other listings alone', function () use ($draft): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Mine']);
