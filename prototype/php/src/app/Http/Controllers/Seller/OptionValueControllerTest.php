@@ -10,6 +10,7 @@ use App\Models\OptionValue;
 use App\Models\Variant;
 use App\Models\VariantOption;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('adds an option value to an axis', function (): void {
     $seller = $this->seller();
@@ -96,20 +97,7 @@ it('refuses to remove an option value a variant still selects', function (): voi
     expect(OptionValue::find($value->id))->not->toBeNull();
 });
 
-it('trips the listing-write limit adding an option value', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", ['label' => 'First', 'surcharge' => '0.00', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", ['label' => 'Second', 'surcharge' => '0.00', 'position' => 1]);
-
-    $response->assertStatus(429);
-    expect(OptionValue::where('axis_id', $axis->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating an option value', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -117,22 +105,17 @@ it('trips the listing-write limit updating an option value', function (): void {
     $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Old']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", ['label' => 'Consumes budget', 'surcharge' => '0.00', 'position' => 0]);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}", ['label' => 'New', 'surcharge' => '0.00', 'position' => 0]);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", ['label' => 'Second', 'surcharge' => '0.00', 'position' => 1]),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}", ['label' => 'New', 'surcharge' => '0.00', 'position' => 0]),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($value->fresh()?->label)->toBe('Old');
-});
-
-it('trips the listing-write limit removing an option value', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
-    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values", ['label' => 'Consumes budget', 'surcharge' => '0.00', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/option-axes/{$axis->id}/option-values/{$value->id}");
-
-    $response->assertStatus(429);
-    expect(OptionValue::find($value->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(OptionValue::where('axis_id', $axis->id)->count())->toBe(2),
+        'updating' => expect($value->fresh()?->label)->toBe('Old'),
+        'removing' => expect(OptionValue::find($value->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
