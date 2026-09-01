@@ -41,17 +41,13 @@ it('decides approval or a decline reason from the card number', function (string
     'anything else is declined: invalid card number' => ['1234 5678 9012 3456', DeclineReason::InvalidCardNumber],
 ]);
 
-it('ignores dashes', function (): void {
-    expect(FakeCard::decide('4242-4242-4242-4242')->isApproved)->toBeTrue();
-});
-
-it('ignores no separator at all', function (): void {
-    expect(FakeCard::decide('4242424242424242')->isApproved)->toBeTrue();
-});
-
-it('ignores a mix of spaces and dashes, including surrounding whitespace', function (): void {
-    expect(FakeCard::decide('  4242 4242-4242 4242  ')->isApproved)->toBeTrue();
-});
+it('ignores separators between the digits', function (string $number): void {
+    expect(FakeCard::decide($number)->isApproved)->toBeTrue();
+})->with([
+    'dashes' => ['4242-4242-4242-4242'],
+    'no separator at all' => ['4242424242424242'],
+    'a mix of spaces and dashes, including surrounding whitespace' => ['  4242 4242-4242 4242  '],
+]);
 
 it('exposes the last four digits', function (): void {
     expect(FakeCard::decide('4000-0000-0000-9995')->lastFour)->toBe('9995');

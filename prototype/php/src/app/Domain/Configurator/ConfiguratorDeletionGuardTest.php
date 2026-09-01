@@ -26,6 +26,6 @@ it('allows deleting a variant no cart or order references', function (): void {
     ConfiguratorDeletionGuard::forVariant(false);
 })->throwsNoExceptions();
 
-it('refuses to delete a variant a cart or order references', function (): void {
+it('refuses to delete a variant a cart or order references, naming what to do instead', function (): void {
     ConfiguratorDeletionGuard::forVariant(true);
-})->throws(DomainRuleViolation::class);
+})->throws(DomainRuleViolation::class, 'This combination is in a cart or an order; turn off "Offered" instead of removing it.');

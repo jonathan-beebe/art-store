@@ -11,3 +11,7 @@ it('normalizes an address', function (string $input): void {
     'trims surrounding whitespace' => ["  artist@example.com\n"],
     'leaves an already normal address alone' => ['artist@example.com'],
 ]);
+
+it('lowercases a multibyte uppercase address', function (): void {
+    expect(EmailNormalizer::normalize('DÜRMSTRANG@OWL.POST'))->toBe('dürmstrang@owl.post');
+});

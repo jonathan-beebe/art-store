@@ -43,3 +43,43 @@ it('hands an inbox row its subject, body, and url', function (): void {
         'url' => null,
     ]);
 });
+
+it('tells the customer their order was cancelled before it was charged', function (): void {
+    $message = NotificationMessage::purchaseCancelled('ord_00000000000000000000000001');
+
+    expect($message->toArray())->toBe([
+        'subject' => 'Order cancelled',
+        'body' => 'Order ord_00000000000000000000000001 was cancelled before it was paid. Nothing has been charged.',
+        'url' => null,
+    ]);
+});
+
+it('tells the seller their pieces are back on the storefront after a cancellation', function (): void {
+    $message = NotificationMessage::saleCancelled('ord_00000000000000000000000001');
+
+    expect($message->toArray())->toBe([
+        'subject' => 'Order cancelled',
+        'body' => 'Order ord_00000000000000000000000001 was cancelled before it was paid. Your pieces are back on the storefront.',
+        'url' => null,
+    ]);
+});
+
+it('tells the customer how much of their order was refunded and why', function (): void {
+    $message = NotificationMessage::purchaseRefunded('ord_00000000000000000000000001', Money::fromCents(4500), 'Item arrived damaged.');
+
+    expect($message->toArray())->toBe([
+        'subject' => 'Refund issued',
+        'body' => '$45.00 of order ord_00000000000000000000000001 was refunded. Reason: Item arrived damaged.',
+        'url' => null,
+    ]);
+});
+
+it('tells the seller how much was refunded on their sale and why', function (): void {
+    $message = NotificationMessage::saleRefunded('ord_00000000000000000000000001', Money::fromCents(4500), 'Item arrived damaged.');
+
+    expect($message->toArray())->toBe([
+        'subject' => 'Refund issued',
+        'body' => 'A refund of $45.00 was issued on order ord_00000000000000000000000001. Reason: Item arrived damaged.',
+        'url' => null,
+    ]);
+});

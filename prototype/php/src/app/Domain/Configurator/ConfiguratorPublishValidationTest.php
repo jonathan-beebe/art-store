@@ -111,22 +111,53 @@ it('does not flag a standalone option that carries a price of zero or more', fun
     expect($issues)->toBe([]);
 });
 
-it('flags too many variants, modifiers, quantity tiers, and sections', function (): void {
-    $variants = array_fill(0, ConfiguratorPublishValidation::MAX_VARIANTS + 1, passingVariant());
+it('flags a threshold breached alone, and passes at each threshold\'s exact boundary', function (
+    array $axisIds,
+    array $optionCountsPerAxis,
+    array $variants,
+    int $modifierCount,
+    int $quantityBreakCount,
+    int $sectionCount,
+    array $expectedCodes,
+): void {
+    $issues = ConfiguratorPublishValidation::check($axisIds, $optionCountsPerAxis, $variants, $modifierCount, $quantityBreakCount, $sectionCount);
 
-    $issues = ConfiguratorPublishValidation::check(
-        ['axs_01'],
-        [1],
-        $variants,
-        ConfiguratorPublishValidation::MAX_MODIFIERS + 1,
-        ConfiguratorPublishValidation::MAX_QUANTITY_TIERS + 1,
-        ConfiguratorPublishValidation::MAX_SECTIONS + 1,
-    );
-
-    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))->toBe([
-        'too_many_variants',
-        'too_many_modifiers',
-        'too_many_quantity_tiers',
-        'too_many_sections',
-    ]);
-});
+    expect(array_map(fn (PublishIssue $issue): string => $issue->code, $issues))->toBe($expectedCodes);
+})->with([
+    'too many variants alone' => [
+        ['axs_01'], [1], array_fill(0, ConfiguratorPublishValidation::MAX_VARIANTS + 1, passingVariant()), 0, 0, 0,
+        ['too_many_variants'],
+    ],
+    'too many modifiers alone' => [
+        [], [], [], ConfiguratorPublishValidation::MAX_MODIFIERS + 1, 0, 0,
+        ['too_many_modifiers'],
+    ],
+    'too many quantity tiers alone' => [
+        [], [], [], 0, ConfiguratorPublishValidation::MAX_QUANTITY_TIERS + 1, 0,
+        ['too_many_quantity_tiers'],
+    ],
+    'too many sections alone' => [
+        [], [], [], 0, 0, ConfiguratorPublishValidation::MAX_SECTIONS + 1,
+        ['too_many_sections'],
+    ],
+    'exactly the variant limit passes' => [
+        ['axs_01'], [1], array_fill(0, ConfiguratorPublishValidation::MAX_VARIANTS, passingVariant()), 0, 0, 0,
+        [],
+    ],
+    'exactly the modifier limit passes' => [
+        [], [], [], ConfiguratorPublishValidation::MAX_MODIFIERS, 0, 0,
+        [],
+    ],
+    'exactly the quantity tier limit passes' => [
+        [], [], [], 0, ConfiguratorPublishValidation::MAX_QUANTITY_TIERS, 0,
+        [],
+    ],
+    'exactly the section limit passes' => [
+        [], [], [], 0, 0, ConfiguratorPublishValidation::MAX_SECTIONS,
+        [],
+    ],
+    'exactly the options-per-axis limit passes' => [
+        [], [ConfiguratorPublishValidation::MAX_OPTIONS_PER_AXIS], [], 0, 0, 0,
+        [],
+    ],
+]);

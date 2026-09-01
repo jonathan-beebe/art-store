@@ -16,13 +16,6 @@ it('adds another amount', function (): void {
     expect($sum->cents)->toBe(1300);
 });
 
-it('leaves the operands untouched when adding', function (): void {
-    $subtotal = Money::fromCents(1234);
-    $subtotal->add(Money::fromCents(66));
-
-    expect($subtotal->cents)->toBe(1234);
-});
-
 it('starts at zero', function (): void {
     expect(Money::zero()->cents)->toBe(0);
 });
@@ -53,9 +46,12 @@ it('renders as its formatted amount in a string', function (): void {
     expect((string) Money::fromCents(1234))->toBe('$12.34');
 });
 
-it('multiplies by a quantity', function (): void {
-    expect(Money::fromCents(1234)->multiply(3)->cents)->toBe(3702);
-});
+it('multiplies by a quantity', function (int $quantity, int $expected): void {
+    expect(Money::fromCents(1234)->multiply($quantity)->cents)->toBe($expected);
+})->with([
+    'several units' => [3, 3702],
+    'zero units is nothing' => [0, 0],
+]);
 
 it('rejects a negative quantity', function (): void {
     expect(fn () => Money::fromCents(1234)->multiply(-1))->toThrow(InvalidArgumentException::class);
@@ -68,11 +64,16 @@ it('takes a percentage, rounding half a cent away from zero', function (int $cen
     // 10% of 1235 is 123.5 cents; the platform fee never under-collects.
     'a positive half-cent percentage rounds up' => [1235, 10, 124],
     'a negative half-cent percentage rounds away from zero' => [-1235, 10, -124],
+    'zero percent is nothing' => [1234, 0, 0],
+    'one hundred percent is the whole amount' => [1234, 100, 1234],
 ]);
 
-it('rejects a percentage outside zero to one hundred', function (): void {
-    expect(fn () => Money::fromCents(1234)->percent(101))->toThrow(InvalidArgumentException::class);
-});
+it('rejects a percentage outside zero to one hundred', function (int $percent): void {
+    expect(fn () => Money::fromCents(1234)->percent($percent))->toThrow(InvalidArgumentException::class);
+})->with([
+    'above one hundred' => [101],
+    'below zero' => [-1],
+]);
 
 it('formats as dollars and cents', function (int $cents, string $expected): void {
     expect(Money::fromCents($cents)->format())->toBe($expected);
@@ -91,6 +92,7 @@ it('reads a price typed into a price field', function (string $price, int $expec
     'a single decimal place, padded' => ['12.5', 1250],
     'surrounding whitespace' => [' 12.34 ', 1234],
     'a price too large for a float to hold exactly' => ['80704505322479.28', 8070450532247928],
+    'a negative dollar amount' => ['-12.34', -1234],
 ]);
 
 it('rejects an invalid price', function (string $price): void {

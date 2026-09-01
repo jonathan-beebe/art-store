@@ -12,5 +12,6 @@ it('reads a bare count, or made to order for a null quantity', function (): void
 
 it('reads a count with "in stock", or made to order for a null quantity', function (): void {
     expect(ListingStockLabel::withInStock(4))->toBe('4 in stock')
+        ->and(ListingStockLabel::withInStock(0))->toBe('0 in stock')
         ->and(ListingStockLabel::withInStock(null))->toBe('Made to order');
 });
