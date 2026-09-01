@@ -39,3 +39,15 @@ it('narrows the list to one seller', function (): void {
     $response->assertSee('$90.00');
     $response->assertDontSee('$50.00');
 });
+
+it('shows the empty state when the filtered seller has no payouts', function (): void {
+    $blueKiln = $this->seller('Blue Kiln Studio');
+    $ryePress = $this->seller('Rye Press');
+    Payout::create(['seller_id' => $blueKiln->id, 'period_start' => '2026-08-10', 'period_end' => '2026-08-16', 'amount_cents' => 9000, 'paid_at' => '2026-08-17 00:00:00']);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/payouts?seller={$ryePress->id}");
+
+    $response->assertOk();
+    $response->assertSee('No payouts yet.');
+    $response->assertDontSee('$90.00');
+});
