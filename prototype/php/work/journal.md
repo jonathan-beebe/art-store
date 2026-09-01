@@ -6,7 +6,7 @@
 - DSGN: 9
 - ARCH: 1
 - FEAT: 39
-- IMPRV: 24
+- IMPRV: 25
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-01:07:57:12 — IMPRV-023 — started
+- 2026-09-01:07:51:52 — IMPRV-024 — defined: the full test suite reports under 30 seconds
 - 2026-09-01:07:36:35 — IMPRV-022 — done: a query past LOG_SLOW_QUERY_MS (default 50, off disables) writes a warn query.exceed line with source, duration_ms, sql, threshold_ms
 - 2026-09-01:07:21:19 — IMPRV-022 — started
 - 2026-09-01:07:13:15 — IMPRV-023 — defined: every owned row names its owner
