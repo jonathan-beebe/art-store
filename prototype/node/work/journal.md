@@ -5,8 +5,8 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 22
-- IMPRV: 34
+- FEAT: 23
+- IMPRV: 36
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 9
@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-09-01:00:52:56 — IMPRV-035 — landed on node/php-alignment (ae5f498): 34 curated images wired via `make demo-images` + gitignored storage/demo-images, placeholder fallback proven; resolve on merge
+- 2026-08-31:23:51:19 — IMPRV-035 — defined: seed listings carry openly licensed demo images (sources documented in __local__/demo-images/node/manifest.md)
+- 2026-08-31:20:09:56 — FEAT-022 — defined: storefront images render as cached webp derivatives
+- 2026-08-31:19:51:14 — IMPRV-034 — defined: queries slower than 50ms log source, time, and query text (IMPRV-033 is allocated on branch php/imprv-021-commit-gate; counter jumps to 35 to cover both)
 - 2026-08-31:18:08:55 — IMPRV-033 — defined: the commit gate pays only for what changed (seeded from php IMPRV-021)
 
 - 2026-08-26:13:01:52 — IMPRV-032 — done: health checks hidden by default in the log viewer — `/admin/logs` hides health-check requests unless `health=1` (an "Include health checks" checkbox mirroring `group=1`; absent param = hidden, garbage 400); `isHealthCheckRequest` (`queries/log-rows.ts`) is a correlated EXISTS on the request's opening will line with an exact `data.path = '/health'` match (pinned: `/healthcheck` and `/health/x` stay visible), applied inside `matchesLogRowFilters` so rows, counts, tallies, and groups agree; story view stays unfiltered by design; along the way a latent throw was fixed — `json_extract` over a malformed `data` column now runs behind `json_valid` (ingest always stores valid JSON, so the guard is defense; the sibling domain condition's same fragility confirmed dormant, left as follow-up); reviewer: accept-with-nits, both closed (exact-match pinning test, single-source `/health` literal); 2205 tests (15 new), coverage 99.40/95.65, `make check` green
