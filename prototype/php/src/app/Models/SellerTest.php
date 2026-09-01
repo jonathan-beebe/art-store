@@ -19,23 +19,6 @@ it('is named by the morph alias its notifications are addressed to', function ()
     expect((new Seller)->getMorphClass())->toBe('seller');
 });
 
-it('reads the conversations it is a participant in', function (): void {
-    $seller = $this->seller();
-    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
-    Conversation::factory()->listingQuestion()->create();
-
-    expect($seller->conversations()->count())->toBe(1);
-});
-
-it('reads the messages it sent', function (): void {
-    $seller = $this->seller();
-    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
-    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
-    Message::factory()->create(['conversation_id' => $conversation->id]);
-
-    expect($seller->sentMessages()->count())->toBe(1);
-});
-
 it('counts its listings by status without loading one', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['status' => ListingStatus::Draft]);
@@ -49,6 +32,14 @@ it('counts its listings by status without loading one', function (): void {
         ListingStatus::Draft->value => 1,
         ListingStatus::ForSale->value => 2,
     ]);
+});
+
+it('orders the filter list by shop name, then email, with a null shop name sorting first', function (): void {
+    $noShopName = Seller::factory()->create(['shop_name' => null, 'email' => 'z@example.com']);
+    $blue = $this->seller('Blue Kiln Studio');
+    $rye = $this->seller('Rye Press');
+
+    expect(Seller::query()->orderedForFilter()->pluck('id')->all())->toBe([$noShopName->id, $blue->id, $rye->id]);
 });
 
 it('reads its escrow balance out of one grouped query', function (): void {

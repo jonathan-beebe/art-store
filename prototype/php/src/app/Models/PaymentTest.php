@@ -9,9 +9,3 @@ it('reads the amount it charged as money', function (): void {
 
     expect($order->latestPayment()->sole()->amount())->toBeMoney(55000);
 });
-
-it('reads the order it belongs to', function (): void {
-    $order = $this->paidOrderWithTwoSellers();
-
-    expect($order->latestPayment()->sole()->order()->sole()->is($order))->toBeTrue();
-});

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\Auth\MagicLinkToken;
+use Illuminate\Database\QueryException;
 
 $link = fn (string $token): MagicLink => MagicLink::factory()->create([
     'token_hash' => MagicLinkToken::hash($token),
@@ -45,6 +46,12 @@ it('stamps and closes a link once consumed', function () use ($link): void {
     expect($created->consume(now()->toDateTimeImmutable()))->toBeTrue()
         ->and($created->refresh()->consumed_at)->not->toBeNull()
         ->and($created->refresh()->statusAt(now()->toDateTimeImmutable()))->toBe(MagicLinkStatus::Consumed);
+});
+
+it('rejects a second link with the same token hash', function () use ($link): void {
+    $link('open-sesame');
+
+    expect(fn () => $link('open-sesame'))->toThrow(QueryException::class);
 });
 
 it('hands the link to one consumer and turns the second away', function () use ($link): void {

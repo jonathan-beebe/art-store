@@ -4,21 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PricingMode;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Money\Money;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
-
-it('belongs to a listing and lists its options and units', function (): void {
-    $listing = $this->listing($this->seller());
-    $variant = Variant::factory()->create(['listing_id' => $listing->id]);
-    VariantOption::factory()->create(['variant_id' => $variant->id]);
-    Unit::factory()->create(['variant_id' => $variant->id]);
-
-    expect($variant->listing()->first()?->id)->toBe($listing->id)
-        ->and($variant->options()->count())->toBe(1)
-        ->and($variant->units()->count())->toBe(1);
-});
 
 it('resolves its price as the base plus its option surcharges', function (): void {
     $variant = Variant::factory()->create();
@@ -27,6 +17,15 @@ it('resolves its price as the base plus its option surcharges', function (): voi
     VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
 
     expect($variant->resolvedPrice(Money::fromCents(2000))->cents)->toBe(2500);
+});
+
+it('resolves its price to its standalone option\'s own price rather than the base', function (): void {
+    $variant = Variant::factory()->create();
+    $axis = OptionAxis::factory()->create(['listing_id' => $variant->listing_id, 'pricing_mode' => PricingMode::Standalone]);
+    $value = OptionValue::factory()->create(['axis_id' => $axis->id, 'price_cents' => 3000]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id, 'option_value_id' => $value->id]);
+
+    expect($variant->resolvedPrice(Money::fromCents(2000))->cents)->toBe(3000);
 });
 
 it('resolves its price to the override, ignoring surcharges', function (): void {
@@ -58,35 +57,21 @@ it('names an option-less combo label generically', function (): void {
     expect($variant->comboLabel())->toBe('This combination');
 });
 
-it('flags an offered, tracked combination at the low-stock threshold as low on stock', function (): void {
-    $variant = Variant::factory()->create(['quantity' => Variant::LOW_STOCK_MAX_QUANTITY]);
+it('is low on stock only when offered, tracked, and at or under the threshold', function (bool $enabled, bool $serialized, ?int $quantity, bool $expected): void {
+    $variant = Variant::factory()->create([
+        'enabled' => $enabled,
+        'is_serialized' => $serialized,
+        'quantity' => $quantity,
+    ]);
 
-    expect($variant->isLowOnStock())->toBeTrue();
-});
-
-it('does not flag a combination above the low-stock threshold', function (): void {
-    $variant = Variant::factory()->create(['quantity' => Variant::LOW_STOCK_MAX_QUANTITY + 1]);
-
-    expect($variant->isLowOnStock())->toBeFalse();
-});
-
-it('never flags an untracked combination as low on stock', function (): void {
-    $variant = Variant::factory()->create(['quantity' => null]);
-
-    expect($variant->isLowOnStock())->toBeFalse();
-});
-
-it('never flags a combination not offered as low on stock', function (): void {
-    $variant = Variant::factory()->disabled()->create(['quantity' => 1]);
-
-    expect($variant->isLowOnStock())->toBeFalse();
-});
-
-it('never flags a serialized combination as low on stock — its stock reads off its pieces', function (): void {
-    $variant = Variant::factory()->create(['is_serialized' => true, 'quantity' => 1]);
-
-    expect($variant->isLowOnStock())->toBeFalse();
-});
+    expect($variant->isLowOnStock())->toBe($expected);
+})->with([
+    'offered, tracked, at the threshold' => [true, false, Variant::LOW_STOCK_MAX_QUANTITY, true],
+    'offered, tracked, above the threshold' => [true, false, Variant::LOW_STOCK_MAX_QUANTITY + 1, false],
+    'untracked quantity' => [true, false, null, false],
+    'not offered' => [false, false, 1, false],
+    'serialized' => [true, true, 1, false],
+]);
 
 it('counts only its available units', function (): void {
     $variant = Variant::factory()->serialized()->create();

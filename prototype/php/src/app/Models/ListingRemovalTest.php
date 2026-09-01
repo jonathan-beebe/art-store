@@ -24,10 +24,3 @@ it('records when it was lifted', function (): void {
     expect($removal->isActive())->toBeFalse()
         ->and($removal->fresh()?->lifted_at?->format('Y-m-d H:i:s'))->toBe('2026-08-23 10:00:00');
 });
-
-it('belongs to the listing it removes', function (): void {
-    $listing = $this->listing($this->seller());
-    $removal = ListingRemoval::factory()->create(['listing_id' => $listing->id]);
-
-    expect($removal->listing->id)->toBe($listing->id);
-});

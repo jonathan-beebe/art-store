@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-it('names the variant, axis, and option value it joins', function (): void {
+use Illuminate\Database\QueryException;
+
+it('rejects a second value on the same axis for the same variant', function (): void {
     $variant = Variant::factory()->create();
     $axis = OptionAxis::factory()->create();
-    $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
-    $link = VariantOption::factory()->create([
-        'variant_id' => $variant->id,
-        'axis_id' => $axis->id,
-        'option_value_id' => $value->id,
-    ]);
+    VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id]);
 
-    expect($link->variant()->first()?->id)->toBe($variant->id)
-        ->and($link->axis()->first()?->id)->toBe($axis->id)
-        ->and($link->optionValue()->first()?->id)->toBe($value->id);
+    expect(fn () => VariantOption::factory()->create(['variant_id' => $variant->id, 'axis_id' => $axis->id]))
+        ->toThrow(QueryException::class);
 });

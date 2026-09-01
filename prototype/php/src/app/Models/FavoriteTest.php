@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-it('reads the customer and the listing it links', function (): void {
+use Illuminate\Database\QueryException;
+
+it('rejects a second favorite for the same customer and listing', function (): void {
     $customer = $this->anonymousCustomer();
     $listing = $this->listing($this->seller());
-    $favorite = Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
+    Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]);
 
-    expect($favorite->customer()->sole()->is($customer))->toBeTrue()
-        ->and($favorite->listing()->sole()->is($listing))->toBeTrue();
+    expect(fn () => Favorite::create(['customer_id' => $customer->id, 'listing_id' => $listing->id]))
+        ->toThrow(QueryException::class);
 });

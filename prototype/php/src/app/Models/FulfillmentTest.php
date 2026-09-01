@@ -32,6 +32,18 @@ it('reads the ledger entries it produced', function (): void {
     expect($fulfillment->ledgerEntries()->count())->toBe(2);
 });
 
+it('narrows by status and by seller, with a null filter adding no clause', function (): void {
+    $sellerA = $this->seller('Blue Kiln Studio');
+    $sellerB = $this->seller('Rye Press');
+    $fulfillmentA = $this->paidFulfillmentFor($sellerA);
+    $fulfillmentB = $this->shippedFulfillmentFor($sellerB);
+
+    expect(Fulfillment::query()->ofStatus(FulfillmentStatus::AwaitingShipment)->pluck('id')->all())->toBe([$fulfillmentA->id])
+        ->and(Fulfillment::query()->ofStatus(null)->count())->toBe(2)
+        ->and(Fulfillment::query()->ofSeller($sellerB->id)->pluck('id')->all())->toBe([$fulfillmentB->id])
+        ->and(Fulfillment::query()->ofSeller(null)->count())->toBe(2);
+});
+
 it('counts every status the table holds, in one row each', function (): void {
     $this->paidFulfillmentFor($this->seller());
     $this->deliveredFulfillmentFor($this->seller());
