@@ -8,6 +8,7 @@ use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\QuantityBreak;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('lists the listing’s quantity discounts as sentences with a per-item chip', function (): void {
     $seller = $this->seller();
@@ -149,40 +150,24 @@ it('removes a quantity break tier', function (): void {
     expect(QuantityBreak::find($break->id))->toBeNull();
 });
 
-it('trips the listing-write limit adding a quantity break', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/quantity-breaks", ['min_qty' => 2, 'discount_percent' => '1']);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/quantity-breaks", ['min_qty' => 3, 'discount_percent' => '1']);
-
-    $response->assertStatus(429);
-    expect(QuantityBreak::where('listing_id', $listing->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating a quantity break', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $break = QuantityBreak::factory()->create(['listing_id' => $listing->id, 'min_qty' => 2]);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/quantity-breaks", ['min_qty' => 3, 'discount_percent' => '1']);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}", ['min_qty' => 99, 'discount_percent' => '1']);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/quantity-breaks", ['min_qty' => 4, 'discount_percent' => '1']),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}", ['min_qty' => 99, 'discount_percent' => '1']),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($break->fresh()?->min_qty)->toBe(2);
-});
-
-it('trips the listing-write limit removing a quantity break', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $break = QuantityBreak::factory()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/quantity-breaks", ['min_qty' => 3, 'discount_percent' => '1']);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/quantity-breaks/{$break->id}");
-
-    $response->assertStatus(429);
-    expect(QuantityBreak::find($break->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(QuantityBreak::where('listing_id', $listing->id)->count())->toBe(2),
+        'updating' => expect($break->fresh()?->min_qty)->toBe(2),
+        'removing' => expect(QuantityBreak::find($break->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
