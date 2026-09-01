@@ -32,6 +32,16 @@ $ship = function (Fulfillment $fulfillment): void {
     app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM123456789GB', test()->moment('2026-08-21 09:00:00'));
 };
 
+it('says an empty order history is empty', function (): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $response = $this->get('/orders');
+
+    $response->assertOk();
+    $response->assertSee('No orders yet.');
+    $response->assertDontSee('<li class="flex flex-wrap', escape: false);
+});
+
 it('lists the orders of the visitor', function (): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());
     $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 24500]);
