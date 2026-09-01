@@ -19,6 +19,20 @@ it('gives every class under app a sidecar test', function (): void {
         // load it keeps, and every Console\Commands sidecar test passing at
         // all covers the Finder scan it drops.
         'app/Console/Kernel.php' => 'covered by routes/consoleTest.php and the Console\Commands sidecar tests',
+        // Relations-and-casts-only models: nothing beyond FK resolution to
+        // pin. Their tables' invariants live in the related models' tests.
+        'app/Models/CategoryProperty.php' => 'relations and casts only; the category/property linkage is exercised through CategoryTest and ListingAttributeTest',
+        'app/Models/ModifierScope.php' => 'relations and casts only; scoping behavior is pinned by SetModifierScopeTest and ModifierTest',
+        'app/Models/OptionAxis.php' => 'relations and casts only; axis behavior is pinned by the configurator action and domain tests',
+        'app/Models/PropertyValue.php' => 'relations and casts only; exercised through ListingAttributeTest and the taxonomy seeder tests',
+        // Plain value carriers with no logic of their own, built and asserted
+        // through the classes that produce them.
+        'app/Domain/Configurator/AxisDefaults.php' => 'value carrier; exercised through AxisSelectionResolverTest and ConfiguratorPageResolverTest',
+        'app/Domain/Configurator/VariantSnapshot.php' => 'value carrier; exercised through VariantAvailabilityTest and the resolver tests',
+        'app/Domain/Orders/BlockedLine.php' => 'value carrier; exercised through OrderPlacementPlanTest',
+        'app/Domain/Orders/PlaceableLine.php' => 'value carrier; exercised through OrderPlacementPlanTest and PlaceableLineBuilderTest',
+        'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
+        'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
     ];
 
     $base = dirname(__DIR__);
