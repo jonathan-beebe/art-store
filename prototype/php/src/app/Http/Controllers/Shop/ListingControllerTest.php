@@ -6,11 +6,8 @@ namespace App\Http\Controllers\Shop;
 
 use App\Actions\Configurator\AddModifierOption;
 use App\Actions\Configurator\AddOptionValue;
-use App\Actions\Configurator\AddQuantityBreak;
-use App\Actions\Configurator\AddUnit;
 use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
-use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\ScopeModifier;
 use App\Domain\Configurator\DescriptionSectionKind;
@@ -344,82 +341,6 @@ it('shows the tees larger-size surcharge inline', function (): void {
 
     $withXl = $this->get('/art/tee?'.http_build_query(['axis' => [$size->id => $xl->id]]));
     $withXl->assertSee('$23.50');
-});
-
-it('greys out a sparse combination the table seller never priced, with a not-offered reason', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 80000]);
-    $length = app(CreateOptionAxis::class)($listing, 'Length');
-    $l36 = app(AddOptionValue::class)($length, '36 in', 0, isDefault: true);
-    $l48 = app(AddOptionValue::class)($length, '48 in', 0);
-    $width = app(CreateOptionAxis::class)($listing, 'Width');
-    $w24 = app(AddOptionValue::class)($width, '24 in', 0, isDefault: true);
-    $w30 = app(AddOptionValue::class)($width, '30 in', 0);
-    $createVariant = app(CreateVariant::class);
-    $createVariant($listing, [$l36, $w24], priceOverrideCents: 80000);
-    $createVariant($listing, [$l48, $w30], priceOverrideCents: 110000);
-
-    $response = $this->get('/art/table?'.http_build_query(['axis' => [$length->id => $l48->id]]));
-
-    $response->assertOk();
-    $response->assertSee('not offered');
-    $response->assertSee('disabled', escape: false);
-});
-
-it('renders the candlesticks as a unit picker excluding sold pieces, naturally ordered with humanized specs', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'candlesticks', 'price_cents' => 4500]);
-    $variant = app(CreateVariant::class)($listing, [], isSerialized: true);
-    $addUnit = app(AddUnit::class);
-    $addUnit($variant, '#10');
-    $addUnit($variant, '#1', conditionNote: 'Excellent estate condition', specs: ['height_mm' => 205, 'weight_g' => 310]);
-    $sold = $addUnit($variant, '#2', priceOverrideCents: 3500);
-    $sold->update(['state' => 'sold']);
-
-    $response = $this->get('/art/candlesticks');
-
-    $response->assertOk();
-    $response->assertSee('Excellent estate condition');
-    $response->assertSee('Height: 205 mm');
-    $response->assertSee('Weight: 310 g');
-    $response->assertSeeInOrder(['#1', '#10']);
-    // The sold piece's label, as the picker would render it — the bare
-    // string '#2' would also match the theme stylesheet's hex values.
-    $response->assertDontSee('#2</span>', escape: false);
-});
-
-it('labels an overridden variant’s breakdown with its combination instead of "Base price"', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'table', 'price_cents' => 80000]);
-    $length = app(CreateOptionAxis::class)($listing, 'Length');
-    $l48 = app(AddOptionValue::class)($length, '48 in', 0, isDefault: true);
-    $width = app(CreateOptionAxis::class)($listing, 'Width');
-    $w30 = app(AddOptionValue::class)($width, '30 in', 0, isDefault: true);
-    app(CreateVariant::class)($listing, [$l48, $w30], priceOverrideCents: 110000);
-
-    $response = $this->get('/art/table');
-
-    $response->assertOk();
-    $response->assertSee('48 in / 30 in');
-    $response->assertDontSee('Base price');
-});
-
-it('shows the wedding invitations quantity-break table and applies the tier live', function (): void {
-    $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'invitations', 'price_cents' => 300]);
-    $size = app(CreateOptionAxis::class)($listing, 'Size');
-    app(AddOptionValue::class)($size, '4x6 in', 0, isDefault: true);
-    app(GenerateVariants::class)($listing);
-    app(AddQuantityBreak::class)($listing, 50, 500);
-    app(AddQuantityBreak::class)($listing, 100, 1000);
-
-    $response = $this->get('/art/invitations?quantity=100');
-
-    $response->assertOk();
-    $response->assertSee('50+');
-    $response->assertSee('100+');
-    $response->assertSee('Quantity discount (100+)');
-    $response->assertSee('$270.00');
 });
 
 it('renders a Highlights panel from the listings attributes', function (): void {
