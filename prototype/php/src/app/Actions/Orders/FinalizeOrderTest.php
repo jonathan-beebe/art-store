@@ -228,7 +228,7 @@ it('refuses to charge a refunded order', function (): void {
     foreach ($order->fulfillments()->orderBy('id')->get() as $fulfillment) {
         app(DeclineFulfillment::class)($fulfillment, 'Damaged.', $this->moment('2026-08-21 09:00:00'));
     }
-    expect($order->fresh()?->status)->toBe(OrderStatus::Refunded);
+    expect($order->refresh()->status)->toBe(OrderStatus::Refunded);
 
     $finalize = fn () => app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-21 10:00:00'));
 

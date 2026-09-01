@@ -213,9 +213,9 @@ it('sums cart quantities across both carts and clamps the sum to the listing\'s 
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    $items = $verified->cart()->items();
-    expect($items->where('listing_id', $summed->id)->first()?->quantity)->toBe(3)
-        ->and($items->where('listing_id', $clamped->id)->first()?->quantity)->toBe(4);
+    $items = $verified->cart()->items()->get();
+    expect($items->firstWhere('listing_id', $summed->id)?->quantity)->toBe(3)
+        ->and($items->firstWhere('listing_id', $clamped->id)?->quantity)->toBe(4);
 });
 
 it('moves an anonymous favorite the verified customer lacks and drops the one they both had, visible on the verified customer', function (): void {

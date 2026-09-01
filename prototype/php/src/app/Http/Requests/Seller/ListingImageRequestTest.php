@@ -27,15 +27,17 @@ it('requires an image to upload', function (): void {
     $response->assertSessionHasErrors('image');
 });
 
-it('refuses an image with no width', function (): void {
+// A zero-width upload cannot be fabricated (GD refuses to build one), so the
+// dimensions rule is pinned from the passing side: the 1x1 floor is accepted.
+it('accepts a one-pixel image at the dimension floor', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/images", [
-        'image' => UploadedFile::fake()->image('flat.jpg', 0, 100),
+        'image' => UploadedFile::fake()->image('tiny.jpg', 1, 1),
     ]);
 
-    $response->assertSessionHasErrors('image');
+    $response->assertSessionDoesntHaveErrors('image');
 });
 
 it('refuses a file over the 5120 KB limit', function (): void {

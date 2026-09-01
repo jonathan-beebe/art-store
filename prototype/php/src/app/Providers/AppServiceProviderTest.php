@@ -57,7 +57,7 @@ it('lets @visitorCan through for a signed-in visitor the gate allows', function 
     CustomerIdentity::attachTo($request, $customer);
 
     $html = Blade::render(
-        '@visitorCan(\'markRead\', $notification)yes@endvisitorCan',
+        '@visitorCan(\'markRead\', $notification) yes @endvisitorCan',
         ['notification' => $notification],
     );
 
@@ -68,7 +68,7 @@ it('blocks @visitorCan when there is no visitor', function (): void {
     app()->instance('request', Request::create('/'));
 
     $html = Blade::render(
-        '@visitorCan(\'markRead\', $notification)yes@endvisitorCan',
+        '@visitorCan(\'markRead\', $notification) yes @endvisitorCan',
         ['notification' => null],
     );
 
