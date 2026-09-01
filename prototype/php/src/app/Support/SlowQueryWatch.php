@@ -40,7 +40,7 @@ final class SlowQueryWatch
         $durationMs = round($query->time, 2);
 
         Story::for(StoryEvent::QueryExceed)->did("a query took {$durationMs}ms, past the {$thresholdMs}ms threshold", [
-            'source' => self::source(),
+            'source' => self::sourceFrame(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS), __FILE__, base_path()),
             'duration_ms' => $durationMs,
             'sql' => $query->sql,
             'threshold_ms' => $thresholdMs,
@@ -48,19 +48,22 @@ final class SlowQueryWatch
     }
 
     /**
-     * Where the application issued the query, `relative/path.php:line`: the
-     * first backtrace frame outside this file and `vendor/`, since every
-     * frame closer than that is this listener and the framework carrying
-     * the query down to it.
+     * Where the application issued the query that produced $backtrace,
+     * `relative/path.php:line`: the first frame outside $ownFile and
+     * `vendor/`, since every frame closer than that is the listener itself
+     * and the framework carrying the query down to it. `"unknown"` when no
+     * such frame exists.
+     *
+     * @param  array<int, array<string, mixed>>  $backtrace  as returned by debug_backtrace()
      */
-    private static function source(): string
+    public static function sourceFrame(array $backtrace, string $ownFile, string $basePath): string
     {
-        foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $frame) {
+        foreach ($backtrace as $frame) {
             $file = $frame['file'] ?? null;
             $line = $frame['line'] ?? null;
 
-            if (is_string($file) && is_int($line) && $file !== __FILE__ && ! str_contains($file, self::VENDOR_MARKER)) {
-                return ltrim(str_replace(base_path(), '', $file), '/').":{$line}";
+            if (is_string($file) && is_int($line) && $file !== $ownFile && ! str_contains($file, self::VENDOR_MARKER)) {
+                return ltrim(str_replace($basePath, '', $file), '/').":{$line}";
             }
         }
 

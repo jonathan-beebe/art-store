@@ -90,6 +90,31 @@ it('names the request route as the source and leaves the query count and total o
         ->and($didData['db'])->toBe(['queries' => 1, 'total_ms' => $exceedData['duration_ms']]);
 });
 
+it('resolves the first frame outside its own file and vendor code as relative/path.php:line', function (): void {
+    $backtrace = [
+        ['file' => '/var/www/src/app/Support/SlowQueryWatch.php', 'line' => 40],
+        ['file' => '/var/www/src/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php', 'line' => 12],
+        ['file' => '/var/www/src/app/Http/Controllers/Shop/CheckoutController.php', 'line' => 88],
+    ];
+
+    expect(SlowQueryWatch::sourceFrame($backtrace, '/var/www/src/app/Support/SlowQueryWatch.php', '/var/www/src'))
+        ->toBe('app/Http/Controllers/Shop/CheckoutController.php:88');
+});
+
+it('falls back to "unknown" when no frame in the backtrace is application code', function (array $backtrace): void {
+    /** @var array<int, array<string, mixed>> $backtrace */
+    expect(SlowQueryWatch::sourceFrame($backtrace, '/var/www/src/app/Support/SlowQueryWatch.php', '/var/www/src'))
+        ->toBe('unknown');
+})->with([
+    'every frame is vendor code' => [[
+        ['file' => '/var/www/src/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php', 'line' => 12],
+    ]],
+    'every frame is the listener\'s own file' => [[
+        ['file' => '/var/www/src/app/Support/SlowQueryWatch.php', 'line' => 40],
+    ]],
+    'the backtrace is empty' => [[]],
+]);
+
 /**
  * `QueryExecuted`'s constructor needs a real connection instance; a
  * `MySqlConnection` over an in-memory SQLite `PDO` stands in for whichever
