@@ -67,6 +67,18 @@ it('folds cart lines', function (
         [],
         [['listingId' => 'lst_1', 'quantity' => 2]],
     ],
+    'two lines for the same listing with different fingerprints stay separate' => [
+        [new CustomerCartLine('lst_1', 2, 'fp_a'), new CustomerCartLine('lst_1', 3, 'fp_b')],
+        [],
+        [],
+        [['listingId' => 'lst_1', 'quantity' => 2], ['listingId' => 'lst_1', 'quantity' => 3]],
+    ],
+    'negative stock clamps the line to zero rather than going negative' => [
+        [new CustomerCartLine('lst_1', 2)],
+        [],
+        ['lst_1' => -5],
+        [],
+    ],
     'line order is verified listings first, then anonymous-only listings' => [
         [new CustomerCartLine('lst_3', 1), new CustomerCartLine('lst_1', 1)],
         [new CustomerCartLine('lst_4', 1), new CustomerCartLine('lst_2', 1)],
