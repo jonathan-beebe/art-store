@@ -220,6 +220,8 @@ prototype emits every event below that its features support.
 | `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
 | `rate_limit.exceed`                                                     | any limit trip (`warn`), `data` carries `limit`, `key`,                  |
 |                                                                         | `retry_after_seconds`                                                    |
+| `query.exceed`                                                          | any DB query slower than `LOG_SLOW_QUERY_MS` (`warn`), `data` carries    |
+|                                                                         | `source`, `duration_ms`, `sql`, `threshold_ms`                           |
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
 | `app.boot`, `app.shutdown`                                              | process lifecycle                                                        |
 
@@ -658,3 +660,11 @@ empty-means-all rule stands. The rest of DSGN-004 (workflow-first header,
 columnar rows, duration tint at ≤300 / ≤600 / >600 ms, truncated row
 chips) is page layout, per stack; Node owes the redirect when its viewer
 reaches parity.
+
+2026-09-01, slow-query line: §2.3 gains `query.exceed` — a single database
+query slower than `LOG_SLOW_QUERY_MS` (default `50`, `off` disables) writes
+one `warn` line the moment it happens, `data` carrying `source` (the first
+non-vendor backtrace frame), `duration_ms`, `sql` (the parameterized text,
+bindings excluded), and `threshold_ms`. The `http.request` did line's
+`data.db` aggregate is unchanged. PHP ships it on IMPRV-022; node's sibling
+ticket IMPRV-034 is filed; rails is queued as a follow-up.

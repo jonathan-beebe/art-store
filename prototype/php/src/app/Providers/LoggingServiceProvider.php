@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Logging\StoryEvent;
 use App\Support\DbActivity;
+use App\Support\SlowQueryWatch;
 use App\Support\Story;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationEnded;
@@ -49,6 +50,7 @@ class LoggingServiceProvider extends ServiceProvider
         $this->announceMigrations();
         $this->announceNotifications();
         $this->tallyQueries();
+        $this->watchSlowQueries();
     }
 
     /**
@@ -59,6 +61,16 @@ class LoggingServiceProvider extends ServiceProvider
     private function tallyQueries(): void
     {
         DB::listen(DbActivity::listen(...));
+    }
+
+    /**
+     * Every query, on every connection, is checked against
+     * `LOG_SLOW_QUERY_MS` as it lands (docs/alignment.md §2.3's
+     * `query.exceed`).
+     */
+    private function watchSlowQueries(): void
+    {
+        DB::listen(SlowQueryWatch::listen(...));
     }
 
     private function announceMigrations(): void

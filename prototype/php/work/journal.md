@@ -5,8 +5,8 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 38
-- IMPRV: 22
+- FEAT: 39
+- IMPRV: 24
 - MAINT: 5
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,11 @@
 
 ## Log
 
+- 2026-09-01:07:36:35 — IMPRV-022 — done: a query past LOG_SLOW_QUERY_MS (default 50, off disables) writes a warn query.exceed line with source, duration_ms, sql, threshold_ms
+- 2026-09-01:07:21:19 — IMPRV-022 — started
+- 2026-09-01:07:13:15 — IMPRV-023 — defined: every owned row names its owner
+- 2026-08-31:20:09:56 — FEAT-038 — defined: storefront images render as cached webp derivatives
+- 2026-08-31:19:51:14 — IMPRV-022 — defined: queries slower than 50ms log source, time, and query text
 - 2026-08-31:18:22:04 — IMPRV-021 — done: php's per-commit gate is now `make precommit` (Pint + PHPStan + the ungated suite, one container); `make check` (lint → assets → coverage-gated suite) moved to a once-per-branch pre-PR gate, backstopped by the existing php CI workflow (make check on push/PR). Levers: PHPStan result cache persisted via phpstan.neon's tmpDir (cold 49.8–57.0s → warm 8.7s), lint composed into one container (54.9s/2 containers → 24.1s/1). Per-commit cost ~209s/4 containers → ~87–135s/1 container (noisy shared-laptop measurements; representative clean run 87.1s); full `make check` also got faster as a side effect (~209s → ~155–164s). Pest --parallel tried, not adopted: reproducibly breaks 5/3204 tests (Env::getRepository()->set() is a no-op under ParaTest in LogStoreConfigTest/RateLimitsConfigTest), root-caused and recorded as a follow-up rather than shipped flaky. §6.1's coverage-report-on-every-commit question flagged, not resolved unilaterally. Seeded node IMPRV-033, rails IMPRV-004 for their own fast paths. 3204 tests, 100% coverage, make check green
 - 2026-08-31:17:31:57 — IMPRV-021 — started
 - 2026-08-31:17:25:32 — IMPRV-021 — rescoped: per commit runs tests (and maybe lint) in one fast container; the full check moves to PR time
