@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Logging\LogRetentionDays;
+use App\Logging\LogSlowQueryMs;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,14 +15,17 @@ use App\Logging\LogRetentionDays;
 | commerce database. LOG_DATABASE_FILE names it, beside the commerce file
 | (the literal "off" disables the store). LOG_RETENTION_DAYS bounds how
 | long a mirrored line survives before the maintenance sweep prunes it
-| ("off" disables pruning). This file loads on every boot, so a malformed
-| LOG_RETENTION_DAYS value LogRetentionDays::parse() cannot read refuses
-| the process before it answers a request rather than on the sweep that
-| would have needed it.
+| ("off" disables pruning). LOG_SLOW_QUERY_MS is the threshold a single
+| database query's elapsed time must pass to write a query.exceed line
+| (docs/alignment.md §2.3; "off" disables the line). This file loads on
+| every boot, so a malformed value LogRetentionDays::parse() or
+| LogSlowQueryMs::parse() cannot read refuses the process before it answers
+| a request rather than on the sweep or query that would have needed it.
 |
 */
 
 return [
     'database_file' => env('LOG_DATABASE_FILE', storage_path('logs.sqlite3')),
     'retention_days' => LogRetentionDays::parse(env('LOG_RETENTION_DAYS', '14'), 'LOG_RETENTION_DAYS')->days,
+    'slow_query_ms' => LogSlowQueryMs::parse(env('LOG_SLOW_QUERY_MS', '50'), 'LOG_SLOW_QUERY_MS')->milliseconds,
 ];

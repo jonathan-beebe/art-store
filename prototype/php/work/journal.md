@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-01:07:36:35 — IMPRV-022 — done: a query past LOG_SLOW_QUERY_MS (default 50, off disables) writes a warn query.exceed line with source, duration_ms, sql, threshold_ms
 - 2026-09-01:07:21:19 — IMPRV-022 — started
 - 2026-09-01:07:13:15 — IMPRV-023 — defined: every owned row names its owner
 - 2026-08-31:20:09:56 — FEAT-038 — defined: storefront images render as cached webp derivatives

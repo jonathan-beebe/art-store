@@ -45,6 +45,7 @@ enum StoryEvent: string
     case ModerationBlockCustomer = 'moderation.block_customer';
     case ModerationLiftCustomerBlock = 'moderation.lift_customer_block';
     case RateLimitExceed = 'rate_limit.exceed';
+    case QueryExceed = 'query.exceed';
     case MigrateRun = 'migrate.run';
     case MigrateApply = 'migrate.apply';
     case SeedRun = 'seed.run';
@@ -63,11 +64,16 @@ enum StoryEvent: string
 
     /**
      * Every ledger entry is written, so the money trail is a debug stream
-     * under the story rather than part of it.
+     * under the story rather than part of it. A slow query is the one `did`
+     * line an operator wants paged on, so it is `warn`.
      */
     public function level(): StoryLevel
     {
-        return $this === self::LedgerWrite ? StoryLevel::Debug : StoryLevel::Info;
+        return match ($this) {
+            self::LedgerWrite => StoryLevel::Debug,
+            self::QueryExceed => StoryLevel::Warn,
+            default => StoryLevel::Info,
+        };
     }
 
     /**
