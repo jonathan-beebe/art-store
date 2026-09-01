@@ -1,40 +1,42 @@
 <x-layouts.admin title="Accounting — Art Store admin">
     <h1 class="text-xl font-semibold">Accounting</h1>
 
-    <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-totals="platform">
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Held</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="held">{{ $totals->held->format() }}</dd>
+    {{-- Headline figures: the shared-borders stat-tile grid — one hairline
+         gap between cells rather than a border per card. --}}
+    <div class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-6 dark:bg-white/10 dark:ring-white/10" data-totals="platform">
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Held</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="held">{{ $totals->held->format() }}</p>
         </div>
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Available</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="available">{{ $totals->available->format() }}</dd>
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Available</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="available">{{ $totals->available->format() }}</p>
         </div>
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Paid out</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="paid-out">{{ $totals->paidOut->format() }}</dd>
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Paid out</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="paid-out">{{ $totals->paidOut->format() }}</p>
         </div>
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Refunded</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="refunded">{{ $totals->refunded->format() }}</dd>
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Refunded</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="refunded">{{ $totals->refunded->format() }}</p>
         </div>
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Fees earned</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="fees-earned">{{ $totals->feesEarned->format() }}</dd>
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees earned</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="fees-earned">{{ $totals->feesEarned->format() }}</p>
         </div>
-        <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-            <dt class="text-gray-600 dark:text-gray-400">Fees refunded</dt>
-            <dd class="mt-1 text-xl font-semibold tabular-nums" data-cell="fees-refunded">{{ $totals->feesRefunded->format() }}</dd>
+        <div class="bg-white p-6 dark:bg-stone-900">
+            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees refunded</p>
+            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="fees-refunded">{{ $totals->feesRefunded->format() }}</p>
         </div>
-    </dl>
+    </div>
 
     @if ($sellers->isEmpty())
         <x-admin.nothing class="mt-4">No sellers yet.</x-admin.nothing>
     @else
-        <div class="mt-4 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
+        <div class="mt-4 hidden overflow-x-auto rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 sm:block">
             <table class="w-full text-left">
                 <caption class="sr-only">Every seller's escrow reconciled against the ledger</caption>
-                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <thead class="border-b border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Shop</th>
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Held</th>
@@ -43,17 +45,17 @@
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Refunded</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                     @foreach ($sellers as $seller)
                         @php($balance = $balances->of($seller->id))
                         <tr data-seller="{{ $seller->id }}">
                             <th scope="row" class="px-4 py-2 font-normal">
                                 <a href="{{ route('admin.sellers.show', $seller) }}" class="font-medium underline">{{ $seller->displayName() }}</a>
                             </th>
-                            <td class="px-4 py-2 text-right tabular-nums" data-cell="held">{{ $balance->held->format() }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums" data-cell="available">{{ $balance->available->format() }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums" data-cell="paid-out">{{ $balance->paidOut->format() }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums" data-cell="refunded">{{ $balance->refunded->format() }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400" data-cell="held">{{ $balance->held->format() }}</td>
+                            <td class="px-4 py-2 text-right font-semibold tabular-nums text-stone-900 dark:text-white" data-cell="available">{{ $balance->available->format() }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400" data-cell="paid-out">{{ $balance->paidOut->format() }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums text-stone-500 dark:text-stone-400" data-cell="refunded">{{ $balance->refunded->format() }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -65,9 +67,9 @@
                 @php($balance = $balances->of($seller->id))
                 <x-admin.card-row data-seller="{{ $seller->id }}">
                     <a href="{{ route('admin.sellers.show', $seller) }}" class="font-medium underline">{{ $seller->displayName() }}</a>
-                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums text-gray-900 dark:text-gray-100">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 tabular-nums text-stone-600 dark:text-stone-400">
                         <span data-cell="held">Held {{ $balance->held->format() }}</span>
-                        <span data-cell="available">Available {{ $balance->available->format() }}</span>
+                        <span class="font-semibold text-stone-900 dark:text-white" data-cell="available">Available {{ $balance->available->format() }}</span>
                         <span data-cell="paid-out">Paid {{ $balance->paidOut->format() }}</span>
                         <span data-cell="refunded">Refunded {{ $balance->refunded->format() }}</span>
                     </div>

@@ -7,7 +7,7 @@
 @props(['href' => null])
 
 @if ($href !== null)
-    <a href="{{ $href }}" {{ $attributes->merge(['class' => 'flex flex-col gap-1 p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50']) }}>
+    <a href="{{ $href }}" {{ $attributes->merge(['class' => 'flex flex-col gap-1 p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50']) }}>
         {{ $slot }}
     </a>
 @else

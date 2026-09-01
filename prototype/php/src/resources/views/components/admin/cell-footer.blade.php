@@ -5,7 +5,7 @@
 @props(['shown', 'total', 'route'])
 
 @if ($total > $shown)
-    <p class="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3 text-xs text-gray-500 dark:text-gray-500">
+    <p class="shrink-0 border-t border-stone-200 dark:border-stone-800 p-3 text-xs text-stone-500 dark:text-stone-500">
         Showing {{ $shown }} of <a href="{{ $route }}" class="underline">{{ $total }}</a>
     </p>
 @endif
