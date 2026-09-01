@@ -1,37 +1,40 @@
-{{-- The fulfillments list pane's cells (DSGN-006). The seller leads —
-     whose work it is — because that is the shop a founder is tracking;
-     the customer it ships to is the supporting fact. The net a seller
-     nets is the number that matters, right-aligned in mono. --}}
+{{-- The fulfillments list pane's cells (DSGN-006, restyled to the canonical
+     two-line row): the seller leads — whose work it is — because that is
+     the shop a founder is tracking; the status pill sits right-aligned
+     beside it, using the same status-to-color mapping the seller portal's
+     own fulfillment-cells uses. The muted second line is the scan line —
+     who it ships to, the seller's net, and the shipped (or created) date. --}}
 @props(['fulfillments', 'selected' => null])
 
-<div class="flex flex-col divide-y divide-gray-200 dark:divide-gray-800">
+<div class="flex flex-col divide-y divide-stone-200 dark:divide-white/10">
     @forelse ($fulfillments as $fulfillment)
         @php
             $isSelected = $selected !== null && $selected->id === $fulfillment->id;
             $tint = match ($fulfillment->status) {
-                \App\Domain\Orders\FulfillmentStatus::Declined, \App\Domain\Orders\FulfillmentStatus::Refunded => 'bad',
-                \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'warn',
-                \App\Domain\Orders\FulfillmentStatus::Shipped, \App\Domain\Orders\FulfillmentStatus::Delivered => 'ok',
+                \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
+                \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
+                \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
+                \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
+                \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
             };
+            $when = $fulfillment->shipped_at ?? $fulfillment->created_at;
         @endphp
-        <x-admin.card-row
+        <a
             href="{{ route('admin.fulfillments.show', $fulfillment) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            @if ($isSelected) aria-current="true" @endif
             data-pane-cell="{{ $fulfillment->id }}"
-            class="{{ $isSelected ? 'bg-gray-100 dark:bg-gray-800' : '' }}"
+            class="flex items-center gap-3 px-6 py-3 hover:bg-stone-50 dark:hover:bg-white/5 {{ $isSelected ? 'bg-stone-50 shadow-[inset_2px_0_0_0_var(--color-stone-500)] dark:bg-white/5 dark:shadow-[inset_2px_0_0_0_var(--color-stone-400)]' : '' }}"
         >
-            <div class="flex items-baseline gap-2">
-                <span class="truncate font-medium">{{ $fulfillment->seller->displayName() }}</span>
-                <span class="flex-1"></span>
-                <x-admin.cell-time :at="$fulfillment->shipped_at ?? $fulfillment->created_at" />
+            <div class="min-w-0 flex-1">
+                <div class="flex items-start gap-3">
+                    <span class="flex-1 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{{ $fulfillment->seller->displayName() }}</span>
+                    <x-admin.status-pill :tint="$tint">{{ $fulfillment->status->label() }}</x-admin.status-pill>
+                </div>
+                <p class="truncate text-xs text-stone-500 dark:text-stone-400">
+                    {{ $fulfillment->order->customer->displayName() }} &middot; {{ $fulfillment->net()->format() }} &middot; {{ $when?->format('M j') }}
+                </p>
             </div>
-            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <x-admin.status-badge :tint="$tint">{{ $fulfillment->status->label() }}</x-admin.status-badge>
-                <span class="truncate">{{ $fulfillment->order->customer->displayName() }}</span>
-                <span class="flex-1"></span>
-                <span class="font-mono tabular-nums text-gray-900 dark:text-gray-100">{{ $fulfillment->net()->format() }}</span>
-            </div>
-        </x-admin.card-row>
+        </a>
     @empty
         <x-admin.nothing class="m-3">No fulfillments.</x-admin.nothing>
     @endforelse

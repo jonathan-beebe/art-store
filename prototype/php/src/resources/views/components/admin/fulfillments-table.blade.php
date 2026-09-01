@@ -3,10 +3,10 @@
 @if ($fulfillments->isEmpty())
     <x-admin.nothing>No fulfillments.</x-admin.nothing>
 @else
-    <div class="mt-2 hidden overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 sm:block">
+    <div class="mt-2 hidden overflow-x-auto rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 sm:block">
         <table class="w-full text-left">
             <caption class="sr-only">{{ $caption }}</caption>
-            <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <thead class="border-b border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50">
                 <tr>
                     <th scope="col" class="px-4 py-2 font-semibold">Fulfillment</th>
                     @if ($showOrder)
@@ -20,7 +20,7 @@
                     <th scope="col" class="px-4 py-2 font-semibold">Shipped</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                 @foreach ($fulfillments as $fulfillment)
                     <tr>
                         <th scope="row" class="px-4 py-2 font-normal">
@@ -49,11 +49,11 @@
         @foreach ($fulfillments as $fulfillment)
             <x-admin.card-row>
                 <a href="{{ route('admin.fulfillments.show', $fulfillment) }}" class="font-medium underline">{{ $fulfillment->id }}</a>
-                <div class="flex items-center justify-between gap-3 text-gray-600 dark:text-gray-400">
+                <div class="flex items-center justify-between gap-3 text-stone-600 dark:text-stone-400">
                     <span>{{ $fulfillment->status->label() }}</span>
-                    <span class="tabular-nums text-gray-900 dark:text-gray-100">{{ $fulfillment->net()->format() }}</span>
+                    <span class="tabular-nums text-stone-900 dark:text-stone-100">{{ $fulfillment->net()->format() }}</span>
                 </div>
-                <div class="text-gray-600 dark:text-gray-400">
+                <div class="text-stone-600 dark:text-stone-400">
                     @if ($showOrder)
                         <a href="{{ route('admin.orders.show', $fulfillment->order) }}" class="underline">{{ $fulfillment->order->id }}</a>
                         &middot;
