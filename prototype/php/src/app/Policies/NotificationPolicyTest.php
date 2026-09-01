@@ -53,8 +53,10 @@ it('answers not found for another customers notification', function () use ($shi
         ->and($response->status())->toBe(404);
 });
 
-it('reads the recipient type as well as the id', function () use ($shippedTo): void {
-    $notification = $shippedTo($this->verifiedCustomer());
+it('denies a seller reading a customers notification even when the ids match', function () use ($shippedTo): void {
+    $customer = $this->verifiedCustomer();
+    $notification = $shippedTo($customer);
+    $seller = Seller::factory()->create(['id' => $customer->id]);
 
-    expect((new NotificationPolicy)->markRead($this->seller(), $notification)->denied())->toBeTrue();
+    expect((new NotificationPolicy)->markRead($seller, $notification)->denied())->toBeTrue();
 });

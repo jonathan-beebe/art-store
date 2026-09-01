@@ -56,6 +56,19 @@ it('requires a verified customer to give a card', function () use ($fillCart, $f
     expect(Order::count())->toBe(0);
 });
 
+it('keeps card fields out of session old input on a failing post, while keeping the rest', function () use ($fillCart, $form): void {
+    $this->actingAs(Customer::factory()->create(), 'customer');
+    $fillCart();
+
+    $response = $this->post('/checkout', $form());
+
+    $response->assertSessionHasErrors('card_number');
+    $response->assertSessionMissing('_old_input.card_number');
+    $response->assertSessionMissing('_old_input.card_expiry');
+    $response->assertSessionMissing('_old_input.card_cvc');
+    $response->assertSessionHas('_old_input.email', 'guest@example.com');
+});
+
 it('asks a guest for no card', function () use ($fillCart, $form): void {
     $this->visitor();
     $fillCart();
