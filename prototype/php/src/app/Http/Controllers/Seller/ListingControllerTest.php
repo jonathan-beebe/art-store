@@ -174,6 +174,14 @@ it('DSGN-003 falls back to the question screen for an unrecognized shape', funct
     $response->assertSee('What are you selling?');
 });
 
+it('DSGN-003 falls back to the question screen for a recognized shape with no title', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')
+        ->get('/seller/listings/create?'.http_build_query(['shape' => 'one']));
+
+    $response->assertOk();
+    $response->assertSee('What are you selling?');
+});
+
 it('DSGN-003 keeps the legacy flat-form fields off every create screen', function (): void {
     $seller = $this->actingAs($this->seller(), 'seller');
 
