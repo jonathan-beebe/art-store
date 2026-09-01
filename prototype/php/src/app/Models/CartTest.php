@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\UnavailableReason;
+use LogicException;
 
 it('reads its items as cart lines', function (): void {
     $seller = $this->seller();
@@ -37,6 +38,7 @@ it('blocks a line the placement plan finds unavailable', function (string $reaso
         'off_sale' => $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'status' => ListingStatus::Archived]),
         'removed' => $this->listing($this->seller(), ['title' => 'Winter Elm']),
         'sold_out' => $this->listing($this->seller(), ['title' => 'Line Art Cat Tee', 'quantity' => 50]),
+        default => throw new LogicException("unhandled reason kind {$reasonKind}"),
     };
 
     $variantId = null;

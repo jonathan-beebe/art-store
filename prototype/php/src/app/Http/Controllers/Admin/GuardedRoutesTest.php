@@ -53,7 +53,7 @@ it('sends a signed-in customer to admin sign-in, not the page, for every admin-g
 });
 
 /**
- * @return list<Route>
+ * @return array<int, Route>
  */
 function adminGuardedRoutes(): array
 {

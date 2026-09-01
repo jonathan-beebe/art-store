@@ -71,7 +71,7 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
 
     $routes = collect(RouteFacade::getRoutes()->getRoutes())
         ->filter(fn (Route $route): bool => in_array('auth.seller', $route->gatherMiddleware(), true))
-        ->filter(fn (Route $route): bool => array_intersect($route->parameterNames(), ['listing', 'fulfillment', 'notification']) !== []);
+        ->filter(fn (Route $route): bool => collect($route->parameterNames())->intersect(['listing', 'fulfillment', 'notification'])->isNotEmpty());
 
     expect($routes)->not->toBeEmpty();
 

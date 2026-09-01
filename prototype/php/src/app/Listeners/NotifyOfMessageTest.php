@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Notifications\MessageReceived;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
+use LogicException;
 
 it('tells the participant who did not send the message', function (): void {
     $seller = $this->seller();
@@ -120,6 +121,7 @@ it('links to the thread on the recipient site once its route exists', function (
             'seller_id' => $participants['seller']->id,
             'customer_id' => $participants['customer']->id,
         ]),
+        default => throw new LogicException("unhandled conversation kind {$kind}"),
     };
     $message = Message::factory()->from($participants[$senderKey])->create(['conversation_id' => $conversation->id]);
     Notification::fake();

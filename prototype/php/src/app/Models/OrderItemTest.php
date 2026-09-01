@@ -8,7 +8,7 @@ use App\Actions\Fulfillment\MarkShipped;
 
 it('includes only the item whose own seller still has a fulfillment awaiting shipment', function (): void {
     $order = $this->paidOrderWithTwoSellers();
-    $shippedFulfillment = $order->fulfillments()->first();
+    $shippedFulfillment = $order->fulfillments()->firstOrFail();
     app(MarkShipped::class)($shippedFulfillment, 'USPS', 'TRACK1', $this->moment('2026-08-21 09:00:00'));
 
     $stillAwaitingItem = $order->items()->where('seller_id', '!=', $shippedFulfillment->seller_id)->sole();

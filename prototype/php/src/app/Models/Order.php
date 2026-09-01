@@ -110,7 +110,7 @@ class Order extends Model
     {
         return $this->payments()->one()->ofMany(
             ['processed_at' => 'max'],
-            fn ($query) => $query->where('status', PaymentStatus::Approved),
+            fn (Builder $query) => $query->where('status', PaymentStatus::Approved),
         );
     }
 

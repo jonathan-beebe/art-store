@@ -85,9 +85,9 @@ it('combines the seller and type filters as an AND, not either alone', function 
     $response->assertOk();
     $content = (string) $response->getContent();
     expect($content)->toMatch('/data-cell="seller"[\s\S]*?Rye Press/')
-        ->toMatch('/data-cell="type"[^<]*>Held/')
-        ->not->toMatch('/data-cell="seller"[\s\S]*?Blue Kiln Studio/')
-        ->not->toMatch('/data-cell="type"[^<]*>Released/');
+        ->toMatch('/data-cell="type"[^<]*>Held/');
+    expect($content)->not->toMatch('/data-cell="seller"[\s\S]*?Blue Kiln Studio/');
+    expect($content)->not->toMatch('/data-cell="type"[^<]*>Released/');
 });
 
 it('reads an empty seller or type filter as no filter at all', function (): void {

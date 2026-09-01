@@ -203,7 +203,7 @@ it('joins two scoped values on the same axis with "or"', function (): void {
 
     $summary = ListingConfiguratorSummaries::questions($listing);
 
-    expect($summary[0]['scopeNote'])->toBe('only asked when Version is Hand-lettered or Foiled');
+    expect($summary[0]['scopeNote'] ?? null)->toBe('only asked when Version is Hand-lettered or Foiled');
 });
 
 it('joins a modifier scoped across two axes with "and"', function (): void {
@@ -218,7 +218,7 @@ it('joins a modifier scoped across two axes with "and"', function (): void {
 
     $summary = ListingConfiguratorSummaries::questions($listing);
 
-    expect($summary[0]['scopeNote'])->toBe('only asked when Version is Hand-lettered and Color is Gold');
+    expect($summary[0]['scopeNote'] ?? null)->toBe('only asked when Version is Hand-lettered and Color is Gold');
 });
 
 it('summarizes an unscoped, unpriced, optional question', function (): void {

@@ -32,7 +32,10 @@ it('names the payout it settled when one is set', function (): void {
 
     $entry = LedgerEntry::factory()->paidOut()->create();
 
-    expect($log->line('ledger.write', 'did')['data']['payout_id'])->toBe($entry->payout_id);
+    $data = $log->line('ledger.write', 'did')['data'];
+    assert(is_array($data));
+
+    expect($data['payout_id'])->toBe($entry->payout_id);
 });
 
 it('joins the entry to the unit of work that wrote it', function (): void {
