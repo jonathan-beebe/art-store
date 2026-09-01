@@ -8,6 +8,7 @@ use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
 use Illuminate\Support\Facades\Config;
+use LogicException;
 
 it('adds an option to a select modifier', function (): void {
     $seller = $this->seller();
@@ -56,20 +57,7 @@ it('removes a modifier option', function (): void {
     expect(ModifierOption::find($option->id))->toBeNull();
 });
 
-it('trips the listing-write limit adding a modifier option', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $modifier = Modifier::factory()->select()->create(['listing_id' => $listing->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options", ['label' => 'First', 'add_on_price' => '0.00', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options", ['label' => 'Second', 'add_on_price' => '0.00', 'position' => 1]);
-
-    $response->assertStatus(429);
-    expect(ModifierOption::where('modifier_id', $modifier->id)->count())->toBe(1);
-});
-
-it('trips the listing-write limit updating a modifier option', function (): void {
+it('trips the listing-write limit', function (string $action): void {
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -77,22 +65,17 @@ it('trips the listing-write limit updating a modifier option', function (): void
     $option = ModifierOption::factory()->create(['modifier_id' => $modifier->id, 'label' => 'Old']);
     $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options", ['label' => 'Consumes budget', 'add_on_price' => '0.00', 'position' => 0]);
 
-    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options/{$option->id}", ['label' => 'New', 'add_on_price' => '0.00', 'position' => 0]);
+    $response = match ($action) {
+        'adding' => $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options", ['label' => 'Second', 'add_on_price' => '0.00', 'position' => 1]),
+        'updating' => $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options/{$option->id}", ['label' => 'New', 'add_on_price' => '0.00', 'position' => 0]),
+        'removing' => $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options/{$option->id}"),
+        default => throw new LogicException("Unknown action: {$action}"),
+    };
 
     $response->assertStatus(429);
-    expect($option->fresh()?->label)->toBe('Old');
-});
-
-it('trips the listing-write limit removing a modifier option', function (): void {
-    Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $modifier = Modifier::factory()->select()->create(['listing_id' => $listing->id]);
-    $option = ModifierOption::factory()->create(['modifier_id' => $modifier->id]);
-    $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options", ['label' => 'Consumes budget', 'add_on_price' => '0.00', 'position' => 0]);
-
-    $response = $this->actingAs($seller, 'seller')->delete("/seller/listings/{$listing->id}/modifiers/{$modifier->id}/options/{$option->id}");
-
-    $response->assertStatus(429);
-    expect(ModifierOption::find($option->id))->not->toBeNull();
-});
+    match ($action) {
+        'adding' => expect(ModifierOption::where('modifier_id', $modifier->id)->count())->toBe(2),
+        'updating' => expect($option->fresh()?->label)->toBe('Old'),
+        'removing' => expect(ModifierOption::find($option->id))->not->toBeNull(),
+    };
+})->with(['adding', 'updating', 'removing']);
