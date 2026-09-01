@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-01:08:45:59 — IMPRV-023 — done: every seller-owned table carries seller_id, every customer-owned table customer_id (refunds both), OwnershipTest enforces the invariant across 28 models
 - 2026-09-01:07:57:12 — IMPRV-023 — started
 - 2026-09-01:07:51:52 — IMPRV-024 — defined: the full test suite reports under 30 seconds
 - 2026-09-01:07:36:35 — IMPRV-022 — done: a query past LOG_SLOW_QUERY_MS (default 50, off disables) writes a warn query.exceed line with source, duration_ms, sql, threshold_ms

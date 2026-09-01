@@ -1,7 +1,7 @@
 ---
 id: IMPRV-023
 type: improvement
-status: open
+status: resolved
 created: 2026-09-01
 ---
 
