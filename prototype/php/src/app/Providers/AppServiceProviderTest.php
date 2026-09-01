@@ -6,9 +6,13 @@ namespace App\Providers;
 
 use App\Events\FulfillmentShipped;
 use App\Events\MessagePosted;
+use App\Events\OrderCancelled;
 use App\Events\OrderPaid;
+use App\Events\RefundIssued;
 use App\Listeners\NotifyCustomerOfShipment;
+use App\Listeners\NotifyOfCancellation;
 use App\Listeners\NotifyOfMessage;
+use App\Listeners\NotifyOfRefund;
 use App\Listeners\NotifySellerOfSale;
 use App\Models\Admin;
 use App\Models\Customer;
@@ -34,5 +38,7 @@ it('registers the notification policy for the database notification model', func
 it('listens for the business-moment events that trigger a notification', function (): void {
     expect(Event::getRawListeners()[OrderPaid::class] ?? [])->toContain(NotifySellerOfSale::class)
         ->and(Event::getRawListeners()[FulfillmentShipped::class] ?? [])->toContain(NotifyCustomerOfShipment::class)
+        ->and(Event::getRawListeners()[OrderCancelled::class] ?? [])->toContain(NotifyOfCancellation::class)
+        ->and(Event::getRawListeners()[RefundIssued::class] ?? [])->toContain(NotifyOfRefund::class)
         ->and(Event::getRawListeners()[MessagePosted::class] ?? [])->toContain(NotifyOfMessage::class);
 });
