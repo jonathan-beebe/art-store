@@ -530,8 +530,8 @@ by prototype today:
 - php runs `make precommit` (lint + the ungated suite, one container;
   IMPRV-021). `make check` — the full gate — runs once per branch instead,
   at PR time: whoever opens the PR runs `make check` by hand or lets CI run
-  it (below), and a change that drops a line of coverage or fails static
-  analysis is still caught there before merge.
+  it (below), and a change that drops coverage below the floor or fails
+  static analysis is still caught there before merge.
 - node and rails still run their full `make check` on every commit.
 
 CI (`.github/workflows/<x>.yml`) runs `make check` per prototype on push and
