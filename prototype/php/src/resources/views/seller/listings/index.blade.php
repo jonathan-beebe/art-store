@@ -1,59 +1,18 @@
-<x-layouts.seller title="Listings — Art Store seller">
-    <div class="flex items-center gap-4">
-        <h1 class="text-xl font-semibold">Listings</h1>
-        <a href="{{ route('seller.listings.create') }}" class="ml-auto rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">New listing</a>
+<x-layouts.seller title="Listings — Art Store seller" :bleed="true">
+    <div class="h-[calc(100dvh-4rem)] overflow-hidden">
+        <x-seller.list-detail>
+            <x-slot:listHeader>
+                @include('seller.listings._list-header', ['total' => $listingsTotal])
+            </x-slot:listHeader>
+
+            <x-slot:list>
+                <x-seller.listing-rows :listings="$listings" />
+                <x-seller.cell-footer :shown="$listings->count()" :total="$listingsTotal" />
+            </x-slot:list>
+
+            <div class="flex h-full items-center justify-center p-8 text-center">
+                <p class="text-gray-500 dark:text-gray-500">Choose a listing to see its details.</p>
+            </div>
+        </x-seller.list-detail>
     </div>
-
-    @if ($listings->isEmpty())
-        <p class="mt-4 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No listings yet. Start with a new one.</p>
-    @else
-        <div class="mt-4 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
-            <table class="w-full text-left">
-                <caption class="sr-only">Your listings, newest first</caption>
-                <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                    <tr>
-                        <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
-                        <th scope="col" class="px-4 py-2 font-semibold">Status</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Price</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Qty</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Favorites</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Cart adds</th>
-                        <th scope="col" class="px-4 py-2 font-semibold">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-                    @foreach ($listings as $listing)
-                        <tr>
-                            <th scope="row" class="px-4 py-3 font-normal">
-                                <span class="flex items-center gap-3">
-                                    <img src="{{ $listing->imageUrl() }}" alt="{{ $listing->title }}" width="48" height="48" class="h-12 w-12 rounded object-cover">
-                                    <a href="{{ route('seller.listings.show', $listing->id) }}" class="font-medium underline">{{ $listing->title }}</a>
-                                </span>
-                            </th>
-                            <td class="px-4 py-3">{{ $listing->status->label() }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->price()->format() }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->quantityLabel() }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->views_count }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->favorites_count }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums">{{ $listing->cart_adds_count }}</td>
-                            <td class="px-4 py-3">
-                                <span class="flex flex-wrap items-center gap-2">
-                                    <a href="{{ route('seller.listings.edit', $listing->id) }}" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-1">Edit</a>
-
-                                    @foreach ($listing->availableTransitionsFromEagerLoad() as $next)
-                                        <form method="POST" action="{{ route('seller.listings.status', $listing->id) }}">
-                                            @csrf
-                                            <input type="hidden" name="status" value="{{ $next->value }}">
-                                            <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-2 py-1">Mark {{ lcfirst($next->label()) }}</button>
-                                        </form>
-                                    @endforeach
-                                </span>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    @endif
 </x-layouts.seller>

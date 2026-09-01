@@ -24,6 +24,7 @@ use App\Models\PropertyValue;
 use App\Models\QuantityBreak;
 use App\Models\Seller;
 use App\Models\Variant;
+use App\Support\ListPaneWindow;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Events\QueryExecuted;
@@ -119,6 +120,156 @@ it('shows a placeholder thumbnail for a listing without an image', function (): 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
 
     $response->assertSee($listing->imageUrl(), escape: false);
+});
+
+it('shows the cover photo and photo count on the detail pane', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $cover = $this->listingImage($listing, ['position' => 0]);
+    $this->listingImage($listing, ['position' => 1]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertSee($cover->url(), escape: false)
+        ->assertSee('2 photos');
+});
+
+it('shows the no-photos placeholder on the detail pane for a listing without images', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertSee('No photos yet');
+});
+
+it('DSGN-006 shows the list panes empty-detail prompt on the index route', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Harbour at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertSee('Choose a listing to see its details.');
+});
+
+it('DSGN-006 reads each rows badge off its status', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Live One', 'status' => ListingStatus::ForSale]);
+    $this->listing($seller, ['title' => 'Draft One', 'status' => ListingStatus::Draft]);
+    $this->listing($seller, ['title' => 'Sold One', 'status' => ListingStatus::Sold, 'quantity' => 0]);
+    $this->listing($seller, ['title' => 'Archived One', 'status' => ListingStatus::Archived]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Live One', 'Live']);
+    $response->assertSeeInOrder(['Draft One', 'Draft']);
+    $response->assertSeeInOrder(['Sold One', 'Sold out']);
+    $response->assertSeeInOrder(['Archived One', 'Removed']);
+});
+
+it('DSGN-006 reads a removed listings badge as Removed regardless of its status', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Under Review', 'status' => ListingStatus::ForSale]);
+    ListingRemoval::factory()->create(['listing_id' => $listing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Under Review', 'Removed']);
+});
+
+it('DSGN-006 renders the list pane beside the detail pane, with a sibling listing still on the list', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Rye Harvest']);
+    $viewed = $this->listing($seller, ['title' => 'Nine Herons']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Nine Herons');
+    $response->assertSee('Rye Harvest');
+});
+
+it('DSGN-006 marks the selected rows own cell current on a show route', function (): void {
+    $seller = $this->seller();
+    $viewed = $this->listing($seller, ['title' => 'Nine Herons']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$viewed->id}");
+
+    $response->assertOk();
+    // The nav rail also carries `aria-current="page"` for the whole
+    // Listings section (it stays active on this section's detail pages
+    // too), so this asserts the pane's own cell carries it rather than
+    // just the attribute appearing somewhere on the page.
+    expect($response->getContent())->toMatch('/data-pane-cell="'.preg_quote($viewed->id, '/').'"[^>]*aria-current="page"/');
+});
+
+it('DSGN-006 caps the list pane at the window size, however many listings the seller has', function (): void {
+    $seller = $this->seller();
+    Listing::factory()->count(ListPaneWindow::SIZE + 5)->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE);
+});
+
+it('DSGN-006 keeps the viewed listing on the list pane even when it sorts outside the window', function (): void {
+    $seller = $this->seller();
+    $viewed = $this->listing($seller, ['title' => 'Nine Herons', 'created_at' => now()->subDay()]);
+    Listing::factory()->count(ListPaneWindow::SIZE + 5)->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$viewed->id}");
+
+    $response->assertOk();
+    $response->assertSee('Nine Herons');
+    expect(substr_count((string) $response->getContent(), 'data-pane-cell="'))->toBe(ListPaneWindow::SIZE + 1);
+});
+
+it('DSGN-006 says how many listings the list pane is not showing', function (): void {
+    $seller = $this->seller();
+    Listing::factory()->count(ListPaneWindow::SIZE + 5)->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertSee('Showing 50 of', false);
+});
+
+it('DSGN-006 says nothing about a window that already holds every listing', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Nine Herons']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertDontSee('Showing');
+});
+
+it('DSGN-006 opens the new-listing dialog from the list panes header, with the same form the create page carries', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertOk();
+    $response->assertSee('id="new-listing-dialog"', escape: false);
+    $response->assertSee('What are you selling?');
+    $response->assertSee('One thing, one price');
+    $response->assertSee('It comes in versions, each with its own price');
+    $response->assertSee('One price, with extras that add to it');
+});
+
+it('DSGN-006 swaps the top bars brand for the listings title below lg', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/<p class="[^"]*lg:hidden[^"]*">\s*Harbour at Dusk\s*<\/p>/');
 });
 
 it('DSGN-003 renders the create question screen with the three pricing shapes', function (): void {
@@ -457,8 +608,14 @@ it('renders the activity page on a fixed number of queries however many events t
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
         // countable response (RollUpPageViews); +1 for the active-removal
-        // eager load.
-        ->expectsDatabaseQueryCount(7)
+        // eager load (the category eager load costs nothing extra here —
+        // this fixture's listing carries no category_id, so Eloquent skips
+        // the query); +2 for the seller layout's awaiting-shipment count
+        // and unread-notifications check; +4 for the list pane's window
+        // (DSGN-006: a count and a capped select, each with its own
+        // activeRemoval and images eager load); +1 for the detail pane's
+        // own images load behind the photos block.
+        ->expectsDatabaseQueryCount(14)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
@@ -787,7 +944,11 @@ it('DSGN-001 progressive disclosure: shows five invitations and no machinery for
 
     $response->assertDontSee('Choices you offer');
     $response->assertDontSee('Questions you ask the buyer');
-    $response->assertDontSee('Quantity discounts');
+    // The focused layout's section rail always names "Quantity discounts" as
+    // a nav link, so the summary card's own heading is what this asserts
+    // against — not the bare phrase, which the rail carries regardless of
+    // configuration state.
+    $response->assertDontSee('<p class="font-semibold text-gray-700 dark:text-gray-300">Quantity discounts</p>', false);
     $response->assertDontSee('Listing page sections');
     $response->assertDontSee('Individual pieces');
     $response->assertDontSee('Configurator');

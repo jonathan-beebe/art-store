@@ -3,7 +3,7 @@
     use App\Support\Configurator\UnitStateWord;
 @endphp
 
-<x-layouts.seller :title="'Individual pieces — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Individual pieces — '.$listing->title.' — Art Store seller'">
     <p class="text-sm">
         <a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a>
     </p>
@@ -16,7 +16,6 @@
         Each piece is its own thing &mdash; its own price, condition, and measurements, in one listing that keeps your reviews and search rank. The moment one sells it comes off the listing by itself; the rest stay up untouched.
     </p>
 
-    <x-seller.editor-layout>
             <p class="font-medium">
                 {{ $counts['total'] }} pieces &middot; {{ $counts['available'] }} available &middot; {{ $counts['sold'] }} sold
                 @if ($counts['onHold'] > 0)
@@ -45,9 +44,9 @@
                                             @foreach ($piece['specRows'] as $i => $row)
                                                 <div class="flex flex-wrap gap-2">
                                                     <label for="spec-{{ $piece['id'] }}-label-{{ $i }}" class="sr-only">Measurement label</label>
-                                                    <input id="spec-{{ $piece['id'] }}-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label", $row['label']) }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <input id="spec-{{ $piece['id'] }}-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label", $row['label']) }}" placeholder="Label, like Height" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                     <label for="spec-{{ $piece['id'] }}-value-{{ $i }}" class="sr-only">Measurement value</label>
-                                                    <input id="spec-{{ $piece['id'] }}-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value", $row['value']) }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                                    <input id="spec-{{ $piece['id'] }}-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value", $row['value']) }}" placeholder="Value, like 26 cm" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                                 </div>
                                             @endforeach
                                         </div>
@@ -55,7 +54,7 @@
 
                                     <div>
                                         <label for="state-{{ $piece['id'] }}" class="block font-medium text-gray-700 dark:text-gray-300">Mark as</label>
-                                        <select id="state-{{ $piece['id'] }}" name="state" class="mt-1 block rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                        <select id="state-{{ $piece['id'] }}" name="state" class="mt-1 block rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                             @foreach (UnitState::cases() as $state)
                                                 <option value="{{ $state->value }}" @selected($piece['unit']->state === $state)>{{ UnitStateWord::forState($state) }}</option>
                                             @endforeach
@@ -110,9 +109,9 @@
                             @for ($i = 0; $i < 3; $i++)
                                 <div class="flex flex-wrap gap-2">
                                     <label for="spec-add-label-{{ $i }}" class="sr-only">Measurement label</label>
-                                    <input id="spec-add-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label") }}" placeholder="Label, like Height" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                    <input id="spec-add-label-{{ $i }}" type="text" name="specs[{{ $i }}][label]" value="{{ old("specs.$i.label") }}" placeholder="Label, like Height" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                     <label for="spec-add-value-{{ $i }}" class="sr-only">Measurement value</label>
-                                    <input id="spec-add-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value") }}" placeholder="Value, like 26 cm" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                                    <input id="spec-add-value-{{ $i }}" type="text" name="specs[{{ $i }}][value]" value="{{ old("specs.$i.value") }}" placeholder="Value, like 26 cm" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
                                 </div>
                             @endfor
                         </div>
@@ -130,8 +129,7 @@
 
             <p class="text-gray-600 dark:text-gray-400">Selling by weight or length &mdash; a 100 g bag of mixed beads at one price &mdash; isn't supported yet; say so in the listing page for now.</p>
 
-        <x-slot:panel>
-            <x-seller.buyer-view :listing="$listing" :input="$buyerViewInput" />
-        </x-slot:panel>
-    </x-seller.editor-layout>
-</x-layouts.seller>
+    <x-slot:preview>
+        <x-seller.buyer-view :listing="$listing" :input="$buyerViewInput" />
+    </x-slot:preview>
+</x-layouts.seller-focused>

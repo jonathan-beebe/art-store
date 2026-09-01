@@ -26,16 +26,50 @@ $paidFulfillment = function (Seller $seller, string $title = 'Harbour at Dusk'):
     return Fulfillment::where('seller_id', $seller->id)->sole();
 };
 
-it('groups the fulfillments by status', function () use ($paidFulfillment): void {
+it('lists the fulfillment as a list-pane row with its status badge', function () use ($paidFulfillment): void {
+    $seller = $this->seller();
+    $paidFulfillment($seller, 'Harbour at Dusk');
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/orders');
+
+    $response->assertOk();
+    $response->assertSee('Harbour at Dusk');
+    $response->assertSee('Awaiting shipment');
+});
+
+it('counts fulfillments awaiting shipment as needing action', function () use ($paidFulfillment): void {
     $seller = $this->seller();
     $paidFulfillment($seller);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/orders');
 
+    $response->assertSee('1 need action');
+});
+
+it('says nothing needs action once nothing awaits shipment', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->shippedFulfillmentFor($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/orders');
+
+    $response->assertDontSee('need action');
+});
+
+it('shows an empty-detail prompt until an order is selected', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/orders');
+
     $response->assertOk();
-    $response->assertSee('Awaiting shipment (1)');
-    $response->assertSee('Shipped (0)');
-    $response->assertSee('Delivered (0)');
+    $response->assertSee('Choose an order to see its details.');
+});
+
+it('marks the open fulfillment selected in the list pane', function () use ($paidFulfillment): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertOk();
+    $response->assertSee('aria-current="true"', escape: false);
 });
 
 it('keeps another sellers fulfillments off the page', function () use ($paidFulfillment): void {
@@ -200,7 +234,7 @@ it('offers the decline form on a parcel that has not shipped', function () use (
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
     $response->assertOk();
-    $response->assertSee('Decline and refund');
+    $response->assertSee('puts your pieces back on the storefront');
 });
 
 it('withdraws the decline form once the parcel shipped', function (): void {
@@ -210,7 +244,7 @@ it('withdraws the decline form once the parcel shipped', function (): void {
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
     $response->assertOk();
-    $response->assertDontSee('Decline and refund');
+    $response->assertDontSee('puts your pieces back on the storefront');
 });
 
 it('shows the refund behind a declined parcel', function () use ($paidFulfillment): void {

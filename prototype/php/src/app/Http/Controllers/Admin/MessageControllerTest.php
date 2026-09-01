@@ -296,7 +296,7 @@ it('carries a sellers support request to the admin and the answer back', functio
         ->post("/admin/messages/{$conversation->id}", ['body' => 'Paid this morning.'])
         ->assertRedirect(route('admin.messages.show', $conversation));
 
-    $this->actingAs($seller, 'seller')->get('/seller/messages')->assertSee('Messages (1)', escape: false);
+    $this->actingAs($seller, 'seller')->get('/seller/messages')->assertSee('>1</span>', escape: false);
     $this->actingAs($seller, 'seller')
         ->get("/seller/messages/{$conversation->id}")
         ->assertSee('Paid this morning.');

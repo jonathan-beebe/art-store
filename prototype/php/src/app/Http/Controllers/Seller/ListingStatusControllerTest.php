@@ -36,9 +36,11 @@ it('archives a listing that is for sale', function (): void {
 
 it('renders only the transitions the status allows', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['status' => ListingStatus::Draft, 'title' => 'A draft']);
+    $listing = $this->listing($seller, ['status' => ListingStatus::Draft, 'title' => 'A draft']);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    // DSGN-006: the redesigned list pane has no room for a status-change
+    // control per row — a listing's own screen is where they live now.
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
     $response->assertSee('value="for_sale"', escape: false);
     $response->assertSee('value="archived"', escape: false);
@@ -50,7 +52,7 @@ it('offers no button to put a removed listing back on the storefront', function 
     $listing = $this->listing($seller, ['status' => ListingStatus::Sold, 'title' => 'A removed piece']);
     ListingRemoval::factory()->create(['listing_id' => $listing->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
     $response->assertSee('A removed piece');
     $response->assertDontSee('value="for_sale"', escape: false);

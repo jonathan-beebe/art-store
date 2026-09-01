@@ -1,4 +1,4 @@
-<x-layouts.seller :title="'Questions & answers — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Questions & answers — '.$listing->title.' — Art Store seller'">
     <div class="flex flex-wrap items-center gap-4">
         <h1 class="text-xl font-semibold">Questions &amp; answers</h1>
         <a href="{{ route('seller.listings.show', $listing) }}" class="ml-auto text-gray-700 dark:text-gray-300 underline">Back to listing</a>
@@ -17,11 +17,11 @@
                         <label for="question-{{ $faq->id }}" class="block font-medium text-gray-700 dark:text-gray-300">Question</label>
                         <input id="question-{{ $faq->id }}" name="question" type="text" required maxlength="500"
                                value="{{ old('question', $faq->question) }}"
-                               class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                               class="mt-1 block w-full rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
 
                         <label for="answer-{{ $faq->id }}" class="mt-4 block font-medium text-gray-700 dark:text-gray-300">Answer</label>
                         <textarea id="answer-{{ $faq->id }}" name="answer" required rows="4" maxlength="2000"
-                                  class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">{{ old('answer', $faq->answer) }}</textarea>
+                                  class="mt-1 block w-full rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">{{ old('answer', $faq->answer) }}</textarea>
 
                         <button type="submit" class="mt-4 rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 font-medium text-white dark:text-gray-900">Save</button>
                     </form>
@@ -29,10 +29,10 @@
                     <form method="POST" action="{{ route('seller.listings.faqs.destroy', [$listing, $faq]) }}" class="mt-2">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="rounded border border-gray-400 dark:border-gray-600 px-3 py-2">Unpublish</button>
+                        <button type="submit" class="rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">Unpublish</button>
                     </form>
                 </li>
             @endforeach
         </ul>
     @endif
-</x-layouts.seller>
+</x-layouts.seller-focused>

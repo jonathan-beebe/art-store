@@ -1,4 +1,4 @@
-<x-layouts.seller :title="'Images — '.$listing->title.' — Art Store seller'">
+<x-layouts.seller-focused :listing="$listing" :title="'Images — '.$listing->title.' — Art Store seller'">
     <p><a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">&larr; {{ $listing->title }}</a></p>
     <h1 class="mt-2 text-xl font-semibold">Images</h1>
     <p class="mt-1 max-w-xl text-gray-600 dark:text-gray-400">The first image is the one buyers see everywhere else on the site.</p>
@@ -55,4 +55,4 @@
             <a href="{{ route('seller.listings.edit', $listing) }}" class="text-gray-700 dark:text-gray-300 underline">Done</a>
         </div>
     </div>
-</x-layouts.seller>
+</x-layouts.seller-focused>
