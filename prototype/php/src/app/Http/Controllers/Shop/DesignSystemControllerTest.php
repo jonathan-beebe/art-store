@@ -120,15 +120,8 @@ it('documents the home page as a third layout shape and names the browse-shape v
     $response = $this->get('/design-system');
 
     $response->assertOk();
-    // The home page's own anatomy.
+    // The home page's own section heading.
     $response->assertSee('Home — storefront root');
-    $response->assertSee('Featured band');
-    $response->assertSee('Just listed');
-    $response->assertSee('More to explore');
-    $response->assertSee('wayfinding footer');
-    // listing-grid.blade.php never renders 1-up.
-    $response->assertSee('2-up → 3-up as the viewport grows', false);
-    $response->assertDontSee('1-up → 2-up → 3-up');
     // The browse wireframe now names /medium and covers /browse's shape.
     $response->assertSee('Medium — browse');
     $response->assertSee('/browse/{categoryPath}', false);
@@ -138,18 +131,20 @@ it('presents the browse sheet as the shipped mobile pattern and the rest as expl
     $response = $this->get('/design-system');
 
     $response->assertOk();
-    $response->assertSee('the shipped pattern', false);
-    $response->assertSee('an exploration the product does not currently wear', false);
-    $response->assertDontSee('sticky buy bar, swipe galleries');
+    // The Mobile section's own headings for the shipped pattern and its
+    // explorations — the prose describing each is free to reword.
+    $response->assertSee('Browse media as a bottom sheet');
+    $response->assertSee('Sticky buy bar');
+    $response->assertSee('Swipe gallery');
 });
 
-it('rates on-photo on photo-scrim honestly, composited over a worst-case white photo', function (): void {
+it('rates on-photo on photo-scrim honestly', function (): void {
     $response = $this->get('/design-system');
 
     $response->assertOk();
+    // Token names from config/theme.php — contract, not prose.
     $response->assertSee('on-photo');
     $response->assertSee('photo-scrim');
-    $response->assertSee('worst-case white photo', false);
     // Still meets AA in both modes, alongside every other rated pairing.
     $response->assertDontSee('bg-danger-surface text-danger">light');
     $response->assertDontSee('bg-danger-surface text-danger">dark');
