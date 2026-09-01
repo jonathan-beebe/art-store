@@ -69,6 +69,23 @@ it('leaves the stock alone when a declined card already handed it back', functio
         ->and($listing->status)->toBe(ListingStatus::ForSale);
 });
 
+it('restocks both fulfillments of a multi-seller order on cancel', function (): void {
+    $customer = $this->verifiedCustomer();
+    $first = $this->listing($this->seller('Blue Kiln Studio'), ['quantity' => 1]);
+    $second = $this->listing($this->seller('Rye Press'), ['quantity' => 1]);
+    $order = $this->orderFor($customer, $first, $second);
+
+    expect($first->refresh()->status)->toBe(ListingStatus::Sold)
+        ->and($second->refresh()->status)->toBe(ListingStatus::Sold);
+
+    app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00'));
+
+    expect($first->refresh()->quantity)->toBe(1)
+        ->and($first->status)->toBe(ListingStatus::ForSale)
+        ->and($second->refresh()->quantity)->toBe(1)
+        ->and($second->status)->toBe(ListingStatus::ForSale);
+});
+
 it('restores a configured lines variant quantity and a serialized lines unit on cancel', function (): void {
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($this->seller());
