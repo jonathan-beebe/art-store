@@ -4,7 +4,7 @@
      at `sm` and up the table takes over and this renders nothing. --}}
 @props(['caption' => null])
 
-<div {{ $attributes->merge(['class' => 'mt-2 sm:hidden divide-y divide-gray-200 dark:divide-gray-800 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900']) }}>
+<div {{ $attributes->merge(['class' => 'mt-2 sm:hidden divide-y divide-stone-200 dark:divide-stone-800 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900']) }}>
     @if ($caption)
         <span class="sr-only">{{ $caption }}</span>
     @endif
