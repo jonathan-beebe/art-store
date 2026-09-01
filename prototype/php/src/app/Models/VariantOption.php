@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * One axis's chosen value within a {@see Variant} — at most one row per axis
  * per variant, enforced by the table's own unique index.
  */
-#[Fillable(['variant_id', 'axis_id', 'option_value_id'])]
+#[Fillable(['variant_id', 'seller_id', 'axis_id', 'option_value_id'])]
 class VariantOption extends Model
 {
     /** @use HasFactory<VariantOptionFactory> */
@@ -32,6 +32,12 @@ class VariantOption extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(Variant::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<OptionAxis, $this> */

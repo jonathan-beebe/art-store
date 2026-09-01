@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Domain\Orders\FulfillmentStatus;
+use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Order;
 use App\Models\Seller;
@@ -24,6 +25,7 @@ class FulfillmentFactory extends Factory
     {
         return [
             'order_id' => Order::factory(),
+            'customer_id' => Customer::factory(),
             'seller_id' => Seller::factory(),
             'status' => FulfillmentStatus::AwaitingShipment,
             'carrier' => null,

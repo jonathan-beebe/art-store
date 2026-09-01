@@ -78,6 +78,7 @@ abstract class CommerceTestCase extends TestCase
 
         return ListingAttribute::create([
             'listing_id' => $listing->id,
+            'seller_id' => $listing->seller_id,
             'property_id' => $property->id,
             'property_value_id' => $value->id,
         ]);

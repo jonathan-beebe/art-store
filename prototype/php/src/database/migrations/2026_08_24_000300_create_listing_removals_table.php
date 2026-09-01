@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('listing_removals', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->string('kind');
             $table->string('reason');
             // "At most one active removal" is the action's rule, not a partial
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['listing_id', 'lifted_at']);
+            $table->index('seller_id');
         });
     }
 

@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\Seller;
 use App\Models\Variant;
 use App\Models\VariantOption;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -24,6 +25,7 @@ class VariantOptionFactory extends Factory
     {
         return [
             'variant_id' => Variant::factory(),
+            'seller_id' => Seller::factory(),
             'axis_id' => OptionAxis::factory(),
             'option_value_id' => OptionValue::factory(),
         ];

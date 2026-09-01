@@ -25,7 +25,7 @@ use Override;
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
  */
 #[Fillable([
-    'order_id', 'seller_id', 'status', 'carrier', 'tracking_number',
+    'order_id', 'customer_id', 'seller_id', 'status', 'carrier', 'tracking_number',
     'shipped_at', 'delivered_at', 'subtotal_cents', 'fee_cents', 'net_cents',
 ])]
 class Fulfillment extends Model
@@ -60,6 +60,12 @@ class Fulfillment extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /** @return BelongsTo<Seller, $this> */

@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -22,6 +23,7 @@ class OptionValueFactory extends Factory
     {
         return [
             'axis_id' => OptionAxis::factory(),
+            'seller_id' => Seller::factory(),
             'property_value_id' => null,
             'label' => ucfirst(fake()->unique()->word()),
             'surcharge_cents' => 0,

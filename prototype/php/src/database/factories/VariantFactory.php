@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Listing;
+use App\Models\Seller;
 use App\Models\Variant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
@@ -22,6 +23,7 @@ class VariantFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'combo_key' => '',
             'sku' => null,
             'price_override_cents' => null,

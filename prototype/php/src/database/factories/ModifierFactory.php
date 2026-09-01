@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Domain\Configurator\ModifierKind;
 use App\Models\Listing;
 use App\Models\Modifier;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class ModifierFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'kind' => ModifierKind::Text,
             'prompt' => fake()->sentence(4),
             'instructions' => null,

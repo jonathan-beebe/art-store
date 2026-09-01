@@ -61,6 +61,7 @@ final readonly class FinalizeOrder
 
                 Payment::create([
                     'order_id' => $order->id,
+                    'customer_id' => $order->customer_id,
                     'status' => PaymentStatus::fromCardDecision($decision),
                     'amount_cents' => $order->total_cents,
                     'card_last_four' => $decision->lastFour,

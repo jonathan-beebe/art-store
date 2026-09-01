@@ -55,7 +55,7 @@ final readonly class CreateListing
         $path = ($this->storeListingImage)($image);
 
         if ($path !== null) {
-            $listing->images()->create(['path' => $path, 'position' => 0]);
+            $listing->images()->create(['seller_id' => $listing->seller_id, 'path' => $path, 'position' => 0]);
         }
     }
 

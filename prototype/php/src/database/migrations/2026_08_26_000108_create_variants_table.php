@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('variants', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             // Sorted option-value ids, '/'-joined; '' for an axis-free listing
             // (at most one such row — the legacy, single-variant path).
             $table->string('combo_key')->default('');
@@ -25,6 +26,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['listing_id', 'combo_key']);
+            $table->index('seller_id');
         });
     }
 

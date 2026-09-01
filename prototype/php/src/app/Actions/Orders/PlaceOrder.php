@@ -128,6 +128,7 @@ final readonly class PlaceOrder
 
             OrderItem::create([
                 'order_id' => $order->id,
+                'customer_id' => $order->customer_id,
                 'listing_id' => $item->listing_id,
                 'seller_id' => $item->listing->seller_id,
                 'title' => $item->listing->title,
@@ -193,6 +194,7 @@ final readonly class PlaceOrder
         foreach ($totals->subtotalsBySeller() as $sellerId => $subtotal) {
             Fulfillment::create([
                 'order_id' => $order->id,
+                'customer_id' => $order->customer_id,
                 'seller_id' => $sellerId,
                 'subtotal_cents' => $subtotal->cents,
                 'fee_cents' => Fee::platform($subtotal)->cents,

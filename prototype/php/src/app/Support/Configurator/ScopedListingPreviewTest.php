@@ -29,7 +29,7 @@ it('builds the applies and does-not-apply selections from a sibling on the same 
     $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
     $blank = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $lettered->id]);
 
     $preview = ScopedListingPreview::resolve(scopedListingPreviewFixtureModifiers($listing));
     expect($preview)->not->toBeNull();
@@ -46,7 +46,7 @@ it('is null when the scoped axis has no sibling to contrast with', function (): 
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
     $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-    $modifier->scopes()->create(['option_value_id' => $value->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $value->id]);
 
     expect(ScopedListingPreview::resolve(scopedListingPreviewFixtureModifiers($listing)))->toBeNull();
 });
@@ -57,7 +57,7 @@ it('names the sibling that would hide the question', function (): void {
     $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
     OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $lettered->id]);
     $loaded = scopedListingPreviewFixtureModifiers($listing)->sole();
 
     expect(ScopedListingPreview::unaffectedOptionLabel($loaded))->toBe('Blank');
@@ -76,7 +76,7 @@ it('has no unaffected option label when every value on the scoped axis is scoped
     $axis = OptionAxis::factory()->create(['listing_id' => $listing->id]);
     $value = OptionValue::factory()->create(['axis_id' => $axis->id]);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id]);
-    $modifier->scopes()->create(['option_value_id' => $value->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $value->id]);
     $loaded = scopedListingPreviewFixtureModifiers($listing)->sole();
 
     expect(ScopedListingPreview::unaffectedOptionLabel($loaded))->toBeNull();

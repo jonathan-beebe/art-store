@@ -13,7 +13,9 @@ return new class extends Migration
         Schema::create('refunds', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('order_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('fulfillment_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('payment_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->unsignedInteger('amount_cents');
             $table->string('reason', 500);
@@ -28,6 +30,8 @@ return new class extends Migration
             // subtotal, so a second one would be a second full refund.
             $table->unique('fulfillment_id');
             $table->index(['order_id', 'created_at']);
+            $table->index(['customer_id', 'created_at']);
+            $table->index('seller_id');
         });
     }
 

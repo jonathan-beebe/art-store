@@ -28,7 +28,10 @@ final readonly class ScopeModifier
             'modifier_id' => $modifier->id,
         ], function (Story $story) use ($modifier, $optionValues): array {
             $scopes = array_map(
-                fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(['option_value_id' => $value->id]),
+                fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(
+                    ['option_value_id' => $value->id],
+                    ['seller_id' => $modifier->seller_id],
+                ),
                 $optionValues,
             );
 

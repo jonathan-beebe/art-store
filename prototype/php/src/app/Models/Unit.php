@@ -22,7 +22,7 @@ use Override;
  *
  * @property-read array<string, int|float|string|bool>|null $specs_json
  */
-#[Fillable(['variant_id', 'label', 'state', 'condition_note', 'specs_json', 'price_override_cents'])]
+#[Fillable(['variant_id', 'seller_id', 'label', 'state', 'condition_note', 'specs_json', 'price_override_cents'])]
 class Unit extends Model
 {
     /** @use HasFactory<UnitFactory> */
@@ -52,6 +52,12 @@ class Unit extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(Variant::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /**

@@ -20,7 +20,7 @@ use Override;
  * this attaches to the line instead.
  */
 #[Fillable([
-    'listing_id', 'kind', 'prompt', 'instructions', 'required', 'position',
+    'listing_id', 'seller_id', 'kind', 'prompt', 'instructions', 'required', 'position',
     'add_on_price_cents', 'char_limit', 'unit', 'min_value', 'max_value', 'rate_cents_per_unit',
 ])]
 class Modifier extends Model
@@ -57,6 +57,12 @@ class Modifier extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return HasMany<ModifierOption, $this> */

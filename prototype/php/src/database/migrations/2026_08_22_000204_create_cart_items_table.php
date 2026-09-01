@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('cart_items', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('cart_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
             // Nullable: a legacy zero-axis listing selects neither. SQLite
             // defers foreign-key validation, so referencing `variants`/`units`
@@ -32,6 +33,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['cart_id', 'listing_id', 'fingerprint']);
+            $table->index('customer_id');
         });
     }
 

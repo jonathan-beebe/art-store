@@ -86,6 +86,8 @@ final readonly class SetListingAttributes
             fn (string $valueId): ListingAttribute => $listing->listingAttributes()->firstOrCreate([
                 'property_id' => $grant->property_id,
                 'property_value_id' => $valueId,
+            ], [
+                'seller_id' => $listing->seller_id,
             ]),
             $validValueIds,
         );

@@ -32,6 +32,7 @@ final readonly class RemoveListing
                 }
 
                 return $listing->removals()->create([
+                    'seller_id' => $listing->seller_id,
                     'kind' => $kind,
                     'reason' => $reason,
                     'lifted_at' => null,

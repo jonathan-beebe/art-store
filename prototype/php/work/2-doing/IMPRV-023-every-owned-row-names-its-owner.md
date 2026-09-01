@@ -69,3 +69,101 @@ Index the new columns where seller- or customer-scoped queries will run.
 - FEAT-018 (prefixed ULIDs on every table — the prior all-tables sweep)
 - FEAT-025 (configurator tables)
 - RFCTR-002 (policies and seller base)
+
+## Working
+
+### Judgment calls
+
+- **listing_events.customer_id stays, seller_id is added.** The existing
+  nullable `customer_id` names the shopper who triggered the event (an actor
+  reference for an anonymous-capable view/favorite/cart-add); it answers "who
+  did this," not "who owns this row." Ownership answers "whose listing" —
+  the new, always-populated `seller_id`. The two columns carry different
+  facts and both stay.
+- **messages are not in the invariant.** A conversation carries `seller_id`,
+  `customer_id`, and `admin_id` as nullable party columns (docs/database.md
+  §1 already exempts it — "a thread names its parties"), so a conversation
+  can hold any combination of the three; a message inside it does not belong
+  to exactly one seller or one customer the way the invariant requires. A
+  seller's or customer's inbox already scopes off `conversations` directly,
+  one hop from `messages.conversation_id` rather than the multi-hop chains
+  this ticket targets, so messages need no owner column of their own.
+- **New owner columns sit right after the row's primary parent FK**, mirroring
+  `order_items`' existing `order_id, listing_id, seller_id` ordering: e.g.
+  `option_values` reads `axis_id, seller_id, property_value_id, …`.
+- **Every new FK cascades on delete**, matching each table's existing FK
+  choices (a seller's or customer's own id column already cascades
+  everywhere in this schema).
+- **Factories default the new column via an independent `Seller::factory()` /
+  `Customer::factory()`**, the same pattern `OrderItemFactory`,
+  `FulfillmentFactory`, and `RefundFactory` already used for `seller_id` /
+  `issued_by_id` before this ticket — not derived from the row's own parent
+  factory. A caller that needs the owner to match its parent (every real
+  write path, and any test asserting on it) passes both explicitly, the way
+  `PlaceOrder` already did for `order_items.seller_id`.
+- **`CustomerOwnedTables` (the customer-merge manifest) needed updating.**
+  `order_items`, `fulfillments`, `payments`, and `refunds` are 1:1 with a row
+  already blindly re-pointed by `MergeAnonymousCustomer` (their parent
+  `orders` row), so they join `CustomerOwnedTables::all()` for the same blind
+  `UPDATE … WHERE customer_id = ?`. `cart_items` cannot: carts are folded
+  (deduplicated and quantity-summed), not re-pointed, so `cart_items` joins
+  `leftBehind()` and `MergeAnonymousCustomer::foldCart()` was fixed to set
+  `customer_id` on the lines it recreates — a second instance of the same
+  gap this ticket closes everywhere else, caught by the pre-existing
+  `CustomerOwnedTablesManifestTest`.
+
+### Files touched
+
+- 20 migrations under `database/migrations/` — one `seller_id` or
+  `customer_id` foreignUlid (30, cascade) per owned table, plus an index
+  (paired with each table's existing status/timestamp column where one
+  exists, e.g. `units` → `[seller_id, state]`, `listing_events` →
+  `[seller_id, occurred_at]`).
+- 20 models under `app/Models/` — `#[Fillable]` gains the column, a
+  `seller()`/`customer()` `BelongsTo` relation added.
+- 20 factories under `database/factories/` — the column defaults to an
+  independent `Seller::factory()` / `Customer::factory()`.
+- Actions: `RecordListingEvent`, `RemoveListing`, `PublishListingFaq`,
+  `SetListingAttributes`, `AddListingImage`, `CreateListing`,
+  `CreateOptionAxis`, `AddOptionValue`, `CreateVariant`, `GenerateVariants`,
+  `AddUnit`, `CreateModifier`, `AddModifierOption`, `SetModifierScope`,
+  `ScopeModifier`, `AddQuantityBreak`, `AddDescriptionSection`, `AddToCart`,
+  `PlaceOrder`, `FinalizeOrder`, `IssueRefund`, `MergeAnonymousCustomer`
+  (the `foldCart()` fix).
+- `App\Domain\Customers\CustomerOwnedTables` (`all()`/`leftBehind()`) and its
+  sidecar test's exact-array assertion.
+- Seeders with a direct `::create()` call: `ListingSeeder`,
+  `ConfiguratorArchetypeSeeder`, `WizardingSellerSeeder`,
+  `ListingImageSeeder`.
+- `tests/CommerceTestCase.php`'s `attribute()` helper.
+- `tests/OwnershipTest.php` — new, the invariant test (see below).
+- Six pre-existing test files that built an owned row directly through a
+  relation's `->create()`/`->firstOrCreate()` rather than through an action
+  or a model factory, and so needed the new column added by hand:
+  `app/Models/CartItemTest.php`,
+  `app/Support/Configurator/ScopedListingPreviewTest.php`,
+  `app/Support/Configurator/ListingConfiguratorSummariesTest.php`,
+  `app/Http/Controllers/Seller/ModifierControllerTest.php`,
+  `app/Http/Controllers/Seller/ListingControllerTest.php`,
+  `app/View/Components/Seller/BuyerViewTest.php`.
+
+### Tests
+
+- `tests/OwnershipTest.php` — the invariant test. Walks an explicit list of
+  every seller-owned and customer-owned model and asserts, per model: the
+  schema carries the owner column, the model's `Fillable` includes it, and a
+  model built through its own factory leaves the column populated. Two
+  further tests exercise the real action-level write paths end to end
+  (listing-side and order-side) and assert the owner id matches the parent's.
+- `App\Domain\Customers\CustomerOwnedTablesTest` — updated exact-array
+  assertion for `CustomerOwnedTables::all()`.
+- `App\Actions\Customers\CustomerOwnedTablesManifestTest` (pre-existing,
+  unchanged) — the schema-vs-manifest check that caught the missing
+  `cart_items` entry and the `foldCart()` gap.
+
+### Verification
+
+- `make fresh`: migrations and every seeder green; spot-check query against
+  the fresh database shows zero `NULL` owner columns across all 20 tables.
+- `make test`: 3227 passed.
+- `make precommit`: green (Pint, PHPStan, full ungated suite).

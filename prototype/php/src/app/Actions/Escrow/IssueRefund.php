@@ -39,7 +39,9 @@ final readonly class IssueRefund
 
         $refund = Refund::create([
             'order_id' => $order->id,
+            'customer_id' => $order->customer_id,
             'fulfillment_id' => $fulfillment->id,
+            'seller_id' => $fulfillment->seller_id,
             'payment_id' => $order->approvedPayment()->first()?->id,
             'amount_cents' => $fulfillment->subtotal_cents,
             'reason' => $reason,

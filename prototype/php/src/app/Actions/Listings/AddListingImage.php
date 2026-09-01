@@ -38,7 +38,7 @@ final readonly class AddListingImage
             $maxPosition = $listing->images()->max('position');
             $nextPosition = (is_numeric($maxPosition) ? (int) $maxPosition : -1) + 1;
 
-            $listingImage = $listing->images()->create(['path' => $path, 'position' => $nextPosition]);
+            $listingImage = $listing->images()->create(['seller_id' => $listing->seller_id, 'path' => $path, 'position' => $nextPosition]);
 
             $story->did('added a listing image', [
                 'listing_id' => $listing->id,

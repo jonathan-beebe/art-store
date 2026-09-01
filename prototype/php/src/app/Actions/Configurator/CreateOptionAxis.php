@@ -20,6 +20,7 @@ final readonly class CreateOptionAxis
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $name, $property, $position, $pricingMode): OptionAxis {
             $axis = $listing->optionAxes()->create([
+                'seller_id' => $listing->seller_id,
                 'property_id' => $property?->id,
                 'name' => $name,
                 'position' => $position,

@@ -22,6 +22,7 @@ final readonly class AddQuantityBreak
             QuantityDiscount::of($minQty, $discountBps);
 
             $break = $listing->quantityBreaks()->create([
+                'seller_id' => $listing->seller_id,
                 'min_qty' => $minQty,
                 'discount_bps' => $discountBps,
             ]);

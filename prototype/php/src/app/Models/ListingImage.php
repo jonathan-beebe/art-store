@@ -18,7 +18,7 @@ use Override;
  * surface (shop card, cart line, seller index row) renders through
  * {@see Listing::imageUrl()}.
  */
-#[Fillable(['listing_id', 'path', 'position'])]
+#[Fillable(['listing_id', 'seller_id', 'path', 'position'])]
 class ListingImage extends Model
 {
     /**
@@ -49,6 +49,12 @@ class ListingImage extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /**

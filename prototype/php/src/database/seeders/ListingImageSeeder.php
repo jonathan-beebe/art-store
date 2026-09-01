@@ -91,6 +91,7 @@ class ListingImageSeeder extends Seeder
 
                 ListingImage::create([
                     'listing_id' => $listing->id,
+                    'seller_id' => $listing->seller_id,
                     'path' => $path,
                     'position' => $position,
                 ]);

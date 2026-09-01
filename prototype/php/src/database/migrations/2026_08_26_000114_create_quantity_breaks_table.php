@@ -13,11 +13,13 @@ return new class extends Migration
         Schema::create('quantity_breaks', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             $table->unsignedInteger('min_qty');
             $table->unsignedInteger('discount_bps');
             $table->timestamps();
 
             $table->unique(['listing_id', 'min_qty']);
+            $table->index('seller_id');
         });
     }
 

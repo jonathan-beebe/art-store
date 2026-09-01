@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Domain\Listings\ListingRemovalKind;
 use App\Models\Listing;
 use App\Models\ListingRemoval;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class ListingRemovalFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'kind' => ListingRemovalKind::Temporary,
             'reason' => fake()->sentence(),
             'lifted_at' => null,

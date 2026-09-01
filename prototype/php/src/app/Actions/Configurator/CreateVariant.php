@@ -52,6 +52,7 @@ final readonly class CreateVariant
             }
 
             $variant = $listing->variants()->create([
+                'seller_id' => $listing->seller_id,
                 'combo_key' => $comboKey->value,
                 'sku' => $sku,
                 'price_override_cents' => $priceOverrideCents,
@@ -62,6 +63,7 @@ final readonly class CreateVariant
 
             foreach ($optionValues as $value) {
                 $variant->options()->create([
+                    'seller_id' => $variant->seller_id,
                     'axis_id' => $value->axis_id,
                     'option_value_id' => $value->id,
                 ]);

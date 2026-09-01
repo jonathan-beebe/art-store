@@ -161,7 +161,7 @@ it('B6: shows a scoped question only for the selection it applies to', function 
     $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
     $blank = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?']);
-    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $lettered->id]);
 
     $applies = Blade::render(
         '<x-seller.buyer-view :listing="$listing" :input="$input" />',

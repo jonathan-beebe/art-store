@@ -26,6 +26,7 @@ final readonly class AddUnit
             'variant_id' => $variant->id,
         ], function (Story $story) use ($variant, $label, $conditionNote, $specs, $priceOverrideCents): Unit {
             $unit = $variant->units()->create([
+                'seller_id' => $variant->seller_id,
                 'label' => $label,
                 'condition_note' => $conditionNote,
                 'specs_json' => $specs,

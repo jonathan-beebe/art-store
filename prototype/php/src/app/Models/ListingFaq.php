@@ -19,7 +19,7 @@ use Override;
  *
  * @property-read Listing $listing
  */
-#[Fillable(['listing_id', 'question', 'answer', 'source_message_id', 'published_at'])]
+#[Fillable(['listing_id', 'seller_id', 'question', 'answer', 'source_message_id', 'published_at'])]
 class ListingFaq extends Model
 {
     /** @use HasFactory<ListingFaqFactory> */
@@ -47,6 +47,12 @@ class ListingFaq extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<Message, $this> */

@@ -36,6 +36,7 @@ final readonly class AddOptionValue
             }
 
             $value = $axis->optionValues()->create([
+                'seller_id' => $axis->seller_id,
                 'property_value_id' => $propertyValue?->id,
                 'label' => $label,
                 'surcharge_cents' => $isStandalone ? 0 : $surchargeCents,

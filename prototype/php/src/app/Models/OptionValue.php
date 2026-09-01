@@ -18,7 +18,7 @@ use Override;
  * One choice on an {@see OptionAxis} (Gold, Silver, …), with the price delta
  * choosing it adds.
  */
-#[Fillable(['axis_id', 'property_value_id', 'label', 'surcharge_cents', 'price_cents', 'is_default', 'position'])]
+#[Fillable(['axis_id', 'seller_id', 'property_value_id', 'label', 'surcharge_cents', 'price_cents', 'is_default', 'position'])]
 class OptionValue extends Model
 {
     /** @use HasFactory<OptionValueFactory> */
@@ -49,6 +49,12 @@ class OptionValue extends Model
     public function axis(): BelongsTo
     {
         return $this->belongsTo(OptionAxis::class, 'axis_id');
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<PropertyValue, $this> */

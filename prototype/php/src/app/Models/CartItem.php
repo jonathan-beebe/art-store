@@ -24,7 +24,7 @@ use Override;
  * @property list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>|null $configuration_json
  * @property array<string, array{prompt: string, answer: string, raw: string}>|null $answers_json
  */
-#[Fillable(['cart_id', 'listing_id', 'variant_id', 'unit_id', 'quantity', 'configuration_json', 'answers_json', 'fingerprint'])]
+#[Fillable(['cart_id', 'customer_id', 'listing_id', 'variant_id', 'unit_id', 'quantity', 'configuration_json', 'answers_json', 'fingerprint'])]
 class CartItem extends Model
 {
     /** @use HasFactory<CartItemFactory> */
@@ -54,6 +54,12 @@ class CartItem extends Model
     public function cart(): BelongsTo
     {
         return $this->belongsTo(Cart::class);
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /** @return BelongsTo<Listing, $this> */

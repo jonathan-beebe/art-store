@@ -27,7 +27,7 @@ use Override;
  * seller creates only the combinations that actually sell rather than every
  * cell of the full cross product.
  */
-#[Fillable(['listing_id', 'combo_key', 'sku', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
+#[Fillable(['listing_id', 'seller_id', 'combo_key', 'sku', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
 class Variant extends Model
 {
     /**
@@ -64,6 +64,12 @@ class Variant extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return HasMany<VariantOption, $this> */

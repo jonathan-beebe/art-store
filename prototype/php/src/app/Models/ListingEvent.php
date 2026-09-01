@@ -20,7 +20,7 @@ use Override;
  * @property-read string $day  only on a row the `dailyCountsSince` scope selected
  * @property-read int $tally  only on a row the `dailyCountsSince` scope selected
  */
-#[Fillable(['listing_id', 'customer_id', 'type', 'occurred_at'])]
+#[Fillable(['listing_id', 'seller_id', 'customer_id', 'type', 'occurred_at'])]
 class ListingEvent extends Model
 {
     /** @use HasFactory<ListingEventFactory> */
@@ -49,6 +49,12 @@ class ListingEvent extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<Customer, $this> */

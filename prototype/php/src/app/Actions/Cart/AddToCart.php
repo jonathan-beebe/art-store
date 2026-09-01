@@ -45,7 +45,7 @@ final readonly class AddToCart
     ): CartItem {
         $fingerprint = CartLineFingerprint::of($variant?->id, $unitId, $fingerprintAnswers)->value;
 
-        $item = $cart->items()->firstOrNew(['listing_id' => $listing->id, 'fingerprint' => $fingerprint]);
+        $item = $cart->items()->firstOrNew(['listing_id' => $listing->id, 'fingerprint' => $fingerprint], ['customer_id' => $cart->customer_id]);
         $held = $item->quantity ?? 0;
 
         // A cart holds one line per (listing, configuration), so the second

@@ -20,7 +20,7 @@ use Override;
  *
  * @property-read array<int|string, mixed>|null $body_json
  */
-#[Fillable(['listing_id', 'position', 'kind', 'title', 'body_md', 'body_json'])]
+#[Fillable(['listing_id', 'seller_id', 'position', 'kind', 'title', 'body_md', 'body_json'])]
 class DescriptionSection extends Model
 {
     /** @use HasFactory<DescriptionSectionFactory> */
@@ -46,5 +46,11 @@ class DescriptionSection extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 }

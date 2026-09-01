@@ -18,6 +18,7 @@ final readonly class AddModifierOption
             'modifier_id' => $modifier->id,
         ], function (Story $story) use ($modifier, $label, $addOnPriceCents, $position): ModifierOption {
             $option = $modifier->options()->create([
+                'seller_id' => $modifier->seller_id,
                 'label' => $label,
                 'add_on_price_cents' => $addOnPriceCents,
                 'position' => $position,

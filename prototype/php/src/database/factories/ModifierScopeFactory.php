@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Models\Modifier;
 use App\Models\ModifierScope;
 use App\Models\OptionValue;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class ModifierScopeFactory extends Factory
     {
         return [
             'modifier_id' => Modifier::factory(),
+            'seller_id' => Seller::factory(),
             'option_value_id' => OptionValue::factory(),
         ];
     }

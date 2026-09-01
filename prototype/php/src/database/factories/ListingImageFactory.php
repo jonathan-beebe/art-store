@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Models\Listing;
 use App\Models\ListingImage;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -22,6 +23,7 @@ class ListingImageFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'path' => 'listings/'.fake()->unique()->uuid().'.jpg',
             'position' => 0,
         ];

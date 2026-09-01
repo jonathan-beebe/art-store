@@ -20,6 +20,7 @@ final readonly class PublishListingFaq
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $draft, $sourceMessage, $now): ListingFaq {
             $faq = $listing->faqs()->create([
+                'seller_id' => $listing->seller_id,
                 'question' => $draft->question,
                 'answer' => $draft->answer,
                 'source_message_id' => $sourceMessage?->id,

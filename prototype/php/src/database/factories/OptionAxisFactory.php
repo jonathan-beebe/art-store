@@ -7,6 +7,7 @@ namespace Database\Factories;
 use App\Domain\Configurator\PricingMode;
 use App\Models\Listing;
 use App\Models\OptionAxis;
+use App\Models\Seller;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
@@ -23,6 +24,7 @@ class OptionAxisFactory extends Factory
     {
         return [
             'listing_id' => Listing::factory(),
+            'seller_id' => Seller::factory(),
             'property_id' => null,
             'name' => ucfirst(fake()->unique()->word()),
             'position' => 0,

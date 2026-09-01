@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('option_values', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('axis_id', 30)->constrained('option_axes')->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             // Null for a custom axis, which enumerates its own labels rather
             // than pointing at the property-value catalog.
             $table->foreignUlid('property_value_id', 30)->nullable()->constrained()->nullOnDelete();
@@ -30,6 +31,7 @@ return new class extends Migration
             // "At most one default per axis" is the action's rule, not a
             // partial unique index here — SQLite has no partial unique index.
             $table->index('axis_id');
+            $table->index('seller_id');
         });
     }
 

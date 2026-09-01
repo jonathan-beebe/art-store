@@ -209,7 +209,7 @@ it('B6: shows a scoped question on the applies panel and not on the other, with 
     $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
     OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?']);
-    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $lettered->id]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
 
@@ -231,7 +231,7 @@ it('IMPRV-015: the scoped-preview pair stays disabled rather than falsely intera
     $lettered = OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Hand-lettered']);
     OptionValue::factory()->create(['axis_id' => $axis->id, 'label' => 'Blank']);
     $modifier = Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'What name should we letter?']);
-    $modifier->scopes()->create(['option_value_id' => $lettered->id]);
+    $modifier->scopes()->create(['seller_id' => $modifier->seller_id, 'option_value_id' => $lettered->id]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/modifiers");
 

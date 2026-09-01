@@ -30,7 +30,7 @@ use Override;
  * @property list<array{label: string, cents: int}>|null $price_breakdown_json
  */
 #[Fillable([
-    'order_id', 'listing_id', 'seller_id', 'title', 'unit_price_cents', 'quantity',
+    'order_id', 'customer_id', 'listing_id', 'seller_id', 'title', 'unit_price_cents', 'quantity',
     'variant_id', 'unit_id', 'configuration_json', 'answers_json', 'price_breakdown_json',
 ])]
 class OrderItem extends Model
@@ -64,6 +64,12 @@ class OrderItem extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /** @return BelongsTo<Customer, $this> */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /** @return BelongsTo<Listing, $this> */

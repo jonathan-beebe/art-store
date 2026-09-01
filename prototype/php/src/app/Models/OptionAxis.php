@@ -18,7 +18,7 @@ use Override;
  * One buyer-facing choice a listing offers (Metal, Size, …), either a catalog
  * property or a custom, label-only axis when `property_id` is null.
  */
-#[Fillable(['listing_id', 'property_id', 'name', 'position', 'pricing_mode'])]
+#[Fillable(['listing_id', 'seller_id', 'property_id', 'name', 'position', 'pricing_mode'])]
 class OptionAxis extends Model
 {
     /** @use HasFactory<OptionAxisFactory> */
@@ -47,6 +47,12 @@ class OptionAxis extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /** @return BelongsTo<Seller, $this> */
+    public function seller(): BelongsTo
+    {
+        return $this->belongsTo(Seller::class);
     }
 
     /** @return BelongsTo<Property, $this> */

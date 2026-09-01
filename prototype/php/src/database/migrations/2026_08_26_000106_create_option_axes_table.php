@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('option_axes', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('listing_id', 30)->constrained()->cascadeOnDelete();
+            $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
             // Null: a custom, label-only axis with no catalog property behind it.
             $table->foreignUlid('property_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('name');
@@ -25,6 +26,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index('listing_id');
+            $table->index('seller_id');
         });
     }
 
