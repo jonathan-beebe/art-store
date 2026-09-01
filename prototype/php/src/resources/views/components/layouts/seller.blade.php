@@ -88,10 +88,22 @@
                 </svg>
             </button>
 
-            <a href="{{ route('seller.dashboard') }}" class="flex min-w-0 items-center gap-x-3 font-semibold text-white">
+            {{--
+                Below `lg`, a page that supplies a `mobileTitle` slot swaps
+                this brand cluster out for that title — the bell and avatar
+                in the `ml-auto` group stay either way. `lg`+ always keeps
+                the brand; nothing here has opted into a wide-screen title
+                yet. Slot-driven (not a prop) so a page can pass rich markup
+                later, not just a string.
+            --}}
+            <a href="{{ route('seller.dashboard') }}" class="flex min-w-0 items-center gap-x-3 font-semibold text-white @if (isset($mobileTitle)) max-lg:hidden @endif">
                 <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">A</span>
                 <span class="truncate">Art Store seller</span>
             </a>
+
+            @isset($mobileTitle)
+                <p class="min-w-0 flex-1 truncate font-semibold text-white lg:hidden">{{ $mobileTitle }}</p>
+            @endisset
 
             <div class="ml-auto flex items-center gap-x-4 lg:gap-x-6">
                 <a href="{{ route('seller.notifications.index') }}" class="relative -m-2.5 p-2.5 text-gray-400 hover:text-white">
