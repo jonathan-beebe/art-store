@@ -100,6 +100,20 @@ it('appends a caption to the panel badge when one is given', function (): void {
     expect($html)->toContain('What buyers see')->toContain('Version: Blank');
 });
 
+it('frames the panel in theme tokens so it flips with the shop partials it wraps in dark mode', function (): void {
+    $listing = $this->listing($this->seller());
+
+    $html = Blade::render('<x-seller.buyer-view :listing="$listing" />', ['listing' => $listing]);
+
+    expect($html)->toContain('border-line-strong bg-surface')
+        ->and($html)->toContain('bg-ink px-3 py-0.5 text-xs font-medium text-canvas')
+        ->and($html)->not->toContain('bg-white')
+        ->and($html)->not->toContain('text-neutral-900')
+        ->and($html)->not->toContain('text-neutral-500')
+        ->and($html)->not->toContain('border-neutral-400')
+        ->and($html)->not->toContain('bg-neutral-800');
+});
+
 it('B1: carries the char limit as a maxlength, same as the shop page', function (): void {
     $listing = $this->listing($this->seller());
     Modifier::factory()->create(['listing_id' => $listing->id, 'prompt' => 'Name to letter', 'char_limit' => 20]);

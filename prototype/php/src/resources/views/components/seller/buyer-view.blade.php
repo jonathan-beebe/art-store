@@ -9,18 +9,18 @@
     $mode = $interactive ? 'preview' : 'static';
 @endphp
 
-<div class="relative rounded-lg border border-dashed border-neutral-400 bg-white p-5 text-neutral-900">
-    <span class="absolute -top-3 left-4 rounded-full bg-neutral-800 px-3 py-0.5 text-xs font-medium text-white">What buyers see @if ($caption !== null)— {{ $caption }}@endif</span>
+<div class="relative rounded-lg border border-dashed border-line-strong bg-surface p-5 text-ink">
+    <span class="absolute -top-3 left-4 rounded-full bg-ink px-3 py-0.5 text-xs font-medium text-canvas">What buyers see @if ($caption !== null)— {{ $caption }}@endif</span>
 
     @include('shop.partials.listing-images', ['listing' => $listing, 'compact' => true])
 
-    <p class="mt-3 text-base font-semibold text-neutral-900">{{ $listing->title }}</p>
+    <p class="mt-3 text-base font-semibold text-ink">{{ $listing->title }}</p>
 
     @include('shop.partials.listing-description', ['listing' => $listing, 'compact' => true])
 
     @if (! $hasConfigurator)
-        <p class="mt-3 text-2xl font-semibold text-neutral-900">{{ $listing->price()->format() }}</p>
-        <p class="mt-1 text-sm text-neutral-500">{{ ListingStockLabel::withInStock($listing->quantity) }}</p>
+        <p class="mt-3 text-2xl font-semibold text-ink">{{ $listing->price()->format() }}</p>
+        <p class="mt-1 text-sm text-ink-faint">{{ ListingStockLabel::withInStock($listing->quantity) }}</p>
         <div class="mt-4">
             @include('shop.partials.add-to-cart-button', ['mode' => $mode, 'listing' => $listing, 'standalone' => true])
         </div>
