@@ -8,7 +8,7 @@
 @props(['requestId' => null, 'txnId' => null, 'sessionId' => null, 'actorType' => null, 'actorId' => null, 'filters' => []])
 
 @if ($requestId !== null || $txnId !== null || $sessionId !== null || $actorId !== null)
-    <div {{ $attributes->merge(['class' => 'flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400']) }}>
+    <div {{ $attributes->merge(['class' => 'flex flex-wrap items-center gap-2 text-xs text-stone-600 dark:text-stone-400']) }}>
         <span>Filter by</span>
         @if ($requestId !== null)
             <x-admin.log-id-chip :id="$requestId" :href="\App\Logging\Admin\LogFilterLinks::href('request', $requestId, $filters)" :truncate="false" />

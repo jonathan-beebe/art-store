@@ -172,9 +172,9 @@ it('keeps the Orders nav link current on an order detail page, not just the inde
     foreach ([$index, $show] as $response) {
         $response->assertOk();
         $html = (string) $response->getContent();
-        // Three: the below-`xl` inline nav, its Menu disclosure, and the
-        // `xl`-and-up rail (DSGN-006).
-        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(3);
+        // Two: the lg+ rail and the below-lg drawer (DSGN-006) — they share
+        // one nav-items partial so they can't drift.
+        expect(preg_match_all('/<a\s+href="'.preg_quote(route('admin.orders.index'), '/').'"\s+aria-current="page"/', $html))->toBe(2);
     }
 });
 

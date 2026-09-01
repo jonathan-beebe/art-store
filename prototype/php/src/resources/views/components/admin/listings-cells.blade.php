@@ -1,40 +1,38 @@
-{{-- The listings list pane's cells (DSGN-006). The seller is the
-     supporting fact on line 2; price is the number that matters, or "no
-     price" in mono for a draft that has not set one. An active removal
-     overrides the status badge — a removed for-sale listing reads as
-     removed, not as still for sale. --}}
+{{-- The listings list pane's cells (DSGN-006, restyled to the canonical
+     two-line row). The seller is the supporting fact on the muted second
+     line, beside the price (or "no price" for a draft that has not set
+     one). An active removal overrides the status pill — a removed for-sale
+     listing reads as removed, not as still for sale. --}}
 @props(['listings', 'selected' => null])
 
-<div class="flex flex-col divide-y divide-gray-200 dark:divide-gray-800">
+<div class="flex flex-col divide-y divide-stone-200 dark:divide-white/10">
     @forelse ($listings as $listing)
         @php
             $isSelected = $selected !== null && $selected->id === $listing->id;
             $tint = match (true) {
-                (bool) $listing->activeRemoval => 'bad',
-                $listing->status === \App\Domain\Listings\ListingStatus::ForSale => 'ok',
-                $listing->status === \App\Domain\Listings\ListingStatus::Draft => 'warn',
-                default => 'neutral',
+                (bool) $listing->activeRemoval => 'red',
+                $listing->status === \App\Domain\Listings\ListingStatus::ForSale => 'green',
+                $listing->status === \App\Domain\Listings\ListingStatus::Draft => 'yellow',
+                default => 'gray',
             };
             $statusLabel = $listing->activeRemoval ? 'Removed' : $listing->status->label();
         @endphp
-        <x-admin.card-row
+        <a
             href="{{ route('admin.listings.show', $listing) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            @if ($isSelected) aria-current="true" @endif
             data-pane-cell="{{ $listing->id }}"
-            class="{{ $isSelected ? 'bg-gray-100 dark:bg-gray-800' : '' }}"
+            class="flex items-center gap-3 px-6 py-3 hover:bg-stone-50 dark:hover:bg-white/5 {{ $isSelected ? 'bg-stone-50 shadow-[inset_2px_0_0_0_var(--color-stone-500)] dark:bg-white/5 dark:shadow-[inset_2px_0_0_0_var(--color-stone-400)]' : '' }}"
         >
-            <div class="flex items-baseline gap-2">
-                <span class="truncate font-medium">{{ $listing->title }}</span>
-                <span class="flex-1"></span>
-                <x-admin.cell-time :at="$listing->created_at" />
+            <div class="min-w-0 flex-1">
+                <div class="flex items-start gap-3">
+                    <span class="flex-1 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{{ $listing->title }}</span>
+                    <x-admin.status-pill :tint="$tint">{{ $statusLabel }}</x-admin.status-pill>
+                </div>
+                <p class="truncate text-xs text-stone-500 dark:text-stone-400">
+                    {{ $listing->seller->displayName() }} &middot; {{ $listing->price()->format() }}
+                </p>
             </div>
-            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <x-admin.status-badge :tint="$tint">{{ $statusLabel }}</x-admin.status-badge>
-                <span class="truncate">{{ $listing->seller->displayName() }}</span>
-                <span class="flex-1"></span>
-                <span class="font-mono tabular-nums text-gray-900 dark:text-gray-100">{{ $listing->price()->format() }}</span>
-            </div>
-        </x-admin.card-row>
+        </a>
     @empty
         <x-admin.nothing class="m-3">No listings.</x-admin.nothing>
     @endforelse

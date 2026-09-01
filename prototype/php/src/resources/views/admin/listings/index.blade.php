@@ -1,8 +1,8 @@
 <x-layouts.admin title="Listings — Art Store admin" mode="list" empty-detail-prompt="Choose a listing to see its details.">
     <x-slot:cells>
-        <div class="flex items-baseline gap-2 border-b border-gray-200 p-3 dark:border-gray-800">
-            <h1 class="text-sm font-semibold">Listings</h1>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $listingsTotal }}</span>
+        <div class="flex items-baseline gap-2 border-b border-stone-200 px-6 py-4 dark:border-white/10">
+            <h1 class="text-sm font-semibold text-stone-900 dark:text-stone-100">Listings</h1>
+            <span class="text-xs text-stone-500 dark:text-stone-400">{{ $listingsTotal }}</span>
         </div>
         <div class="flex-1 overflow-y-auto">
             <x-admin.listings-cells :listings="$listings" />
@@ -10,7 +10,7 @@
         <x-admin.cell-footer :shown="$listings->count()" :total="$listingsTotal" :route="route('admin.listings.index')" />
     </x-slot:cells>
 
-    <h1 class="text-xl font-semibold">Listings</h1>
+    <h1 class="text-xl font-semibold text-stone-900 dark:text-stone-100">Listings</h1>
 
     <x-admin.filters :action="route('admin.listings.index')">
         <x-admin.status-filter :cases="$statuses" :selected="$status" />

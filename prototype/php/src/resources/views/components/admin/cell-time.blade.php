@@ -3,6 +3,6 @@
      time on an old row would read as if it happened hours ago. --}}
 @props(['at'])
 
-<span class="whitespace-nowrap font-mono text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+<span class="whitespace-nowrap font-mono text-[11px] tabular-nums text-stone-500 dark:text-stone-400">
     {{ $at === null ? '—' : ($at->isToday() ? $at->format('g:ia') : $at->format('M j')) }}
 </span>
