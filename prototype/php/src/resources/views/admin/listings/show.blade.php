@@ -1,8 +1,18 @@
 <x-layouts.admin :title="$listing->title.' — Art Store admin'" mode="detail">
+    @php
+        $tint = match (true) {
+            (bool) $listing->activeRemoval => 'red',
+            $listing->status === \App\Domain\Listings\ListingStatus::ForSale => 'green',
+            $listing->status === \App\Domain\Listings\ListingStatus::Draft => 'yellow',
+            default => 'gray',
+        };
+        $statusLabel = $listing->activeRemoval ? 'Removed' : $listing->status->label();
+    @endphp
+
     <x-slot:cells>
-        <div class="flex items-baseline gap-2 border-b border-gray-200 p-3 dark:border-gray-800">
-            <h1 class="text-sm font-semibold">Listings</h1>
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ $cellListingsTotal }}</span>
+        <div class="flex items-baseline gap-2 border-b border-stone-200 px-6 py-4 dark:border-white/10">
+            <h1 class="text-sm font-semibold text-stone-900 dark:text-stone-100">Listings</h1>
+            <span class="text-xs text-stone-500 dark:text-stone-400">{{ $cellListingsTotal }}</span>
         </div>
         <div class="flex-1 overflow-y-auto">
             <x-admin.listings-cells :listings="$cellListings" :selected="$listing" />
@@ -12,51 +22,54 @@
 
     <x-admin.back-link :route="route('admin.listings.index')" label="Listings" />
 
-    <div class="flex flex-wrap items-center gap-4">
-        <h1 class="text-xl font-semibold">{{ $listing->title }}</h1>
-        <a href="{{ route('admin.listings.index') }}" class="ml-auto hidden text-gray-700 dark:text-gray-300 underline sm:inline">All listings</a>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+            <p class="text-xs text-stone-500 dark:text-stone-400">{{ $listing->id }} &middot; {{ $listing->seller->displayName() }}</p>
+            <h1 class="mt-1 flex flex-wrap items-center gap-3 text-lg font-semibold text-stone-900 dark:text-stone-100">
+                {{ $listing->title }}
+                <x-admin.status-pill :tint="$tint">{{ $statusLabel }}</x-admin.status-pill>
+            </h1>
+        </div>
+
+        <a href="{{ route('admin.listings.index') }}" class="hidden text-sm text-stone-600 dark:text-stone-400 underline sm:inline">All listings</a>
     </div>
 
-    <dl class="mt-4 grid gap-3 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:grid-cols-2">
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Seller</dt>
-            <dd class="mt-1"><a href="{{ route('admin.sellers.show', $listing->seller) }}" class="underline">{{ $listing->seller->displayName() }}</a></dd>
+    <dl class="mt-6 grid grid-cols-1 gap-x-8 border-t border-stone-200 dark:border-white/10 sm:grid-cols-2">
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Seller</dt>
+            <dd class="text-right text-stone-600 dark:text-stone-400"><a href="{{ route('admin.sellers.show', $listing->seller) }}" class="underline">{{ $listing->seller->displayName() }}</a></dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Status</dt>
-            <dd class="mt-1">{{ $listing->status->label() }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Price</dt>
+            <dd class="text-right tabular-nums text-stone-600 dark:text-stone-400">{{ $listing->price()->format() }}</dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Price</dt>
-            <dd class="mt-1 tabular-nums">{{ $listing->price()->format() }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Quantity</dt>
+            <dd class="text-right tabular-nums text-stone-600 dark:text-stone-400">{{ $listing->quantityLabel() }}</dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Quantity</dt>
-            <dd class="mt-1 tabular-nums">{{ $listing->quantityLabel() }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Medium</dt>
+            <dd class="text-right text-stone-600 dark:text-stone-400">{{ $listing->mediumAttributeLabel() ?? '—' }}</dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Medium</dt>
-            <dd class="mt-1">{{ $listing->mediumAttributeLabel() ?? '—' }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Dimensions</dt>
+            <dd class="text-right text-stone-600 dark:text-stone-400">{{ $listing->dimensions ?? '—' }}</dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Dimensions</dt>
-            <dd class="mt-1">{{ $listing->dimensions ?? '—' }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Listed</dt>
+            <dd class="text-right text-stone-600 dark:text-stone-400">{{ $listing->created_at?->format('M j, Y') }}</dd>
         </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Listed</dt>
-            <dd class="mt-1">{{ $listing->created_at?->format('M j, Y') }}</dd>
-        </div>
-        <div>
-            <dt class="text-gray-600 dark:text-gray-400">Storefront path</dt>
-            <dd class="mt-1">/art/{{ $listing->slug }}</dd>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-white/10 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Storefront path</dt>
+            <dd class="text-right text-stone-600 dark:text-stone-400">/art/{{ $listing->slug }}</dd>
         </div>
     </dl>
 
     <section aria-labelledby="moderation-heading" class="mt-6 max-w-xl">
-        <h2 id="moderation-heading" class="font-semibold text-gray-700 dark:text-gray-300">Storefront</h2>
+        <h2 id="moderation-heading" class="font-semibold text-stone-700 dark:text-stone-300">Storefront</h2>
 
         @if ($listing->activeRemoval)
-            <dl class="mt-2 rounded border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-red-900 dark:text-red-200">
+            <dl class="mt-2 rounded-md border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4 text-red-900 dark:text-red-200">
                 <dt class="font-semibold">Removed ({{ $listing->activeRemoval->kind->label() }})</dt>
                 <dd class="mt-1">{{ $listing->activeRemoval->reason }}</dd>
                 <dd class="mt-1 text-red-700 dark:text-red-400">Since {{ $listing->activeRemoval->created_at?->format('M j, Y g:ia') }}</dd>
@@ -65,18 +78,18 @@
             @if ($listing->activeRemoval->kind->canLift())
                 <form method="POST" action="{{ route('admin.listings.removals.lift', $listing) }}" class="mt-2">
                     @csrf
-                    <button type="submit" class="block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Lift removal</button>
+                    <button type="submit" class="block w-full rounded-md bg-stone-700 px-4 py-2 text-center font-medium text-white hover:bg-stone-600 sm:inline-block sm:w-auto">Lift removal</button>
                 </form>
             @endif
         @else
-            <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">On the storefront.</p>
+            <p class="mt-2 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 text-stone-600 dark:text-stone-400">On the storefront.</p>
 
             <form method="POST" action="{{ route('admin.listings.removals.store', $listing) }}"
-                  class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
+                  class="mt-2 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
                 @csrf
 
-                <label for="kind" class="block font-medium text-gray-700 dark:text-gray-300">Kind</label>
-                <select id="kind" name="kind" class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                <label for="kind" class="block font-medium text-stone-700 dark:text-stone-300">Kind</label>
+                <select id="kind" name="kind" class="mt-1 block w-full rounded-md bg-white px-3 py-2 text-stone-900 inset-ring inset-ring-stone-300 focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600 dark:bg-white/5 dark:text-stone-100 dark:inset-ring-white/10">
                     <option value="temporary">Temporary</option>
                     <option value="permanent">Permanent</option>
                 </select>
@@ -84,28 +97,28 @@
                     <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
-                <label for="reason" class="mt-3 block font-medium text-gray-700 dark:text-gray-300">Reason</label>
+                <label for="reason" class="mt-3 block font-medium text-stone-700 dark:text-stone-300">Reason</label>
                 <input id="reason" name="reason" type="text" required maxlength="500" value="{{ old('reason') }}"
-                       class="mt-1 block w-full rounded border border-gray-400 dark:border-gray-600 px-3 py-2">
+                       class="mt-1 block w-full rounded-md bg-white px-3 py-2 text-stone-900 inset-ring inset-ring-stone-300 focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600 dark:bg-white/5 dark:text-stone-100 dark:inset-ring-white/10">
                 @error('reason')
                     <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
-                <button type="submit" class="mt-4 block w-full rounded bg-gray-900 dark:bg-gray-100 px-4 py-2 text-center font-medium text-white dark:text-gray-900 sm:inline-block sm:w-auto">Remove from storefront</button>
+                <button type="submit" class="mt-4 block w-full rounded-md bg-stone-700 px-4 py-2 text-center font-medium text-white hover:bg-stone-600 sm:inline-block sm:w-auto">Remove from storefront</button>
             </form>
         @endif
     </section>
 
     <section aria-labelledby="removal-history-heading" class="mt-6">
-        <h2 id="removal-history-heading" class="font-semibold text-gray-700 dark:text-gray-300">Removal history</h2>
+        <h2 id="removal-history-heading" class="font-semibold text-stone-700 dark:text-stone-300">Removal history</h2>
 
         @if ($removals->isEmpty())
             <x-admin.nothing>Never removed.</x-admin.nothing>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="mt-2 overflow-x-auto rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Every removal this listing has been under</caption>
-                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <thead class="border-b border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Kind</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Reason</th>
@@ -113,7 +126,7 @@
                             <th scope="col" class="px-4 py-2 font-semibold">Lifted</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                         @foreach ($removals as $removal)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">{{ $removal->kind->label() }}</th>
@@ -129,38 +142,38 @@
     </section>
 
     <section aria-labelledby="activity-heading" class="mt-6">
-        <h2 id="activity-heading" class="font-semibold text-gray-700 dark:text-gray-300">Activity</h2>
+        <h2 id="activity-heading" class="font-semibold text-stone-700 dark:text-stone-300">Activity</h2>
 
         <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <dt class="text-gray-600 dark:text-gray-400">Views</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->views_count }}</dd>
+            <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
+                <dt class="text-stone-600 dark:text-stone-400">Views</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $listing->views_count }}</dd>
             </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <dt class="text-gray-600 dark:text-gray-400">Favorited</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->favorites_count }}</dd>
+            <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
+                <dt class="text-stone-600 dark:text-stone-400">Favorited</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $listing->favorites_count }}</dd>
             </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <dt class="text-gray-600 dark:text-gray-400">Cart adds</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $listing->cart_adds_count }}</dd>
+            <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
+                <dt class="text-stone-600 dark:text-stone-400">Cart adds</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $listing->cart_adds_count }}</dd>
             </div>
-            <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
-                <dt class="text-gray-600 dark:text-gray-400">Sold</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $sales->sum('quantity') }}</dd>
+            <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
+                <dt class="text-stone-600 dark:text-stone-400">Sold</dt>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $sales->sum('quantity') }}</dd>
             </div>
         </dl>
     </section>
 
     <section aria-labelledby="sales-heading" class="mt-6">
-        <h2 id="sales-heading" class="font-semibold text-gray-700 dark:text-gray-300">Sales</h2>
+        <h2 id="sales-heading" class="font-semibold text-stone-700 dark:text-stone-300">Sales</h2>
 
         @if ($sales->isEmpty())
             <x-admin.nothing>No sales yet.</x-admin.nothing>
         @else
-            <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div class="mt-2 overflow-x-auto rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
                 <table class="w-full text-left">
                     <caption class="sr-only">Every order line this listing was sold on</caption>
-                    <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                    <thead class="border-b border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50">
                         <tr>
                             <th scope="col" class="px-4 py-2 font-semibold">Order</th>
                             <th scope="col" class="px-4 py-2 font-semibold">Status</th>
@@ -168,7 +181,7 @@
                             <th scope="col" class="px-4 py-2 text-right font-semibold">Unit price</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                         @foreach ($sales as $sale)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">
