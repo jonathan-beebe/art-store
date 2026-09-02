@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-02:12:34:37 — FEAT-044 — done: analytics_events gains indexed ip/session_id columns and request_id in data, filled in by RequestFacts::current() per recordEvent; AnalyticsReport::eventsForIp()/eventsForSession(); ANALYTICS_RETENTION_DAYS prunes rows via Analytics::prune(), run by orders:sweep
 - 2026-09-02:11:59:53 — FEAT-045 — started
 - 2026-09-02:11:59:53 — FEAT-044 — started
 - 2026-09-02:11:59:53 — FEAT-045 — defined: an admin analytics drill-in from events to listings and actors
