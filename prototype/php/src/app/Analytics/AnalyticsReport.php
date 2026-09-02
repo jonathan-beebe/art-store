@@ -8,6 +8,7 @@ use App\Domain\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 /**
  * Reads the rows {@see Analytics} writes to `analytics_events`. Every
@@ -81,6 +82,81 @@ final class AnalyticsReport
     public static function platformCountsByName(): array
     {
         return self::tallyByName(fn ($query) => $query);
+    }
+
+    /**
+     * Everything one ip has done since `$from`, newest first — how an
+     * operator isolates a scripted or abusive visitor once its cookie is
+     * no longer the only trace of it.
+     *
+     * @return list<AnalyticsEventRow>
+     */
+    public static function eventsForIp(string $ip, DateTimeImmutable $from): array
+    {
+        return self::eventRows(fn ($query) => $query->where('ip', $ip), $from);
+    }
+
+    /**
+     * Everything one browser session has done since `$from`, newest first —
+     * the same isolation as {@see eventsForIp()}, across every ip that
+     * session used.
+     *
+     * @return list<AnalyticsEventRow>
+     */
+    public static function eventsForSession(string $sessionId, DateTimeImmutable $from): array
+    {
+        return self::eventRows(fn ($query) => $query->where('session_id', $sessionId), $from);
+    }
+
+    /**
+     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $scope
+     * @return list<AnalyticsEventRow>
+     */
+    private static function eventRows(callable $scope, DateTimeImmutable $from): array
+    {
+        $rows = $scope(DB::connection('analytics')->table('analytics_events'))
+            ->where('occurred_at', '>=', $from->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'))
+            // occurred_at alone ties within the same second; id — a ULID —
+            // breaks the tie in the same monotonic order it was minted.
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return array_values($rows->map(self::toEventRow(...))->all());
+    }
+
+    private static function toEventRow(stdClass $row): AnalyticsEventRow
+    {
+        /** @var string $name */
+        $name = $row->name;
+        /** @var string $occurredAt */
+        $occurredAt = $row->occurred_at;
+        /** @var string|null $subjectType */
+        $subjectType = $row->subject_type;
+        /** @var string|null $subjectId */
+        $subjectId = $row->subject_id;
+        /** @var string|null $actorId */
+        $actorId = $row->actor_id;
+        /** @var string|null $ip */
+        $ip = $row->ip;
+        /** @var string|null $sessionId */
+        $sessionId = $row->session_id;
+        /** @var string $data */
+        $data = $row->data;
+        /** @var array<string, mixed> $decoded */
+        $decoded = json_decode($data, true);
+        $requestId = $decoded['request_id'] ?? null;
+
+        return new AnalyticsEventRow(
+            $name,
+            new DateTimeImmutable($occurredAt, new DateTimeZone('UTC')),
+            $subjectType,
+            $subjectId,
+            $actorId,
+            $ip,
+            $sessionId,
+            is_string($requestId) ? $requestId : null,
+        );
     }
 
     /**

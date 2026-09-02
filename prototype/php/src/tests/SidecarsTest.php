@@ -32,6 +32,7 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Domain/Orders/BlockedLine.php' => 'value carrier; exercised through OrderPlacementPlanTest',
         'app/Domain/Orders/PlaceableLine.php' => 'value carrier; exercised through OrderPlacementPlanTest and PlaceableLineBuilderTest',
         'app/Analytics/ListingEventCounts.php' => 'value carrier; exercised through AnalyticsReportTest',
+        'app/Analytics/AnalyticsEventRow.php' => 'value carrier; exercised through AnalyticsReportTest',
         'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
         'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
     ];
