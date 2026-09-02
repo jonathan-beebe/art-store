@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:17:33:10 — FEAT-046 — started
+
 - 2026-09-02:17:30:57 — FEAT-048 — defined: a local-dev seed fills ninety days of store activity
 
 - 2026-09-02:17:22:30 — FEAT-047 — defined: every visit carries its referrer and campaign to the order
