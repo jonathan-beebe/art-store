@@ -6,6 +6,7 @@ namespace App\Http\Requests\Seller;
 
 use App\Domain\Identifiers\PrefixedId;
 use App\Domain\Messaging\FaqDraft;
+use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Message;
 use Illuminate\Auth\Access\Response;
@@ -45,6 +46,17 @@ final class PublishFaqRequest extends FormRequest
                     )
                 ),
             ],
+            // The thread the "Publish as FAQ" disclosure was opened from, so
+            // the redirect can return there — nullable because the listing's
+            // own FAQ page offers the same form with no thread behind it.
+            // Scoped to this listing's own threads, so a tampered id names
+            // no row.
+            'conversation_id' => [
+                'nullable',
+                'string',
+                'size:'.PrefixedId::LENGTH,
+                Rule::exists('conversations', 'id')->where(fn (Builder $query) => $query->where('listing_id', $this->listing()->id)),
+            ],
         ];
     }
 
@@ -56,6 +68,11 @@ final class PublishFaqRequest extends FormRequest
     public function sourceMessage(): ?Message
     {
         return $this->filled('source_message_id') ? Message::find($this->string('source_message_id')->toString()) : null;
+    }
+
+    public function conversation(): ?Conversation
+    {
+        return $this->filled('conversation_id') ? Conversation::find($this->string('conversation_id')->toString()) : null;
     }
 
     public function listing(): Listing

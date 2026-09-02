@@ -59,6 +59,14 @@
                         <form method="POST" action="{{ route('seller.listings.faqs.store', $conversation->listing) }}" class="space-y-4">
                             @csrf
                             <input type="hidden" name="source_message_id" value="{{ old('source_message_id', $faqPrefill?->sourceMessageId) }}">
+                            {{-- Publishing resolves the thread (docs/messaging.md §
+                                 "Open and resolved") — carrying it and the pane's
+                                 own filter/status is what returns the seller to it,
+                                 now marked resolved, rather than the listing's FAQ
+                                 page. --}}
+                            <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $conversation->id) }}">
+                            <input type="hidden" name="filter" value="{{ old('filter', $filter) }}">
+                            <input type="hidden" name="status" value="{{ old('status', $status) }}">
 
                             <div>
                                 <label for="question" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Question</label>

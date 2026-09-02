@@ -242,6 +242,10 @@ it('offers publish as faq prefilled from the question and the sellers latest ans
     $response->assertSee('Publish as FAQ');
     $response->assertSee('value="Is this framed?"', escape: false);
     $response->assertSee('Yes, framed in black wood.');
+    // The disclosure carries the thread it sits on, so publishing returns
+    // to it (docs/messaging.md § "Open and resolved": publishing resolves
+    // the thread) rather than landing on the listing's own FAQ page.
+    $response->assertSee('name="conversation_id" value="'.$conversation->id.'"', escape: false);
 });
 
 it('offers no publish as faq section for a support thread', function (): void {

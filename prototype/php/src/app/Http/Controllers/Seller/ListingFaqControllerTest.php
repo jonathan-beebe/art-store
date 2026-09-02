@@ -51,6 +51,56 @@ it('publishes a new entry', function (): void {
         ->and($faq->source_message_id)->toBe($message->id);
 });
 
+it('returns to the thread it was published from, now resolved', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+    ]);
+    $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs?filter=questions&status=all", [
+        'question' => 'Do you ship internationally?',
+        'answer' => 'Yes, worldwide.',
+        'source_message_id' => $message->id,
+        'conversation_id' => $conversation->id,
+    ]);
+
+    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'questions', 'status' => 'all']));
+    $response->assertSessionHas('status', 'Published to the listing.');
+    expect($conversation->fresh()?->resolved_at)->not->toBeNull();
+});
+
+it('keeps landing on the listings faq page when published with no thread behind it', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs", [
+        'question' => 'Do you ship internationally?',
+        'answer' => 'Yes, worldwide.',
+    ]);
+
+    $response->assertRedirect(route('seller.listings.faqs.index', $listing));
+});
+
+it('answers not found publishing with a conversation id from another listing', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $otherListing = $this->listing($seller);
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'listing_id' => $otherListing->id]);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs", [
+        'question' => 'Do you ship internationally?',
+        'answer' => 'Yes, worldwide.',
+        'conversation_id' => $conversation->id,
+    ]);
+
+    $response->assertSessionHasErrors('conversation_id');
+});
+
 it('publishes with no source message', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
