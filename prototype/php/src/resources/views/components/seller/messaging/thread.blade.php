@@ -140,7 +140,7 @@
             @endif
 
             <li id="{{ $threadMessage->id }}" class="flex {{ $isMine ? 'justify-end' : 'justify-start' }}">
-                <div class="flex max-w-[78%] items-start gap-3 {{ $isMine ? 'flex-row-reverse' : '' }}">
+                <div class="flex max-w-[90%] items-start gap-3 sm:max-w-[78%] {{ $isMine ? 'flex-row-reverse' : '' }}">
                     <span
                         aria-hidden="true"
                         class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold {{ $isMine ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300' }}"

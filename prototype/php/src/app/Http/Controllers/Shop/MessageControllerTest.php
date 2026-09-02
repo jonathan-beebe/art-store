@@ -185,6 +185,9 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertSeeInOrder(['It ships flat.', 'Thanks!']);
     expect($first->fresh()?->read_at)->not->toBeNull()
         ->and($second->fresh()?->read_at)->toBeNull();
+    // Below `sm`, an own-message panel widens from ~78% to ~90% so a phone
+    // reads it comfortably.
+    $response->assertSee('max-w-[90%] items-start gap-4 sm:max-w-[78%]', escape: false);
 });
 
 it('renders the listing card as one link when the thread is about a listing', function (): void {

@@ -121,6 +121,9 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertSeeInOrder(['Is this framed?', 'Not yet.']);
     expect($first->fresh()?->read_at)->not->toBeNull()
         ->and($second->fresh()?->read_at)->toBeNull();
+    // Below `sm`, an own-message panel widens from ~78% to ~90% so a phone
+    // reads it comfortably.
+    $response->assertSee('max-w-[90%] items-start gap-3 sm:max-w-[78%]', escape: false);
 });
 
 it('answers not found for a thread the seller is not in', function (): void {

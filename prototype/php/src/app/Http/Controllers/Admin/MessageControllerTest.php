@@ -108,6 +108,9 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertSeeInOrder(['Can you review my listing?', "I'll take a look."]);
     expect($first->fresh()?->read_at)->not->toBeNull()
         ->and($second->fresh()?->read_at)->toBeNull();
+    // Below `sm`, an own-message panel widens from ~78% to ~90% so a phone
+    // reads it comfortably.
+    $response->assertSee('max-w-[90%] gap-3 sm:max-w-[78%]', escape: false);
 });
 
 it('defaults the show routes pane to the desks full list rather than the index routes work queue', function (): void {

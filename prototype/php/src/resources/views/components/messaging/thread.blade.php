@@ -121,7 +121,7 @@
         @endif
 
         @php $mine = $threadMessage->sender instanceof \App\Models\Admin; @endphp
-        <li id="msg_{{ $threadMessage->id }}" class="flex max-w-[78%] gap-3 {{ $mine ? 'ml-auto flex-row-reverse' : '' }}">
+        <li id="msg_{{ $threadMessage->id }}" class="flex max-w-[90%] gap-3 sm:max-w-[78%] {{ $mine ? 'ml-auto flex-row-reverse' : '' }}">
             <x-messaging.avatar :actor="$threadMessage->sender" />
             <div class="min-w-0 {{ $mine ? 'rounded-xl rounded-tr-sm bg-stone-100 px-3.5 py-2.5 ring-1 ring-stone-300 dark:bg-white/5 dark:ring-white/10' : '' }}">
                 <div class="flex flex-wrap items-baseline gap-x-2">

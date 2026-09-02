@@ -64,7 +64,7 @@
                 </li>
             @endif
 
-            <li id="msg_{{ $threadMessage->id }}" class="flex max-w-[78%] items-start gap-4 {{ $mine ? 'ml-auto flex-row-reverse' : '' }}">
+            <li id="msg_{{ $threadMessage->id }}" class="flex max-w-[90%] items-start gap-4 sm:max-w-[78%] {{ $mine ? 'ml-auto flex-row-reverse' : '' }}">
                 <x-ui.avatar :name="$avatarNameOf($threadMessage)" size="md" class="shrink-0" />
                 <div class="min-w-0 {{ $mine ? 'rounded-2xl rounded-tr-sm border border-line bg-accent-soft px-4 py-2.5' : '' }}">
                     <p class="flex flex-wrap items-baseline gap-2.5">
