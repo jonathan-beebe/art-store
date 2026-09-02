@@ -291,11 +291,26 @@ happens in the request to decide whether the write is a duplicate.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
 
+Every row also carries the request that produced it: `ip` and `session_id`
+as their own indexed columns, so "everything from this ip" and "everything
+in this session" are index hits, and the request id folded into `data` as
+`request_id` — a cross-link to the log store (§2.5), never a filter on its
+own. The one entry point fills all three in from whatever request is
+current when it is called; a CLI run (a seeder, an artisan command) carries
+none of them, and the columns stay null.
+
 A store failure never fails the request: a write that cannot commit logs one
 `warn` line and the response completes regardless. Readers (§5 admin stats
 and dashboard, seller and admin listing detail) query the store directly and
 are unguarded — an unavailable store surfaces there as an error, the way any
 missing data source would.
+
+An `ip` and a `session_id` are personal data, so the store does not keep
+them forever: `ANALYTICS_RETENTION_DAYS` (default `30`, `off` disables)
+bounds `analytics_events`' history the way `LOG_RETENTION_DAYS` bounds the
+log store's — the maintenance sweep prunes rows whose `occurred_at` is
+older than the window. `page_view_counts` carries no personal data and is
+never pruned.
 
 ## 3. Rate limits
 
@@ -735,3 +750,12 @@ unique `dedupe_key`. Recording appends to an in-memory buffer and does no
 I/O; the buffer flushes after the response or at command end, each event
 carrying the instant it was recorded rather than the instant it was written.
 PHP ships it on FEAT-039; node and rails owe the same entry-point shape.
+
+2026-09-02, analytics request facts: §2.6 gains `ip` and `session_id` as
+their own indexed columns on `analytics_events`, and `request_id` folded
+into `data`. The one entry point fills all three in from whatever request
+is current; a CLI run carries none of them. `ANALYTICS_RETENTION_DAYS`
+(default `30`, `off` disables) bounds the table's history, pruned by the
+maintenance sweep the way `LOG_RETENTION_DAYS` bounds the log store's;
+`page_view_counts` carries no personal data and is never pruned. PHP ships
+it on FEAT-044; node and rails owe the same parity as every other §2.6 gap.
