@@ -9,6 +9,7 @@ use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
 use Closure;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -19,7 +20,8 @@ use Throwable;
  * to an in-memory buffer, so nothing a shopper or seller is waiting on ever
  * waits on the analytics connection. {@see flush()} is where the buffer
  * becomes rows — {@see \App\Providers\AnalyticsServiceProvider} is what
- * decides when that happens.
+ * decides when that happens. {@see prune()} is the maintenance sweep's own
+ * entry point, outside the buffer-and-flush path.
  */
 final class Analytics
 {
@@ -27,6 +29,11 @@ final class Analytics
      * chunked `INSERT OR IGNORE` carries at most — see
      * {@see \App\Logging\LogStore}, the same precedent. */
     private const int FLUSH_AT = 256;
+
+    /** Rows one retention DELETE takes at most, so the write lock a batch
+     * holds stays brief — {@see \App\Logging\LogStore::prune()}, the same
+     * shape. */
+    private const int PRUNE_BATCH = 5000;
 
     /** @var list<AnalyticsEvent> */
     private array $events = [];
@@ -124,6 +131,32 @@ final class Analytics
         } catch (Throwable $e) {
             $this->reportFailure('reassignActor', $e);
         }
+    }
+
+    /**
+     * Deletes every `analytics_events` row whose `occurred_at` is strictly
+     * before `$cutoff`, in `$batchSize`-row batches looped until none
+     * change — {@see \App\Logging\LogStore::prune()}'s shape, against the
+     * analytics connection instead of a bespoke PDO handle. `page_view_counts`
+     * carries no personal data and is never touched here. Unlike
+     * {@see flush()}/{@see reassignActor()}, a failure is not swallowed —
+     * {@see \App\Console\Commands\SweepOrders} decides what it means for
+     * its exit code.
+     */
+    public function prune(DateTimeImmutable $cutoff, int $batchSize = self::PRUNE_BATCH): int
+    {
+        $cutoffTs = $cutoff->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        $deleted = 0;
+
+        do {
+            $chunkDeleted = DB::connection('analytics')->table('analytics_events')
+                ->where('occurred_at', '<', $cutoffTs)
+                ->limit($batchSize)
+                ->delete();
+            $deleted += $chunkDeleted;
+        } while ($chunkDeleted > 0);
+
+        return $deleted;
     }
 
     /** Buffered rows not yet written — every distinct page-view key counts once, however many hits it carries. */

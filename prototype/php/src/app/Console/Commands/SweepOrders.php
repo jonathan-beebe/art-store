@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Orders\SweepStaleOrders;
+use App\Analytics\Analytics;
 use App\Logging\LogStore;
 use App\Models\Order;
 use DateMalformedStringException;
@@ -18,9 +19,9 @@ final class SweepOrders extends Command
     protected $signature = 'orders:sweep {--as-of= : Sweep as if it were this date, defaults to today}';
 
     /** @var string */
-    protected $description = 'Cancel the orders a guest never verified, once they are older than STALE_ORDER_HOURS, and prune the log store past its retention window';
+    protected $description = 'Cancel the orders a guest never verified, once they are older than STALE_ORDER_HOURS, and prune the log and analytics stores past their retention windows';
 
-    public function handle(SweepStaleOrders $sweepStaleOrders, LogStore $logStore): int
+    public function handle(SweepStaleOrders $sweepStaleOrders, LogStore $logStore, Analytics $analytics): int
     {
         $rawAsOf = $this->option('as-of');
         $asOfInput = is_string($rawAsOf) && $rawAsOf !== '' ? $rawAsOf : null;
@@ -33,10 +34,13 @@ final class SweepOrders extends Command
             return self::FAILURE;
         }
 
+        // Each step runs whatever the others did, so a failure in one
+        // never hides the other two's completed work.
         $staleSweepSucceeded = $this->sweepStaleOrders($sweepStaleOrders, $asOf);
-        $pruneSucceeded = $this->pruneLogLines($logStore, $asOf);
+        $logPruneSucceeded = $this->pruneLogLines($logStore, $asOf);
+        $analyticsPruneSucceeded = $this->pruneAnalyticsEvents($analytics, $asOf);
 
-        return $staleSweepSucceeded && $pruneSucceeded ? self::SUCCESS : self::FAILURE;
+        return $staleSweepSucceeded && $logPruneSucceeded && $analyticsPruneSucceeded ? self::SUCCESS : self::FAILURE;
     }
 
     private function sweepStaleOrders(SweepStaleOrders $sweepStaleOrders, DateTimeImmutable $asOf): bool
@@ -82,6 +86,31 @@ final class SweepOrders extends Command
             return true;
         } catch (Throwable $e) {
             $this->error("log retention prune failed: {$e->getMessage()}");
+
+            return false;
+        }
+    }
+
+    /**
+     * `ANALYTICS_RETENTION_DAYS=off` skips pruning silently — not a
+     * failure. A prune failure sets the command's exit code but leaves the
+     * other two steps' completed work standing; it never escapes as an
+     * uncaught exception.
+     */
+    private function pruneAnalyticsEvents(Analytics $analytics, DateTimeImmutable $asOf): bool
+    {
+        $retentionDays = config('analytics.retention_days');
+
+        if (! is_int($retentionDays)) {
+            return true;
+        }
+
+        try {
+            $analytics->prune($asOf->modify("-{$retentionDays} days"));
+
+            return true;
+        } catch (Throwable $e) {
+            $this->error("analytics retention prune failed: {$e->getMessage()}");
 
             return false;
         }

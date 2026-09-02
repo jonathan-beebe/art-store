@@ -46,6 +46,10 @@
         <!-- config/database.php: the analytics connection's own in-memory
              database, isolated from the commerce connection's. -->
         <env name="ANALYTICS_DATABASE_FILE" value=":memory:"/>
+        <!-- config/analytics.php: off by default, so an ordinary test never
+             has orders:sweep prune rows out from under it. SweepOrdersTest
+             overrides this per test, the way it does log_store.retention_days. -->
+        <env name="ANALYTICS_RETENTION_DAYS" value="off"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

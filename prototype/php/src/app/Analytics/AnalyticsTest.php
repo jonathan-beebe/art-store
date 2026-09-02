@@ -12,6 +12,7 @@ use App\Models\PageViewCount;
 use Closure;
 use DateTimeImmutable;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -275,6 +276,65 @@ it('logs one warning and never throws when reassignActor cannot write', function
 
         expect($log->line('app.log', 'doing')['level'])->toBe('warn');
     });
+});
+
+it('deletes events before the cutoff in batches, looping until none change', function (): void {
+    $analytics = new Analytics;
+
+    foreach (['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-10', '2026-08-11'] as $day) {
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable("{$day}T00:00:00+00:00")));
+    }
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'), batchSize: 2);
+
+    expect($deleted)->toBe(3)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(2);
+});
+
+it('prunes nothing when every event is at or after the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-10T00:00:00+00:00')));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});
+
+it('keeps an event whose occurred_at exactly equals the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-05T00:00:00+00:00')));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});
+
+it('leaves page_view_counts alone — it carries no personal data', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-01T00:00:00+00:00')));
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', new DateTimeImmutable('2026-08-01T00:00:00+00:00'));
+    $analytics->flush();
+
+    $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(0)
+        ->and(PageViewCount::query()->count())->toBe(1);
+});
+
+it('lets a prune failure propagate, rather than swallowing it like flush()/reassignActor() do', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-01T00:00:00+00:00')));
+    $analytics->flush();
+
+    DB::connection('analytics')->getPdo()->exec('DROP TABLE analytics_events');
+
+    expect(fn () => $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00')))
+        ->toThrow(QueryException::class);
 });
 
 it('never throws from the shutdown fallback once the container is unusable', function (): void {
