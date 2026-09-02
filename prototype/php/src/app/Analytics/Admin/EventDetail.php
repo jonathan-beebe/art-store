@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\ChangeDirection;
 use App\Domain\Analytics\EventBreakdown;
@@ -11,13 +12,12 @@ use App\Domain\Analytics\PageViewSite;
 use App\Domain\Analytics\RangeChange;
 use App\Models\Customer;
 use App\Models\Listing;
-use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
  * The admin analytics event page's read: one event name's range tiles,
- * daily series, and breakdown. Every {@see \App\Domain\Analytics\AnalyticsEventName}
+ * daily series, and breakdown. Every {@see AnalyticsEventName}
  * case reads `analytics_events`, grouped by listing or by actor per `$by`;
  * `page.view` reads the `page_view_counts` roll-up instead, which carries no
  * subject or actor of its own, so its breakdown is always by route pattern
@@ -25,16 +25,6 @@ use stdClass;
  */
 final class EventDetail
 {
-    /** The same plural, descriptive copy {@see EventTotals} shows on the
-     * entry page — the two pages never label the same event differently. */
-    private const array EVENT_LABELS = [
-        'listing.view' => 'Listing views',
-        'listing.favorite' => 'Favorites',
-        'listing.unfavorite' => 'Unfavorites',
-        'listing.cart_add' => 'Cart adds',
-        EventBreakdown::PAGE_VIEW_EVENT_NAME => 'Page views',
-    ];
-
     public static function forRange(string $name, AnalyticsRange $range, EventBreakdown $by): EventDetailView
     {
         return $name === EventBreakdown::PAGE_VIEW_EVENT_NAME
@@ -54,7 +44,7 @@ final class EventDetail
 
         return new EventDetailView(
             $name,
-            self::EVENT_LABELS[$name] ?? $name,
+            AnalyticsEventName::from($name)->pluralLabel(),
             self::tiles($range, $totals['current'], $totals['previous'], $daily, $actors),
             $daily,
             AnalyticsRange::dayCaption($range->start->format('Y-m-d')),
@@ -71,7 +61,7 @@ final class EventDetail
 
         return new EventDetailView(
             EventBreakdown::PAGE_VIEW_EVENT_NAME,
-            self::EVENT_LABELS[EventBreakdown::PAGE_VIEW_EVENT_NAME],
+            EventBreakdown::PAGE_VIEW_LABEL,
             self::tiles($range, $totals['current'], $totals['previous'], $daily, null),
             $daily,
             AnalyticsRange::dayCaption($range->start->format('Y-m-d')),
@@ -140,11 +130,11 @@ final class EventDetail
     private static function totals(string $name, AnalyticsRange $range): array
     {
         $previous = $range->previous();
-        $currentStart = self::instant($range->start);
+        $currentStart = SqlInstant::format($range->start);
 
         $row = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
-            ->whereBetween('occurred_at', [self::instant($previous->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($previous->start), SqlInstant::format($range->end)])
             ->selectRaw('sum(case when occurred_at >= ? then 1 else 0 end) as current', [$currentStart])
             ->selectRaw('sum(case when occurred_at < ? then 1 else 0 end) as previous', [$currentStart])
             ->first();
@@ -159,7 +149,7 @@ final class EventDetail
     {
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->selectRaw('date(occurred_at) as day')
             ->selectRaw('count(*) as tally')
             ->groupBy('day')
@@ -186,7 +176,7 @@ final class EventDetail
         $actorIds = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
             ->whereNotNull('actor_id')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
             ->pluck('actor_id');
 
@@ -207,13 +197,13 @@ final class EventDetail
     private static function listingTotals(string $name, AnalyticsRange $range): array
     {
         $previous = $range->previous();
-        $currentStart = self::instant($range->start);
+        $currentStart = SqlInstant::format($range->start);
 
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
             ->where('subject_type', 'listing')
             ->whereNotNull('subject_id')
-            ->whereBetween('occurred_at', [self::instant($previous->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($previous->start), SqlInstant::format($range->end)])
             ->select('subject_id')
             ->selectRaw('sum(case when occurred_at >= ? then 1 else 0 end) as current', [$currentStart])
             ->selectRaw('sum(case when occurred_at < ? then 1 else 0 end) as previous', [$currentStart])
@@ -241,12 +231,12 @@ final class EventDetail
     private static function actorTotals(string $name, AnalyticsRange $range): array
     {
         $previous = $range->previous();
-        $currentStart = self::instant($range->start);
+        $currentStart = SqlInstant::format($range->start);
 
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
             ->whereNotNull('actor_id')
-            ->whereBetween('occurred_at', [self::instant($previous->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($previous->start), SqlInstant::format($range->end)])
             ->select('actor_id')
             ->selectRaw('sum(case when occurred_at >= ? then 1 else 0 end) as current', [$currentStart])
             ->selectRaw('sum(case when occurred_at < ? then 1 else 0 end) as previous', [$currentStart])
@@ -452,10 +442,5 @@ final class EventDetail
             'current' => $current === null ? 0 : (int) $current,
             'previous' => $previous === null ? 0 : (int) $previous,
         ];
-    }
-
-    private static function instant(DateTimeImmutable $moment): string
-    {
-        return $moment->format('Y-m-d H:i:s');
     }
 }

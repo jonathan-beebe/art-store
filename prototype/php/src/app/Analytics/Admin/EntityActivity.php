@@ -154,7 +154,7 @@ final class EntityActivity
         $standingFavorites = Favorite::query()->where('listing_id', $listing->id)->count();
         $becameOrders = OrderItem::query()
             ->where('listing_id', $listing->id)
-            ->whereBetween('created_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('created_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->count();
         $actors = self::distinctActorsForListing($listing, $range);
         $peakIndex = self::peakDayIndex($daily);
@@ -237,7 +237,7 @@ final class EntityActivity
     private static function dailyCounts(callable $scope, AnalyticsRange $range): array
     {
         $rows = $scope(DB::connection('analytics')->table('analytics_events'))
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->selectRaw('date(occurred_at) as day')
             ->selectRaw('count(*) as tally')
             ->groupBy('day')
@@ -285,7 +285,7 @@ final class EntityActivity
 
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($dayStart), self::instant($dayEnd)])
+            ->whereBetween('occurred_at', [SqlInstant::format($dayStart), SqlInstant::format($dayEnd)])
             ->selectRaw("strftime('%H', occurred_at) as hour")
             ->selectRaw('count(*) as tally')
             ->groupBy('hour')
@@ -326,7 +326,7 @@ final class EntityActivity
     {
         $row = DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->selectRaw("strftime('%Y-%m-%dT%H', occurred_at) as hour")
             ->selectRaw('count(*) as tally')
             ->groupBy('hour')
@@ -363,7 +363,7 @@ final class EntityActivity
 
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($hourStart), self::instant($hourEnd)])
+            ->whereBetween('occurred_at', [SqlInstant::format($hourStart), SqlInstant::format($hourEnd)])
             ->get(['ip', 'subject_id']);
 
         $ipCounts = [];
@@ -398,7 +398,7 @@ final class EntityActivity
         return DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
             ->whereIn('name', [AnalyticsEventName::ListingFavorite->value, AnalyticsEventName::ListingCartAdd->value])
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->exists();
     }
 
@@ -411,7 +411,7 @@ final class EntityActivity
         $ips = DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
             ->whereNotNull('ip')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
             ->pluck('ip')
             ->values()
@@ -424,7 +424,7 @@ final class EntityActivity
     {
         return DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
             ->count('session_id');
     }
@@ -433,7 +433,7 @@ final class EntityActivity
     {
         return DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
             ->count('subject_id');
     }
@@ -442,7 +442,7 @@ final class EntityActivity
     {
         $row = DB::connection('analytics')->table('analytics_events')
             ->where('actor_id', $actorId)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->selectRaw('max(occurred_at) as last_seen')
             ->first();
 
@@ -471,7 +471,7 @@ final class EntityActivity
             ->where('subject_type', 'listing')
             ->where('subject_id', $listing->id)
             ->where('name', $name->value)
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->count();
     }
 
@@ -484,7 +484,7 @@ final class EntityActivity
             ->where('subject_type', 'listing')
             ->where('subject_id', $listing->id)
             ->whereNotNull('actor_id')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
             ->pluck('actor_id');
 
@@ -520,7 +520,7 @@ final class EntityActivity
     private static function feed(callable $scope, AnalyticsRange $range, ?AnalyticsEventName $filter, string $otherKind): array
     {
         $base = fn () => $scope(DB::connection('analytics')->table('analytics_events'))
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)]);
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)]);
 
         $total = $base()->count();
 
@@ -641,10 +641,5 @@ final class EntityActivity
     private static function startOfDay(DateTimeImmutable $moment): DateTimeImmutable
     {
         return new DateTimeImmutable($moment->format('Y-m-d').' 00:00:00', new DateTimeZone('UTC'));
-    }
-
-    private static function instant(DateTimeImmutable $moment): string
-    {
-        return $moment->format('Y-m-d H:i:s');
     }
 }

@@ -122,7 +122,7 @@ final class ActorAggregates
     {
         $rows = DB::connection('analytics')->table('analytics_events')
             ->whereNotNull('actor_id')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->select('actor_id')
             ->selectRaw('count(*) as events')
             ->selectRaw('count(distinct subject_id) as subjects')
@@ -166,7 +166,7 @@ final class ActorAggregates
     {
         $hourly = DB::connection('analytics')->table('analytics_events')
             ->whereNotNull('actor_id')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->select('actor_id')
             ->selectRaw("strftime('%Y-%m-%dT%H', occurred_at) as hour")
             ->selectRaw('count(*) as tally')
@@ -220,10 +220,5 @@ final class ActorAggregates
         }
 
         return $firstSeen;
-    }
-
-    private static function instant(DateTimeImmutable $moment): string
-    {
-        return $moment->format('Y-m-d H:i:s');
     }
 }

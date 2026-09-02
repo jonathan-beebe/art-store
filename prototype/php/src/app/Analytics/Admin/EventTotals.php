@@ -6,8 +6,8 @@ namespace App\Analytics\Admin;
 
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\EventBreakdown;
 use App\Domain\Analytics\RangeChange;
-use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,20 +22,6 @@ use Illuminate\Support\Facades\DB;
  */
 final class EventTotals
 {
-    private const string PAGE_VIEW_NAME = 'page.view';
-
-    private const string PAGE_VIEW_LABEL = 'Page views';
-
-    /** The entry page's own copy for each event name — plural and
-     * descriptive, unlike {@see AnalyticsEventName::label()}'s
-     * single-word form on `/admin/stats`' tiles. */
-    private const array EVENT_LABELS = [
-        'listing.view' => 'Listing views',
-        'listing.favorite' => 'Favorites',
-        'listing.unfavorite' => 'Unfavorites',
-        'listing.cart_add' => 'Cart adds',
-    ];
-
     /**
      * @return list<EventTotal>
      */
@@ -59,7 +45,7 @@ final class EventTotals
         return array_map(
             fn (AnalyticsEventName $case): EventTotal => self::eventTotal(
                 $case->value,
-                self::EVENT_LABELS[$case->value],
+                $case->pluralLabel(),
                 $byName[$case->value] ?? ['current' => 0, 'previous' => 0, 'subjects' => 0, 'actors' => 0],
                 $dailyByName[$case->value] ?? [],
                 $dayLabels,
@@ -100,10 +86,10 @@ final class EventTotals
     private static function nameTotals(AnalyticsRange $range): array
     {
         $previous = $range->previous();
-        $currentStart = self::instant($range->start);
+        $currentStart = SqlInstant::format($range->start);
 
         $rows = DB::connection('analytics')->table('analytics_events')
-            ->whereBetween('occurred_at', [self::instant($previous->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($previous->start), SqlInstant::format($range->end)])
             ->select('name')
             ->selectRaw('sum(case when occurred_at >= ? then 1 else 0 end) as current', [$currentStart])
             ->selectRaw('sum(case when occurred_at < ? then 1 else 0 end) as previous', [$currentStart])
@@ -144,7 +130,7 @@ final class EventTotals
     private static function dailyTotalsByName(AnalyticsRange $range): array
     {
         $rows = DB::connection('analytics')->table('analytics_events')
-            ->whereBetween('occurred_at', [self::instant($range->start), self::instant($range->end)])
+            ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->select('name')
             ->selectRaw('date(occurred_at) as day')
             ->selectRaw('count(*) as tally')
@@ -210,8 +196,8 @@ final class EventTotals
         $daily = array_map(fn (string $day): int => $dailyByDay[$day] ?? 0, $range->dayLabels());
 
         return new EventTotal(
-            self::PAGE_VIEW_NAME,
-            self::PAGE_VIEW_LABEL,
+            EventBreakdown::PAGE_VIEW_EVENT_NAME,
+            EventBreakdown::PAGE_VIEW_LABEL,
             $current,
             $previousCount,
             RangeChange::between($current, $previousCount),
@@ -219,10 +205,5 @@ final class EventTotals
             null,
             null,
         );
-    }
-
-    private static function instant(DateTimeImmutable $moment): string
-    {
-        return $moment->format('Y-m-d H:i:s');
     }
 }

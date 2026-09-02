@@ -27,6 +27,15 @@ it('gives every case a feed-row verb', function (AnalyticsEventName $name, strin
     'cart_add' => [AnalyticsEventName::ListingCartAdd, 'added to cart'],
 ]);
 
+it('gives every case a plural label', function (AnalyticsEventName $name, string $expected): void {
+    expect($name->pluralLabel())->toBe($expected);
+})->with([
+    'view' => [AnalyticsEventName::ListingView, 'Listing views'],
+    'favorite' => [AnalyticsEventName::ListingFavorite, 'Favorites'],
+    'unfavorite' => [AnalyticsEventName::ListingUnfavorite, 'Unfavorites'],
+    'cart_add' => [AnalyticsEventName::ListingCartAdd, 'Cart adds'],
+]);
+
 it('gives every case a non-empty icon path', function (AnalyticsEventName $name): void {
     expect($name->iconPath())->not->toBe('');
 })->with(AnalyticsEventName::cases());

@@ -26,6 +26,19 @@ enum AnalyticsEventName: string
         };
     }
 
+    /** The plural, descriptive form the admin analytics entry and event
+     * pages show, where {@see label()}'s single-word form reads too
+     * terse for a table column or a page heading. */
+    public function pluralLabel(): string
+    {
+        return match ($this) {
+            self::ListingView => 'Listing views',
+            self::ListingFavorite => 'Favorites',
+            self::ListingUnfavorite => 'Unfavorites',
+            self::ListingCartAdd => 'Cart adds',
+        };
+    }
+
     /** The sentence verb an event feed row reads: "{actor} {verb} {listing}". */
     public function verb(): string
     {
