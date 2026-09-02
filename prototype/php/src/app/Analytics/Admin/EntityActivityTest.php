@@ -208,6 +208,25 @@ it('filters the feed by event name and caps it, carrying the unfiltered total in
         ->and($filtered->feedCaption)->toBe('1 of 6 shown, newest first');
 });
 
+it('orders the feed newest first', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $first = $this->verifiedCustomer();
+    $second = $this->verifiedCustomer();
+    $third = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $first->id, $this->moment('2026-08-19 09:00:00'), 'first'));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $third->id, $this->moment('2026-08-21 09:00:00'), 'third'));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $second->id, $this->moment('2026-08-20 09:00:00'), 'second'));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forListing($listing, $range, null);
+
+    expect(array_column($view->feed, 'otherId'))->toBe([$third->id, $second->id, $first->id]);
+});
+
 it('names a deleted listing "listing no longer exists" on an actor\'s feed', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
