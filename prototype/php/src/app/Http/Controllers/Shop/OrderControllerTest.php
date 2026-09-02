@@ -130,6 +130,16 @@ it('offers a form to message the seller for each fulfillment', function () use (
     $response->assertSee(route('shop.order.messages', [$order, $fulfillment]), escape: false);
 });
 
+it('offers a way to contact Art Store about the order', function () use ($paidOrderFor): void {
+    $shopper = $this->arriveAs($this->verifiedCustomer());
+    $order = $paidOrderFor($shopper);
+
+    $response = $this->get(route('shop.order', $order));
+
+    $response->assertSee('Contact Art Store about this order');
+    $response->assertSee(route('shop.support', ['order' => $order->id]), escape: false);
+});
+
 it('renders a configured lines configuration and itemized breakdown', function (): void {
     $shopper = $this->arriveAs($this->verifiedCustomer());
     $listing = $this->listing($this->seller('Blue Kiln Studio'), ['title' => 'Engraved Signet Ring', 'price_cents' => 12000]);

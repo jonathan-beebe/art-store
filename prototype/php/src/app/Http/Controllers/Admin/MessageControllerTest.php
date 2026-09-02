@@ -317,9 +317,8 @@ it('carries a customers support request to the admin and the answer back', funct
     $this->withCookie(CustomerIdentity::COOKIE, (string) $customer->id);
     $this->actingAs($customer, 'customer');
 
-    $this->get('/support')->assertRedirect();
+    $this->post('/support', ['subject' => 'Order never arrived', 'body' => 'My order never arrived.'])->assertRedirect();
     $conversation = Conversation::sole();
-    $this->post("/messages/{$conversation->id}", ['body' => 'My order never arrived.']);
 
     $inbox = $this->actingAs($admin, 'admin')->get('/admin/messages');
     $inbox->assertSee('Priya Shopper');

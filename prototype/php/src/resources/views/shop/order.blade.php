@@ -8,14 +8,20 @@
         @endif
     </p>
 
-    @visitorCan('cancel', $order)
-        <form method="POST" action="{{ route('shop.order.cancel', $order) }}" class="mt-6">
-            @csrf
-            <x-ui.button variant="secondary">
-                Cancel this order
-            </x-ui.button>
-        </form>
-    @endvisitorCan
+    <div class="mt-6 flex flex-wrap gap-4">
+        @visitorCan('cancel', $order)
+            <form method="POST" action="{{ route('shop.order.cancel', $order) }}">
+                @csrf
+                <x-ui.button variant="secondary">
+                    Cancel this order
+                </x-ui.button>
+            </form>
+        @endvisitorCan
+
+        <x-ui.button variant="secondary" :href="route('shop.support', ['order' => $order->id])">
+            Contact Art Store about this order
+        </x-ui.button>
+    </div>
 
     @if ($awaitsPayment && ! $isPayable)
         <x-ui.alert tone="success" class="mt-10 max-w-xl">
