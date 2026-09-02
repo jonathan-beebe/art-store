@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Messaging;
 
+use App\Models\Admin;
 use App\Models\Conversation;
 use App\Models\Message;
 
@@ -36,4 +37,17 @@ it('leaves an already-read message untouched', function (): void {
     app(MarkConversationRead::class)($conversation, $seller, $this->moment('2026-08-20 10:00:00'));
 
     expect($message->fresh()?->read_at)->toEqual($readAt);
+});
+
+it('reads a desk thread for the whole desk, not just the admin who opened it', function (): void {
+    $firstAdmin = Admin::factory()->create();
+    $secondAdmin = Admin::factory()->create();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+    $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
+
+    app(MarkConversationRead::class)($conversation, $firstAdmin, $this->moment('2026-08-20 10:00:00'));
+
+    expect($message->fresh()?->read_at?->format('Y-m-d H:i:s'))->toBe('2026-08-20 10:00:00');
+    expect(Message::query()->unreadBy($secondAdmin)->where('id', $message->id)->exists())->toBeFalse();
 });
