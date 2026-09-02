@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Analytics\Admin\Funnel;
+use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Reports\ListingStatusTally;
 use App\Http\Controllers\Controller;
 use App\Models\LedgerEntry;
@@ -14,6 +16,10 @@ use Illuminate\View\View;
 
 final class SellerController extends Controller
 {
+    /** The seller page's funnel has no range control, so it always reads
+     * the same window the rest of the admin analytics pages default to. */
+    private const int FUNNEL_RANGE_DAYS = 30;
+
     public function index(): View
     {
         $window = ListPaneWindow::of($this->sellersQuery());
@@ -35,6 +41,7 @@ final class SellerController extends Controller
 
         return view('admin.sellers.show', [
             'seller' => $seller,
+            'funnel' => Funnel::forSeller($seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),

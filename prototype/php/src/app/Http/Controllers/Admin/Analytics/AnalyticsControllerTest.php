@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Actions\Favorites\ToggleFavorite;
+use App\Actions\Orders\CancelOrder;
+use App\Actions\Orders\FinalizeOrder;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
@@ -54,6 +56,29 @@ it('shows the right counts, changes, and labels for a seeded event', function ()
         ->assertSeeInOrder(['listing.view', '2', '1', '+100.0%']);
 });
 
+it('shows the funnel above the events table, with its rates and the cancelled note', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00'), 'a'));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 09:05:00')));
+
+    $paid = $this->orderFor($customer, $listing);
+    $cancelled = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    app(FinalizeOrder::class)($paid, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
+    app(CancelOrder::class)($cancelled, $this->moment('2026-08-20 11:00:00'));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?range=7');
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Funnel', 'Visitors', 'Orders paid', 'Events']);
+    $response->assertSee('1 cancelled');
+});
+
 it('carries q through the range links', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?q=hermione');
 
@@ -99,7 +124,7 @@ it('renders the entry page on a fixed number of queries however many actors the 
 
     $response = $this->actingAs($this->admin(), 'admin')
         ->expectsDatabaseQueryCount(2, 'sqlite')
-        ->expectsDatabaseQueryCount(8, 'analytics')
+        ->expectsDatabaseQueryCount(10, 'analytics')
         ->get('/admin/analytics');
 
     $response->assertOk();
@@ -109,9 +134,11 @@ it('narrows the events table by event name', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?q=favorite');
 
     $response->assertOk();
-    $response->assertSee('Favorites');
-    $response->assertDontSee('Listing views');
-    $response->assertDontSee('Cart adds');
+    // The funnel above the table always shows every step's label, so the
+    // search is asserted by the machine name only the table row carries.
+    $response->assertSee('listing.favorite');
+    $response->assertDontSee('listing.view');
+    $response->assertDontSee('listing.cart_add');
 });
 
 it('shows the jump row for a listing id prefix', function (): void {

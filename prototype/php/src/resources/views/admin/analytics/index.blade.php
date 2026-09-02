@@ -65,6 +65,13 @@
         </a>
     @endif
 
+    {{-- funnel --}}
+    <section aria-labelledby="analytics-funnel-heading" class="mt-6">
+        <h2 id="analytics-funnel-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnel</h2>
+
+        <x-admin.analytics.funnel :funnel="$funnel" />
+    </section>
+
     {{-- events --}}
     <section aria-labelledby="analytics-events-heading" class="mt-6">
         <h2 id="analytics-events-heading" class="font-semibold text-stone-700 dark:text-stone-300">Events</h2>

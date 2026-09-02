@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Admin\EntityActivity;
+use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Http\Controllers\Controller;
@@ -48,6 +49,7 @@ final class ListingController extends Controller
 
         return view('admin.analytics.entities.show', [
             'activity' => $activity,
+            'funnel' => Funnel::forListing($listing->id, $range),
             'now' => $this->now(),
             'rangeCaption' => $range->caption(),
             'rangeLinks' => $this->entityRangeLinks($listing->id, $roundTripped, $rangeDays),

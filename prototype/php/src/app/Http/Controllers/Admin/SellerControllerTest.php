@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Escrow\RunWeeklyPayout;
+use App\Analytics\Analytics;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
@@ -38,6 +39,22 @@ it('folds every balance out of one read of the ledger, whatever the seller count
     $response->assertSee('$90.00');
     $response->assertSee('$180.00');
     expect($ledgerReads)->toBe(1);
+});
+
+it('shows a funnel covering only the seller\'s own listings, last 30 days, linked to analytics', function (): void {
+    $sellerOne = $this->seller('Blue Kiln Studio');
+    $sellerTwo = $this->seller('Rye Press');
+    $this->orderFor($this->verifiedCustomer(), $this->listing($sellerOne));
+    $this->orderFor($this->verifiedCustomer(), $this->listing($sellerTwo));
+    app(Analytics::class)->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$sellerOne->id}");
+
+    $response->assertOk();
+    $response->assertSee('Funnel, last 30 days');
+    $response->assertSee('href="'.route('admin.analytics.index').'"', escape: false);
+    $response->assertSeeInOrder(['Orders placed', '1']);
 });
 
 it('shows one seller with listing and fulfillment counts', function (): void {

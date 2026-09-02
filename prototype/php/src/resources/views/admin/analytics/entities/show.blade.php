@@ -72,6 +72,15 @@
         @endforeach
     </dl>
 
+    {{-- funnel --}}
+    @isset($funnel)
+        <section aria-labelledby="analytics-entity-funnel-heading" class="mt-6">
+            <h2 id="analytics-entity-funnel-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnel</h2>
+
+            <x-admin.analytics.funnel :funnel="$funnel" />
+        </section>
+    @endisset
+
     {{-- strip --}}
     <section class="mt-6">
         <h2 class="font-semibold text-stone-700 dark:text-stone-300">{{ $activity->stripTitle }}</h2>
