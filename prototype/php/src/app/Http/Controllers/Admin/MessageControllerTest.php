@@ -290,10 +290,11 @@ it('carries a sellers support request to the admin and the answer back', functio
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
 
-    $this->actingAs($seller, 'seller')->get('/seller/support')->assertRedirect();
+    $this->actingAs($seller, 'seller')->post('/seller/support', [
+        'title' => 'Payout timing',
+        'body' => 'My payout is late.',
+    ])->assertRedirect();
     $conversation = Conversation::sole();
-    $this->actingAs($seller, 'seller')
-        ->post("/seller/messages/{$conversation->id}", ['body' => 'My payout is late.']);
 
     $inbox = $this->actingAs($admin, 'admin')->get('/admin/messages');
     $inbox->assertSee('Blue Kiln Studio');
