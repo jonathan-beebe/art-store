@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Messaging\ResolveConversation;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\CustomerBlock;
@@ -72,6 +73,60 @@ it('paginates the inbox at twenty threads', function (): void {
     expect(substr_count((string) $second->getContent(), '<li>'))->toBe(1);
 });
 
+it('shows only unread threads under the unread filter', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $readSeller = $this->seller();
+    $read = Conversation::factory()->listingQuestion()->create(['seller_id' => $readSeller->id, 'customer_id' => $visitor->id, 'title' => 'Already read']);
+    Message::factory()->from($readSeller)->read()->create(['conversation_id' => $read->id]);
+    $unreadSeller = $this->seller('Rye Press');
+    $unread = Conversation::factory()->listingQuestion()->create(['seller_id' => $unreadSeller->id, 'customer_id' => $visitor->id, 'title' => 'Still unread']);
+    Message::factory()->from($unreadSeller)->unread()->create(['conversation_id' => $unread->id]);
+
+    $response = $this->get('/messages?filter=unread');
+
+    $response->assertSee('Still unread');
+    $response->assertDontSee('Already read');
+});
+
+it('defaults the status filter to open threads', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id, 'title' => 'Still open']);
+    $seller = $this->seller();
+    $resolvedThread = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id, 'title' => 'All done']);
+    app(ResolveConversation::class)($resolvedThread, $seller, $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->get('/messages');
+
+    $response->assertSee('Still open');
+    $response->assertDontSee('All done');
+});
+
+it('shows resolved threads under the resolved status filter', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id, 'title' => 'Still open']);
+    $seller = $this->seller();
+    $resolvedThread = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id, 'title' => 'All done']);
+    app(ResolveConversation::class)($resolvedThread, $seller, $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->get('/messages?status=resolved');
+
+    $response->assertDontSee('Still open');
+    $response->assertSee('All done');
+});
+
+it('shows every thread under the all status filter, whatever its state', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id, 'title' => 'Still open']);
+    $seller = $this->seller();
+    $resolvedThread = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id, 'title' => 'All done']);
+    app(ResolveConversation::class)($resolvedThread, $seller, $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->get('/messages?status=all');
+
+    $response->assertSee('Still open');
+    $response->assertSee('All done');
+});
+
 it('shows every message in order and marks the thread read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller();
@@ -89,6 +144,22 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertSeeInOrder(['It ships flat.', 'Thanks!']);
     expect($first->fresh()?->read_at)->not->toBeNull()
         ->and($second->fresh()?->read_at)->toBeNull();
+});
+
+it('renders the listing card as one link when the thread is about a listing', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Divination Tower Vase, Tall']);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $visitor->id,
+        'listing_id' => $listing->id,
+    ]);
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertSee('Divination Tower Vase, Tall');
+    $response->assertSee(route('shop.listing', $listing), escape: false);
 });
 
 it('answers not found for a thread the visitor is not in', function (): void {
@@ -117,6 +188,58 @@ it('appends a reply and returns to the thread with it visible', function (): voi
     $response->assertRedirect(route('shop.messages.show', $conversation));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Sounds good, thank you.')->exists())->toBeTrue();
     $this->get(route('shop.messages.show', $conversation))->assertSee('Sounds good, thank you.');
+});
+
+it('quotes the message a reply link named', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+    $original = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'It ships flat, ready to hang.']);
+
+    $response = $this->get("/messages/{$conversation->id}?reply_to={$original->id}");
+
+    $response->assertOk();
+    $response->assertSee('Replying to');
+    $response->assertSee('It ships flat, ready to hang.');
+    $response->assertSee('name="reply_to_message_id" value="'.$original->id.'"', escape: false);
+});
+
+it('ignores a reply_to naming a message from another thread on the get', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $conversation = Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id]);
+    $elsewhere = Message::factory()->create();
+
+    $response = $this->get("/messages/{$conversation->id}?reply_to={$elsewhere->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Replying to');
+});
+
+it('says a reply reopened a resolved thread', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
+    app(ResolveConversation::class)($conversation, $seller, $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->post("/messages/{$conversation->id}", ['body' => 'Actually, one more thing.']);
+
+    $response->assertRedirect(route('shop.messages.show', $conversation));
+    expect($conversation->fresh()?->resolved_at)->toBeNull();
+    $this->get(route('shop.messages.show', $conversation))->assertSee('reopened this conversation');
+});
+
+it('shows the resolved note on a resolved thread without reporting it as freshly reopened', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
+    app(ResolveConversation::class)($conversation, $seller, $this->moment('2026-08-20 10:00:00'));
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertSee('marked this resolved');
+    $response->assertDontSee('reopened this conversation');
 });
 
 it('refuses an empty reply', function (): void {
