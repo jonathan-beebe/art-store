@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:07:05:59 — FEAT-039 — started
+
 - 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2
 - 2026-09-02:05:34:37 — MAINT-005 — started
 - 2026-09-02:10:30:00 — FEAT-041 — done: seller inbox gains &filter=/&status= chips with counts, a two-sided transcript with day separators and reply-to, resolve/reopen posts from the header, and /seller/support becomes a real titled new-conversation form; 3358 tests, 9763 assertions

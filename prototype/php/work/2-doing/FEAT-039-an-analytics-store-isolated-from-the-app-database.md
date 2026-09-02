@@ -71,3 +71,57 @@ shape; analytics is the remaining per-request writer on the app connection.
 - IMPRV-022 (slow-query logging — the instrument that surfaced this)
 - PR #61 / branch php/sqlite-wal (WAL on the app database — the
   already-landed mitigation this builds past)
+
+## Working
+
+2026-09-02, branch `php/analytics-store`.
+
+Re-validated: both writers still hit the app connection.
+`RecordPageView` upserts `page_view_counts` from `RollUpPageViews::terminate`
+on every countable response; `RecordListingEvent` writes `listing_events`
+from the shop listing page, `AddToCart`, `ToggleFavorite`, and
+`CustomerSeeder`. Readers: `Admin\StatsController`, `Admin\DashboardController`,
+`Listing::loadEventCounts()` (seller and admin listing detail),
+`Listing::eventCountsByDateSince()` (seller listing detail timeline),
+`RecordListingEvent::alreadyRecorded()` (hour collapse), and
+`MergeAnonymousCustomer` re-pointing `listing_events.customer_id` through
+`CustomerOwnedTables::all()`.
+
+Design:
+
+- A second Laravel connection, `analytics`, in `config/database.php`:
+  sqlite, `ANALYTICS_DATABASE_FILE` (default `storage/analytics.sqlite3`,
+  the log store's neighbour), WAL, `synchronous=off`, `busy_timeout=250`,
+  no foreign-key enforcement. Eloquent stays the query layer, so the
+  readers keep their code; `ListingEvent` and `PageViewCount` declare
+  `$connection = 'analytics'`.
+- The two migrations are edited in place to build their table on the
+  analytics connection. The migrations ledger lives in the app database,
+  so `up()` drops the table before creating it: a rebuilt app database
+  (`make fresh`, a deleted `database.sqlite`) re-runs the migration
+  against an analytics file that may still hold the table, and a fresh
+  app database means fresh analytics. `listing_events` keeps `listing_id`,
+  `seller_id`, `customer_id` as plain indexed columns; the FKs dissolve
+  with the move.
+- Every analytics write is guarded: a failure of the analytics connection
+  (missing directory, locked past `busy_timeout`) logs one warn line and
+  the request completes. Readers are not guarded: an admin stats page or a
+  seller listing detail surfaces an unavailable store as an error, the
+  way any missing data source would.
+- `Listing::loadEventCounts()` cannot stay a `loadCount` — that is a
+  correlated subquery inside the app connection's statement. It becomes
+  one grouped query on the analytics connection with the three counts
+  filled in PHP.
+- `MergeAnonymousCustomer` re-points `listing_events` on the analytics
+  connection after the commerce transaction commits, guarded the same
+  way; `CustomerOwnedTables::all()` names app-database tables only.
+- Suite: `ANALYTICS_DATABASE_FILE=:memory:` in `phpunit.xml`, and
+  `Tests\TestCase` lists `analytics` in `$connectionsToTransact` so
+  `RefreshDatabase` keeps the migrated in-memory connection across tests
+  and wraps it in the per-test transaction. Parallel-safe by construction:
+  memory databases are per process.
+- Staged as the ticket suggests: `page_view_counts` first (commit 1),
+  `listing_events` second (commit 2), docs and alignment note (commit 3).
+
+Alignment surface: `docs/alignment.md` gains the `ANALYTICS_DATABASE_FILE`
+name and the isolation semantic; node and rails need their own tickets.
