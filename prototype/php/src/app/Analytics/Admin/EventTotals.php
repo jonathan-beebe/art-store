@@ -26,6 +26,16 @@ final class EventTotals
 
     private const string PAGE_VIEW_LABEL = 'Page views';
 
+    /** The entry page's own copy for each event name — plural and
+     * descriptive, unlike {@see AnalyticsEventName::label()}'s
+     * single-word form on `/admin/stats`' tiles. */
+    private const array EVENT_LABELS = [
+        'listing.view' => 'Listing views',
+        'listing.favorite' => 'Favorites',
+        'listing.unfavorite' => 'Unfavorites',
+        'listing.cart_add' => 'Cart adds',
+    ];
+
     /**
      * @return list<EventTotal>
      */
@@ -49,7 +59,7 @@ final class EventTotals
         return array_map(
             fn (AnalyticsEventName $case): EventTotal => self::eventTotal(
                 $case->value,
-                $case->label(),
+                self::EVENT_LABELS[$case->value],
                 $byName[$case->value] ?? ['current' => 0, 'previous' => 0, 'subjects' => 0, 'actors' => 0],
                 $dailyByName[$case->value] ?? [],
                 $dayLabels,
