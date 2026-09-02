@@ -152,9 +152,10 @@ it('releases and pays out the delivered order', function (): void {
 });
 
 it('notifies sellers and the customer', function (): void {
-    // 5 from order history, 11 from the seeded messaging threads — one
-    // notification per posted message.
-    expect(DatabaseNotification::count())->toBe(16);
+    // 5 from order history, 15 from the seeded messaging threads — one
+    // notification per posted message (a desk thread notifies every admin,
+    // not one), plus one per thread a resolve marks.
+    expect(DatabaseNotification::count())->toBe(20);
 });
 
 it('seeds the two platform admins who can sign in at /admin/login', function (): void {
@@ -166,8 +167,9 @@ it('seeds the two platform admins who can sign in at /admin/login', function ():
 });
 
 it('seeds one conversation of every messaging kind and one published FAQ', function (): void {
-    expect(Conversation::count())->toBe(4)
-        ->and(Message::count())->toBe(11)
+    // Two listing questions (one answered, one not) plus one of each other kind.
+    expect(Conversation::count())->toBe(5)
+        ->and(Message::count())->toBe(10)
         ->and(ListingFaq::count())->toBe(1);
 });
 

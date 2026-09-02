@@ -21,6 +21,8 @@ class CustomerSeeder extends Seeder
 {
     public const HERMIONE_EMAIL = 'hermione@example.com';
 
+    public const LUNA_EMAIL = 'luna@example.com';
+
     private const FAVORITE_TITLES = [
         'Divination Tower Vase, Tall',
         'The Orchard at First Light',
@@ -46,6 +48,14 @@ class CustomerSeeder extends Seeder
 
         $this->recordViews($customer);
         $this->recordFavorites($customer);
+
+        // A second verified customer, so a listing question and a support
+        // thread each have someone besides Hermione to belong to.
+        Customer::create([
+            'email' => self::LUNA_EMAIL,
+            'name' => 'Luna Lovegood',
+            'email_verified_at' => new DateTimeImmutable('2026-06-02 00:00:00'),
+        ]);
     }
 
     private function recordViews(Customer $customer): void
