@@ -86,15 +86,15 @@
                         </div>
                         <div class="flex items-center justify-between gap-4 py-3">
                             <dt class="font-medium text-gray-900 dark:text-gray-100">Views</dt>
-                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $listing->views_count }}</dd>
+                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $eventCounts->views }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4 py-3">
                             <dt class="font-medium text-gray-900 dark:text-gray-100">Favorites</dt>
-                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $listing->favorites_count }}</dd>
+                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $eventCounts->favorites }}</dd>
                         </div>
                         <div class="flex items-center justify-between gap-4 py-3">
                             <dt class="font-medium text-gray-900 dark:text-gray-100">Cart adds</dt>
-                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $listing->cart_adds_count }}</dd>
+                            <dd class="tabular-nums text-gray-700 dark:text-gray-300">{{ $eventCounts->cartAdds }}</dd>
                         </div>
                         @if ($sales->isNotEmpty())
                             <div class="flex items-center justify-between gap-4 py-3">

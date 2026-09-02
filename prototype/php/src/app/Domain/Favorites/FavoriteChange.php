@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Favorites;
 
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\AnalyticsEventName;
 
 enum FavoriteChange
 {
@@ -16,11 +16,11 @@ enum FavoriteChange
         return $isFavorited ? self::Removed : self::Added;
     }
 
-    public function listingEvent(): ListingEventType
+    public function listingEvent(): AnalyticsEventName
     {
         return match ($this) {
-            self::Added => ListingEventType::Favorite,
-            self::Removed => ListingEventType::Unfavorite,
+            self::Added => AnalyticsEventName::ListingFavorite,
+            self::Removed => AnalyticsEventName::ListingUnfavorite,
         };
     }
 }

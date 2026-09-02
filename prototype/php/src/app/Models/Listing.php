@@ -10,7 +10,6 @@ use App\Domain\Configurator\PublishIssue;
 use App\Domain\Configurator\StandaloneOptionSnapshot;
 use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
-use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
 use App\Domain\Listings\ListingStockLabel;
@@ -19,7 +18,6 @@ use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
 use Database\Factories\ListingFactory;
-use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -33,9 +31,6 @@ use Override;
 /**
  * @property-read Seller $seller
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
- * @property-read int $views_count  only after `loadEventCounts`
- * @property-read int $favorites_count  only after `loadEventCounts`
- * @property-read int $cart_adds_count  only after `loadEventCounts`
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
@@ -118,12 +113,6 @@ class Listing extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ListingImage::class);
-    }
-
-    /** @return HasMany<ListingEvent, $this> */
-    public function events(): HasMany
-    {
-        return $this->hasMany(ListingEvent::class);
     }
 
     /** @return HasMany<Favorite, $this> */
@@ -640,49 +629,5 @@ class Listing extends Model
         }
 
         return $counts;
-    }
-
-    /**
-     * Fills views_count, favorites_count, and cart_adds_count from one
-     * grouped query on the analytics connection. A correlated subquery
-     * (`loadCount`) runs inside the app connection's own statement, so it
-     * cannot query the analytics connection.
-     */
-    public function loadEventCounts(): self
-    {
-        return $this->fillEventCounts(ListingEvent::countsForListing($this->id));
-    }
-
-    /**
-     * How many events of each type the listing recorded on each day from $from
-     * onward, grouped by the database.
-     *
-     * @return array<string, array<string, int>> day (Y-m-d) => event type value => count
-     */
-    public function eventCountsByDateSince(DateTimeImmutable $from): array
-    {
-        $counts = [];
-
-        foreach ($this->events()->dailyCountsSince($from)->get() as $row) {
-            $counts[$row->day][$row->type->value] = $row->tally;
-        }
-
-        return $counts;
-    }
-
-    /**
-     * Marks views_count, favorites_count, and cart_adds_count as
-     * already-saved attributes, so a later `save()` does not try to write
-     * them — they name no column on this model's own table.
-     *
-     * @param  array<string, int>  $countsByType  event type value => count
-     */
-    private function fillEventCounts(array $countsByType): self
-    {
-        return $this->forceFill([
-            'views_count' => $countsByType[ListingEventType::View->value] ?? 0,
-            'favorites_count' => $countsByType[ListingEventType::Favorite->value] ?? 0,
-            'cart_adds_count' => $countsByType[ListingEventType::CartAdd->value] ?? 0,
-        ])->syncOriginalAttributes(['views_count', 'favorites_count', 'cart_adds_count']);
     }
 }

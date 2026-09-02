@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Listings\RecordListingEvent;
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsEventName;
+use App\Domain\Listings\ListingViewCollapse;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Support\Configurator\ListingPagePresenter;
@@ -15,23 +17,26 @@ use Illuminate\Http\Request;
 
 final class ListingController extends ShopController
 {
-    public function __invoke(Listing $listing, Request $request, RecordListingEvent $recordListingEvent): View
+    public function __invoke(Listing $listing, Request $request, Analytics $analytics): View
     {
         abort_unless($listing->isOnStorefront(), 404);
 
         $visitor = $this->visitor();
-        $event = $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
+        $now = $this->now();
 
-        // RecordListingEvent returns null both for a repeat view within the
-        // hour and for a failed analytics write already logged by
-        // AnalyticsWriteGuard, so the story records either case as a
-        // refusal.
-        $story = Story::for(StoryEvent::ListingView);
-        $data = ['listing_id' => $listing->id, 'seller_id' => $listing->seller_id];
+        $analytics->recordEvent(AnalyticsEvent::forListing(
+            AnalyticsEventName::ListingView,
+            $listing->id,
+            $visitor->id,
+            $now,
+            ListingViewCollapse::dedupeKey($listing->id, $visitor->id, $now),
+        ));
 
-        $event === null
-            ? $story->refused('collapsed a repeat view into the hour already recorded', $data)
-            : $story->did('viewed a listing', [...$data, 'status' => $listing->status->value]);
+        Story::for(StoryEvent::ListingView)->did('viewed a listing', [
+            'listing_id' => $listing->id,
+            'seller_id' => $listing->seller_id,
+            'status' => $listing->status->value,
+        ]);
 
         return view('shop.listing', ListingPagePresenter::forShop($listing, $visitor, $request));
     }

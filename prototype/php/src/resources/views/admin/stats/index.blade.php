@@ -87,7 +87,7 @@
 
         <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             @foreach ($events as $row)
-                <div class="rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4" data-stat="event-{{ $row->type->value }}">
+                <div class="rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4" data-stat="event-{{ $row->name->value }}">
                     <dt class="text-stone-600 dark:text-stone-400">{{ $row->label() }}</dt>
                     <dd class="mt-1 text-2xl font-semibold tabular-nums">{{ $row->count }}</dd>
                 </div>

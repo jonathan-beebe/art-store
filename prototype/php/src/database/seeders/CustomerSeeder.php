@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\Favorites\ToggleFavorite;
-use App\Actions\Listings\RecordListingEvent;
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsEventName;
+use App\Domain\Listings\ListingViewCollapse;
 use App\Models\Customer;
 use App\Models\Listing;
 use DateTimeImmutable;
@@ -60,11 +62,18 @@ class CustomerSeeder extends Seeder
 
     private function recordViews(Customer $customer): void
     {
-        $recordListingEvent = app(RecordListingEvent::class);
+        $analytics = app(Analytics::class);
         $viewedAt = new DateTimeImmutable('2026-07-01 09:00:00');
 
         foreach (self::VIEWED_TITLES as $title) {
-            $recordListingEvent($this->listing($title), $customer->id, ListingEventType::View, $viewedAt);
+            $listing = $this->listing($title);
+            $analytics->recordEvent(AnalyticsEvent::forListing(
+                AnalyticsEventName::ListingView,
+                $listing->id,
+                $customer->id,
+                $viewedAt,
+                ListingViewCollapse::dedupeKey($listing->id, $customer->id, $viewedAt),
+            ));
             $viewedAt = $viewedAt->modify('+1 minute');
         }
     }

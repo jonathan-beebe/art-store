@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Shared fixture for tests that point the analytics connection at an
- * unwritable path (`MergeAnonymousCustomerTest`, `RecordListingEventTest`,
+ * unwritable path (`AnalyticsTest`, `MergeAnonymousCustomerTest`,
  * `Shop\ListingControllerTest`, `RollUpPageViewsTest`). A real,
  * Composer-autoloaded class rather than functions duplicated per file, or
  * declared in one sidecar and called from another — which would tie their

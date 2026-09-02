@@ -86,7 +86,7 @@ it('writes the roll-up through the analytics connection, never the default one',
         ->and($mentioning('analytics'))->not->toBe([]);
 });
 
-it('still answers and logs a warning when the analytics connection cannot be written to', function (): void {
+it('still answers and logs a warning when the analytics store cannot be flushed to', function (): void {
     $log = CapturedStory::capture();
 
     AnalyticsStoreFixtures::withUnwritableStore(function () use ($log): void {

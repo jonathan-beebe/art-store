@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -19,9 +19,9 @@ it('returns one row per day, oldest first', function (): void {
 it('reads counts by date and event type', function (): void {
     $counts = [
         '2026-08-21' => [
-            ListingEventType::View->value => 4,
-            ListingEventType::Favorite->value => 1,
-            ListingEventType::CartAdd->value => 2,
+            AnalyticsEventName::ListingView->value => 4,
+            AnalyticsEventName::ListingFavorite->value => 1,
+            AnalyticsEventName::ListingCartAdd->value => 2,
         ],
     ];
 
@@ -33,7 +33,7 @@ it('reads counts by date and event type', function (): void {
 });
 
 it('fills days with no events with zeroes', function (): void {
-    $counts = ['2026-08-22' => [ListingEventType::View->value => 7]];
+    $counts = ['2026-08-22' => [AnalyticsEventName::ListingView->value => 7]];
 
     $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
 
@@ -43,7 +43,7 @@ it('fills days with no events with zeroes', function (): void {
 });
 
 it('ignores counts outside the window', function (): void {
-    $counts = ['2026-07-01' => [ListingEventType::View->value => 99]];
+    $counts = ['2026-07-01' => [AnalyticsEventName::ListingView->value => 99]];
 
     $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 2);
 
@@ -51,7 +51,7 @@ it('ignores counts outside the window', function (): void {
 });
 
 it('ignores event types the report does not show', function (): void {
-    $counts = ['2026-08-22' => [ListingEventType::Unfavorite->value => 5]];
+    $counts = ['2026-08-22' => [AnalyticsEventName::ListingUnfavorite->value => 5]];
 
     $days = ActivityTimeline::lastDays($counts, new DateTimeImmutable('2026-08-22 09:00:00'), 1);
 

@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Favorite;
-use App\Models\ListingEvent;
 use App\Models\ListingRemoval;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
@@ -34,7 +33,7 @@ it('favorites a listing and records the event', function (): void {
     $favorite = Favorite::sole();
     expect($favorite->listing_id)->toBe($listing->id)
         ->and($favorite->customer_id)->toBe($visitor->id)
-        ->and(ListingEvent::sole()->type)->toBe(ListingEventType::Favorite);
+        ->and(AnalyticsReport::countsForListing($listing->id)->favorites)->toBe(1);
 });
 
 it('favorites a listing while blocked', function (): void {
@@ -49,14 +48,14 @@ it('favorites a listing while blocked', function (): void {
 
 it('removes the favorite when favorited twice', function (): void {
     $this->visitor();
-    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
 
     $this->post('/art/harbour-at-dawn/favorite');
     $this->post('/art/harbour-at-dawn/favorite');
 
     expect(Favorite::count())->toBe(0)
-        ->and(ListingEvent::orderBy('id')->pluck('type')->all())
-        ->toBe([ListingEventType::Favorite, ListingEventType::Unfavorite]);
+        ->and(AnalyticsReport::countsForListing($listing->id)->favorites)->toBe(1)
+        ->and(AnalyticsReport::platformCountsByName())->toHaveKey('listing.unfavorite');
 });
 
 it('favorites a listing the seller has since archived', function (): void {

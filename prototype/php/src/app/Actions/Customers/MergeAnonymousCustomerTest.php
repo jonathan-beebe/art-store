@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsEventName;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
 use App\Models\Cart;
@@ -14,7 +17,6 @@ use App\Models\CustomerBlock;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Fulfillment;
-use App\Models\ListingEvent;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\Seller;
@@ -100,25 +102,29 @@ it('skips a customer-owned table that does not exist', function (): void {
     expect(CustomerMerge::count())->toBe(1);
 });
 
-it('re-points listing events on the analytics connection through the model', function (): void {
+it('re-points analytics events to the verified customer', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
     $bystander = Customer::factory()->create();
-    ListingEvent::factory()->create(['customer_id' => $anonymous->id]);
-    ListingEvent::factory()->create(['customer_id' => $bystander->id]);
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $anonymous->id, new DateTimeImmutable));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $bystander->id, new DateTimeImmutable));
+    $analytics->flush();
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    expect(ListingEvent::where('customer_id', $verified->id)->count())->toBe(1)
-        ->and(ListingEvent::where('customer_id', $anonymous->id)->count())->toBe(0)
-        ->and(ListingEvent::where('customer_id', $bystander->id)->count())->toBe(1);
+    expect(DB::connection('analytics')->table('analytics_events')->where('actor_id', $verified->id)->count())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $bystander->id)->count())->toBe(1);
 });
 
 it('still merges and logs a warning when the analytics store is unwritable', function (): void {
     $log = CapturedStory::capture();
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
-    ListingEvent::factory()->create(['customer_id' => $anonymous->id]);
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $anonymous->id, new DateTimeImmutable));
+    $analytics->flush();
 
     AnalyticsStoreFixtures::withUnwritableStore(function () use ($anonymous, $verified, $log): void {
         app(MergeAnonymousCustomer::class)($anonymous, $verified);

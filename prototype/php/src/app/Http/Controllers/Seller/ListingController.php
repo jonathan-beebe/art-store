@@ -9,6 +9,7 @@ use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\RateLimiting\RateLimitExceeded;
@@ -102,9 +103,10 @@ final class ListingController extends SellerController
         $window = ListPaneWindow::of($this->listingsQuery(), $listing);
 
         return view('seller.listings.show', [
-            'listing' => $listing->loadEventCounts()->load(['activeRemoval', 'category', 'images']),
+            'listing' => $listing->load(['activeRemoval', 'category', 'images']),
+            'eventCounts' => AnalyticsReport::countsForListing($listing->id),
             'days' => ActivityTimeline::lastDays(
-                $listing->eventCountsByDateSince(ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
+                AnalyticsReport::dailyCountsForListingSince($listing->id, ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
                 $endsOn,
                 self::ACTIVITY_WINDOW_DAYS,
             ),

@@ -8,11 +8,11 @@ use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateModifier;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\DomainRuleViolation;
-use App\Domain\Listings\ListingEventType;
 use App\Models\CustomerBlock;
-use App\Models\ListingEvent;
 use App\Models\ListingRemoval;
 use DomainException;
 
@@ -95,11 +95,9 @@ it('records the add as a listing event', function (): void {
     $listing = $this->listing($this->seller());
 
     app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 09:00:00'));
+    app(Analytics::class)->flush();
 
-    $event = ListingEvent::query()->sole();
-
-    expect($event->type)->toBe(ListingEventType::CartAdd)
-        ->and($event->customer_id)->toBe($customer->id);
+    expect(AnalyticsReport::countsForListing($listing->id)->cartAdds)->toBe(1);
 });
 
 it('clamps a configured line’s quantity to the variant’s own stock, not the listing’s', function (): void {

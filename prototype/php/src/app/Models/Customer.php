@@ -105,12 +105,6 @@ class Customer extends Authenticatable
         return $this->belongsToMany(Listing::class, 'favorites');
     }
 
-    /** @return HasMany<ListingEvent, $this> */
-    public function listingEvents(): HasMany
-    {
-        return $this->hasMany(ListingEvent::class);
-    }
-
     /** @return HasMany<CustomerBlock, $this> */
     public function blocks(): HasMany
     {

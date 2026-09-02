@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
-use App\Actions\Listings\RecordListingEvent;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsEventName;
 use App\Domain\Cart\CartQuantity;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Configurator\ConfiguredCartQuantity;
 use App\Domain\Customers\CustomerStanding;
-use App\Domain\Listings\ListingEventType;
 use App\Logging\StoryEvent;
 use App\Models\Cart;
 use App\Models\CartItem;
@@ -20,7 +21,7 @@ use DateTimeImmutable;
 
 final readonly class AddToCart
 {
-    public function __construct(private RecordListingEvent $recordListingEvent) {}
+    public function __construct(private Analytics $analytics) {}
 
     /**
      * @param  bool  $listingHasVariants  whether the listing holds any variant row at all — a listing with axes
@@ -73,7 +74,7 @@ final readonly class AddToCart
                 $item->fingerprint = $fingerprint;
                 $item->save();
 
-                ($this->recordListingEvent)($listing, $cart->customer_id, ListingEventType::CartAdd, $now);
+                $this->analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, $listing->id, $cart->customer_id, $now));
 
                 $story->did($raises ? 'raised the cart line' : 'added the listing to the cart', [
                     'cart_id' => $cart->id,

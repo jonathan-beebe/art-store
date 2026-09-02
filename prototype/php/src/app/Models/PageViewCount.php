@@ -20,7 +20,7 @@ use Override;
  * routes and days rather than with traffic. The table lives in the
  * analytics store (config/database.php), a SQLite file of its own next to
  * the commerce database.
- * {@see \App\Actions\Analytics\RecordPageView} is the only writer, through an
+ * {@see \App\Analytics\Analytics::flush()} is the only writer, through an
  * upsert on this table's unique triple.
  */
 #[Fillable(['site', 'path_pattern', 'day', 'count'])]

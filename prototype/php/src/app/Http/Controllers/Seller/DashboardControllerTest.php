@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
+use App\Analytics\Analytics;
 use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
@@ -136,6 +137,10 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
         $this->listing($seller, ['status' => ListingStatus::ForSale, 'title' => "Print {$number}"]);
     }
     $this->deliveredFulfillmentFor($seller, priceCents: 10000);
+    // deliveredFulfillmentFor() adds the listing to a cart along the way,
+    // buffering a cart-add analytics event; flushing it here keeps that
+    // setup write out of the query count the response below measures.
+    app(Analytics::class)->flush();
 
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every

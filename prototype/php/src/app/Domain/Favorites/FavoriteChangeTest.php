@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace App\Domain\Favorites;
 
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\AnalyticsEventName;
 
 it('adds a listing that is not favorited', function (): void {
     $change = FavoriteChange::fromCurrentState(false);
 
     expect($change)->toBe(FavoriteChange::Added)
-        ->and($change->listingEvent())->toBe(ListingEventType::Favorite);
+        ->and($change->listingEvent())->toBe(AnalyticsEventName::ListingFavorite);
 });
 
 it('removes a favorited listing', function (): void {
     $change = FavoriteChange::fromCurrentState(true);
 
     expect($change)->toBe(FavoriteChange::Removed)
-        ->and($change->listingEvent())->toBe(ListingEventType::Unfavorite);
+        ->and($change->listingEvent())->toBe(AnalyticsEventName::ListingUnfavorite);
 });

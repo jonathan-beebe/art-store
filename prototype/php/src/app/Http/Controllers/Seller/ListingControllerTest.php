@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Actions\Listings\RecordListingEvent;
 use App\Actions\Orders\FinalizeOrder;
-use App\Domain\Listings\ListingEventType;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsEventName;
+use App\Analytics\ListingEventCounts;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Reports\DailyActivity;
@@ -49,11 +51,11 @@ $form = function (array $overrides = []): array {
 
 $recordedActivity = function (Seller $seller): Listing {
     $listing = test()->listing($seller);
-    $recordListingEvent = app(RecordListingEvent::class);
-    $recordListingEvent($listing, null, ListingEventType::View, test()->moment('2026-08-20 09:00:00'));
-    $recordListingEvent($listing, null, ListingEventType::View, test()->moment('2026-08-20 10:00:00'));
-    $recordListingEvent($listing, null, ListingEventType::Favorite, test()->moment('2026-08-20 11:00:00'));
-    $recordListingEvent($listing, null, ListingEventType::CartAdd, test()->moment('2026-08-20 12:00:00'));
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, test()->moment('2026-08-20 09:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, test()->moment('2026-08-20 10:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, null, test()->moment('2026-08-20 11:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, $listing->id, null, test()->moment('2026-08-20 12:00:00')));
 
     return $listing;
 };
@@ -518,13 +520,14 @@ it('hides another sellers listing from the activity page', function (): void {
 it('totals the events of the listing', function () use ($recordedActivity): void {
     $seller = $this->seller();
     $listing = $recordedActivity($seller);
+    app(Analytics::class)->flush();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('listing', function (Listing $listing): bool {
-        return $listing->views_count === 2
-            && $listing->favorites_count === 1
-            && $listing->cart_adds_count === 1;
+    $response->assertViewHas('eventCounts', function (ListingEventCounts $eventCounts): bool {
+        return $eventCounts->views === 2
+            && $eventCounts->favorites === 1
+            && $eventCounts->cartAdds === 1;
     });
 });
 
@@ -541,7 +544,9 @@ it('breaks the last fourteen days down by day', function (): void {
 it('counts todays events on todays row', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
-    app(RecordListingEvent::class)($listing, null, ListingEventType::View, new DateTimeImmutable(now()->toDateTimeString()));
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, new DateTimeImmutable(now()->toDateTimeString())));
+    $analytics->flush();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
@@ -555,7 +560,9 @@ it('counts todays events on todays row', function (): void {
 it('leaves events older than the window off the breakdown', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
-    app(RecordListingEvent::class)($listing, null, ListingEventType::View, $this->moment('2020-01-01 09:00:00'));
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, $this->moment('2020-01-01 09:00:00')));
+    $analytics->flush();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
@@ -580,22 +587,27 @@ it('lists the sales of the listing', function (): void {
 it('renders the activity page on a fixed number of queries however many events the listing recorded', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
-    $recordListingEvent = app(RecordListingEvent::class);
+    $analytics = app(Analytics::class);
     foreach (range(1, 20) as $hour) {
-        $recordListingEvent($listing, null, ListingEventType::View, new DateTimeImmutable(now()->toDateTimeString()));
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, new DateTimeImmutable(now()->toDateTimeString())));
     }
 
     $response = $this->actingAs($seller, 'seller')
-        // +1 for the page-view roll-up's upsert, which runs after every
-        // countable response (RollUpPageViews); +1 for the active-removal
-        // eager load (the category eager load costs nothing extra here —
-        // this fixture's listing carries no category_id, so Eloquent skips
-        // the query); +2 for the seller layout's awaiting-shipment count
-        // and unread-notifications check; +4 for the list pane's window
-        // (DSGN-006: a count and a capped select, each with its own
-        // activeRemoval and images eager load); +1 for the detail pane's
-        // own images load behind the photos block.
-        ->expectsDatabaseQueryCount(14)
+        // +1 for the eventCounts read (AnalyticsReport::countsForListing);
+        // +1 for the daily-activity read (AnalyticsReport::dailyCountsForListingSince);
+        // +1 for the page-view roll-up's upsert, and +1 for flushing the 20
+        // buffered view events in one insertOrIgnore — both written when the
+        // response terminates (RollUpPageViews, AnalyticsServiceProvider);
+        // +1 for the active-removal eager load (the category eager load
+        // costs nothing extra here — this fixture's listing carries no
+        // category_id, so Eloquent skips the query); +2 for the seller
+        // layout's awaiting-shipment count and unread-notifications check;
+        // +4 for the list pane's window (DSGN-006: a count and a capped
+        // select, each with its own activeRemoval and images eager load);
+        // +1 for the detail pane's own images load behind the photos
+        // block; +3 unaccounted baseline (session, seller, and route-model
+        // binding lookups).
+        ->expectsDatabaseQueryCount(15)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();

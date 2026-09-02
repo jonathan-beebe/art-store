@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Analytics\AnalyticsReport;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\RemovedFilter;
 use App\Http\Controllers\Controller;
@@ -43,10 +44,11 @@ final class ListingController extends Controller
         $window = ListPaneWindow::of($this->listingsQuery(null, null, RemovedFilter::Any), $listing);
 
         return view('admin.listings.show', [
-            // Favorited on this page counts the favorites that stand today:
-            // loadCount('favorites') overwrites the favorite-event tally
-            // loadEventCounts() fills, and leaves views and cart adds as is.
-            'listing' => $listing->load(['seller', 'activeRemoval'])->loadEventCounts()->loadCount('favorites'),
+            // Favorited on this page counts the favorites that stand today,
+            // not the favorite events AnalyticsReport tallies — loadCount
+            // reads the standing `favorites` table directly.
+            'listing' => $listing->load(['seller', 'activeRemoval'])->loadCount('favorites'),
+            'eventCounts' => AnalyticsReport::countsForListing($listing->id),
             'removals' => $listing->removals()->orderByDesc('created_at')->orderByDesc('id')->get(),
             'sales' => OrderItem::query()
                 ->where('listing_id', $listing->id)

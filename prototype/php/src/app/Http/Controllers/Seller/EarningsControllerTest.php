@@ -8,6 +8,7 @@ use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Fulfillment\RefundFulfillment;
 use App\Actions\Orders\FinalizeOrder;
+use App\Analytics\Analytics;
 use App\Domain\Escrow\LedgerBalance;
 use App\Models\Fulfillment;
 use App\Models\Payout;
@@ -107,6 +108,10 @@ it('renders on a fixed number of queries however many entries the ledger holds',
     $this->deliveredFulfillmentFor($seller, priceCents: 10000, trackingNumber: 'RM1');
     $this->deliveredFulfillmentFor($seller, priceCents: 20000, trackingNumber: 'RM2');
     $this->deliveredFulfillmentFor($seller, priceCents: 30000, trackingNumber: 'RM3');
+    // deliveredFulfillmentFor() adds each listing to a cart along the way,
+    // buffering a cart-add analytics event; flushing it here keeps those
+    // setup writes out of the query count the response below measures.
+    app(Analytics::class)->flush();
 
     $response = $this->actingAs($seller, 'seller')
         // +1 for the page-view roll-up's upsert, which runs after every
