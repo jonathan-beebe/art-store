@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 45
+- FEAT: 46
 - IMPRV: 25
 - MAINT: 6
 - A11Y: 1
@@ -13,6 +13,10 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:11:59:53 — FEAT-045 — started
+- 2026-09-02:11:59:53 — FEAT-044 — started
+- 2026-09-02:11:59:53 — FEAT-045 — defined: an admin analytics drill-in from events to listings and actors
 
 - 2026-09-02:11:52:03 — FEAT-044 — defined: analytics events carry the request ip, session, and id
 
