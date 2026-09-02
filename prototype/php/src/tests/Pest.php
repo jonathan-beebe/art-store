@@ -45,7 +45,7 @@ pest()->extend(Tests\StorefrontTestCase::class)->in(
     'ConfiguratorSmokeTest.php',
 );
 
-pest()->extend(Tests\TestCase::class)->in('../app/Logging', '../routes', 'DatabaseConfigTest.php');
+pest()->extend(Tests\TestCase::class)->in('../app/Analytics', '../app/Logging', '../routes', 'DatabaseConfigTest.php');
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',

@@ -6,7 +6,10 @@ namespace App\Http\Middleware;
 
 use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\CapturedStory;
 
 it('rolls a countable GET up into one row', function (): void {
     $this->get('/admin/login');
@@ -61,4 +64,51 @@ it('counts nothing for a response that is not HTML', function (): void {
     $this->getJson('/json-test')->assertOk();
 
     expect(PageViewCount::query()->count())->toBe(0);
+});
+
+it('writes the roll-up through the analytics connection, never the default one', function (): void {
+    /** @var list<QueryExecuted> $queries */
+    $queries = [];
+
+    DB::connection()->listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = $query;
+    });
+
+    $this->get('/admin/login');
+
+    $mentioning = fn (string $connection): array => array_values(array_filter(
+        $queries,
+        fn (QueryExecuted $query): bool => $query->connectionName === $connection && str_contains($query->sql, 'page_view_counts'),
+    ));
+
+    expect($mentioning('sqlite'))->toBe([])
+        ->and($mentioning('analytics'))->not->toBe([]);
+});
+
+it('still answers and logs a warning when the analytics connection cannot be written to', function (): void {
+    $log = CapturedStory::capture();
+    $originalDatabase = config('database.connections.analytics.database');
+    // RefreshDatabase already opened a transaction on this PDO for the
+    // current test (tests/TestCase.php's connectionsToTransact); purging
+    // the connection below drops the wrapper without closing it, so it is
+    // rolled back by hand once the test is done with it — otherwise the
+    // next test to begin a transaction on the same cached in-memory PDO
+    // finds one already open.
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
+    DB::purge('analytics');
+
+    try {
+        $this->get('/admin/login')->assertOk();
+
+        expect($log->line('app.log', 'doing')['level'])->toBe('warn');
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+    }
 });

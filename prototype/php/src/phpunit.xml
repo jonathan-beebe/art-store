@@ -43,6 +43,9 @@
              file or :memory: explicitly. Left on, the whole suite would write
              a store nothing reads. -->
         <env name="LOG_DATABASE_FILE" value="off"/>
+        <!-- config/database.php: the analytics connection's own in-memory
+             database, isolated from the commerce connection's. -->
+        <env name="ANALYTICS_DATABASE_FILE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

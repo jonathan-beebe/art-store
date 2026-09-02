@@ -17,7 +17,9 @@ use Override;
 /**
  * One row per (site, path_pattern, day): a request's route pattern rolled up
  * at response time rather than logged per hit, so the table grows with
- * routes and days rather than with traffic.
+ * routes and days rather than with traffic. The table lives in the
+ * analytics store (config/database.php), a SQLite file of its own next to
+ * the commerce database.
  * {@see \App\Actions\Analytics\RecordPageView} is the only writer, through an
  * upsert on this table's unique triple.
  */
@@ -28,6 +30,8 @@ class PageViewCount extends Model
     use HasFactory;
 
     use HasPrefixedUlid;
+
+    protected $connection = 'analytics';
 
     public static function idPrefix(): string
     {

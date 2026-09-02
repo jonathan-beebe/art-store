@@ -8,9 +8,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * This table lives in the analytics store (config/database.php), not
+     * the database the migrations ledger itself belongs to.
+     */
+    protected $connection = 'analytics';
+
+    /**
+     * The migrations ledger lives in the app database, so rebuilding it
+     * (`migrate:fresh`, a deleted `database.sqlite`) re-runs every
+     * migration, including this one, against an analytics file that may
+     * still hold the table from before. `dropIfExists` before `create`
+     * makes that safe: a fresh app database means a fresh analytics table.
+     */
     public function up(): void
     {
-        Schema::create('page_view_counts', function (Blueprint $table): void {
+        Schema::connection('analytics')->dropIfExists('page_view_counts');
+
+        Schema::connection('analytics')->create('page_view_counts', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->string('site', 20);
             // A route's pattern (`admin/orders/{order}`), not the concrete
@@ -28,6 +43,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('page_view_counts');
+        Schema::connection('analytics')->dropIfExists('page_view_counts');
     }
 };
