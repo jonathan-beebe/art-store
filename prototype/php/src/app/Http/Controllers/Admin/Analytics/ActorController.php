@@ -41,21 +41,6 @@ final class ActorController extends Controller
         ActorKindFilter::Verified->value => 'Verified',
     ];
 
-    /** The entry and event pages' own copy for each event name — see
-     * {@see \App\Analytics\Admin\EventTotals::EVENT_LABELS}, duplicated here
-     * the same way every page that shows this vocabulary keeps its own
-     * copy of it. */
-    private const array EVENT_LABELS = [
-        'listing.view' => 'Listing views',
-        'listing.favorite' => 'Favorites',
-        'listing.unfavorite' => 'Unfavorites',
-        'listing.cart_add' => 'Cart adds',
-        'checkout.open' => 'Checkouts opened',
-        'order.place' => 'Orders placed',
-        'order.pay' => 'Orders paid',
-        'order.cancel' => 'Orders cancelled',
-    ];
-
     public function index(AnalyticsActorsQueryRequest $request): View
     {
         $roundTripped = $request->roundTripped();
@@ -214,7 +199,7 @@ final class ActorController extends Controller
 
         foreach (AnalyticsEventName::cases() as $name) {
             $links[] = [
-                'label' => self::EVENT_LABELS[$name->value],
+                'label' => $name->pluralLabel(),
                 'href' => route('admin.analytics.actors.show', ['customer' => $customerId, ...$without, 'event' => $name->value]),
                 'active' => $current === $name,
             ];

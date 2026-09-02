@@ -23,21 +23,6 @@ final class ListingController extends Controller
 {
     private const array RANGE_LABELS = [7 => '7d', 30 => '30d', 90 => '90d'];
 
-    /** The entry and event pages' own copy for each event name — see
-     * {@see \App\Analytics\Admin\EventTotals::EVENT_LABELS}, duplicated here
-     * the same way every page that shows this vocabulary keeps its own
-     * copy of it. */
-    private const array EVENT_LABELS = [
-        'listing.view' => 'Listing views',
-        'listing.favorite' => 'Favorites',
-        'listing.unfavorite' => 'Unfavorites',
-        'listing.cart_add' => 'Cart adds',
-        'checkout.open' => 'Checkouts opened',
-        'order.place' => 'Orders placed',
-        'order.pay' => 'Orders paid',
-        'order.cancel' => 'Orders cancelled',
-    ];
-
     public function show(Listing $listing, AnalyticsEntityQueryRequest $request): View
     {
         $roundTripped = $request->roundTripped();
@@ -100,7 +85,7 @@ final class ListingController extends Controller
 
         foreach (AnalyticsEventName::cases() as $name) {
             $links[] = [
-                'label' => self::EVENT_LABELS[$name->value],
+                'label' => $name->pluralLabel(),
                 'href' => route('admin.analytics.listings.show', ['listing' => $listingId, ...$without, 'event' => $name->value]),
                 'active' => $current === $name,
             ];
