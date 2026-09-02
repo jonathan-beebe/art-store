@@ -14,33 +14,25 @@
 
 ## Log
 
-- 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
 - 2026-09-02:16:56:17 — MAINT-006 — done: the site stats page retires — StatsController, its view, ListingEventTally/ListingEventCount, and AnalyticsReport::platformCountsByName() are gone; /admin/stats is a permanent redirect to /admin/analytics
+- 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
 - 2026-09-02:16:31:55 — MAINT-006 — started
 - 2026-09-02:16:31:55 — MAINT-006 — defined: the site stats page retires in favour of analytics
-
 - 2026-09-02:16:30:09 — IMPRV-025 — defined: storefront requests stop crossing the slow-query threshold on the deploy
-
 - 2026-09-02:15:21:47 — FEAT-045 — done: /admin/analytics + events/{name} + actors + actors/{customer} + listings/{listing} drill from range comparisons to one listing's or actor's identity, tiles, strip, and event feed, with an ActorVelocity peak-per-hour flag shared by the leaderboard and the actor page
 - 2026-09-02:12:34:37 — FEAT-044 — done: analytics_events gains indexed ip/session_id columns and request_id in data, filled in by RequestFacts::current() per recordEvent; AnalyticsReport::eventsForIp()/eventsForSession(); ANALYTICS_RETENTION_DAYS prunes rows via Analytics::prune(), run by orders:sweep
 - 2026-09-02:11:59:53 — FEAT-045 — started
 - 2026-09-02:11:59:53 — FEAT-044 — started
 - 2026-09-02:11:59:53 — FEAT-045 — defined: an admin analytics drill-in from events to listings and actors
-
 - 2026-09-02:11:52:03 — FEAT-044 — defined: analytics events carry the request ip, session, and id
-
-- 2026-09-02:09:43:30 — FEAT-039 — done: analytics events go through App\Analytics\Analytics, buffered with their own timestamps and flushed after the response into analytics.sqlite3 (analytics_events + page_view_counts); readers via AnalyticsReport; docs/analytics.md
-
-- 2026-09-02:08:30:59 — FEAT-039 — reopened: iteration 2, one Analytics entry point with an after-response flush
-
-- 2026-09-02:08:11:27 — FEAT-039 — done: page_view_counts and listing_events live in an analytics sqlite file of their own (ANALYTICS_DATABASE_FILE), every analytics write is guarded so a failing store logs one warn line and the request completes, readers unchanged, docs/alignment.md §2.6
-
-- 2026-09-02:07:05:59 — FEAT-039 — started
-
-- 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2
-- 2026-09-02:05:34:37 — MAINT-005 — started
 - 2026-09-02:10:30:00 — FEAT-041 — done: seller inbox gains &filter=/&status= chips with counts, a two-sided transcript with day separators and reply-to, resolve/reopen posts from the header, and /seller/support becomes a real titled new-conversation form; 3358 tests, 9763 assertions
 - 2026-09-02:10:00:00 — FEAT-041 — started
+- 2026-09-02:09:43:30 — FEAT-039 — done: analytics events go through App\Analytics\Analytics, buffered with their own timestamps and flushed after the response into analytics.sqlite3 (analytics_events + page_view_counts); readers via AnalyticsReport; docs/analytics.md
+- 2026-09-02:08:30:59 — FEAT-039 — reopened: iteration 2, one Analytics entry point with an after-response flush
+- 2026-09-02:08:11:27 — FEAT-039 — done: page_view_counts and listing_events live in an analytics sqlite file of their own (ANALYTICS_DATABASE_FILE), every analytics write is guarded so a failing store logs one warn line and the request completes, readers unchanged, docs/alignment.md §2.6
+- 2026-09-02:07:05:59 — FEAT-039 — started
+- 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2
+- 2026-09-02:05:34:37 — MAINT-005 — started
 - 2026-09-02:05:27:45 — FEAT-043 — done: signed-in-only listing ask with a return-here magic link, a Talk to us support form with optional order, storefront inbox filters/400s, and the two-sided thread transcript with reply-to, quote, and reopen-by-reply; 3351 tests, 9744 assertions, make precommit and make fresh green
 - 2026-09-02:05:23:53 — FEAT-042 — done: Admin desk inbox with filter/status queues (needs-reply default), kind tags, oversight (seller<->customer) read-only threads with "Message seller"/"Message customer" buttons, resolve/reopen, reply-to, titled seller/customer support forms with optional order context; 3374 tests
 - 2026-09-02:04:48:02 — FEAT-043 — started
@@ -70,71 +62,40 @@
 - 2026-08-31:17:31:57 — IMPRV-021 — started
 - 2026-08-31:17:25:32 — IMPRV-021 — rescoped: per commit runs tests (and maybe lint) in one fast container; the full check moves to PR time
 - 2026-08-31:17:18:17 — IMPRV-021 — defined: the commit gate pays only for what changed
-
 - 2026-08-31:14:08:35 — IMPRV-019 — follow-up: production ran on two PHP threads — FrankenPHP defaults num_threads to 2×CPU, Render's one-CPU free instance got 2, and two reconnecting SSE streams parked the whole pool so every page queued in front of PHP; the swap had dropped artisan serve's explicit 16-worker sizing; Caddyfile now pins num_threads 16 / max_threads 40 (FRANKENPHP_NUM_THREADS/FRANKENPHP_MAX_THREADS override) under the rule that production serves more than dev; verified on a --cpus=1 hardened container (boot line num_threads:16,max_threads:40)
-
 - 2026-08-31:13:43:34 — IMPRV-019 — follow-up: first Render deploy died at the server exec (frankenphp: Operation not permitted, exit 126) — the base image's cap_net_bind_service file capability is refused by Render's sandboxed runtime while local Docker grants it; fixed with setcap -r in the runtime stage and make run-image now runs --cap-drop=ALL --security-opt no-new-privileges to carry Render's restrictions locally (d150bdf); pre-fix image fails the hardened target, fixed image serves /up, /, and statics under it
-
 - 2026-08-31:11:54:08 — IMPRV-019 — done: the production image serves with FrankenPHP — runtime stage rebased onto pinned dunglas/frankenphp (classic per-request mode, Octane/worker mode deferred), docker/Caddyfile serves public/ on :8000 with statics bypassing PHP and trusted_proxies via CADDY_TRUSTED_PROXIES (Caddy rejects Laravel's `*`, so the two variables stay separate), composer deploy chain ends in frankenphp run, PHP_CLI_SERVER_WORKERS gone from runtime, dev stack unchanged (387fe36); live-verified: /up 200, statics logged no http.request line, IMPRV-020's SSE close survives the SAPI swap (disconnected: true at 8043ms), page load 0.0525s under 12 held streams; reviewer accepted, its doc advisory (messaging.md/review.md worker-budget framing) fixed in the same commit
-
 - 2026-08-31:11:25:00 — IMPRV-019 — started
-
 - 2026-08-31:10:17:30 — DSGN-008 — done: the design system is audited, accurate, and complete — full rendered sweep of storefront (anonymous session), seller, and admin (live magic-link sessions) against /design-system; home page joins the layouts section, browse wireframe relabeled with the category variant, 2-up→3-up caption fixed, mobile explorations (buy bar, swipe gallery, cover rail) self-label unshipped with the browse sheet as the shipped pattern, on-photo/photo-scrim rated via Contrast::compositeOver() (7.2 AA floor), card-fields and order-item-detail demos added, theme.php contract scoped to the storefront (3ffa5c8); reviewer accepted with one advisory follow-up (serialized-unit Piece line absent from the order-item preview); larger follow-ups recorded in the ticket: seller/admin wear zero Warm Craft tokens, browse pill vs x-ui.chip divergence, ticket ids in code comments repo-wide
-
 - 2026-08-31:09:18:53 — DSGN-008 — started
-
 - 2026-08-31:09:18:30 — IMPRV-020 — done: the request story closes when a stream actually ends — LogRequestStory defers a StreamedResponse's did to terminate(), stashing the open Story on the request attributes; duration_ms covers the held stream, data.db the tick queries, data.disconnected: true marks a client that left; ignore_user_abort keeps terminate() reachable past the failed write (30fc6e8); four new sidecar tests, live-curl verified (26s lifetime, 5s abandon), reviewer accepted with no rework items
-
 - 2026-08-31:08:26:09 — IMPRV-020 — started
-
 - 2026-08-31:08:15:12 — RFCTR-013 — done: the complexity baseline is empty — LogRowQuery::conditions() extracts columnEqualityConditions() (10→7), AddToCart::__invoke() extracts resolveQuantity() (9→6); last two baseline entries deleted, phpstan-baseline.neon kept as an empty list, sidecars unmodified, gate green (188c30c); reviewer accepted with no rework items
-
 - 2026-08-31:08:08:16 — DSGN-008 — defined: the design system is audited, accurate, and complete
-
 - 2026-08-31:08:00:24 — RFCTR-012 — done: seller request row validation under the ceiling — OptionValueRequest rule closures become surchargeRule()/priceRule(), DescriptionSectionRequest's row mapping extracts to rowValues(), ListingRequest::validateRows() reads normalize → skip blank → flag via three helpers; scores 9→0, 9→5, 16→6, three baseline entries deleted, sidecars unmodified (f1493f5, b7aca11, 98d16ec); reviewer accepted with two minor follow-ups queued (flagIncompleteRow naming, sibling staticness)
-
 - 2026-08-31:07:56:46 — RFCTR-013 — started
-
 - 2026-08-31:07:32:55 — RFCTR-011 — done: configurator complexity cleared — ConfiguratorPageResolver splits into SelectedAxisValues, ModifiersPresentation, SerializedUnitsPresentation collaborators; publish validation flattens to per-rule-family methods; pricer's line builder dispatches; six baseline entries deleted, sidecars unmodified, gate green (c385f06, 2e2097b); reviewer accepted with two pre-existing advisories (positional tuples idiom, cross-family issue order unpinned)
-
 - 2026-08-31:07:27:05 — RFCTR-012 — started
-
 - 2026-08-31:07:01:30 — RFCTR-011 — started
-
 - 2026-08-31:06:54:25 — RFCTR-013 — defined: the complexity baseline's last two entries
-
 - 2026-08-31:06:54:25 — RFCTR-012 — defined: seller request row validation under the ceiling
-
 - 2026-08-31:06:54:25 — RFCTR-011 — defined: the configurator sheds its complexity debt
-
 - 2026-08-31:06:36:30 — FEAT-037 — defined: archived listings stay visitable and legible in the logs
-
 - 2026-08-31:06:35:13 — IMPRV-020 — defined: the request story closes when a stream actually ends
-
 - 2026-08-30:22:04:42 — IMPRV-018 — resolved: home page's per-item queries collapsed — CategoryBrowse and MediumBrowse each fold their per-item cover+count lookups into one pass over the for-sale catalogue ordered by the cover tie-break rule; listing-card's imageUrl() reads eager-loaded images when present, and /, /browse, /medium, /search now eager-load them; bounding test (DB::listen) holds GET / under a fixed query ceiling at 15 categories/mediums; real counts at a heavier seed: / 92→29, /browse 25→14, /medium 55→27, /search 22→11; make check green, coverage 100%, 3127 tests
-
 - 2026-08-30:20:57:50 — FEAT-036 — refined: restore moves out of the admin app into a standalone tool — env-secret auth, works when the commerce DB cannot boot; IMPRV-019 becomes a dependency
-
 - 2026-08-30:19:52:37 — FEAT-036 — defined: Restore the store from a backup through the admin
-
 - 2026-08-30:19:52:37 — FEAT-035 — defined: Automated hourly snapshots and a nightly backup
-
 - 2026-08-30:19:48:22 — IMPRV-019 — defined: Serve production with FrankenPHP instead of artisan serve
-
 - 2026-08-30:18:20:33 — IMPRV-018 — defined: The home page costs 109 queries
-
 - 2026-08-30:17:45:58 — DSGN-007 — resolved: home opens on a configured featured band (FeaturedSubject, absent when its subject is gone), golden-ratio x-tile shared by the medium row and its push-down drawer at one grid and one size, category tiles gain cover photos via CategoryBrowse, three-then-nine listing sets, wayfinding footer; new components carry /design-system specimens
 - 2026-08-30:17:20:26 — DSGN-007 — started
-
 - 2026-08-30:17:07:48 — DSGN-007 — defined: The storefront home is an invitation to explore
-
 - 2026-08-30:16:59:47 — DSGN-006 — review fix: list panes bounded to a 50-row window (App\Support\ListPaneWindow), the open item prepended when it sorts outside it, footer naming the total; 3073+ tests, make check green
-
 - 2026-08-30:16:55:49 — DSGN-006 — review fix: capped the six list panes' queries at `ListPaneWindow::SIZE` (50), guaranteed the open item a cell outside the window, and added a "Showing N of total" pane footer above it
 - 2026-08-30:16:13:19 — DSGN-006 — resolved: `xl`-and-up admin shell — nav rail, list+detail panes for sellers/customers/listings/orders/fulfillments/messages, full-content panes for the rest; below-`xl` unchanged
 - 2026-08-30:15:44:41 — DSGN-006 — started
 - 2026-08-30:15:38:52 — DSGN-006 — defined: The admin shell is a nav rail with list and detail panes
-
 - 2026-08-30:12:45:02 — DSGN-005 — resolved: admin nav collapses into a JS-free Menu disclosure below sm; every table-bearing index page (and the four table components shared with a show page) renders cards below sm via shared card-list/card-row; dashboard is a drill-down hub; detail pages open with a back link and full-width actions; logs rows link to their story below sm while sm+ keeps the in-place expansion. 3050 tests, 100% coverage, lint clean.
 - 2026-08-30:12:08:44 — DSGN-005 — started
 - 2026-08-30:11:56:09 — DSGN-005 — defined: The admin is small-screen first
@@ -162,7 +123,6 @@
 - 2026-08-28:07:19:44 — IMPRV-015 — defined: The seller's buyer preview shares the buyer page's view model and behavior
 - 2026-08-28:07:19:44 — BUG-014 — defined: Removing a listing's options or variants still dead-ends
 - 2026-08-28:07:19:44 — IMPRV-011 — manual browser walk recorded: enhanced path verified by the human on /art/line-art-cat-tee at 127.0.0.1
-
 - 2026-08-27:21:49:06 — IMPRV-014 — done: physical-goods footer line removed from the edit hub; C8/D7/D8 honest-note placement question filed in 0-refine for the human
 - 2026-08-27:21:40:41 — IMPRV-014 — started
 - 2026-08-27:21:40:41 — IMPRV-012 — done: coming pill extracted to one anonymous Blade component (6 real copies found, not 16; prose honest-notes left as-is); preselect radio replaced by a checkbox whose label says saving clears the others; server-side exclusivity untouched
@@ -184,8 +144,8 @@
 - 2026-08-27:19:47:57 — BUG-013 — defined: The buyer-view panel shows a sentence instead of the simple listing's price
 - 2026-08-27:19:14:45 — BUG-009 — RESOLVED: closed by DSGN-003's implementation — form.blade.php deleted, create opens the guided on-ramp flow
 - 2026-08-27:19:14:45 — DSGN-003 — RESOLVED: guided three-shape create on-ramp (one thing / versions / extras) shipped on php/item-configurator, replacing the legacy flat form; made-to-order shipped as an explicit checkbox (nullable listings.quantity, mirroring variant semantics) per human review refinement mid-implementation; form.blade.php retired; BUG-009 closes with this implementation; 2703 tests, 100% coverage, make check and make fresh green
-- 2026-08-27:18:35:54 — DSGN-003 — implementation started (canvas approved by human review)
 - 2026-08-27:18:44:00 — DSGN-003 — design canvas published for human review (create question + three ramp landings + flow map); implementation waits on review
+- 2026-08-27:18:35:54 — DSGN-003 — implementation started (canvas approved by human review)
 - 2026-08-27:18:31:40 — DSGN-003 — started (canvas round next)
 - 2026-08-27:18:31:22 — DSGN-003 — defined: Guided new listing — three pricing on-ramps
 - 2026-08-27:18:25:06 — BUG-012 — defined: A standalone choice's selected option hides its price in the buyer dropdown
@@ -203,56 +163,61 @@
 - 2026-08-27:13:23:12 — DSGN-001 — done: seller configurator redesigned by intent — canvas (11 artboards, human-reviewed) then six screens + hub shipped in craft language with buyer-view panels beside every control, plain-language publish checklist, honest coming/not-yet slots; every binding story carries a story-named feature test; 2547 tests, 7251 assertions, 100% lines; follow-ups BUG-007, IMPRV-012
 - 2026-08-27:13:22:41 — IMPRV-012 — defined: One coming-pill component and honest preselect semantics
 - 2026-08-27:13:22:41 — BUG-007 — defined: A priced question on a choice-free listing never charges the buyer
+- 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines
+- 2026-08-27:11:25:21 — FEAT-030 — started
 - 2026-08-27:09:57:55 — DSGN-001 — implementation started (canvas approved by human review)
+- 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines
+- 2026-08-27:09:00:00 — FEAT-032 — started
 - 2026-08-27:08:58:38 — DSGN-001 — design canvas published for human review (11 artboards: intent-organized editor, section screens with buyer-view panels, 43-story coverage map); implementation waits on review
 - 2026-08-27:08:41:15 — DSGN-001 — started
 - 2026-08-27:08:38:42 — DSGN-001 — defined: Seller-problem-driven configurator UI
 - 2026-08-27:08:38:42 — IMPRV-011 — defined: The configurator auto-updates on change
-- 2026-08-27:09:45:00 — FEAT-032 — done: `Wood Species` (Walnut, Oak, Maple) granted on Furniture with both flags, Furniture's Medium grant required; the walnut table's Wood axis re-seeded catalog-backed (`property_id`/`property_value_id`); the garden gnome carries `Wood Species = Oak` as an attribute, the no-choice case; the seller axes picker lists catalog properties before Custom label and pre-fills a catalog axis's option values on add; 2335 tests, 6734 assertions, 100% lines
-- 2026-08-27:09:00:00 — FEAT-032 — started
-- 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
 - 2026-08-27:08:12:59 — BUG-006 — done: Error pages render styled in debug and out — `SecurityHeaders` widens the CSP to `style-src`/`script-src 'self' 'unsafe-inline'` only when `app.debug` is on (production CSP byte-for-byte unchanged); branded `404`/`419`/`500` views under one neutral shared layout (no per-site variant — Laravel resolves error views by status code alone, no site context available); 2329 tests, 6714 assertions, 100% lines
 - 2026-08-27:07:50:51 — BUG-006 — started
 - 2026-08-27:07:48:27 — BUG-005 — done: Adding an existing variant combination no longer 500s — `CreateVariantRequest` gains a combo-uniqueness rule naming the combination inline; `CreateVariant` guards the same rule as a `DomainRuleViolation` backstop; the add-variant form is replaced by a note once the grid is full (`Listing::everyVariantCombinationExists()`); 2323 tests, 6700 assertions, 100% lines
 - 2026-08-27:07:35:43 — BUG-005 — started
 - 2026-08-27:07:24:00 — RFCTR-009 — done: The legacy `listings.medium` column retires — dropped from the migration, model, factory, and every seeder; `ListingDraft`/`ListingRequest`/`CreateListing`/`UpdateListing` lose the field; the seller form drops its free-text Medium input; the storefront and admin listing pages read `mediumAttributeLabel()` only, no fallback; 2314 tests, 6677 assertions, 100% lines
-- 2026-08-27:00:00:01 — BUG-006 — defined: Error pages render unstyled
-- 2026-08-27:00:00:01 — BUG-005 — defined: Adding an existing variant combination answers a 500
 - 2026-08-27:07:14:27 — RFCTR-009 — started
 - 2026-08-27:07:12:25 — FEAT-031 — done: One Medium vocabulary (14 high-level values); Material property/grants removed; walnut table gains a Wood option axis (Walnut/Oak, 8 variants); Garden Gnome demonstrates multivalued Medium (Sculpture + Wood); 2315 tests, 6690 assertions, 100% lines
 - 2026-08-27:07:01:28 — FEAT-031 — started
-
-- 2026-08-27:00:00:00 — RFCTR-009 — defined: Remove the legacy listings.medium column
-- 2026-08-27:00:00:00 — FEAT-031 — defined: One Medium vocabulary — high-level attributes, specific axes
-- 2026-08-27:11:39:21 — FEAT-030 — done: attribute-backed media filter — `Medium` extended to the storefront's full media vocabulary and granted `usable_as_attribute` on every taxonomy category; every seeded listing (ListingSeeder, WizardingSellerSeeder, ConfiguratorArchetypeSeeder) categorized and carrying a Medium attribute matching its legacy `medium` string; storefront dropdown, filter (`Listing::ofMediumAttribute`), search, and the listing page's Medium line all read attributes first, legacy column as display-only fallback; `ListingHighlights` now skips Medium to avoid echoing the page's own Medium line; 2315 tests, 6649 assertions, 100% lines
-- 2026-08-27:11:25:21 — FEAT-030 — started
-- 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
 - 2026-08-27:05:55:04 — IMPRV-010 — done: buyer configurator polish — natural unit-label ordering (`UnitLabelOrder`) shared by the buyer picker and seller units screen, humanized `specs_json` (`UnitSpecLabel`), override-priced breakdowns labeled with their combination instead of "Base price" (`OverridePriceLabel`), a `:has(:focus-visible)` ring on unit cards; addendum: pet portrait's compound "Pets & Pose" axis split into independent "Pets"/"Pose" axes; 2305 tests, 6594 assertions, 100% lines
 - 2026-08-27:05:39:24 — IMPRV-010 — started
 - 2026-08-27:00:31:24 — FEAT-029 — done: listing categorization, attributes, and storefront Highlights — category select on the seller listing form (nullable, path-indented), an attributes section on the edit screen writing through `SetListingAttributes` (a sync per property, honoring `multivalued`), category-change pruning of ungranted attribute rows in `UpdateListing`, `ConfiguratorPublishValidation`'s new `required && usable_as_attribute` gate, the axes catalog-property picker fixed to scope by category, and a Highlights panel on `/art/{slug}`; archetype seeds now exercise `required` (pet portrait's Medium) and `multivalued` (walnut table's Material); 2291 tests, 6557 assertions, 100% lines
 - 2026-08-27:00:00:46 — FEAT-029 — started
+- 2026-08-27:00:00:02 — FEAT-032 — defined: Catalog-backed species axes
+- 2026-08-27:00:00:01 — BUG-006 — defined: Error pages render unstyled
+- 2026-08-27:00:00:01 — BUG-005 — defined: Adding an existing variant combination answers a 500
+- 2026-08-27:00:00:00 — RFCTR-009 — defined: Remove the legacy listings.medium column
+- 2026-08-27:00:00:00 — FEAT-031 — defined: One Medium vocabulary — high-level attributes, specific axes
+- 2026-08-27:00:00:00 — FEAT-030 — defined: Attribute-backed media filter
 - 2026-08-26:00:00:08 — FEAT-028 — done: checkout and order snapshot — order_items freezes variant_id/unit_id/configuration_json/answers_json/price_breakdown_json at placement, re-resolving a configured line's price and availability from the rows PlaceOrder locks rather than trusting the cart; a serialized line's unit flips available→sold and a non-serialized line's variant.quantity decrements inside the same transaction (listings.quantity/status stay untouched for configured lines), with cancel/decline/retry restoring exactly what placement claimed through one shared StockMovement helper; one order-item-detail partial renders the frozen breakdown on the customer, seller, and admin order pages; make smoke gains the configured-ring walk; 2239 tests, 6466 assertions, 100% lines
 - 2026-08-26:00:00:07 — FEAT-028 — started
 - 2026-08-26:00:00:06 — FEAT-027 — done: buyer configurator and cart — GET-form configurator on `/art/{slug}` (axis selects with grey-outs, serialized-variant unit picker, scoped modifiers, quantity-break table, live itemized price panel), add-to-cart POST with fingerprint-based merge, `cart_items` widened to `(cart_id, listing_id, fingerprint)`; 12 new Domain/Support classes; 2173 tests, 6261 assertions, 100% lines
 - 2026-08-26:00:00:05 — FEAT-027 — started
-- 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights
 - 2026-08-26:00:00:04 — FEAT-026 — done: ten seller-facing configurator screens (axes/options, sparse variant grid with generate/bulk-toggle, per-variant units, modifiers with scope picker, quantity breaks, description sections with reorder), publish validation surfaced inline on the listing edit screen with per-issue links; 16 new Actions, `ConfiguratorDeletionGuard` domain guard; 2101 tests, 6043 assertions, 100% lines
 - 2026-08-26:00:00:03 — FEAT-026 — started
 - 2026-08-26:00:00:02 — FEAT-025 — done: configurator schema (14 tables + `listings.category_id`), pure domain pricing/availability/publish-validation under `app/Domain/Configurator`, 11 seller-facing actions, taxonomy seed, and all 8 archetype seeds built through the real actions; 1948 tests, 5628 assertions, 100% lines
 - 2026-08-26:00:00:01 — FEAT-025 — started
+- 2026-08-26:00:00:00 — FEAT-029 — defined: Listing categorization, attributes, and Highlights
 - 2026-08-26:00:00:00 — FEAT-028 — defined: Checkout and order snapshot
 - 2026-08-26:00:00:00 — FEAT-027 — defined: Buyer configurator and cart
 - 2026-08-26:00:00:00 — FEAT-026 — defined: Seller configurator UI
 - 2026-08-26:00:00:00 — FEAT-025 — defined: Configurator data model, domain pricing, and archetype seeds
+- 2026-08-24:23:50:00 — IMPRV-005 — done: CustomerMergePlan folds cart quantities and unions favorites, currentCart heuristic gone, schema manifest test added
 - 2026-08-24:23:20:00 — IMPRV-009 — done: `CustomerIdentity::fromCookie()` resolves once per request and both middlewares read that answer; on identical seeded data `/` 16 -> 14 queries, `/cart` 13 -> 11, `/art/{slug}` 18 -> 16, `/favorites` 13 -> 11; 1831 tests, 4955 assertions, 100% lines
 - 2026-08-24:23:00:00 — IMPRV-009 — started
 - 2026-08-24:22:55:00 — IMPRV-008 — done: the entrypoint builds the bundle only when a content hash of its inputs disagrees with the record beside `public/build`; warm restart 4.73s -> 1.78s, `make check` 104.4s -> 91.4s and three Vite builds down to one; 1827 tests, 4946 assertions, 100% lines
 - 2026-08-24:22:35:00 — IMPRV-008 — started
+- 2026-08-24:22:35:00 — IMPRV-005 — started
 - 2026-08-24:22:30:00 — IMPRV-007 — done: `docker/pcov.ini` disables pcov in the image and the two coverage composer scripts turn it back on with `-d`; `GET /` 24.7 -> 17.4 ms CPU/req measured independently; 1827 tests, 4946 assertions, 100% lines
+- 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
 - 2026-08-24:22:15:00 — IMPRV-007 — started
 - 2026-08-24:22:10:00 — IMPRV-006 — done: the stream yields a frame per tick so a failed write reaches `connection_aborted()`, and the worker pool goes 5 -> 16; twelve abandoned streams then `GET /` 49.4s -> 0.25s, twelve held 50.8s -> 0.11s, three live streams 5.6% -> 0.99% of one core; 1827 tests, 100% lines
+- 2026-08-24:22:05:00 — FEAT-024 — fixed up: favorites page reads the storefront set, cart add refuses a removed listing, moderation checks judged against a locked row; 1793 tests, 4865 assertions, 100% lines
 - 2026-08-24:21:50:00 — IMPRV-006 — started
 - 2026-08-24:21:45:00 — BUG-004 — done: RateLimitsConfigTest writes and reads through Dotenv's repository and restores what `.env` gave it, so the gate is green whatever `.env` holds; 1827 tests, 4934 assertions, 100% lines
+- 2026-08-24:21:30:00 — BUG-003 — started
+- 2026-08-24:21:29:00 — FEAT-024 — done: listing removals with temporary/permanent kinds, removal outranks status, payout run moved to admin; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:21:25:00 — BUG-004 — started
 - 2026-08-24:21:20:00 — IMPRV-009 — defined: the visitor is resolved from the cookie twice per request (16 queries on /, two of them duplicates)
 - 2026-08-24:21:19:00 — IMPRV-008 — defined: the entrypoint rebuilds the Vite bundle on every container start and every `docker compose run` (three builds per `make check`)
@@ -261,17 +226,11 @@
 - 2026-08-24:21:16:00 — BUG-004 — defined: `make check` is red on a fresh checkout, RateLimitsConfigTest reads `.env` instead of its own putenv
 - 2026-08-24:21:15:00 — RSRCH-001 — done: performance baseline recorded (startup, idle CPU, latency, CPU/req, query counts, stream occupancy) with the commands to re-run each
 - 2026-08-24:20:30:00 — MAINT-004 — done: every doc refreshed against the branch, validation run complete (make check green, make fresh seeds, 34 GET routes with no 5xx, hook refuses a failing test); 1827 tests, 4934 assertions, 100% lines
-- 2026-08-24:19:00:00 — MAINT-004 — started
-- 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines
-- 2026-08-24:23:50:00 — IMPRV-005 — done: CustomerMergePlan folds cart quantities and unions favorites, currentCart heuristic gone, schema manifest test added
-- 2026-08-24:22:35:00 — IMPRV-005 — started
-- 2026-08-24:22:20:00 — BUG-003 — done: thread open and first message in one transaction, magic-link consume as one atomic claim; 1799 tests, 4886 assertions, 100% lines
-- 2026-08-24:22:05:00 — FEAT-024 — fixed up: favorites page reads the storefront set, cart add refuses a removed listing, moderation checks judged against a locked row; 1793 tests, 4865 assertions, 100% lines
-- 2026-08-24:21:30:00 — BUG-003 — started
-- 2026-08-24:21:29:00 — FEAT-024 — done: listing removals with temporary/permanent kinds, removal outranks status, payout run moved to admin; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:19:05:00 — FEAT-023 — done: zero-filled dashboard tallies, accounting, ledger browser, stats, page-view roll-up and view collapse; 1699 tests, 4655 assertions, 100% lines
 - 2026-08-24:19:04:00 — FEAT-021 — done: seven configurable rate limits keyed per §3, 429 with Retry-After, CSP and security headers; 1596 tests, 4438 assertions, 100% lines
 - 2026-08-24:19:03:00 — FEAT-020 — done: cancel, stale sweep, seller decline, admin refund, refunds table and refunded ledger entry across the three timings; 1514 tests, 4187 assertions, 100% lines
+- 2026-08-24:19:00:00 — MAINT-004 — started
+- 2026-08-24:18:59:00 — IMPRV-005 — done: CustomerMergePlan folds the cart and unions favorites, currentCart heuristic gone, schema manifest test; 1827 tests, 4934 assertions, 100% lines
 - 2026-08-24:18:45:00 — FEAT-024 — done: listing_removals (temporary/permanent, at most one active), removed listings dropped from browse/search/art/{slug}/checkout, seller-portal payout button removed in favor of /admin/payouts; 1770 tests, 4796 assertions, 100% lines
 - 2026-08-24:17:30:00 — FEAT-024 — started
 - 2026-08-24:15:10:00 — FEAT-023 — started
@@ -350,6 +309,7 @@
 - 2026-08-23:09:23:58 — RFCTR-004 — done: Listing owns sell/restock/changeStatusTo, Customer relations and currentCart replace CurrentCart, Money accessors on every cents column, Money equals/subtract/isPositive/__toString, Notification::to, latestPayment; PHPStan 4 -> 3
 - 2026-08-23:09:09:48 — RFCTR-004 — started
 - 2026-08-23:09:09:48 — RFCTR-003 — done: Five new form requests with to*() accessors, Rule::requiredIf and Rule::enum, ShippingAddress::to and Purchaser::forCheckout, CheckoutPurchaser removed; PHPStan 19 -> 4
+- 2026-08-23:09:00:00 — MAINT-001 — done: Pint clean (259 files, strict_types tree-wide), PHPStan level max at 47 errors (target ≤45; gap is RFCTR-002/RFCTR-003/BUG-002 territory, itemized in Working), tests/Pest.php binds sidecar base classes, 471 tests green, make check/analyse/lint added
 - 2026-08-23:08:50:20 — RFCTR-003 — started
 - 2026-08-23:08:50:20 — RFCTR-002 — done: Policies for Listing, Fulfillment, Order, Notification with denyAsNotFound; seller routes bind models; SellerController base; scoped delivered route; @can/@visitorCan on the ship and deliver forms; PHPStan 44 -> 19
 - 2026-08-23:08:32:39 — RFCTR-002 — started
@@ -359,9 +319,7 @@
 - 2026-08-23:08:15:37 — BUG-001 — started
 - 2026-08-23:08:11:39 — RFCTR-001 — done: converted 5 by-reference-closure test files to bindings, added cartWithOneListing/paidOrderWithTwoSellers to CommerceTestCase, rewrote SidecarsTest docblock and added stale-exception assertion, updated docs/architecture.md and README.md Testing sections; 485 tests / 1123 assertions, pint clean
 - 2026-08-23:07:41:24 — RFCTR-001 — started
-- 2026-08-23:09:00:00 — MAINT-001 — done: Pint clean (259 files, strict_types tree-wide), PHPStan level max at 47 errors (target ≤45; gap is RFCTR-002/RFCTR-003/BUG-002 territory, itemized in Working), tests/Pest.php binds sidecar base classes, 471 tests green, make check/analyse/lint added
 - 2026-08-23:07:30:00 — MAINT-001 — started
-
 - 2026-08-23:07:15:58 — MAINT-002 — defined: Final validation — analyzer at zero on app and tests, docs current
 - 2026-08-23:07:15:58 — IMPRV-001 — defined: Behavioral test gaps, factories for every model, and seeders through actions
 - 2026-08-23:07:15:58 — RFCTR-008 — defined: Blade components and resourceful seller routes
@@ -380,6 +338,7 @@
 - 2026-08-22:15:06:29 — FEAT-009 — started
 - 2026-08-22:15:05:01 — FEAT-009 — defined: Domain ontology doc
 - 2026-08-22:14:58:18 — FEAT-007 — done: Corrected `architecture.md` drift (order status, listing status, ER diagram, notifications columns, phpunit scan paths, coverage targets) and added `docs/identity.md`, `docs/orders.md`, `docs/escrow.md`, `docs/data-model.md`, `docs/README.md` with sequence, state, flowchart, and ER diagrams
+- 2026-08-22:14:52:10 — FEAT-003 — done: Commerce schema, pure domain core for listings, cart, payments, orders, escrow, and payouts, and the order lifecycle actions from cart to weekly payout
 - 2026-08-22:14:52:08 — FEAT-007 — started
 - 2026-08-22:14:51:31 — FEAT-008 — started
 - 2026-08-22:14:49:05 — FEAT-005 — done: Customer storefront — browse and search, favorites, cart, guest checkout that verifies by magic link before the card, order pages with retry and delivery confirmation, and account notifications
@@ -388,7 +347,6 @@
 - 2026-08-22:14:33:29 — FEAT-006 — started
 - 2026-08-22:14:31:20 — FEAT-005 — started
 - 2026-08-22:14:29:07 — FEAT-004 — started
-- 2026-08-22:14:52:10 — FEAT-003 — done: Commerce schema, pure domain core for listings, cart, payments, orders, escrow, and payouts, and the order lifecycle actions from cart to weekly payout
 - 2026-08-22:14:20:23 — FEAT-002 — done: Passwordless magic-link sign-in for both sites, anonymous customer identity in an encrypted cookie, and claim-or-merge on verification
 - 2026-08-22:14:02:37 — FEAT-002 — started
 - 2026-08-22:14:00:52 — FEAT-003 — started
