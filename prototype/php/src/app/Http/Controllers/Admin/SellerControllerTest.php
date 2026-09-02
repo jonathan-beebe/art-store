@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
@@ -55,6 +57,26 @@ it('shows a funnel covering only the seller\'s own listings, last 30 days, linke
     $response->assertSee('Funnel, last 30 days');
     $response->assertSee('href="'.route('admin.analytics.index').'"', escape: false);
     $response->assertSeeInOrder(['Orders placed', '1']);
+});
+
+it('renders the seller page on a fixed number of queries however many events its listings\' funnel holds', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 15) as $i) {
+        $customer = $this->verifiedCustomer();
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    }
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->expectsDatabaseQueryCount(12, 'sqlite')
+        ->expectsDatabaseQueryCount(3, 'analytics')
+        ->get("/admin/sellers/{$seller->id}");
+
+    $response->assertOk();
 });
 
 it('shows one seller with listing and fulfillment counts', function (): void {
