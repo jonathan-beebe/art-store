@@ -160,7 +160,7 @@
                         @if ($threadMessage->replyTo)
                             <a href="#{{ $threadMessage->replyTo->id }}" class="mt-1.5 flex gap-2 rounded border-l-2 border-gray-300 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:border-white/20 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10">
                                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="mt-0.5 size-3.5 shrink-0"><path d="M8 5 4 9l4 4M4 9h8a4 4 0 0 1 4 4v2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                                <span><strong class="font-semibold text-gray-700 dark:text-gray-300">{{ $threadMessage->replyTo->senderName() }}</strong> &middot; {{ str($threadMessage->replyTo->body)->limit(60) }}</span>
+                                <span><strong class="font-semibold text-gray-700 dark:text-gray-300">{{ $viewerSelf($threadMessage->replyTo) ? 'You' : $threadMessage->replyTo->senderName() }}</strong> &middot; {{ str($threadMessage->replyTo->body)->limit(60) }}</span>
                             </a>
                         @endif
 
@@ -175,6 +175,7 @@
         <x-seller.messaging.composer
             :action="route($storeRoute, $paneRouteParams)"
             :reply-to="$replyTo"
+            :reply-to-name="$replyTo !== null ? ($viewerSelf($replyTo) ? 'You' : $replyTo->senderName()) : null"
             :cancel-url="route('seller.messages.show', $paneRouteParams)"
         />
     @endcan

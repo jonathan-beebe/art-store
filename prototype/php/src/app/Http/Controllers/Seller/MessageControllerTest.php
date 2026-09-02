@@ -417,6 +417,36 @@ it('shows the reply-to block when reply_to names a message of the thread', funct
     $response->assertSee('value="'.$question->id.'"', escape: false);
 });
 
+it('names the composers replying-to banner "You" when quoting the sellers own message, not the shop name', function (): void {
+    $seller = $this->seller("Trelawney's Tower Studio");
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
+    $own = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'It ships flat.']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}?reply_to={$own->id}");
+
+    $response->assertOk();
+    $response->assertSee('Replying to <strong class="font-semibold text-gray-900 dark:text-white">You</strong>', escape: false);
+    $response->assertDontSee("Trelawney's Tower Studio", escape: false);
+});
+
+it('names an inline reply quote "You" when it quotes the viewers own message, not the shop name', function (): void {
+    $seller = $this->seller("Trelawney's Tower Studio");
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
+    $own = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'It ships flat.']);
+    Message::factory()->from($customer)->create([
+        'conversation_id' => $conversation->id,
+        'body' => 'Great, thanks!',
+        'reply_to_message_id' => $own->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee('<strong class="font-semibold text-gray-700 dark:text-gray-300">You</strong> &middot; It ships flat.', escape: false);
+    $response->assertDontSee("Trelawney's Tower Studio", escape: false);
+});
+
 it('ignores a reply_to naming a message from another thread rather than 500ing', function (): void {
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
