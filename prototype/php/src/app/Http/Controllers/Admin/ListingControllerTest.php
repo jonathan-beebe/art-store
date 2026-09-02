@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Cart\AddToCart;
+use App\Actions\Listings\RecordListingEvent;
 use App\Actions\Listings\RemoveListing;
+use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingRemovalKind;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Favorite;
@@ -114,6 +116,26 @@ it('shows one listing with its activity and sales', function (): void {
     $response->assertSee('Oil on linen');
     $response->assertSee('Blue Kiln Studio');
     $response->assertSee($order->id);
+});
+
+it('totals the views and cart adds of the listing and counts the favorites that stand', function (): void {
+    $listing = $this->listing($this->seller());
+    $recordListingEvent = app(RecordListingEvent::class);
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::Favorite, $this->moment('2026-08-20 11:00:00'));
+    $recordListingEvent($listing, null, ListingEventType::Favorite, $this->moment('2026-08-20 11:30:00'));
+    $recordListingEvent($listing, null, ListingEventType::CartAdd, $this->moment('2026-08-20 12:00:00'));
+    Favorite::factory()->create(['customer_id' => $this->verifiedCustomer()->id, 'listing_id' => $listing->id]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertViewHas('listing', function (Listing $listing): bool {
+        return $listing->views_count === 2
+            && $listing->favorites_count === 1
+            && $listing->cart_adds_count === 1;
+    });
 });
 
 it('shows the list panes empty-detail prompt on the index route', function (): void {

@@ -43,6 +43,9 @@ final class ListingController extends Controller
         $window = ListPaneWindow::of($this->listingsQuery(null, null, RemovedFilter::Any), $listing);
 
         return view('admin.listings.show', [
+            // Favorited on this page counts the favorites that stand today:
+            // loadCount('favorites') overwrites the favorite-event tally
+            // loadEventCounts() fills, and leaves views and cart adds as is.
             'listing' => $listing->load(['seller', 'activeRemoval'])->loadEventCounts()->loadCount('favorites'),
             'removals' => $listing->removals()->orderByDesc('created_at')->orderByDesc('id')->get(),
             'sales' => OrderItem::query()

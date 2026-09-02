@@ -24,6 +24,7 @@ use DateTimeImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
 it('records the merge so a stale cookie still resolves', function (): void {
@@ -119,31 +120,12 @@ it('still merges and logs a warning when the analytics store is unwritable', fun
     $verified = Customer::factory()->create();
     ListingEvent::factory()->create(['customer_id' => $anonymous->id]);
 
-    $originalDatabase = config('database.connections.analytics.database');
-    // RefreshDatabase already opened a transaction on this PDO for the
-    // current test (tests/TestCase.php's connectionsToTransact); purging
-    // the connection below drops the wrapper without closing it, so it is
-    // rolled back by hand once the test is done with it — otherwise the
-    // next test to begin a transaction on the same cached in-memory PDO
-    // finds one already open.
-    $originalPdo = DB::connection('analytics')->getPdo();
-
-    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
-    DB::purge('analytics');
-
-    try {
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($anonymous, $verified, $log): void {
         app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
         expect(CustomerMerge::where('anonymous_customer_id', $anonymous->id)->where('customer_id', $verified->id)->exists())->toBeTrue()
             ->and($log->line('app.log', 'doing')['level'])->toBe('warn');
-    } finally {
-        if ($originalPdo->inTransaction()) {
-            $originalPdo->rollBack();
-        }
-
-        config()->set('database.connections.analytics.database', $originalDatabase);
-        DB::purge('analytics');
-    }
+    });
 });
 
 it('re-points the notifications addressed to the anonymous customer', function (): void {

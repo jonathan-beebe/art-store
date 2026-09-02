@@ -6,7 +6,7 @@ namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingEventType;
 use App\Models\ListingEvent;
-use Illuminate\Support\Facades\DB;
+use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
 it('records a view against the listing and the customer', function (): void {
@@ -119,29 +119,11 @@ it('never collapses a favorite, unfavorite, or cart add, even inside the same ho
 it('returns null and logs a warning instead of recording when the analytics store is unwritable', function (): void {
     $log = CapturedStory::capture();
     $listing = $this->listing($this->seller());
-    $originalDatabase = config('database.connections.analytics.database');
-    // RefreshDatabase already opened a transaction on this PDO for the
-    // current test (tests/TestCase.php's connectionsToTransact); purging
-    // the connection below drops the wrapper without closing it, so it is
-    // rolled back by hand once the test is done with it — otherwise the
-    // next test to begin a transaction on the same cached in-memory PDO
-    // finds one already open.
-    $originalPdo = DB::connection('analytics')->getPdo();
 
-    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
-    DB::purge('analytics');
-
-    try {
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($listing, $log): void {
         $event = app(RecordListingEvent::class)($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
 
         expect($event)->toBeNull()
             ->and($log->line('app.log', 'doing')['level'])->toBe('warn');
-    } finally {
-        if ($originalPdo->inTransaction()) {
-            $originalPdo->rollBack();
-        }
-
-        config()->set('database.connections.analytics.database', $originalDatabase);
-        DB::purge('analytics');
-    }
+    });
 });

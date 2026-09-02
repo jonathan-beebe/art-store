@@ -9,6 +9,7 @@ use App\Models\PageViewCount;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
 it('rolls a countable GET up into one row', function (): void {
@@ -87,28 +88,10 @@ it('writes the roll-up through the analytics connection, never the default one',
 
 it('still answers and logs a warning when the analytics connection cannot be written to', function (): void {
     $log = CapturedStory::capture();
-    $originalDatabase = config('database.connections.analytics.database');
-    // RefreshDatabase already opened a transaction on this PDO for the
-    // current test (tests/TestCase.php's connectionsToTransact); purging
-    // the connection below drops the wrapper without closing it, so it is
-    // rolled back by hand once the test is done with it — otherwise the
-    // next test to begin a transaction on the same cached in-memory PDO
-    // finds one already open.
-    $originalPdo = DB::connection('analytics')->getPdo();
 
-    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
-    DB::purge('analytics');
-
-    try {
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($log): void {
         $this->get('/admin/login')->assertOk();
 
         expect($log->line('app.log', 'doing')['level'])->toBe('warn');
-    } finally {
-        if ($originalPdo->inTransaction()) {
-            $originalPdo->rollBack();
-        }
-
-        config()->set('database.connections.analytics.database', $originalDatabase);
-        DB::purge('analytics');
-    }
+    });
 });

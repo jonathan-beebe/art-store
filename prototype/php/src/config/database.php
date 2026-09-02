@@ -59,10 +59,10 @@ return [
         // does. `synchronous = off` risks losing a count on a crash.
         // `busy_timeout` is a fifth of the commerce connection's, so a
         // contended analytics write fails fast and no request waits behind
-        // it (App\Analytics\AnalyticsWriteGuard turns that failure into a
-        // log line instead of a thrown exception). Foreign keys are off —
-        // the store's rows reference app rows by id only, across two
-        // separate SQLite files.
+        // it (App\Analytics\AnalyticsWriteGuard catches that failure and
+        // writes it as one log line). Foreign keys are off — the store's
+        // rows reference app rows by id only, across two separate SQLite
+        // files.
         'analytics' => [
             'driver' => 'sqlite',
             'database' => env('ANALYTICS_DATABASE_FILE', storage_path('analytics.sqlite3')),

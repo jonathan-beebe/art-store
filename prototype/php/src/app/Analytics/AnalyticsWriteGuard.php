@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Runs one write against the analytics store (config/database.php) and
- * turns a failure into a log line instead of a thrown exception. A missing
- * directory or a write that outlasts its busy timeout stops here, so it
- * never reaches the request a shopper or seller is waiting on.
+ * Runs one write against the analytics store (config/database.php). A
+ * failure is caught and written as one log line. A missing directory or a
+ * write that outlasts its busy timeout stops here, so it never reaches the
+ * request a shopper or seller is waiting on.
  */
 final class AnalyticsWriteGuard
 {
