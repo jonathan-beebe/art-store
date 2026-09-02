@@ -78,6 +78,19 @@ final readonly class NotificationMessage
     }
 
     /**
+     * $url names the recipient's thread on their own site. Nullable for the
+     * same reason every factory here is: an inbox row can carry no link.
+     */
+    public static function conversationResolved(string $topic, ?string $url): self
+    {
+        return new self(
+            'Marked resolved',
+            "Your thread about {$topic} was marked resolved.",
+            $url,
+        );
+    }
+
+    /**
      * The shape an inbox row stores and a page reads back.
      *
      * @return array{subject: string, body: string, url: string|null}

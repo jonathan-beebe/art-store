@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Domain\Auth\ActorType;
 use App\Domain\Messaging\ConversationKind;
+use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\FaqPrefill;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Collection;
 use Override;
 
 /**
@@ -28,10 +31,11 @@ use Override;
  * @property-read Admin|null $admin
  * @property-read Listing|null $listing
  * @property-read Fulfillment|null $fulfillment
+ * @property-read Order|null $order
  * @property-read Message|null $latestMessage
  * @property-read int $unread_count  only after the `withUnreadCountFor` scope
  */
-#[Fillable(['kind', 'subject_key', 'seller_id', 'customer_id', 'admin_id', 'listing_id', 'fulfillment_id', 'last_message_at'])]
+#[Fillable(['kind', 'title', 'subject_key', 'seller_id', 'customer_id', 'admin_id', 'listing_id', 'fulfillment_id', 'order_id', 'resolved_at', 'resolved_by_type', 'resolved_by_id', 'last_message_at'])]
 class Conversation extends Model
 {
     /** @use HasFactory<ConversationFactory> */
@@ -52,6 +56,7 @@ class Conversation extends Model
     {
         return [
             'kind' => ConversationKind::class,
+            'resolved_at' => 'datetime',
             'last_message_at' => 'datetime',
         ];
     }
@@ -86,6 +91,12 @@ class Conversation extends Model
         return $this->belongsTo(Fulfillment::class);
     }
 
+    /** @return BelongsTo<Order, $this> */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
     /** @return HasMany<Message, $this> */
     public function messages(): HasMany
     {
@@ -102,8 +113,20 @@ class Conversation extends Model
         return $this->hasOne(Message::class)->latestOfMany('sent_at');
     }
 
+    /** @return MorphTo<Model, $this> */
+    public function resolvedBy(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function status(): ConversationStatus
+    {
+        return ConversationStatus::of($this->resolved_at);
+    }
+
     /**
-     * The thread a subject names, opened if this is the first ask for it.
+     * The thread a subject names, opened if this is the first ask for it —
+     * the find-or-open shape the one kind with a `subject_key` uses.
      * `subject_key` is the uniqueness spine: a second ask for the same
      * subject finds the row the first ask created rather than opening a
      * second one, even under contention.
@@ -117,30 +140,23 @@ class Conversation extends Model
     }
 
     /**
-     * Moves one customer's threads onto the customer they merged into.
-     * `subject_key` names the thread's participants, so the column and the
-     * key move together: a thread left holding the merged customer's key is
-     * found by no later ask for its subject, and the next one opens a second
-     * thread beside it. Where the verified customer already holds the thread
-     * for a subject, the moved one folds into it.
+     * Moves one customer's threads onto the customer they merged into. A
+     * fresh-opened thread (`subject_key` null) simply takes the new column;
+     * a fulfillment thread rebuilds its key, since `subject_key` names the
+     * thread's participants and the column and the key move together. Where
+     * the verified customer already holds the fulfillment thread for that
+     * subject, the moved one folds into it.
      */
     public static function moveCustomer(Customer $from, Customer $to): void
     {
         foreach ($from->conversations()->get() as $conversation) {
-            $subjectKey = ConversationSubject::for(
-                $conversation->kind,
-                ['customer_id' => $to->id] + $conversation->idColumns(),
-            )->subjectKey();
-
-            $existing = self::query()->where('subject_key', $subjectKey)->first();
-
-            if ($existing === null) {
-                $conversation->update(['customer_id' => $to->id, 'subject_key' => $subjectKey]);
+            if ($conversation->kind !== ConversationKind::Fulfillment) {
+                $conversation->update(['customer_id' => $to->id]);
 
                 continue;
             }
 
-            $existing->absorb($conversation);
+            $conversation->moveFulfillmentThreadTo($to);
         }
     }
 
@@ -170,6 +186,34 @@ class Conversation extends Model
     }
 
     /**
+     * Who a posted message is told to: the single other participant, or
+     * every admin at once when the desk is the side that did not send it —
+     * the desk has no one row a `read_at` or a notification could name.
+     *
+     * @return Collection<int, Seller|Customer|Admin>
+     */
+    public function recipientsOf(Message $message): Collection
+    {
+        if ($this->kind->isDesk() && $message->sender_type !== ActorType::Admin->value) {
+            /** @var list<Seller|Customer|Admin> $admins */
+            $admins = [];
+
+            foreach (Admin::query()->get() as $admin) {
+                $admins[] = $admin;
+            }
+
+            return collect($admins);
+        }
+
+        $recipient = $this->otherParticipant($message);
+
+        /** @var Collection<int, Seller|Customer|Admin> $recipients */
+        $recipients = $recipient === null ? collect() : collect([$recipient]);
+
+        return $recipients;
+    }
+
+    /**
      * The side of the thread a viewer is not on. Reads the relation already
      * eager-loaded rather than fetching it fresh, so a caller plans its
      * eager loads up front.
@@ -196,10 +240,22 @@ class Conversation extends Model
     }
 
     /**
-     * How a viewer's inbox names the other side of the thread.
+     * How a viewer's inbox names the other side of the thread. A seller or a
+     * customer on a desk thread sees the desk itself, whether or not an
+     * admin has answered yet; an admin on an oversight thread (seller ↔
+     * customer, neither of them the desk) sees both sides at once, since an
+     * admin is not a participant there to have a single counterpart.
      */
     public function counterpartName(ActorType $viewer): string
     {
+        if ($this->kind->isDesk() && $viewer !== ActorType::Admin) {
+            return ActorDisplay::SUPPORT_DESK;
+        }
+
+        if (! $this->kind->isDesk() && $viewer === ActorType::Admin) {
+            return ActorDisplay::nameOf($this->seller).' ↔ '.ActorDisplay::nameOf($this->customer);
+        }
+
         return ActorDisplay::nameOf($this->counterpart($viewer));
     }
 
@@ -227,19 +283,140 @@ class Conversation extends Model
     }
 
     /**
-     * The id columns a subject reads, keyed the way it names them.
+     * The threads a given actor is a participant in — the one query the
+     * inbox and the unread-count total both filter through. The desk is
+     * every admin collectively, so an admin's inbox is the two support
+     * kinds rather than a column match on `admin_id`, which only ever names
+     * who first answered.
      *
-     * @return array<string, string|null>
+     * @param  Builder<$this>  $query
      */
-    private function idColumns(): array
+    #[Scope]
+    protected function withParticipant(Builder $query, Seller|Customer|Admin $actor): void
     {
-        return [
+        if ($actor instanceof Admin) {
+            $query->whereIn('kind', [ConversationKind::AdminSeller, ConversationKind::AdminCustomer]);
+
+            return;
+        }
+
+        $actorType = ActorType::from($actor->getMorphClass());
+
+        $query->where($actorType->participantColumn(), $actor->id);
+    }
+
+    /**
+     * The seller ↔ customer threads an admin may read but never posts on —
+     * listed separately from `withParticipant`, since nobody on the desk is
+     * waited on there and they never count toward the admin's badge.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function forOversight(Builder $query): void
+    {
+        $query->whereIn('kind', [ConversationKind::Fulfillment, ConversationKind::ListingQuestion]);
+    }
+
+    /**
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function withStatus(Builder $query, ConversationStatus $status): void
+    {
+        $status === ConversationStatus::Open ? $query->whereNull('resolved_at') : $query->whereNotNull('resolved_at');
+    }
+
+    /**
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function ofKind(Builder $query, ConversationKind ...$kinds): void
+    {
+        $query->whereIn('kind', $kinds);
+    }
+
+    /**
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function unreadOnly(Builder $query, Seller|Customer|Admin $reader): void
+    {
+        $query->whereHas('messages', function (Builder $messages) use ($reader): void {
+            /** @var Builder<Message> $messages */
+            $messages->unreadBy($reader);
+        });
+    }
+
+    /**
+     * The seller's `questions` filter: unanswered threads first (the latest
+     * message is not the seller's own), then newest first within each group.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function unansweredFirst(Builder $query): void
+    {
+        $query->orderByRaw(
+            '(select sender_type from messages where messages.conversation_id = conversations.id order by messages.sent_at desc, messages.id desc limit 1) = ?',
+            [ActorType::Seller->value],
+        )->orderByDesc('last_message_at');
+    }
+
+    /**
+     * The desk's work queue: open desk threads whose latest message is not
+     * an admin's.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function needsReply(Builder $query): void
+    {
+        $query->whereIn('kind', [ConversationKind::AdminSeller, ConversationKind::AdminCustomer])
+            ->whereNull('resolved_at')
+            ->whereHas('latestMessage', function (Builder $message): void {
+                /** @var Builder<Message> $message */
+                $message->where('sender_type', '!=', ActorType::Admin->value);
+            });
+    }
+
+    /**
+     * The per-thread unread badge an inbox row carries, counted in SQL for
+     * the whole page rather than per row.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function withUnreadCountFor(Builder $query, Seller|Customer|Admin $reader): void
+    {
+        $query->withCount(['messages as unread_count' => function (Builder $messages) use ($reader): void {
+            /** @var Builder<Message> $messages */
+            $messages->unreadBy($reader);
+        }]);
+    }
+
+    /**
+     * Rebuilds this fulfillment thread's key for its new customer, and folds
+     * it into the thread the verified customer already holds for that
+     * subject when there is one.
+     */
+    private function moveFulfillmentThreadTo(Customer $to): void
+    {
+        $subjectKey = ConversationSubject::for($this->kind, [
             'seller_id' => $this->seller_id,
-            'customer_id' => $this->customer_id,
-            'admin_id' => $this->admin_id,
-            'listing_id' => $this->listing_id,
+            'customer_id' => $to->id,
             'fulfillment_id' => $this->fulfillment_id,
-        ];
+        ])->subjectKey();
+
+        $existing = self::query()->where('subject_key', $subjectKey)->first();
+
+        if ($existing === null) {
+            $this->update(['customer_id' => $to->id, 'subject_key' => $subjectKey]);
+
+            return;
+        }
+
+        $existing->absorb($this);
     }
 
     /**
@@ -257,34 +434,5 @@ class Conversation extends Model
         if ($newest !== null) {
             $this->update(['last_message_at' => $newest]);
         }
-    }
-
-    /**
-     * The threads a given actor is a participant in — the one query the
-     * inbox and the unread-count total both filter through.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function withParticipant(Builder $query, Seller|Customer|Admin $actor): void
-    {
-        $actorType = ActorType::from($actor->getMorphClass());
-
-        $query->where($actorType->participantColumn(), $actor->id);
-    }
-
-    /**
-     * The per-thread unread badge an inbox row carries, counted in SQL for
-     * the whole page rather than per row.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function withUnreadCountFor(Builder $query, Seller|Customer|Admin $reader): void
-    {
-        $query->withCount(['messages as unread_count' => function (Builder $messages) use ($reader): void {
-            /** @var Builder<Message> $messages */
-            $messages->unreadBy($reader);
-        }]);
     }
 }

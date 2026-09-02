@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Messaging\OpenConversationWithMessage;
-use App\Domain\Messaging\ConversationSubject;
+use App\Actions\Messaging\OpenThread;
+use App\Domain\Messaging\ThreadOpening;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ListingStatusTally;
-use App\Http\Requests\Admin\SendMessageRequest;
+use App\Http\Requests\Admin\OpenSellerThreadRequest;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
@@ -17,18 +17,23 @@ use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
+/**
+ * Opens a fresh, titled admin/seller thread from the seller's detail page —
+ * every submission opens its own thread rather than finding one, the way a
+ * fresh-opened kind always does.
+ */
 final class SellerMessageController extends AdminController
 {
     public function __invoke(
         Seller $seller,
-        SendMessageRequest $request,
-        OpenConversationWithMessage $send,
+        OpenSellerThreadRequest $request,
+        OpenThread $send,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $admin = $this->admin();
 
         try {
-            $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
+            $rateLimit->check(RateLimitName::ConversationOpen, (string) $admin->id);
         } catch (RateLimitExceeded $exceeded) {
             // docs/alignment.md §3: a form that trips comes back rather than
             // being replaced by the site's bare 429 page, so the seller page
@@ -39,7 +44,7 @@ final class SellerMessageController extends AdminController
         }
 
         $conversation = $send(
-            ConversationSubject::adminSeller($admin->id, $seller->id),
+            ThreadOpening::adminSeller($seller->id, $request->title(), $request->fulfillmentId()),
             $admin,
             $request->body(),
             $this->now(),

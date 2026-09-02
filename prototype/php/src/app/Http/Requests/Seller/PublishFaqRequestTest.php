@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Models\Conversation;
 use App\Models\Message;
 
 it('refuses a question or an answer past the domain limit', function (): void {
@@ -58,4 +59,24 @@ it('reads no source message when the form sends none', function (): void {
     ]);
 
     expect($request->sourceMessage())->toBeNull();
+});
+
+it('reads the thread the disclosure was opened from', function (): void {
+    $conversation = Conversation::factory()->listingQuestion()->create();
+    $request = PublishFaqRequest::create('/seller/listings/1/faqs', 'POST', [
+        'question' => 'Do you ship internationally?',
+        'answer' => 'Yes, worldwide.',
+        'conversation_id' => $conversation->id,
+    ]);
+
+    expect($request->conversation()?->id)->toBe($conversation->id);
+});
+
+it('reads no thread when the form sends none, the listings own faq page', function (): void {
+    $request = PublishFaqRequest::create('/seller/listings/1/faqs', 'POST', [
+        'question' => 'Do you ship internationally?',
+        'answer' => 'Yes, worldwide.',
+    ]);
+
+    expect($request->conversation())->toBeNull();
 });

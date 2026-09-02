@@ -6,12 +6,14 @@ namespace App\Listeners;
 
 use App\Domain\Auth\ActorType;
 use App\Events\MessagePosted;
+use App\Models\Conversation;
 use App\Notifications\MessageReceived;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 /**
- * The participant who did not send a posted message hears about it, once the
- * post is committed.
+ * Every participant who did not send a posted message hears about it, once
+ * the post is committed — one seller or customer, or every admin at once
+ * when the desk is the other side.
  */
 final readonly class NotifyOfMessage implements ShouldHandleEventsAfterCommit
 {
@@ -21,16 +23,26 @@ final readonly class NotifyOfMessage implements ShouldHandleEventsAfterCommit
         $message->loadMissing(['conversation.seller', 'conversation.customer', 'conversation.admin', 'conversation.listing', 'conversation.fulfillment']);
         $conversation = $message->conversation;
 
-        $recipient = $conversation->otherParticipant($message);
+        $topic = $this->topicFor($conversation);
 
-        if ($recipient === null) {
-            return;
+        foreach ($conversation->recipientsOf($message) as $recipient) {
+            $recipientType = ActorType::from($recipient->getMorphClass());
+            $url = route($recipientType->conversationRouteName(), $conversation);
+
+            $recipient->notify(new MessageReceived($topic, $url));
         }
+    }
 
-        $recipientType = ActorType::from($recipient->getMorphClass());
+    /**
+     * What a support notification says a thread is about is the desk topic
+     * plus its title, when it carries one — "Support · Payout timing".
+     */
+    private function topicFor(Conversation $conversation): string
+    {
         $topic = $conversation->kind->topic($conversation->fulfillment?->order_id, $conversation->listing?->title);
-        $url = route($recipientType->conversationRouteName(), $conversation);
 
-        $recipient->notify(new MessageReceived($topic, $url));
+        return $conversation->kind->isDesk() && $conversation->title !== null
+            ? "{$topic} · {$conversation->title}"
+            : $topic;
     }
 }

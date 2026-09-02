@@ -16,6 +16,12 @@ use App\Models\Seller;
  */
 final class ActorDisplay
 {
+    /**
+     * How a seller or a customer sees the desk: every admin is one voice on
+     * a support thread, so no single admin's name stands for it.
+     */
+    public const string SUPPORT_DESK = 'Art Store Support';
+
     private function __construct() {} // @codeCoverageIgnore
 
     public static function nameOf(Seller|Customer|Admin|null $actor): string
@@ -25,5 +31,22 @@ final class ActorDisplay
             $actor instanceof Seller, $actor instanceof Admin => $actor->displayName(),
             default => 'Deleted account',
         };
+    }
+
+    /**
+     * Up to two initials for a transcript avatar — the first letter of each
+     * of the first two words in `nameOf()`, the reduction the admin layout
+     * already applies to the signed-in admin's own name.
+     */
+    public static function initialsOf(Seller|Customer|Admin|null $actor): string
+    {
+        $words = array_filter(preg_split('/\s+/', trim(self::nameOf($actor))) ?: []);
+
+        $initials = array_map(
+            fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),
+            array_slice($words, 0, 2),
+        );
+
+        return implode('', $initials);
     }
 }

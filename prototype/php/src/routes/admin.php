@@ -19,6 +19,8 @@ use App\Http\Controllers\Admin\OrderCancellationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\RefundController;
+use App\Http\Controllers\Admin\ReopenConversationController;
+use App\Http\Controllers\Admin\ResolveConversationController;
 use App\Http\Controllers\Admin\RunPayoutController;
 use App\Http\Controllers\Admin\SellerController;
 use App\Http\Controllers\Admin\SellerMessageController;
@@ -61,6 +63,8 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::post('messages/{conversation}/resolve', ResolveConversationController::class)->name('messages.resolve');
+    Route::post('messages/{conversation}/reopen', ReopenConversationController::class)->name('messages.reopen');
 
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('logs/requests/{requestId}', [LogController::class, 'show'])

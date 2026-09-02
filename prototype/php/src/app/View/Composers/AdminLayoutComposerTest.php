@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\View\Composers;
 
 use App\Actions\Messaging\MarkConversationRead;
-use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Database\Events\QueryExecuted;
@@ -27,9 +26,7 @@ function navLinkMarkup(string $html, string $href): string
 it('counts the messages across every thread the admin has not read', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $admin->id]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
     Message::factory()->from($admin)->create(['conversation_id' => $conversation->id]);
 
@@ -42,9 +39,7 @@ it('counts the messages across every thread the admin has not read', function ()
 it('drops the count once the thread is marked read', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $admin->id]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
     app(MarkConversationRead::class)($conversation, $admin, $this->moment('2026-08-20 09:00:00'));
 
@@ -57,9 +52,7 @@ it('drops the count once the thread is marked read', function (): void {
 it('carries the count onto every admin page without the controller passing it', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $admin->id]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
 
     $sellers = (string) $this->actingAs($admin, 'admin')->get('/admin/sellers')->getContent();
@@ -94,9 +87,7 @@ it('renders the lg-and-up nav rail with the active section marked (DSGN-006)', f
 it('reads the unread count and every nav badge in one query', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $admin->id]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
 
     $composerQueries = 0;

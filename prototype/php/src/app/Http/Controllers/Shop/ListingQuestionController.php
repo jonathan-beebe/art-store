@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Messaging\OpenConversationWithMessage;
-use App\Domain\Messaging\ConversationSubject;
+use App\Actions\Messaging\OpenThread;
+use App\Domain\Messaging\ThreadOpening;
+use App\Domain\Messaging\ThreadTitle;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\AskSellerRequest;
@@ -20,10 +21,11 @@ final class ListingQuestionController extends ShopController
     public function __invoke(
         Listing $listing,
         AskSellerRequest $request,
-        OpenConversationWithMessage $ask,
+        OpenThread $ask,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $visitor = $this->visitor();
+        $body = $request->body();
 
         try {
             $rateLimit->check(RateLimitName::ConversationOpen, (string) $visitor->id);
@@ -38,9 +40,9 @@ final class ListingQuestionController extends ShopController
         }
 
         $conversation = $ask(
-            ConversationSubject::listingQuestion($listing->seller_id, $visitor->id, $listing->id),
+            ThreadOpening::listingQuestion($listing->seller_id, $visitor->id, $listing->id, ThreadTitle::fromBody($body->value)),
             $visitor,
-            $request->body(),
+            $body,
             $this->now(),
         );
 

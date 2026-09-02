@@ -27,10 +27,22 @@ it('assembles the listing page data, itemized for its own view keys', function (
     expect($renderedListing->is($listing))->toBeTrue()
         ->and($data['isPurchasable'])->toBeTrue()
         ->and($data['isFavorited'])->toBeFalse()
+        ->and($data['isSignedIn'])->toBeFalse()
         ->and($data['hasConfigurator'])->toBeFalse()
         ->and($data['configuration'])->toBeNull()
         ->and($data['highlights'])->toBe([['name' => 'Material', 'values' => ['Walnut']]])
         ->and($data['focusId'])->toBeNull();
+});
+
+it('reads a signed-in visitor from the session guard rather than the cookie identity', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $visitor = $this->verifiedCustomer();
+    $this->actingAs($visitor, 'customer');
+
+    $data = ListingPagePresenter::forShop($listing, $visitor, Request::create('/art/'.$listing->slug));
+
+    expect($data['isSignedIn'])->toBeTrue();
 });
 
 it('prices a configured listing concretely and reports the focused control', function (): void {

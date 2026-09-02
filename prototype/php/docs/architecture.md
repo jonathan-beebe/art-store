@@ -379,14 +379,14 @@ Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
 `DatabaseNotification $notification`, `Order $order`; the storefront listing
 binds by slug) and then authorizes it. `app/Policies` holds the rules:
 
-| Policy               | Abilities                | Actor                            |
-| -------------------- | ------------------------ | -------------------------------- |
-| `ListingPolicy`      | `view`, `update`         | `Seller`                         |
-| `FulfillmentPolicy`  | `view`, `update`, `ship` | `Seller`                         |
-| `FulfillmentPolicy`  | `confirmDelivery`        | `Customer`                       |
-| `OrderPolicy`        | `view`, `pay`            | `Customer`                       |
-| `NotificationPolicy` | `markRead`               | `Seller` or `Customer`           |
-| `ConversationPolicy` | `view`, `post`           | `Seller`, `Customer`, or `Admin` |
+| Policy               | Abilities                           | Actor                            |
+| -------------------- | ----------------------------------- | -------------------------------- |
+| `ListingPolicy`      | `view`, `update`                    | `Seller`                         |
+| `FulfillmentPolicy`  | `view`, `update`, `ship`            | `Seller`                         |
+| `FulfillmentPolicy`  | `confirmDelivery`                   | `Customer`                       |
+| `OrderPolicy`        | `view`, `pay`                       | `Customer`                       |
+| `NotificationPolicy` | `markRead`                          | `Seller` or `Customer`           |
+| `ConversationPolicy` | `view`, `post`, `resolve`, `reopen` | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -416,11 +416,12 @@ visitor.
 
 `SellerController`, `ShopController`, and `Admin\AdminController` are the
 three base controllers; each exposes the actor behind the request (`seller()`,
-`visitor()`, `admin()`) as a non-null model. Most admin pages scope nothing by
-the admin who is reading and extend the base controller directly; the
-messaging ones scope reads and writes by the signed-in admin, the way the
-other two sites already do, so they extend `AdminController` instead. All of
-them extend `App\Http\Controllers\Controller`, which holds the clock
+`visitor()`, `admin()`) as a non-null model. Most admin pages read nothing
+scoped to the admin who is reading and extend the base controller directly;
+the messaging ones need `admin()` to attribute a reply, a "handled by", or a
+resolve to the signed-in admin, so they extend `AdminController` instead —
+their reads are not scoped to that admin, since the desk sees every thread.
+All of them extend `App\Http\Controllers\Controller`, which holds the clock
 (see **The clock**).
 
 ## Identity

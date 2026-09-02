@@ -17,17 +17,19 @@ beforeEach(function (): void {
     $this->seed();
 });
 
-it('seeds one conversation of each kind', function (): void {
-    expect(Conversation::count())->toBe(4);
+it('seeds one conversation of each kind, and a second listing question', function (): void {
+    expect(Conversation::count())->toBe(5);
 
     foreach (ConversationKind::cases() as $kind) {
-        expect(Conversation::where('kind', $kind)->count())->toBe(1);
+        $expected = $kind === ConversationKind::ListingQuestion ? 2 : 1;
+
+        expect(Conversation::where('kind', $kind)->count())->toBe($expected);
     }
 });
 
-it('seeds roughly eleven messages with a read and unread spread', function (): void {
-    expect(Message::count())->toBe(11)
-        ->and(Message::whereNull('read_at')->count())->toBe(7)
+it('seeds ten messages with a read and unread spread', function (): void {
+    expect(Message::count())->toBe(10)
+        ->and(Message::whereNull('read_at')->count())->toBe(6)
         ->and(Message::whereNotNull('read_at')->count())->toBe(4);
 });
 
@@ -56,14 +58,14 @@ it('leaves a non-zero unread count for the seeded seller, customer, and admin', 
 
     expect(Message::query()->unreadInInboxOf($sybill)->count())->toBe(2)
         ->and(Message::query()->unreadInInboxOf($dean)->count())->toBe(1)
-        ->and(Message::query()->unreadInInboxOf($hermione)->count())->toBe(2)
-        ->and(Message::query()->unreadInInboxOf($admin)->count())->toBe(2);
+        ->and(Message::query()->unreadInInboxOf($hermione)->count())->toBe(1)
+        ->and(Message::query()->unreadInInboxOf($admin)->count())->toBe(1);
 });
 
 it('changes nothing on a second run', function (): void {
     $this->seed(MessagingSeeder::class);
 
-    expect(Conversation::count())->toBe(4)
-        ->and(Message::count())->toBe(11)
+    expect(Conversation::count())->toBe(5)
+        ->and(Message::count())->toBe(10)
         ->and(ListingFaq::count())->toBe(1);
 });

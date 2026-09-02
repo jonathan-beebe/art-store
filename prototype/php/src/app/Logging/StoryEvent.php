@@ -35,6 +35,8 @@ enum StoryEvent: string
     case PayoutRun = 'payout.run';
     case PayoutPay = 'payout.pay';
     case ConversationOpen = 'conversation.open';
+    case ConversationResolve = 'conversation.resolve';
+    case ConversationReopen = 'conversation.reopen';
     case MessagePost = 'message.post';
     case FaqPublish = 'faq.publish';
     case FaqUnpublish = 'faq.unpublish';

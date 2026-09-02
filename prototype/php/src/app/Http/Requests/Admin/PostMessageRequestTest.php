@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 
 it('refuses a reply that is empty or longer than the message limit', function (string $body): void {
     $admin = $this->admin();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create();
 
     $response = $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => $body]);
@@ -22,15 +19,13 @@ it('refuses a reply that is empty or longer than the message limit', function (s
     'longer than the limit' => [str_repeat('a', 2001)],
 ]);
 
-it('answers not found for a thread the admin is not in before it validates the form', function (): void {
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
-        ->create();
+it('refuses the desk before it validates the form, on a thread neither support kind admits', function (): void {
+    $conversation = Conversation::factory()->listingQuestion()->create();
 
     $response = $this->actingAs($this->admin(), 'admin')
         ->post("/admin/messages/{$conversation->id}", []);
 
-    $response->assertNotFound();
+    $response->assertForbidden();
     $response->assertSessionHasNoErrors();
 });
 
@@ -38,4 +33,16 @@ it('reads the body the admin typed', function (): void {
     $request = PostMessageRequest::create('/admin/messages/1', 'POST', ['body' => "I'll take a look."]);
 
     expect($request->body()->value)->toBe("I'll take a look.");
+});
+
+it('reads the reply-to id the composer rode in on', function (): void {
+    $request = PostMessageRequest::create('/admin/messages/1', 'POST', ['body' => 'Reply.', 'reply_to_message_id' => 'msg_01ABC']);
+
+    expect($request->replyToMessageId())->toBe('msg_01ABC');
+});
+
+it('reads no reply-to field as none, the bare reply shape', function (): void {
+    $request = PostMessageRequest::create('/admin/messages/1', 'POST', ['body' => 'Reply.']);
+
+    expect($request->replyToMessageId())->toBeNull();
 });

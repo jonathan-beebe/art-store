@@ -7,7 +7,6 @@ namespace App\View\Composers;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Orders\FinalizeOrder;
-use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
@@ -23,9 +22,11 @@ it('counts the messages across every thread the seller has not read', function (
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($seller);
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+    ]);
     Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id]);
     Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
 

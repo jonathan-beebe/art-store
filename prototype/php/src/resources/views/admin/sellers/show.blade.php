@@ -64,13 +64,15 @@
         <x-admin.payouts-table :payouts="$payouts" :show-seller="false" caption="Every weekly payout this seller has been paid" />
     </section>
 
-    <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
+    <section id="message-seller-form" aria-labelledby="message-heading" class="mt-6 max-w-xl scroll-mt-6">
         <h2 id="message-heading" class="font-semibold text-stone-700 dark:text-stone-300">Message seller</h2>
 
-        <x-messaging.body-form
+        <x-messaging.open-thread-form
             :action="route('admin.sellers.messages', $seller)"
-            label="Message"
-            class="mt-2"
+            context-field="fulfillment"
+            context-label="Order"
+            :context-options="$fulfillments->mapWithKeys(fn ($fulfillment) => [$fulfillment->id => 'Order '.$fulfillment->order_id])"
+            :selected-context-id="request()->query('fulfillment')"
         />
     </section>
 </x-layouts.admin>

@@ -39,7 +39,6 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
 
     Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
     Route::post('/art/{listing:slug}/favorite', [FavoriteController::class, 'toggle'])->name('favorites.toggle');
-    Route::post('/art/{listing:slug}/questions', ListingQuestionController::class)->name('listing.questions');
 
     Route::get('/cart', [CartController::class, 'show'])->name('cart');
     Route::post('/cart/{listing:slug}', [CartController::class, 'add'])->name('cart.add');
@@ -64,9 +63,14 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     Route::get('/messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('/messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
 
-    Route::get('/support', SupportController::class)->name('support');
-
+    // Asking needs a verified customer: a question or a support thread is
+    // the start of a relationship, and a relationship needs an address to
+    // reach.
     Route::middleware('auth.customer')->group(function (): void {
+        Route::post('/art/{listing:slug}/questions', ListingQuestionController::class)->name('listing.questions');
+        Route::get('/support', [SupportController::class, 'show'])->name('support');
+        Route::post('/support', [SupportController::class, 'store'])->name('support.store');
+
         Route::get('/account', [AccountController::class, 'show'])->name('account');
         Route::post('/account/notifications/{notification}/read', [AccountController::class, 'readNotification'])
             ->name('account.notifications.read');

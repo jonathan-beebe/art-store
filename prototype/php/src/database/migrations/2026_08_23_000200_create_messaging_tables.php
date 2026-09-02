@@ -13,15 +13,29 @@ return new class extends Migration
         Schema::create('conversations', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->string('kind');
-            // Uniquely names what a thread is about. A composite unique index
-            // over the five nullable id columns below would not stop a
-            // duplicate row, because SQL treats null as distinct from null.
-            $table->string('subject_key');
+            // A seller or a customer types this opening a support thread; a
+            // listing question derives it from the question. A fulfillment
+            // thread carries none — it is named by its order everywhere it
+            // appears.
+            $table->string('title')->nullable();
+            // Uniquely names what a fulfillment thread is about, the one kind
+            // that finds rather than opens. A composite unique index over the
+            // nullable id columns below would not stop a duplicate row,
+            // because SQL treats null as distinct from null; the other three
+            // kinds leave this null, which the unique index ignores.
+            $table->string('subject_key')->nullable();
             $table->foreignUlid('seller_id', 30)->nullable()->constrained();
             $table->foreignUlid('customer_id', 30)->nullable()->constrained();
+            // Who first answered on a desk thread ("handled by"), not a
+            // gate: every admin is the desk, collectively, on the two
+            // support kinds. Null until an admin replies.
             $table->foreignUlid('admin_id', 30)->nullable()->constrained();
             $table->foreignUlid('listing_id', 30)->nullable()->constrained();
             $table->foreignUlid('fulfillment_id', 30)->nullable()->constrained();
+            $table->foreignUlid('order_id', 30)->nullable()->constrained();
+            $table->timestamp('resolved_at')->nullable();
+            $table->string('resolved_by_type')->nullable();
+            $table->string('resolved_by_id', 30)->nullable();
             $table->timestamp('last_message_at')->nullable();
             $table->timestamps();
 
@@ -38,6 +52,10 @@ return new class extends Migration
             // enforces, not a class string.
             $table->string('sender_type');
             $table->string('sender_id', 30);
+            // The message this one answers, when the reader followed a
+            // "Reply" link. A quoted message that is later removed leaves
+            // its replies intact.
+            $table->foreignUlid('reply_to_message_id', 30)->nullable()->constrained('messages')->nullOnDelete();
             $table->text('body');
             $table->timestamp('sent_at');
             $table->timestamp('read_at')->nullable();

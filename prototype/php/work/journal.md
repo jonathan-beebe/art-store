@@ -5,15 +5,31 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 40
+- FEAT: 44
 - IMPRV: 25
-- MAINT: 5
+- MAINT: 6
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
 
+- 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2
+- 2026-09-02:05:34:37 — MAINT-005 — started
+- 2026-09-02:10:30:00 — FEAT-041 — done: seller inbox gains &filter=/&status= chips with counts, a two-sided transcript with day separators and reply-to, resolve/reopen posts from the header, and /seller/support becomes a real titled new-conversation form; 3358 tests, 9763 assertions
+- 2026-09-02:10:00:00 — FEAT-041 — started
+- 2026-09-02:05:27:45 — FEAT-043 — done: signed-in-only listing ask with a return-here magic link, a Talk to us support form with optional order, storefront inbox filters/400s, and the two-sided thread transcript with reply-to, quote, and reopen-by-reply; 3351 tests, 9744 assertions, make precommit and make fresh green
+- 2026-09-02:05:23:53 — FEAT-042 — done: Admin desk inbox with filter/status queues (needs-reply default), kind tags, oversight (seller<->customer) read-only threads with "Message seller"/"Message customer" buttons, resolve/reopen, reply-to, titled seller/customer support forms with optional order context; 3374 tests
+- 2026-09-02:04:48:02 — FEAT-043 — started
+- 2026-09-02:04:47:34 — FEAT-042 — started
+- 2026-09-02:04:44:33 — FEAT-040 — done: conversations gain title/status/order_id/resolved_by, messages gain reply_to; ConversationKind/Status/ThreadTitle/ThreadOpening + OpenThread/PostMessage(reply-to)/Resolve/ReopenConversation; desk-aware policy, scopes, and notifications; MessagingSeeder richer demo; 3321 tests, 9677 assertions, make precommit and make fresh green
+- 2026-09-01:22:31:34 — FEAT-040 — blocked: domain/actions/models/policy/notifications/migration/seeder/controllers/tests all rewritten to docs/messaging.md's new shapes, but make precommit/make fresh could not run (Docker Desktop stuck on a macOS privileged-access prompt requiring human interaction); ticket stays in 2-doing pending the gate
+- 2026-09-01:21:58:20 — FEAT-040 — started
+- 2026-09-01:21:54:14 — MAINT-005 — defined: messaging v2 docs refresh and final validation
+- 2026-09-01:21:54:14 — FEAT-043 — defined: the storefront conversation pages feel like a relationship
+- 2026-09-01:21:54:14 — FEAT-042 — defined: the admin site runs a support desk that sees everything
+- 2026-09-01:21:54:14 — FEAT-041 — defined: the seller portal messages tool becomes first-class
+- 2026-09-01:21:54:14 — FEAT-040 — defined: threads carry a title, a status, a reply-to, and a shared desk
 - 2026-09-01:18:38:23 — FEAT-039 — defined: an analytics store isolated from the app database
 - 2026-09-01:10:19:52 — IMPRV-024 — follow-up: the FunctionOverrides autoload entry exposed entrypoint.sh's stale-vendor gap (deps installed only when the directory was missing, so an existing vendor kept a stale autoload map and the FakeCard override test failed); composer and npm installs now stamp-hash their json+lock inputs and reinstall on change
 - 2026-09-01:10:02:54 — IMPRV-024 — done: composer test runs pest --parallel, serial 93s → ~40s floor at 8 workers; bar amended at acceptance (under-30s unreachable on the 8-cpu docker vm); three isolation bugs fixed, 3222 tests, coverage 100%

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Messaging\PublishListingFaq;
 use App\Actions\Messaging\UnpublishListingFaq;
 use App\Actions\Messaging\UpdateListingFaq;
+use App\Http\Requests\Seller\MessagesQueryRequest;
 use App\Http\Requests\Seller\PublishFaqRequest;
 use App\Http\Requests\Seller\UpdateFaqRequest;
 use App\Models\Listing;
@@ -26,9 +27,23 @@ final class ListingFaqController extends SellerController
         ]);
     }
 
-    public function store(PublishFaqRequest $request, Listing $listing, PublishListingFaq $publish): RedirectResponse
+    public function store(PublishFaqRequest $request, Listing $listing, MessagesQueryRequest $queryRequest, PublishListingFaq $publish): RedirectResponse
     {
         $publish($listing, $request->draft(), $request->sourceMessage(), $this->now());
+
+        // The disclosure this form sits in (docs/messaging.md § "Open and
+        // resolved": publishing an FAQ is one of the two things that
+        // resolves a thread) carries the thread it was opened from, so the
+        // seller lands back on it — with the answer out — rather than on
+        // the listing's own FAQ page, which offers the same form with no
+        // thread behind it.
+        $conversation = $request->conversation();
+
+        if ($conversation !== null) {
+            return redirect()
+                ->route('seller.messages.show', ['conversation' => $conversation, 'filter' => $queryRequest->filter(), 'status' => $queryRequest->status()])
+                ->with('status', 'Published to the listing.');
+        }
 
         return redirect()->route('seller.listings.faqs.index', $listing)->with('status', 'Published to the listing.');
     }
