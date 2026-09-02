@@ -34,6 +34,13 @@ return new class extends Migration
             $table->string('subject_type')->nullable();
             $table->string('subject_id', 30)->nullable();
             $table->string('actor_id', 30)->nullable();
+            // The request behind the event, filled in by
+            // App\Analytics\Analytics::recordEvent() from
+            // App\Analytics\RequestFacts — null for a CLI run. Long enough
+            // for an IPv6 address; the request id itself lives in `data`,
+            // never its own column, since nothing filters on it.
+            $table->string('ip', 45)->nullable();
+            $table->string('session_id')->nullable();
             // A collapsed view's insert dedupes on this — see
             // App\Domain\Listings\ListingViewCollapse::dedupeKey().
             $table->string('dedupe_key')->nullable()->unique();
@@ -42,6 +49,8 @@ return new class extends Migration
             $table->index(['subject_id', 'name']);
             $table->index(['name', 'occurred_at']);
             $table->index('actor_id');
+            $table->index('ip');
+            $table->index('session_id');
         });
     }
 

@@ -52,12 +52,14 @@ final class Analytics
     }
 
     /**
-     * Buffers one event, flushing immediately once the buffer reaches
-     * `FLUSH_AT`.
+     * Buffers one event, carrying the ip, session, and request id of
+     * whatever request is current ({@see RequestFacts::current()}) — every
+     * caller hands over what happened and lets this fill in where it came
+     * from. Flushes immediately once the buffer reaches `FLUSH_AT`.
      */
     public function recordEvent(AnalyticsEvent $event): void
     {
-        $this->events[] = $event;
+        $this->events[] = $event->withRequestFacts(RequestFacts::current());
 
         $this->flushIfAtCap();
     }

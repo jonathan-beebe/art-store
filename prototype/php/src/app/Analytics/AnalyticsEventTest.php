@@ -39,6 +39,8 @@ it('mints a row carrying every field, ready for insert', function (): void {
         actorId: 'cus_XYZ',
         dedupeKey: 'dedupe-key',
         data: ['quantity' => 2],
+        ip: '203.0.113.9',
+        sessionId: 'ses_01J00000000000000000000ABC',
     );
 
     $columns = $event->columns();
@@ -49,8 +51,42 @@ it('mints a row carrying every field, ready for insert', function (): void {
         ->and($columns['subject_type'])->toBe('listing')
         ->and($columns['subject_id'])->toBe('lst_ABC')
         ->and($columns['actor_id'])->toBe('cus_XYZ')
+        ->and($columns['ip'])->toBe('203.0.113.9')
+        ->and($columns['session_id'])->toBe('ses_01J00000000000000000000ABC')
         ->and($columns['dedupe_key'])->toBe('dedupe-key')
         ->and($columns['data'])->toBe('{"quantity":2}');
+});
+
+it('carries no ip or session when neither is given', function (): void {
+    $event = AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable);
+
+    expect($event->ip)->toBeNull()
+        ->and($event->sessionId)->toBeNull()
+        ->and($event->columns()['ip'])->toBeNull()
+        ->and($event->columns()['session_id'])->toBeNull();
+});
+
+it('takes on a request\'s ip, session, and request id', function (): void {
+    $event = AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable);
+    $facts = RequestFacts::of('203.0.113.9', 'ses_01J00000000000000000000ABC', 'req_01J00000000000000000000ABC');
+
+    $withFacts = $event->withRequestFacts($facts);
+
+    expect($withFacts->ip)->toBe('203.0.113.9')
+        ->and($withFacts->sessionId)->toBe('ses_01J00000000000000000000ABC')
+        ->and($withFacts->data)->toBe(['request_id' => 'req_01J00000000000000000000ABC'])
+        ->and($withFacts->columns()['data'])->toBe('{"request_id":"req_01J00000000000000000000ABC"}')
+        // The event this was built from carries none of it — withRequestFacts()
+        // returns a new event rather than mutating the one it was called on.
+        ->and($event->ip)->toBeNull();
+});
+
+it('leaves data as recorded when the request carries no request id', function (): void {
+    $event = AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable);
+
+    $withFacts = $event->withRequestFacts(RequestFacts::of(null, null, null));
+
+    expect($withFacts->data)->toBe([]);
 });
 
 it('mints a different id for every row, so a chunked insert never collides on the primary key', function (): void {

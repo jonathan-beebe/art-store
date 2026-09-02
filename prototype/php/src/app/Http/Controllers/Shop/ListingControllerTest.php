@@ -15,6 +15,8 @@ use App\Domain\Configurator\DescriptionSectionKind;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingStatus;
+use App\Http\Middleware\LogRequestStory;
+use App\Http\Middleware\NameRequestVisitor;
 use App\Models\DescriptionSection;
 use App\Models\ListingAttribute;
 use App\Models\ListingFaq;
@@ -94,6 +96,25 @@ it('records a view event for the visitor', function (): void {
     $this->get('/art/harbour-at-dawn');
 
     expect(AnalyticsReport::countsForListing($listing->id)->views)->toBe(1);
+});
+
+it('records the ip, session, and request id of the request that produced the view', function (): void {
+    $this->visitor();
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $this->withCookie(NameRequestVisitor::SESSION_COOKIE, 'ses_01J00000000000000000000ABC');
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $requestId = $response->headers->get(LogRequestStory::REQUEST_ID_HEADER);
+    assert(is_string($requestId));
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+    /** @var string $data */
+    $data = $row->data;
+
+    expect($row->ip)->not->toBeNull()
+        ->and($row->session_id)->toBe('ses_01J00000000000000000000ABC')
+        ->and(json_decode($data, true))->toBe(['request_id' => $requestId]);
 });
 
 it('stores one view for two requests inside the same hour, logged as a view both times', function (): void {

@@ -6,19 +6,37 @@ namespace App\Analytics;
 
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
+use App\Http\Middleware\LogRequestStory;
+use App\Http\Middleware\NameRequestVisitor;
 use App\Models\PageViewCount;
 use Closure;
 use DateTimeImmutable;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use PDO;
+use stdClass;
 use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
 function listingViewedAt(DateTimeImmutable $at, ?string $dedupeKey = null): AnalyticsEvent
 {
     return AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', $at, $dedupeKey);
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function decodedData(stdClass $row): array
+{
+    /** @var string $data */
+    $data = $row->data;
+
+    /** @var array<string, mixed> $decoded */
+    $decoded = json_decode($data, true);
+
+    return $decoded;
 }
 
 it('buffers a recorded event without writing it', function (): void {
@@ -49,6 +67,36 @@ it('writes the buffered event on flush, carrying the moment it was recorded rath
         ->and($row->subject_type)->toBe('listing')
         ->and($row->subject_id)->toBe('lst_ABC')
         ->and($row->actor_id)->toBe('cus_XYZ');
+});
+
+it('records null ip, session, and request id for an event with no request behind it', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($row->ip)->toBeNull()
+        ->and($row->session_id)->toBeNull()
+        ->and(decodedData($row))->toBe([]);
+});
+
+it('records the ip, session, and request id of the request current when the event was recorded', function (): void {
+    $request = Request::create('/', server: ['REMOTE_ADDR' => '203.0.113.9']);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_01J00000000000000000000ABC');
+    $request->cookies->set(NameRequestVisitor::SESSION_COOKIE, 'ses_01J00000000000000000000ABC');
+    $this->app->instance('request', $request);
+
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($row->ip)->toBe('203.0.113.9')
+        ->and($row->session_id)->toBe('ses_01J00000000000000000000ABC')
+        ->and(decodedData($row))->toBe(['request_id' => 'req_01J00000000000000000000ABC']);
 });
 
 it('does nothing when flushed with an empty buffer', function (): void {
