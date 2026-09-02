@@ -6,6 +6,7 @@ namespace App\Analytics;
 
 use App\Support\RequestMarks;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Throwable;
 
 /**
@@ -56,12 +57,27 @@ final readonly class RequestFacts
             return self::of(null, null, null);
         }
 
-        $sessionId = $request->cookie(RequestMarks::SESSION_COOKIE);
-
         return self::of(
             $request->ip(),
-            is_string($sessionId) ? $sessionId : null,
+            self::sessionId($request),
             $requestId,
         );
+    }
+
+    /**
+     * A returning browser's `sid` rides in on the request. A browser's
+     * first request has none yet — `NameRequestVisitor` mints one and
+     * queues it on the response without rewriting the request — so this
+     * falls back to that queued cookie's value.
+     */
+    private static function sessionId(Request $request): ?string
+    {
+        $held = $request->cookie(RequestMarks::SESSION_COOKIE);
+
+        if (is_string($held)) {
+            return $held;
+        }
+
+        return Cookie::queued(RequestMarks::SESSION_COOKIE)?->getValue();
     }
 }

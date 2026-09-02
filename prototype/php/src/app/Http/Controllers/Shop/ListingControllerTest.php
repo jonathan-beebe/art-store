@@ -117,6 +117,21 @@ it('records the ip, session, and request id of the request that produced the vie
         ->and(json_decode($data, true))->toBe(['request_id' => $requestId]);
 });
 
+it('carries the session a visitor is given on their first request, before any cookie reaches the next one', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $log = CapturedStory::capture();
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $sessionId = $response->getCookie(NameRequestVisitor::SESSION_COOKIE)?->getValue();
+    assert(is_string($sessionId));
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($row->session_id)->toBe($sessionId)
+        ->and($log->line('http.request', 'did')['session_id'])->toBe($sessionId);
+});
+
 it('stores one view for two requests inside the same hour, logged as a view both times', function (): void {
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
     $log = CapturedStory::capture();
