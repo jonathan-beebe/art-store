@@ -36,6 +36,18 @@ it('leaves the url null when the thread has no route yet', function (): void {
     expect(NotificationMessage::messageReceived('Blue Vase', null)->url)->toBeNull();
 });
 
+it('tells the supported side their thread was marked resolved', function (): void {
+    $message = NotificationMessage::conversationResolved('Support · Payout timing', 'https://example.test/messages/1');
+
+    expect($message->subject)->toBe('Marked resolved')
+        ->and($message->body)->toBe('Your thread about Support · Payout timing was marked resolved.')
+        ->and($message->url)->toBe('https://example.test/messages/1');
+});
+
+it('leaves the resolved url null when the thread has no route yet', function (): void {
+    expect(NotificationMessage::conversationResolved('Support · Payout timing', null)->url)->toBeNull();
+});
+
 it('hands an inbox row its subject, body, and url', function (): void {
     expect(NotificationMessage::orderShipped('ord_00000000000000000000000001', 'USPS', '94001')->toArray())->toBe([
         'subject' => 'Order shipped',

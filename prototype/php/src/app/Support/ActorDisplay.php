@@ -16,6 +16,12 @@ use App\Models\Seller;
  */
 final class ActorDisplay
 {
+    /**
+     * How a seller or a customer sees the desk: every admin is one voice on
+     * a support thread, so no single admin's name stands for it.
+     */
+    public const string SUPPORT_DESK = 'Art Store Support';
+
     private function __construct() {} // @codeCoverageIgnore
 
     public static function nameOf(Seller|Customer|Admin|null $actor): string
