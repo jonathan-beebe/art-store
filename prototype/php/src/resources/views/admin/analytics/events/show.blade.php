@@ -114,9 +114,7 @@
                                             <span class="font-mono text-xs text-stone-700 dark:text-stone-300">{{ $row->id }}</span>
                                         </div>
                                     @else
-                                        <a href="{{ $entityHref($row->id) }}" class="underline">
-                                            <x-admin.log-id-chip :id="$row->id" />
-                                        </a>
+                                        <x-admin.log-id-chip :id="$row->id" :href="$entityHref($row->id)" />
                                     @endif
                                 </th>
                                 <td class="px-4 py-2 text-stone-600 dark:text-stone-400">

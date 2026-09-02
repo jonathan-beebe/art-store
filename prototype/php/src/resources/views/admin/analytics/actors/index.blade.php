@@ -70,9 +70,7 @@
                     @foreach ($rows as $actor)
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
-                                <a href="{{ route('admin.analytics.actors.show', $actor->id) }}" class="underline">
-                                    <x-admin.log-id-chip :id="$actor->id" />
-                                </a>
+                                <x-admin.log-id-chip :id="$actor->id" :href="route('admin.analytics.actors.show', $actor->id)" />
                             </th>
                             <td class="px-4 py-2">
                                 <div class="flex items-center gap-2">

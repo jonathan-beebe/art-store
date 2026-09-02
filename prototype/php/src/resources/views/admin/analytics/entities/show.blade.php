@@ -118,7 +118,7 @@
                                     <div class="flex flex-wrap items-center gap-1.5">
                                         <span class="text-stone-600 dark:text-stone-400">{{ $row->verb }}</span>
                                         @if ($row->otherExists)
-                                            <a href="{{ $otherHref($row) }}" class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</a>
+                                            <a href="{{ $otherHref($row) }}" class="font-medium text-stone-900 hover:text-stone-700 dark:text-stone-100 dark:hover:text-stone-300">{{ $row->otherLabel }}</a>
                                         @else
                                             <span class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</span>
                                         @endif

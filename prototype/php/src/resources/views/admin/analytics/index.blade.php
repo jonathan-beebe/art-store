@@ -91,10 +91,10 @@
                         @endphp
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
-                                <a href="{{ $eventHref($event->name) }}" class="flex items-center gap-2 underline">
+                                <a href="{{ $eventHref($event->name) }}" class="flex items-center gap-2">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-stone-500 dark:text-stone-400"><path d="{{ $eventIcons[$event->name] ?? '' }}"></path></svg>
                                     <span class="flex flex-col">
-                                        <span class="font-medium text-stone-900 dark:text-stone-100">{{ $event->label }}</span>
+                                        <span class="font-medium text-stone-900 hover:text-stone-700 dark:text-stone-100 dark:hover:text-stone-300">{{ $event->label }}</span>
                                         <span class="font-mono text-[11px] text-stone-500 dark:text-stone-400">{{ $event->name }}</span>
                                     </span>
                                 </a>
@@ -166,9 +166,7 @@
                         @foreach ($actors as $actor)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">
-                                    <a href="{{ route('admin.analytics.actors.show', $actor->id) }}" class="underline">
-                                        <x-admin.log-id-chip :id="$actor->id" />
-                                    </a>
+                                    <x-admin.log-id-chip :id="$actor->id" :href="route('admin.analytics.actors.show', $actor->id)" />
                                 </th>
                                 <td class="px-4 py-2">
                                     <div class="flex items-center gap-2">
