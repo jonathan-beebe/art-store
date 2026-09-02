@@ -68,7 +68,8 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
     // reach.
     Route::middleware('auth.customer')->group(function (): void {
         Route::post('/art/{listing:slug}/questions', ListingQuestionController::class)->name('listing.questions');
-        Route::get('/support', SupportController::class)->name('support');
+        Route::get('/support', [SupportController::class, 'show'])->name('support');
+        Route::post('/support', [SupportController::class, 'store'])->name('support.store');
 
         Route::get('/account', [AccountController::class, 'show'])->name('account');
         Route::post('/account/notifications/{notification}/read', [AccountController::class, 'readNotification'])

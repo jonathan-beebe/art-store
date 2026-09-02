@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Listing;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * `/art/{slug}`'s view data — built once so the page's own render and any
@@ -37,6 +38,11 @@ final class ListingPagePresenter
             ]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
+            // Asking a question needs a signed-in customer, not merely an
+            // identified one — the same session `auth.customer` requires
+            // once the question actually posts, read ahead of time so the
+            // page can offer the sign-in prompt in the form's place.
+            'isSignedIn' => Auth::guard('customer')->check(),
             'hasConfigurator' => $hasConfigurator,
             'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,
             'highlights' => ListingHighlights::forStorefront($listing),

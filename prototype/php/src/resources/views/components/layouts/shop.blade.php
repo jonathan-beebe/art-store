@@ -84,5 +84,6 @@
     {{ $afterMain ?? '' }}
 
     <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>
+    <script defer src="{{ asset('composer.js') }}"></script>
 </body>
 </html>

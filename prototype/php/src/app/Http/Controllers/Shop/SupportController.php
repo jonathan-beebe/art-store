@@ -4,32 +4,99 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Actions\Messaging\OpenConversation;
+use App\Actions\Messaging\OpenThread;
+use App\Domain\Messaging\ConversationKind;
+use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\ThreadOpening;
-use App\Domain\Messaging\ThreadTitle;
+use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
+use App\Http\Requests\Shop\SupportRequest;
+use App\Models\Conversation;
+use App\Models\Customer;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\View\View;
 
 /**
- * Opens a fresh, empty admin/customer thread and lands the visitor on it to
- * type the first message — a placeholder title stands in for the real
- * support-thread form (FEAT-043), which types one. `auth.customer` guards
- * this route, so the visitor is always a verified customer here.
+ * "Talk to us" — the storefront's way into the `admin_customer` desk.
+ * `auth.customer` guards both routes, so the visitor is always a verified,
+ * signed-in customer here.
  */
 final class SupportController extends ShopController
 {
-    private const PLACEHOLDER_TITLE = 'Support';
+    private const int RECENT_ORDERS_LIMIT = 20;
 
-    public function __invoke(OpenConversation $openConversation, RateLimitGate $rateLimit): RedirectResponse
+    private const int OPEN_CONVERSATIONS_LIMIT = 3;
+
+    public function show(Request $request): View
     {
-        $rateLimit->check(RateLimitName::ConversationOpen, (string) $this->visitor()->id);
+        $visitor = $this->visitor();
 
-        $conversation = $openConversation(
-            ThreadOpening::adminCustomer($this->visitor()->id, ThreadTitle::of(self::PLACEHOLDER_TITLE)),
+        return view('shop.support', [
+            ...$this->formView($visitor),
+            'preselectedOrderId' => $this->preselectedOrderId($request, $visitor),
+        ]);
+    }
+
+    public function store(SupportRequest $request, OpenThread $open, RateLimitGate $rateLimit): RedirectResponse|Response
+    {
+        $visitor = $this->visitor();
+
+        try {
+            $rateLimit->check(RateLimitName::ConversationOpen, (string) $visitor->id);
+        } catch (RateLimitExceeded $exceeded) {
+            // docs/alignment.md §3: a form that trips comes back rather than
+            // being replaced by the site's bare 429 page, so the visitor's
+            // subject and message stay in the boxes.
+            $request->flash();
+
+            return $this->tooManyRequests($exceeded, 'shop.support', [
+                ...$this->formView($visitor),
+                'preselectedOrderId' => $request->orderId(),
+            ]);
+        }
+
+        $conversation = $open(
+            ThreadOpening::adminCustomer($visitor->id, $request->title(), $request->orderId()),
+            $visitor,
+            $request->body(),
             $this->now(),
         );
 
         return redirect()->route('shop.messages.show', $conversation);
+    }
+
+    /**
+     * The order picker's options and the "your open conversations with us"
+     * aside — the data both the fresh form and a rate-limited re-render need.
+     *
+     * @return array<string, mixed>
+     */
+    private function formView(Customer $visitor): array
+    {
+        return [
+            'orders' => $visitor->orders()->with('items')->orderByDesc('placed_at')->limit(self::RECENT_ORDERS_LIMIT)->get(),
+            'openConversations' => Conversation::query()
+                ->withParticipant($visitor)
+                ->ofKind(ConversationKind::AdminCustomer)
+                ->withStatus(ConversationStatus::Open)
+                ->orderByDesc('last_message_at')
+                ->limit(self::OPEN_CONVERSATIONS_LIMIT)
+                ->get(),
+        ];
+    }
+
+    /**
+     * `?order=` preselects the picker, when it names an order that is
+     * actually the visitor's — one that is not is ignored rather than
+     * refused.
+     */
+    private function preselectedOrderId(Request $request, Customer $visitor): ?string
+    {
+        $orderId = $request->query('order');
+
+        return is_string($orderId) && $visitor->orders()->whereKey($orderId)->exists() ? $orderId : null;
     }
 }

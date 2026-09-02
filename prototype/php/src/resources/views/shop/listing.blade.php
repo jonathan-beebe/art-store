@@ -1,3 +1,7 @@
+@php
+    use App\Domain\Messaging\MessageBody;
+    use Illuminate\Support\Str;
+@endphp
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
         <div>
@@ -53,23 +57,42 @@
                 </form>
             </div>
 
+            @php
+                $sellerFirstName = $listing->seller->name ? Str::before($listing->seller->name, ' ') : $listing->seller->displayName();
+            @endphp
             <section class="mt-14 border-t border-line pt-10">
-                <h2 class="font-display text-xl text-ink">Ask {{ $listing->seller->displayName() }} a question</h2>
+                <h2 class="font-display text-xl text-ink">Ask {{ $sellerFirstName }} a question</h2>
 
-                <form method="POST" action="{{ route('shop.listing.questions', $listing) }}" class="mt-4">
-                    @csrf
+                @if ($isSignedIn)
+                    <p class="mt-3 max-w-lg text-ink-muted">Each question starts its own conversation with {{ $sellerFirstName }}. If it would help other people, they may publish the answer here.</p>
 
-                    <label for="body" class="sr-only">Your question</label>
-                    <x-ui.textarea id="body" name="body" required rows="3" maxlength="2000"
-                                   placeholder="Ask about size, materials, shipping…">{{ old('body') }}</x-ui.textarea>
-                    @error('body')
-                        <p class="mt-2 text-danger">{{ $message }}</p>
-                    @enderror
+                    <form method="POST" action="{{ route('shop.listing.questions', $listing) }}" class="mt-5">
+                        @csrf
 
-                    <x-ui.button variant="primary" class="mt-4">
-                        Ask a question
-                    </x-ui.button>
-                </form>
+                        <label for="body" class="sr-only">Your question</label>
+                        <x-shop.messaging.composer
+                            name="body"
+                            :value="old('body', '')"
+                            placeholder="Ask about size, materials, shipping…"
+                            :maxlength="MessageBody::MAX_LENGTH"
+                        />
+                        @error('body')
+                            <p class="mt-2 text-danger">{{ $message }}</p>
+                        @enderror
+
+                        <div class="mt-4 flex flex-wrap items-center gap-3">
+                            <x-ui.button variant="primary">Ask a question</x-ui.button>
+                            <span class="text-sm text-ink-faint">You'll get an email when {{ $sellerFirstName }} replies.</span>
+                        </div>
+                    </form>
+                @else
+                    <p class="mt-3 max-w-lg text-ink-muted">{{ $sellerFirstName }} answers questions about size, materials, and shipping herself, and the answer lands in your messages. Sign in to ask — we'll bring you straight back here.</p>
+
+                    <div class="mt-5 flex flex-wrap items-center gap-3">
+                        <x-ui.button variant="primary" :href="route('auth.customer.login', ['redirect_to' => route('shop.listing', $listing)])">Sign in to ask</x-ui.button>
+                        <span class="text-sm text-ink-faint">A magic link — no password.</span>
+                    </div>
+                @endif
             </section>
 
             @if ($listing->faqs->isNotEmpty())

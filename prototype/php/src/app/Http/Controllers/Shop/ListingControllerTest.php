@@ -22,6 +22,7 @@ use App\Models\ListingFaq;
 use App\Models\ListingRemoval;
 use App\Models\Property;
 use App\Models\PropertyValue;
+use App\Models\Seller;
 use Tests\CapturedStory;
 
 it('shows the listing in full', function (): void {
@@ -151,13 +152,28 @@ it('answers the same 404 for an unknown slug as for a removed one', function ():
     expect($unknown->status())->toBe($removedResponse->status());
 });
 
-it('offers a form to ask the seller a question', function (): void {
-    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+it('offers a signed-in visitor a form to ask the seller a question', function (): void {
+    $seller = Seller::factory()->create(['name' => 'Sybill Trelawney', 'shop_name' => "Trelawney's Tower Studio"]);
+    $listing = $this->listing($seller, ['slug' => 'harbour-at-dawn']);
+    $customer = $this->arriveAs($this->verifiedCustomer());
+    $this->actingAs($customer, 'customer');
 
     $response = $this->get('/art/harbour-at-dawn');
 
-    $response->assertSee('Ask Blue Kiln Studio a question');
+    $response->assertSee('Ask Sybill a question');
     $response->assertSee(route('shop.listing.questions', $listing), escape: false);
+});
+
+it('offers a signed-out visitor a sign-in link that returns to the listing, rather than a form', function (): void {
+    $seller = Seller::factory()->create(['name' => 'Sybill Trelawney', 'shop_name' => "Trelawney's Tower Studio"]);
+    $this->listing($seller, ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->get('/art/harbour-at-dawn');
+
+    $response->assertSee('Ask Sybill a question');
+    $response->assertSee('Sign in to ask');
+    $response->assertSee(route('auth.customer.login', ['redirect_to' => route('shop.listing', 'harbour-at-dawn')]), escape: false);
+    $response->assertDontSee(route('shop.listing.questions', 'harbour-at-dawn'), escape: false);
 });
 
 it('lists the sellers published questions and answers', function (): void {
