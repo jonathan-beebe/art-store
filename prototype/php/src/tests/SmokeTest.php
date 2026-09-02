@@ -13,6 +13,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
+use App\Models\ListingEvent;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\Payout;
@@ -131,7 +132,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
             ->assertSee(SMOKE_LISTING_TITLE)
             ->assertSee($price()->format());
 
-        $this->assertDatabaseHas('listing_events', ['listing_id' => $listing->id, 'type' => 'view']);
+        $this->assertDatabaseHas(ListingEvent::class, ['listing_id' => $listing->id, 'type' => 'view']);
     };
 
     /**

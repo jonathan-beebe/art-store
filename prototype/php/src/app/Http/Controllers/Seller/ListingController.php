@@ -38,8 +38,11 @@ final class ListingController extends SellerController
     {
         $window = ListPaneWindow::of($this->listingsQuery());
 
+        /** @var Collection<int, Listing> $listings */
+        $listings = $window->items;
+
         return view('seller.listings.index', [
-            'listings' => $window->items,
+            'listings' => Listing::attachEventCounts($listings),
             'listingsTotal' => $window->total,
         ]);
     }
@@ -228,7 +231,6 @@ final class ListingController extends SellerController
     {
         return Listing::query()
             ->ofSeller($this->seller()->id)
-            ->withEventCounts()
             ->with([
                 'activeRemoval',
                 'images' => fn (Relation $images): Relation => $images->orderBy('position'),

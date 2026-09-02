@@ -12,7 +12,7 @@ abstract class TestCase extends BaseTestCase
     /**
      * `RefreshDatabase` migrates and wraps a per-test transaction only on
      * the connections named here — `null` for the default (commerce)
-     * connection, `'analytics'` for the page-view store
+     * connection, `'analytics'` for the analytics store
      * (config/database.php). Left off this list, the analytics connection
      * would migrate once on the first test that touches it and every test
      * after would see whatever that first test committed, since nothing

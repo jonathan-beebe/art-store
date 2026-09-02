@@ -21,6 +21,11 @@ final class AnalyticsWriteGuard
      * Runs $write and returns what it returns. A $write that throws never
      * propagates: the guard logs one warning naming the analytics database
      * file and returns null instead.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $write
+     * @return TReturn|null
      */
     public static function attempt(Closure $write): mixed
     {

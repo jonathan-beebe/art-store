@@ -84,9 +84,10 @@ $customerOwnedModels = [
 
 it('carries a populated seller_id on every table a seller owns', function () use ($sellerOwnedModels): void {
     foreach ($sellerOwnedModels as $modelClass) {
-        $table = (new $modelClass)->getTable();
+        $model = new $modelClass;
+        $table = $model->getTable();
 
-        expect(Schema::hasColumn($table, 'seller_id'))->toBeTrue("{$table} has no seller_id column.");
+        expect(Schema::connection($model->getConnectionName())->hasColumn($table, 'seller_id'))->toBeTrue("{$table} has no seller_id column.");
         expect(in_array('seller_id', (new $modelClass)->getFillable(), true))->toBeTrue("{$modelClass} does not mass-assign seller_id.");
 
         $row = Factory::factoryForModel($modelClass)->createOne();

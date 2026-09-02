@@ -17,6 +17,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
 
 /**
+ * One row per interaction (a view, a favorite, a cart add) a listing
+ * collects, in the analytics store (config/database.php) rather than the
+ * commerce database.
+ *
  * @property-read string $day  only on a row the `dailyCountsSince` scope selected
  * @property-read int $tally  only on a row the `dailyCountsSince` scope selected
  */
@@ -27,6 +31,8 @@ class ListingEvent extends Model
     use HasFactory;
 
     use HasPrefixedUlid;
+
+    protected $connection = 'analytics';
 
     public static function idPrefix(): string
     {
@@ -43,6 +49,24 @@ class ListingEvent extends Model
             'type' => ListingEventType::class,
             'occurred_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Eloquent's default `newRelatedInstance()` hands a related model this
+     * model's own connection when the related model names none of its
+     * own — right when both sides share a connection, wrong here: Listing,
+     * Seller, and Customer live on the default connection and must keep it
+     * when reached from a row that lives on the analytics one.
+     *
+     * @template TRelatedModel of Model
+     *
+     * @param  class-string<TRelatedModel>  $class
+     * @return TRelatedModel
+     */
+    #[Override]
+    protected function newRelatedInstance($class)
+    {
+        return new $class;
     }
 
     /** @return BelongsTo<Listing, $this> */
@@ -91,6 +115,42 @@ class ListingEvent extends Model
 
         foreach (self::query()->select('type')->selectRaw('count(*) as tally')->groupBy('type')->get() as $row) {
             $counts[$row->type->value] = $row->tally;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * How many events of each type one listing has recorded —
+     * {@see Listing::loadEventCounts()}'s source.
+     *
+     * @return array<string, int> event type value => count
+     */
+    public static function countsForListing(string $listingId): array
+    {
+        $counts = [];
+
+        foreach (self::query()->where('listing_id', $listingId)->select('type')->selectRaw('count(*) as tally')->groupBy('type')->get() as $row) {
+            $counts[$row->type->value] = $row->tally;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * The same counts `countsForListing()` returns, for every id in
+     * $listingIds at once — a list pane's batched alternative to one query
+     * per row.
+     *
+     * @param  list<string>  $listingIds
+     * @return array<string, array<string, int>> listing id => event type value => count
+     */
+    public static function countsForListings(array $listingIds): array
+    {
+        $counts = [];
+
+        foreach (self::query()->whereIn('listing_id', $listingIds)->select('listing_id', 'type')->selectRaw('count(*) as tally')->groupBy('listing_id', 'type')->get() as $row) {
+            $counts[$row->listing_id][$row->type->value] = $row->tally;
         }
 
         return $counts;

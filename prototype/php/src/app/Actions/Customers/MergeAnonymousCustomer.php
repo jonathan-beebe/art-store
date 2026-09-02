@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Analytics\AnalyticsWriteGuard;
 use App\Domain\Customers\CustomerCartLine;
 use App\Domain\Customers\CustomerMergePlan;
 use App\Domain\Customers\CustomerOwnedTables;
@@ -15,6 +16,7 @@ use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Listing;
+use App\Models\ListingEvent;
 use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -69,6 +71,8 @@ final readonly class MergeAnonymousCustomer
                 return $plan;
             });
 
+            $this->reassignListingEvents($anonymous, $verified);
+
             $story->did('folded the anonymous customer in', [
                 'anonymous_customer_id' => $anonymous->id,
                 'customer_id' => $verified->id,
@@ -79,6 +83,20 @@ final readonly class MergeAnonymousCustomer
 
             return $verified;
         });
+    }
+
+    /**
+     * Re-points the anonymous customer's listing events to the verified
+     * customer, on the analytics connection, outside the commerce
+     * transaction above and behind {@see AnalyticsWriteGuard} — the merge
+     * itself has already committed, so a store failure here costs history
+     * on view/favorite/cart-add counts, never the merge.
+     */
+    private function reassignListingEvents(Customer $anonymous, Customer $verified): void
+    {
+        AnalyticsWriteGuard::attempt(fn (): int => ListingEvent::query()
+            ->where('customer_id', $anonymous->id)
+            ->update(['customer_id' => $verified->id]));
     }
 
     /**

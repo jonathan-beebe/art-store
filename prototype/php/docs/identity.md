@@ -127,9 +127,10 @@ sequenceDiagram
         Claim->>Claim: create verified customer
     else address owned by a different customer
         Claim->>Merge: __invoke(anonymous, owner)
-        Merge->>Merge: re-point CustomerOwnedTables rows\n(orders, listing_events, customer_blocks)
+        Merge->>Merge: re-point CustomerOwnedTables rows\n(orders, customer_blocks, ...)
         Merge->>Merge: re-point sent messages, move conversations\n(Conversation::moveCustomer)
         Merge->>Merge: fold cart and favorites\n(CustomerMergePlan), insert customer_merges row
+        Merge->>Merge: re-point listing_events on the analytics connection\n(ListingEvent, guarded by AnalyticsWriteGuard)
     else cookie already points at the address's owner
         Claim->>Claim: mark email_verified_at
     end
@@ -139,12 +140,16 @@ sequenceDiagram
 ```
 
 Caveats: `MergeAnonymousCustomer` walks
-`App\Domain\Customers\CustomerOwnedTables::all()` (`orders`, `listing_events`,
-`customer_blocks`) inside a transaction, writing one column per table, and
-skips any table/column that does not exist yet (guards schema drift across
-tickets landing in parallel). Everything else carrying a `customer_id` column
-is named in `CustomerOwnedTables::leftBehind()`, with the reason a blind write
-would get it wrong, and a schema-manifest test
+`App\Domain\Customers\CustomerOwnedTables::all()` (`orders`, `customer_blocks`,
+and the other app-database tables it names) inside a transaction, writing one
+column per table, and skips any table/column that does not exist yet (guards
+schema drift across tickets landing in parallel). `listing_events` lives in
+the analytics connection (config/database.php), outside that transaction, so
+the merge re-points it separately, through the `ListingEvent` model and
+behind `App\Analytics\AnalyticsWriteGuard` — a failure there logs a warning
+and leaves the merge's commerce writes intact. Everything else carrying a
+`customer_id` column is named in `CustomerOwnedTables::leftBehind()`, with
+the reason a blind write would get it wrong, and a schema-manifest test
 (`App\Actions\Customers\CustomerOwnedTablesManifestTest`) checks that the two
 lists together cover every such column — a table added later with one cannot
 go unhandled by accident. **Sent messages** name their sender by morph type

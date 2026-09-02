@@ -6,6 +6,8 @@ namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingEventType;
 use App\Models\ListingEvent;
+use Illuminate\Support\Facades\DB;
+use Tests\CapturedStory;
 
 it('records a view against the listing and the customer', function (): void {
     $listing = $this->listing($this->seller());
@@ -43,7 +45,7 @@ it('counts the events a listing has collected', function (): void {
     $record($listing, $customer->id, ListingEventType::Favorite, $now);
     $record($listing, $customer->id, ListingEventType::CartAdd, $now);
 
-    $counted = $listing->newQuery()->withEventCounts()->findOrFail($listing->id);
+    $counted = $listing->loadEventCounts();
 
     expect($counted->views_count)->toBe(2)
         ->and($counted->favorites_count)->toBe(1)
@@ -112,4 +114,34 @@ it('never collapses a favorite, unfavorite, or cart add, even inside the same ho
 
     expect($second)->not->toBeNull()
         ->and($listing->events()->where('type', ListingEventType::Favorite)->count())->toBe(2);
+});
+
+it('returns null and logs a warning instead of recording when the analytics store is unwritable', function (): void {
+    $log = CapturedStory::capture();
+    $listing = $this->listing($this->seller());
+    $originalDatabase = config('database.connections.analytics.database');
+    // RefreshDatabase already opened a transaction on this PDO for the
+    // current test (tests/TestCase.php's connectionsToTransact); purging
+    // the connection below drops the wrapper without closing it, so it is
+    // rolled back by hand once the test is done with it — otherwise the
+    // next test to begin a transaction on the same cached in-memory PDO
+    // finds one already open.
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
+    DB::purge('analytics');
+
+    try {
+        $event = app(RecordListingEvent::class)($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+
+        expect($event)->toBeNull()
+            ->and($log->line('app.log', 'doing')['level'])->toBe('warn');
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+    }
 });

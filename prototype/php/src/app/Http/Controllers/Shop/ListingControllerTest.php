@@ -23,6 +23,8 @@ use App\Models\ListingRemoval;
 use App\Models\Property;
 use App\Models\PropertyValue;
 use App\Models\Seller;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Tests\CapturedStory;
 
 it('shows the listing in full', function (): void {
@@ -111,6 +113,53 @@ it('collapses a second view within the hour into no row, logged as a refusal', f
 
     $refused = $log->line('listing.view', 'refused');
     expect($refused['level'])->toBe('debug');
+});
+
+it('records the view through the analytics connection, never the default one', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    /** @var list<QueryExecuted> $queries */
+    $queries = [];
+
+    DB::connection()->listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = $query;
+    });
+
+    $this->get('/art/harbour-at-dawn')->assertOk();
+
+    $mentioning = fn (string $connection): array => array_values(array_filter(
+        $queries,
+        fn (QueryExecuted $query): bool => $query->connectionName === $connection && str_contains($query->sql, 'listing_events'),
+    ));
+
+    expect($mentioning('sqlite'))->toBe([])
+        ->and($mentioning('analytics'))->not->toBe([]);
+});
+
+it('still answers when the analytics store is unwritable', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+    $originalDatabase = config('database.connections.analytics.database');
+    // RefreshDatabase already opened a transaction on this PDO for the
+    // current test (tests/TestCase.php's connectionsToTransact); purging
+    // the connection below drops the wrapper without closing it, so it is
+    // rolled back by hand once the test is done with it — otherwise the
+    // next test to begin a transaction on the same cached in-memory PDO
+    // finds one already open.
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
+    DB::purge('analytics');
+
+    try {
+        $this->get('/art/harbour-at-dawn')->assertOk();
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+    }
 });
 
 it('says a sold listing is sold and offers no cart button', function (): void {

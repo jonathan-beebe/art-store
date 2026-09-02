@@ -14,6 +14,7 @@ use App\Models\CustomerBlock;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Fulfillment;
+use App\Models\ListingEvent;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\Seller;
@@ -23,6 +24,7 @@ use DateTimeImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\CapturedStory;
 
 it('records the merge so a stale cookie still resolves', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
@@ -65,36 +67,83 @@ it('leaves the anonymous row in place for the merge trail', function (): void {
 });
 
 it('re-points rows in a customer-owned table', function (): void {
-    // The commerce tables carry columns this test knows nothing about, so the
+    // customer_blocks carries columns this test knows nothing about, so the
     // table-driven re-pointing is proven against a row this test can write on its own.
-    Schema::dropIfExists('listing_events');
-    Schema::create('listing_events', function (Blueprint $table): void {
+    Schema::dropIfExists('customer_blocks');
+    Schema::create('customer_blocks', function (Blueprint $table): void {
         $table->id();
         $table->foreignId('customer_id');
     });
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
     $bystander = Customer::factory()->create();
-    DB::table('listing_events')->insert([
+    DB::table('customer_blocks')->insert([
         ['customer_id' => $anonymous->id],
         ['customer_id' => $bystander->id],
     ]);
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    expect(DB::table('listing_events')->where('customer_id', $verified->id)->count())->toBe(1)
-        ->and(DB::table('listing_events')->where('customer_id', $anonymous->id)->count())->toBe(0)
-        ->and(DB::table('listing_events')->where('customer_id', $bystander->id)->count())->toBe(1);
+    expect(DB::table('customer_blocks')->where('customer_id', $verified->id)->count())->toBe(1)
+        ->and(DB::table('customer_blocks')->where('customer_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::table('customer_blocks')->where('customer_id', $bystander->id)->count())->toBe(1);
 });
 
 it('skips a customer-owned table that does not exist', function (): void {
-    Schema::dropIfExists('listing_events');
+    Schema::dropIfExists('refunds');
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
     expect(CustomerMerge::count())->toBe(1);
+});
+
+it('re-points listing events on the analytics connection through the model', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    ListingEvent::factory()->create(['customer_id' => $anonymous->id]);
+    ListingEvent::factory()->create(['customer_id' => $bystander->id]);
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect(ListingEvent::where('customer_id', $verified->id)->count())->toBe(1)
+        ->and(ListingEvent::where('customer_id', $anonymous->id)->count())->toBe(0)
+        ->and(ListingEvent::where('customer_id', $bystander->id)->count())->toBe(1);
+});
+
+it('still merges and logs a warning when the analytics store is unwritable', function (): void {
+    $log = CapturedStory::capture();
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    ListingEvent::factory()->create(['customer_id' => $anonymous->id]);
+
+    $originalDatabase = config('database.connections.analytics.database');
+    // RefreshDatabase already opened a transaction on this PDO for the
+    // current test (tests/TestCase.php's connectionsToTransact); purging
+    // the connection below drops the wrapper without closing it, so it is
+    // rolled back by hand once the test is done with it — otherwise the
+    // next test to begin a transaction on the same cached in-memory PDO
+    // finds one already open.
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', '/nonexistent/dir/analytics.sqlite3');
+    DB::purge('analytics');
+
+    try {
+        app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+        expect(CustomerMerge::where('anonymous_customer_id', $anonymous->id)->where('customer_id', $verified->id)->exists())->toBeTrue()
+            ->and($log->line('app.log', 'doing')['level'])->toBe('warn');
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+    }
 });
 
 it('re-points the notifications addressed to the anonymous customer', function (): void {

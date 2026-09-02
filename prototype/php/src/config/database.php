@@ -54,8 +54,9 @@ return [
         ],
 
         // The analytics store beside the log store (config/log_store.php):
-        // its own SQLite file, so a page-view write contends with nothing
-        // the commerce connection above does. `synchronous = off` accepts a
+        // its own SQLite file, so an analytics write (page views, listing
+        // events) contends with nothing the commerce connection above
+        // does. `synchronous = off` accepts a
         // lost count on a crash — an analytics row is not a record of money
         // moving. `busy_timeout` is a fifth of the commerce connection's: a
         // contended analytics write must fail fast rather than hold a

@@ -327,20 +327,40 @@ it('reads whether it can still be bought', function (): void {
         ->and($this->listing($seller, ['status' => ListingStatus::ForSale, 'quantity' => 0])->isPurchasable())->toBeFalse();
 });
 
-it('counts its events by type, whether queried or already in hand', function (): void {
+it('counts its events by type for a listing already in hand', function (): void {
     $listing = $this->listing($this->seller());
     $recordListingEvent = app(RecordListingEvent::class);
     $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
     $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
     $recordListingEvent($listing, null, ListingEventType::Favorite, $this->moment('2026-08-20 11:00:00'));
 
-    $queried = Listing::query()->withEventCounts()->findOrFail($listing->id);
     $loaded = $listing->loadEventCounts();
 
-    expect($queried->views_count)->toBe(2)
-        ->and($loaded->views_count)->toBe(2)
+    expect($loaded->views_count)->toBe(2)
         ->and($loaded->favorites_count)->toBe(1)
         ->and($loaded->cart_adds_count)->toBe(0);
+});
+
+it('counts events by type for every listing in a collection at once', function (): void {
+    $seller = $this->seller();
+    $counted = $this->listing($seller);
+    $uncounted = $this->listing($seller);
+    $recordListingEvent = app(RecordListingEvent::class);
+    $recordListingEvent($counted, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
+    $recordListingEvent($counted, null, ListingEventType::CartAdd, $this->moment('2026-08-20 10:00:00'));
+
+    $listings = Listing::attachEventCounts(Listing::query()->orderBy('id')->get());
+
+    $countedRow = $listings->firstWhere('id', $counted->id);
+    $uncountedRow = $listings->firstWhere('id', $uncounted->id);
+    assert($countedRow instanceof Listing);
+    assert($uncountedRow instanceof Listing);
+    expect($countedRow->views_count)->toBe(1)
+        ->and($countedRow->favorites_count)->toBe(0)
+        ->and($countedRow->cart_adds_count)->toBe(1)
+        ->and($uncountedRow->views_count)->toBe(0)
+        ->and($uncountedRow->favorites_count)->toBe(0)
+        ->and($uncountedRow->cart_adds_count)->toBe(0);
 });
 
 it('reads its price as money', function (): void {

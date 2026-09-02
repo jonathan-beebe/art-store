@@ -18,12 +18,12 @@ use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
-use Closure;
 use Database\Factories\ListingFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,9 +34,9 @@ use Override;
 /**
  * @property-read Seller $seller
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
- * @property-read int $views_count  only after `withEventCounts` or `loadEventCounts`
- * @property-read int $favorites_count  only after `withEventCounts` or `loadEventCounts`
- * @property-read int $cart_adds_count  only after `withEventCounts` or `loadEventCounts`
+ * @property-read int $views_count  only after `loadEventCounts` or `attachEventCounts`
+ * @property-read int $favorites_count  only after `loadEventCounts` or `attachEventCounts`
+ * @property-read int $cart_adds_count  only after `loadEventCounts` or `attachEventCounts`
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
@@ -643,22 +643,36 @@ class Listing extends Model
         return $counts;
     }
 
-    /** @param Builder<$this> $query */
-    #[Scope]
-    protected function withEventCounts(Builder $query): void
-    {
-        $query->withCount(self::eventCounts());
-    }
-
     /**
-     * The same three counts the `withEventCounts` scope selects, for a listing
-     * already in hand — a route-bound model, say.
+     * Fills views_count, favorites_count, and cart_adds_count from one
+     * grouped query against the analytics connection — a correlated
+     * subquery (`loadCount`) can't reach across it from the query this
+     * model itself runs on.
      */
     public function loadEventCounts(): self
     {
-        $this->loadCount(self::eventCounts());
+        return $this->fillEventCounts(ListingEvent::countsForListing($this->id));
+    }
 
-        return $this;
+    /**
+     * `loadEventCounts()` for every listing in $listings at once, from one
+     * grouped query instead of one per row — a list pane's alternative.
+     *
+     * @param  Collection<int, self>  $listings
+     * @return Collection<int, self>
+     */
+    public static function attachEventCounts(Collection $listings): Collection
+    {
+        /** @var list<string> $listingIds */
+        $listingIds = $listings->pluck('id')->values()->all();
+
+        $countsByListing = ListingEvent::countsForListings($listingIds);
+
+        foreach ($listings as $listing) {
+            $listing->fillEventCounts($countsByListing[$listing->id] ?? []);
+        }
+
+        return $listings;
     }
 
     /**
@@ -679,14 +693,18 @@ class Listing extends Model
     }
 
     /**
-     * @return array<string, Closure(Builder<ListingEvent>): Builder<ListingEvent>>
+     * Sets views_count, favorites_count, and cart_adds_count as loaded
+     * rather than mass-assigned, so a later `save()` does not try to write
+     * them — they name no column on this model's own table.
+     *
+     * @param  array<string, int>  $countsByType  event type value => count
      */
-    private static function eventCounts(): array
+    private function fillEventCounts(array $countsByType): self
     {
-        return [
-            'events as views_count' => fn (Builder $events) => $events->where('type', ListingEventType::View),
-            'events as favorites_count' => fn (Builder $events) => $events->where('type', ListingEventType::Favorite),
-            'events as cart_adds_count' => fn (Builder $events) => $events->where('type', ListingEventType::CartAdd),
-        ];
+        return $this->forceFill([
+            'views_count' => $countsByType[ListingEventType::View->value] ?? 0,
+            'favorites_count' => $countsByType[ListingEventType::Favorite->value] ?? 0,
+            'cart_adds_count' => $countsByType[ListingEventType::CartAdd->value] ?? 0,
+        ])->syncOriginalAttributes(['views_count', 'favorites_count', 'cart_adds_count']);
     }
 }
