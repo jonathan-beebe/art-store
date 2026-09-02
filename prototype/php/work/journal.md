@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 46
+- FEAT: 48
 - IMPRV: 26
 - MAINT: 7
 - A11Y: 1
@@ -13,6 +13,9 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:17:22:30 — FEAT-047 — defined: every visit carries its referrer and campaign to the order
+- 2026-09-02:17:22:30 — FEAT-046 — defined: the storefront funnel reads from listing view to paid order
 
 - 2026-09-02:16:56:17 — MAINT-006 — done: the site stats page retires — StatsController, its view, ListingEventTally/ListingEventCount, and AnalyticsReport::platformCountsByName() are gone; /admin/stats is a permanent redirect to /admin/analytics
 - 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
