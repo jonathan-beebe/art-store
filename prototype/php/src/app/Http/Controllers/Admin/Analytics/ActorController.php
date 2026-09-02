@@ -50,6 +50,10 @@ final class ActorController extends Controller
         'listing.favorite' => 'Favorites',
         'listing.unfavorite' => 'Unfavorites',
         'listing.cart_add' => 'Cart adds',
+        'checkout.open' => 'Checkouts opened',
+        'order.place' => 'Orders placed',
+        'order.pay' => 'Orders paid',
+        'order.cancel' => 'Orders cancelled',
     ];
 
     public function index(AnalyticsActorsQueryRequest $request): View

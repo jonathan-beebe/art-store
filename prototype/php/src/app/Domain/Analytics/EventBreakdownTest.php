@@ -9,10 +9,31 @@ it('offers only a pattern breakdown for page.view', function (): void {
         ->and(EventBreakdown::defaultFor('page.view'))->toBe(EventBreakdown::Pattern);
 });
 
-it('offers listing and actor breakdowns for every other event name, defaulting to listing', function (): void {
-    foreach (AnalyticsEventName::cases() as $case) {
+it('offers listing and actor breakdowns for every listing event name, defaulting to listing', function (): void {
+    $listingEvents = [
+        AnalyticsEventName::ListingView,
+        AnalyticsEventName::ListingFavorite,
+        AnalyticsEventName::ListingUnfavorite,
+        AnalyticsEventName::ListingCartAdd,
+    ];
+
+    foreach ($listingEvents as $case) {
         expect(EventBreakdown::allowedFor($case->value))->toBe([EventBreakdown::Listing, EventBreakdown::Actor])
             ->and(EventBreakdown::defaultFor($case->value))->toBe(EventBreakdown::Listing);
+    }
+});
+
+it('offers only an actor breakdown for checkout and order event names', function (): void {
+    $orderEvents = [
+        AnalyticsEventName::CheckoutOpen,
+        AnalyticsEventName::OrderPlace,
+        AnalyticsEventName::OrderPay,
+        AnalyticsEventName::OrderCancel,
+    ];
+
+    foreach ($orderEvents as $case) {
+        expect(EventBreakdown::allowedFor($case->value))->toBe([EventBreakdown::Actor])
+            ->and(EventBreakdown::defaultFor($case->value))->toBe(EventBreakdown::Actor);
     }
 });
 

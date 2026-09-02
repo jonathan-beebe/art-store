@@ -12,8 +12,8 @@ use DateTimeZone;
 /**
  * One occurrence {@see Analytics::recordEvent()} buffers: what happened,
  * the moment it happened, and what or who it happened to. `subjectType`
- * and `subjectId` name the row an event is about (a listing, today);
- * `actorId` names who caused it, when the store knows. `ip` and
+ * and `subjectId` name the row an event is about (a listing, a cart, or an
+ * order); `actorId` names who caused it, when the store knows. `ip` and
  * `sessionId` name the request it came from, when there was one — see
  * {@see withRequestFacts()}.
  */
@@ -23,8 +23,12 @@ final readonly class AnalyticsEvent
 
     private const string SUBJECT_LISTING = 'listing';
 
+    private const string SUBJECT_CART = 'cart';
+
+    private const string SUBJECT_ORDER = 'order';
+
     /**
-     * @param  array<string, scalar|null>  $data
+     * @param  array<string, scalar|list<string>|null>  $data
      */
     public function __construct(
         public AnalyticsEventName $name,
@@ -50,6 +54,44 @@ final readonly class AnalyticsEvent
         ?string $dedupeKey = null,
     ): self {
         return new self($name, $at, self::SUBJECT_LISTING, $listingId, $customerId, $dedupeKey);
+    }
+
+    /**
+     * A step in the order lifecycle, attributed to the customer whose order
+     * it is — or to nobody, for a guest order the sweep cancels before it is
+     * ever claimed. `$data` carries `listing_ids`, the listings the order
+     * spans, and — for {@see AnalyticsEventName::OrderPay} —
+     * `total_cents`, so a revenue report reads the amount without a join
+     * back to the commerce database.
+     *
+     * @param  array<string, scalar|list<string>|null>  $data
+     */
+    public static function forOrder(
+        AnalyticsEventName $name,
+        string $orderId,
+        ?string $customerId,
+        DateTimeImmutable $at,
+        array $data = [],
+    ): self {
+        return new self($name, $at, self::SUBJECT_ORDER, $orderId, $customerId, null, $data);
+    }
+
+    /**
+     * Checkout opened, before an order exists to name — the cart it was
+     * opened on is the subject. `$data` carries the cart's `listing_ids`,
+     * the same key {@see forOrder()} carries them under once the cart
+     * becomes an order.
+     *
+     * @param  array<string, scalar|list<string>|null>  $data
+     */
+    public static function forCart(
+        AnalyticsEventName $name,
+        string $cartId,
+        ?string $customerId,
+        DateTimeImmutable $at,
+        array $data = [],
+    ): self {
+        return new self($name, $at, self::SUBJECT_CART, $cartId, $customerId, null, $data);
     }
 
     /**

@@ -30,6 +30,34 @@ it('builds a listing event for an anonymous visitor with no actor', function ():
         ->and($event->dedupeKey)->toBeNull();
 });
 
+it('builds an order event carrying the listing ids and a paid order\'s total', function (): void {
+    $at = new DateTimeImmutable('2026-08-22T14:32:00+00:00');
+
+    $event = AnalyticsEvent::forOrder(AnalyticsEventName::OrderPay, 'ord_ABC', 'cus_XYZ', $at, [
+        'listing_ids' => ['lst_1', 'lst_2'],
+        'total_cents' => 4500,
+    ]);
+
+    expect($event->name)->toBe(AnalyticsEventName::OrderPay)
+        ->and($event->occurredAt)->toBe($at)
+        ->and($event->subjectType)->toBe('order')
+        ->and($event->subjectId)->toBe('ord_ABC')
+        ->and($event->actorId)->toBe('cus_XYZ')
+        ->and($event->dedupeKey)->toBeNull()
+        ->and($event->data)->toBe(['listing_ids' => ['lst_1', 'lst_2'], 'total_cents' => 4500]);
+});
+
+it('builds a cart event for checkout opened, before an order exists', function (): void {
+    $event = AnalyticsEvent::forCart(AnalyticsEventName::CheckoutOpen, 'crt_ABC', 'cus_XYZ', new DateTimeImmutable, [
+        'listing_ids' => ['lst_1'],
+    ]);
+
+    expect($event->subjectType)->toBe('cart')
+        ->and($event->subjectId)->toBe('crt_ABC')
+        ->and($event->actorId)->toBe('cus_XYZ')
+        ->and($event->data)->toBe(['listing_ids' => ['lst_1']]);
+});
+
 it('mints a row carrying every field, ready for insert', function (): void {
     $event = new AnalyticsEvent(
         name: AnalyticsEventName::ListingCartAdd,

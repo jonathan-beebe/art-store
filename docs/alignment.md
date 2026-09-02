@@ -284,7 +284,8 @@ batch — a store outage loses buffered rows, never blocks the request.
 
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
-`listing.cart_add`), with a nullable `dedupe_key` unique index. A listing
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
+`order.cancel`), with a nullable `dedupe_key` unique index. A listing
 view collapses to one row per (listing, customer, UTC hour) by expressing
 that window as a dedupe key and inserting with `INSERT OR IGNORE` — no read
 happens in the request to decide whether the write is a duplicate.

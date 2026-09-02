@@ -131,8 +131,8 @@ commerce writes stand regardless.
 | `id`           | text(30) PK              | prefix `aev`                                                  |
 | `name`         | string                   | closed vocabulary — see below                                 |
 | `occurred_at`  | timestamp                | UTC; the instant recorded, not the instant written            |
-| `subject_type` | string, nullable         | e.g. `listing`                                                |
-| `subject_id`   | text(30), nullable       | references e.g. `listings.id`, no FK                          |
+| `subject_type` | string, nullable         | `listing`, `cart`, or `order`                                 |
+| `subject_id`   | text(30), nullable       | references e.g. `listings.id`, `carts.id`, `orders.id`, no FK |
 | `actor_id`     | text(30), nullable       | references e.g. `customers.id`, no FK                         |
 | `ip`           | string(45), nullable     | the request's ip; null for a CLI run                          |
 | `session_id`   | string, nullable         | the `sid` cookie's value; null for a CLI run                  |
@@ -148,7 +148,8 @@ Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session
 
 `App\Domain\Analytics\AnalyticsEventName` is the closed enum every `recordEvent()`
 call names: `listing.view`, `listing.favorite`, `listing.unfavorite`,
-`listing.cart_add`. A reader greps this one file for every name the store
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
+`order.cancel`. A reader greps this one file for every name the store
 accepts.
 
 A `listing.view` carries a `dedupe_key`

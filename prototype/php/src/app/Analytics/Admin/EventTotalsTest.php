@@ -26,7 +26,10 @@ it('carries every event name plus a page.view roll-up, in that order', function 
 
     $names = array_column(EventTotals::forRange($range), 'name');
 
-    expect($names)->toBe(['listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add', 'page.view']);
+    expect($names)->toBe([
+        'listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add',
+        'checkout.open', 'order.place', 'order.pay', 'order.cancel', 'page.view',
+    ]);
 });
 
 it('narrows by event name or label, case-insensitively', function (): void {
@@ -40,7 +43,7 @@ it('narrows by event name or label, case-insensitively', function (): void {
 it('narrows to nothing when the search matches no event name or label', function (): void {
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
 
-    expect(EventTotals::forRange($range, 'checkout'))->toBe([]);
+    expect(EventTotals::forRange($range, 'zzz-no-match'))->toBe([]);
 });
 
 it('sums the current and the previous window separately, per event name', function (): void {
