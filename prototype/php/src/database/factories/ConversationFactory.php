@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Domain\Messaging\ConversationSubject;
-use App\Models\Admin;
+use App\Domain\Messaging\ThreadTitle;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
@@ -29,24 +29,41 @@ class ConversationFactory extends Factory
         return $this->listingQuestionAttributes();
     }
 
+    /**
+     * A fresh admin/seller support thread. `admin_id` starts null, the way a
+     * real one does until an admin's first reply — a test that needs one set
+     * overrides it in `->create([...])`.
+     */
     public function adminSeller(): static
     {
-        return $this->state(function (): array {
-            $admin = Admin::factory()->create();
-            $seller = Seller::factory()->create();
-
-            return $this->columnsFor(ConversationSubject::adminSeller($admin->id, $seller->id));
-        });
+        return $this->state(fn (): array => [
+            'kind' => 'admin_seller',
+            'title' => null,
+            'subject_key' => null,
+            'seller_id' => Seller::factory(),
+            'customer_id' => null,
+            'admin_id' => null,
+            'listing_id' => null,
+            'fulfillment_id' => null,
+            'order_id' => null,
+            'last_message_at' => now(),
+        ]);
     }
 
     public function adminCustomer(): static
     {
-        return $this->state(function (): array {
-            $admin = Admin::factory()->create();
-            $customer = Customer::factory()->create();
-
-            return $this->columnsFor(ConversationSubject::adminCustomer($admin->id, $customer->id));
-        });
+        return $this->state(fn (): array => [
+            'kind' => 'admin_customer',
+            'title' => null,
+            'subject_key' => null,
+            'seller_id' => null,
+            'customer_id' => Customer::factory(),
+            'admin_id' => null,
+            'listing_id' => null,
+            'fulfillment_id' => null,
+            'order_id' => null,
+            'last_message_at' => now(),
+        ]);
     }
 
     public function fulfillment(): static
@@ -67,11 +84,14 @@ class ConversationFactory extends Factory
     }
 
     /**
-     * Builds the row a given subject already names, so a test that overrides
-     * a participant column (`->forSubject($subject)->create(['seller_id' =>
+     * Builds the row a given fulfillment subject already names, so a test
+     * that overrides a participant column (`->forSubject($subject)->create(['seller_id' =>
      * $seller->id])` with the subject built from that same seller) writes a
      * `subject_key` that agrees with the columns rather than one a later
-     * override contradicts.
+     * override contradicts. Fulfillment is the only kind with a `subject_key`
+     * to keep consistent this way — the other three states above set their
+     * own columns directly, since a fresh thread's `subject_key` is always
+     * null regardless of which participant a test overrides.
      */
     public function forSubject(ConversationSubject $subject): static
     {
@@ -87,25 +107,38 @@ class ConversationFactory extends Factory
         $customer = Customer::factory()->create();
         $listing = Listing::factory()->create(['seller_id' => $seller->id]);
 
-        return $this->columnsFor(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id));
+        return [
+            'kind' => 'listing_question',
+            'title' => ThreadTitle::of('A question about this piece')->value,
+            'subject_key' => null,
+            'seller_id' => $seller->id,
+            'customer_id' => $customer->id,
+            'admin_id' => null,
+            'listing_id' => $listing->id,
+            'fulfillment_id' => null,
+            'order_id' => null,
+            'last_message_at' => now(),
+        ];
     }
 
     /**
-     * Every participant and subject column, nulled out before the given
-     * subject's own values are laid over them — the shape a real conversation
-     * row holds, regardless of which kind a state builds.
+     * Every participant and context column, nulled out before the given
+     * subject's own values are laid over them — the shape a real fulfillment
+     * conversation row holds.
      *
      * @return array<string, mixed>
      */
     private function columnsFor(ConversationSubject $subject): array
     {
         return $subject->columns() + [
+            'title' => null,
             'subject_key' => $subject->subjectKey(),
             'seller_id' => null,
             'customer_id' => null,
             'admin_id' => null,
             'listing_id' => null,
             'fulfillment_id' => null,
+            'order_id' => null,
             'last_message_at' => now(),
         ];
     }

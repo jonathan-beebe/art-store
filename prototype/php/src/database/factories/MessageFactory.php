@@ -43,6 +43,14 @@ class MessageFactory extends Factory
         ]);
     }
 
+    public function replyingTo(Message $message): static
+    {
+        return $this->state(fn (): array => [
+            'conversation_id' => $message->conversation_id,
+            'reply_to_message_id' => $message->id,
+        ]);
+    }
+
     public function unread(): static
     {
         return $this->state(fn (): array => ['read_at' => null]);
