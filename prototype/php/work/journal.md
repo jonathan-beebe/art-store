@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
+
 - 2026-09-02:16:30:09 — IMPRV-025 — defined: storefront requests stop crossing the slow-query threshold on the deploy
 
 - 2026-09-02:15:21:47 — FEAT-045 — done: /admin/analytics + events/{name} + actors + actors/{customer} + listings/{listing} drill from range comparisons to one listing's or actor's identity, tiles, strip, and event feed, with an ActorVelocity peak-per-hour flag shared by the leaderboard and the actor page
