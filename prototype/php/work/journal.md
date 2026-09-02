@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:10:30:00 — FEAT-041 — done: seller inbox gains &filter=/&status= chips with counts, a two-sided transcript with day separators and reply-to, resolve/reopen posts from the header, and /seller/support becomes a real titled new-conversation form; 3358 tests, 9763 assertions
+- 2026-09-02:10:00:00 — FEAT-041 — started
 - 2026-09-02:05:27:45 — FEAT-043 — done: signed-in-only listing ask with a return-here magic link, a Talk to us support form with optional order, storefront inbox filters/400s, and the two-sided thread transcript with reply-to, quote, and reopen-by-reply; 3351 tests, 9744 assertions, make precommit and make fresh green
 - 2026-09-02:04:48:02 — FEAT-043 — started
 - 2026-09-02:04:44:33 — FEAT-040 — done: conversations gain title/status/order_id/resolved_by, messages gain reply_to; ConversationKind/Status/ThreadTitle/ThreadOpening + OpenThread/PostMessage(reply-to)/Resolve/ReopenConversation; desk-aware policy, scopes, and notifications; MessagingSeeder richer demo; 3321 tests, 9677 assertions, make precommit and make fresh green
