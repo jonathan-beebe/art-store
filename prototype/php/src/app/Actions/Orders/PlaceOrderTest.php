@@ -27,7 +27,10 @@ use App\Models\Listing;
 use App\Models\Order;
 use App\Models\Variant;
 use DomainException;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use RuntimeException;
 
 it('turns the cart into an order the customer can pay for', function (): void {
@@ -447,4 +450,31 @@ it('records no order.place event when placement is refused', function (): void {
     app(Analytics::class)->flush();
 
     expect(DB::connection('analytics')->table('analytics_events')->where('name', 'order.place')->exists())->toBeFalse();
+});
+
+it('never queries analytics_events on the commerce connection and buffers the order.place event only once the placement transaction has committed', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 45000);
+    $analytics = app(Analytics::class);
+    $analytics->flush(); // drops the cart_add event buffered above, so pending() below counts only what PlaceOrder itself records
+
+    $commerceQueries = [];
+    DB::listen(function (QueryExecuted $query) use (&$commerceQueries): void {
+        if ($query->connectionName === 'sqlite' && str_contains($query->sql, 'analytics_events')) {
+            $commerceQueries[] = $query->sql;
+        }
+    });
+
+    $pendingAtCommit = null;
+    Event::listen(TransactionCommitted::class, function (TransactionCommitted $event) use (&$pendingAtCommit, $analytics): void {
+        if ($event->connectionName === 'sqlite') {
+            $pendingAtCommit = $analytics->pending();
+        }
+    });
+
+    app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($commerceQueries)->toBe([])
+        ->and($pendingAtCommit)->toBe(0)
+        ->and($analytics->pending())->toBe(1);
 });
