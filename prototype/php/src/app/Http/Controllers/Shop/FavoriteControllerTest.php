@@ -11,6 +11,7 @@ use App\Models\CustomerBlock;
 use App\Models\Favorite;
 use App\Models\ListingRemoval;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
 it('says an empty favorites page is empty', function (): void {
@@ -55,7 +56,7 @@ it('removes the favorite when favorited twice', function (): void {
 
     expect(Favorite::count())->toBe(0)
         ->and(AnalyticsReport::countsForListing($listing->id)->favorites)->toBe(1)
-        ->and(AnalyticsReport::platformCountsByName())->toHaveKey('listing.unfavorite');
+        ->and(DB::connection('analytics')->table('analytics_events')->where('name', 'listing.unfavorite')->exists())->toBeTrue();
 });
 
 it('favorites a listing the seller has since archived', function (): void {

@@ -72,22 +72,6 @@ it('groups a listing\'s events by day and name from a cutoff onward', function (
         ->and($counts['2026-08-22'][AnalyticsEventName::ListingFavorite->value])->toBe(1);
 });
 
-it('tallies every event name across the whole platform', function (): void {
-    $analytics = new Analytics;
-    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
-
-    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_ABC', $at);
-    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_OTHER', $at);
-    recordListingEvent($analytics, AnalyticsEventName::ListingCartAdd, 'lst_ABC', $at);
-    $analytics->flush();
-
-    $counts = AnalyticsReport::platformCountsByName();
-
-    expect($counts)->toHaveCount(2)
-        ->and($counts[AnalyticsEventName::ListingView->value])->toBe(2)
-        ->and($counts[AnalyticsEventName::ListingCartAdd->value])->toBe(1);
-});
-
 it('lists everything one ip did since a cutoff, newest first, leaving another ip out', function (): void {
     $analytics = new Analytics;
 

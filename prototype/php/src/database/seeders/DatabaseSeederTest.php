@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Analytics\Analytics;
-use App\Analytics\AnalyticsReport;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
@@ -28,6 +27,7 @@ use App\Models\Property;
 use App\Models\Seller;
 use App\Support\Configurator\ListingHighlights;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Tests\CapturedStory;
 
@@ -118,7 +118,7 @@ it('seeds one verified customer with favorites', function (): void {
 
     expect($customer->email_verified_at)->not->toBeNull();
     expect(Favorite::where('customer_id', $customer->id)->count())->toBe(3);
-    expect(array_sum(AnalyticsReport::platformCountsByName()))->toBeGreaterThanOrEqual(6);
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBeGreaterThanOrEqual(6);
 });
 
 it('seeds order history for two sellers', function (): void {

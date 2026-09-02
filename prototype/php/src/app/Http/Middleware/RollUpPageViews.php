@@ -13,8 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Counts page views rather than logging them: one row per site, route
- * pattern, and day, so `/admin/stats` reads traffic without a table that
- * grows per hit ({@see \App\Models\PageViewCount}).
+ * pattern, and day, so the admin analytics pages read traffic without a
+ * table that grows per hit ({@see \App\Models\PageViewCount}).
  *
  * Registered once at the root of the global middleware stack, because a
  * middleware added there runs for every site, and the site a hit belongs to

@@ -8,6 +8,7 @@ use App\Analytics\Analytics;
 use App\Analytics\AnalyticsReport;
 use App\Domain\Favorites\FavoriteChange;
 use App\Models\Favorite;
+use Illuminate\Support\Facades\DB;
 
 it('adds a favorite and records the event', function (): void {
     $customer = $this->anonymousCustomer();
@@ -32,5 +33,5 @@ it('removes a favorite and records the event', function (): void {
 
     expect($change)->toBe(FavoriteChange::Removed)
         ->and(Favorite::count())->toBe(0)
-        ->and(AnalyticsReport::platformCountsByName())->toHaveKey('listing.unfavorite');
+        ->and(DB::connection('analytics')->table('analytics_events')->where('name', 'listing.unfavorite')->exists())->toBeTrue();
 });

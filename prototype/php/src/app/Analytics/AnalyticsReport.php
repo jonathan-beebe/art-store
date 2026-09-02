@@ -73,18 +73,6 @@ final class AnalyticsReport
     }
 
     /**
-     * How many events of each name the whole platform has recorded, across
-     * every subject — {@see \App\Http\Controllers\Admin\StatsController}'s
-     * tally.
-     *
-     * @return array<string, int> event name => count
-     */
-    public static function platformCountsByName(): array
-    {
-        return self::tallyByName(fn ($query) => $query);
-    }
-
-    /**
      * Everything one ip has done since `$from`, newest first — how an
      * operator isolates a scripted or abusive visitor once its cookie is
      * no longer the only trace of it.

@@ -12,6 +12,19 @@ use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
 use Illuminate\Http\Request;
 
+it('redirects /admin/stats to /admin/analytics permanently for a signed-in admin', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
+
+    $response->assertStatus(301);
+    $response->assertRedirect('/admin/analytics');
+});
+
+it('sends a guest hitting /admin/stats to admin sign-in, not the redirect', function (): void {
+    $response = $this->get('/admin/stats');
+
+    $response->assertRedirect(route('auth.admin.login'));
+});
+
 it('renders 200 with the range compared against the range before it', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics');
 
