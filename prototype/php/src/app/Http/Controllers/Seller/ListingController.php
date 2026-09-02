@@ -38,11 +38,8 @@ final class ListingController extends SellerController
     {
         $window = ListPaneWindow::of($this->listingsQuery());
 
-        /** @var Collection<int, Listing> $listings */
-        $listings = $window->items;
-
         return view('seller.listings.index', [
-            'listings' => Listing::attachEventCounts($listings),
+            'listings' => $window->items,
             'listingsTotal' => $window->total,
         ]);
     }

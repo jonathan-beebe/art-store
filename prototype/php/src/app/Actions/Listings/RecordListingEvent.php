@@ -16,8 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
  * Files one interaction with a listing, behind {@see AnalyticsWriteGuard}.
  * `null` means the store declined the row: a `view` the core collapses per
  * hour, on its second write in a window, or a failure of the analytics
- * store — the guard's own warn line names which, so the caller never needs
- * to tell the two apart to stay correct.
+ * store. The guard's own warn line names which.
  */
 final readonly class RecordListingEvent
 {

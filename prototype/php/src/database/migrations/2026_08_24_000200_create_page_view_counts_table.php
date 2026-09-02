@@ -9,8 +9,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * This table lives in the analytics store (config/database.php), not
-     * the database the migrations ledger itself belongs to.
+     * This table lives in the analytics store (config/database.php).
      */
     protected $connection = 'analytics';
 

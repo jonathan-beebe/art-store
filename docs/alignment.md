@@ -264,6 +264,16 @@ bounds its history: the maintenance sweep prunes stored lines older than the
 window. `docs/logging.md` is the reference definition — schema, ingest
 semantics, retention, and the viewer.
 
+### 2.6 Analytics store
+
+`page_view_counts` and `listing_events` live in a SQLite file of their own,
+separate from the commerce database. `ANALYTICS_DATABASE_FILE` names it
+(default `storage/analytics.sqlite3`). The store's rows reference commerce
+rows — a listing, a seller, a customer — by id only; no foreign key crosses
+the two files. A store failure never fails the request: the write logs one
+`warn` line and the response completes. The two tables' readers (§5 admin
+stats and dashboard, seller listing detail) query the store.
+
 ## 3. Rate limits
 
 Every limit has a name, an env variable, and a key. Values are
@@ -452,7 +462,8 @@ Decisions carried by this table:
   in PHP and Rails is removed; sellers see balances and payout history only.
 - Page views are rolled up at response time into `page_view_counts
   (site, path_pattern, day, count)`; a `listing_events` `view` is collapsed to
-  one row per (listing, customer, UTC hour). PHP and Rails adopt both.
+  one row per (listing, customer, UTC hour). PHP and Rails adopt both. Both
+  tables live in the analytics store (§2.6).
 - Ownership refusals answer 404 everywhere; admin pages are behind one guard
   hook/middleware/`before_action`, never per route.
 - An empty filter value means "all"; an unrecognised value answers 400.
@@ -685,3 +696,10 @@ scopes on `php/messaging`; Node and Rails still hold the single-thread,
 `admin_id`-gated design and owe the same rework — `prototype/php/docs/messaging.md`
 is the reference (Node's and Rails's own `docs/messaging.md` still describe
 the old shape until each ships).
+
+2026-09-02, analytics store: §2.6 added — `page_view_counts` and
+`listing_events` move to a SQLite file of their own, `ANALYTICS_DATABASE_FILE`
+naming it, with no foreign key crossing into the commerce database and a
+store failure logging a `warn` line instead of failing the request. PHP
+ships it on FEAT-039; node and rails still write both tables into their app
+databases and owe the same subsystem — follow-up tickets to be filed.

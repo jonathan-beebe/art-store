@@ -76,26 +76,6 @@ it('keeps another sellers listings off the table', function (): void {
     $response->assertDontSee('Not Mine');
 });
 
-it('shows the event counts for each listing', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
-    $recordListingEvent = app(RecordListingEvent::class);
-    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
-    $recordListingEvent($listing, null, ListingEventType::View, $this->moment('2026-08-20 10:00:00'));
-    $recordListingEvent($listing, null, ListingEventType::CartAdd, $this->moment('2026-08-20 11:00:00'));
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
-
-    $response->assertViewHas('listings', function (Collection $listings): bool {
-        /** @var Collection<int, Listing> $listings */
-        $listing = $listings->sole();
-
-        return $listing->views_count === 2
-            && $listing->favorites_count === 0
-            && $listing->cart_adds_count === 1;
-    });
-});
-
 it('resolves every rows available transitions without a removal query per row', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'Harbour at Dawn']);

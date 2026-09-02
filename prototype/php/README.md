@@ -127,14 +127,19 @@ file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
 
 ## Database
 
-SQLite at `src/database/database.sqlite`, created on first run. Tests use a
-separate in-memory database.
+SQLite at `src/database/database.sqlite`, created on first run. Two sibling
+SQLite files hold data the commerce database never sees:
+`src/storage/logs.sqlite3` (the mirrored log store, `LOG_DATABASE_FILE`) and
+`src/storage/analytics.sqlite3` (page views and listing events,
+`ANALYTICS_DATABASE_FILE`). Tests run the commerce and analytics connections
+in memory and leave the log store off.
 
 ```sh
 make migrate    # apply new migrations
 make fresh      # drop everything, re-migrate, re-seed the demo data
 ```
 
+`make fresh` rebuilds the analytics database along with the app database.
 Deleting `src/database/database.sqlite` and running `make up` also rebuilds it
 from scratch.
 

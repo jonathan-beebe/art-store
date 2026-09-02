@@ -76,6 +76,11 @@ is what lets the ingest path and the retention prune share a connection
 rather than open the file twice, and what makes a test's temp-file store
 visible to both the writer and the admin reader.
 
+Page views and listing events follow the same shape, on their own file: the
+`analytics` connection in `config/database.php`, named by
+`ANALYTICS_DATABASE_FILE` (default `storage/analytics.sqlite3`, this store's
+neighbour).
+
 ## Table
 
 One table, `log_lines`. The DDL, the column mapping, the rowid exception to

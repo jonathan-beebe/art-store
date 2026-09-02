@@ -144,8 +144,8 @@ Caveats: `MergeAnonymousCustomer` walks
 and the other app-database tables it names) inside a transaction, writing one
 column per table, and skips any table/column that does not exist yet (guards
 schema drift across tickets landing in parallel). `listing_events` lives in
-the analytics connection (config/database.php), outside that transaction, so
-the merge re-points it separately, through the `ListingEvent` model and
+the analytics connection (config/database.php), outside that transaction.
+The merge re-points it as its own step, through the `ListingEvent` model and
 behind `App\Analytics\AnalyticsWriteGuard` — a failure there logs a warning
 and leaves the merge's commerce writes intact. Everything else carrying a
 `customer_id` column is named in `CustomerOwnedTables::leftBehind()`, with

@@ -22,9 +22,10 @@ final class ListingController extends ShopController
         $visitor = $this->visitor();
         $event = $recordListingEvent($listing, $visitor->id, ListingEventType::View, $this->now());
 
-        // A repeat view within the hour writes no row (RecordListingEvent
-        // returns null), so the story reads it as a refusal rather than a
-        // second `did` for the same visit.
+        // RecordListingEvent returns null both for a repeat view within the
+        // hour and for a failed analytics write already logged by
+        // AnalyticsWriteGuard, so the story records either case as a
+        // refusal.
         $story = Story::for(StoryEvent::ListingView);
         $data = ['listing_id' => $listing->id, 'seller_id' => $listing->seller_id];
 

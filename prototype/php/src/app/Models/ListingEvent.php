@@ -18,8 +18,7 @@ use Override;
 
 /**
  * One row per interaction (a view, a favorite, a cart add) a listing
- * collects, in the analytics store (config/database.php) rather than the
- * commerce database.
+ * collects, in the analytics store (config/database.php).
  *
  * @property-read string $day  only on a row the `dailyCountsSince` scope selected
  * @property-read int $tally  only on a row the `dailyCountsSince` scope selected
@@ -53,10 +52,9 @@ class ListingEvent extends Model
 
     /**
      * Eloquent's default `newRelatedInstance()` hands a related model this
-     * model's own connection when the related model names none of its
-     * own — right when both sides share a connection, wrong here: Listing,
-     * Seller, and Customer live on the default connection and must keep it
-     * when reached from a row that lives on the analytics one.
+     * model's own connection when the related model names none of its own.
+     * Listing, Seller, and Customer live on the default connection and must
+     * keep it when reached from a row that lives on the analytics one.
      *
      * @template TRelatedModel of Model
      *
@@ -132,25 +130,6 @@ class ListingEvent extends Model
 
         foreach (self::query()->where('listing_id', $listingId)->select('type')->selectRaw('count(*) as tally')->groupBy('type')->get() as $row) {
             $counts[$row->type->value] = $row->tally;
-        }
-
-        return $counts;
-    }
-
-    /**
-     * The same counts `countsForListing()` returns, for every id in
-     * $listingIds at once — a list pane's batched alternative to one query
-     * per row.
-     *
-     * @param  list<string>  $listingIds
-     * @return array<string, array<string, int>> listing id => event type value => count
-     */
-    public static function countsForListings(array $listingIds): array
-    {
-        $counts = [];
-
-        foreach (self::query()->whereIn('listing_id', $listingIds)->select('listing_id', 'type')->selectRaw('count(*) as tally')->groupBy('listing_id', 'type')->get() as $row) {
-            $counts[$row->listing_id][$row->type->value] = $row->tally;
         }
 
         return $counts;

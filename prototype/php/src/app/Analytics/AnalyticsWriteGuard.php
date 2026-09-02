@@ -10,9 +10,8 @@ use Throwable;
 
 /**
  * Runs one write against the analytics store (config/database.php) and
- * turns a failure into a log line instead of a thrown exception. The store
- * sits beside the commerce connection precisely so that its own
- * trouble — a missing directory, a write that outlasts its busy timeout —
+ * turns a failure into a log line instead of a thrown exception. A missing
+ * directory or a write that outlasts its busy timeout stops here, so it
  * never reaches the request a shopper or seller is waiting on.
  */
 final class AnalyticsWriteGuard

@@ -341,28 +341,6 @@ it('counts its events by type for a listing already in hand', function (): void 
         ->and($loaded->cart_adds_count)->toBe(0);
 });
 
-it('counts events by type for every listing in a collection at once', function (): void {
-    $seller = $this->seller();
-    $counted = $this->listing($seller);
-    $uncounted = $this->listing($seller);
-    $recordListingEvent = app(RecordListingEvent::class);
-    $recordListingEvent($counted, null, ListingEventType::View, $this->moment('2026-08-20 09:00:00'));
-    $recordListingEvent($counted, null, ListingEventType::CartAdd, $this->moment('2026-08-20 10:00:00'));
-
-    $listings = Listing::attachEventCounts(Listing::query()->orderBy('id')->get());
-
-    $countedRow = $listings->firstWhere('id', $counted->id);
-    $uncountedRow = $listings->firstWhere('id', $uncounted->id);
-    assert($countedRow instanceof Listing);
-    assert($uncountedRow instanceof Listing);
-    expect($countedRow->views_count)->toBe(1)
-        ->and($countedRow->favorites_count)->toBe(0)
-        ->and($countedRow->cart_adds_count)->toBe(1)
-        ->and($uncountedRow->views_count)->toBe(0)
-        ->and($uncountedRow->favorites_count)->toBe(0)
-        ->and($uncountedRow->cart_adds_count)->toBe(0);
-});
-
 it('reads its price as money', function (): void {
     $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
 

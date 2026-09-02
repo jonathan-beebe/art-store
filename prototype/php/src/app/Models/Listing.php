@@ -23,7 +23,6 @@ use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,9 +33,9 @@ use Override;
 /**
  * @property-read Seller $seller
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
- * @property-read int $views_count  only after `loadEventCounts` or `attachEventCounts`
- * @property-read int $favorites_count  only after `loadEventCounts` or `attachEventCounts`
- * @property-read int $cart_adds_count  only after `loadEventCounts` or `attachEventCounts`
+ * @property-read int $views_count  only after `loadEventCounts`
+ * @property-read int $favorites_count  only after `loadEventCounts`
+ * @property-read int $cart_adds_count  only after `loadEventCounts`
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
@@ -645,34 +644,13 @@ class Listing extends Model
 
     /**
      * Fills views_count, favorites_count, and cart_adds_count from one
-     * grouped query against the analytics connection — a correlated
-     * subquery (`loadCount`) can't reach across it from the query this
-     * model itself runs on.
+     * grouped query on the analytics connection. A correlated subquery
+     * (`loadCount`) runs inside the app connection's own statement, so it
+     * cannot query the analytics connection.
      */
     public function loadEventCounts(): self
     {
         return $this->fillEventCounts(ListingEvent::countsForListing($this->id));
-    }
-
-    /**
-     * `loadEventCounts()` for every listing in $listings at once, from one
-     * grouped query instead of one per row — a list pane's alternative.
-     *
-     * @param  Collection<int, self>  $listings
-     * @return Collection<int, self>
-     */
-    public static function attachEventCounts(Collection $listings): Collection
-    {
-        /** @var list<string> $listingIds */
-        $listingIds = $listings->pluck('id')->values()->all();
-
-        $countsByListing = ListingEvent::countsForListings($listingIds);
-
-        foreach ($listings as $listing) {
-            $listing->fillEventCounts($countsByListing[$listing->id] ?? []);
-        }
-
-        return $listings;
     }
 
     /**
@@ -693,8 +671,8 @@ class Listing extends Model
     }
 
     /**
-     * Sets views_count, favorites_count, and cart_adds_count as loaded
-     * rather than mass-assigned, so a later `save()` does not try to write
+     * Marks views_count, favorites_count, and cart_adds_count as
+     * already-saved attributes, so a later `save()` does not try to write
      * them — they name no column on this model's own table.
      *
      * @param  array<string, int>  $countsByType  event type value => count

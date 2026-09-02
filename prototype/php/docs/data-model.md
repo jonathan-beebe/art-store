@@ -42,6 +42,13 @@ for a message and `placed_at` for an order — never by the id alone. Second
 resolution leaves ties, so the id breaks them; a ULID sorts in the order it
 was minted.
 
+`page_view_counts` and `listing_events` live in the analytics store
+(`docs/alignment.md` §2.6), a SQLite file of its own beside this database.
+They are drawn in the diagram below for their shape; the two relationship
+lines running into `listing_events` are dotted because they are logical
+only — no foreign key crosses the two files, so the columns that would
+otherwise carry `FK` carry a reference note instead.
+
 ```mermaid
 erDiagram
     sellers {
@@ -99,8 +106,8 @@ erDiagram
     }
     listing_events {
         text id PK
-        text listing_id FK
-        text customer_id FK "nullable"
+        text listing_id "analytics store, references listings.id"
+        text customer_id "nullable, analytics store, references customers.id"
         string type "view|favorite|..."
         timestamp occurred_at
     }
@@ -243,7 +250,7 @@ erDiagram
     sellers ||--o{ fulfillments : ships
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
-    customers ||--o{ listing_events : records
+    customers ||..o{ listing_events : records
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
@@ -258,7 +265,7 @@ erDiagram
     conversations ||--o{ messages : holds
     listings ||--o{ listing_faqs : publishes
     messages ||--o{ listing_faqs : lifted_from
-    listings ||--o{ listing_events : has
+    listings ||..o{ listing_events : has
     listings ||--o{ favorites : favorited_in
     listings ||--o{ cart_items : held_in
     listings ||--o{ order_items : sold_as
