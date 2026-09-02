@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:08:11:27 — FEAT-039 — done: page_view_counts and listing_events live in an analytics sqlite file of their own (ANALYTICS_DATABASE_FILE), every analytics write is guarded so a failing store logs one warn line and the request completes, readers unchanged, docs/alignment.md §2.6
+
 - 2026-09-02:07:05:59 — FEAT-039 — started
 
 - 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2

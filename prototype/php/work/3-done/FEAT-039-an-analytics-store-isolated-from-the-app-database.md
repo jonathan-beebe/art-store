@@ -1,7 +1,7 @@
 ---
 id: FEAT-039
 type: feature
-status: open
+status: resolved
 created: 2026-09-01
 ---
 
@@ -125,3 +125,47 @@ Design:
 
 Alignment surface: `docs/alignment.md` gains the `ANALYTICS_DATABASE_FILE`
 name and the isolation semantic; node and rails need their own tickets.
+
+### Result
+
+Landed on `php/analytics-store` in five commits after the promotion:
+
+1. `88ae63f4` — the `analytics` connection and `page_view_counts`.
+2. `107eebc6` — `listing_events`, the count readers, the merge re-point,
+   and `ListingEvent::newRelatedInstance()` (Eloquent hands a related model
+   the child's connection when the related model names none; the override
+   keeps Listing, Seller, and Customer on the commerce connection).
+3. `7625dca6` — docs (`docs/alignment.md` §2.6 and its §8 entry, the php
+   docs, README) and the seller listings index no longer reads counts it
+   never rendered (`withEventCounts` scope removed).
+4. `c6439620` — Laravel's sqlite connector opens an existing file only, so
+   the dev entrypoint and the deploy script touch the analytics file before
+   migrating. Found by `make fresh` against the dev stack.
+5. `c129a472` — the admin listing page locks its counts (Favorited stays
+   the standing-favorites count via `loadCount('favorites')`), and the four
+   unwritable-store tests share `Tests\AnalyticsStoreFixtures`.
+
+Verified live on the dev stack: after `make fresh`, `database/database.sqlite`
+holds neither table and `storage/analytics.sqlite3` holds both in WAL mode;
+hitting `/` and `/art/{slug}` twice wrote `page_view_counts` rows and
+`listing_events` rows into the analytics file only; a second `make fresh`
+rebuilt both files without error. Acceptance tests listen on the query
+event stream and assert no statement naming either table runs on the
+default connection during a storefront request, and that the request
+answers 200 with a warn line when the store is unwritable.
+
+Decisions:
+
+- Readers are unguarded. An unavailable store surfaces as an error on the
+  admin stats, admin dashboard, and the two listing detail pages.
+- `Shop\ListingController` logs a null from `RecordListingEvent` as a
+  refusal whether the view collapsed or the store failed; the guard's warn
+  line carries the reason.
+- `synchronous=off` on the analytics connection.
+
+Open follow-ups (outside this ticket):
+
+- node and rails owe the same subsystem (`docs/alignment.md` §2.6);
+  tickets not yet filed.
+- Retention: the analytics store has no prune. `listing_events` grows with
+  traffic; `page_view_counts` grows with routes × days.
