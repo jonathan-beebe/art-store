@@ -120,7 +120,10 @@ final class MessageController extends SellerController
             default => null,
         };
 
-        if ($status !== 'all') {
+        // `unread` mirrors the nav badge (every unread thread, open or
+        // resolved) rather than the status scope every other filter reads
+        // through, so the chip and the badge never disagree.
+        if ($filter !== 'unread' && $status !== 'all') {
             $query->withStatus(ConversationStatus::from($status));
         }
 
@@ -132,22 +135,26 @@ final class MessageController extends SellerController
 
     /**
      * The two chip counts cheap enough to show on every row of the filter
-     * bar: how many of the seller's threads (within the current status
-     * scope) are unread, and how many are listing questions.
+     * bar: how many of the seller's threads are unread, and how many
+     * (within the current status scope) are listing questions. `unread`
+     * ignores the status scope, the same rule `conversationsQuery` applies
+     * to the `unread` filter's own rows, so this chip always equals the nav
+     * badge's total.
      *
      * @return array{unread: int, questions: int}
      */
     private function filterCounts(Seller $seller, string $status): array
     {
-        $base = Conversation::query()->withParticipant($seller);
+        $withParticipant = Conversation::query()->withParticipant($seller);
+        $scoped = clone $withParticipant;
 
         if ($status !== 'all') {
-            $base->withStatus(ConversationStatus::from($status));
+            $scoped->withStatus(ConversationStatus::from($status));
         }
 
         return [
-            'unread' => (clone $base)->unreadOnly($seller)->count(),
-            'questions' => (clone $base)->ofKind(ConversationKind::ListingQuestion)->count(),
+            'unread' => (clone $withParticipant)->unreadOnly($seller)->count(),
+            'questions' => (clone $scoped)->ofKind(ConversationKind::ListingQuestion)->count(),
         ];
     }
 

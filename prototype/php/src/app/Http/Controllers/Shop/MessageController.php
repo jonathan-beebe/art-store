@@ -34,13 +34,18 @@ final class MessageController extends ShopController
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
             ->withUnreadCountFor($visitor);
 
-        if ($request->filter() === 'unread') {
+        $filter = $request->filter();
+
+        if ($filter === 'unread') {
             $query->unreadOnly($visitor);
         }
 
         $status = $request->status();
 
-        if ($status !== null) {
+        // `unread` mirrors the header's own unread count (every unread
+        // thread, open or resolved) rather than the status scope every
+        // other filter reads through, so the two never disagree.
+        if ($status !== null && $filter !== 'unread') {
             $query->withStatus($status);
         }
 

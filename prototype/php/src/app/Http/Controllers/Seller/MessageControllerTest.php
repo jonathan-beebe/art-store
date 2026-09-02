@@ -237,6 +237,29 @@ it('narrows the inbox to unread threads when filter=unread', function (): void {
     $response->assertDontSee('All set.');
 });
 
+it('counts the unread chip like the nav badge, ignoring the default status filter', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $resolved = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($customer)->unread()->create(['conversation_id' => $resolved->id, 'body' => 'One more thing?']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
+
+    $response->assertOk();
+    // The default view scopes its rows to status=open, which would
+    // otherwise hide the resolved thread from the chip's count the same
+    // way it hides it from the list — the chip has to count past that.
+    preg_match('#href="[^"]*filter=unread[^"]*"[^>]*>.*?<span[^>]*>(\d+)</span>#s', (string) $response->getContent(), $matches);
+    expect($matches[1] ?? null)->toBe('1');
+
+    $unreadOnly = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=unread');
+    $unreadOnly->assertSee('One more thing?');
+});
+
 it('narrows the inbox to listing questions when filter=questions', function (): void {
     $seller = $this->seller();
     $question = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);

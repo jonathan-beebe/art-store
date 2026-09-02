@@ -88,6 +88,23 @@ it('shows only unread threads under the unread filter', function (): void {
     $response->assertDontSee('Already read');
 });
 
+it('shows a resolved thread under the unread filter, ignoring the default open status', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = $this->seller();
+    $resolvedUnread = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $visitor->id,
+        'title' => 'One more thing',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($seller)->unread()->create(['conversation_id' => $resolvedUnread->id]);
+
+    $response = $this->get('/messages?filter=unread');
+
+    $response->assertOk();
+    $response->assertSee('One more thing');
+});
+
 it('defaults the status filter to open threads', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     Conversation::factory()->listingQuestion()->create(['customer_id' => $visitor->id, 'title' => 'Still open']);
