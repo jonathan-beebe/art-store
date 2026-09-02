@@ -40,6 +40,10 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/Admin/EventTile.php' => 'value carrier; exercised through EventDetailTest',
         'app/Analytics/Admin/EventBreakdownRow.php' => 'value carrier; exercised through EventDetailTest',
         'app/Analytics/Admin/EventDetailView.php' => 'value carrier; exercised through EventDetailTest',
+        'app/Analytics/Admin/EntityFact.php' => 'value carrier; exercised through EntityActivityTest',
+        'app/Analytics/Admin/EntityStripBar.php' => 'value carrier; exercised through EntityActivityTest',
+        'app/Analytics/Admin/EntityFeedRow.php' => 'value carrier; exercised through EntityActivityTest',
+        'app/Analytics/Admin/EntityActivityView.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
         'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
     ];

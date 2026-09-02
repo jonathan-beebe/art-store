@@ -17,3 +17,16 @@ it('labels every case', function (AnalyticsEventName $name, string $expected): v
     'unfavorite' => [AnalyticsEventName::ListingUnfavorite, 'Unfavorite'],
     'cart_add' => [AnalyticsEventName::ListingCartAdd, 'Cart add'],
 ]);
+
+it('gives every case a feed-row verb', function (AnalyticsEventName $name, string $expected): void {
+    expect($name->verb())->toBe($expected);
+})->with([
+    'view' => [AnalyticsEventName::ListingView, 'viewed'],
+    'favorite' => [AnalyticsEventName::ListingFavorite, 'favorited'],
+    'unfavorite' => [AnalyticsEventName::ListingUnfavorite, 'unfavorited'],
+    'cart_add' => [AnalyticsEventName::ListingCartAdd, 'added to cart'],
+]);
+
+it('gives every case a non-empty icon path', function (AnalyticsEventName $name): void {
+    expect($name->iconPath())->not->toBe('');
+})->with(AnalyticsEventName::cases());
