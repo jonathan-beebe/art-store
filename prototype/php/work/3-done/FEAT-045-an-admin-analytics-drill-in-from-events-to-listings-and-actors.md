@@ -155,8 +155,15 @@ Decisions made along the way:
 - `/admin/stats` is untouched — the ticket's own decision, carried through
   unchanged.
 
-Live walk: this closing pass touches only docs and work tickets, so Docker
-stays out of scope for it — the walk on record is the automated suite's.
+Live walk, 2026-09-02, on the dev stack after `make fresh` and three
+storefront visits: signed in as the seeded admin through the session magic
+link; `/admin/analytics`, `?range=7&q=fav`, `/events/listing.favorite`,
+`/events/listing.view?by=actor`, `/events/page.view`, `/actors?sort=recent`,
+the Burrow listing page, and the visitor's actor page answered 200;
+`?range=5` and `/actors?sort=x` answered 400; `/events/nope` and
+`/actors/cus_nope` answered 404. The actor feed showed the ip, the request
+id, and the Open in logs and Block customer actions; the first visit's
+empty session id found there is what the `Cookie::queued` fallback fixed.
 `SmokeTest` walks the drill-in end to end (visitor favorites and carts a
 listing; admin opens the entry page, the favorite event's page, the
 all-actors page, and the visitor's own actor page — `65cdd5b6`), each stop
