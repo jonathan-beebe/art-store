@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:18:58:47 — FEAT-047 — started
+
 - 2026-09-02:18:31:10 — FEAT-046 — done: the funnel query, the funnel on three admin pages, and an actor feed fix for order/cart subjects
 
 - 2026-09-02:17:33:10 — FEAT-046 — started
