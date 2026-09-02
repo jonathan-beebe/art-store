@@ -1,7 +1,7 @@
 ---
 id: FEAT-039
 type: feature
-status: resolved
+status: open
 created: 2026-09-01
 ---
 
@@ -169,3 +169,41 @@ Open follow-ups (outside this ticket):
   tickets not yet filed.
 - Retention: the analytics store has no prune. `listing_events` grows with
   traffic; `page_view_counts` grows with routes × days.
+
+## Iteration 2 — one entry point, flushed after the response
+
+Reopened 2026-09-02. Direction: every analytics emission in the code
+invokes one separate system, `App\Analytics\Analytics`; recording never
+does I/O in the request; the buffer flushes after the response is sent;
+each event carries the moment it was recorded, so the stored order is the
+order things happened, with no reliance on an insert time.
+
+Design:
+
+- `App\Analytics\Analytics` (container singleton) is the only writer.
+  `recordEvent(AnalyticsEventName $name, DateTimeImmutable $at, ?string
+  $subjectId, ?string $actorId, array $data, ?string $dedupeKey)` and
+  `recordPageView(PageViewSite $site, string $pathPattern, DateTimeImmutable
+  $at)` append to an in-memory buffer and return nothing. `flush()` writes
+  the buffer in one transaction on the analytics connection: events with
+  `INSERT OR IGNORE` on `dedupe_key`, page views rolled up into
+  `page_view_counts` with the existing upsert. A failed flush logs one
+  warn line and drops the batch. `reassignActor($from, $to)` is the one
+  immediate write, for the customer merge.
+- Flush runs after the response for HTTP, at command end for CLI, and at
+  process exit as the fallback; a buffer past its row cap flushes early.
+- `listing_events` becomes `analytics_events (id 'aev', name, occurred_at,
+  subject_type, subject_id, actor_id, dedupe_key UNIQUE, data JSON)`. The
+  hour collapse of listing views becomes a `dedupe_key`
+  (`listing:{id}:customer:{id}:hour:{bucket}`), which deletes the
+  read-before-write the request did.
+- Names are a closed enum, `AnalyticsEventName`: `listing.view`,
+  `listing.favorite`, `listing.unfavorite`, `listing.cart_add`.
+- Readers go through `App\Analytics\AnalyticsReport`; `Listing` and
+  `Customer` lose their `events()` relations and the three `*_count`
+  attributes, and the listing detail pages receive the counts as their own
+  view variable.
+- `RecordListingEvent`, `RecordPageView`, `AnalyticsWriteGuard`, and the
+  `ListingEvent` model go away. The shop listing page no longer logs a
+  collapsed repeat view as a refusal: nothing is written during the
+  request, so there is nothing to refuse.
