@@ -169,8 +169,6 @@ every time; each is a deliberate click, not a page load.
   tally, for the seller and admin listing-detail pages.
 - `dailyCountsForListingSince($listingId, $from)` — the same, grouped by day
   and name, for the seller listing-detail page's activity timeline.
-- `platformCountsByName()` — every event name's tally across the whole
-  platform, for `/admin/stats`.
 - `eventsForIp($ip, $from)` / `eventsForSession($sessionId, $from)` —
   everything one ip or one session did since `$from`, newest first, as a
   list of `AnalyticsEventRow` (name, `occurredAt`, subject, actor, ip,
