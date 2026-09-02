@@ -137,6 +137,44 @@ it('answers not found for a thread id that matches nothing', function (): void {
     $response->assertNotFound();
 });
 
+it('carries the current filter and status from an inbox row into the shows own pane', function (): void {
+    $seller = $this->seller();
+    $resolved = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'title' => 'Resolved question',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $index = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
+    $index->assertOk();
+    preg_match('#href="([^"]*'.preg_quote($resolved->id, '#').'[^"]*)"#', (string) $index->getContent(), $matches);
+    $rowHref = html_entity_decode($matches[1] ?? '');
+    expect($rowHref)->toContain('status=all');
+
+    $show = $this->actingAs($seller, 'seller')->get($rowHref);
+
+    $show->assertOk();
+    // Rendered once in the transcript header and once in the pane's own
+    // row beside it — the pane the old default-filtered query left empty.
+    expect(substr_count((string) $show->getContent(), 'Resolved question'))->toBeGreaterThanOrEqual(2);
+});
+
+it('prepends the selected thread to its pane when the default filter would otherwise exclude it', function (): void {
+    $seller = $this->seller();
+    $resolved = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'title' => 'Resolved question',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    // No query string at all: the default status=open would otherwise
+    // leave a resolved thread out of its own pane.
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$resolved->id}");
+
+    $response->assertOk();
+    expect(substr_count((string) $response->getContent(), 'Resolved question'))->toBeGreaterThanOrEqual(2);
+});
+
 it('appends a reply and returns to the thread with it visible', function (): void {
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);

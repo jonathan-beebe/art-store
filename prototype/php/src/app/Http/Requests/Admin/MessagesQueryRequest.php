@@ -60,6 +60,25 @@ final class MessagesQueryRequest extends FormRequest
         return $this->stringOrNull('status') ?? 'open';
     }
 
+    /**
+     * The show route's own default: unlike the index route, a thread page
+     * with no `filter`/`status` of its own (a direct or bookmarked visit,
+     * or a link from outside the inbox) reads as the desk's full,
+     * unscoped list rather than its work queue — `needs-reply` would
+     * otherwise exclude an oversight or already-answered thread from its
+     * own pane. A row link out of a filtered inbox still carries its
+     * `filter`/`status` onward, so this default only applies absent one.
+     */
+    public function paneFilter(): string
+    {
+        return $this->stringOrNull('filter') ?? 'all';
+    }
+
+    public function paneStatus(): string
+    {
+        return $this->stringOrNull('status') ?? 'all';
+    }
+
     private function stringOrNull(string $field): ?string
     {
         $value = $this->input($field);

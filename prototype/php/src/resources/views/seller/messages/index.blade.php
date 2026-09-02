@@ -18,6 +18,8 @@
                     show-route="seller.messages.show"
                     :total="$conversationsTotal"
                     index-route="seller.messages.index"
+                    :filter="$filter"
+                    :status="$status"
                 />
             </x-slot:list>
 

@@ -110,6 +110,54 @@ it('shows every message in order and marks the thread read', function (): void {
         ->and($second->fresh()?->read_at)->toBeNull();
 });
 
+it('defaults the show routes pane to the desks full list rather than the index routes work queue', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    // An oversight thread `needs-reply` (the index route's own default)
+    // never matches, since it scopes to the two desk kinds.
+    $conversation = Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee($conversation->counterpartName(\App\Domain\Auth\ActorType::Admin));
+});
+
+it('prepends the selected thread to its pane when the given filter excludes it', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    // `sellers` scopes to admin<->seller desk threads, which a fulfillment
+    // (seller <-> customer, oversight) thread never matches.
+    $conversation = Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?filter=sellers&status=open");
+
+    $response->assertOk();
+    $response->assertSee($conversation->counterpartName(\App\Domain\Auth\ActorType::Admin));
+});
+
+it('carries the current filter and status from an inbox row into the shows own pane', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $resolved = Conversation::factory()->fulfillment()->create([
+        'seller_id' => $seller->id,
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $index = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=orders&status=all');
+    $index->assertOk();
+    preg_match('#href="([^"]*'.preg_quote($resolved->id, '#').'[^"]*)"#', (string) $index->getContent(), $matches);
+    $rowHref = html_entity_decode($matches[1] ?? '');
+    expect($rowHref)->toContain('filter=orders')->toContain('status=all');
+
+    $show = $this->actingAs($admin, 'admin')->get($rowHref);
+
+    $show->assertOk();
+    $show->assertSee('aria-current="true"', escape: false);
+});
+
 it('shows the list panes empty-detail prompt on the index route', function (): void {
     Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller()->id]);
 

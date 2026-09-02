@@ -19,6 +19,8 @@ use App\Models\Seller;
 use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,33 +47,34 @@ final class MessageController extends SellerController
         ]);
     }
 
-    public function show(Conversation $conversation, MarkConversationRead $markRead, Request $request): View
+    public function show(Conversation $conversation, MarkConversationRead $markRead, MessagesQueryRequest $request): View
     {
         $this->authorize('view', $conversation);
 
         $seller = $this->seller();
         $markRead($conversation, $seller, $this->now());
 
-        // DSGN-006: the show route's list pane is the same default inbox
-        // the index route opens with, with this thread marked current — the
-        // chips it renders link to the index route's own filtered views
-        // rather than tracking a filter of their own here.
-        $window = ListPaneWindow::of(
-            $this->conversationsQuery($seller, MessagesQueryRequest::DEFAULT_FILTER, MessagesQueryRequest::DEFAULT_STATUS),
-            $conversation,
-        );
+        // The list pane reads the same `filter`/`status` the inbox row that
+        // linked here carried (validated the same way index's own query is,
+        // so an unrecognised value still answers 400) — `paneFor` below is
+        // what keeps the selected thread in the pane even where it falls
+        // outside that window.
+        $filter = $request->filter();
+        $status = $request->status();
+
+        $pane = $this->paneFor($seller, $filter, $status, $conversation);
 
         return view('seller.messages.show', [
             ...$this->threadView($conversation, $this->replyToId($request)),
-            'cellConversations' => $window->items,
-            'cellConversationsTotal' => $window->total,
-            'filter' => MessagesQueryRequest::DEFAULT_FILTER,
-            'status' => MessagesQueryRequest::DEFAULT_STATUS,
-            'filterCounts' => $this->filterCounts($seller, MessagesQueryRequest::DEFAULT_STATUS),
+            'cellConversations' => $pane['items'],
+            'cellConversationsTotal' => $pane['total'],
+            'filter' => $filter,
+            'status' => $status,
+            'filterCounts' => $this->filterCounts($seller, $status),
         ]);
     }
 
-    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
+    public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $seller = $this->seller();
 
@@ -83,15 +86,18 @@ final class MessageController extends SellerController
             // seller was reading re-renders with the reply still in the box.
             $request->flash();
 
-            $window = ListPaneWindow::of($this->conversationsQuery($seller, MessagesQueryRequest::DEFAULT_FILTER, MessagesQueryRequest::DEFAULT_STATUS), $conversation);
+            $filter = $queryRequest->filter();
+            $status = $queryRequest->status();
+
+            $pane = $this->paneFor($seller, $filter, $status, $conversation);
 
             return $this->tooManyRequests($exceeded, 'seller.messages.show', [
                 ...$this->threadView($conversation, $this->replyToId($request)),
-                'cellConversations' => $window->items,
-                'cellConversationsTotal' => $window->total,
-                'filter' => MessagesQueryRequest::DEFAULT_FILTER,
-                'status' => MessagesQueryRequest::DEFAULT_STATUS,
-                'filterCounts' => $this->filterCounts($seller, MessagesQueryRequest::DEFAULT_STATUS),
+                'cellConversations' => $pane['items'],
+                'cellConversationsTotal' => $pane['total'],
+                'filter' => $filter,
+                'status' => $status,
+                'filterCounts' => $this->filterCounts($seller, $status),
             ]);
         }
 
@@ -131,6 +137,34 @@ final class MessageController extends SellerController
             ->withUnreadCountFor($seller);
 
         return $filter === 'questions' ? $query->unansweredFirst() : $query->orderByDesc('last_message_at');
+    }
+
+    /**
+     * A thread's list pane, guaranteed to include it. `ListPaneWindow`'s own
+     * `mustInclude` only rescues a row that sorts outside the window's SIZE
+     * cap — it re-reads the same filtered query, so a filter or status that
+     * excludes the thread outright (a direct or bookmarked visit to a
+     * resolved thread under the default `status=open`) leaves it out too.
+     * This adds one more, unscoped fetch for exactly that case.
+     *
+     * @return array{items: Collection<int, Model>, total: int}
+     */
+    private function paneFor(Seller $seller, string $filter, string $status, Conversation $conversation): array
+    {
+        $window = ListPaneWindow::of($this->conversationsQuery($seller, $filter, $status), $conversation);
+        $items = $window->items;
+
+        if (! $items->contains('id', '=', $conversation->id)) {
+            $items = $items->prepend(
+                Conversation::query()
+                    ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
+                    ->withUnreadCountFor($seller)
+                    ->whereKey($conversation->id)
+                    ->firstOrFail(),
+            );
+        }
+
+        return ['items' => $items, 'total' => $window->total];
     }
 
     /**

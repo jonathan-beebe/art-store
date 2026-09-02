@@ -18,6 +18,8 @@ use App\Models\Message;
 use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,7 +44,7 @@ final class MessageController extends AdminController
         ]);
     }
 
-    public function show(Conversation $conversation, Request $request, MarkConversationRead $markRead): View
+    public function show(Conversation $conversation, MessagesQueryRequest $request, MarkConversationRead $markRead): View
     {
         $this->authorize('view', $conversation);
 
@@ -54,20 +56,28 @@ final class MessageController extends AdminController
             $markRead($conversation, $this->admin(), $this->now());
         }
 
-        // DSGN-006: the show route's list pane is a list of every thread,
-        // unfiltered — a show visit carries no filter of its own, and the
-        // desk's own needs-reply queue would leave an oversight thread (or
-        // any resolved one) with no place in its own pane at all.
-        $window = ListPaneWindow::of($this->conversationsQuery('all', 'all'), $conversation);
+        // The list pane reads the same `filter`/`status` the inbox row that
+        // linked here carried (validated the same way index's own query is,
+        // so an unrecognised value still answers 400), defaulting to the
+        // desk's unscoped list rather than its work queue where neither is
+        // given — `paneFor` below is what keeps the selected thread in the
+        // pane, an oversight or resolved thread a narrow filter would
+        // otherwise exclude, included.
+        $filter = $request->paneFilter();
+        $status = $request->paneStatus();
+
+        $pane = $this->paneFor($filter, $status, $conversation);
 
         return view('admin.messages.show', [
             ...$this->threadView($conversation, $this->queryReplyTo($request)),
-            'cellConversations' => $window->items,
-            'cellConversationsTotal' => $window->total,
+            'cellConversations' => $pane['items'],
+            'cellConversationsTotal' => $pane['total'],
+            'filter' => $filter,
+            'status' => $status,
         ]);
     }
 
-    public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
+    public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $admin = $this->admin();
 
@@ -79,12 +89,17 @@ final class MessageController extends AdminController
             // admin was reading re-renders with the reply still in the box.
             $request->flash();
 
-            $window = ListPaneWindow::of($this->conversationsQuery('all', 'all'), $conversation);
+            $filter = $queryRequest->paneFilter();
+            $status = $queryRequest->paneStatus();
+
+            $pane = $this->paneFor($filter, $status, $conversation);
 
             return $this->tooManyRequests($exceeded, 'admin.messages.show', [
                 ...$this->threadView($conversation, $request->replyToMessageId()),
-                'cellConversations' => $window->items,
-                'cellConversationsTotal' => $window->total,
+                'cellConversations' => $pane['items'],
+                'cellConversationsTotal' => $pane['total'],
+                'filter' => $filter,
+                'status' => $status,
             ]);
         }
 
@@ -127,6 +142,35 @@ final class MessageController extends AdminController
         }
 
         return $query->orderByDesc('last_message_at');
+    }
+
+    /**
+     * A thread's list pane, guaranteed to include it. `ListPaneWindow`'s own
+     * `mustInclude` only rescues a row that sorts outside the window's SIZE
+     * cap — it re-reads the same filtered query, so a filter or status that
+     * excludes the thread outright (a narrow filter, or a direct visit to a
+     * resolved thread under the default `status=open`) leaves it out too.
+     * This adds one more, unscoped fetch for exactly that case.
+     *
+     * @return array{items: Collection<int, Model>, total: int}
+     */
+    private function paneFor(string $filter, string $status, Conversation $conversation): array
+    {
+        $admin = $this->admin();
+        $window = ListPaneWindow::of($this->conversationsQuery($filter, $status), $conversation);
+        $items = $window->items;
+
+        if (! $items->contains('id', '=', $conversation->id)) {
+            $items = $items->prepend(
+                Conversation::query()
+                    ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage.sender'])
+                    ->withUnreadCountFor($admin)
+                    ->whereKey($conversation->id)
+                    ->firstOrFail(),
+            );
+        }
+
+        return ['items' => $items, 'total' => $window->total];
     }
 
     /** `?reply_to` on the thread's GET route — a blank or absent value is

@@ -4,11 +4,21 @@
     exact same list — the list-detail pane on the left and, below `lg`, the
     whole screen.
 --}}
-@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'total' => null, 'indexRoute' => null])
+@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'total' => null, 'indexRoute' => null, 'filter' => null, 'status' => null])
 
 @if ($conversations->isEmpty())
     <p class="p-6 text-sm text-gray-500 dark:text-gray-500">Nothing yet.</p>
 @else
+    @php
+        // A row's own link carries the pane's current filter/status, so the
+        // show route it points at can render the same pane back — the
+        // window a filtered or narrowed inbox left it in, rather than
+        // resetting to the show route's defaults.
+        $rowRouteParams = fn ($conversation) => array_filter(
+            ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
+            fn ($value) => $value !== null,
+        );
+    @endphp
     <ul role="list" class="divide-y divide-gray-100 dark:divide-white/5">
         @foreach ($conversations as $conversation)
             @php
@@ -44,7 +54,7 @@
             @endphp
             <li class="relative">
                 <a
-                    href="{{ route($showRoute, $conversation) }}"
+                    href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
                     @if ($isSelected) aria-current="true" @endif
                     class="block px-6 py-4 -outline-offset-2 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5 {{ $isSelected ? 'bg-gray-50 dark:bg-white/5' : '' }}"
                 >

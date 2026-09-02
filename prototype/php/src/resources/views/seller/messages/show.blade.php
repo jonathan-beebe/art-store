@@ -19,6 +19,8 @@
                     :selected="$conversation"
                     :total="$cellConversationsTotal"
                     index-route="seller.messages.index"
+                    :filter="$filter"
+                    :status="$status"
                 />
             </x-slot:list>
 

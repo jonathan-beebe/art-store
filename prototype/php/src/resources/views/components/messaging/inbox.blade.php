@@ -11,11 +11,21 @@
     supplies its own card wrapper the same way every other admin index's
     below-`lg` list does.
 --}}
-@props(['conversations', 'viewer', 'showRoute', 'selected' => null])
+@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'filter' => null, 'status' => null])
 
 @if ($conversations->isEmpty())
     <p class="p-6 text-sm text-stone-500 dark:text-stone-500">Nothing yet.</p>
 @else
+    @php
+        // A row's own link carries the pane's current filter/status, so the
+        // show route it points at can render the same pane back — the
+        // window a filtered pane left it in, rather than resetting to an
+        // unfiltered one.
+        $rowRouteParams = fn ($conversation) => array_filter(
+            ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
+            fn ($value) => $value !== null,
+        );
+    @endphp
     <ul role="list" class="divide-y divide-stone-100 dark:divide-white/5">
         @foreach ($conversations as $conversation)
             @php
@@ -44,7 +54,7 @@
             @endphp
             <li>
                 <a
-                    href="{{ route($showRoute, $conversation) }}"
+                    href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
                     @if ($isSelected) aria-current="true" @endif
                     class="block px-6 py-4 hover:bg-stone-50 dark:hover:bg-white/5 {{ $isSelected ? 'bg-stone-50 ring-2 ring-inset ring-stone-500 dark:bg-white/5' : '' }}"
                 >
