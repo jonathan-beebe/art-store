@@ -11,10 +11,33 @@
     supplies its own card wrapper the same way every other admin index's
     below-`lg` list does.
 --}}
-@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'filter' => null, 'status' => null])
+@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'filter' => null, 'status' => null, 'indexRoute' => null])
 
 @if ($conversations->isEmpty())
-    <p class="p-6 text-sm text-stone-500 dark:text-stone-500">Nothing yet.</p>
+    @php
+        // Context-aware in place of a bare "Nothing yet.": what the current
+        // filter/status combination is empty of, narrowest first — a filter
+        // reads on its own regardless of status (an empty `needs-reply`
+        // queue says so, not "no open conversations"), so it takes
+        // precedence.
+        $emptyMessage = match (true) {
+            $filter === 'needs-reply' => 'No conversations need a reply.',
+            $filter === 'sellers' => 'No seller conversations.',
+            $filter === 'customers' => 'No customer conversations.',
+            $filter === 'orders' => 'No order conversations.',
+            $filter === 'questions' => 'No questions waiting.',
+            $status === 'resolved' => 'No resolved conversations.',
+            $status === 'open' => 'No open conversations.',
+            default => 'No conversations yet.',
+        };
+        $isNarrowed = ($filter !== null && $filter !== 'all') || ($status !== null && $status !== 'all');
+    @endphp
+    <p class="p-6 text-sm text-stone-500 dark:text-stone-500">
+        {{ $emptyMessage }}
+        @if ($isNarrowed && $indexRoute !== null)
+            <a href="{{ route($indexRoute, ['filter' => $filter, 'status' => 'all']) }}" class="underline hover:text-stone-700 dark:hover:text-stone-300">Show all</a>
+        @endif
+    </p>
 @else
     @php
         // A row's own link carries the pane's current filter/status, so the

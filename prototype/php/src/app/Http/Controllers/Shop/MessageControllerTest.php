@@ -11,14 +11,36 @@ use App\Models\CustomerBlock;
 use App\Models\Message;
 use Illuminate\Support\Facades\Config;
 
-it('says an empty inbox is empty', function (): void {
+it('says an empty inbox is empty, in the current filters own words', function (): void {
     $this->arriveAs($this->verifiedCustomer());
 
     $response = $this->get('/messages');
 
     $response->assertOk();
-    $response->assertSee('Nothing yet.');
+    // The default view is scoped to status=open, so the empty state names
+    // that rather than a bare "Nothing yet." — with a way past it.
+    $response->assertSee('No open conversations.');
+    $response->assertSee(route('shop.messages.index', ['filter' => 'all', 'status' => 'all']));
     $response->assertDontSee('<li>', escape: false);
+});
+
+it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $response = $this->get('/messages?status=all');
+
+    $response->assertOk();
+    $response->assertSee('No conversations yet.');
+    $response->assertDontSee('Show all');
+});
+
+it('names an empty unread filter regardless of status', function (): void {
+    $this->arriveAs($this->verifiedCustomer());
+
+    $response = $this->get('/messages?filter=unread');
+
+    $response->assertOk();
+    $response->assertSee('No unread conversations.');
 });
 
 it('lists the visitors threads newest first with who, what, and unread count', function (): void {

@@ -548,6 +548,32 @@ it('status=resolved lists only resolved threads, status=all lists both', functio
     $allView->assertSee('Open one');
 });
 
+it('names an empty filter in its own words, with a way past a narrowing status', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()->adminSeller()->create(['resolved_at' => now()]);
+
+    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=customers&status=all');
+    $customers->assertSee('No customer conversations.');
+    $customers->assertSee(route('admin.messages.index', ['filter' => 'customers', 'status' => 'all']));
+
+    // The default needs-reply queue excludes the admin's only (resolved,
+    // already-answered) thread — the empty state names that, with a link
+    // past it.
+    $needsReply = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $needsReply->assertSee('No conversations need a reply.');
+    $needsReply->assertSee(route('admin.messages.index', ['filter' => 'needs-reply', 'status' => 'all']));
+});
+
+it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
+    $admin = $this->admin();
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
+
+    $response->assertOk();
+    $response->assertSee('No conversations yet.');
+    $response->assertDontSee('Show all');
+});
+
 it('shows an oversight thread read-only, with no composer and no mark-read', function (): void {
     $admin = $this->admin();
     $conversation = Conversation::factory()->fulfillment()->create();

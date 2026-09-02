@@ -31,7 +31,26 @@
     </nav>
 
     @if ($conversations->isEmpty())
-        <p class="mt-10 text-lg text-ink-muted">Nothing yet.</p>
+        @php
+            // Context-aware in place of a bare "Nothing yet.": what the
+            // current filter/status combination is empty of, narrowest
+            // first — a filter reads on its own regardless of status (an
+            // empty unread inbox says so, not "no open conversations"), so
+            // it takes precedence.
+            $emptyMessage = match (true) {
+                $filter === 'unread' => 'No unread conversations.',
+                $statusValue === 'resolved' => 'No resolved conversations.',
+                $statusValue === 'open' => 'No open conversations.',
+                default => 'No conversations yet.',
+            };
+            $isNarrowed = $filter !== 'all' || $statusValue !== 'all';
+        @endphp
+        <p class="mt-10 text-lg text-ink-muted">
+            {{ $emptyMessage }}
+            @if ($isNarrowed)
+                <a href="{{ route('shop.messages.index', ['filter' => $filter, 'status' => 'all']) }}" class="underline hover:text-accent">Show all</a>
+            @endif
+        </p>
     @else
         <ul class="mt-6 max-w-3xl divide-y divide-line border-y border-line">
             @foreach ($conversations as $conversation)

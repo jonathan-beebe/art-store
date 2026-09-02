@@ -7,7 +7,28 @@
 @props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'total' => null, 'indexRoute' => null, 'filter' => null, 'status' => null])
 
 @if ($conversations->isEmpty())
-    <p class="p-6 text-sm text-gray-500 dark:text-gray-500">Nothing yet.</p>
+    @php
+        // Context-aware in place of a bare "Nothing yet.": what the current
+        // filter/status combination is empty of, narrowest first — a filter
+        // reads on its own regardless of status (an empty `unread` inbox
+        // says so, not "no open conversations"), so it takes precedence.
+        $emptyMessage = match (true) {
+            $filter === 'unread' => 'No unread conversations.',
+            $filter === 'questions' => 'No questions waiting.',
+            $filter === 'orders' => 'No order conversations.',
+            $filter === 'support' => 'No support conversations.',
+            $status === 'resolved' => 'No resolved conversations.',
+            $status === 'open' => 'No open conversations.',
+            default => 'No conversations yet.',
+        };
+        $isNarrowed = ($filter !== null && $filter !== 'all') || ($status !== null && $status !== 'all');
+    @endphp
+    <p class="p-6 text-sm text-gray-500 dark:text-gray-500">
+        {{ $emptyMessage }}
+        @if ($isNarrowed && $indexRoute !== null)
+            <a href="{{ route($indexRoute, ['filter' => $filter, 'status' => 'all']) }}" class="underline hover:text-gray-700 dark:hover:text-gray-300">Show all</a>
+        @endif
+    </p>
 @else
     @php
         // A row's own link carries the pane's current filter/status, so the

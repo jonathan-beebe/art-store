@@ -354,6 +354,34 @@ it('narrows the inbox to support threads when filter=support', function (): void
     $response->assertDontSee('A question about this piece');
 });
 
+it('names an empty filter in its own words, with a way past a narrowing status', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $questions = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=support');
+    $questions->assertSee('No support conversations.');
+    $questions->assertSee(route('seller.messages.index', ['filter' => 'support', 'status' => 'all']));
+
+    // The default status=open hides the seller's only (resolved) thread —
+    // the empty state names that, with a link past it.
+    $open = $this->actingAs($seller, 'seller')->get('/seller/messages');
+    $open->assertSee('No open conversations.');
+    $open->assertSee(route('seller.messages.index', ['filter' => 'all', 'status' => 'all']));
+});
+
+it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
+
+    $response->assertOk();
+    $response->assertSee('No conversations yet.');
+    $response->assertDontSee('Show all');
+});
+
 it('hides resolved threads by default and shows them under status=resolved', function (): void {
     $seller = $this->seller();
     Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'Open question']);

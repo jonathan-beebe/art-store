@@ -8,7 +8,7 @@
             <x-messaging.filter-chips :filter="$filter" :status="$status" />
         </div>
         <div class="flex-1 overflow-y-auto p-2">
-            <x-messaging.inbox :conversations="$cellConversations" :viewer="$viewer" show-route="admin.messages.show" :selected="$conversation" :filter="$filter" :status="$status" />
+            <x-messaging.inbox :conversations="$cellConversations" :viewer="$viewer" show-route="admin.messages.show" :selected="$conversation" :filter="$filter" :status="$status" index-route="admin.messages.index" />
         </div>
         <x-admin.cell-footer :shown="$cellConversations->count()" :total="$cellConversationsTotal" :route="route('admin.messages.index', ['filter' => $filter, 'status' => $status])" />
     </x-slot:cells>
