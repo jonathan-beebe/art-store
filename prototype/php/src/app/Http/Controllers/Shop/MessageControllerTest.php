@@ -188,6 +188,9 @@ it('shows every message in order and marks the thread read', function (): void {
     // Below `sm`, an own-message panel widens from ~78% to ~90% so a phone
     // reads it comfortably.
     $response->assertSee('max-w-[90%] items-start gap-4 sm:max-w-[78%]', escape: false);
+    // Server-rendered "Ctrl" — composer.js swaps it to "⌘" client-side on a
+    // Mac, so the un-scripted render always says Ctrl.
+    $response->assertSee('data-composer-mod', escape: false);
 });
 
 it('renders the listing card as one link when the thread is about a listing', function (): void {

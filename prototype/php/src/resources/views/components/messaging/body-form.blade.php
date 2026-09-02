@@ -39,7 +39,7 @@
         >{{ old('body') }}</textarea>
         <div class="flex items-center gap-3 border-t border-stone-100 px-3 py-1.5 dark:border-white/5">
             <span data-composer-count class="text-xs text-stone-500 dark:text-stone-500">{{ number_format(mb_strlen((string) old('body'))) }} / {{ number_format(\App\Domain\Messaging\MessageBody::MAX_LENGTH) }}</span>
-            <span class="ml-auto hidden text-xs text-stone-500 dark:text-stone-500 sm:inline"><kbd class="rounded border border-stone-300 px-1 dark:border-stone-600">&#8984;</kbd>/<kbd class="rounded border border-stone-300 px-1 dark:border-stone-600">Ctrl</kbd> + <kbd class="rounded border border-stone-300 px-1 dark:border-stone-600">Enter</kbd> to send</span>
+            <span class="ml-auto hidden text-xs text-stone-500 dark:text-stone-500 sm:inline"><kbd data-composer-mod class="rounded border border-stone-300 px-1 dark:border-stone-600">Ctrl</kbd> + <kbd class="rounded border border-stone-300 px-1 dark:border-stone-600">Enter</kbd> to send</span>
             <button type="submit" class="rounded-md bg-stone-700 px-3 py-1.5 text-sm font-semibold text-white shadow-xs hover:bg-stone-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-700">Send</button>
         </div>
     </div>

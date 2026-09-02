@@ -111,6 +111,11 @@ it('shows every message in order and marks the thread read', function (): void {
     // Below `sm`, an own-message panel widens from ~78% to ~90% so a phone
     // reads it comfortably.
     $response->assertSee('max-w-[90%] gap-3 sm:max-w-[78%]', escape: false);
+    // Server-rendered "Ctrl" — composer.js swaps it to "⌘" client-side on a
+    // Mac, so the un-scripted render always says Ctrl, not the old bare
+    // "⌘/Ctrl" combo.
+    $response->assertSee('data-composer-mod', escape: false);
+    $response->assertDontSee('&#8984;', escape: false);
 });
 
 it('defaults the show routes pane to the desks full list rather than the index routes work queue', function (): void {

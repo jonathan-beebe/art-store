@@ -40,7 +40,7 @@
 
         <div class="flex items-center gap-3 border-t border-gray-100 px-3 py-2 dark:border-white/10">
             <span data-composer-count class="text-xs text-gray-500 dark:text-gray-400">{{ number_format(mb_strlen($bodyOld)) }} / {{ number_format(\App\Domain\Messaging\MessageBody::MAX_LENGTH) }}</span>
-            <span class="ml-auto text-xs text-gray-500 dark:text-gray-400"><kbd class="rounded border border-gray-300 px-1 font-mono dark:border-white/20">&#8984;</kbd> <kbd class="rounded border border-gray-300 px-1 font-mono dark:border-white/20">Enter</kbd> to send</span>
+            <span class="ml-auto text-xs text-gray-500 dark:text-gray-400"><kbd data-composer-mod class="rounded border border-gray-300 px-1 font-mono dark:border-white/20">Ctrl</kbd> <kbd class="rounded border border-gray-300 px-1 font-mono dark:border-white/20">Enter</kbd> to send</span>
             <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">{{ $submitLabel }}</button>
         </div>
     </div>

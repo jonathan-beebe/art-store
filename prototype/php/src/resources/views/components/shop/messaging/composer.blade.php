@@ -23,7 +23,7 @@
     <div class="flex items-center gap-3 border-t border-line px-4 py-2.5">
         <span data-composer-count class="text-sm text-ink-faint">{{ number_format(mb_strlen((string) $value)) }} / {{ number_format($maxlength) }}</span>
         <span class="ml-auto hidden items-center gap-1 text-sm text-ink-faint sm:flex">
-            <kbd class="rounded border border-line-strong bg-canvas px-1.5 py-0.5 font-mono text-[11px]">⌘</kbd>
+            <kbd data-composer-mod class="rounded border border-line-strong bg-canvas px-1.5 py-0.5 font-mono text-[11px]">Ctrl</kbd>
             <kbd class="rounded border border-line-strong bg-canvas px-1.5 py-0.5 font-mono text-[11px]">Enter</kbd>
             to send
         </span>

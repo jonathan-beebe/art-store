@@ -6,8 +6,16 @@
 //
 // Contract: the textarea carries `data-composer` and its `maxlength`; the
 // counter element, if any, carries `data-composer-count` inside the same
-// form.
+// form; the keyboard hint's modifier key, if any, carries `data-composer-mod`
+// and is server-rendered "Ctrl" — the one platform check below swaps it to
+// "⌘" on a Mac rather than the server guessing from the request.
 (() => {
+    if (/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
+        document.querySelectorAll('[data-composer-mod]').forEach((mod) => {
+            mod.textContent = '⌘';
+        });
+    }
+
     document.querySelectorAll('textarea[data-composer]').forEach((area) => {
         const form = area.form;
         const counter = form ? form.querySelector('[data-composer-count]') : null;
