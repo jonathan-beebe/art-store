@@ -7,6 +7,7 @@ namespace App\Actions\Orders;
 use App\Actions\Escrow\RunWeeklyPayout;
 use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
+use App\Analytics\Analytics;
 use App\Domain\Escrow\LedgerBalance;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
@@ -17,6 +18,7 @@ use App\Models\Seller;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Walks the whole order lifecycle across two sellers. Every other action test
@@ -122,4 +124,37 @@ it('returns the stock on a declined card and completes the order on retry', func
 
     expect(array_map(fn (Payout $payout): int => $payout->amount_cents, $payouts))->toBe([40500])
         ->and($paidOutPerSeller($seller))->toBe([40500]);
+});
+
+it('records checkout opened, placed, and paid in order for one order, cancelled for another', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $paidListing = $this->listing($seller, ['price_cents' => 45000]);
+    $cancelledListing = $this->listing($seller, ['price_cents' => 20000]);
+
+    $this->actingAs($customer, 'customer');
+    $this->travelTo($this->moment('2026-08-20 08:30:00'));
+    $this->post('/cart/'.$paidListing->slug);
+    $this->get('/checkout');
+
+    $order = app(PlaceOrder::class)($customer->cart(), $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+    app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
+
+    $cancelled = $this->orderFor($customer, $cancelledListing);
+    app(CancelOrder::class)($cancelled, $this->moment('2026-08-21 09:00:00'));
+
+    app(Analytics::class)->flush();
+
+    $names = DB::connection('analytics')->table('analytics_events')
+        ->whereIn('name', ['checkout.open', 'order.place', 'order.pay', 'order.cancel'])
+        ->orderBy('occurred_at')
+        ->orderBy('id')
+        ->pluck('name')
+        ->all();
+
+    // orderFor() places the second order at the same fixed instant as the
+    // first, so both order.place rows tie on occurred_at and sort by id —
+    // still ahead of order.pay and order.cancel, which land at their own
+    // later instants.
+    expect($names)->toBe(['checkout.open', 'order.place', 'order.place', 'order.pay', 'order.cancel']);
 });

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Customers\CustomerStanding;
 use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Orders\OrderPlacementRefused;
@@ -21,6 +24,7 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\Unit;
 use App\Models\Variant;
+use App\Support\Orders\OrderListingIds;
 use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
@@ -29,6 +33,8 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class FinalizeOrder
 {
+    public function __construct(private Analytics $analytics) {}
+
     public function __invoke(Order $order, string $cardNumber, DateTimeImmutable $now): Order
     {
         // The card number never leaves this method: the payment row keeps the
@@ -78,6 +84,19 @@ final readonly class FinalizeOrder
 
                 return $order->refresh();
             });
+
+            if ($outcome === PaymentOutcome::Approved) {
+                $this->analytics->recordEvent(AnalyticsEvent::forOrder(
+                    AnalyticsEventName::OrderPay,
+                    $paid->id,
+                    $paid->customer_id,
+                    $now,
+                    [
+                        'listing_ids' => OrderListingIds::of($paid),
+                        'total_cents' => $paid->total_cents,
+                    ],
+                ));
+            }
 
             // A decline is the payment processor holding a rule, not the
             // application breaking, so it reads as a refusal.

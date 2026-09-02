@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Orders\OrderStatus;
 use App\Events\OrderCancelled;
 use App\Logging\StoryEvent;
@@ -12,6 +15,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Unit;
 use App\Models\Variant;
+use App\Support\Orders\OrderListingIds;
 use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
@@ -25,6 +29,8 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class CancelOrder
 {
+    public function __construct(private Analytics $analytics) {}
+
     public function __invoke(Order $order, DateTimeImmutable $now): Order
     {
         return Story::for(StoryEvent::OrderCancel)->tell('cancelling an order', [
@@ -48,6 +54,14 @@ final readonly class CancelOrder
 
                 return $order;
             });
+
+            $this->analytics->recordEvent(AnalyticsEvent::forOrder(
+                AnalyticsEventName::OrderCancel,
+                $cancelled->id,
+                $cancelled->customer_id,
+                $now,
+                ['listing_ids' => OrderListingIds::of($cancelled)],
+            ));
 
             $story->did('cancelled the order', [
                 'order_id' => $cancelled->id,

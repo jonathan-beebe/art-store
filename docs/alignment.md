@@ -292,6 +292,17 @@ happens in the request to decide whether the write is a duplicate.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
 
+The storefront funnel's four steps beyond the cart carry `subject_type =
+'cart'` (`checkout.open`, before an order exists to name) or `subject_type
+= 'order'` (`order.place`, `order.pay`, `order.cancel`), each `data`
+carrying `listing_ids` — the listings the cart or order spans, so a
+per-listing funnel reads it without a join — and `order.pay` additionally
+carrying `total_cents`. Every recording happens after the commerce write
+that caused it commits, never inside that write's own transaction and
+never itself a commerce write, so a rolled-back order or payment leaves no
+event behind; `order.pay` is recorded only on an approved payment, not a
+decline.
+
 Every row also carries the request that produced it: `ip` and `session_id`
 as their own indexed columns, so "everything from this ip" and "everything
 in this session" are index hits, and the request id folded into `data` as
@@ -799,3 +810,12 @@ views by day and by route pattern, the listing-event tally) is on
 permanent redirect to `/admin/analytics`, behind the same admin guard. §5's
 `/admin/stats` row reworded to match. PHP ships this on MAINT-006; node and
 rails keep the page until they ship the drill-in.
+
+2026-09-02, storefront funnel events: §2.6 gains the vocabulary and shape
+for `checkout.open`, `order.place`, `order.pay`, and `order.cancel` — the
+steps between the cart and a paid or cancelled order, recorded by
+`Shop\CheckoutController::show` and `App\Actions\Orders\{PlaceOrder,FinalizeOrder,CancelOrder}`
+through a constructor-injected `Analytics`, after each action's own
+commerce transaction commits. PHP ships the vocabulary and recording on
+FEAT-046; the funnel query and admin pages that read these events are a
+following ticket. Node and rails owe the same four names once they ship.

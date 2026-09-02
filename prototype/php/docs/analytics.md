@@ -162,6 +162,26 @@ read happens in the request to decide whether the write is a duplicate.
 `favorite`, `unfavorite`, and `cart_add` carry no dedupe key and are recorded
 every time; each is a deliberate click, not a page load.
 
+The four steps beyond the cart carry no dedupe key either and are recorded
+by the code that already announces each step in the story
+(`docs/logging.md`), each through a constructor-injected `Analytics`:
+`Shop\CheckoutController::show` records `checkout.open` once per request,
+`subject_type = 'cart'`, `subject_id` the visitor's cart id, `data.listing_ids`
+the listings the cart holds. `App\Actions\Orders\PlaceOrder` records
+`order.place`, `FinalizeOrder` records `order.pay` (only on an approved
+payment — a decline records nothing), and `CancelOrder` records
+`order.cancel`, all three `subject_type = 'order'`, `subject_id` the order
+id, `data.listing_ids` the listings the order spans; `order.pay` also
+carries `data.total_cents`, so a revenue report reads the paid amount
+without a join back to the commerce database. Every recording happens
+after the action's own commerce transaction commits, so an order placement
+or payment that rolls back leaves no event behind — recording never runs
+inside the commerce transaction and adds no write to the commerce database.
+`App\Actions\Orders\SweepStaleOrders` cancels stale orders through
+`CancelOrder`, so a swept order records `order.cancel` the same way a
+customer- or admin-initiated cancellation does, with no ip or session since
+the sweep runs from the console.
+
 ## Readers
 
 `App\Analytics\AnalyticsReport` is the query layer over `analytics_events`:

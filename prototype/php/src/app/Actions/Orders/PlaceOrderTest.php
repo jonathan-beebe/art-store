@@ -12,6 +12,7 @@ use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\UpdateOptionValue;
+use App\Analytics\Analytics;
 use App\Domain\Configurator\ModifierKind;
 use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
@@ -26,6 +27,7 @@ use App\Models\Listing;
 use App\Models\Order;
 use App\Models\Variant;
 use DomainException;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 it('turns the cart into an order the customer can pay for', function (): void {
@@ -403,4 +405,46 @@ it('leaves the placed orders price and configuration unchanged after the seller 
         ->and($item->configuration_json)->toBe($frozenConfiguration)
         ->and($item->lineTotal())->toBeMoney($frozenTotal->cents)
         ->and($roseGold->refresh()->surcharge_cents)->toBe(5000);
+});
+
+it('records an order.place event carrying the order\'s listings', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listingA = $this->listing($this->seller(), ['price_cents' => 24500]);
+    $listingB = $this->listing($this->seller(), ['price_cents' => 12000]);
+    $cart = $this->cartFor($customer);
+    $addToCart = app(AddToCart::class);
+    $addToCart($cart, $listingA, 1, $this->moment('2026-08-20 08:00:00'));
+    $addToCart($cart, $listingB, 1, $this->moment('2026-08-20 08:00:00'));
+    $now = $this->moment('2026-08-20 09:00:00');
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $now);
+    app(Analytics::class)->flush();
+
+    $event = DB::connection('analytics')->table('analytics_events')->where('name', 'order.place')->sole();
+    /** @var string $eventData */
+    $eventData = $event->data;
+    /** @var array<string, mixed> $data */
+    $data = json_decode($eventData, true);
+
+    expect($event->subject_type)->toBe('order')
+        ->and($event->subject_id)->toBe($order->id)
+        ->and($event->actor_id)->toBe($customer->id)
+        ->and($event->occurred_at)->toBe('2026-08-20 09:00:00')
+        ->and($data['listing_ids'])->toEqualCanonicalizing([$listingA->id, $listingB->id]);
+});
+
+it('records no order.place event when placement is refused', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['title' => 'Harbour at Dawn', 'price_cents' => 45000]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+    $listing->update(['status' => ListingStatus::Archived]);
+
+    $place = fn () => app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($place)->toThrow(OrderPlacementRefused::class);
+
+    app(Analytics::class)->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->where('name', 'order.place')->exists())->toBeFalse();
 });

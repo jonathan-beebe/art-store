@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Orders;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Cart\CartTotals;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Domain\Configurator\PriceBreakdownLine;
@@ -22,6 +25,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Unit;
 use App\Models\Variant;
+use App\Support\Orders\OrderListingIds;
 use App\Support\Orders\StockMovement;
 use App\Support\Story;
 use DateTimeImmutable;
@@ -31,6 +35,8 @@ use LogicException;
 
 final readonly class PlaceOrder
 {
+    public function __construct(private Analytics $analytics) {}
+
     public function __invoke(Cart $cart, Purchaser $purchaser, ShippingAddress $shipping, DateTimeImmutable $now): Order
     {
         // The address the order ships to is on the order, never in a line: an
@@ -82,6 +88,14 @@ final readonly class PlaceOrder
 
                 return $order;
             });
+
+            $this->analytics->recordEvent(AnalyticsEvent::forOrder(
+                AnalyticsEventName::OrderPlace,
+                $order->id,
+                $order->customer_id,
+                $now,
+                ['listing_ids' => OrderListingIds::of($order)],
+            ));
 
             $story->did('placed the order', [
                 'order_id' => $order->id,
