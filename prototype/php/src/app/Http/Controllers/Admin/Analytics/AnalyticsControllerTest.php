@@ -72,6 +72,15 @@ it('narrows the actor leaderboard by search', function (): void {
     $response->assertDontSee('ron@example.com');
 });
 
+it('narrows the events table by event name', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?q=favorite');
+
+    $response->assertOk();
+    $response->assertSee('Favorites');
+    $response->assertDontSee('Listing views');
+    $response->assertDontSee('Cart adds');
+});
+
 it('shows the jump row for a listing id prefix', function (): void {
     $listing = $this->listing($this->seller(), ['title' => 'The Burrow at Dusk']);
 

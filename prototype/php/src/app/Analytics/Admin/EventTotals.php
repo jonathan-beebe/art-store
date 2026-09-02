@@ -23,14 +23,37 @@ use Illuminate\Support\Facades\DB;
 final class EventTotals
 {
     /**
+     * `$search` narrows by event name or label, case-insensitively — the
+     * same free-text box the actor leaderboard reads, applied to what an
+     * event row carries instead of an actor's id, email, or ip.
+     *
      * @return list<EventTotal>
      */
-    public static function forRange(AnalyticsRange $range): array
+    public static function forRange(AnalyticsRange $range, ?string $search = null): array
     {
-        return [
+        return self::narrowedBy([
             ...self::listingEventTotals($range),
             self::pageViewTotal($range),
-        ];
+        ], $search);
+    }
+
+    /**
+     * @param  list<EventTotal>  $totals
+     * @return list<EventTotal>
+     */
+    private static function narrowedBy(array $totals, ?string $search): array
+    {
+        if ($search === null || $search === '') {
+            return $totals;
+        }
+
+        $needle = mb_strtolower($search);
+
+        return array_values(array_filter(
+            $totals,
+            fn (EventTotal $total): bool => str_contains(mb_strtolower($total->name), $needle)
+                || str_contains(mb_strtolower($total->label), $needle),
+        ));
     }
 
     /**

@@ -47,7 +47,7 @@ final class AnalyticsController extends Controller
             'now' => $now,
             'rangeCaption' => $range->caption(),
             'dayLabels' => $range->dayLabels(),
-            'events' => EventTotals::forRange($range),
+            'events' => EventTotals::forRange($range, $search),
             'actors' => ActorLeaderboard::forRange($range, $actorKind, $search, self::LEADERBOARD_LIMIT),
             'jump' => $search === null || $search === '' ? null : AnalyticsJump::for($search),
             'rangeLinks' => $this->rangeLinks($roundTripped, $rangeDays),
