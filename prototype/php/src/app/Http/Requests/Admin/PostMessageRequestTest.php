@@ -34,3 +34,15 @@ it('reads the body the admin typed', function (): void {
 
     expect($request->body()->value)->toBe("I'll take a look.");
 });
+
+it('reads the reply-to id the composer rode in on', function (): void {
+    $request = PostMessageRequest::create('/admin/messages/1', 'POST', ['body' => 'Reply.', 'reply_to_message_id' => 'msg_01ABC']);
+
+    expect($request->replyToMessageId())->toBe('msg_01ABC');
+});
+
+it('reads no reply-to field as none, the bare reply shape', function (): void {
+    $request = PostMessageRequest::create('/admin/messages/1', 'POST', ['body' => 'Reply.']);
+
+    expect($request->replyToMessageId())->toBeNull();
+});

@@ -25,12 +25,26 @@ final class PostMessageRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:'.MessageBody::MAX_LENGTH],
+            'reply_to_message_id' => ['nullable', 'string'],
         ];
     }
 
     public function body(): MessageBody
     {
         return MessageBody::of($this->string('body')->toString());
+    }
+
+    /**
+     * The message a reply quotes, read off the hidden field the composer's
+     * "Reply" link rode in on — an id belonging to another thread is left
+     * for the controller to ignore rather than validated here, the same way
+     * `?reply_to` on the thread's GET route is ignored rather than refused.
+     */
+    public function replyToMessageId(): ?string
+    {
+        $value = $this->string('reply_to_message_id')->toString();
+
+        return $value === '' ? null : $value;
     }
 
     private function conversation(): Conversation
