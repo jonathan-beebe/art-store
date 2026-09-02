@@ -90,27 +90,31 @@ final class Funnel
         $ordersPaid = $byName[AnalyticsEventName::OrderPay->value];
 
         return new FunnelView([
-            self::step('Visitors', $visitors, null),
-            self::step(AnalyticsEventName::ListingView->pluralLabel(), $views, $visitors['current']),
-            self::step(AnalyticsEventName::ListingFavorite->pluralLabel(), $favorites, $views['current']),
-            self::step(AnalyticsEventName::ListingCartAdd->pluralLabel(), $cartAdds, $favorites['current']),
-            self::step(AnalyticsEventName::CheckoutOpen->pluralLabel(), $checkoutsOpened, $cartAdds['current']),
-            self::step(AnalyticsEventName::OrderPlace->pluralLabel(), $ordersPlaced, $checkoutsOpened['current']),
-            self::step(AnalyticsEventName::OrderPay->pluralLabel(), $ordersPaid, $ordersPlaced['current'], self::cancelledNote($cancelled)),
+            self::step('Visitors', $visitors, null, ''),
+            self::step(AnalyticsEventName::ListingView->pluralLabel(), $views, $visitors['current'], 'visitors'),
+            self::step(AnalyticsEventName::ListingFavorite->pluralLabel(), $favorites, $views['current'], 'views'),
+            self::step(AnalyticsEventName::ListingCartAdd->pluralLabel(), $cartAdds, $views['current'], 'views'),
+            self::step(AnalyticsEventName::CheckoutOpen->pluralLabel(), $checkoutsOpened, $cartAdds['current'], 'cart adds'),
+            self::step(AnalyticsEventName::OrderPlace->pluralLabel(), $ordersPlaced, $checkoutsOpened['current'], 'checkouts opened'),
+            self::step(AnalyticsEventName::OrderPay->pluralLabel(), $ordersPaid, $ordersPlaced['current'], 'orders placed', self::cancelledNote($cancelled)),
         ]);
     }
 
     /**
+     * `$ofPrevious`/`$ofLabel` name this step's own prerequisite, which is
+     * not always the step drawn immediately before it — see
+     * {@see FunnelRate}. `$ofLabel` is unused when `$ofPrevious` is null.
+     *
      * @param  array{current: int, previous: int}  $totals
      */
-    private static function step(string $label, array $totals, ?int $ofPrevious, ?string $note = null): FunnelStep
+    private static function step(string $label, array $totals, ?int $ofPrevious, string $ofLabel, ?string $note = null): FunnelStep
     {
         return new FunnelStep(
             $label,
             $totals['current'],
             $totals['previous'],
             RangeChange::between($totals['current'], $totals['previous']),
-            $ofPrevious === null ? null : FunnelRate::of($totals['current'], $ofPrevious),
+            $ofPrevious === null ? null : FunnelRate::of($totals['current'], $ofPrevious, $ofLabel),
             $note,
         );
     }

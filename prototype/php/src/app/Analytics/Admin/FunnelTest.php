@@ -66,7 +66,7 @@ it('counts visitors as distinct session ids in the range, nulls excluded', funct
     expect($funnel->steps[0]->current)->toBe(2);
 });
 
-it('carries the rate from the step immediately before it in funnel order', function (): void {
+it('carries the rate from each step\'s own prerequisite, not always the step drawn before it', function (): void {
     $listing = $this->listing($this->seller());
     $customer = $this->verifiedCustomer();
     $analytics = app(Analytics::class);
@@ -78,19 +78,29 @@ it('carries the rate from the step immediately before it in funnel order', funct
     foreach (range(1, 4) as $i) {
         $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 10:00:00')));
     }
+    foreach (range(1, 6) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, $listing->id, $customer->id, $this->moment('2026-08-19 11:00:00')));
+    }
     $analytics->flush();
 
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
     $funnel = Funnel::forRange($range);
 
-    [$visitors, $views, $favorites] = $funnel->steps;
+    [$visitors, $views, $favorites, $cartAdds] = $funnel->steps;
 
     expect($visitors->current)->toBe(10)
         ->and($views->current)->toBe(10)
         ->and($views->rate?->text)->toBe('100%')
+        ->and($views->rate?->ofLabel)->toBe('visitors')
         ->and($favorites->current)->toBe(4)
         ->and($favorites->rate?->text)->toBe('40%')
-        ->and($favorites->rate?->ratio)->toBe(0.4);
+        ->and($favorites->rate?->ratio)->toBe(0.4)
+        ->and($favorites->rate?->ofLabel)->toBe('views')
+        // Cart adds' prerequisite is listing views, not favorites — its
+        // rate reads 60% of the 10 views, not 150% of the 4 favorites.
+        ->and($cartAdds->current)->toBe(6)
+        ->and($cartAdds->rate?->text)->toBe('60%')
+        ->and($cartAdds->rate?->ofLabel)->toBe('views');
 });
 
 it('notes the cancelled count on the paid step rather than a step of its own', function (): void {
@@ -159,7 +169,10 @@ it('counts an order once for each listing it spans on that listing\'s own funnel
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
 
     expect(Funnel::forListing($listingOne->id, $range)->steps[5]->current)->toBe(1)
-        ->and(Funnel::forListing($listingTwo->id, $range)->steps[5]->current)->toBe(1);
+        ->and(Funnel::forListing($listingTwo->id, $range)->steps[5]->current)->toBe(1)
+        // The unscoped, store-wide funnel counts the same order once — it
+        // reads the one order.place row, not one row per listing it spans.
+        ->and(Funnel::forRange($range)->steps[5]->current)->toBe(1);
 
     // One order, read from the app database, spans both.
     expect($order->items()->pluck('listing_id')->unique()->count())->toBe(2);

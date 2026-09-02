@@ -25,9 +25,9 @@
             <dt class="text-stone-600 dark:text-stone-400">{{ $step->label }}</dt>
             <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ number_format($step->current) }}</dd>
 
-            <div class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+            <div class="mt-1 text-xs whitespace-nowrap text-stone-500 dark:text-stone-400">
                 @if ($step->rate !== null)
-                    {{ $step->rate->text }} of {{ strtolower($funnel->steps[$loop->index - 1]->label) }}
+                    {{ $step->rate->text }} of {{ $step->rate->ofLabel }}
                 @else
                     &nbsp;
                 @endif

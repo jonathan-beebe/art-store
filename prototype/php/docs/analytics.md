@@ -314,9 +314,17 @@ seller, and returns an ordered `FunnelView` of seven `FunnelStep`s:
 visitors, listing views, favorites, cart adds, checkouts opened, orders
 placed, orders paid. Each step carries its count for the range, its count
 for the range before, the `RangeChange` between them, and its rate from
-the step immediately before it in this order — `App\Domain\Analytics\FunnelRate`,
-a whole percentage and the ratio it rounds from, null on the visitors step,
-which has nothing before it. Orders cancelled is not a step; the paid
+its own prerequisite step — `App\Domain\Analytics\FunnelRate`, a whole
+percentage and the ratio it rounds from, plus the prerequisite's own label
+for the "N% of {label}" a page renders; null on the visitors step, which
+has no prerequisite. A step's prerequisite is not always the step drawn
+before it: cart adds' prerequisite is listing views, since a shopper adds
+to cart from a listing page they viewed, never from having favorited it —
+favorites and cart adds are two independent things a viewer may do, not a
+chain. Every other step's prerequisite is the step drawn immediately
+before it: views read against visitors, favorites against views, checkouts
+opened against cart adds, orders placed against checkouts opened, orders
+paid against orders placed. Orders cancelled is not a step; the paid
 step's `note` carries the range's cancelled count ("N cancelled") instead,
 so a placed order that never pays is still visible without a denominator
 of its own.
