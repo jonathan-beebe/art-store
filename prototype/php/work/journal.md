@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-09-02:04:44:33 — FEAT-040 — done: conversations gain title/status/order_id/resolved_by, messages gain reply_to; ConversationKind/Status/ThreadTitle/ThreadOpening + OpenThread/PostMessage(reply-to)/Resolve/ReopenConversation; desk-aware policy, scopes, and notifications; MessagingSeeder richer demo; 3321 tests, 9677 assertions, make precommit and make fresh green
+- 2026-09-01:22:31:34 — FEAT-040 — blocked: domain/actions/models/policy/notifications/migration/seeder/controllers/tests all rewritten to docs/messaging.md's new shapes, but make precommit/make fresh could not run (Docker Desktop stuck on a macOS privileged-access prompt requiring human interaction); ticket stays in 2-doing pending the gate
+- 2026-09-01:21:58:20 — FEAT-040 — started
 - 2026-09-01:21:54:14 — MAINT-005 — defined: messaging v2 docs refresh and final validation
 - 2026-09-01:21:54:14 — FEAT-043 — defined: the storefront conversation pages feel like a relationship
 - 2026-09-01:21:54:14 — FEAT-042 — defined: the admin site runs a support desk that sees everything
