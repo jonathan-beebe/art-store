@@ -496,10 +496,11 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | Node and Rails: page views by day (7-day window) and by route pattern,   |
 |                                                                         | listing event tallies. PHP: permanent redirect to `/admin/analytics`     |
-| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | every event name compared with the range before it, a daily bar strip,   |
-|                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
-|                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
-|                                                                         | id or a shared ip jumps straight to it                                   |
+| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | the storefront funnel (visitors through paid orders) above every event   |
+|                                                                         | name compared with the range before it, a daily bar strip, distinct      |
+|                                                                         | subject/actor counts, and the actors with the highest events-per-hour    |
+|                                                                         | peak; `q` narrows both tables and a pasted listing or customer id or a   |
+|                                                                         | shared ip jumps straight to it                                           |
 | `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern`       | one event name's range tiles, daily bars, and a breakdown by listing,    |
 |                                                                         | actor, or — for `page.view` — route pattern                              |
 | `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
@@ -819,3 +820,17 @@ through a constructor-injected `Analytics`, after each action's own
 commerce transaction commits. PHP ships the vocabulary and recording on
 FEAT-046; the funnel query and admin pages that read these events are a
 following ticket. Node and rails owe the same four names once they ship.
+
+2026-09-02, funnel: `App\Analytics\Admin\Funnel` reads the vocabulary §2.6
+named above into the funnel FEAT-046 set out to build — visitors through
+paid orders, for the whole store, one listing, or one seller, each step's
+rate read from the step before it and the range's cancelled count riding
+as a note on the paid step rather than a step of its own. §5's
+`/admin/analytics` and `/admin/analytics/listings/:listing` rows gain the
+funnel; the admin seller page carries its own 30-day funnel with no range
+control. `EntityActivity::forActor()`'s feed, which read every subject as
+a listing, now names an order or a cart subject the way its own row does.
+PHP ships the query, the three pages, and the feed fix on FEAT-046 —
+`prototype/php/docs/analytics.md` § "The funnel" is the reference; node
+and rails owe the same funnel once their admin analytics drill-ins reach
+this ticket's starting point.

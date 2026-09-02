@@ -245,6 +245,12 @@ Every class in it is a static, stateless reader — no writer lives here.
 - `EntityActivity::forListing()` / `forActor()` — one listing's or one
   actor's identity facts, range tiles, strip, and event feed, sharing every
   query and formatting helper between the two; the listing and actor pages.
+  An actor's feed reads its rows' own subject — a listing, an order, or a
+  cart — rather than assuming every subject is a listing; see "The funnel"
+  below for the order and cart shape.
+- `Funnel::forRange()` / `forListing()` / `forSeller()` — the whole
+  storefront funnel, visitors through paid orders, for the store, one
+  listing, or one seller; see "The funnel" below.
 - `SqlInstant::format()` — the one place a moment is formatted the way
   `occurred_at` compares against it; every query class above that bounds a
   range by that column goes through it.
@@ -290,11 +296,80 @@ regresses into a query per row:
 
 | Page                                 | Fixture                 | Default | Analytics |
 | ------------------------------------ | ----------------------- | ------- | --------- |
-| `/admin/analytics`                   | 12 actors               | 2       | 8         |
+| `/admin/analytics`                   | 12 actors               | 2       | 10        |
 | `/admin/analytics/events/:name`      | 8 listings (by-listing) | 4       | 5         |
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
 | `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 11        |
-| `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 8         |
+| `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 10        |
+
+The entry and listing pages' analytics-connection count each carry two
+statements for the funnel (`Funnel::forRange()` / `forListing()`, below) on
+top of the total the row named before it shipped.
+
+## The funnel
+
+`App\Analytics\Admin\Funnel` reads the whole storefront funnel — from a
+visitor's first event to a paid order — for a range, one listing, or one
+seller, and returns an ordered `FunnelView` of seven `FunnelStep`s:
+visitors, listing views, favorites, cart adds, checkouts opened, orders
+placed, orders paid. Each step carries its count for the range, its count
+for the range before, the `RangeChange` between them, and its rate from
+the step immediately before it in this order — `App\Domain\Analytics\FunnelRate`,
+a whole percentage and the ratio it rounds from, null on the visitors step,
+which has nothing before it. Orders cancelled is not a step; the paid
+step's `note` carries the range's cancelled count ("N cancelled") instead,
+so a placed order that never pays is still visible without a denominator
+of its own.
+
+Definitions:
+
+- **Visitors** — distinct `session_id` among the scope's own events, null
+  session ids excluded (FEAT-047's visits will refine this). For a listing
+  or seller scope this is sessions that touched that scope specifically —
+  see "Scopes" below — not a share of the whole store's traffic, so the
+  rate below it reads as "how many of the people who touched this listing
+  bought".
+- **Listing views, favorites, cart adds** — `listing.view`, `listing.favorite`,
+  and `listing.cart_add` event counts by name.
+- **Checkouts opened, orders placed, orders paid** — `checkout.open`,
+  `order.place`, and `order.pay` event counts by name.
+- **Orders cancelled** (the paid step's note only) — `order.cancel` event
+  count for the range, not compared against the range before.
+
+Scopes: `forRange()` reads every event in the range, unscoped. `forListing()`
+and `forSeller()` (the seller's listing ids read from the app database in
+one query) narrow every step to the events that belong to those listings.
+A listing view, favorite, or cart add belongs to a listing by
+`subject_type = 'listing'` / `subject_id`, the way every other admin
+analytics page already reads it. A checkout, order placement, order
+payment, or order cancellation has no listing subject — its subject is a
+cart or an order — so it belongs to a listing through the `data.listing_ids`
+JSON array `App\Support\Orders\OrderListingIds` and
+`Shop\CheckoutController::show` write onto it, read back with SQLite's
+`json_each` (`exists (select 1 from json_each(data, '$.listing_ids') where
+value in (…))`) rather than a join, since the two connections are separate
+SQLite files. An order that spans two listings counts once on each
+listing's own funnel — the scope test is per listing, not a split of one
+order across the two.
+
+Recorded through `App\Analytics\Analytics::recordEvent()` the same as every
+other event (see "The second database" above), `Funnel::forRange()`
+computes every step in two statements against `analytics_events`: one
+grouped by name for the six event-count steps (`order.cancel` read
+alongside them for the note, never becoming a step), one for the distinct-session
+visitor count. `forListing()`/`forSeller()` run the same two statements
+with the listing scope's `WHERE` clause added, so the funnel never issues a
+query per step.
+
+A test seeds orders through `App\Actions\Orders\PlaceOrder` and
+`FinalizeOrder`, flushes the analytics buffer, and asserts the funnel's
+placed and paid counts against `Order::query()`'s own counts for the same
+range — the funnel's numbers agree with the app database's.
+
+**On the admin pages.** `x-admin.analytics.funnel` renders a `FunnelView`
+as a row of tiles, each with a bar under it sized to its share of the
+first step's count, so the row narrows the way a funnel does — see
+`docs/admin.md` § "Analytics drill-in" for where it is mounted.
 
 ## Test isolation
 

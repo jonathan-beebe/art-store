@@ -22,7 +22,8 @@ sign in through the same magic link sellers and customers use
 |                                                                         | listed), platform money, page views this week                            |
 | `GET /admin/sellers`                                                    | every seller with listing and fulfillment counts, and the balance folded |
 |                                                                         | from one read of the ledger                                              |
-| `GET /admin/sellers/{seller}`                                           | the seller's listings, fulfillments, payouts, and escrow balance         |
+| `GET /admin/sellers/{seller}`                                           | the seller's listings, fulfillments, payouts, escrow balance, and a      |
+|                                                                         | 30-day storefront funnel scoped to their own listings                    |
 | `GET /admin/customers?standing=all\|verified\|anonymous\|blocked`       | every customer, anonymous rows included, with order, favorite and        |
 |                                                                         | cart-line counts                                                         |
 | `GET /admin/customers/{customer}`                                       | orders, favorites, cart, block history, merge history, and the block /   |
@@ -43,10 +44,11 @@ sign in through the same magic link sellers and customers use
 | `GET /admin/payouts?seller=`, `POST /admin/payouts`                     | payout history; run the weekly payout for every seller (`as_of`          |
 |                                                                         | optional)                                                                |
 | `GET /admin/stats`                                                      | permanent redirect to `/admin/analytics`                                 |
-| `GET /admin/analytics?range=&actors=&q=`                                | every event name compared with the range before it, a daily bar strip,   |
-|                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
-|                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
-|                                                                         | id or a shared ip jumps straight to it                                   |
+| `GET /admin/analytics?range=&actors=&q=`                                | the storefront funnel, visitors through paid orders; every event name    |
+|                                                                         | compared with the range before it, a daily bar strip, distinct           |
+|                                                                         | subject/actor counts, and the actors with the highest events-per-hour    |
+|                                                                         | peak; `q` narrows both tables and a pasted listing or customer id or a   |
+|                                                                         | shared ip jumps straight to it                                           |
 | `GET /admin/analytics/events/{name}?range=&by=`                         | one event name's range tiles, daily bars, and a breakdown by listing,    |
 |                                                                         | actor, or — for `page.view` — route pattern                              |
 | `GET /admin/analytics/actors?range=&sort=&actors=&q=&page=`             | every actor that carried an event in the range, paged, sorted by most    |
@@ -54,8 +56,8 @@ sign in through the same magic link sellers and customers use
 | `GET /admin/analytics/actors/{customer}?range=&event=`                  | the actor's identity, range tiles, a daily or (once flagged) hourly      |
 |                                                                         | strip, and its event feed newest first, with links to the customer, the  |
 |                                                                         | log viewer, and the block form                                           |
-| `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, a daily strip, and its event feed   |
-|                                                                         | newest first, with a link to the listing                                 |
+| `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, its own funnel, a daily strip, and  |
+|                                                                         | its event feed newest first, with a link to the listing                  |
 | `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
 | `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
 |                                                                         | ([`messaging.md`](messaging.md))                                         |
@@ -337,6 +339,21 @@ only to the listing itself; an actor links to the customer record, to
 `/admin/logs?actor=` filtered to it, and to the customer page's own block
 form — the block flow itself lives only there, never duplicated on the
 analytics page.
+
+**The funnel.** `App\Analytics\Admin\Funnel` (`docs/analytics.md` § "The
+funnel") reads the whole storefront funnel — visitors through paid orders —
+for a range, a listing, or a seller, and the entry, listing, and seller
+pages each render it as a row of tiles (`x-admin.analytics.funnel`): the
+entry page above the events table, the listing page below its tiles, and
+the seller page (`/admin/sellers/{seller}`) as its own "Funnel, last 30
+days" panel, since that page carries no range control and always reads the
+last 30 days. Every tile carries the step's count, its rate from the step
+before it, and its change against the range before; the paid tile also
+carries the range's cancelled count as a note. An actor's own feed also
+names the order and cart subjects the four steps beyond the cart carry —
+an order links to `/admin/orders/{order}`, a cart does not, since it has
+no page of its own — each with the listing titles `data.listing_ids`
+names.
 
 ## What a removal or a block actually does
 
