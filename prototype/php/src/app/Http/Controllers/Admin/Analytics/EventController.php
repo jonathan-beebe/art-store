@@ -72,7 +72,7 @@ final class EventController extends Controller
      * The breakdown segmented control: one link per breakdown this event
      * name allows, `range` carried through unchanged. A single-entry list
      * (`page.view`, which allows only `pattern`) is the view's cue to hide
-     * the control rather than show a control with nothing to switch.
+     * the control, since it would have nothing to switch.
      *
      * @param  array<string, string>  $roundTripped
      * @return list<array{label: string, href: string, active: bool}>

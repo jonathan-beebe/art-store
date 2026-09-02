@@ -16,8 +16,8 @@ use Illuminate\Validation\Rule;
  * `/admin/analytics/events/{name}`'s query parameters — docs/alignment.md
  * §5: an empty value means "all" (or, for `by`, the event's default), an
  * unrecognised one answers 400. `{name}` itself is the controller's own
- * 404, not this class's concern: when it names no event this class allows
- * any `by` string through rather than 400ing ahead of that 404.
+ * 404: when it names no event this class allows any `by` string through
+ * and leaves that 404 to the controller.
  */
 final class AnalyticsEventQueryRequest extends FormRequest
 {
@@ -39,8 +39,8 @@ final class AnalyticsEventQueryRequest extends FormRequest
     }
 
     /** An empty value — a segmented control's "all" option, an emptied
-     * field — reads as absent rather than as a value the rules above would
-     * otherwise have to admit. */
+     * field — reads as absent, so it never reaches the rules above as a
+     * value they would have to admit. */
     protected function prepareForValidation(): void
     {
         $blanked = array_map(

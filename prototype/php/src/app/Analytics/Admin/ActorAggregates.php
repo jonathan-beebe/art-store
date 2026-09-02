@@ -17,12 +17,11 @@ use Illuminate\Support\Facades\DB;
  * by both {@see ActorLeaderboard} (sorted by peak, limited to a handful)
  * and {@see ActorList} (sorted by the all-actors page's own sort, paged)
  * — an internal collaborator the two share so neither can drift from the
- * other's numbers, not a page's own query in its own right. Three queries
- * against `analytics_events` build the per-actor numbers — totals within
- * the range, each actor's busiest UTC hour within the range, and each
- * actor's earliest event ever — then one `Customer::whereIn()` fills in
- * who each actor is. `$kind` and `$search` both narrow the
- * already-aggregated list rather than the SQL: a search can match an
+ * other's numbers. Three queries against `analytics_events` build the
+ * per-actor numbers — totals within the range, each actor's busiest UTC
+ * hour within the range, and each actor's earliest event ever — then one
+ * `Customer::whereIn()` fills in who each actor is. `$kind` and `$search`
+ * both narrow the already-aggregated list in PHP: a search can match an
  * actor's id, its email, or any ip it used, and none of those live on the
  * same row the aggregate groups by.
  */
@@ -48,8 +47,8 @@ final class ActorAggregates
             $peak = $peaks[$actorId] ?? 0;
             $customer = $identities->get($actorId);
             // No matching row means the actor's customer was deleted after
-            // it recorded events — read the same as an anonymous visitor
-            // who never signed in, rather than dropped from the list.
+            // it recorded events. It stays on the list, read as an
+            // anonymous visitor who never signed in.
             $actorKind = 'anonymous';
             $actorWho = 'never signed in';
 

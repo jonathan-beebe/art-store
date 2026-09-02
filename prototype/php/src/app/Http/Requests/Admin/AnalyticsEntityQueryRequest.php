@@ -39,8 +39,8 @@ final class AnalyticsEntityQueryRequest extends FormRequest
     }
 
     /** An empty value — a segmented control's "all" option, an emptied
-     * field — reads as absent rather than as a value the rules above would
-     * otherwise have to admit. */
+     * field — reads as absent, so it never reaches the rules above as a
+     * value they would have to admit. */
     protected function prepareForValidation(): void
     {
         $blanked = array_map(

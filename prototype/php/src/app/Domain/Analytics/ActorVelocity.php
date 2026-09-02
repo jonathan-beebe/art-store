@@ -6,9 +6,8 @@ namespace App\Domain\Analytics;
 
 /**
  * Whether an actor's busiest UTC hour in a range reads as a scripted or
- * abusive visitor rather than a person browsing — one threshold shared by
- * the leaderboard and an actor's own page, so the two never disagree about
- * who is flagged.
+ * abusive visitor — one threshold shared by the leaderboard and an
+ * actor's own page, so the two never disagree about who is flagged.
  */
 final class ActorVelocity
 {

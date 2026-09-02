@@ -8,7 +8,7 @@ namespace App\Domain\Analytics;
  * Scales a daily series onto pixel bar heights: the tallest count fills
  * `$maxPx`, every other count is proportional to it, and nothing ever
  * renders shorter than 2px — a real zero and a rounding-error sliver both
- * still read as a bar rather than vanishing.
+ * still read as a bar.
  */
 final class BarStrip
 {

@@ -212,9 +212,9 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     /**
-     * The admin drills into what the visitor just did: the entry page, the
+     * The admin drills into what the visitor did: the entry page, the
      * favorite event's own page, every actor in the range, and the
-     * visitor's own actor page — the FEAT-045 drill-in.
+     * visitor's own actor page.
      */
     $adminDrillsIntoAnalytics = function (Customer $visitor): void {
         $this->actingAs($this->admin(), 'admin');

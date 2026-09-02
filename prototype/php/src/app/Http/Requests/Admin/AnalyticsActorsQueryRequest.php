@@ -39,8 +39,8 @@ final class AnalyticsActorsQueryRequest extends FormRequest
     }
 
     /** An empty value — a cleared search box, a segmented control's "all"
-     * option carrying no query value — reads as no filter rather than as
-     * a value the rules above would otherwise have to admit. */
+     * option carrying no query value — reads as no filter, so it never
+     * reaches the rules above as a value they would have to admit. */
     protected function prepareForValidation(): void
     {
         $blanked = array_map(
