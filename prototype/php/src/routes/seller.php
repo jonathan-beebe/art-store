@@ -26,6 +26,8 @@ use App\Http\Controllers\Seller\OptionValueController;
 use App\Http\Controllers\Seller\OrderController;
 use App\Http\Controllers\Seller\OrderMessageController;
 use App\Http\Controllers\Seller\QuantityBreakController;
+use App\Http\Controllers\Seller\ReopenConversationController;
+use App\Http\Controllers\Seller\ResolveConversationController;
 use App\Http\Controllers\Seller\ShipmentController;
 use App\Http\Controllers\Seller\SupportController;
 use App\Http\Controllers\Seller\UnitController;
@@ -101,6 +103,9 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
+    Route::post('messages/{conversation}/resolve', ResolveConversationController::class)->name('messages.resolve');
+    Route::post('messages/{conversation}/reopen', ReopenConversationController::class)->name('messages.reopen');
 
-    Route::get('support', SupportController::class)->name('support');
+    Route::get('support', [SupportController::class, 'create'])->name('support');
+    Route::post('support', [SupportController::class, 'store'])->name('support.store');
 });

@@ -96,8 +96,9 @@ it('renders the inbox on a fixed number of queries however many threads the sell
         // the list pane's window total (`ListPaneWindow`, DSGN-006
         // follow-up) — a `count()` alongside the capped fetch, so the pane
         // and its footer can say how many conversations exist beyond the
-        // window.
-        ->expectsDatabaseQueryCount(10)
+        // window; +2 for the filter bar's cheap chip counts (unread,
+        // questions).
+        ->expectsDatabaseQueryCount(12)
         ->get('/seller/messages');
 
     $response->assertOk();
@@ -220,6 +221,110 @@ it('moves the thread to the top of the inbox after a reply', function (): void {
     expect($conversation->fresh()?->last_message_at?->greaterThan($this->moment('2026-08-01 09:00:00')))->toBeTrue();
 });
 
+it('narrows the inbox to unread threads when filter=unread', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $unreadCustomer = $this->verifiedCustomer();
+    $unread = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'listing_id' => $listing->id]);
+    Message::factory()->from($unreadCustomer)->unread()->create(['conversation_id' => $unread->id, 'body' => 'Ships to France?']);
+    $read = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'listing_id' => $listing->id]);
+    Message::factory()->from($seller)->create(['conversation_id' => $read->id, 'body' => 'All set.']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=unread');
+
+    $response->assertOk();
+    $response->assertSee('Ships to France?');
+    $response->assertDontSee('All set.');
+});
+
+it('narrows the inbox to listing questions when filter=questions', function (): void {
+    $seller = $this->seller();
+    $question = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
+    Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'fulfillment_id' => $fulfillment->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=questions');
+
+    $response->assertOk();
+    $response->assertSee('A question about this piece');
+    $response->assertDontSee("Order {$fulfillment->order_id}");
+});
+
+it('narrows the inbox to order threads when filter=orders', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
+    Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'fulfillment_id' => $fulfillment->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=orders');
+
+    $response->assertOk();
+    $response->assertSee("Order {$fulfillment->order_id}");
+    $response->assertDontSee('A question about this piece');
+});
+
+it('narrows the inbox to support threads when filter=support', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Payout timing']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=support');
+
+    $response->assertOk();
+    $response->assertSee('Payout timing');
+    $response->assertDontSee('A question about this piece');
+});
+
+it('hides resolved threads by default and shows them under status=resolved', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'Open question']);
+    Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'title' => 'Resolved question',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $default = $this->actingAs($seller, 'seller')->get('/seller/messages');
+    $default->assertSee('Open question');
+    $default->assertDontSee('Resolved question');
+
+    $resolved = $this->actingAs($seller, 'seller')->get('/seller/messages?status=resolved');
+    $resolved->assertSee('Resolved question');
+    $resolved->assertDontSee('Open question');
+
+    $all = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
+    $all->assertSee('Open question');
+    $all->assertSee('Resolved question');
+});
+
+it('shows the reply-to block when reply_to names a message of the thread', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
+    $question = Message::factory()->from($customer)->create(['conversation_id' => $conversation->id, 'body' => 'Is this framed?']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}?reply_to={$question->id}");
+
+    $response->assertOk();
+    $response->assertSee('Replying to', escape: false);
+    $response->assertSee('value="'.$question->id.'"', escape: false);
+});
+
+it('ignores a reply_to naming a message from another thread rather than 500ing', function (): void {
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
+    $otherThreadMessage = Message::factory()->create();
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}?reply_to={$otherThreadMessage->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Replying to', escape: false);
+});
+
 it('trips the message-post limit, handing the thread back with the reply still in the box', function (): void {
     Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
     $seller = $this->seller();
@@ -234,4 +339,21 @@ it('trips the message-post limit, handing the thread back with the reply still i
     $response->assertSee('First reply.');
     $response->assertSee('>Second reply.</textarea>', escape: false);
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Second reply.')->exists())->toBeFalse();
+});
+
+it('trips the message-post limit while replying, keeping the reply-to block from the flashed input', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
+    $quoted = Message::factory()->from($customer)->create(['conversation_id' => $conversation->id, 'body' => 'Is this framed?']);
+    $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'First reply.']);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", [
+        'body' => 'Second reply.',
+        'reply_to_message_id' => $quoted->id,
+    ]);
+
+    $response->assertStatus(429);
+    $response->assertSee('Replying to', escape: false);
 });
