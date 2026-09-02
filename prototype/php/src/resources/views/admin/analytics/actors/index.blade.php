@@ -64,26 +64,51 @@
                         <th scope="col" class="px-4 py-2 text-right font-semibold whitespace-nowrap">Subjects</th>
                         <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">First seen</th>
                         <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">Last seen</th>
+                        <th scope="col" class="px-4 py-2"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                     @foreach ($rows as $actor)
-                        <tr>
-                            <th scope="row" class="px-4 py-2 font-normal">
-                                <x-admin.log-id-chip :id="$actor->id" :href="route('admin.analytics.actors.show', $actor->id)" />
+                        @php $actorHref = route('admin.analytics.actors.show', $actor->id); @endphp
+                        <tr class="group relative hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                            <th scope="row" class="relative px-4 py-2 font-normal">
+                                <x-admin.log-id-chip :id="$actor->id" :href="$actorHref" class="after:absolute after:inset-0 after:content-['']" />
                             </th>
-                            <td class="px-4 py-2">
+                            <td class="relative px-4 py-2">
                                 <div class="flex items-center gap-2">
                                     <x-admin.status-badge :tint="$actor->kind === 'verified' ? 'ok' : 'neutral'">{{ $actor->kind }}</x-admin.status-badge>
                                     <span class="text-stone-600 dark:text-stone-400">{{ $actor->who }}</span>
                                 </div>
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
                             </td>
-                            <td class="px-4 py-2 font-mono text-xs text-stone-600 dark:text-stone-400">{{ implode(', ', $actor->ips) }}</td>
-                            <td class="px-4 py-2 text-right font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ number_format($actor->events) }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums {{ $actor->flagged ? 'font-bold text-red-700 dark:text-red-500' : 'text-stone-900 dark:text-stone-100' }}">{{ number_format($actor->peakPerHour) }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ number_format($actor->subjects) }}</td>
-                            <td class="px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">{{ $actor->firstSeenAt->format('Y-m-d') }}</td>
-                            <td class="px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">{{ \App\Support\RelativeTime::short($actor->lastSeenAt, $now) }}</td>
+                            <td class="relative px-4 py-2 font-mono text-xs text-stone-600 dark:text-stone-400">
+                                {{ implode(', ', $actor->ips) }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 text-right font-semibold tabular-nums text-stone-900 dark:text-stone-100">
+                                {{ number_format($actor->events) }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 text-right tabular-nums {{ $actor->flagged ? 'font-bold text-red-700 dark:text-red-500' : 'text-stone-900 dark:text-stone-100' }}">
+                                {{ number_format($actor->peakPerHour) }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 text-right tabular-nums">
+                                {{ number_format($actor->subjects) }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">
+                                {{ $actor->firstSeenAt->format('Y-m-d') }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">
+                                {{ \App\Support\RelativeTime::short($actor->lastSeenAt, $now) }}
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
+                            <td class="relative px-4 py-2 text-stone-400 dark:text-stone-500">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+                                <x-admin.analytics.stretched-link :href="$actorHref" />
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

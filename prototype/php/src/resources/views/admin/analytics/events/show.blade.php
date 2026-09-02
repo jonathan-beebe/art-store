@@ -102,22 +102,24 @@
                             <th scope="col" class="px-4 py-2 text-right font-semibold whitespace-nowrap">Change</th>
                             <th scope="col" class="px-4 py-2 text-right font-semibold whitespace-nowrap">Share</th>
                             <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap"></th>
+                            <th scope="col" class="px-4 py-2"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                         @foreach ($detail->rows as $row)
-                            <tr>
-                                <th scope="row" class="px-4 py-2 font-normal">
+                            @php $rowHref = $row->site === null ? $entityHref($row->id) : null; @endphp
+                            <tr @class(['group relative hover:bg-stone-50 dark:hover:bg-stone-800/50' => $rowHref !== null])>
+                                <th scope="row" @class(['relative' => $rowHref !== null, 'px-4 py-2 font-normal' => true])>
                                     @if ($row->site !== null)
                                         <div class="flex items-center gap-2">
                                             <x-admin.status-badge tint="neutral">{{ $row->site->value }}</x-admin.status-badge>
                                             <span class="font-mono text-xs text-stone-700 dark:text-stone-300">{{ $row->id }}</span>
                                         </div>
                                     @else
-                                        <x-admin.log-id-chip :id="$row->id" :href="$entityHref($row->id)" />
+                                        <x-admin.log-id-chip :id="$row->id" :href="$rowHref" class="after:absolute after:inset-0 after:content-['']" />
                                     @endif
                                 </th>
-                                <td class="px-4 py-2 text-stone-600 dark:text-stone-400">
+                                <td @class(['relative' => $rowHref !== null, 'px-4 py-2 text-stone-600 dark:text-stone-400' => true])>
                                     @if ($row->actorKind !== null)
                                         <div class="flex items-center gap-2">
                                             <x-admin.status-badge :tint="$row->actorKind === 'verified' ? 'ok' : 'neutral'">{{ $row->actorKind }}</x-admin.status-badge>
@@ -126,23 +128,48 @@
                                     @elseif ($row->site === null)
                                         <span>{{ $row->title }}</span>
                                     @endif
+                                    @if ($rowHref !== null)
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
+                                    @endif
                                 </td>
-                                <td class="px-4 py-2 text-right font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ number_format($row->current) }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums text-stone-600 dark:text-stone-400">{{ number_format($row->previous) }}</td>
-                                <td class="px-4 py-2 text-right tabular-nums">
+                                <td @class(['relative' => $rowHref !== null, 'px-4 py-2 text-right font-semibold tabular-nums text-stone-900 dark:text-stone-100' => true])>
+                                    {{ number_format($row->current) }}
+                                    @if ($rowHref !== null)
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
+                                    @endif
+                                </td>
+                                <td @class(['relative' => $rowHref !== null, 'px-4 py-2 text-right tabular-nums text-stone-600 dark:text-stone-400' => true])>
+                                    {{ number_format($row->previous) }}
+                                    @if ($rowHref !== null)
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
+                                    @endif
+                                </td>
+                                <td @class(['relative' => $rowHref !== null, 'px-4 py-2 text-right tabular-nums' => true])>
                                     <span class="{{ $deltaClass($row->change) }}">{{ $row->change->text }}</span>
+                                    @if ($rowHref !== null)
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
+                                    @endif
                                 </td>
-                                <td class="px-4 py-2 text-right">
+                                <td @class(['relative' => $rowHref !== null, 'px-4 py-2 text-right' => true])>
                                     <div class="flex items-center justify-end gap-2">
                                         <div class="h-1.5 w-20 overflow-hidden rounded-full bg-stone-100 dark:bg-stone-400/10">
                                             <div class="h-1.5 bg-stone-400 dark:bg-stone-500" style="width: {{ $row->shareWidth }}%"></div>
                                         </div>
                                         <span class="w-9 text-right tabular-nums text-stone-600 dark:text-stone-400">{{ $row->sharePercent }}</span>
                                     </div>
+                                    @if ($rowHref !== null)
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
+                                    @endif
                                 </td>
-                                <td class="px-4 py-2 whitespace-nowrap">
-                                    @if ($row->site === null)
-                                        <a href="{{ $entityHref($row->id) }}" class="underline">Events</a>
+                                <td class="relative px-4 py-2 whitespace-nowrap">
+                                    @if ($rowHref !== null)
+                                        <a href="{{ $rowHref }}" class="underline after:absolute after:inset-0 after:content-['']">Events</a>
+                                    @endif
+                                </td>
+                                <td class="relative px-4 py-2 text-stone-400 dark:text-stone-500">
+                                    @if ($rowHref !== null)
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"></path></svg>
+                                        <x-admin.analytics.stretched-link :href="$rowHref" />
                                     @endif
                                 </td>
                             </tr>
