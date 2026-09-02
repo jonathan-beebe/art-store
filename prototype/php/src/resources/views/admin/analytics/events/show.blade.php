@@ -16,8 +16,9 @@
         };
     };
 
-    $entityPath = $detail->breakdown === \App\Domain\Analytics\EventBreakdown::Actor ? 'actors' : 'listings';
-    $entityHref = fn (string $id): string => url('/admin/analytics/'.$entityPath.'/'.$id);
+    $entityHref = fn (string $id): string => $detail->breakdown === \App\Domain\Analytics\EventBreakdown::Actor
+        ? route('admin.analytics.actors.show', $id)
+        : route('admin.analytics.listings.show', $id);
 
     $barHeights = \App\Domain\Analytics\BarStrip::heights($detail->daily, 112);
     $barTooltips = array_map(

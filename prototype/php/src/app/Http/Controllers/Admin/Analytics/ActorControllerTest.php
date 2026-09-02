@@ -178,3 +178,114 @@ it('answers 400 for an unrecognised sort', function (): void {
 
     $response->assertStatus(400);
 });
+
+it('renders 200 with the actor\'s facts, tiles, and feed', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+    $customer = $this->verifiedCustomer();
+    $customer->update(['email' => 'hermione@example.com']);
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee('hermione@example.com');
+    $response->assertSee($customer->id);
+    $response->assertSee('The Burrow at Dusk');
+    $response->assertSee($listing->id);
+    $response->assertSee('Open customer');
+    $response->assertSee('Open in logs');
+    $response->assertSee('Block customer');
+});
+
+it('filters the actor feed by event name', function (): void {
+    $listing = $this->listing($this->seller());
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 09:05:00')));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', ['customer' => $customer->id, 'event' => 'listing.favorite']));
+
+    $response->assertOk();
+    $response->assertSee('1 of 2 shown, newest first');
+});
+
+it('answers 400 for an unrecognised event filter on the actor page', function (): void {
+    $customer = $this->verifiedCustomer();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', ['customer' => $customer->id, 'event' => 'nonsense']));
+
+    $response->assertStatus(400);
+});
+
+it('answers not found for an unknown customer id on the actor page', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/actors/cus_01J5X3M9A2K8YB7Q4R6T1V0WZE');
+
+    $response->assertNotFound();
+});
+
+it('flags an actor with 100+ events in one hour, showing the hourly strip and flag banner', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $customer = $this->anonymousCustomer();
+    $analytics = app(Analytics::class);
+
+    $request = Request::create('/', server: ['REMOTE_ADDR' => '185.220.101.42']);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_01J00000000000000000000ABC');
+    app()->instance('request', $request);
+
+    foreach (range(1, 110) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 21:00:00')->modify("+{$i} seconds"), "flag-{$i}"));
+    }
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee('By hour, Aug 19');
+    $response->assertSee('185.220.101.42');
+    $response->assertSee('no favorite or cart event in the range');
+});
+
+it('shows the merged-from fact on the actor page', function (): void {
+    $anonymous = $this->anonymousCustomer();
+    $verified = $this->verifiedCustomer();
+
+    $this->travelTo($this->moment('2026-08-15 09:00:00'));
+    \App\Models\CustomerMerge::factory()->create([
+        'anonymous_customer_id' => $anonymous->id,
+        'customer_id' => $verified->id,
+    ]);
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $verified));
+
+    $response->assertOk();
+    $response->assertSee($anonymous->id);
+    $response->assertSee('Aug 15, 2026');
+});
+
+it('names a deleted listing "listing no longer exists" on the actor page\'s feed', function (): void {
+    $listing = $this->listing($this->seller());
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->flush();
+    $listing->delete();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee('listing no longer exists');
+});

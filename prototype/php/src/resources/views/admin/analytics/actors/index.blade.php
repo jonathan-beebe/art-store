@@ -70,7 +70,7 @@
                     @foreach ($rows as $actor)
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
-                                <a href="{{ url('/admin/analytics/actors/'.$actor->id) }}" class="underline">
+                                <a href="{{ route('admin.analytics.actors.show', $actor->id) }}" class="underline">
                                     <x-admin.log-id-chip :id="$actor->id" />
                                 </a>
                             </th>
@@ -94,7 +94,7 @@
 
         <x-admin.card-list caption="Every actor in the range">
             @foreach ($rows as $actor)
-                <x-admin.card-row href="{{ url('/admin/analytics/actors/'.$actor->id) }}">
+                <x-admin.card-row href="{{ route('admin.analytics.actors.show', $actor->id) }}">
                     <div class="flex items-center justify-between gap-3">
                         <x-admin.log-id-chip :id="$actor->id" />
                         <span class="{{ $actor->flagged ? 'font-bold text-red-700 dark:text-red-500' : 'text-stone-900 dark:text-white' }}">{{ number_format($actor->peakPerHour) }}/h</span>

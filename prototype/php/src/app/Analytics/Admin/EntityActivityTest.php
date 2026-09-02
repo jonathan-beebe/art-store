@@ -103,7 +103,6 @@ it('reads a verified actor\'s identity, ips, and merged-from fact', function ():
     withIp('185.220.101.42');
     $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $verified->id, $this->moment('2026-08-19 09:00:00')));
     $analytics->flush();
-    app()->forgetInstance('request');
 
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
     $view = EntityActivity::forActor($verified, $range, null, $this->moment('2026-08-24 12:00:00'));
@@ -149,7 +148,6 @@ it('flags an actor whose peak hour passes the threshold, with the hourly strip a
         $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 21:00:00')->modify("+{$i} seconds"), "peak-{$i}"));
     }
     $analytics->flush();
-    app()->forgetInstance('request');
 
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
     $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
@@ -178,7 +176,6 @@ it('drops the no-favorite-or-cart clause once the actor favorited or cart-added 
     }
     $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 22:30:00')));
     $analytics->flush();
-    app()->forgetInstance('request');
 
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
     $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
@@ -258,7 +255,6 @@ it('carries the request id and icon path onto a feed row', function (): void {
     withIp('10.0.0.5');
     $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
     $analytics->flush();
-    app()->forgetInstance('request');
 
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
     $view = EntityActivity::forListing($listing, $range, null);

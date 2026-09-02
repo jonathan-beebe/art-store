@@ -61,7 +61,7 @@
 
     {{-- jump row --}}
     @if ($jump)
-        <a href="{{ url('/admin/analytics/'.($jump->kind === \App\Domain\Analytics\JumpKind::Listing ? 'listings' : 'actors').'/'.$jump->id) }}" class="mt-4 flex items-center gap-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50">
+        <a href="{{ $jump->kind === \App\Domain\Analytics\JumpKind::Listing ? route('admin.analytics.listings.show', $jump->id) : route('admin.analytics.actors.show', $jump->id) }}" class="mt-4 flex items-center gap-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50">
             <x-admin.log-id-chip :id="$jump->id" :truncate="false" />
             <span class="text-stone-600 dark:text-stone-400">{{ $jump->caption }}</span>
             <span class="ml-auto text-stone-700 dark:text-stone-300 underline">Open its events</span>
@@ -169,7 +169,7 @@
                         @foreach ($actors as $actor)
                             <tr>
                                 <th scope="row" class="px-4 py-2 font-normal">
-                                    <a href="{{ url('/admin/analytics/actors/'.$actor->id) }}" class="underline">
+                                    <a href="{{ route('admin.analytics.actors.show', $actor->id) }}" class="underline">
                                         <x-admin.log-id-chip :id="$actor->id" />
                                     </a>
                                 </th>
@@ -192,7 +192,7 @@
 
             <x-admin.card-list caption="Actors ranked by their busiest hour in the range">
                 @foreach ($actors as $actor)
-                    <x-admin.card-row href="{{ url('/admin/analytics/actors/'.$actor->id) }}">
+                    <x-admin.card-row href="{{ route('admin.analytics.actors.show', $actor->id) }}">
                         <div class="flex items-center justify-between gap-3">
                             <x-admin.log-id-chip :id="$actor->id" />
                             <span class="{{ $actor->flagged ? 'font-bold text-red-700 dark:text-red-500' : 'text-stone-900 dark:text-white' }}">{{ number_format($actor->peakPerHour) }}/h</span>
