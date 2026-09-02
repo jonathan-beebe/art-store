@@ -225,13 +225,15 @@
         @endif
     </section>
 
-    <section aria-labelledby="message-heading" class="mt-6 max-w-xl">
+    <section id="message-customer-form" aria-labelledby="message-heading" class="mt-6 max-w-xl scroll-mt-6">
         <h2 id="message-heading" class="font-semibold text-stone-700 dark:text-stone-300">Message customer</h2>
 
-        <x-messaging.body-form
+        <x-messaging.open-thread-form
             :action="route('admin.customers.messages', $customer)"
-            label="Message"
-            class="mt-2"
+            context-field="order"
+            context-label="Order"
+            :context-options="$customer->orders->mapWithKeys(fn ($order) => [$order->id => 'Order '.$order->id.($order->placed_at ? ' · '.$order->placed_at->format('M j, Y') : '')])"
+            :selected-context-id="request()->query('order')"
         />
     </section>
 </x-layouts.admin>

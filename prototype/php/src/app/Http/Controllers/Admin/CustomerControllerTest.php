@@ -54,6 +54,24 @@ it('offers a form to message the customer', function (): void {
     $response->assertSee('action="'.route('admin.customers.messages', $customer).'"', escape: false);
 });
 
+it('offers the customers own orders as the message forms order options', function (): void {
+    $customer = $this->verifiedCustomer();
+    $order = $this->orderFor($customer, $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$customer->id}");
+
+    $response->assertSee("Order {$order->id}");
+});
+
+it('preselects the order an oversight thread carried in on the query string', function (): void {
+    $customer = $this->verifiedCustomer();
+    $order = $this->orderFor($customer, $this->listing($this->seller()));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$customer->id}?order={$order->id}");
+
+    $response->assertSee('value="'.$order->id.'" selected', escape: false);
+});
+
 it('answers not found for a value that is not a customer id, the same as an unknown one', function (string $id): void {
     $this->actingAs($this->admin(), 'admin')->get("/admin/customers/{$id}")->assertNotFound();
 })->with([
