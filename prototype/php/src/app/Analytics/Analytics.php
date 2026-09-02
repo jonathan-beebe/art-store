@@ -220,12 +220,18 @@ final class Analytics
      */
     private function reportFailure(string $verb, Throwable $e, ?int $rows = null): void
     {
-        $data = ['analytics_database_file' => config('database.connections.analytics.database')];
+        try {
+            $data = ['analytics_database_file' => config('database.connections.analytics.database')];
 
-        if ($rows !== null) {
-            $data['events'] = $rows;
+            if ($rows !== null) {
+                $data['events'] = $rows;
+            }
+
+            Log::warning("analytics {$verb} failed: {$e->getMessage()}", ['data' => $data]);
+        } catch (Throwable) {
+            // The process-exit fallback can run this after the Laravel
+            // container is gone, so config() and Log can themselves throw.
+            // A report that cannot be written is dropped.
         }
-
-        Log::warning("analytics {$verb} failed: {$e->getMessage()}", ['data' => $data]);
     }
 }

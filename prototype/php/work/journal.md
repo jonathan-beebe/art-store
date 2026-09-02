@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:09:43:30 — FEAT-039 — done: analytics events go through App\Analytics\Analytics, buffered with their own timestamps and flushed after the response into analytics.sqlite3 (analytics_events + page_view_counts); readers via AnalyticsReport; docs/analytics.md
+
 - 2026-09-02:08:30:59 — FEAT-039 — reopened: iteration 2, one Analytics entry point with an after-response flush
 
 - 2026-09-02:08:11:27 — FEAT-039 — done: page_view_counts and listing_events live in an analytics sqlite file of their own (ANALYTICS_DATABASE_FILE), every analytics write is guarded so a failing store logs one warn line and the request completes, readers unchanged, docs/alignment.md §2.6

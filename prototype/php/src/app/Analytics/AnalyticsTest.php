@@ -7,6 +7,7 @@ namespace App\Analytics;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
+use Closure;
 use DateTimeImmutable;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
@@ -226,6 +227,34 @@ it('logs one warning and never throws when reassignActor cannot write', function
 
         expect($log->line('app.log', 'doing')['level'])->toBe('warn');
     });
+});
+
+it('never throws from the shutdown fallback once the container is unusable', function (): void {
+    $captured = null;
+
+    $analytics = new Analytics(registerShutdown: function (Closure $flush) use (&$captured): void {
+        $captured = $flush;
+    });
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    assert($captured instanceof Closure);
+
+    $db = $this->app->make('db');
+    $config = $this->app->make('config');
+
+    try {
+        // Mirrors what process exit leaves behind for the real shutdown
+        // fallback: both the write and the failure report reach for a
+        // container that can no longer resolve them.
+        $this->app->offsetUnset('db');
+        $this->app->offsetUnset('config');
+
+        $captured();
+    } finally {
+        $this->app->instance('db', $db);
+        $this->app->instance('config', $config);
+    }
+
+    expect($analytics->pending())->toBe(0);
 });
 
 it('flushes what a request recorded once the response has already gone back', function (): void {

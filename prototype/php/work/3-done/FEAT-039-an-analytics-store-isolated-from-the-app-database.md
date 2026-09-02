@@ -1,7 +1,7 @@
 ---
 id: FEAT-039
 type: feature
-status: open
+status: resolved
 created: 2026-09-01
 ---
 
@@ -207,3 +207,41 @@ Design:
   `ListingEvent` model go away. The shop listing page no longer logs a
   collapsed repeat view as a refusal: nothing is written during the
   request, so there is nothing to refuse.
+
+### Result
+
+Landed in three commits after the reopen:
+
+1. `e12fc3bf` — `App\Analytics\Analytics` (record, flush, reassignActor),
+   `AnalyticsEvent`, `AnalyticsReport`, `ListingEventCounts`, the
+   `analytics_events` table, the provider's `terminating()` flush with a
+   shutdown fallback, every caller and reader migrated, the old path
+   deleted.
+2. `74c1f951` — `AnalyticsEventName` moved to `App\Domain\Analytics` so the
+   domain report classes depend inward; the flush test proves a recorded
+   timestamp survives a flush three days later; a file-backed test covers
+   the `BEGIN IMMEDIATE` branch; `docs/analytics.md` written and
+   `docs/alignment.md` §1/§2.6/§5/§8 updated.
+
+Flush mechanism: `$app->terminating()`. `Application::handleRequest()`
+sends the response before `$kernel->terminate()`, and `handleCommand()`
+terminates after the command; both kernels end in `$app->terminate()`.
+`defer()` runs only through the HTTP `InvokeDeferredCallbacks` middleware,
+so a command would never flush through it. Under `RefreshDatabase` the
+analytics connection is already in a transaction, so the flush joins it.
+
+Verified live after `make fresh`: two hits on one listing with one cookie
+stored one `listing.view` row with its dedupe key, page views rolled up
+per pattern, the app database holds no analytics tables, and the server
+logged no warning.
+
+Dev note: the old `listing_events` table stays behind as an orphan in an
+existing `storage/analytics.sqlite3`; deleting the file and running
+`make fresh` clears it. No deploy carried the earlier shape.
+
+Found by `make coverage` (a sequential run): the process-exit fallback
+flush fires after the container is gone, and a failure report that reads
+`config()` there throws out of the shutdown function, so PHP exits 255
+after every test passed. `Analytics::reportFailure()` now swallows its own
+failure, the way `LogStore::reportFailure()` does, with a test that drives
+the fallback against an unusable container.
