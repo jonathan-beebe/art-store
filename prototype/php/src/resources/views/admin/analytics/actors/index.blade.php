@@ -36,14 +36,14 @@
             @endforeach
         </div>
 
-        <form method="GET" action="{{ route('admin.analytics.actors.index') }}" class="flex min-w-64 flex-1 items-center gap-2">
-            <input type="hidden" name="range" value="{{ $roundTripped['range'] ?? '' }}">
-            <input type="hidden" name="sort" value="{{ $roundTripped['sort'] ?? '' }}">
-            <input type="hidden" name="actors" value="{{ $roundTripped['actors'] ?? '' }}">
-            <label for="actors-search" class="sr-only">Search by id, email, or IP</label>
-            <input id="actors-search" name="q" type="text" value="{{ $search }}" placeholder="Search by id, email, or IP" class="mt-1 block w-full rounded-md bg-white px-3 py-2 text-stone-900 inset-ring inset-ring-stone-300 focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600 dark:bg-white/5 dark:text-stone-100 dark:inset-ring-white/10">
-            <button type="submit" class="inline-flex min-h-11 items-center rounded-md bg-stone-900 dark:bg-stone-100 px-4 text-sm font-semibold text-white dark:text-stone-900 shadow-xs hover:bg-stone-800 dark:hover:bg-stone-200">Search</button>
-        </form>
+        <x-admin.analytics.search-form
+            action="{{ route('admin.analytics.actors.index') }}"
+            id="actors-search"
+            :search="$search"
+            placeholder="Search by id, email, or IP"
+            :carry="$roundTripped"
+            class="min-w-64"
+        />
 
         <span class="ml-auto text-xs text-stone-500 dark:text-stone-400">{{ number_format($page->totalCount) }} actors in the range</span>
     </div>

@@ -40,13 +40,14 @@
             @endforeach
         </div>
 
-        <form method="GET" action="{{ route('admin.analytics.index') }}" class="flex min-w-80 flex-1 items-center gap-2">
-            <input type="hidden" name="range" value="{{ $roundTripped['range'] ?? '' }}">
-            <input type="hidden" name="actors" value="{{ $roundTripped['actors'] ?? '' }}">
-            <label for="analytics-search" class="sr-only">Search events, or paste a listing, customer, session, or IP</label>
-            <input id="analytics-search" name="q" type="text" value="{{ $search }}" placeholder="Search events, or paste a listing, customer, session, or IP" class="mt-1 block w-full rounded-md bg-white px-3 py-2 text-stone-900 inset-ring inset-ring-stone-300 focus:outline-2 focus:-outline-offset-2 focus:outline-stone-600 dark:bg-white/5 dark:text-stone-100 dark:inset-ring-white/10">
-            <button type="submit" class="inline-flex min-h-11 items-center rounded-md bg-stone-900 dark:bg-stone-100 px-4 text-sm font-semibold text-white dark:text-stone-900 shadow-xs hover:bg-stone-800 dark:hover:bg-stone-200">Search</button>
-        </form>
+        <x-admin.analytics.search-form
+            action="{{ route('admin.analytics.index') }}"
+            id="analytics-search"
+            :search="$search"
+            placeholder="Search events, or paste a listing, customer, session, or IP"
+            :carry="$roundTripped"
+            class="min-w-80"
+        />
 
         <div role="group" aria-label="Actors" class="flex gap-1">
             @foreach ($actorFilterLinks as $link)
