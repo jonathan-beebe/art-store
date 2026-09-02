@@ -9,7 +9,9 @@ use DateTimeImmutable;
 /**
  * One actor's row on the admin analytics leaderboard or its all-actors
  * page: what it did in the range and who it is, from
- * {@see ActorLeaderboard::forRange()}.
+ * {@see ActorAggregates::forRange()}. `$firstSeenAt` is the actor's
+ * earliest event ever, not bounded by the range the rest of the row reads
+ * over — the all-actors page's "First seen" column.
  */
 final readonly class ActorSummary
 {
@@ -24,6 +26,7 @@ final readonly class ActorSummary
         public int $events,
         public int $peakPerHour,
         public int $subjects,
+        public DateTimeImmutable $firstSeenAt,
         public DateTimeImmutable $lastSeenAt,
         public bool $flagged,
     ) {}
