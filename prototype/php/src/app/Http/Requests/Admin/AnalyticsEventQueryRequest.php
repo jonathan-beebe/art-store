@@ -1,0 +1,118 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Requests\Admin;
+
+use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\EventBreakdown;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
+
+/**
+ * `/admin/analytics/events/{name}`'s query parameters — docs/alignment.md
+ * §5: an empty value means "all" (or, for `by`, the event's default), an
+ * unrecognised one answers 400. `{name}` itself is the controller's own
+ * 404, not this class's concern: when it names no event this class allows
+ * any `by` string through rather than 400ing ahead of that 404.
+ */
+final class AnalyticsEventQueryRequest extends FormRequest
+{
+    private const int DEFAULT_RANGE_DAYS = 30;
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    public function rules(): array
+    {
+        $name = $this->eventName();
+
+        return [
+            'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
+            'by' => $this->isRecognisedEventName($name)
+                ? ['nullable', Rule::in(array_map(fn (EventBreakdown $breakdown): string => $breakdown->value, EventBreakdown::allowedFor($name)))]
+                : ['nullable', 'string'],
+        ];
+    }
+
+    /** An empty value — a segmented control's "all" option, an emptied
+     * field — reads as absent rather than as a value the rules above would
+     * otherwise have to admit. */
+    protected function prepareForValidation(): void
+    {
+        $blanked = array_map(
+            fn (mixed $value): mixed => $value === '' ? null : $value,
+            $this->only(array_keys($this->rules())),
+        );
+
+        $this->merge($blanked);
+    }
+
+    /** docs/alignment.md §5: an unrecognised filter value answers 400 —
+     * not the framework's default redirect back with flashed errors. */
+    protected function failedValidation(Validator $validator): void
+    {
+        throw new HttpResponseException(response('', 400));
+    }
+
+    public function rangeDays(): int
+    {
+        $value = $this->stringOrNull('range');
+
+        return $value === null ? self::DEFAULT_RANGE_DAYS : (int) $value;
+    }
+
+    /** The submitted breakdown, or the event's default — assumes `{name}`
+     * is a real event name, which the controller has already checked
+     * before ever asking this. */
+    public function breakdown(): EventBreakdown
+    {
+        $name = $this->eventName();
+        $value = $this->stringOrNull('by');
+        $submitted = $value === null ? null : EventBreakdown::tryFrom($value);
+
+        return $submitted ?? EventBreakdown::defaultFor($name);
+    }
+
+    /** The submitted filters, in the shape the range and breakdown
+     * segmented controls round-trip.
+     *
+     * @return array<string, string>
+     */
+    public function roundTripped(): array
+    {
+        $filters = [];
+
+        foreach (['range', 'by'] as $field) {
+            $value = $this->stringOrNull($field);
+
+            if ($value !== null) {
+                $filters[$field] = $value;
+            }
+        }
+
+        return $filters;
+    }
+
+    private function isRecognisedEventName(string $name): bool
+    {
+        return AnalyticsEventName::tryFrom($name) !== null || $name === EventBreakdown::PAGE_VIEW_EVENT_NAME;
+    }
+
+    private function eventName(): string
+    {
+        $name = $this->route('name');
+
+        return is_string($name) ? $name : '';
+    }
+
+    private function stringOrNull(string $field): ?string
+    {
+        $value = $this->input($field);
+
+        return is_string($value) ? $value : null;
+    }
+}

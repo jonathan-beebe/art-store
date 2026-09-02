@@ -23,6 +23,11 @@
             \App\Domain\Analytics\ChangeDirection::Flat => $deltaClasses['flat'],
         };
     };
+
+    $eventHref = fn (string $name): string => route('admin.analytics.events.show', array_filter([
+        'name' => $name,
+        'range' => $roundTripped['range'] ?? null,
+    ]));
 @endphp
 
 <x-layouts.admin title="Analytics — Art Store admin" mode="content-wide">
@@ -89,7 +94,7 @@
                         @endphp
                         <tr>
                             <th scope="row" class="px-4 py-2 font-normal">
-                                <a href="{{ url('/admin/analytics/events/'.$event->name) }}" class="flex items-center gap-2 underline">
+                                <a href="{{ $eventHref($event->name) }}" class="flex items-center gap-2 underline">
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-stone-500 dark:text-stone-400"><path d="{{ $eventIcons[$event->name] ?? '' }}"></path></svg>
                                     <span class="flex flex-col">
                                         <span class="font-medium text-stone-900 dark:text-stone-100">{{ $event->label }}</span>
@@ -120,7 +125,7 @@
         <x-admin.card-list caption="Every event name compared against the range before it">
             @foreach ($events as $event)
                 <x-admin.card-row>
-                    <a href="{{ url('/admin/analytics/events/'.$event->name) }}" class="flex items-center justify-between gap-3">
+                    <a href="{{ $eventHref($event->name) }}" class="flex items-center justify-between gap-3">
                         <span class="flex flex-col">
                             <span class="font-medium text-stone-900 dark:text-white">{{ $event->label }}</span>
                             <span class="font-mono text-[11px] text-stone-500 dark:text-stone-400">{{ $event->name }}</span>
