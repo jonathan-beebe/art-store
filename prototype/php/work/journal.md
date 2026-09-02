@@ -7,7 +7,7 @@
 - ARCH: 1
 - FEAT: 46
 - IMPRV: 26
-- MAINT: 6
+- MAINT: 7
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
@@ -15,6 +15,8 @@
 ## Log
 
 - 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
+- 2026-09-02:16:31:55 — MAINT-006 — started
+- 2026-09-02:16:31:55 — MAINT-006 — defined: the site stats page retires in favour of analytics
 
 - 2026-09-02:16:30:09 — IMPRV-025 — defined: storefront requests stop crossing the slow-query threshold on the deploy
 
