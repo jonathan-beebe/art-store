@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Favorites;
 
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 
 it('adds a listing that is not favorited', function (): void {
     $change = FavoriteChange::fromCurrentState(false);

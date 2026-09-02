@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Analytics;
+namespace App\Domain\Analytics;
 
 it('names the storefront interactions the analytics store accepts', function (): void {
     expect(array_column(AnalyticsEventName::cases(), 'value'))

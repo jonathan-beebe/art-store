@@ -115,7 +115,7 @@ that produces it, and every controller calls it.
 
 - Actions take `DateTimeImmutable $now` as their last parameter — the commerce
   ones (`PlaceOrder`, `FinalizeOrder`, `MarkShipped`, `ConfirmDelivered`,
-  `AddToCart`, `ToggleFavorite`, `RecordListingEvent`, `RunWeeklyPayout`) and
+  `AddToCart`, `ToggleFavorite`, `RunWeeklyPayout`) and
   the identity ones (`SendMagicLink`, `SignInSeller`, `SignInCustomer`,
   `ClaimCustomerIdentity`) alike. No action calls `now()`.
 - Model writes that stamp a time take it too: `MagicLink::consume($now)`,
@@ -470,7 +470,7 @@ erDiagram
     customers ||--o{ carts : has
     customers ||--o{ orders : places
     customers ||--o{ customer_blocks : blocked_by
-    listings ||..o{ listing_events : records
+    listings ||..o{ analytics_events : subject_of
     listings ||--o{ cart_items : held_in
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
@@ -485,11 +485,13 @@ erDiagram
 `magic_links` and `notifications` are deliberately absent: neither holds a
 foreign key to `sellers` or `customers`. A magic link matches on an `email`
 string plus `actor_type`; a notification names its recipient with a morph type
-and id. `listing_events` lives in the analytics store
+and id. `analytics_events` lives in the analytics store
 (`storage/analytics.sqlite3`, see **Deployables** and §2.6 of
-`docs/alignment.md`); its relationship line above is dotted because it is
-logical only — no foreign key crosses the two files. Full column list and
-both `customer_merges` foreign keys: `docs/data-model.md`.
+`docs/alignment.md`), written by `App\Analytics\Analytics` after the request
+that triggers it has already answered; its relationship line above is dotted
+because it is logical only — no foreign key crosses the two files. Full
+column list and both `customer_merges` foreign keys: `docs/data-model.md`.
+See [`analytics.md`](analytics.md) for the write path.
 
 ### Listing status
 

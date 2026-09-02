@@ -33,8 +33,7 @@ final class Analytics
 
     /**
      * One entry per (site, path pattern, day), so two views of the same
-     * pattern in one buffer flush as a single upsert with `count + 2`
-     * rather than two competing rows.
+     * pattern in one buffer flush as a single upsert carrying `count + 2`.
      *
      * @var array<string, array{site: PageViewSite, pathPattern: string, day: string, hits: int}>
      */
@@ -42,9 +41,9 @@ final class Analytics
 
     /**
      * Registers the process-exit fallback flush. `$registerShutdown`
-     * defaults to `register_shutdown_function`, and is a parameter only so
-     * a test can trigger the exit flush itself instead of waiting for the
-     * process to end.
+     * defaults to `register_shutdown_function`; a test passes its own
+     * closure to trigger the exit flush directly, without ending the
+     * process.
      */
     public function __construct(?Closure $registerShutdown = null)
     {
@@ -84,9 +83,9 @@ final class Analytics
     /**
      * Writes the buffer in one transaction on the analytics connection and
      * clears it before the write runs — a batch that fails to write is
-     * dropped, not retried, so a second `flush()` call (the process-exit
-     * fallback, after `App\Providers\AnalyticsServiceProvider` already
-     * flushed once) finds an empty buffer and does nothing.
+     * dropped, so a second `flush()` call (the process-exit fallback, after
+     * `App\Providers\AnalyticsServiceProvider` already flushed once) finds
+     * an empty buffer and does nothing.
      */
     public function flush(): void
     {
@@ -140,12 +139,12 @@ final class Analytics
 
     /**
      * One `BEGIN IMMEDIATE` transaction around every write in the batch —
-     * `IMMEDIATE` so a concurrent flush fails fast against `busy_timeout`
-     * rather than blocking on the lock upgrade a `DEFERRED` transaction
-     * would risk on its first write. Skipped when the connection is already
-     * inside a transaction (`Tests\TestCase`'s `RefreshDatabase` wrapper):
-     * the writes join that transaction instead, and its own commit or
-     * rollback decides their fate.
+     * `IMMEDIATE` acquires the write lock at `BEGIN`, so a concurrent flush
+     * fails fast against `busy_timeout`; a `DEFERRED` transaction risks
+     * blocking on a lock upgrade at its first write. Skipped when the
+     * connection is already inside a transaction (`Tests\TestCase`'s
+     * `RefreshDatabase` wrapper): the writes join that already-open
+     * transaction, and its own commit or rollback decides their fate.
      *
      * @param  list<AnalyticsEvent>  $events
      * @param  array<string, array{site: PageViewSite, pathPattern: string, day: string, hits: int}>  $pageViews
@@ -176,6 +175,10 @@ final class Analytics
     }
 
     /**
+     * `OR IGNORE` ignores any constraint violation on a row — a NOT NULL
+     * violation on a malformed event is dropped the same silent way as a
+     * `dedupe_key` collision.
+     *
      * @param  list<AnalyticsEvent>  $events
      */
     private function insertEvents(array $events): void

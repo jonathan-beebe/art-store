@@ -130,7 +130,7 @@ file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
 SQLite at `src/database/database.sqlite`, created on first run. Two sibling
 SQLite files hold data the commerce database never sees:
 `src/storage/logs.sqlite3` (the mirrored log store, `LOG_DATABASE_FILE`) and
-`src/storage/analytics.sqlite3` (page views and listing events,
+`src/storage/analytics.sqlite3` (page views and analytics events,
 `ANALYTICS_DATABASE_FILE`). Tests run the commerce and analytics connections
 in memory and leave the log store off.
 

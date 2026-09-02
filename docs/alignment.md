@@ -51,7 +51,7 @@ simply unused there):
 | customer_blocks                           | `blk`  |
 | magic_links                               | `mlk`  |
 | listings                                  | `lst`  |
-| listing_events                            | `lev`  |
+| analytics_events                          | `aev`  |
 | listing_faqs                              | `faq`  |
 | listing_removals                          | `rmv`  |
 | categories                                | `cat`  |
@@ -266,13 +266,36 @@ semantics, retention, and the viewer.
 
 ### 2.6 Analytics store
 
-`page_view_counts` and `listing_events` live in a SQLite file of their own,
+`page_view_counts` and `analytics_events` live in a SQLite file of their own,
 separate from the commerce database. `ANALYTICS_DATABASE_FILE` names it
 (default `storage/analytics.sqlite3`). The store's rows reference commerce
 rows — a listing, a seller, a customer — by id only; no foreign key crosses
-the two files. A store failure never fails the request: the write logs one
-`warn` line and the response completes. The two tables' readers (§5 admin
-stats and dashboard, seller listing detail) query the store.
+the two files.
+
+One entry point writes it: recording a page view or an event appends to an
+in-memory buffer and does no I/O, so nothing a shopper or seller is waiting
+on ever waits on the analytics connection. Each buffered event carries the
+`occurred_at` instant it was recorded with, so the stored order is the order
+things happened rather than the order they were written. The buffer flushes
+in one transaction after the HTTP response has gone back or an artisan
+command has ended, with a process-exit fallback and an early flush once the
+buffer passes a row cap. A failed flush logs one `warn` line and drops the
+batch — a store outage loses buffered rows, never blocks the request.
+
+`analytics_events` holds one row per occurrence, named from a closed
+vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
+`listing.cart_add`), with a nullable `dedupe_key` unique index. A listing
+view collapses to one row per (listing, customer, UTC hour) by expressing
+that window as a dedupe key and inserting with `INSERT OR IGNORE` — no read
+happens in the request to decide whether the write is a duplicate.
+`page_view_counts` stays the roll-up the flush maintains, one upsert per
+(site, path pattern, day) carrying the buffered hit count.
+
+A store failure never fails the request: a write that cannot commit logs one
+`warn` line and the response completes regardless. Readers (§5 admin stats
+and dashboard, seller and admin listing detail) query the store directly and
+are unguarded — an unavailable store surfaces there as an error, the way any
+missing data source would.
 
 ## 3. Rate limits
 
@@ -460,10 +483,10 @@ Decisions carried by this table:
 
 - Payouts are a platform action. The seller-portal "run payouts" debug button
   in PHP and Rails is removed; sellers see balances and payout history only.
-- Page views are rolled up at response time into `page_view_counts
-  (site, path_pattern, day, count)`; a `listing_events` `view` is collapsed to
-  one row per (listing, customer, UTC hour). PHP and Rails adopt both. Both
-  tables live in the analytics store (§2.6).
+- Page views roll up into `page_view_counts (site, path_pattern, day,
+  count)`; a `listing.view` analytics event is collapsed to one row per
+  (listing, customer, UTC hour) via a unique `dedupe_key`. PHP and Rails
+  adopt both. Both tables live in the analytics store (§2.6).
 - Ownership refusals answer 404 everywhere; admin pages are behind one guard
   hook/middleware/`before_action`, never per route.
 - An empty filter value means "all"; an unrecognised value answers 400.
@@ -703,3 +726,12 @@ naming it, with no foreign key crossing into the commerce database and a
 store failure logging a `warn` line instead of failing the request. PHP
 ships it on FEAT-039; node and rails still write both tables into their app
 databases and owe the same subsystem — follow-up tickets to be filed.
+
+2026-09-02, analytics entry point: §2.6 rewritten and §1's id table updated
+— `App\Analytics\Analytics` becomes the one writer, `listing_events` becomes
+`analytics_events` (prefix `aev`) keyed by the closed `AnalyticsEventName`
+vocabulary, and the hourly view collapse moves from a read-before-write to a
+unique `dedupe_key`. Recording appends to an in-memory buffer and does no
+I/O; the buffer flushes after the response or at command end, each event
+carrying the instant it was recorded rather than the instant it was written.
+PHP ships it on FEAT-039; node and rails owe the same entry-point shape.

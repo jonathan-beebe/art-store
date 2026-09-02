@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics;
 
+use App\Domain\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\DB;

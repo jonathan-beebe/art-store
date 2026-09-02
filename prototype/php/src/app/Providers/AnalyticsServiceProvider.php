@@ -16,15 +16,14 @@ use Illuminate\Support\ServiceProvider;
  * `$kernel->terminate()` after `$kernel->handle()` returns the same way.
  * Both kernels' `terminate()` end by calling `$this->app->terminate()`,
  * which runs every `terminating()` callback — the one mechanism the HTTP
- * and console kernels share. `Illuminate\Support\defer()` is not that
- * mechanism: it only runs through
+ * and console kernels share. `Illuminate\Support\defer()` runs only through
  * `Illuminate\Foundation\Http\Middleware\InvokeDeferredCallbacks`, which the
  * console kernel never adds to its stack, so a deferred callback recorded
- * from an artisan command would never fire.
+ * from an artisan command never fires.
  *
- * The callback flushes only a store the request actually resolved — a
- * request that never called `recordEvent()`/`recordPageView()` never
- * constructs one, so most requests pay nothing here.
+ * The callback flushes only a store the request resolved — a request that
+ * never called `recordEvent()`/`recordPageView()` never constructs one, so
+ * most requests pay nothing here.
  */
 final class AnalyticsServiceProvider extends ServiceProvider
 {

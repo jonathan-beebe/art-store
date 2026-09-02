@@ -6,7 +6,7 @@ namespace App\Providers;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 

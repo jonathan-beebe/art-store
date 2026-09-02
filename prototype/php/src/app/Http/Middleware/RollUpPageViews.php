@@ -20,8 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
  * middleware added there runs for every site, and the site a hit belongs to
  * is read back off the route's own pattern. It is terminable because the
  * route and status a hit counts against are only known once the response is
- * built, not because the count itself is written here — {@see Analytics}
- * only buffers it; the write happens whenever the buffer flushes.
+ * built. {@see Analytics} only buffers the count here; the write happens
+ * whenever the buffer flushes.
  */
 final readonly class RollUpPageViews
 {

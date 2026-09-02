@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 
 it('returns every event name in declared order, including one nothing counted', function (): void {
     $tally = ListingEventTally::from([AnalyticsEventName::ListingView->value => 12]);

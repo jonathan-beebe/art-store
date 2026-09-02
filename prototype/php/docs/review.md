@@ -140,8 +140,8 @@ with no component library and no font download; `Dockerfile` and
 | Listing removals, temporary and permanent   | done   | `admin.listings.removals.store`/`.lift`      | `Actions\Listings\RemoveListingTest`,        |
 |                                             |        |                                              | `Actions\Listings\LiftListingRemovalTest`    |
 | Page views rolled up, listing views         | done   | — (middleware)                               | `Http\Middleware\RollUpPageViewsTest`,       |
-| collapsed per hour                          |        |                                              | `Actions\Analytics\RecordPageViewTest`,      |
-|                                             |        |                                              | `Actions\Listings\RecordListingEventTest`    |
+| collapsed per hour                          |        |                                              | `Analytics\AnalyticsTest`,                   |
+|                                             |        |                                              | `Shop\ListingControllerTest`                 |
 | Block a customer from buying; browsing and  | done   | `admin.customers.blocks.store`,              | `Admin\CustomerBlockControllerTest`,         |
 | messaging stay open except posting          |        | `.blocks.lift`                               | `Admin\LiftCustomerBlockControllerTest`,     |
 |                                             |        |                                              | `Actions\Customers\BlockCustomerTest`,       |

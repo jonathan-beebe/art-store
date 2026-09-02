@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 
 /**
  * How much the storefront looked, favorited, and added to a cart, across

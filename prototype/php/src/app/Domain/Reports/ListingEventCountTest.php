@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 
 it('carries a name and its count, and labels itself by the name', function (): void {
     $count = ListingEventCount::of(AnalyticsEventName::ListingCartAdd, 6);

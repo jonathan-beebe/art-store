@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics;
 
+use App\Domain\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 
 function recordListingEvent(Analytics $analytics, AnalyticsEventName $name, string $listingId, DateTimeImmutable $at): void

@@ -89,11 +89,9 @@ arch()->preset()->laravel()
         // Domain enums live beside the concept they model (docs/architecture.md:
         // "domain enums name states"), not centralized under App\Enums as the
         // preset assumes. The log vocabulary — event, phase, level — is named
-        // by the same rule, beside the formatter that writes it, and the
-        // analytics vocabulary beside the store that writes it.
+        // by the same rule, beside the formatter that writes it.
         'App\Domain',
         'App\Logging',
-        'App\Analytics',
         // Named for the artisan command each registers (`payouts:run`,
         // `orders:sweep`), not suffixed `Command`.
         'App\Console\Commands\RunWeeklyPayouts',

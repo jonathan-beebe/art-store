@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Shop;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingViewCollapse;
 use App\Logging\StoryEvent;
 use App\Models\Listing;

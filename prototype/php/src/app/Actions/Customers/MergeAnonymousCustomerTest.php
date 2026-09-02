@@ -6,7 +6,7 @@ namespace App\Actions\Customers;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
 use App\Models\Cart;

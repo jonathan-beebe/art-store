@@ -76,10 +76,15 @@ is what lets the ingest path and the retention prune share a connection
 rather than open the file twice, and what makes a test's temp-file store
 visible to both the writer and the admin reader.
 
-Page views and listing events follow the same shape, on their own file: the
-`analytics` connection in `config/database.php`, named by
+Page views and analytics events buffer and flush the same way, on their own
+file: the `analytics` connection in `config/database.php`, named by
 `ANALYTICS_DATABASE_FILE` (default `storage/analytics.sqlite3`, this store's
-neighbour).
+neighbour). The lifecycle differs in one respect: `App\Analytics\Analytics`
+flushes primarily from `$app->terminating()`, with the process-exit shutdown
+function as a fallback, rather than the shutdown function alone —
+`terminating()` is safe there because nothing after it feeds the analytics
+buffer the way `app.shutdown` still needs to reach `LogStore`'s. See
+[`analytics.md`](analytics.md).
 
 ## Table
 

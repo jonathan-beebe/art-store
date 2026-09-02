@@ -23,7 +23,9 @@ use App\Models\Property;
 use App\Models\PropertyValue;
 use App\Models\Seller;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
@@ -110,14 +112,27 @@ it('stores one view for two requests inside the same hour, logged as a view both
     expect(array_count_values($log->outline())['listing.view did'] ?? 0)->toBe(2);
 });
 
-it('records the view through the analytics connection, never the default one', function (): void {
+it('records the view through the analytics connection, never the default one, and only after the response is built', function (): void {
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $responseBuilt = false;
+    Event::listen(RequestHandled::class, function () use (&$responseBuilt): void {
+        $responseBuilt = true;
+    });
 
     /** @var list<QueryExecuted> $queries */
     $queries = [];
+    // Whether $responseBuilt was already true at the moment each analytics
+    // write ran — RequestHandled fires once Kernel::handle() has the
+    // response in hand, before terminate() flushes the buffer.
+    $analyticsWritesAfterResponse = [];
 
-    DB::connection()->listen(function (QueryExecuted $query) use (&$queries): void {
+    DB::connection()->listen(function (QueryExecuted $query) use (&$queries, &$responseBuilt, &$analyticsWritesAfterResponse): void {
         $queries[] = $query;
+
+        if ($query->connectionName === 'analytics' && str_contains($query->sql, 'analytics_events')) {
+            $analyticsWritesAfterResponse[] = $responseBuilt;
+        }
     });
 
     $this->get('/art/harbour-at-dawn')->assertOk();
@@ -128,7 +143,9 @@ it('records the view through the analytics connection, never the default one', f
     ));
 
     expect($mentioning('sqlite'))->toBe([])
-        ->and($mentioning('analytics'))->not->toBe([]);
+        ->and($mentioning('analytics'))->not->toBe([])
+        ->and($analyticsWritesAfterResponse)->not->toBe([])
+        ->and($analyticsWritesAfterResponse)->each->toBeTrue();
 });
 
 it('still answers when the analytics store is unwritable', function (): void {

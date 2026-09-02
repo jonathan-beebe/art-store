@@ -25,7 +25,7 @@ prototypes share.
 | customer_blocks  | `blk`  | orders           | `ord`  |
 | magic_links      | `mlk`  | order_items      | `oit`  |
 | listings         | `lst`  | payments         | `pay`  |
-| listing_events   | `lev`  | fulfillments     | `ful`  |
+| analytics_events | `aev`  | fulfillments     | `ful`  |
 | conversations    | `cnv`  | ledger_entries   | `led`  |
 | messages         | `msg`  | payouts          | `pyt`  |
 | notifications    | `ntf`  | refunds          | `rfd`  |
@@ -42,12 +42,13 @@ for a message and `placed_at` for an order — never by the id alone. Second
 resolution leaves ties, so the id breaks them; a ULID sorts in the order it
 was minted.
 
-`page_view_counts` and `listing_events` live in the analytics store
-(`docs/alignment.md` §2.6), a SQLite file of its own beside this database.
-They are drawn in the diagram below for their shape; the two relationship
-lines running into `listing_events` are dotted because they are logical
-only — no foreign key crosses the two files, so the columns that would
-otherwise carry `FK` carry a reference note instead.
+`page_view_counts` and `analytics_events` live in the analytics store
+(`docs/alignment.md` §2.6), a SQLite file of its own beside this database,
+written by `App\Analytics\Analytics` and never in the request that triggers
+them. They are drawn in the diagram below for their shape; the two
+relationship lines running into `analytics_events` are dotted because they
+are logical only — no foreign key crosses the two files, so the columns that
+would otherwise carry `FK` carry a reference note instead.
 
 ```mermaid
 erDiagram
@@ -104,12 +105,15 @@ erDiagram
         unsigned quantity "default 1"
         string status "draft|for_sale|sold|archived"
     }
-    listing_events {
+    analytics_events {
         text id PK
-        text listing_id "analytics store, references listings.id"
-        text customer_id "nullable, analytics store, references customers.id"
-        string type "view|favorite|..."
-        timestamp occurred_at
+        string name "closed vocabulary, e.g. listing.view"
+        timestamp occurred_at "the instant recorded, not the instant written"
+        string subject_type "nullable, e.g. listing"
+        text subject_id "nullable, analytics store, references e.g. listings.id"
+        text actor_id "nullable, analytics store, references e.g. customers.id"
+        string dedupe_key "nullable, UK; the listing-view hour collapse"
+        json data
     }
     favorites {
         text id PK
@@ -250,7 +254,7 @@ erDiagram
     sellers ||--o{ fulfillments : ships
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
-    customers ||..o{ listing_events : records
+    customers ||..o{ analytics_events : acts_as
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
@@ -265,7 +269,7 @@ erDiagram
     conversations ||--o{ messages : holds
     listings ||--o{ listing_faqs : publishes
     messages ||--o{ listing_faqs : lifted_from
-    listings ||..o{ listing_events : has
+    listings ||..o{ analytics_events : subject_of
     listings ||--o{ favorites : favorited_in
     listings ||--o{ cart_items : held_in
     listings ||--o{ order_items : sold_as

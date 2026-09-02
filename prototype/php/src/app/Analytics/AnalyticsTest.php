@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Analytics;
 
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
 use DateTimeImmutable;
+use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use PDO;
 use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
 
@@ -26,11 +29,14 @@ it('buffers a recorded event without writing it', function (): void {
         ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(0);
 });
 
-it('writes the buffered event on flush, carrying the moment it was recorded', function (): void {
+it('writes the buffered event on flush, carrying the moment it was recorded rather than the moment it was flushed', function (): void {
     $analytics = new Analytics;
     $at = new DateTimeImmutable('2026-08-22T14:32:07+00:00');
 
+    $this->travelTo($at);
     $analytics->recordEvent(listingViewedAt($at));
+
+    $this->travelTo($at->modify('+3 days'));
     $analytics->flush();
 
     $row = DB::connection('analytics')->table('analytics_events')->sole();
@@ -117,6 +123,69 @@ it('flushes automatically at the row cap', function (): void {
 
     expect($analytics->pending())->toBe(0)
         ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(256);
+});
+
+it('flushes automatically at the row cap when only page views are buffered', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    for ($i = 0; $i < 255; $i++) {
+        $analytics->recordPageView(PageViewSite::Shop, "/art/{$i}", $at);
+    }
+
+    expect(PageViewCount::query()->count())->toBe(0);
+
+    $analytics->recordPageView(PageViewSite::Shop, '/art/255', $at);
+
+    expect($analytics->pending())->toBe(0)
+        ->and(PageViewCount::query()->count())->toBe(256);
+});
+
+it('commits through its own BEGIN IMMEDIATE transaction against a real file outside any outer transaction', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'analytics-write-batch-');
+    $originalDatabase = config('database.connections.analytics.database');
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', $path);
+    DB::purge('analytics');
+
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/2026_09_02_000100_create_analytics_events_table.php');
+    // Every migration is an anonymous class defining its own up(); the base
+    // Migration class declares none for the analyser to see.
+    // @phpstan-ignore-next-line
+    $migration->up();
+
+    try {
+        expect(DB::connection('analytics')->getPdo()->inTransaction())->toBeFalse();
+
+        $analytics = new Analytics;
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-22T14:32:07+00:00')));
+        $analytics->flush();
+
+        $pdo = new PDO('sqlite:'.$path);
+        $statement = $pdo->query('SELECT name, occurred_at FROM analytics_events');
+        assert($statement !== false);
+        /** @var list<array{name: string, occurred_at: string}> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0]['name'])->toBe(AnalyticsEventName::ListingView->value)
+            ->and($rows[0]['occurred_at'])->toBe('2026-08-22 14:32:07');
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+
+        foreach ([$path, $path.'-wal', $path.'-shm'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
 });
 
 it('logs one warning and drops the batch when the store cannot be written to', function (): void {

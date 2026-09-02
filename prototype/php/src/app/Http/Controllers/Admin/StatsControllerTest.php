@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Favorites\ToggleFavorite;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 
 it('renders no list pane — a full-content section, not list+detail', function (): void {

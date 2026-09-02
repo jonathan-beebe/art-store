@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Favorites;
 
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 
 enum FavoriteChange
 {

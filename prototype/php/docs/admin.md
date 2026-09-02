@@ -8,7 +8,7 @@ like from the front door.
 Code: `app/Http/Controllers/Admin/`, `routes/admin.php`,
 `resources/views/admin/`, `resources/views/components/admin/`,
 `app/View/Composers/AdminLayoutComposer.php`, `app/Http/Middleware/
-RollUpPageViews.php`, `app/Actions/Analytics/`, `app/Domain/Analytics/`.
+RollUpPageViews.php`, `app/Analytics/`, `app/Domain/Analytics/`.
 
 Admins are seeded, never created — `database/seeders/AdminSeeder.php` — and
 sign in through the same magic link sellers and customers use
@@ -187,7 +187,8 @@ sequenceDiagram
     participant Roll as RollUpPageViews::terminate
     participant Countable as PageViewCountability::isCountable
     participant Site as PageViewSite::fromRoutePattern
-    participant Record as RecordPageView
+    participant Analytics as Analytics::recordPageView
+    participant Term as $app->terminating()
     participant Counts as page_view_counts
 
     Visitor->>Kernel: GET /art/nine-herons
@@ -199,8 +200,10 @@ sequenceDiagram
     Countable-->>Roll: GET + 2xx + text/html
     Roll->>Site: fromRoutePattern("/art/{listing}")
     Site-->>Roll: shop (/seller and /admin claim their prefixes)
-    Roll->>Record: __invoke(site, pathPattern, now)
-    Record->>Counts: upsert (site, path_pattern, day, count=1)<br/>on conflict do update count = count + 1
+    Roll->>Analytics: recordPageView(site, pathPattern, now)
+    Note over Analytics: buffered only — no I/O here
+    Term->>Analytics: flush()
+    Analytics->>Counts: upsert (site, path_pattern, day, count)<br/>on conflict do update count = count + excluded.count
 ```
 
 Caveats: `RollUpPageViews` is appended to the **global** middleware stack in
@@ -209,14 +212,15 @@ runs for every site regardless of which group's guard it sits behind, and the
 site a hit belongs to is read back off the route's own pattern rather than
 the request's host. It is terminable — `terminate()` runs after the response
 has already gone back to the browser — so the roll-up costs the request it
-counts nothing.
+counts nothing: even the call inside `terminate()` only appends to
+`App\Analytics\Analytics`'s in-memory buffer, which turns it into a row on
+its own schedule (see [`analytics.md`](analytics.md)).
 
 The pattern stored is `Route::uri()` with a leading slash, `/art/{listing}`
 and never the concrete `/art/nine-herons`, so a thousand listing pages share
 one row and the table grows with routes and days, not with traffic. The
-unique index on `(site, path_pattern, day)` is what makes the first hit of a
-day an insert and every later one an increment, in one upsert and no read
-(`RecordPageView`).
+unique index on `(site, path_pattern, day)` is what the flush's upsert
+targets, adding the buffer's hit count to whatever the row already held.
 
 "This week" on the dashboard is the seven days ending today
 (`PageViewWeek::endingOn`), not Monday-to-Sunday: a calendar week reads as
@@ -227,45 +231,39 @@ question — see [`escrow.md`](escrow.md).
 ## A view, collapsed to one per hour
 
 Question: why does refreshing a listing page twenty times not write twenty
-`listing_events` rows?
+`analytics_events` rows?
 
 ```mermaid
 sequenceDiagram
     actor Visitor
     participant Controller as Shop\ListingController
-    participant Record as RecordListingEvent
     participant Collapse as ListingViewCollapse
-    participant Events as listing_events
-    participant Story as Story::for(ListingView)
+    participant Analytics as Analytics::recordEvent
+    participant Term as $app->terminating()
+    participant Events as analytics_events
 
     Visitor->>Controller: GET /art/nine-herons
-    Controller->>Record: (listing, customerId, View, now)
-    Record->>Collapse: collapsesHourly(View)
-    Collapse-->>Record: true
-    Record->>Collapse: windowStart(now)
-    Collapse-->>Record: the UTC hour containing now
-    Record->>Events: exists (listing, customer, type, occurred_at >= windowStart)?
-    alt already recorded this hour
-        Events-->>Record: yes
-        Record-->>Controller: null
-        Controller->>Story: refused (level: debug)
-    else first view this hour
-        Events-->>Record: no
-        Record->>Events: insert
-        Record-->>Controller: the event
-        Controller->>Story: did (level: info)
-    end
+    Controller->>Collapse: dedupeKey(listing, customerId, now)
+    Collapse-->>Controller: "listing:{id}:customer:{id}:hour:{bucket}"
+    Controller->>Analytics: recordEvent(ListingView, now, dedupeKey)
+    Note over Analytics: buffered only — no I/O here, no read of prior rows
+    Controller-->>Visitor: 200 text/html
+    Term->>Analytics: flush()
+    Analytics->>Events: insert or ignore, keyed on dedupe_key
+    Note over Events: a repeat view inside the same hour collides on the\nunique index and is silently ignored
 ```
 
-Caveats: `favorite`, `unfavorite`, and `cart_add` are never collapsed — each
-is a deliberate click, and `ListingViewCollapse::collapsesHourly()` answers
-`true` for `view` alone. The window is the UTC hour containing the moment, not
-a rolling hour from the first view — `ListingViewCollapse::windowStart()`
-floors to the top of the hour, so a view at `14:59` and one at `14:01` share a
-window but one at `15:01` does not. `StoryEvent::ListingView->refusalLevel()`
-is `debug` rather than `info` (docs/alignment.md §2.3): an ordinary browsing
-session would otherwise write an `info` refusal on every repeat view within
-the hour and drown the story at the level an operator actually reads.
+Caveats: `favorite`, `unfavorite`, and `cart_add` never carry a dedupe key —
+each is a deliberate click, recorded every time. `ListingViewCollapse::dedupeKey()`
+folds the listing, the customer (or `anonymous`), and the UTC hour into one
+string; `ListingViewCollapse::windowStart()` floors to the top of the hour,
+so a view at `14:59` and one at `14:01` share a window but one at `15:01`
+does not. Because the collapse is a write-time constraint rather than a
+read-before-write, nothing in the request can observe whether a given view
+was the first of the hour or a duplicate the store discarded — the shop
+listing page logs one `Story::for(ListingView)` "did" line per view and
+never a refusal, since nothing is refused: the request never learns whether
+its event was kept.
 
 ## What a removal or a block actually does
 

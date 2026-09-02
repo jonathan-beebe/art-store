@@ -6,7 +6,7 @@ namespace App\Actions\Cart;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Cart\CartQuantity;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Configurator\ConfiguredCartQuantity;

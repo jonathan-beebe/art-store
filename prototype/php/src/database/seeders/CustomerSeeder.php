@@ -7,7 +7,7 @@ namespace Database\Seeders;
 use App\Actions\Favorites\ToggleFavorite;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingViewCollapse;
 use App\Models\Customer;
 use App\Models\Listing;

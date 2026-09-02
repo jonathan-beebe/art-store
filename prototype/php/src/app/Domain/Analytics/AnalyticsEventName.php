@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Analytics;
+namespace App\Domain\Analytics;
 
 /**
  * The closed vocabulary the analytics store accepts — a reader greps this
- * file for every name {@see Analytics::recordEvent()} can be called with.
+ * file for every name {@see \App\Analytics\Analytics::recordEvent()} can be
+ * called with.
  */
 enum AnalyticsEventName: string
 {

@@ -130,7 +130,7 @@ sequenceDiagram
         Merge->>Merge: re-point CustomerOwnedTables rows\n(orders, customer_blocks, ...)
         Merge->>Merge: re-point sent messages, move conversations\n(Conversation::moveCustomer)
         Merge->>Merge: fold cart and favorites\n(CustomerMergePlan), insert customer_merges row
-        Merge->>Merge: re-point listing_events on the analytics connection\n(ListingEvent, guarded by AnalyticsWriteGuard)
+        Merge->>Merge: re-point analytics_events.actor_id on the analytics connection\n(Analytics::reassignActor, after the commerce transaction commits)
     else cookie already points at the address's owner
         Claim->>Claim: mark email_verified_at
     end
@@ -143,10 +143,11 @@ Caveats: `MergeAnonymousCustomer` walks
 `App\Domain\Customers\CustomerOwnedTables::all()` (`orders`, `customer_blocks`,
 and the other app-database tables it names) inside a transaction, writing one
 column per table, and skips any table/column that does not exist yet (guards
-schema drift across tickets landing in parallel). `listing_events` lives in
+schema drift across tickets landing in parallel). `analytics_events` lives in
 the analytics connection (config/database.php), outside that transaction.
-The merge re-points it as its own step, through the `ListingEvent` model and
-behind `App\Analytics\AnalyticsWriteGuard` — a failure there logs a warning
+The merge re-points every already-written row the anonymous customer owns as
+its own step, after the transaction commits, through
+`App\Analytics\Analytics::reassignActor()` — a failure there logs a warning
 and leaves the merge's commerce writes intact. Everything else carrying a
 `customer_id` column is named in `CustomerOwnedTables::leftBehind()`, with
 the reason a blind write would get it wrong, and a schema-manifest test
