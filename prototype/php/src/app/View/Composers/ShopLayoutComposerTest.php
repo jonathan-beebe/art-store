@@ -6,7 +6,6 @@ namespace App\View\Composers;
 
 use App\Actions\Cart\AddToCart;
 use App\Actions\Messaging\MarkConversationRead;
-use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Notifications\OrderShipped;
@@ -39,9 +38,11 @@ it('counts the notifications the visitor has not read', function (): void {
 it('counts the messages across every thread the visitor has not read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $visitor->id, $this->listing($seller)->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $visitor->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
     Message::factory()->from($visitor)->create(['conversation_id' => $conversation->id]);
 

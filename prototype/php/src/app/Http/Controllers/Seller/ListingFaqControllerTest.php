@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\ListingFaq;
 use App\Models\Message;
@@ -31,9 +30,11 @@ it('publishes a new entry', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+    ]);
     $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs", [

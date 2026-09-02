@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Messaging\OpenConversationWithMessage;
+use App\Actions\Messaging\OpenThread;
 use App\Domain\Customers\StandingFilter;
-use App\Domain\Messaging\ConversationSubject;
+use App\Domain\Messaging\ThreadOpening;
+use App\Domain\Messaging\ThreadTitle;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\SendMessageRequest;
@@ -16,12 +17,18 @@ use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
+/**
+ * Opens a fresh admin/customer thread from the customer's detail page, the
+ * customer-side twin of `SellerMessageController`.
+ */
 final class CustomerMessageController extends AdminController
 {
+    private const PLACEHOLDER_TITLE = 'Support';
+
     public function __invoke(
         Customer $customer,
         SendMessageRequest $request,
-        OpenConversationWithMessage $send,
+        OpenThread $send,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $admin = $this->admin();
@@ -39,7 +46,7 @@ final class CustomerMessageController extends AdminController
         }
 
         $conversation = $send(
-            ConversationSubject::adminCustomer($admin->id, $customer->id),
+            ThreadOpening::adminCustomer($customer->id, ThreadTitle::of(self::PLACEHOLDER_TITLE)),
             $admin,
             $request->body(),
             $this->now(),

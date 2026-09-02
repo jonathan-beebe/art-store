@@ -7,7 +7,7 @@ namespace App\Http\Requests\Shop;
 use App\Domain\Listings\ListingStatus;
 
 it('refuses a question longer than the message limit', function (): void {
-    $this->visitor();
+    $this->actingAs($this->arriveAs($this->verifiedCustomer()), 'customer');
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
 
     $response = $this->post('/art/harbour-at-dawn/questions', ['body' => str_repeat('a', 2001)]);
@@ -16,7 +16,7 @@ it('refuses a question longer than the message limit', function (): void {
 });
 
 it('answers not found for an archived listing before it validates the form', function (): void {
-    $this->visitor();
+    $this->actingAs($this->arriveAs($this->verifiedCustomer()), 'customer');
     $this->listing($this->seller(), ['slug' => 'harbour-at-dawn', 'status' => ListingStatus::Archived]);
 
     $response = $this->post('/art/harbour-at-dawn/questions', []);

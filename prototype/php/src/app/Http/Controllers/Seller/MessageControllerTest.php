@@ -6,27 +6,33 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Messaging\PostMessage;
 use App\Actions\Orders\FinalizeOrder;
-use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
 use App\Models\Message;
+use App\Support\ActorDisplay;
 use Illuminate\Support\Facades\Config;
 
 it('lists the sellers threads newest first with who, what, and unread count', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
-    $older = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id))
-        ->create(['last_message_at' => $this->moment('2026-08-20 09:00:00')]);
+    $older = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+        'last_message_at' => $this->moment('2026-08-20 09:00:00'),
+    ]);
     Message::factory()->from($customer)->unread()->create(['conversation_id' => $older->id, 'body' => 'Is this framed?']);
 
     $newerCustomer = $this->verifiedCustomer();
-    $newer = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $newerCustomer->id, $listing->id))
-        ->create(['last_message_at' => $this->moment('2026-08-21 09:00:00')]);
+    $newer = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $newerCustomer->id,
+        'listing_id' => $listing->id,
+        'last_message_at' => $this->moment('2026-08-21 09:00:00'),
+    ]);
     Message::factory()->from($newerCustomer)->unread()->create(['conversation_id' => $newer->id, 'body' => 'Do you ship to France?']);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
@@ -49,23 +55,25 @@ it('keeps another sellers threads off the inbox', function (): void {
 
 it('names an order thread and a support thread on the inbox', function (): void {
     $seller = $this->seller();
-    $admin = $this->admin();
     $customer = $this->verifiedCustomer();
     $order = $this->orderFor($customer, $this->listing($seller));
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
     $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
-    Conversation::factory()
-        ->forSubject(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id))
-        ->create();
-    Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    Conversation::factory()->fulfillment()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'fulfillment_id' => $fulfillment->id,
+    ]);
+    $admin = $this->admin();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $admin->id]);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
 
     $response->assertOk();
     $response->assertSee("Order {$fulfillment->order_id}");
-    $response->assertSee($admin->displayName());
+    // A support thread names the desk on the seller's inbox, whether or
+    // not an admin has answered yet.
+    $response->assertSee(ActorDisplay::SUPPORT_DESK);
 });
 
 it('renders the inbox on a fixed number of queries however many threads the seller holds', function (): void {
@@ -73,9 +81,11 @@ it('renders the inbox on a fixed number of queries however many threads the sell
     $listing = $this->listing($seller);
     foreach (range(1, 5) as $ignored) {
         $customer = $this->verifiedCustomer();
-        $conversation = Conversation::factory()
-            ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id))
-            ->create();
+        $conversation = Conversation::factory()->listingQuestion()->create([
+            'seller_id' => $seller->id,
+            'customer_id' => $customer->id,
+            'listing_id' => $listing->id,
+        ]);
         Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id]);
     }
 
@@ -96,9 +106,11 @@ it('renders the inbox on a fixed number of queries however many threads the sell
 it('shows every message in order and marks the thread read', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $this->listing($seller)->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
     $first = Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id, 'body' => 'Is this framed?']);
     $second = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Not yet.']);
 
@@ -141,9 +153,11 @@ it('appends a reply and returns to the thread with it visible', function (): voi
 it('leaves the thread unread when the reply is refused', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $this->listing($seller)->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
     $question = Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id]);
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => '']);
@@ -166,9 +180,11 @@ it('offers publish as faq prefilled from the question and the sellers latest ans
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $listing = $this->listing($seller);
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $listing->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+    ]);
     Message::factory()->from($customer)->create(['conversation_id' => $conversation->id, 'body' => 'Is this framed?']);
     Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Yes, framed in black wood.']);
 
@@ -191,9 +207,12 @@ it('offers no publish as faq section for a support thread', function (): void {
 it('moves the thread to the top of the inbox after a reply', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $customer->id, $this->listing($seller)->id))
-        ->create(['last_message_at' => $this->moment('2026-08-01 09:00:00')]);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+        'last_message_at' => $this->moment('2026-08-01 09:00:00'),
+    ]);
     app(PostMessage::class)($conversation, $customer, MessageBody::of('Is this framed?'), $this->moment('2026-08-01 09:00:00'));
 
     $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'Not yet framed.']);

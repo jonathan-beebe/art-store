@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Messaging\PostMessage;
 use App\Actions\Orders\FinalizeOrder;
-use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Admin;
@@ -48,15 +47,17 @@ function chromeListItemCount(TestCase $test, Admin $admin): int
 it('lists the admins threads newest first with who, what, and unread count', function (): void {
     $admin = $this->admin();
     $olderSeller = $this->seller('Blue Kiln Studio');
-    $older = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $olderSeller->id))
-        ->create(['last_message_at' => $this->moment('2026-08-20 09:00:00')]);
+    $older = Conversation::factory()->adminSeller()->create([
+        'seller_id' => $olderSeller->id,
+        'last_message_at' => $this->moment('2026-08-20 09:00:00'),
+    ]);
     Message::factory()->from($olderSeller)->unread()->create(['conversation_id' => $older->id, 'body' => 'Can you review my listing?']);
 
     $newerCustomer = $this->verifiedCustomer();
-    $newer = Conversation::factory()
-        ->forSubject(ConversationSubject::adminCustomer($admin->id, $newerCustomer->id))
-        ->create(['last_message_at' => $this->moment('2026-08-21 09:00:00')]);
+    $newer = Conversation::factory()->adminCustomer()->create([
+        'customer_id' => $newerCustomer->id,
+        'last_message_at' => $this->moment('2026-08-21 09:00:00'),
+    ]);
     Message::factory()->from($newerCustomer)->unread()->create(['conversation_id' => $newer->id, 'body' => 'My order never arrived.']);
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
@@ -66,24 +67,22 @@ it('lists the admins threads newest first with who, what, and unread count', fun
     $response->assertSee('1 unread');
 });
 
-it('keeps another admins threads off the inbox', function (): void {
+it('shows a support thread to every admin, the desk is collective', function (): void {
     $seller = $this->seller('Other Studio');
-    Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $seller->id))
-        ->create();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $this->admin()->id]);
 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
 
     $response->assertOk();
-    $response->assertDontSee('Other Studio');
+    $response->assertSee('Other Studio');
 });
 
 it('names a seller support thread and a customer support thread on the inbox', function (): void {
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
     $customer = Customer::factory()->create(['name' => 'Priya Shopper']);
-    Conversation::factory()->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))->create();
-    Conversation::factory()->forSubject(ConversationSubject::adminCustomer($admin->id, $customer->id))->create();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+    Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id]);
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
@@ -95,9 +94,7 @@ it('names a seller support thread and a customer support thread on the inbox', f
 it('shows every message in order and marks the thread read', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
     $first = Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id, 'body' => 'Can you review my listing?']);
     $second = Message::factory()->from($admin)->create(['conversation_id' => $conversation->id, 'body' => "I'll take a look."]);
 
@@ -110,9 +107,7 @@ it('shows every message in order and marks the thread read', function (): void {
 });
 
 it('shows the list panes empty-detail prompt on the index route', function (): void {
-    Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
-        ->create();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller()->id]);
 
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
 
@@ -122,12 +117,8 @@ it('shows the list panes empty-detail prompt on the index route', function (): v
 
 it('renders the list pane beside the detail pane, with a sibling conversation still on the list', function (): void {
     $admin = $this->admin();
-    Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Rye Press')->id))
-        ->create();
-    $viewed = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Blue Kiln Studio')->id))
-        ->create();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller('Rye Press')->id]);
+    $viewed = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller('Blue Kiln Studio')->id]);
 
     $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
 
@@ -139,9 +130,7 @@ it('renders the list pane beside the detail pane, with a sibling conversation st
 it('caps the list pane at the window size, however many conversations exist', function (): void {
     $admin = $this->admin();
     for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
-        Conversation::factory()
-            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
-            ->create();
+        Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller("Seller {$i}")->id]);
     }
 
     $chromeListItems = chromeListItemCount($this, $admin);
@@ -157,14 +146,16 @@ it('caps the list pane at the window size, however many conversations exist', fu
 
 it('keeps the viewed conversation on the list pane even when it sorts outside the window', function (): void {
     $admin = $this->admin();
-    $viewed = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller('Blue Kiln Studio')->id))
-        ->create(['last_message_at' => now()->subDay()]);
+    $viewed = Conversation::factory()->adminSeller()->create([
+        'seller_id' => $this->seller('Blue Kiln Studio')->id,
+        'last_message_at' => now()->subDay(),
+    ]);
 
     for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
-        Conversation::factory()
-            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
-            ->create(['last_message_at' => now()]);
+        Conversation::factory()->adminSeller()->create([
+            'seller_id' => $this->seller("Seller {$i}")->id,
+            'last_message_at' => now(),
+        ]);
     }
 
     $chromeListItems = chromeListItemCount($this, $admin);
@@ -178,9 +169,7 @@ it('keeps the viewed conversation on the list pane even when it sorts outside th
 it('says how many conversations the list pane is not showing, linked to the full list', function (): void {
     $admin = $this->admin();
     for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
-        Conversation::factory()
-            ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller("Seller {$i}")->id))
-            ->create();
+        Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller("Seller {$i}")->id]);
     }
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
@@ -192,9 +181,7 @@ it('says how many conversations the list pane is not showing, linked to the full
 
 it('says nothing about a window that already holds every conversation', function (): void {
     $admin = $this->admin();
-    Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
-        ->create();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller()->id]);
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
@@ -202,14 +189,12 @@ it('says nothing about a window that already holds every conversation', function
     $response->assertDontSee('Showing');
 });
 
-it('answers not found for a thread the admin is not in', function (): void {
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
-        ->create();
+it('shows a thread to a second admin, even one that never sent to it', function (): void {
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller()->id]);
 
     $response = $this->actingAs($this->admin(), 'admin')->get("/admin/messages/{$conversation->id}");
 
-    $response->assertNotFound();
+    $response->assertOk();
 });
 
 it('answers not found for a thread id that matches nothing', function (): void {
@@ -221,9 +206,7 @@ it('answers not found for a thread id that matches nothing', function (): void {
 it('appends a reply and returns to the thread with it visible', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
 
     $response = $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => "I'll take a look."]);
@@ -237,9 +220,7 @@ it('appends a reply and returns to the thread with it visible', function (): voi
 
 it('refuses a reply longer than the message limit', function (): void {
     $admin = $this->admin();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $this->seller()->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller()->id]);
 
     $response = $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => str_repeat('a', 2001)]);
@@ -250,9 +231,7 @@ it('refuses a reply longer than the message limit', function (): void {
 it('leaves the thread unread when the reply is refused', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
     $question = Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id]);
 
     $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", ['body' => '']);
@@ -261,24 +240,23 @@ it('leaves the thread unread when the reply is refused', function (): void {
     expect($question->fresh()?->read_at)->toBeNull();
 });
 
-it('answers not found replying to a thread the admin is not in', function (): void {
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($this->admin()->id, $this->seller()->id))
-        ->create();
+it('refuses a reply into a seller/customer oversight thread, the two-sides invariant', function (): void {
+    $conversation = Conversation::factory()->listingQuestion()->create();
 
     $response = $this->actingAs($this->admin(), 'admin')
-        ->post("/admin/messages/{$conversation->id}", ['body' => 'Sneaking in.']);
+        ->post("/admin/messages/{$conversation->id}", ['body' => 'Stepping in.']);
 
-    $response->assertNotFound();
-    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Sneaking in.')->exists())->toBeFalse();
+    $response->assertForbidden();
+    expect(Message::where('conversation_id', $conversation->id)->where('body', 'Stepping in.')->exists())->toBeFalse();
 });
 
 it('moves the thread to the top of the inbox after a reply', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-        ->create(['last_message_at' => $this->moment('2026-08-01 09:00:00')]);
+    $conversation = Conversation::factory()->adminSeller()->create([
+        'seller_id' => $seller->id,
+        'last_message_at' => $this->moment('2026-08-01 09:00:00'),
+    ]);
     app(PostMessage::class)($conversation, $seller, MessageBody::of('Can you review my listing?'), $this->moment('2026-08-01 09:00:00'));
 
     $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", ['body' => "I'll take a look."]);
@@ -293,12 +271,14 @@ it('names an order thread and a support thread by their fulfillment counterpart'
     $order = $this->orderFor($customer, $this->listing($seller));
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
     $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
-    Conversation::factory()
-        ->forSubject(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id))
-        ->create();
+    Conversation::factory()->fulfillment()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'fulfillment_id' => $fulfillment->id,
+    ]);
 
-    // A fulfillment thread has no admin participant, so it never reaches the
-    // admin inbox — this pins that the admin's `withParticipant` scope
+    // A fulfillment thread carries no admin participant column, so it never
+    // reaches the admin's badge inbox — this pins that `withParticipant`
     // excludes it rather than showing every thread on the platform.
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
@@ -335,6 +315,7 @@ it('carries a customers support request to the admin and the answer back', funct
     $admin = $this->admin();
     $customer = Customer::factory()->create(['name' => 'Priya Shopper']);
     $this->withCookie(CustomerIdentity::COOKIE, (string) $customer->id);
+    $this->actingAs($customer, 'customer');
 
     $this->get('/support')->assertRedirect();
     $conversation = Conversation::sole();
@@ -356,9 +337,7 @@ it('lets the admin answer a blocked customer', function (): void {
     $admin = $this->admin();
     $customer = $this->verifiedCustomer();
     CustomerBlock::factory()->create(['customer_id' => $customer->id]);
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::adminCustomer($admin->id, $customer->id))
-        ->create();
+    $conversation = Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id]);
 
     $show = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
     $show->assertSee('name="body"', escape: false);
@@ -373,15 +352,11 @@ it('renders the inbox on a fixed number of queries however many threads the admi
     $admin = $this->admin();
     foreach (range(1, 5) as $ignored) {
         $seller = $this->seller();
-        $sellerThread = Conversation::factory()
-            ->forSubject(ConversationSubject::adminSeller($admin->id, $seller->id))
-            ->create();
+        $sellerThread = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
         Message::factory()->from($seller)->unread()->create(['conversation_id' => $sellerThread->id]);
 
         $customer = $this->verifiedCustomer();
-        $customerThread = Conversation::factory()
-            ->forSubject(ConversationSubject::adminCustomer($admin->id, $customer->id))
-            ->create();
+        $customerThread = Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id]);
         Message::factory()->from($customer)->unread()->create(['conversation_id' => $customerThread->id]);
     }
 
@@ -394,8 +369,10 @@ it('renders the inbox on a fixed number of queries however many threads the admi
         // +1 for the list pane's window total (`ListPaneWindow`, DSGN-006
         // follow-up) — a `count()` alongside the capped fetch, so the pane
         // and its footer can say how many conversations exist beyond the
-        // window.
-        ->expectsDatabaseQueryCount(8)
+        // window. No eager-load query for `admin`: none of these threads
+        // has one yet, so the relation's key list is empty and Eloquent
+        // skips the query rather than running an empty `whereIn`.
+        ->expectsDatabaseQueryCount(7)
         ->get('/admin/messages');
 
     $response->assertOk();

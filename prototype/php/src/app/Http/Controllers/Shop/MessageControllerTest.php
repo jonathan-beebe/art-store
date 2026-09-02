@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
-use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
 use App\Models\CustomerBlock;
@@ -25,15 +24,21 @@ it('lists the visitors threads newest first with who, what, and unread count', f
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller('Blue Kiln Studio');
     $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
-    $older = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $visitor->id, $listing->id))
-        ->create(['last_message_at' => $this->moment('2026-08-20 09:00:00')]);
+    $older = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $visitor->id,
+        'listing_id' => $listing->id,
+        'last_message_at' => $this->moment('2026-08-20 09:00:00'),
+    ]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $older->id, 'body' => 'It ships flat.']);
 
     $newerListing = $this->listing($this->seller('Rye Press'), ['title' => 'Winter Elm']);
-    $newer = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($newerListing->seller_id, $visitor->id, $newerListing->id))
-        ->create(['last_message_at' => $this->moment('2026-08-21 09:00:00')]);
+    $newer = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $newerListing->seller_id,
+        'customer_id' => $visitor->id,
+        'listing_id' => $newerListing->id,
+        'last_message_at' => $this->moment('2026-08-21 09:00:00'),
+    ]);
     Message::factory()->from($newerListing->seller)->unread()->create(['conversation_id' => $newer->id, 'body' => 'Yes, worldwide.']);
 
     $response = $this->get('/messages');
@@ -70,9 +75,11 @@ it('paginates the inbox at twenty threads', function (): void {
 it('shows every message in order and marks the thread read', function (): void {
     $visitor = $this->arriveAs($this->verifiedCustomer());
     $seller = $this->seller();
-    $conversation = Conversation::factory()
-        ->forSubject(ConversationSubject::listingQuestion($seller->id, $visitor->id, $this->listing($seller)->id))
-        ->create();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $visitor->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
     $first = Message::factory()->from($seller)->unread()->create(['conversation_id' => $conversation->id, 'body' => 'It ships flat.']);
     $second = Message::factory()->from($visitor)->create(['conversation_id' => $conversation->id, 'body' => 'Thanks!']);
 

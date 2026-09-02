@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
-use App\Actions\Messaging\OpenConversationWithMessage;
-use App\Domain\Messaging\ConversationSubject;
+use App\Actions\Messaging\OpenThread;
+use App\Domain\Messaging\ThreadOpening;
+use App\Domain\Messaging\ThreadTitle;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Reports\ListingStatusTally;
@@ -17,12 +18,20 @@ use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 
+/**
+ * Opens a fresh admin/seller thread from the seller's detail page. The title
+ * is a placeholder — the admin site's own support-thread form (FEAT-042)
+ * types one — so every message this route sends opens its own thread rather
+ * than finding one, the way a fresh-opened kind always does.
+ */
 final class SellerMessageController extends AdminController
 {
+    private const PLACEHOLDER_TITLE = 'Support';
+
     public function __invoke(
         Seller $seller,
         SendMessageRequest $request,
-        OpenConversationWithMessage $send,
+        OpenThread $send,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
         $admin = $this->admin();
@@ -39,7 +48,7 @@ final class SellerMessageController extends AdminController
         }
 
         $conversation = $send(
-            ConversationSubject::adminSeller($admin->id, $seller->id),
+            ThreadOpening::adminSeller($seller->id, ThreadTitle::of(self::PLACEHOLDER_TITLE)),
             $admin,
             $request->body(),
             $this->now(),
