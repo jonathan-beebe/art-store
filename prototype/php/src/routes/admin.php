@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\Admin\Analytics\ActorController;
 use App\Http\Controllers\Admin\Analytics\AnalyticsController;
 use App\Http\Controllers\Admin\Analytics\EventController;
 use App\Http\Controllers\Admin\CustomerBlockController;
@@ -63,6 +64,7 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('stats', StatsController::class)->name('stats');
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     Route::get('analytics/events/{name}', [EventController::class, 'show'])->name('analytics.events.show');
+    Route::get('analytics/actors', [ActorController::class, 'index'])->name('analytics.actors.index');
 
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');

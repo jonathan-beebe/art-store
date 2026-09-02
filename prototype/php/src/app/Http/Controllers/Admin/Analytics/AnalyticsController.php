@@ -54,7 +54,7 @@ final class AnalyticsController extends Controller
             'actorFilterLinks' => $this->actorFilterLinks($roundTripped, $actorKind),
             'search' => $search ?? '',
             'roundTripped' => $roundTripped,
-            'allActorsHref' => url('/admin/analytics/actors').($roundTripped === [] ? '' : '?'.http_build_query($roundTripped)),
+            'allActorsHref' => route('admin.analytics.actors.index', $roundTripped),
         ]);
     }
 
