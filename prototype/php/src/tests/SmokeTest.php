@@ -135,8 +135,10 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     /**
-     * The visitor asks a question on the listing, unauthenticated. The
-     * question route opens the thread and lands the visitor on it.
+     * The now-verified visitor asks a question on the listing — the
+     * question route requires auth.customer, so this runs only once the
+     * magic link above has signed them in. The question route opens the
+     * thread and lands the visitor on it.
      */
     $askSellerAQuestion = function (Listing $listing): Conversation {
         $asked = $this->post("/art/{$listing->slug}/questions", ['body' => 'Does this arrive ready to hang?']);
@@ -314,15 +316,18 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     $visitor = $arriveAsAnonymousVisitor();
     $viewListing($listing);
 
-    $conversation = $askSellerAQuestion($listing);
-    $sellerRepliesAndPublishesFaq($conversation, $listing);
-    $seeFaqAsAnotherVisitor($listing, $visitor);
-
     $favoriteListing($listing);
     $addListingToCart($listing);
 
     $order = $placeGuestOrder();
     $verifyEmailFromDebugAlert($order);
+
+    // Asking a question needs a verified customer, so this waits for the
+    // magic link above the way the storefront's own auth.customer gate does.
+    $conversation = $askSellerAQuestion($listing);
+    $sellerRepliesAndPublishesFaq($conversation, $listing);
+    $seeFaqAsAnotherVisitor($listing, $visitor);
+
     $payWithApprovedCard($order);
 
     $fulfillment = $seeTheSaleAsSeller($order);

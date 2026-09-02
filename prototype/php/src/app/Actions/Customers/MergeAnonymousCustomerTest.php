@@ -13,8 +13,9 @@ use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
-use App\Models\Listing;
+use App\Models\Fulfillment;
 use App\Models\Message;
+use App\Models\Order;
 use App\Models\Seller;
 use App\Notifications\ItemSold;
 use App\Notifications\OrderShipped;
@@ -163,17 +164,18 @@ it('does not read the verified customer\'s own merged message as unread to them'
     expect($conversation->messages()->unreadBy($verified)->count())->toBe(0);
 });
 
-it('keeps one thread per subject after the merge', function (): void {
+it('keeps one fulfillment thread per subject after the merge', function (): void {
     $seller = Seller::factory()->create();
-    $listing = Listing::factory()->create(['seller_id' => $seller->id]);
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
+    $order = Order::factory()->create(['customer_id' => $anonymous->id]);
+    $fulfillment = Fulfillment::factory()->create(['order_id' => $order->id, 'seller_id' => $seller->id]);
     $now = new DateTimeImmutable('2026-08-20 09:00:00');
-    Conversation::openFor(ConversationSubject::listingQuestion($seller->id, $anonymous->id, $listing->id), $now);
+    Conversation::openFor(ConversationSubject::fulfillment($seller->id, $anonymous->id, $fulfillment->id), $now);
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    Conversation::openFor(ConversationSubject::listingQuestion($seller->id, $verified->id, $listing->id), $now);
+    Conversation::openFor(ConversationSubject::fulfillment($seller->id, $verified->id, $fulfillment->id), $now);
 
     expect(Conversation::count())->toBe(1);
 });
