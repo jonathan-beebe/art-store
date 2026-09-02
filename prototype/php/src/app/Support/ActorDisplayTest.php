@@ -26,3 +26,25 @@ it('reads a seller or an admin by their display name', function (): void {
 it('names no actor as a deleted account', function (): void {
     expect(ActorDisplay::nameOf(null))->toBe('Deleted account');
 });
+
+it('initials a two-word name from its first letters', function (): void {
+    $seller = $this->seller('Blue Kiln Studio');
+
+    expect(ActorDisplay::initialsOf($seller))->toBe('BK');
+});
+
+it('initials a one-word name alone', function (): void {
+    $admin = Admin::factory()->create(['name' => 'Cher']);
+
+    expect(ActorDisplay::initialsOf($admin))->toBe('C');
+});
+
+it('stops at two initials for a name with more words', function (): void {
+    $admin = Admin::factory()->create(['name' => 'Anna Maria Schmunk']);
+
+    expect(ActorDisplay::initialsOf($admin))->toBe('AM');
+});
+
+it('initials no actor from the deleted-account name it falls back to', function (): void {
+    expect(ActorDisplay::initialsOf(null))->toBe('DA');
+});

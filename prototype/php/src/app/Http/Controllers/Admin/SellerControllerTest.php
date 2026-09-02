@@ -61,6 +61,22 @@ it('offers a form to message the seller', function (): void {
     $response->assertSee('action="'.route('admin.sellers.messages', $seller).'"', escape: false);
 });
 
+it('offers the sellers own fulfillments as the message forms order options', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller('Blue Kiln Studio'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$fulfillment->seller_id}");
+
+    $response->assertSee("Order {$fulfillment->order_id}");
+});
+
+it('preselects the order an oversight thread carried in on the query string', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller('Blue Kiln Studio'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$fulfillment->seller_id}?fulfillment={$fulfillment->id}");
+
+    $response->assertSee('value="'.$fulfillment->id.'" selected', escape: false);
+});
+
 it('shows a seller\'s listings, fulfillments, payouts and folded balance', function (): void {
     $seller = $this->seller('Blue Kiln Studio');
     $this->listing($seller, ['title' => 'Nine Herons', 'status' => ListingStatus::ForSale]);

@@ -162,6 +162,7 @@
     <title>{{ $title }}</title>
     @vite(['resources/css/app.css'])
     <x-theme-css />
+    <script defer src="{{ asset('composer.js') }}"></script>
 </head>
 <body class="supports-dark h-full bg-gray-100 dark:bg-gray-950 font-sans text-sm text-gray-900 dark:text-gray-100 antialiased lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-gray-900 focus:px-4 focus:py-2 focus:font-medium focus:text-white dark:focus:bg-gray-100 dark:focus:text-gray-900">Skip to content</a>

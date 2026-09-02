@@ -7,13 +7,17 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Messaging\PostMessage;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\MessageBody;
+use App\Domain\Messaging\ThreadTitle;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Admin;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Fulfillment;
+use App\Models\Listing;
 use App\Models\Message;
+use App\Models\Seller;
+use App\Support\ActorDisplay;
 use App\Support\CustomerIdentity;
 use App\Support\ListPaneWindow;
 use Illuminate\Support\Facades\Config;
@@ -71,7 +75,7 @@ it('shows a support thread to every admin, the desk is collective', function ():
     $seller = $this->seller('Other Studio');
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $this->admin()->id]);
 
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?filter=all&status=all');
 
     $response->assertOk();
     $response->assertSee('Other Studio');
@@ -84,7 +88,7 @@ it('names a seller support thread and a customer support thread on the inbox', f
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
     Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id]);
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
 
     $response->assertOk();
     $response->assertSee('Blue Kiln Studio');
@@ -134,7 +138,7 @@ it('caps the list pane at the window size, however many conversations exist', fu
     }
 
     $chromeListItems = chromeListItemCount($this, $admin);
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
 
     $response->assertOk();
     // The index route renders the same capped list twice — the `lg`-and-up
@@ -172,11 +176,11 @@ it('says how many conversations the list pane is not showing, linked to the full
         Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller("Seller {$i}")->id]);
     }
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
 
     $response->assertOk();
     $response->assertSee('Showing 50 of', false);
-    $response->assertSee('href="'.route('admin.messages.index').'"', escape: false);
+    $response->assertSee('href="'.htmlspecialchars(route('admin.messages.index', ['filter' => 'all', 'status' => 'all'])).'"', escape: false);
 });
 
 it('says nothing about a window that already holds every conversation', function (): void {
@@ -371,8 +375,11 @@ it('renders the inbox on a fixed number of queries however many threads the admi
         // and its footer can say how many conversations exist beyond the
         // window. No eager-load query for `admin`: none of these threads
         // has one yet, so the relation's key list is empty and Eloquent
-        // skips the query rather than running an empty `whereIn`.
-        ->expectsDatabaseQueryCount(7)
+        // skips the query rather than running an empty `whereIn`. +2 for
+        // `latestMessage.sender`: a polymorphic eager load runs one query
+        // per distinct sender type among the fetched rows, and this fixture
+        // carries both a seller and a customer sender.
+        ->expectsDatabaseQueryCount(9)
         ->get('/admin/messages');
 
     $response->assertOk();
@@ -403,4 +410,204 @@ it('trips the message-post limit on the admin site, handing the thread back with
     expect($line['level'])->toBe('warn')
         ->and($data['limit'])->toBe('message_post')
         ->and($data['key'])->toBe($admin->id);
+});
+
+it('needs-reply lists only open desk threads waiting on the desk', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller('Blue Kiln Studio');
+    $waiting = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+    Message::factory()->from($seller)->create(['conversation_id' => $waiting->id, 'body' => 'Still waiting.']);
+
+    $answered = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller('Rye Press')->id]);
+    Message::factory()->create(['conversation_id' => $answered->id, 'body' => 'First ask.']);
+    Message::factory()->from($admin)->create(['conversation_id' => $answered->id, 'body' => 'Already answered.']);
+
+    $resolvedSeller = $this->seller('Third Studio');
+    $resolved = Conversation::factory()->adminSeller()->create(['seller_id' => $resolvedSeller->id, 'resolved_at' => now()]);
+    Message::factory()->from($resolvedSeller)->create(['conversation_id' => $resolved->id, 'body' => 'Resolved already.']);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertSee('Still waiting.');
+    $response->assertDontSee('Already answered.');
+    $response->assertDontSee('Resolved already.');
+});
+
+it('filters the inbox by seller, customer, order, and question kind', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller('Blue Kiln Studio');
+    $customer = $this->verifiedCustomer();
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => ThreadTitle::of('Payout timing')->value]);
+    Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id, 'title' => ThreadTitle::of('Where is my order?')->value]);
+    $orderThread = Conversation::factory()->fulfillment()->create();
+    $questionThread = Conversation::factory()->listingQuestion()->create();
+    $fulfillment = Fulfillment::findOrFail($orderThread->fulfillment_id);
+    $listing = Listing::findOrFail($questionThread->listing_id);
+
+    $sellers = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=sellers&status=all');
+    $sellers->assertSee('Payout timing');
+    $sellers->assertDontSee('Where is my order?');
+
+    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=customers&status=all');
+    $customers->assertSee('Where is my order?');
+    $customers->assertDontSee('Payout timing');
+
+    $orders = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=orders&status=all');
+    $orders->assertSee("Order {$fulfillment->order_id}");
+    $orders->assertDontSee('Payout timing');
+
+    $questions = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=questions&status=all');
+    $questions->assertSee($listing->title);
+    $questions->assertDontSee('Payout timing');
+});
+
+it('filter=all lists desk and oversight threads together', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()->adminSeller()->create(['title' => ThreadTitle::of('Payout timing')->value]);
+    $oversight = Conversation::factory()->fulfillment()->create();
+    $fulfillment = Fulfillment::findOrFail($oversight->fulfillment_id);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
+
+    $response->assertOk();
+    $response->assertSee('Payout timing');
+    $response->assertSee("Order {$fulfillment->order_id}");
+});
+
+it('status=resolved lists only resolved threads, status=all lists both', function (): void {
+    $admin = $this->admin();
+    Conversation::factory()->adminSeller()->create(['title' => ThreadTitle::of('Open one')->value]);
+    Conversation::factory()->adminSeller()->create(['title' => ThreadTitle::of('Resolved one')->value, 'resolved_at' => now()]);
+
+    $resolvedView = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=sellers&status=resolved');
+    $resolvedView->assertSee('Resolved one');
+    $resolvedView->assertDontSee('Open one');
+
+    $allView = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=sellers&status=all');
+    $allView->assertSee('Resolved one');
+    $allView->assertSee('Open one');
+});
+
+it('shows an oversight thread read-only, with no composer and no mark-read', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->fulfillment()->create();
+    $seller = Seller::findOrFail($conversation->seller_id);
+    $customer = Customer::findOrFail($conversation->customer_id);
+    $message = Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id, 'body' => 'Any update on tracking?']);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee('Any update on tracking?');
+    $response->assertDontSee('name="body"', escape: false);
+    $response->assertSee('Message '.$seller->displayName());
+    $response->assertSee('Message '.ActorDisplay::nameOf($customer));
+    expect($message->fresh()?->read_at)->toBeNull();
+});
+
+it('renders both sides of an oversight thread on the left, neither is the desk', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->fulfillment()->create();
+    $seller = Seller::findOrFail($conversation->seller_id);
+    $customer = Customer::findOrFail($conversation->customer_id);
+    Message::factory()->from($customer)->create(['conversation_id' => $conversation->id, 'body' => 'Any update?']);
+    Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Shipped yesterday.']);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('rounded-tr-sm bg-stone-100', escape: false);
+});
+
+it('offers mark resolved on a desk thread and hides it on an oversight thread', function (): void {
+    $admin = $this->admin();
+    $desk = Conversation::factory()->adminSeller()->create();
+    $oversight = Conversation::factory()->fulfillment()->create();
+
+    $this->actingAs($admin, 'admin')->get("/admin/messages/{$desk->id}")->assertSee('Mark resolved');
+    $this->actingAs($admin, 'admin')->get("/admin/messages/{$oversight->id}")->assertDontSee('Mark resolved');
+});
+
+it('shows the reply quote when reply_to names a message in this thread', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+    $original = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Does this vase ship internationally?']);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?reply_to={$original->id}");
+
+    $response->assertOk();
+    $response->assertSee('Replying to');
+    $response->assertSee('Does this vase ship internationally?');
+});
+
+it('ignores a reply_to naming a message from another thread, never a 500', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->adminSeller()->create();
+    $otherConversation = Conversation::factory()->adminSeller()->create();
+    $foreignMessage = Message::factory()->create(['conversation_id' => $otherConversation->id, 'body' => 'Not this thread.']);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?reply_to={$foreignMessage->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('Replying to');
+});
+
+it('ignores a reply_to naming no message at all, never a 500', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->adminSeller()->create();
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?reply_to=bogus-id");
+
+    $response->assertOk();
+});
+
+it('posts a reply that quotes an earlier message in the same thread', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+    $original = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id, 'body' => 'Does this vase ship internationally?']);
+
+    $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", [
+        'body' => 'Yes, worldwide.',
+        'reply_to_message_id' => $original->id,
+    ]);
+
+    $reply = Message::where('conversation_id', $conversation->id)->where('body', 'Yes, worldwide.')->sole();
+    expect($reply->reply_to_message_id)->toBe($original->id);
+});
+
+it('ignores a reply_to_message_id naming a message from another thread on post, never a 500', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->adminSeller()->create();
+    $otherConversation = Conversation::factory()->adminSeller()->create();
+    $foreignMessage = Message::factory()->create(['conversation_id' => $otherConversation->id]);
+
+    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}", [
+        'body' => 'Reply anyway.',
+        'reply_to_message_id' => $foreignMessage->id,
+    ]);
+
+    $response->assertRedirect(route('admin.messages.show', $conversation));
+    $reply = Message::where('conversation_id', $conversation->id)->where('body', 'Reply anyway.')->sole();
+    expect($reply->reply_to_message_id)->toBeNull();
+});
+
+it('carries the order as context on the oversight threads message buttons', function (): void {
+    $admin = $this->admin();
+    $conversation = Conversation::factory()->fulfillment()->create();
+    $fulfillment = Fulfillment::findOrFail($conversation->fulfillment_id);
+
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee(
+        'href="'.htmlspecialchars(route('admin.sellers.show', $conversation->seller_id).'?fulfillment='.$fulfillment->id.'#message-seller-form').'"',
+        escape: false,
+    );
+    $response->assertSee(
+        'href="'.htmlspecialchars(route('admin.customers.show', $conversation->customer_id).'?order='.$fulfillment->order_id.'#message-customer-form').'"',
+        escape: false,
+    );
 });

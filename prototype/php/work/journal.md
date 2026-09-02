@@ -17,7 +17,9 @@
 - 2026-09-02:10:30:00 — FEAT-041 — done: seller inbox gains &filter=/&status= chips with counts, a two-sided transcript with day separators and reply-to, resolve/reopen posts from the header, and /seller/support becomes a real titled new-conversation form; 3358 tests, 9763 assertions
 - 2026-09-02:10:00:00 — FEAT-041 — started
 - 2026-09-02:05:27:45 — FEAT-043 — done: signed-in-only listing ask with a return-here magic link, a Talk to us support form with optional order, storefront inbox filters/400s, and the two-sided thread transcript with reply-to, quote, and reopen-by-reply; 3351 tests, 9744 assertions, make precommit and make fresh green
+- 2026-09-02:05:23:53 — FEAT-042 — done: Admin desk inbox with filter/status queues (needs-reply default), kind tags, oversight (seller<->customer) read-only threads with "Message seller"/"Message customer" buttons, resolve/reopen, reply-to, titled seller/customer support forms with optional order context; 3374 tests
 - 2026-09-02:04:48:02 — FEAT-043 — started
+- 2026-09-02:04:47:34 — FEAT-042 — started
 - 2026-09-02:04:44:33 — FEAT-040 — done: conversations gain title/status/order_id/resolved_by, messages gain reply_to; ConversationKind/Status/ThreadTitle/ThreadOpening + OpenThread/PostMessage(reply-to)/Resolve/ReopenConversation; desk-aware policy, scopes, and notifications; MessagingSeeder richer demo; 3321 tests, 9677 assertions, make precommit and make fresh green
 - 2026-09-01:22:31:34 — FEAT-040 — blocked: domain/actions/models/policy/notifications/migration/seeder/controllers/tests all rewritten to docs/messaging.md's new shapes, but make precommit/make fresh could not run (Docker Desktop stuck on a macOS privileged-access prompt requiring human interaction); ticket stays in 2-doing pending the gate
 - 2026-09-01:21:58:20 — FEAT-040 — started

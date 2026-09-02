@@ -32,4 +32,21 @@ final class ActorDisplay
             default => 'Deleted account',
         };
     }
+
+    /**
+     * Up to two initials for a transcript avatar — the first letter of each
+     * of the first two words in `nameOf()`, the reduction the admin layout
+     * already applies to the signed-in admin's own name.
+     */
+    public static function initialsOf(Seller|Customer|Admin|null $actor): string
+    {
+        $words = array_filter(preg_split('/\s+/', trim(self::nameOf($actor))) ?: []);
+
+        $initials = array_map(
+            fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),
+            array_slice($words, 0, 2),
+        );
+
+        return implode('', $initials);
+    }
 }
