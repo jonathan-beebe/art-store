@@ -44,17 +44,19 @@ sign in through the same magic link sellers and customers use
 |                                                                         | optional)                                                                |
 | `GET /admin/stats`                                                      | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
-| `GET\|POST /admin/messages`, `/admin/messages/{conversation}`           | the admin inbox ([`messaging.md`](messaging.md))                         |
+| `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
+| `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
+|                                                                         | ([`messaging.md`](messaging.md))                                         |
 | `POST /admin/orders/{order}/cancel`                                     | cancel an order nothing has been charged for; the stock goes back on the |
 |                                                                         | storefront                                                               |
 | `POST /admin/fulfillments/{fulfillment}/refund`                         | refund one fulfillment with a reason; stock stays sold                   |
 | `POST /admin/listings/{listing}/removals`, `.../removals/lift`          | temporary or permanent removal with a reason; lift refused for a         |
 |                                                                         | permanent one                                                            |
 | `POST /admin/customers/{customer}/blocks`, `.../blocks/lift`            | block with a reason; lift it                                             |
-| `POST /admin/sellers/{seller}/messages`,                                | open a thread from the directory                                         |
-| `POST /admin/customers/{customer}/messages`                             |                                                                          |
-| `GET /admin/events`                                                     | the admin's unread-count stream (`text/event-stream`)                    |
-| `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=&actor=&msg=&from=&to=&key=&value=&group=&health=` | the log store's time series, newest first, with the level/domain stat tiles ([`log-store.md`](log-store.md)) |
+| `POST /admin/sellers/{seller}/messages`,                                | open a fresh, titled thread from the directory, optionally naming an     |
+| `POST /admin/customers/{customer}/messages`                             | order                                                                    |
+| `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=&actor=&msg=&from=&to=&key=&value=&group=&health=` | the log store's time series, newest first, with the level/domain stat    |
+|                                                                         | tiles ([`log-store.md`](log-store.md))                                   |
 | `GET /admin/logs/requests/{requestId}`                                  | one request's whole story, oldest first ([`log-store.md`](log-store.md)) |
 
 Every filter is optional and an empty value means "all": the console submits
@@ -429,12 +431,12 @@ staying pixel-identical to DSGN-005's phone-and-desktop rendering below `xl`?
 `x-layouts.admin`'s `mode` prop is the one switch, replacing the old
 `full-width` boolean rather than sitting beside it as a second mechanism:
 
-| `mode`          | Below `xl`                          | `xl` and up                                    |
-| --------------- | ------------------------------------ | ----------------------------------------------- |
-| `content`        | today's `max-w-6xl` column (default) | one content pane, full remaining width           |
-| `content-wide`   | today's full-width column (old `full-width: true`) | one content pane, full remaining width |
-| `list`           | the index route's table/cards, unchanged | a `cells` list pane beside an empty-detail prompt |
-| `detail`         | the show route's content, unchanged  | the same content, now the detail pane, beside a `cells` list pane |
+| `mode`         | Below `xl`                                         | `xl` and up                                                       |
+| -------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
+| `content`      | today's `max-w-6xl` column (default)               | one content pane, full remaining width                            |
+| `content-wide` | today's full-width column (old `full-width: true`) | one content pane, full remaining width                            |
+| `list`         | the index route's table/cards, unchanged           | a `cells` list pane beside an empty-detail prompt                 |
+| `detail`       | the show route's content, unchanged                | the same content, now the detail pane, beside a `cells` list pane |
 
 `list` and `detail` both take a `cells` named slot — the section's compact,
 two-line rows for the `xl`-and-up list pane. It is never rendered below `xl`
@@ -467,7 +469,11 @@ never collides with the singular model the rest of the page reads. The list
 a show page's pane carries is the same default, unfiltered list the index
 route opens with — a show URL carries no query string to filter it by, so
 an item deep in a filtered list will not show highlighted if the
-seller/status filters were never applied to begin with.
+seller/status filters were never applied to begin with. Messages is the one
+exception: its index route's own default is already filtered
+(`needs-reply`, `open`), so `show()` and `store()` read `filter=all&status=all`
+instead of the index's default — an oversight thread and a resolved one
+still need somewhere to sit in their own pane.
 
 **The list is windowed, not paginated (DSGN-006 follow-up).** Sellers/
 customers/listings/orders/fulfillments/messages have no pagination today;

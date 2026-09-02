@@ -140,9 +140,10 @@ from scratch.
 
 ## Seeded accounts
 
-`make fresh` seeds two admins, six sellers, one customer, 37 listings, three
-orders, one completed payout, and one conversation of each messaging kind.
-Every account signs in through the debug magic link (see below).
+`make fresh` seeds two admins, six sellers, two customers, 37 listings, three
+orders, one completed payout, and five conversations — one of each messaging
+kind, plus a second listing question. Every account signs in through the
+debug magic link (see below).
 
 | Role     | Shop / name              | Email                      |
 | -------- | ------------------------ | -------------------------- |
@@ -155,16 +156,22 @@ Every account signs in through the debug magic link (see below).
 | Seller   | Longbottom Botanicals    | neville@example.com        |
 | Seller   | Lovegood Curiosities     | luna@example.com           |
 | Customer | Hermione Granger         | hermione@example.com       |
+| Customer | Luna Lovegood            | luna@example.com           |
 
 Hermione has three favorites and order history with two sellers: a paid order
 awaiting shipment and a delivered, paid-out order with Molly, and a shipped
 order with Dean.
 
-Sybill, Hermione, and the admin each have an unread message waiting: Hermione
-asked Sybill about "Divination Tower Vase, Tall" on the storefront, Sybill
-answered, and that answer is published as the listing's one FAQ entry;
-Hermione and Dean have a thread on Hermione's shipped order; Sybill and the
-admin have a support thread, and so do Hermione and the admin.
+Five threads seed the messaging centre: Hermione asked Sybill about
+"Divination Tower Vase, Tall" on the storefront, Sybill answered, Hermione's
+thank-you reply sits unread for Sybill, and the answer is published as the
+listing's one FAQ entry; Luna (the customer — she shares an email with the
+Lovegood Curiosities seller row) asked Molly about "Burrow Kitchen Tea Bowl"
+and it sits unread and unanswered; Hermione and Dean have an unread exchange
+on Hermione's shipped order; Sybill's resolved "Payout timing" thread with
+Art Store Support carries one admin reply she has not read; and Hermione's
+open "Missing confirmation email" thread, tied to her awaiting-shipment
+order, is waiting on the desk.
 
 ## Magic links
 
@@ -227,16 +234,14 @@ JavaScript bundle.
 
 ## JavaScript
 
-One file, `src/public/live-badge.js`, ~20 dependency-free lines served
-directly rather than through Vite. All three layouts load it with
-`<script defer>` and it does one thing: open an `EventSource` against the
-site's `/events` route and update the "Messages" nav link's count when a new
-message arrives while the page is open. It returns immediately when
-`EventSource` is undefined, and every page renders its own correct count from
-the server on every load regardless — sign in, browse, message, checkout, and
-every other action is a form POST plus a redirect, and all of it works with
-JavaScript disabled. See `docs/messaging.md` § "The live badge" for the
-stream's shape and cost.
+One file, `src/public/composer.js`, ~15 dependency-free lines served
+directly rather than through Vite. Every layout with a message composer
+(seller, shop, admin) loads it with `<script defer>` and it does two things:
+grows the message textarea's live character counter as you type, and lets
+Cmd/Ctrl+Enter submit the form. A message composer's counter is
+server-rendered first and `Enter` alone stays a newline, so posting a
+message works the same with JavaScript disabled. See `docs/messaging.md`
+§ "The composer" for the shared contract.
 
 ## Layout
 
@@ -260,12 +265,13 @@ prototype/php/
     app/Listeners/     who hears about an event
     app/Notifications/ what they are told, plus Channels/
     app/View/Composers/ per-site layout data: cart count, notifications, unread messages
-    app/Support/       CustomerIdentity, ActorDisplay, UnreadCountStream, PlaceholderImage
+    app/Support/       CustomerIdentity, ActorDisplay, PlaceholderImage
     routes/            web.php requires auth.php, shop.php, seller.php, admin.php
     resources/views/   components/layouts/{shop,seller,admin}, components/debug-alert,
-                       components/messaging/{inbox,thread,body-form}, components/listing-card,
+                       components/messaging/* (admin), components/seller/messaging/*,
+                       components/shop/messaging/*, components/listing-card,
                        components/form/field, and a page per route under shop/, seller/, admin/
-    public/            live-badge.js, served directly rather than through Vite
+    public/            composer.js, served directly rather than through Vite
     phpstan/           stub files that type Pest's traits for the analyser
     tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```

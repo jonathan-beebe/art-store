@@ -145,7 +145,8 @@ acting for it.
 - removes a Listing and blocks a Customer
 - issues a Refund on a Fulfillment and cancels an unpaid Order
 - runs the weekly Payout
-- holds one side of a support Conversation
+- is one voice of the desk, the shared side of a support Conversation every
+  Admin sees; also reads every seller ↔ customer Conversation, read-only
 
 **In code.** `App\Models\Admin`, the `admin` guard, `App\Http\Controllers\Admin\*`
 (table `admins`).
@@ -535,38 +536,51 @@ messaging without being stopped from reading what they already have.
 ### Conversation
 
 **Who/what.** One thread, of one of four kinds: a listing question, a
-fulfillment thread, seller support, customer support.
+fulfillment thread, seller support (`admin_seller`), customer support
+(`admin_customer`). Every kind has exactly two sides; on the two support
+kinds one side is the **desk** — every Admin, collectively — rather than one
+admin row.
 
 **Why it exists.** Every thread on the platform is the same shape; what
-differs is who is in it and what it is about.
+differs is who is in it, what it is about, and who may resolve it.
 
-**Lifecycle.** Opened on the first message about a subject, then found rather
-than reopened. A thread and its first message are written in one transaction,
-so a refused first post leaves no thread behind.
+**Lifecycle.** `Open` → `Resolved` (`resolved_at` set) → `Open` again on a
+reopen or on a reply from the side that could not have resolved it. Only the
+`fulfillment` kind is found rather than opened, by a `subject_key` unique
+index; the other three open a fresh, titled thread on every ask. A thread and
+its first message are written in one transaction, so a refused first post
+leaves no thread behind. See `docs/messaging.md` § "Open and resolved".
 
 **Relates to.**
-- names its participants (a Seller, a Customer, an Admin) and its subject (a
-  Listing or a Fulfillment)
+- names its participants (a Seller, a Customer, or the desk) and, on the
+  kinds that carry one, a context row (a Listing, a Fulfillment, or an Order)
 - holds many Messages
-- one thread per subject, held by a unique index on `subject_key`
+- one `fulfillment` thread per (seller, customer, fulfillment), held by a
+  unique index on `subject_key`; the other three kinds hold no such index
+- resolved by a Seller or the desk, never by a Customer (see `docs/messaging.md`)
 
 **In code.** `App\Models\Conversation`,
 `App\Domain\Messaging\ConversationKind`,
-`App\Domain\Messaging\ConversationSubject` (table `conversations`).
+`App\Domain\Messaging\ConversationStatus`,
+`App\Domain\Messaging\ConversationSubject`,
+`App\Domain\Messaging\ThreadOpening`,
+`App\Domain\Messaging\ThreadTitle` (table `conversations`).
 
 ### Message
 
-**Who/what.** One post in a Conversation, by a seller, a customer, or an
-admin.
+**Who/what.** One post in a Conversation, by a Seller, a Customer, or an
+Admin, optionally naming the message it replies to.
 
 **Why it exists.** The unit of the messaging centre, and what an unread count
 counts.
 
-**Lifecycle.** Sent, then read by its recipient.
+**Lifecycle.** Sent, then read by its recipient — `read_at` is one column, so
+on a desk thread any Admin reading it reads it for the whole desk.
 
 **Relates to.**
 - belongs to one Conversation
 - has one sender, named by a morph alias rather than a class string
+- may name the Message it replies to (`reply_to_message_id`, `nullOnDelete`)
 - may be published as a Listing FAQ
 
 **In code.** `App\Models\Message`, `App\Domain\Messaging\MessageBody`
@@ -580,7 +594,8 @@ listing's page for every visitor.
 **Why it exists.** One shopper's question is usually every shopper's question;
 answering it once in public beats answering it privately many times.
 
-**Lifecycle.** Published from a message, edited, unpublished.
+**Lifecycle.** Published from a message, which resolves the source thread
+when it is still open; edited; unpublished (the row is deleted).
 
 **Relates to.**
 - belongs to one Listing

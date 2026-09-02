@@ -23,12 +23,12 @@ row fills, whether an ask opens a fresh thread or finds the one that exists,
 and which side may mark the thread resolved
 (`App\Domain\Messaging\ConversationKind`).
 
-| `kind`             | Sides                           | Context columns                                | Opens          | Resolved by |
-| ------------------ | ------------------------------- | ---------------------------------------------- | -------------- | ----------- |
-| `admin_seller`     | support desk ↔ `seller_id`      | `fulfillment_id` optional (a seller's order)   | fresh, titled  | admin       |
-| `admin_customer`   | support desk ↔ `customer_id`    | `order_id` optional (the customer's order)     | fresh, titled  | admin       |
-| `fulfillment`      | `seller_id` ↔ `customer_id`     | `fulfillment_id` required                      | find-or-open   | seller      |
-| `listing_question` | `seller_id` ↔ `customer_id`     | `listing_id` required                          | fresh, titled  | seller      |
+| `kind`             | Sides                        | Context columns                              | Opens         | Resolved by |
+| ------------------ | ---------------------------- | -------------------------------------------- | ------------- | ----------- |
+| `admin_seller`     | support desk ↔ `seller_id`   | `fulfillment_id` optional (a seller's order) | fresh, titled | admin       |
+| `admin_customer`   | support desk ↔ `customer_id` | `order_id` optional (the customer's order)   | fresh, titled | admin       |
+| `fulfillment`      | `seller_id` ↔ `customer_id`  | `fulfillment_id` required                    | find-or-open  | seller      |
+| `listing_question` | `seller_id` ↔ `customer_id`  | `listing_id` required                        | fresh, titled | seller      |
 
 Every thread has exactly two **sides**. That is the invariant the rest of the
 design rests on: one `read_at` per message is unambiguous, because the reader
@@ -138,9 +138,11 @@ ignores.
 `OpenThread` runs the insert, the `post` gate, and `PostMessage` inside a
 single `DB::transaction`, so a refused first message (a blocked customer)
 rolls the row back with it and leaves nothing behind. It replaces
-`OpenConversationWithMessage`. `OpenConversation` (fulfillment) still opens
-an empty thread and redirects to it, since the actor types the first message
-on the page they land on.
+`OpenConversationWithMessage`, calling the same `OpenConversation` action
+(now typed `ConversationSubject|ThreadOpening`) for the insert. A fulfillment
+route still calls `OpenConversation` directly and opens an empty thread to
+redirect to, since the actor types the first message on the page they land
+on; the other three kinds only ever reach it through `OpenThread`.
 
 The rate limit `conversation_open` (`10/1h` per actor) guards every opening
 route; `message_post` guards every reply.
@@ -173,7 +175,10 @@ standing — `canShop()` for a customer, `admits(Admin)` for an admin. The desk
 never posts into a seller ↔ customer thread: the two-sides invariant is what
 keeps `read_at` and the notification recipient unambiguous, so an admin who
 needs to step in opens their own support thread with either party from the
-buttons the oversight view offers, carrying the order or listing as context.
+buttons the oversight view offers. `ThreadOpening::adminSeller()` and
+`adminCustomer()` carry only a fulfillment/order id, not a listing id, so a
+fulfillment thread's buttons carry that order as context and a listing
+question thread's carry none (Follow-ups).
 
 `resolve` and `reopen` belong to the supporting side: the seller on the two
 kinds a seller answers, the desk on the two support kinds. A customer never
@@ -363,13 +368,13 @@ desk is waited on there.
 Every inbox takes `?filter=` and `?status=`; unknown values answer 400 the way
 `docs/alignment.md` §5 says.
 
-| Site   | `filter` values                                                 | Default sort                                   |
-| ------ | --------------------------------------------------------------- | ---------------------------------------------- |
-| Seller | `all`, `unread`, `questions`, `orders`, `support`               | `last_message_at` desc; `questions` lists      |
-|        |                                                                 | unanswered first (last message not the seller's) |
-| Admin  | `needs-reply`, `all`, `sellers`, `customers`, `orders`,         | `last_message_at` desc                         |
-|        | `questions`                                                     |                                                |
-| Shop   | `all`, `unread`                                                 | `last_message_at` desc                         |
+| Site   | `filter` values                                         | Default sort                                     |
+| ------ | ------------------------------------------------------- | ------------------------------------------------ |
+| Seller | `all`, `unread`, `questions`, `orders`, `support`       | `last_message_at` desc; `questions` lists        |
+|        |                                                         | unanswered first (last message not the seller's) |
+| Admin  | `needs-reply`, `all`, `sellers`, `customers`, `orders`, | `last_message_at` desc                           |
+|        | `questions`                                             |                                                  |
+| Shop   | `all`, `unread`                                         | `last_message_at` desc                           |
 
 `needs-reply` on the admin site is the desk's work queue: open desk threads
 whose latest message is not an admin's. `orders` and `questions` on the admin
@@ -400,45 +405,52 @@ header show. A seller or customer on a desk thread sees **Art Store Support**
 seller or the customer. On an oversight thread the admin header names both
 sides ("Sybill Trelawney ↔ Hermione Granger").
 
+The storefront reads a seller's own `name` (falling back to `displayName()`)
+rather than call `counterpartName()`, so a customer sees the maker by their
+personal name ("Sybill Trelawney") rather than `displayName()`'s
+shop-name-first read ("Trelawney's Tower Studio") that the seller and admin
+sites show. `counterpartName()` itself is unchanged.
+
 ## Routes
 
 Seller portal (`routes/seller.php`), all behind `auth.seller`:
 
-| Method | Path                                      | Name                            | Purpose                                                       |
-| ------ | ----------------------------------------- | ------------------------------- | ------------------------------------------------------------- |
-| GET    | `/seller/messages`                        | `seller.messages.index`         | Inbox; `?filter=`, `?status=`                                 |
-| GET    | `/seller/messages/{conversation}`         | `seller.messages.show`          | Thread; marks read; `?reply_to=`; FAQ disclosure on questions |
-| POST   | `/seller/messages/{conversation}`         | `seller.messages.store`         | Reply (`reply_to_message_id` optional)                        |
-| POST   | `/seller/messages/{conversation}/resolve` | `seller.messages.resolve`       | Mark resolved                                                 |
-| POST   | `/seller/messages/{conversation}/reopen`  | `seller.messages.reopen`        | Reopen                                                        |
-| GET    | `/seller/support`                         | `seller.support`                | New support thread: title, message, optional order            |
-| POST   | `/seller/support`                         | `seller.support.store`          | Opens the `admin_seller` thread                               |
-| POST   | `/seller/orders/{fulfillment}/messages`   | `seller.orders.messages`        | Finds or opens the `fulfillment` thread                       |
-| …      | `/seller/listings/{listing}/faqs…`        | `seller.listings.faqs.*`        | Publish / reword / unpublish (unchanged)                      |
+| Method | Path                                      | Name                      | Purpose                                                       |
+| ------ | ----------------------------------------- | ------------------------- | ------------------------------------------------------------- |
+| GET    | `/seller/messages`                        | `seller.messages.index`   | Inbox; `?filter=`, `?status=`                                 |
+| GET    | `/seller/messages/{conversation}`         | `seller.messages.show`    | Thread; marks read; `?reply_to=`; FAQ disclosure on questions |
+| POST   | `/seller/messages/{conversation}`         | `seller.messages.store`   | Reply (`reply_to_message_id` optional)                        |
+| POST   | `/seller/messages/{conversation}/resolve` | `seller.messages.resolve` | Mark resolved                                                 |
+| POST   | `/seller/messages/{conversation}/reopen`  | `seller.messages.reopen`  | Reopen                                                        |
+| GET    | `/seller/support`                         | `seller.support`          | New support thread: title, message, optional order            |
+| POST   | `/seller/support`                         | `seller.support.store`    | Opens the `admin_seller` thread                               |
+| POST   | `/seller/orders/{fulfillment}/messages`   | `seller.orders.messages`  | Finds or opens the `fulfillment` thread                       |
+| …      | `/seller/listings/{listing}/faqs…`        | `seller.listings.faqs.*`  | Publish / reword / unpublish (unchanged)                      |
 
 Storefront (`routes/shop.php`):
 
-| Method | Path                                                  | Name                       | Guard              | Purpose                                              |
-| ------ | ----------------------------------------------------- | -------------------------- | ------------------ | ---------------------------------------------------- |
-| GET    | `/messages`                                           | `shop.messages.index`      | `customer.identity`| Inbox; `?filter=`, `?status=`                        |
-| GET    | `/messages/{conversation}`                            | `shop.messages.show`       | `customer.identity`| Thread; marks read; `?reply_to=`                     |
-| POST   | `/messages/{conversation}`                            | `shop.messages.store`      | `customer.identity`| Reply                                                |
-| POST   | `/art/{listing:slug}/questions`                       | `shop.listing.questions`   | `auth.customer`    | Ask: opens a `listing_question` thread               |
-| GET    | `/support`                                            | `shop.support`             | `auth.customer`    | New support thread form; `?order=` preselects        |
-| POST   | `/support`                                            | `shop.support.store`       | `auth.customer`    | Opens the `admin_customer` thread                    |
-| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`      | `customer.identity`| Finds or opens the `fulfillment` thread              |
+| Method | Path                                       | Name                     | Guard               | Purpose                                     |
+| ------ | ------------------------------------------ | ------------------------ | ------------------- | ------------------------------------------- |
+| GET    | `/messages`                                | `shop.messages.index`    | `customer.identity` | Inbox; `?filter=`, `?status=`               |
+| GET    | `/messages/{conversation}`                 | `shop.messages.show`     | `customer.identity` | Thread; marks read; `?reply_to=`            |
+| POST   | `/messages/{conversation}`                 | `shop.messages.store`    | `customer.identity` | Reply                                       |
+| POST   | `/art/{listing:slug}/questions`            | `shop.listing.questions` | `auth.customer`     | Ask: opens a `listing_question` thread      |
+| GET    | `/support`                                 | `shop.support`           | `auth.customer`     | New support thread form; `?order=`          |
+|        |                                            |                          |                     | preselects                                  |
+| POST   | `/support`                                 | `shop.support.store`     | `auth.customer`     | Opens the `admin_customer` thread           |
+| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`    | `customer.identity` | Finds or opens the `fulfillment` thread     |
 
 Admin site (`routes/admin.php`), all behind `auth.admin`:
 
-| Method | Path                                     | Name                        | Purpose                                                   |
-| ------ | ---------------------------------------- | --------------------------- | --------------------------------------------------------- |
-| GET    | `/admin/messages`                        | `admin.messages.index`      | Every thread; `?filter=`, `?status=`                      |
-| GET    | `/admin/messages/{conversation}`         | `admin.messages.show`       | Thread; marks read on desk kinds; oversight otherwise     |
-| POST   | `/admin/messages/{conversation}`         | `admin.messages.store`      | Reply (desk kinds)                                        |
-| POST   | `/admin/messages/{conversation}/resolve` | `admin.messages.resolve`    | Mark resolved                                             |
-| POST   | `/admin/messages/{conversation}/reopen`  | `admin.messages.reopen`     | Reopen                                                    |
-| POST   | `/admin/sellers/{seller}/messages`       | `admin.sellers.messages`    | New `admin_seller` thread: title, message, optional order |
-| POST   | `/admin/customers/{customer}/messages`   | `admin.customers.messages`  | New `admin_customer` thread: title, message, optional order |
+| Method | Path                                     | Name                       | Purpose                                                     |
+| ------ | ---------------------------------------- | -------------------------- | ----------------------------------------------------------- |
+| GET    | `/admin/messages`                        | `admin.messages.index`     | Every thread; `?filter=`, `?status=`                        |
+| GET    | `/admin/messages/{conversation}`         | `admin.messages.show`      | Thread; marks read on desk kinds; oversight otherwise       |
+| POST   | `/admin/messages/{conversation}`         | `admin.messages.store`     | Reply (desk kinds)                                          |
+| POST   | `/admin/messages/{conversation}/resolve` | `admin.messages.resolve`   | Mark resolved                                               |
+| POST   | `/admin/messages/{conversation}/reopen`  | `admin.messages.reopen`    | Reopen                                                      |
+| POST   | `/admin/sellers/{seller}/messages`       | `admin.sellers.messages`   | New `admin_seller` thread: title, message, optional order   |
+| POST   | `/admin/customers/{customer}/messages`   | `admin.customers.messages` | New `admin_customer` thread: title, message, optional order |
 
 A conversation id naming a thread a seller or customer is not in answers 404
 on every read and write above. An id that matches no row answers 404 through
@@ -464,3 +476,19 @@ with `CustomerOwnedTables`. See `docs/identity.md`.
   right; a support team needs assignment and per-agent read state, which the
   `admin_id` "handled by" column is the seed of.
 - `reply_to` is one level deep and renders a quote, not a nested tree.
+
+## Follow-ups
+
+- `Admin::platformAdmin()` is unused in production code now that `admin_id`
+  no longer gates opening a desk thread; a candidate for removal.
+- `ThreadOpening::adminSeller()` and `adminCustomer()` take only a
+  fulfillment/order id, no listing id, so an oversight listing-question
+  thread's "Message seller" / "Message customer" buttons carry no context,
+  unlike a fulfillment thread's, which carry the order. Widening either
+  factory to accept a listing id would close the gap.
+- `x-seller.list-detail` has no pinned-footer slot; the seller inbox's
+  "Showing N of M" line scrolls with the list rather than staying put. Seed
+  data never approaches the 50-row window that would make this visible.
+- Node and Rails still hold the single-thread, `admin_id`-gated design this
+  doc describes leaving behind; `docs/alignment.md` §8 tracks the rework
+  each owes.
