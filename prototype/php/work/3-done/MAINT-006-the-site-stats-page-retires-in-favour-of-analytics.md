@@ -1,7 +1,7 @@
 ---
 id: MAINT-006
 type: maintenance
-status: open
+status: resolved
 created: 2026-09-02
 ---
 
@@ -64,3 +64,46 @@ future analytics change would otherwise be made twice.
 
 - FEAT-045 — the analytics drill-in this page retires into
 - FEAT-023 — the admin dashboard and stats page
+
+## Working
+
+Commits (`php/retire-stats`, off `php/analytics-admin`):
+
+- `d06cd71b` — ticket defined and started
+- `46db4834` — the analytics pages lock every number the stats page showed
+  (`AnalyticsControllerTest`, `EventControllerTest`)
+- `61598379` — `/admin/stats` redirects to analytics and the stats page is
+  gone
+- `2540949b` — docs updated
+
+Deleted: `StatsController` and its view, `App\Domain\Reports\ListingEventTally`
+and `ListingEventCount` (with their tests), `AnalyticsReport::platformCountsByName()`
+(no reader left once the controller went) and its dedicated test.
+
+Kept: `RollUpPageViews` and `PageViewCountability` — both still write and
+gate the page-view rollup the analytics pages read; their comments now
+name the admin analytics pages instead of `/admin/stats`.
+
+`/admin/stats` is now `Route::permanentRedirect('stats', '/admin/analytics')`
+inside the `admin.` group, so it keeps the `auth.admin` guard and needs no
+route name. The redirect destination has to be a plain path, not a
+`route()` call — a named route registered earlier in the same file isn't
+resolvable by `route()` yet at registration time, since Laravel only
+refreshes the route collection's name lookup once the whole file has
+loaded; calling `route('admin.analytics.index')` there throws
+`RouteNotFoundException`.
+
+Three tests that used `AnalyticsReport::platformCountsByName()` only to
+confirm a `listing.unfavorite` analytics event landed
+(`ToggleFavoriteTest`, `FavoriteControllerTest`, `DatabaseSeederTest`) now
+query `analytics_events` directly, the pattern already used elsewhere in
+the suite.
+
+The nav's "Site stats" entry, the dashboard's "Page views this week" card,
+and its quick-link list all point at `/admin/analytics` now; the drawer
+and below-`sm` dashboard tests were updated to match.
+
+`make precommit`: Pint clean, PHPStan clean, 3710 tests passed (10662
+assertions).
+
+Open: none.

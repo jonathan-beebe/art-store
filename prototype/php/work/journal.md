@@ -15,6 +15,7 @@
 ## Log
 
 - 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
+- 2026-09-02:16:56:17 — MAINT-006 — done: the site stats page retires — StatsController, its view, ListingEventTally/ListingEventCount, and AnalyticsReport::platformCountsByName() are gone; /admin/stats is a permanent redirect to /admin/analytics
 - 2026-09-02:16:31:55 — MAINT-006 — started
 - 2026-09-02:16:31:55 — MAINT-006 — defined: the site stats page retires in favour of analytics
 
