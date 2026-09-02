@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 48
+- FEAT: 49
 - IMPRV: 26
 - MAINT: 7
 - A11Y: 1
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:17:30:57 — FEAT-048 — defined: a local-dev seed fills ninety days of store activity
 
 - 2026-09-02:17:22:30 — FEAT-047 — defined: every visit carries its referrer and campaign to the order
 - 2026-09-02:17:22:30 — FEAT-046 — defined: the storefront funnel reads from listing view to paid order
