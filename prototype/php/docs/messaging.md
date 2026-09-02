@@ -254,6 +254,21 @@ partial); the behaviour is shared:
 - Over-length and rate-limited submissions come back through `old('body')`
   into the same textarea, with `old('reply_to_message_id')` preserved.
 
+## The transcript
+
+A thread reads as two columns of voice. Messages the viewer sent sit on the
+**right**, in a panel tinted with the site's soft accent (`accent-soft` on
+the storefront, indigo-50 on the seller portal, stone-100 with a stone-300
+edge on the admin site), the avatar on the panel's outer edge; messages from
+the other side sit on the **left** on the plain surface. Text stays
+left-aligned and full width inside a panel (at most ~78% of the column), so a
+long answer or a quoted reply reads as prose rather than as a bubble. The
+sender's name and time head every message either way — "You" on the
+viewer's own — so color is never the only cue (WCAG 1.4.1), and the storefront
+still names the admin who wrote a desk message. Day separators run between
+groups. On an oversight thread the admin is nobody's side, so both voices sit
+on the left with their own avatars.
+
 ## A question becomes a published FAQ
 
 Question: what runs between a shopper asking about a listing and that answer
