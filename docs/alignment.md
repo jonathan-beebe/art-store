@@ -214,7 +214,8 @@ prototype emits every event below that its features support.
 |                                                                         | `fulfillment_id`, `amount_cents`, `reason`                               |
 | `ledger.write`                                                          | every ledger entry (`debug`)                                             |
 | `payout.run`, `payout.pay`                                              | the weekly payout: one `run` with the period, one `pay` per seller       |
-| `conversation.open`, `message.post`, `faq.publish`, `faq.unpublish`     | messaging                                                                |
+| `conversation.open`, `conversation.resolve`, `conversation.reopen`,     | messaging                                                                |
+| `message.post`, `faq.publish`, `faq.unpublish`                         |                                                                          |
 | `notification.write`, `notification.deliver`                            | in-app write and transport delivery                                      |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`,         | admin                                                                    |
 | `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
@@ -668,3 +669,18 @@ non-vendor backtrace frame), `duration_ms`, `sql` (the parameterized text,
 bindings excluded), and `threshold_ms`. The `http.request` did line's
 `data.db` aggregate is unchanged. PHP ships it on IMPRV-022; node's sibling
 ticket IMPRV-034 is filed; rails is queued as a follow-up.
+
+2026-09-01, messaging v2: the conversation shape reworked (FEAT-040) —
+`conversations` gains `title`, a nullable `order_id`, `resolved_at`, and a
+`resolved_by` morph pair; `messages` gains `reply_to_message_id`. Only the
+`fulfillment` kind keeps a `subject_key` and the find-or-open shape; the
+other three kinds (`admin_seller`, `admin_customer`, `listing_question`) open
+fresh every time and carry a title. `admin_id` on the two support kinds
+records who first answered rather than gating participation — the desk is
+every admin, collectively — closing decision 2 in §7 (support-thread keying
+is no longer per-operator). §2.3 gains `conversation.resolve` and
+`conversation.reopen`. PHP ships the full shape, policy, notifications, and
+scopes on `php/messaging`; Node and Rails still hold the single-thread,
+`admin_id`-gated design and owe the same rework — `prototype/php/docs/messaging.md`
+is the reference (Node's and Rails's own `docs/messaging.md` still describe
+the old shape until each ships).
