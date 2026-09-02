@@ -9,7 +9,10 @@ use App\Domain\Auth\ActorType;
 /**
  * Four pairings share one message store. Every kind has exactly two
  * participants, which is what makes one `read_at` per message unambiguous:
- * the reader is always the participant who did not send it.
+ * the reader is always the participant who did not send it. On the two
+ * support kinds one side is the desk — every admin, collectively — rather
+ * than one admin row, so `admin_id` records who first answered rather than
+ * gating participation.
  */
 enum ConversationKind: string
 {
@@ -33,21 +36,68 @@ enum ConversationKind: string
     }
 
     /**
-     * The `conversations` column naming what the thread is about, or null for
-     * the two support kinds, which need no subject beyond their participants.
+     * The `conversations` column naming the subject a fulfillment thread's
+     * `subject_key` is keyed by — the one kind that finds rather than opens.
      */
     public function subjectColumn(): ?string
     {
+        return $this === self::Fulfillment ? 'fulfillment_id' : null;
+    }
+
+    /**
+     * The `conversations` column(s) a fresh thread of this kind may carry
+     * beyond its two participants — what the row is about, or (for the two
+     * support kinds) which order it was raised over.
+     *
+     * @return list<string>
+     */
+    public function contextColumns(): array
+    {
         return match ($this) {
-            self::Fulfillment => 'fulfillment_id',
-            self::ListingQuestion => 'listing_id',
-            self::AdminSeller, self::AdminCustomer => null,
+            self::AdminSeller, self::Fulfillment => ['fulfillment_id'],
+            self::AdminCustomer => ['order_id'],
+            self::ListingQuestion => ['listing_id'],
         };
     }
 
     public function admits(ActorType $actor): bool
     {
         return in_array($actor->participantColumn(), $this->participantColumns(), true);
+    }
+
+    /**
+     * A fresh thread every time an actor asks for one, versus the one
+     * fulfillment thread an order's two sides share — the find-or-open shape
+     * `subject_key` exists to serve.
+     */
+    public function opensFresh(): bool
+    {
+        return $this !== self::Fulfillment;
+    }
+
+    /**
+     * The two support kinds, where one side is every admin collectively
+     * rather than one participant row.
+     */
+    public function isDesk(): bool
+    {
+        return match ($this) {
+            self::AdminSeller, self::AdminCustomer => true,
+            self::Fulfillment, self::ListingQuestion => false,
+        };
+    }
+
+    /**
+     * The side that may mark a thread of this kind resolved: the desk on the
+     * two support kinds, the seller on the two the seller answers. A customer
+     * never resolves; they reopen by replying.
+     */
+    public function resolvableBy(ActorType $actor): bool
+    {
+        return match ($this) {
+            self::AdminSeller, self::AdminCustomer => $actor === ActorType::Admin,
+            self::Fulfillment, self::ListingQuestion => $actor === ActorType::Seller,
+        };
     }
 
     /**

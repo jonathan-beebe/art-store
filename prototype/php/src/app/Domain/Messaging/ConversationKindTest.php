@@ -15,13 +15,22 @@ it('names the two columns each kind fills', function (ConversationKind $kind, ar
     'listing_question' => [ConversationKind::ListingQuestion, ['seller_id', 'customer_id']],
 ]);
 
-it('names the subject column only for the two kinds that carry one', function (ConversationKind $kind, ?string $column): void {
+it('names the subject column only for the one kind that finds rather than opens', function (ConversationKind $kind, ?string $column): void {
     expect($kind->subjectColumn())->toBe($column);
 })->with([
     'admin_seller has none' => [ConversationKind::AdminSeller, null],
     'admin_customer has none' => [ConversationKind::AdminCustomer, null],
     'fulfillment' => [ConversationKind::Fulfillment, 'fulfillment_id'],
-    'listing_question' => [ConversationKind::ListingQuestion, 'listing_id'],
+    'listing_question has none' => [ConversationKind::ListingQuestion, null],
+]);
+
+it('names the context columns a fresh thread of each kind may carry', function (ConversationKind $kind, array $columns): void {
+    expect($kind->contextColumns())->toBe($columns);
+})->with([
+    'admin_seller' => [ConversationKind::AdminSeller, ['fulfillment_id']],
+    'admin_customer' => [ConversationKind::AdminCustomer, ['order_id']],
+    'fulfillment' => [ConversationKind::Fulfillment, ['fulfillment_id']],
+    'listing_question' => [ConversationKind::ListingQuestion, ['listing_id']],
 ]);
 
 it('admits only the two participant types a kind fills', function (ConversationKind $kind, ActorType $actor, bool $admitted): void {
@@ -39,6 +48,37 @@ it('admits only the two participant types a kind fills', function (ConversationK
     'listing_question admits a seller' => [ConversationKind::ListingQuestion, ActorType::Seller, true],
     'listing_question admits a customer' => [ConversationKind::ListingQuestion, ActorType::Customer, true],
     'listing_question refuses an admin' => [ConversationKind::ListingQuestion, ActorType::Admin, false],
+]);
+
+it('opens fresh for every kind but fulfillment', function (ConversationKind $kind, bool $opensFresh): void {
+    expect($kind->opensFresh())->toBe($opensFresh);
+})->with([
+    'admin_seller' => [ConversationKind::AdminSeller, true],
+    'admin_customer' => [ConversationKind::AdminCustomer, true],
+    'fulfillment' => [ConversationKind::Fulfillment, false],
+    'listing_question' => [ConversationKind::ListingQuestion, true],
+]);
+
+it('names the two support kinds as the desk', function (ConversationKind $kind, bool $isDesk): void {
+    expect($kind->isDesk())->toBe($isDesk);
+})->with([
+    'admin_seller' => [ConversationKind::AdminSeller, true],
+    'admin_customer' => [ConversationKind::AdminCustomer, true],
+    'fulfillment' => [ConversationKind::Fulfillment, false],
+    'listing_question' => [ConversationKind::ListingQuestion, false],
+]);
+
+it('names the side that may resolve each kind', function (ConversationKind $kind, ActorType $actor, bool $resolvableBy): void {
+    expect($kind->resolvableBy($actor))->toBe($resolvableBy);
+})->with([
+    'admin_seller by an admin' => [ConversationKind::AdminSeller, ActorType::Admin, true],
+    'admin_seller not by the seller' => [ConversationKind::AdminSeller, ActorType::Seller, false],
+    'admin_customer by an admin' => [ConversationKind::AdminCustomer, ActorType::Admin, true],
+    'admin_customer not by the customer' => [ConversationKind::AdminCustomer, ActorType::Customer, false],
+    'fulfillment by the seller' => [ConversationKind::Fulfillment, ActorType::Seller, true],
+    'fulfillment not by the customer' => [ConversationKind::Fulfillment, ActorType::Customer, false],
+    'listing_question by the seller' => [ConversationKind::ListingQuestion, ActorType::Seller, true],
+    'listing_question not by the customer' => [ConversationKind::ListingQuestion, ActorType::Customer, false],
 ]);
 
 it('names the desk for the two support kinds', function (ConversationKind $kind): void {
