@@ -1,85 +1,258 @@
 # Messaging
 
-One conversation model serves every pairing on the marketplace, and one of the
-four kinds carries the product feature that pays for it: a customer's question
-on a listing, answered by the seller, published as an FAQ entry the whole
-storefront can read.
+One conversation model serves every pairing on the marketplace. Four kinds
+share one message store, threads carry a title and an open/resolved status, a
+message can reply to another, and one of the kinds carries the product feature
+that pays for it: a customer's question on a listing, answered by the seller,
+published as an FAQ entry the whole storefront can read.
 
 Code: `app/Domain/Messaging/`, `app/Actions/Messaging/`,
 `app/Models/Conversation.php`, `app/Models/Message.php`,
 `app/Models/ListingFaq.php`, `app/Policies/ConversationPolicy.php`,
-`app/Http/Controllers/Seller/MessageController.php`,
-`app/Http/Controllers/Shop/MessageController.php`,
-`app/Http/Controllers/Admin/MessageController.php`,
-`app/Events/MessagePosted.php`, `app/Listeners/NotifyOfMessage.php`,
-`app/Notifications/MessageReceived.php`, `app/Support/ActorDisplay.php`,
-`app/View/Composers/`. Tables:
+`app/Http/Controllers/{Seller,Shop,Admin}/MessageController.php` and the
+per-site open/resolve controllers beside them, `app/Events/MessagePosted.php`,
+`app/Listeners/NotifyOfMessage.php`, `app/Notifications/MessageReceived.php`,
+`app/Notifications/ConversationResolved.php`, `app/Support/ActorDisplay.php`,
+`app/View/Composers/`, `public/composer.js`. Tables:
 `database/migrations/*_create_messaging_tables.php`.
 
-Four tables would repeat the same message store four times, so there is one:
-`conversations.kind` says which two participant columns are filled and which
-subject column, if any, names what the thread is about
+## The four kinds
+
+`conversations.kind` says who the two sides are, which context columns the
+row fills, whether an ask opens a fresh thread or finds the one that exists,
+and which side may mark the thread resolved
 (`App\Domain\Messaging\ConversationKind`).
 
-## Conversation kinds
+| `kind`             | Sides                           | Context columns                                | Opens          | Resolved by |
+| ------------------ | ------------------------------- | ---------------------------------------------- | -------------- | ----------- |
+| `admin_seller`     | support desk ↔ `seller_id`      | `fulfillment_id` optional (a seller's order)   | fresh, titled  | admin       |
+| `admin_customer`   | support desk ↔ `customer_id`    | `order_id` optional (the customer's order)     | fresh, titled  | admin       |
+| `fulfillment`      | `seller_id` ↔ `customer_id`     | `fulfillment_id` required                      | find-or-open   | seller      |
+| `listing_question` | `seller_id` ↔ `customer_id`     | `listing_id` required                          | fresh, titled  | seller      |
 
-| `kind`             | Participants                | Subject column   | Opened by                                       |
-| ------------------ | --------------------------- | ---------------- | ----------------------------------------------- |
-| `admin_seller`     | `admin_id` ↔ `seller_id`    | —                | `seller.support`, `admin.sellers.messages`      |
-| `admin_customer`   | `admin_id` ↔ `customer_id`  | —                | `shop.support`, `admin.customers.messages`      |
-| `fulfillment`      | `seller_id` ↔ `customer_id` | `fulfillment_id` | `seller.orders.messages`, `shop.order.messages` |
-| `listing_question` | `seller_id` ↔ `customer_id` | `listing_id`     | `shop.listing.questions`                        |
+Every thread has exactly two **sides**. That is the invariant the rest of the
+design rests on: one `read_at` per message is unambiguous, because the reader
+is always the side that did not send it. On the two support kinds one side is
+the **desk** — every admin, collectively — rather than one admin row. The
+`admin_id` column no longer gates participation; it records which admin first
+answered ("handled by") and is null until one does.
 
-Every kind has exactly two participants. That is the invariant the rest of the
-design rests on: one `read_at` per message is unambiguous, because the reader is
-always the participant who did not send it.
+`listing_question` is the conversation a seller and a customer have **before**
+any order exists: a shopper asking about a piece they have not bought. It
+needs no order and no cart, only a signed-in customer and a listing that is
+for sale. `fulfillment` is the conversation they have **after** one: it is
+opened from the order page on either side and named by the order.
 
 `ConversationKind` answers questions about itself the way `OrderStatus` and
-`ListingStatus` do — `participantColumns()`, `subjectColumn()`,
-`admits(ActorType $actor)`, `topic(...)` — so no controller and no Blade file
-branches on a kind value.
+`ListingStatus` do — `participantColumns()`, `contextColumns()`,
+`opensFresh()`, `isDesk()`, `admits(ActorType)`, `resolvableBy(ActorType)`,
+`topic(...)` — so no controller and no Blade file branches on a kind value.
 
 Each site reads the same threads through its own routes.
 `ActorType::conversationRouteName()` and `ActorType::inboxRouteName()` name
-them, beside the `homeRouteName()` and `loginRouteName()` that enum already
-carries: the shell passes the name to `route()`, so the notification a post
-sends links to the thread on the **recipient's** site rather than the sender's.
+them, so the notification a post sends links to the thread on the
+**recipient's** site rather than the sender's.
 
-Both support routes open the thread against **the first admin by id**. Admin
-rows are seeded and this prototype has no assignment model; with no admin row
-at all the route redirects back with an error rather than opening a half-formed
-thread.
+## A thread's shape
 
-## One thread per subject
+```mermaid
+erDiagram
+    conversations {
+        string id PK "cnv_…"
+        string kind
+        string title "nullable — fulfillment threads are titled by their order"
+        string subject_key "nullable, unique — fulfillment threads only"
+        string seller_id FK "nullable"
+        string customer_id FK "nullable"
+        string admin_id FK "nullable — handled by"
+        string listing_id FK "nullable"
+        string fulfillment_id FK "nullable"
+        string order_id FK "nullable"
+        datetime resolved_at "nullable"
+        string resolved_by_type "nullable morph alias"
+        string resolved_by_id "nullable"
+        datetime last_message_at
+    }
+    messages {
+        string id PK "msg_…"
+        string conversation_id FK
+        string sender_type "morph alias"
+        string sender_id
+        string reply_to_message_id FK "nullable, nullOnDelete"
+        text body
+        datetime sent_at
+        datetime read_at "nullable"
+    }
+    listing_faqs {
+        string id PK
+        string listing_id FK
+        string seller_id FK
+        string source_message_id FK "nullable"
+        string question
+        text answer
+        datetime published_at
+    }
+    conversations ||--o{ messages : holds
+    messages o|--o| messages : "replies to"
+    messages o|--o| listing_faqs : "lifted into"
+```
 
-Question: two people reach for the same conversation from two pages at the same
-moment — how does one row come back to both?
+`title` is a `ThreadTitle` value object (`MAX_LENGTH` 120). A seller or a
+customer types it when they open a support thread; a listing question derives
+it from the question itself (`ThreadTitle::fromBody()`: the first line,
+cut at 80 characters with an ellipsis); a fulfillment thread has none and is
+named by its order everywhere it appears.
+
+## Opening a thread
+
+Question: two people reach for a conversation from two pages — when does the
+second ask find the first one's thread, and when does it open its own?
 
 ```mermaid
 flowchart TD
-    entry["a route asks for a thread\n(ask, support, message the customer)"] --> subject["ConversationSubject::for(kind, ids)\npure: the row's columns + subject_key"]
-    subject --> key["subject_key\n'listing_question:ssel_01J…:ccus_01J…:llst_01J…'"]
-    key --> find["Conversation::firstOrCreate(\n  ['subject_key' => key],\n  the columns the kind fills\n)"]
+    ask(["a route asks for a thread"]) --> kind{"kind->opensFresh()?"}
+    kind -- "fulfillment: no" --> subject["ConversationSubject::fulfillment(seller, customer, fulfillment)\npure: columns + subject_key"]
+    subject --> find["Conversation::openFor(subject, now)\nfirstOrCreate on subject_key"]
     find --> index[("unique index\nconversations_subject_key_unique")]
-    index --> row[("one conversations row")]
+    index --> one[("the one thread for that order")]
+    kind -- "support, listing question: yes" --> opening["ThreadOpening::adminSeller / adminCustomer / listingQuestion\npure: kind, sides, title, context"]
+    opening --> open["OpenThread(opening, sender, body, now)\none transaction: insert the row, gate post, PostMessage"]
+    open --> fresh[("a new thread, subject_key null")]
 ```
 
-Caveats: the subject is the domain's answer and the write is the model's.
-`App\Domain\Messaging\ConversationSubject` is a `final readonly` value object
-built by named factories — one per kind, each naming exactly the participants
-and the subject row that kind needs — and `subjectKey()` folds them into the
-string the unique index guards.
-
+Caveats: a fulfillment is one conversation. A shopper and a seller talking
+about one order should land in one place however many pages offer the way in,
+so the fulfillment kind keeps the find-or-open shape and the `subject_key`
+unique index that makes `firstOrCreate` a real find-or-open under contention.
 The key exists because SQL treats `null` as distinct from `null` in a unique
-index: a unique index over `(kind, seller_id, customer_id, admin_id,
-listing_id, fulfillment_id)` would let two `admin_seller` rows through, since
-three of those columns are null on every one of them. One non-null string
-column has no such hole, so `firstOrCreate` is a real find-or-open under
-contention rather than a read followed by a hopeful insert.
+index; one non-null string column has no such hole.
 
-The columns are still written beside the key — that is what an inbox query
-reads (`where seller_id = ? order by last_message_at desc`) and what the merge
-re-points.
+The other three kinds open fresh. A support issue is a thread with a title;
+a seller with two issues has two threads, and the resolved one stays resolved
+while the new one is answered. A listing question is one question: each
+"Ask a question" opens its own thread, which is what lets the seller's queue
+read one question per row and lets "Publish as FAQ" lift exactly that
+question and its answer. Their `subject_key` is null, which the unique index
+ignores.
+
+`OpenThread` runs the insert, the `post` gate, and `PostMessage` inside a
+single `DB::transaction`, so a refused first message (a blocked customer)
+rolls the row back with it and leaves nothing behind. It replaces
+`OpenConversationWithMessage`. `OpenConversation` (fulfillment) still opens
+an empty thread and redirects to it, since the actor types the first message
+on the page they land on.
+
+The rate limit `conversation_open` (`10/1h` per actor) guards every opening
+route; `message_post` guards every reply.
+
+## Who may read, post, and resolve
+
+Question: given an actor and a conversation, what is that actor allowed to do?
+
+```mermaid
+flowchart TD
+    ask(["actor asks for a thread"]) --> who{actor type}
+    who -- admin --> view_admin["view: allow — the desk sees every thread"]
+    who -- "seller / customer" --> view_own{"participant column === actor id?"}
+    view_own -- no --> notfound["denyAsNotFound (404)"]
+    view_own -- yes --> post_own{"post: canShop()?\n(customers only)"}
+    post_own -- no --> readonly["read-only: no composer"]
+    post_own -- yes --> allow_own["post allowed"]
+    view_admin --> post_admin{"post: kind->admits(Admin)?"}
+    post_admin -- "support kinds" --> allow_admin["post allowed; first reply sets admin_id"]
+    post_admin -- "seller ↔ customer kinds" --> oversight["oversight: read-only,\noffer 'Message seller' / 'Message customer'"]
+    allow_own & allow_admin --> resolve{"resolve / reopen:\nkind->resolvableBy(actor type)\nand the status is the other one"}
+```
+
+Caveats: `ConversationPolicy` keeps `FulfillmentPolicy`'s shape. `view` for a
+seller or customer answers ownership alone and denies as not found, so a
+thread somebody else is in and a thread that never existed answer the same.
+`view` for an admin always allows: the desk's brief is to see everything, and
+the admin inbox lists every thread on the marketplace. `post` is `view` plus
+standing — `canShop()` for a customer, `admits(Admin)` for an admin. The desk
+never posts into a seller ↔ customer thread: the two-sides invariant is what
+keeps `read_at` and the notification recipient unambiguous, so an admin who
+needs to step in opens their own support thread with either party from the
+buttons the oversight view offers, carrying the order or listing as context.
+
+`resolve` and `reopen` belong to the supporting side: the seller on the two
+kinds a seller answers, the desk on the two support kinds. A customer never
+resolves; a customer reopens by replying (below).
+
+The composer is offered by the same policy that guards the write —
+`@can('post', $conversation)` on the seller portal and the admin site,
+`@visitorCan('post', $conversation)` on the storefront — and the write route's
+form request authorizes it again. An admin reading an oversight thread does
+not mark it read: `MarkConversationRead` is called only where `post` allows.
+
+## Open and resolved
+
+Question: what does "resolved" mean, who sets it, and what unsets it?
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: thread opened
+    Open --> Resolved: ResolveConversation\n(the supporting side)
+    Open --> Resolved: PublishListingFaq\n(the answer is out)
+    Resolved --> Open: ReopenConversation\n(the supporting side)
+    Resolved --> Open: PostMessage by the supported side\n("actually, one more thing")
+    Resolved --> Resolved: PostMessage by the supporting side\n("glad I could help")
+```
+
+Caveats: `ConversationStatus` (`Open`, `Resolved`) is read from `resolved_at`.
+`ConversationStatus::afterPostBy(ActorType, ConversationKind)` is the one pure
+rule `PostMessage` applies: a post from an actor the kind does not let resolve
+reopens a resolved thread; a post from the side that could have resolved it
+leaves the status alone. `ResolveConversation` and `ReopenConversation` refuse
+a thread already in that state with a `DomainRuleViolation`, which
+`bootstrap/app.php` turns into `back()->withErrors(...)`. Both write
+`resolved_at` and the `resolved_by` morph pair, log `conversation.resolve` /
+`conversation.reopen`, and `ResolveConversation` sends `ConversationResolved`
+to the supported side with the thread's URL on their site — "Reply to
+reopen" is the whole escape hatch, so nobody is locked out of a thread.
+
+Publishing an FAQ resolves the question thread its source message belongs to,
+when it is still open: the answer is on the listing for everyone, which is
+what answering meant.
+
+Inboxes default to open threads. The status filter (`open`, `resolved`,
+`all`) is a query parameter on every inbox route, as `filter` is.
+
+## Replying to a message
+
+Question: a thread is twelve messages long and the answer refers to the
+third — how does the reader see which?
+
+`messages.reply_to_message_id` names the message a reply quotes, and must
+belong to the same thread (`PostMessage` refuses otherwise with a
+`DomainRuleViolation`). The thread renders the quoted message's sender and
+first line above the reply, linking to `#msg_…` on the original. The composer
+gets there through the URL: every message carries a "Reply" link to the thread
+route with `?reply_to=msg_…`, the controller resolves it (same thread, else
+ignored), the composer shows "Replying to Hermione — *Does this vase…*" with a
+Cancel link back to the bare thread, and a hidden `reply_to_message_id` rides
+the POST. No JavaScript is required for any of it. `nullOnDelete` on the
+column means a quoted message that is ever removed leaves its replies intact.
+
+## The composer
+
+One behaviour on three sites, each in its own dress. The Blade pieces are per
+site (`components/seller/messaging/composer.blade.php`,
+`components/messaging/body-form.blade.php` for the admin, the storefront's own
+partial); the behaviour is shared:
+
+- The textarea grows with its content (`field-sizing: content`, between three
+  and twelve rows; browsers without it keep three rows and scroll).
+- `Cmd`/`Ctrl`+`Enter` submits; `Enter` alone is a newline. `public/composer.js`
+  (~15 lines, `<script defer>` on every layout that has a composer) does only
+  that and the live counter; without it the form still posts.
+- A counter shows `1,240 / 2,000`; the limit is read from
+  `MessageBody::MAX_LENGTH` in the Blade file, and the same constant fills
+  `maxlength`, so the client hint and the server rule cannot drift.
+- The reply-quote block sits above the textarea when `?reply_to` names a
+  message.
+- Over-length and rate-limited submissions come back through `old('body')`
+  into the same textarea, with `old('reply_to_message_id')` preserved.
 
 ## A question becomes a published FAQ
 
@@ -91,149 +264,57 @@ sequenceDiagram
     actor Shopper
     actor Seller
     participant Ask as ShopQuestionController
-    participant Open as OpenConversation
-    participant Post as PostMessage
+    participant Open as OpenThread
     participant Notify as NotifyOfMessage
     participant Thread as Seller MessageController
     participant Publish as PublishListingFaq
 
-    Shopper->>Ask: POST /art/{listing:slug}/questions (AskSellerRequest)
-    Ask->>Ask: route-model binding by slug, ListingAvailability or 404
-    Ask->>Open: OpenConversationWithMessage: one DB::transaction
-    Open->>Open: Conversation::firstOrCreate(subject_key)
-    Open->>Open: Gate::forUser(visitor)->authorize('post', conversation)
-    Open->>Post: __invoke(conversation, visitor, MessageBody, now)
-    Post->>Post: append message, touch last_message_at
-    Post->>Notify: MessagePosted (after commit)
-    Notify->>Notify: MessageReceived to the seller,\nurl = route(ActorType::Seller->conversationRouteName())
+    Shopper->>Ask: POST /art/{listing:slug}/questions (auth.customer, AskSellerRequest)
+    Ask->>Open: ThreadOpening::listingQuestion(seller, customer, listing, ThreadTitle::fromBody(body))
+    Open->>Open: one DB::transaction: insert, gate post, PostMessage
+    Open->>Notify: MessagePosted (after commit) -> MessageReceived to the seller
     Ask-->>Shopper: redirect shop.messages.show
-
-    Seller->>Thread: GET /seller/messages/{conversation}
-    Thread->>Thread: MarkConversationRead (reader = seller)
+    Seller->>Thread: GET /seller/messages?filter=questions
+    Seller->>Thread: GET /seller/messages/{conversation}: marks read
     Seller->>Thread: POST reply (PostMessageRequest)
-    Thread-->>Seller: "Publish as FAQ", pre-filled from the thread,\ncarrying source_message_id
+    Thread-->>Seller: "Publish as FAQ" disclosure, pre-filled from the thread
     Seller->>Publish: PublishFaqRequest -> FaqDraft
-    Publish-->>Seller: redirect, "Published to the listing."
-    Note over Shopper: /art/{slug} now lists the question and the answer
+    Publish->>Publish: listing_faqs row, then resolve the thread
+    Publish-->>Seller: "Published to the listing."
+    Note over Shopper: /art/{slug} lists the question and the answer
 ```
 
-Caveats: an **anonymous** customer can ask. The question route sits inside the
-`customer.identity` group with no `auth.customer` middleware, so the row
-`ResolveCustomerIdentity` minted is the participant. If that visitor later
-verifies an address, the thread moves with them (see **The merge**).
+Caveats: asking needs a **verified** customer. The question route sits inside
+`auth.customer`; a signed-out visitor sees "Sign in to ask Sybill a question"
+in the form's place, and the magic link brings them back to the listing. The
+same holds for `/support`. Threads a customer already holds still follow them
+through the merge (below). This reverses the earlier decision that let an
+anonymous cookie ask: a question is the start of a relationship, and a
+relationship needs an address to reach.
 
 A `listing_faqs` row exists **only while it is published**. `published_at` is
 `not null`, unpublishing deletes the row, and the storefront reads
-`$listing->faqs` with no predicate of its own. There is no draft state and no
-fourth route, because re-publishing is one click from the thread the answer
-came from, which is still there. `source_message_id` records which answer an
-entry was lifted from and is `nullOnDelete`.
+`$listing->faqs` with no predicate of its own. `source_message_id` records
+which answer an entry was lifted from and is `nullOnDelete`.
 
 The limits are domain constants the form requests read:
-`MessageBody::MAX_LENGTH` (2000), `FaqDraft::QUESTION_MAX_LENGTH` (500),
-`FaqDraft::ANSWER_MAX_LENGTH` (2000). `PostMessageRequest::body()` returns a
-`MessageBody` and `PublishFaqRequest::draft()` returns a `FaqDraft`, so a
-controller receives the value object rather than a string bag — the shape
-`CheckoutRequest` and `MarkShippedRequest` already use. Laravel's
-`TrimStrings` middleware does the trimming before either rule runs.
-
-The Blade side of the same limit is a literal: every `<textarea maxlength="…">`
-and `<input maxlength="…">` in `resources/views/**/messages/*.blade.php` and
-`components/messaging/body-form.blade.php` writes `2000` (or `500` for an FAQ
-question) by hand rather than reading the domain constant, so the two only
-agree because nobody has changed one without the other yet. The form request
-is still the enforcement — a longer value submitted anyway is rejected by
-its `max:` rule regardless of what the `maxlength` attribute let through — but
-a future change to a domain constant would silently desync the client-side
-hint from the server-side rule.
-
-## Who may read, who may post
-
-Question: given an actor and a conversation, what is that actor allowed to do?
-
-```mermaid
-flowchart TD
-    ask(["actor asks for a thread"]) --> bind["route-model binding:\nConversation $conversation"]
-    bind --> view{"ConversationPolicy::view\nparticipant id for this actor's\ncolumn === actor id?"}
-    view -- no --> notfound["Response::denyAsNotFound()\n404"]
-    view -- yes --> post{"ConversationPolicy::post\nblocked customer?"}
-    post -- yes --> readonly["Response::deny(...)\nthe reply form is not rendered\n(@can / @visitorCan)"]
-    post -- no --> allow["Response::allow()\nthe form renders and the write passes"]
-```
-
-Caveats: `ConversationPolicy` follows `FulfillmentPolicy`'s shape. `view`
-answers ownership alone and denies as not found, so a thread somebody else is
-in and a thread that never existed answer the same and no site confirms which
-it was. `post` is `view` plus standing, the same way `ship` is ownership plus
-state — and the same `whenAllowed(Response $ownership, bool $isReady)` private
-helper carries it.
-
-Which column is this actor's is `ActorType::participantColumn()`;
-`Conversation::participantIdFor(ActorType)` is the model read. Only a customer
-can be blocked, so `post` asks `Customer::canShop()` and the other two sides
-never pay for the read.
-
-The reply form is offered by the same policy that guards the write —
-`@can('post', $conversation)` in the seller portal and the admin site,
-`@visitorCan('post', $conversation)` on the storefront — and the write route's
-form request authorizes it again through `Gate::inspect(...)`. A blocked
-customer reads the thread with no form; a submission anyway is refused with the
-policy's words.
+`MessageBody::MAX_LENGTH` (2000), `ThreadTitle::MAX_LENGTH` (120),
+`FaqDraft::QUESTION_MAX_LENGTH` (500), `FaqDraft::ANSWER_MAX_LENGTH` (2000).
+`PostMessageRequest::body()` returns a `MessageBody`, `OpenThreadRequest`
+returns a `ThreadTitle` and a `MessageBody`, `PublishFaqRequest::draft()`
+returns a `FaqDraft`, so a controller receives the value object rather than a
+string bag. Every `maxlength` in Blade reads the constant.
 
 ## What a block does
 
-Question: an admin blocks a customer — what changes, and where?
-
-```mermaid
-flowchart TD
-    block["POST /admin/customers/{customer}/blocks\nBlockCustomer(reason, now)"] --> row[("customer_blocks row\nlifted_at null")]
-    row --> standing["Customer::canShop() -> false"]
-    standing --> shopping["AddToCart, PlaceOrder, FinalizeOrder\nrefuse with DomainRuleViolation"]
-    standing --> messages["ConversationPolicy::post denies:\nthe reply form goes"]
-    standing --> open["browsing, favoriting and reading threads stay open"]
-    row --> lift["POST .../blocks/lift\nLiftCustomerBlock sets lifted_at"]
-    lift --> restored["canShop() -> true"]
-```
-
-Caveats: at most one active block per customer. `BlockCustomer` refuses an
-already-blocked customer and `LiftCustomerBlock` refuses an unblocked one, both
-with a `DomainRuleViolation`, which `bootstrap/app.php` already turns into
-`back()->withErrors(...)` for every route. `customer_blocks` carries
-`(customer_id, lifted_at)` for the read; the "only one active" rule is the
-action's, since a partial unique index is not portable to the SQLite file this
-prototype ships. `BlockCustomer` judges it inside the transaction that writes,
-against the customer row taken through `Customer::takeForModeration()`, so two
-admins blocking at once cannot both pass the check.
-
-The refusal for the paths that buy something is the action's, so the shopper
-lands back on the page they submitted from with the reason. The refusal for
-messages is the policy's, so the form is never offered in the first place. Both
-read the same `canShop()`.
-
-A blocked visitor who submits `shop.listing.questions` anyway leaves nothing
-behind. Opening a thread and posting the message that opens it is one
-transaction: `OpenConversationWithMessage` runs `OpenConversation`, the
-`post` gate, and `PostMessage` inside a single `DB::transaction`, so the
-policy's refusal rolls the `conversations` row back with it. However many
-times the visitor tries, both inboxes stay empty and nobody is notified. The
-gate is inside the action rather than in the controller because a
-`Conversation` is what `ConversationPolicy::post` judges, and the only
-conversation to judge is the one the transaction just opened.
-
-The three routes that ask something — `shop.listing.questions`,
-`admin.sellers.messages`, `admin.customers.messages` — all go through it. The
-routes that only open a thread and redirect to it (`shop.support`,
-`seller.support`, `shop.order.messages`, `seller.order.messages`) still call
-`OpenConversation` alone: an empty thread is the point there, since the actor
-types the first message on the page they land on.
-
-The admin site is the minimum messaging needs: a seeded `admins` table, an
-`admin` session guard, magic-link sign-in at `/admin/login` that admits only an
-address with an `admins` row, a dashboard, a sellers list and detail page, a
-customers list and detail page, and the two block writes. No listing removals,
-no analytics, no accounting pages. `ActorType::Admin` joins the enum, the morph
-map, and `allowsPath()`, so a customer's magic link is never followed to
-`/admin` and an admin's is never followed to `/seller`.
+An admin blocks a customer with a reason (`customer_blocks`, at most one
+active per customer). `Customer::canShop()` turns false: `AddToCart`,
+`PlaceOrder`, `FinalizeOrder` refuse with a `DomainRuleViolation`, and
+`ConversationPolicy::post` denies, so the composer is not rendered and a
+submission anyway is refused with the policy's words. Browsing, favoriting
+and reading threads stay open. `OpenThread`'s transaction means a blocked
+customer's ask leaves no row. Lifting the block (`lifted_at`) restores all of
+it.
 
 ## Unread counts
 
@@ -241,233 +322,130 @@ Question: where does the number on every layout's Messages link come from?
 
 ```mermaid
 flowchart LR
-    scope["Message scope unreadBy(reader)\nread_at is null\nand not sent by the reader"] --> thread["per-thread badge\nConversation scope withUnreadCountFor(reader)"]
-    scope --> total["nav total\nwhereHas('conversation', withParticipant)"]
+    scope["Message scope unreadBy(reader)\nseller/customer: read_at null and not sent by the reader\nadmin: read_at null and not sent by any admin"] --> thread["per-thread badge\nConversation::withUnreadCountFor(reader)"]
+    scope --> total["nav total\nunreadInInboxOf(reader)\n= unreadBy within withParticipant(reader)"]
     scope --> mark["MarkConversationRead\nupdate(['read_at' => now])"]
-    scope --> stream["the SSE generator\nre-reads the total"]
     total --> composer["SellerLayoutComposer\nShopLayoutComposer\nAdminLayoutComposer"]
     composer --> layout["every page of that site"]
 ```
 
-Caveats: one `#[Scope]` method on `Message` is the single definition — a
-message is unread for a reader when `read_at` is null and that reader did not
-send it. The per-thread badge, the nav total, the mark-read write, and the
-stream all pass through it, so no two of them can disagree and the rule is
-never restated in a second `where`.
+Caveats: one `#[Scope]` method on `Message` is the single definition. For a
+seller or a customer a message is unread when `read_at` is null and that
+reader did not send it. For an admin the reader is the desk: unread when
+`read_at` is null and `sender_type` is not `admin`, so Anna's reply is never
+unread for Jonathan, and Jonathan opening a thread reads it for Anna too. Two
+admins are one desk; per-admin read state is a later concern with an
+assignment model behind it.
 
-The reader is named by the morph pair the `sender` `MorphTo` relation uses, so
-the scope compares `sender_type` against `$reader->getMorphClass()` — the words
-`seller`, `customer`, `admin` from the map `AppServiceProvider` enforces, not
-class strings.
+`Conversation::withParticipant(reader)` is the inbox's membership query: the
+seller's and customer's own column, and for an admin the two desk kinds. The
+oversight threads (seller ↔ customer) are listed on the admin inbox through a
+separate scope and never count toward the admin's badge, since nobody on the
+desk is waited on there.
 
-The count belongs to the layout that renders it, so each site gets a view
-composer bound in `AppServiceProvider` beside the existing `ShopLayoutComposer`
-binding. A layout renders it on every page, including pages that require
-nobody: the storefront composer reads the visitor through `CustomerIdentity`
-and renders nothing when there is none, which is what `/login` needs.
+## Inbox filters and the seller's queue
 
-## The live badge
+Every inbox takes `?filter=` and `?status=`; unknown values answer 400 the way
+`docs/alignment.md` §5 says.
 
-Question: how does the badge change without a page load?
+| Site   | `filter` values                                                 | Default sort                                   |
+| ------ | --------------------------------------------------------------- | ---------------------------------------------- |
+| Seller | `all`, `unread`, `questions`, `orders`, `support`               | `last_message_at` desc; `questions` lists      |
+|        |                                                                 | unanswered first (last message not the seller's) |
+| Admin  | `needs-reply`, `all`, `sellers`, `customers`, `orders`,         | `last_message_at` desc                         |
+|        | `questions`                                                     |                                                |
+| Shop   | `all`, `unread`                                                 | `last_message_at` desc                         |
 
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Events as GET /seller/events (auth.seller)
-    participant Stream as response()->eventStream(generator)
-    participant Scope as Message::unreadBy(actor)
-    participant DB as SQLite
-
-    Browser->>Events: EventSource, on every page
-    Events->>Stream: the actor from the guard, deadline from Controller::now()
-    loop until the deadline or connection_aborted()
-        Stream->>Scope: the actor's total
-        Scope->>DB: one count
-        Stream-->>Browser: event: unread\ndata: 3
-        Stream->>Stream: wait one tick
-    end
-    Stream-->>Browser: stream ends at the deadline
-    Browser->>Events: EventSource reconnects on its own
-```
-
-Caveats: `response()->eventStream()` is Laravel's own — a generator whose
-yields become `text/event-stream` frames, with `connection_aborted()` checked
-between them. Each site serves its own `/events` route inside its own guard
-group (`auth.seller`, `customer.identity`, `auth.admin`), so a stream can only
-ever read the actor the request authenticated as. `App\Support\UnreadCountStream`
-is the generator: it reads no id from the request, only the actor its caller
-already resolved. The controller computes the deadline from `Controller::now()`
-before the stream opens; the generator's own loop then reads `now()` again on
-every tick to compare against it, since that loop runs in the imperative shell
-(`app/Support`), not `app/Domain`. The stream ends at the deadline with a
-normal close — the response carries no `retry:` hint, so the browser's
-`EventSource` reconnects on its own default interval (about three seconds in
-Chrome and Firefox), which also bounds how long a stale connection can hold
-anything. The tick interval and the deadline are named constants on
-`UnreadCountStream`: `TICK_SECONDS = 2`, `LIFETIME_SECONDS = 25`.
-
-Two costs, stated rather than hidden. One open stream holds one request slot
-for as long as its tab stays open. The dev stack (`make up`) serves with
-`artisan serve`, PHP's built-in one-request-per-worker server, so
-`PHP_CLI_SERVER_WORKERS` is set to `16` in `docker-compose.yml` (alongside
-`--no-reload`, which the built-in server requires for that variable to take
-effect at all) and the dev stack's concurrent readers are that value minus
-the workers pages need; the production image serves with FrankenPHP, whose
-thread pool governs capacity instead. Measured against the dev container
-(RSRCH-001 M8): twelve
-streams held open still answer a page load in 0.11-0.12 s, and twelve streams
-whose browsers are gone answer it in 0.08-0.29 s. Past sixteen readers a page
-load waits for a worker to come back. And the generator polls — one `count`
-per tick per open stream — because this deployable has no queue, no
-broadcaster, and no shared bus. Both facts live in a comment on the stream as
-well as here.
-
-Two more costs the shape carries. `eventStream()` consults
-`connection_aborted()` between yields, and PHP learns a socket is dead only
-from a failed write, so the generator yields the count on every tick to keep
-that check reachable: an abandoned stream gives its worker back within one
-`TICK_SECONDS`, and a repeated number is a no-op in the browser because
-`live-badge.js` writes whatever the frame carries. A tab that is still open
-holds its worker for the whole lifetime, which is what the worker count is
-sized against. And the storefront's `/events` sits inside `customer.identity`,
-so a client with no `customer_id` cookie mints a `customers` row, the same as
-`GET /` and every other storefront route; a crawler that ignores cookies mints
-one per request and holds a worker until it disconnects. Both are bounded and
-both are the prototype's own scale, not a deployment's.
-
-The client is one `<script defer>` per layout over ~20 lines of dependency-free
-JavaScript (`src/public/live-badge.js`, served directly rather than through
-Vite): open an `EventSource` against the "Messages" nav link's own
-`data-events-url`, write the number back into that link's text on every
-`unread` frame. It returns before anything else when `EventSource` is absent.
-Every page still works with JavaScript off — the composer already rendered the
-count server-side and every write is a form POST. This is the first
-`<script>` tag in the tree, so `README.md` and `docs/review.md`'s "no
-`<script>` tag in any view" claim are rewritten to say what is there and what
-still holds without it.
-
-The session driver is `database`, so a held request does not block the same
-browser's other requests behind a session file lock.
+`needs-reply` on the admin site is the desk's work queue: open desk threads
+whose latest message is not an admin's. `orders` and `questions` on the admin
+site are the oversight lists.
 
 ## Telling the other side
-
-Question: who hears about a posted message, and through what?
 
 ```mermaid
 flowchart LR
     post["PostMessage\n(inside the transaction)"] -- "MessagePosted" --> listener["NotifyOfMessage\nShouldHandleEventsAfterCommit"]
-    listener -- "MessageReceived" --> recipient["the other participant\n(Notifiable)"]
-    recipient --> inbox[("notifications")]
-    listener --> url["route(recipient ActorType\n->conversationRouteName(), $conversation)"]
+    listener -- "MessageReceived" --> recipients["the other side:\none seller / customer,\nor every admin for the desk"]
+    resolve["ResolveConversation"] -- "ConversationResolved" --> supported["the supported side\n'Reply to reopen'"]
+    recipients & supported --> url["route(recipient ActorType\n->conversationRouteName(), $conversation)"]
 ```
 
-Caveats: the pipeline is the one `OrderPaid` and `FulfillmentShipped` already
-use. `MessagePosted` is `final readonly`, carries the message and the instant,
-and is dispatched from inside `PostMessage`'s transaction; `NotifyOfMessage`
-implements `ShouldHandleEventsAfterCommit`, so a rolled-back post tells nobody.
-`MessageReceived::via()` reads `config('notifications.channels')` — `database`
-alone by default, `mail` a comma away — and `toArray()` and `toMail()` both
-come from `App\Domain\Notifications\NotificationMessage`, so the inbox row and
-the email say the same thing.
+Caveats: the pipeline is the one `OrderPaid` and `FulfillmentShipped` use.
+`Conversation::recipientsOf(Message)` answers the side that did not send:
+one model, or every `Admin` when the desk is the other side. What a
+notification says a thread is about is `ConversationKind::topic(...)` plus
+the title: "Support · Payout timing" or "Order ord_… " or the listing's title.
 
-The recipient is the participant who did not send, which the two-participant
-invariant makes a single row. `Admin` is `Notifiable` for the same reason
-`Seller` and `Customer` are, and `notifications.notifiable_type` gains the
-morph alias `admin`.
+## How a thread names its other side
 
-What the notification says a thread is about is
-`ConversationKind::topic(...)`: the support kinds answer with the desk, a
-`fulfillment` thread with its order number, a `listing_question` with the
-listing's title. The same words fill the inbox row on each site.
+`Conversation::counterpartName(viewer)` is what an inbox row and a thread
+header show. A seller or customer on a desk thread sees **Art Store Support**
+(`ActorDisplay::SUPPORT_DESK`), and each message names the admin who wrote it
+("Anna Schmunk"), which is the relationship the desk is for. An admin sees the
+seller or the customer. On an oversight thread the admin header names both
+sides ("Sybill Trelawney ↔ Hermione Granger").
 
 ## Routes
 
 Seller portal (`routes/seller.php`), all behind `auth.seller`:
 
-| Method | Path                                    | Name                           | Purpose                                                        |
-| ------ | --------------------------------------- | ------------------------------ | -------------------------------------------------------------- |
-| GET    | `/seller/messages`                      | `seller.messages.index`        | Inbox: counterpart, topic, preview, unread count, newest first |
-| GET    | `/seller/messages/{conversation}`       | `seller.messages.show`         | Thread; marks it read; offers "Publish as FAQ" when the thread |
-|        |                                         |                                | has a listing                                                  |
-| POST   | `/seller/messages/{conversation}`       | `seller.messages.store`        | Reply                                                          |
-| GET    | `/seller/support`                       | `seller.support`               | Finds or opens the `admin_seller` thread and redirects to it   |
-| POST   | `/seller/orders/{fulfillment}/messages` | `seller.orders.messages`       | Finds or opens the `fulfillment` thread                        |
-| GET    | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.index`   | Published entries with an edit form and an unpublish button    |
-| POST   | `/seller/listings/{listing}/faqs`       | `seller.listings.faqs.store`   | Publish                                                        |
-| PUT    | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.update`  | Reword                                                         |
-| DELETE | `/seller/listings/{listing}/faqs/{faq}` | `seller.listings.faqs.destroy` | Unpublish (deletes the row)                                    |
-| GET    | `/seller/events`                        | `seller.events`                | The seller's unread-count stream                               |
+| Method | Path                                      | Name                            | Purpose                                                       |
+| ------ | ----------------------------------------- | ------------------------------- | ------------------------------------------------------------- |
+| GET    | `/seller/messages`                        | `seller.messages.index`         | Inbox; `?filter=`, `?status=`                                 |
+| GET    | `/seller/messages/{conversation}`         | `seller.messages.show`          | Thread; marks read; `?reply_to=`; FAQ disclosure on questions |
+| POST   | `/seller/messages/{conversation}`         | `seller.messages.store`         | Reply (`reply_to_message_id` optional)                        |
+| POST   | `/seller/messages/{conversation}/resolve` | `seller.messages.resolve`       | Mark resolved                                                 |
+| POST   | `/seller/messages/{conversation}/reopen`  | `seller.messages.reopen`        | Reopen                                                        |
+| GET    | `/seller/support`                         | `seller.support`                | New support thread: title, message, optional order            |
+| POST   | `/seller/support`                         | `seller.support.store`          | Opens the `admin_seller` thread                               |
+| POST   | `/seller/orders/{fulfillment}/messages`   | `seller.orders.messages`        | Finds or opens the `fulfillment` thread                       |
+| …      | `/seller/listings/{listing}/faqs…`        | `seller.listings.faqs.*`        | Publish / reword / unpublish (unchanged)                      |
 
-Storefront (`routes/shop.php`), inside the `customer.identity` group, no
-`auth.customer`:
+Storefront (`routes/shop.php`):
 
-| Method | Path                                                  | Name                     | Purpose                                                |
-| ------ | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------ |
-| GET    | `/messages`                                           | `shop.messages.index`    | Inbox                                                  |
-| GET    | `/messages/{conversation}`                            | `shop.messages.show`     | Thread; marks it read; no reply form while `post` is   |
-|        |                                                       |                          | denied                                                 |
-| POST   | `/messages/{conversation}`                            | `shop.messages.store`    | Reply                                                  |
-| POST   | `/art/{listing:slug}/questions`                       | `shop.listing.questions` | Ask the seller — anonymous visitors included; lands on |
-|        |                                                       |                          | the new thread                                         |
-| GET    | `/support`                                            | `shop.support`           | Finds or opens the `admin_customer` thread             |
-| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`    | Finds or opens the `fulfillment` thread                |
-|        |                                                       |                          | (`scopeBindings()`)                                    |
-| GET    | `/events`                                             | `shop.events`            | The visitor's unread-count stream                      |
+| Method | Path                                                  | Name                       | Guard              | Purpose                                              |
+| ------ | ----------------------------------------------------- | -------------------------- | ------------------ | ---------------------------------------------------- |
+| GET    | `/messages`                                           | `shop.messages.index`      | `customer.identity`| Inbox; `?filter=`, `?status=`                        |
+| GET    | `/messages/{conversation}`                            | `shop.messages.show`       | `customer.identity`| Thread; marks read; `?reply_to=`                     |
+| POST   | `/messages/{conversation}`                            | `shop.messages.store`      | `customer.identity`| Reply                                                |
+| POST   | `/art/{listing:slug}/questions`                       | `shop.listing.questions`   | `auth.customer`    | Ask: opens a `listing_question` thread               |
+| GET    | `/support`                                            | `shop.support`             | `auth.customer`    | New support thread form; `?order=` preselects        |
+| POST   | `/support`                                            | `shop.support.store`       | `auth.customer`    | Opens the `admin_customer` thread                    |
+| POST   | `/orders/{order}/fulfillments/{fulfillment}/messages` | `shop.order.messages`      | `customer.identity`| Finds or opens the `fulfillment` thread              |
 
 Admin site (`routes/admin.php`), all behind `auth.admin`:
 
-| Method | Path                                   | Name                       | Purpose                                   |
-| ------ | -------------------------------------- | -------------------------- | ----------------------------------------- |
-| GET    | `/admin/messages`                      | `admin.messages.index`     | Inbox                                     |
-| GET    | `/admin/messages/{conversation}`       | `admin.messages.show`      | Thread; marks it read                     |
-| POST   | `/admin/messages/{conversation}`       | `admin.messages.store`     | Reply                                     |
-| POST   | `/admin/sellers/{seller}/messages`     | `admin.sellers.messages`   | "Message seller" from the seller page     |
-| POST   | `/admin/customers/{customer}/messages` | `admin.customers.messages` | "Message customer" from the customer page |
-| GET    | `/admin/events`                        | `admin.events`             | The admin's unread-count stream           |
+| Method | Path                                     | Name                        | Purpose                                                   |
+| ------ | ---------------------------------------- | --------------------------- | --------------------------------------------------------- |
+| GET    | `/admin/messages`                        | `admin.messages.index`      | Every thread; `?filter=`, `?status=`                      |
+| GET    | `/admin/messages/{conversation}`         | `admin.messages.show`       | Thread; marks read on desk kinds; oversight otherwise     |
+| POST   | `/admin/messages/{conversation}`         | `admin.messages.store`      | Reply (desk kinds)                                        |
+| POST   | `/admin/messages/{conversation}/resolve` | `admin.messages.resolve`    | Mark resolved                                             |
+| POST   | `/admin/messages/{conversation}/reopen`  | `admin.messages.reopen`     | Reopen                                                    |
+| POST   | `/admin/sellers/{seller}/messages`       | `admin.sellers.messages`    | New `admin_seller` thread: title, message, optional order |
+| POST   | `/admin/customers/{customer}/messages`   | `admin.customers.messages`  | New `admin_customer` thread: title, message, optional order |
 
-A conversation id naming a thread the actor is not in answers 404 on every read
-and write above, because `ConversationPolicy::view` denies as not found. An id
-that matches no row answers 404 through route-model binding.
-
-The seller portal and the admin site render the same gray, tool-focused
-Tailwind theme (`docs/architecture.md`'s Sites table), so their inbox and
-thread pages share two anonymous components —
-`resources/views/components/messaging/inbox.blade.php` and
-`.../messaging/thread.blade.php`, each taking the route names and the viewer's
-`ActorType` as props — plus `.../messaging/body-form.blade.php` for the reply
-form and the "Message seller"/"Message customer" forms on the admin site's
-seller and customer detail pages. Both `@can('post', ...)` checks live inside
-`messaging/thread.blade.php`, which real guards on both sites make possible.
-The storefront renders a different theme (bright, open, large imagery) and
-keeps its own hand-styled `shop/messages/*.blade.php` views rather than
-stretching the shared components to fit a second look.
+A conversation id naming a thread a seller or customer is not in answers 404
+on every read and write above. An id that matches no row answers 404 through
+route-model binding.
 
 ## The merge
 
-Question: an anonymous customer who has been asking questions verifies an
-address — what follows them?
+An anonymous customer who verifies an address takes their threads with them.
+Sent messages re-point through the `sender` morph, so a message the verified
+customer sent never reads as unread to them. Conversations move by column:
+a fresh-opened thread (`subject_key` null) simply takes the new
+`customer_id`; a fulfillment thread rebuilds its key from
+`ConversationSubject::for(kind, ids)`, and where the verified customer already
+holds that order's thread the moved one folds into it (messages re-point,
+`last_message_at` is read back, the row is deleted). `customer_blocks` moves
+with `CustomerOwnedTables`. See `docs/identity.md`.
 
-`App\Domain\Customers\CustomerOwnedTables::all()` gains
-`'customer_blocks' => 'customer_id'`, so `MergeAnonymousCustomer` re-points it
-inside the transaction it already runs. Two things move without the table list,
-because a blind column write would leave part of the row behind:
+## Costs stated
 
-- **Sent messages.** They name their sender by morph type and id, the way
-  notifications do, so they re-point through the relation — which is what
-  keeps the unread rule honest afterwards, since a message the verified
-  customer sent must not read as unread to them.
-- **Conversations.** `subject_key` names the participants as well as the
-  column does, so `Conversation::moveCustomer()` writes both together. A
-  thread left holding the anonymous customer's key would be found by no later
-  ask for its subject, and the next `OpenConversation` for it would open a
-  second thread beside the first. Where the verified customer already holds
-  the thread for a subject the anonymous row also asked about, the moved
-  thread folds into it: its messages re-point, `last_message_at` is read back
-  from the newest of them, and the moved row is deleted.
-
-`ConversationSubject::for(kind, ids)` is what rebuilds a key from a row's own
-columns; the four named factories build one from scratch.
-
-The anonymous row survives the merge, `customer_merges` records it, and a stale
-cookie resolves forward to the verified customer and lands on the same threads.
-See `docs/identity.md`.
+- A thread's messages are loaded whole. Threads here are tens of messages;
+  pagination inside a thread is a later concern.
+- The desk is every admin. With two admins sharing one read state this is
+  right; a support team needs assignment and per-agent read state, which the
+  `admin_id` "handled by" column is the seed of.
+- `reply_to` is one level deep and renders a quote, not a nested tree.

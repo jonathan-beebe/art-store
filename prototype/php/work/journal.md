@@ -5,15 +5,20 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 40
+- FEAT: 44
 - IMPRV: 25
-- MAINT: 5
+- MAINT: 6
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
 
+- 2026-09-01:21:54:14 — MAINT-005 — defined: messaging v2 docs refresh and final validation
+- 2026-09-01:21:54:14 — FEAT-043 — defined: the storefront conversation pages feel like a relationship
+- 2026-09-01:21:54:14 — FEAT-042 — defined: the admin site runs a support desk that sees everything
+- 2026-09-01:21:54:14 — FEAT-041 — defined: the seller portal messages tool becomes first-class
+- 2026-09-01:21:54:14 — FEAT-040 — defined: threads carry a title, a status, a reply-to, and a shared desk
 - 2026-09-01:18:38:23 — FEAT-039 — defined: an analytics store isolated from the app database
 - 2026-09-01:10:19:52 — IMPRV-024 — follow-up: the FunctionOverrides autoload entry exposed entrypoint.sh's stale-vendor gap (deps installed only when the directory was missing, so an existing vendor kept a stale autoload map and the FakeCard override test failed); composer and npm installs now stamp-hash their json+lock inputs and reinstall on change
 - 2026-09-01:10:02:54 — IMPRV-024 — done: composer test runs pest --parallel, serial 93s → ~40s floor at 8 workers; bar amended at acceptance (under-30s unreachable on the 8-cpu docker vm); three isolation bugs fixed, 3222 tests, coverage 100%
