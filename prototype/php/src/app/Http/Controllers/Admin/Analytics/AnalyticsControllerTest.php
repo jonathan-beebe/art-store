@@ -72,6 +72,24 @@ it('narrows the actor leaderboard by search', function (): void {
     $response->assertDontSee('ron@example.com');
 });
 
+it('renders the entry page on a fixed number of queries however many actors the range holds', function (): void {
+    $listing = $this->listing($this->seller());
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 12) as $i) {
+        $customer = $this->verifiedCustomer();
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    }
+    $analytics->flush();
+
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->expectsDatabaseQueryCount(2, 'sqlite')
+        ->expectsDatabaseQueryCount(8, 'analytics')
+        ->get('/admin/analytics');
+
+    $response->assertOk();
+});
+
 it('narrows the events table by event name', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?q=favorite');
 

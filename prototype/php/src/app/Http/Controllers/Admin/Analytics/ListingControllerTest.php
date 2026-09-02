@@ -82,3 +82,22 @@ it('names an anonymous actor "Anonymous visitor" on the listing page\'s feed', f
     $response->assertOk();
     $response->assertSee('Anonymous visitor');
 });
+
+it('renders the listing page on a fixed number of queries however many actors its feed holds', function (): void {
+    $listing = $this->listing($this->seller());
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 15) as $i) {
+        $customer = $this->verifiedCustomer();
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')->modify("+{$i} minutes"), "e{$i}"));
+    }
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->expectsDatabaseQueryCount(7, 'sqlite')
+        ->expectsDatabaseQueryCount(8, 'analytics')
+        ->get(route('admin.analytics.listings.show', $listing));
+
+    $response->assertOk();
+});

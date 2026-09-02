@@ -91,6 +91,26 @@ it('answers 404 for a name that is neither an event nor page.view', function ():
     $response->assertNotFound();
 });
 
+it('renders the by-listing breakdown on a fixed number of queries however many listings the range carries', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 8) as $i) {
+        $listing = $this->listing($seller, ['title' => "Listing {$i}"]);
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00'), "f{$i}"));
+    }
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')
+        ->expectsDatabaseQueryCount(4, 'sqlite')
+        ->expectsDatabaseQueryCount(5, 'analytics')
+        ->get('/admin/analytics/events/listing.favorite?range=7&by=listing');
+
+    $response->assertOk();
+});
+
 it('shows a deleted listing as gone, still carrying its id', function (): void {
     $listing = $this->listing($this->seller());
     $customer = $this->verifiedCustomer();
