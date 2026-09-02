@@ -1,7 +1,7 @@
 ---
 id: FEAT-046
 type: feature
-status: open
+status: resolved
 created: 2026-09-02
 ---
 
@@ -81,3 +81,59 @@ three steps in the same store, the drill-in built in FEAT-045 answers
 - FEAT-044 — request facts on every event
 - FEAT-045 — the admin drill-in these numbers land on
 - FEAT-003 — the order lifecycle actions the steps come from
+
+## Working
+
+Commits (stage A, already landed on this branch, plus stage B below):
+
+- `0d511089` — the vocabulary gains `checkout.open`, `order.place`,
+  `order.pay`, `order.cancel`
+- `c295c9b1` — checkout, placed, paid, and cancelled orders record the
+  events
+- `fe9e524c` — `App\Analytics\Admin\Funnel`: `forRange()` / `forListing()`
+  / `forSeller()`, `App\Domain\Analytics\FunnelRate`, the
+  placed/paid-vs-`Order::query()` consistency test
+- `635a31cc` — `x-admin.analytics.funnel` mounted on `/admin/analytics`,
+  `/admin/analytics/listings/{listing}`, and the admin seller page
+- `2deaf356` — an actor's feed names order and cart subjects instead of
+  reading every subject as a listing
+
+Definitions chosen (docblocks + `docs/analytics.md` § "The funnel" carry
+the full text):
+
+- Visitors: distinct `session_id` among the scope's own events, null
+  session ids excluded. For a listing or seller scope this is sessions
+  that touched that scope specifically (a listing's own view/favorite/cart-add
+  rows, plus checkout/order rows whose `data.listing_ids` includes it) —
+  not a share of site-wide traffic, so the rate below it reads as "how
+  many of the people who touched this listing bought".
+- Listing views, favorites, cart adds: event counts by name, scoped by
+  `subject_type`/`subject_id` for a listing or seller funnel.
+- Checkouts opened, orders placed, orders paid: event counts by name;
+  scoped for a listing or seller funnel through `data.listing_ids` via
+  SQLite's `json_each` (read-worse-in-PHP was not needed — the `EXISTS
+  (SELECT 1 FROM json_each(...))` clause reads as one `WHERE` branch
+  alongside the subject match, both in the same query).
+- Orders cancelled: not a step — the paid step's `note` carries the
+  range's cancelled count.
+- Rate: `App\Domain\Analytics\FunnelRate`, the step's count over the step
+  immediately before it *in funnel order* (cart adds' rate is read
+  against favorites, not against views) — a whole percentage and the raw
+  ratio, null on the first step.
+
+Decisions:
+
+- `Funnel`, `FunnelStep`, `FunnelView` live under `App\Analytics\Admin`
+  (the page-shaped read layer, alongside `EventTotal`/`EventTile`);
+  `FunnelRate` lives under `App\Domain\Analytics` (pure rate math,
+  alongside `RangeChange`).
+- The seller page's funnel has no range control (the ticket's own call);
+  it always reads 30 days, stated in its own h2.
+- `EntityActivity::forActor()`'s feed dispatches per row on
+  `subject_type` now — `order`/`cart` join a `Listing::whereIn()` already
+  covering listing subjects, so the page's query count is unchanged.
+- `SellerMessageController`'s re-rendered seller page (its 429 trip
+  response) needed the same funnel data `SellerController::show` passes —
+  found by the full suite, not by inspection.
+
+`make precommit`: 3760 tests passed (10804 assertions), lint clean.
