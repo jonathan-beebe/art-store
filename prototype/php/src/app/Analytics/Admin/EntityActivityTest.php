@@ -247,6 +247,69 @@ it('names a deleted listing "listing no longer exists" on an actor\'s feed', fun
         ->and($view->feed[0]->otherExists)->toBeFalse();
 });
 
+it('names an order subject "order {id}" on an actor\'s feed, linked, with its listing titles', function (): void {
+    $seller = $this->seller();
+    $listingOne = $this->listing($seller, ['title' => 'Starry Night']);
+    $listingTwo = $this->listing($seller, ['title' => 'Snowy Owl']);
+    $customer = $this->verifiedCustomer();
+
+    $order = $this->orderFor($customer, $listingOne, $listingTwo);
+    app(Analytics::class)->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, AnalyticsEventName::OrderPlace, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed)->toHaveCount(1)
+        ->and($view->feed[0]->otherLabel)->toBe("order {$order->id}")
+        ->and($view->feed[0]->otherKind)->toBe('order')
+        ->and($view->feed[0]->otherId)->toBe($order->id)
+        ->and($view->feed[0]->otherExists)->toBeTrue()
+        ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
+});
+
+it('names a cart subject "cart {id}" on an actor\'s feed, unlinked, with its listing titles', function (): void {
+    $seller = $this->seller();
+    $listingOne = $this->listing($seller, ['title' => 'Starry Night']);
+    $listingTwo = $this->listing($seller, ['title' => 'Snowy Owl']);
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forCart(
+        AnalyticsEventName::CheckoutOpen,
+        $cart->id,
+        $customer->id,
+        $this->moment('2026-08-19 09:00:00'),
+        ['listing_ids' => [$listingOne->id, $listingTwo->id]],
+    ));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed)->toHaveCount(1)
+        ->and($view->feed[0]->otherLabel)->toBe("cart {$cart->id}")
+        ->and($view->feed[0]->otherKind)->toBe('cart')
+        ->and($view->feed[0]->otherId)->toBe($cart->id)
+        ->and($view->feed[0]->otherExists)->toBeFalse()
+        ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
+});
+
+it('reads no listing titles for a listing subject, only for an order or cart subject', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Starry Night']);
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed[0]->listingTitles)->toBe([]);
+});
+
 it('names an anonymous actor "Anonymous visitor" on a listing\'s feed', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
