@@ -13,6 +13,10 @@
     $isResolved = $conversation->status() === ConversationStatus::Resolved;
     $isMine = fn ($threadMessage) => $threadMessage->sender_type === ActorType::Customer->value && $threadMessage->sender_id === $conversation->customer_id;
     $nameOf = fn ($threadMessage) => $isMine($threadMessage) ? 'You' : $threadMessage->senderName();
+    // The avatar's own initial reads the customer's real name (or "Me" with
+    // none), never the transcript label "You" — an avatar initialled from
+    // that literal word reads as a stranger's, not the customer's own.
+    $avatarNameOf = fn ($threadMessage) => $isMine($threadMessage) ? ($conversation->customer?->name ?? 'Me') : $threadMessage->senderName();
     $lastDay = null;
 @endphp
 <x-layouts.shop :title="$headerTitle.' — Art Store'">
@@ -54,14 +58,14 @@
             @endphp
 
             @if ($day !== $lastDay)
-                @php($lastDay = $day)
+                @php $lastDay = $day; @endphp
                 <li class="flex items-center gap-4 text-sm text-ink-faint before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
                     {{ $threadMessage->sent_at->isToday() ? 'Today' : $threadMessage->sent_at->format('F j') }}
                 </li>
             @endif
 
             <li id="msg_{{ $threadMessage->id }}" class="flex max-w-[78%] items-start gap-4 {{ $mine ? 'ml-auto flex-row-reverse' : '' }}">
-                <x-ui.avatar :name="$nameOf($threadMessage)" size="md" class="shrink-0" />
+                <x-ui.avatar :name="$avatarNameOf($threadMessage)" size="md" class="shrink-0" />
                 <div class="min-w-0 {{ $mine ? 'rounded-2xl rounded-tr-sm border border-line bg-accent-soft px-4 py-2.5' : '' }}">
                     <p class="flex flex-wrap items-baseline gap-2.5">
                         <span class="font-semibold text-ink">{{ $nameOf($threadMessage) }}</span>
@@ -113,11 +117,17 @@
                 />
             @endif
 
+            @php
+                // "Art Store Support"'s first word alone read as "Write to
+                // Art…" — the desk's own two words, "Art Store", stand for
+                // it in the composer the way a maker's first name does.
+                $composerTarget = $isDesk ? 'Art Store' : Str::before($headerName, ' ');
+            @endphp
             <label for="body" class="sr-only">Reply</label>
             <x-shop.messaging.composer
                 name="body"
                 :value="old('body', '')"
-                :placeholder="'Write to '.Str::before($headerName, ' ').'…'"
+                :placeholder="'Write to '.$composerTarget.'…'"
                 :maxlength="MessageBody::MAX_LENGTH"
             >
                 <x-ui.button variant="primary">Send</x-ui.button>

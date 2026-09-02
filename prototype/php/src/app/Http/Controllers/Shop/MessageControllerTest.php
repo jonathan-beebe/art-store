@@ -7,8 +7,10 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Messaging\ResolveConversation;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
+use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Message;
+use App\Models\Seller;
 use Illuminate\Support\Facades\Config;
 
 it('says an empty inbox is empty, in the current filters own words', function (): void {
@@ -241,6 +243,55 @@ it('quotes the message a reply link named', function (): void {
     $response->assertSee('Replying to');
     $response->assertSee('It ships flat, ready to hang.');
     $response->assertSee('name="reply_to_message_id" value="'.$original->id.'"', escape: false);
+});
+
+it('placeholders the composer with the desks own name, not its first word', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $conversation = Conversation::factory()->adminCustomer()->create(['customer_id' => $visitor->id]);
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertOk();
+    // "Art Store Support"'s first word alone reads as "Write to Art…".
+    $response->assertSee('placeholder="Write to Art Store…"', escape: false);
+});
+
+it('placeholders the composer with the makers first name', function (): void {
+    $visitor = $this->arriveAs($this->verifiedCustomer());
+    $seller = Seller::factory()->create(['name' => 'Sybill Trelawney']);
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee('placeholder="Write to Sybill…"', escape: false);
+});
+
+it('shows the customers own initials in their avatar, not the word You', function (): void {
+    $visitor = $this->arriveAs(Customer::factory()->create(['name' => 'Priya Shopper']));
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+    Message::factory()->from($visitor)->create(['conversation_id' => $conversation->id, 'body' => 'Does this ship framed?']);
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertOk();
+    // The avatar's own initial is the first letter of the real name — "You"
+    // would initial to "Y" instead.
+    $response->assertSee('>P<', escape: false);
+    $response->assertDontSee('>Y<', escape: false);
+});
+
+it('falls back to Me for the customers own avatar when they have no name', function (): void {
+    $visitor = $this->visitor();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $visitor->id]);
+    Message::factory()->from($visitor)->create(['conversation_id' => $conversation->id, 'body' => 'Does this ship framed?']);
+
+    $response = $this->get("/messages/{$conversation->id}");
+
+    $response->assertOk();
+    $response->assertSee('>M<', escape: false);
 });
 
 it('ignores a reply_to naming a message from another thread on the get', function (): void {
