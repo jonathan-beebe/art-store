@@ -263,11 +263,22 @@ it('appends a reply and returns to the thread with it visible', function (): voi
     $response = $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => "I'll take a look."]);
 
-    $response->assertRedirect(route('admin.messages.show', $conversation));
+    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
     expect(Message::where('conversation_id', $conversation->id)->where('body', "I'll take a look.")->exists())->toBeTrue();
     $this->actingAs($admin, 'admin')
         ->get(route('admin.messages.show', $conversation))
         ->assertSee("I'll take a look.");
+});
+
+it('carries the panes filter and status onward through a replys redirect', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($admin, 'admin')
+        ->post("/admin/messages/{$conversation->id}?filter=sellers&status=open", ['body' => "I'll take a look."]);
+
+    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'sellers', 'status' => 'open']));
 });
 
 it('refuses a reply longer than the message limit', function (): void {
@@ -356,7 +367,7 @@ it('carries a sellers support request to the admin and the answer back', functio
 
     $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => 'Paid this morning.'])
-        ->assertRedirect(route('admin.messages.show', $conversation));
+        ->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
 
     $this->actingAs($seller, 'seller')->get('/seller/messages')->assertSee('>1</span>', escape: false);
     $this->actingAs($seller, 'seller')
@@ -396,7 +407,7 @@ it('lets the admin answer a blocked customer', function (): void {
 
     $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => 'The block stands until we hear back.'])
-        ->assertRedirect(route('admin.messages.show', $conversation));
+        ->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
     expect(Message::where('conversation_id', $conversation->id)->count())->toBe(1);
 });
 
@@ -637,7 +648,7 @@ it('ignores a reply_to_message_id naming a message from another thread on post, 
         'reply_to_message_id' => $foreignMessage->id,
     ]);
 
-    $response->assertRedirect(route('admin.messages.show', $conversation));
+    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
     $reply = Message::where('conversation_id', $conversation->id)->where('body', 'Reply anyway.')->sole();
     expect($reply->reply_to_message_id)->toBeNull();
 });

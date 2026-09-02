@@ -13,5 +13,5 @@
         <x-admin.cell-footer :shown="$cellConversations->count()" :total="$cellConversationsTotal" :route="route('admin.messages.index', ['filter' => $filter, 'status' => $status])" />
     </x-slot:cells>
 
-    <x-messaging.thread :conversation="$conversation" :viewer="$viewer" index-route="admin.messages.index" store-route="admin.messages.store" :reply-to="$replyTo" />
+    <x-messaging.thread :conversation="$conversation" :viewer="$viewer" index-route="admin.messages.index" store-route="admin.messages.store" :reply-to="$replyTo" :filter="$filter" :status="$status" />
 </x-layouts.admin>

@@ -7,7 +7,14 @@
     server-rendered first, so the form still works without the script.
     Admin-exclusive.
 --}}
-@props(['conversation', 'action', 'replyTo' => null])
+@props(['conversation', 'action', 'replyTo' => null, 'filter' => null, 'status' => null])
+
+@php
+    $cancelRouteParams = array_filter(
+        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
+        fn ($value) => $value !== null,
+    );
+@endphp
 
 <form method="POST" action="{{ $action }}" class="mt-6">
     @csrf
@@ -18,7 +25,7 @@
                 <span class="font-semibold text-stone-800 dark:text-stone-200">Replying to {{ $replyTo->senderName() }}</span>
                 <span class="block truncate">{{ str($replyTo->body)->limit(120) }}</span>
             </a>
-            <a href="{{ route('admin.messages.show', $conversation) }}" class="shrink-0 font-medium text-stone-600 underline dark:text-stone-400">Cancel</a>
+            <a href="{{ route('admin.messages.show', $cancelRouteParams) }}" class="shrink-0 font-medium text-stone-600 underline dark:text-stone-400">Cancel</a>
         </div>
         <input type="hidden" name="reply_to_message_id" value="{{ $replyTo->id }}">
     @endif

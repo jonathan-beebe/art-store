@@ -80,6 +80,12 @@ final class MessageController extends AdminController
     public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $admin = $this->admin();
+        // The composer's own action URL carries the pane's `filter`/`status`
+        // onward (`$paneRouteParams` in the thread component), so reading it
+        // here is what keeps a reply's redirect from snapping the pane back
+        // to the desk's unscoped default.
+        $filter = $queryRequest->paneFilter();
+        $status = $queryRequest->paneStatus();
 
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
@@ -88,9 +94,6 @@ final class MessageController extends AdminController
             // being replaced by the site's bare 429 page, so the thread the
             // admin was reading re-renders with the reply still in the box.
             $request->flash();
-
-            $filter = $queryRequest->paneFilter();
-            $status = $queryRequest->paneStatus();
 
             $pane = $this->paneFor($filter, $status, $conversation);
 
@@ -105,7 +108,7 @@ final class MessageController extends AdminController
 
         $postMessage($conversation, $admin, $request->body(), $this->now(), $this->replyTo($conversation, $request->replyToMessageId()));
 
-        return redirect()->route('admin.messages.show', $conversation);
+        return redirect()->route('admin.messages.show', ['conversation' => $conversation, 'filter' => $filter, 'status' => $status]);
     }
 
     /**

@@ -6,7 +6,7 @@
     alone, the back link is the only way to the inbox, so it stays out of
     the `lg:hidden` list pane.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null, 'faqPrefill' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null, 'faqPrefill' => null, 'filter' => null, 'status' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -15,6 +15,13 @@
     $listingRoute = $conversation->listing !== null ? route('seller.listings.show', $conversation->listing) : null;
     $viewerSelf = fn ($threadMessage): bool => $threadMessage->sender_type === $viewer->value && $threadMessage->sender_id === $conversation->participantIdFor($viewer);
     $previousDay = null;
+    // Every action on this page — reply, resolve, reopen — returns to this
+    // same thread; carrying the pane's current filter/status onward is what
+    // keeps the pane from snapping back to the index route's defaults.
+    $paneRouteParams = array_filter(
+        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
+        fn ($value) => $value !== null,
+    );
 @endphp
 
 <div class="px-6 py-4">
@@ -83,7 +90,7 @@
             @endif
 
             @can('resolve', $conversation)
-                <form method="POST" action="{{ route('seller.messages.resolve', $conversation) }}">
+                <form method="POST" action="{{ route('seller.messages.resolve', $paneRouteParams) }}">
                     @csrf
                     <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">
                         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="size-4"><path d="m5 10 3.5 3.5L15 7" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -93,7 +100,7 @@
             @endcan
 
             @can('reopen', $conversation)
-                <form method="POST" action="{{ route('seller.messages.reopen', $conversation) }}">
+                <form method="POST" action="{{ route('seller.messages.reopen', $paneRouteParams) }}">
                     @csrf
                     <button type="submit" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Reopen</button>
                 </form>
@@ -138,7 +145,7 @@
                             @if ($isReplyTarget)
                                 <span class="ml-auto shrink-0 text-xs font-medium text-indigo-600 dark:text-indigo-400">Replying</span>
                             @else
-                                <a href="{{ route('seller.messages.show', [$conversation, 'reply_to' => $threadMessage->id]) }}" class="ml-auto shrink-0 rounded text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-gray-400 dark:hover:text-gray-200">Reply</a>
+                                <a href="{{ route('seller.messages.show', [...$paneRouteParams, 'reply_to' => $threadMessage->id]) }}" class="ml-auto shrink-0 rounded text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-gray-400 dark:hover:text-gray-200">Reply</a>
                             @endif
                         </div>
 
@@ -158,9 +165,9 @@
 
     @can('post', $conversation)
         <x-seller.messaging.composer
-            :action="route($storeRoute, $conversation)"
+            :action="route($storeRoute, $paneRouteParams)"
             :reply-to="$replyTo"
-            :cancel-url="route('seller.messages.show', $conversation)"
+            :cancel-url="route('seller.messages.show', $paneRouteParams)"
         />
     @endcan
 

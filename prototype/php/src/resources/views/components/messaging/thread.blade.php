@@ -10,7 +10,7 @@
     posts into a desk thread, so `$message->sender instanceof Admin` is
     already exactly the messages that belong on the right.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null, 'filter' => null, 'status' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -18,6 +18,13 @@
     $resolvedByName = $conversation->resolvedBy instanceof \App\Models\Seller || $conversation->resolvedBy instanceof \App\Models\Admin
         ? \App\Support\ActorDisplay::nameOf($conversation->resolvedBy)
         : null;
+    // Every action on this page — reply, resolve, reopen — returns to this
+    // same thread; carrying the pane's current filter/status onward is what
+    // keeps the pane from snapping back to the unscoped default.
+    $paneRouteParams = array_filter(
+        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
+        fn ($value) => $value !== null,
+    );
 @endphp
 
 <x-admin.back-link :route="route($indexRoute)" label="Messages" />
@@ -60,13 +67,13 @@
     </div>
 
     @can('resolve', $conversation)
-        <form method="POST" action="{{ route('admin.messages.resolve', $conversation) }}">
+        <form method="POST" action="{{ route('admin.messages.resolve', $paneRouteParams) }}">
             @csrf
             <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-xs ring-1 ring-inset ring-stone-300 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-700 dark:bg-white/10 dark:text-white dark:ring-white/10">Mark resolved</button>
         </form>
     @endcan
     @can('reopen', $conversation)
-        <form method="POST" action="{{ route('admin.messages.reopen', $conversation) }}">
+        <form method="POST" action="{{ route('admin.messages.reopen', $paneRouteParams) }}">
             @csrf
             <button type="submit" class="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-xs ring-1 ring-inset ring-stone-300 hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-700 dark:bg-white/10 dark:text-white dark:ring-white/10">Reopen</button>
         </form>
@@ -121,7 +128,7 @@
                     <span class="text-sm font-semibold text-stone-900 dark:text-white">{{ $threadMessage->senderName() }}</span>
                     <span class="text-xs text-stone-500 dark:text-stone-400">{{ $threadMessage->sent_at->format('g:ia') }}</span>
                     @can('post', $conversation)
-                        <a href="{{ route('admin.messages.show', ['conversation' => $conversation, 'reply_to' => $threadMessage->id]) }}" class="ml-auto text-xs font-medium text-stone-500 underline hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">Reply</a>
+                        <a href="{{ route('admin.messages.show', [...$paneRouteParams, 'reply_to' => $threadMessage->id]) }}" class="ml-auto text-xs font-medium text-stone-500 underline hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200">Reply</a>
                     @endcan
                 </div>
                 @if ($threadMessage->replyTo)
@@ -134,7 +141,7 @@
 </ol>
 
 @can('post', $conversation)
-    <x-messaging.body-form :conversation="$conversation" :action="route($storeRoute, $conversation)" :reply-to="$replyTo" />
+    <x-messaging.body-form :conversation="$conversation" :action="route($storeRoute, $paneRouteParams)" :reply-to="$replyTo" :filter="$filter" :status="$status" />
 @endcan
 
 {{ $slot }}

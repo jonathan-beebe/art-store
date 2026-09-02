@@ -166,7 +166,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
 
         $this->post(route('seller.messages.store', $conversation), [
             'body' => 'Yes, it ships ready to hang with the wire already attached.',
-        ])->assertRedirect(route('seller.messages.show', $conversation));
+        ])->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
 
         $answer = Message::where('body', 'Yes, it ships ready to hang with the wire already attached.')->sole();
 

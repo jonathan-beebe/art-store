@@ -15,9 +15,21 @@ it('reopens a resolved thread', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}/reopen");
 
-    $response->assertRedirect(route('seller.messages.show', $conversation));
+    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
     $response->assertSessionHas('status', 'Reopened.');
     expect($conversation->fresh()?->resolved_at)->toBeNull();
+});
+
+it('carries the panes filter and status onward through the redirect', function (): void {
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}/reopen?filter=support&status=resolved");
+
+    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'support', 'status' => 'resolved']));
 });
 
 it('refuses to reopen a thread already open', function (): void {

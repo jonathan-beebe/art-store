@@ -31,6 +31,8 @@
                 store-route="seller.messages.store"
                 :reply-to="$replyTo"
                 :faq-prefill="$faqPrefill"
+                :filter="$filter"
+                :status="$status"
             />
         </x-seller.list-detail>
     </div>

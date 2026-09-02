@@ -77,6 +77,12 @@ final class MessageController extends SellerController
     public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $seller = $this->seller();
+        // The composer's own action URL carries the pane's `filter`/`status`
+        // onward (`$paneRouteParams` in the thread component), so reading it
+        // here is what keeps a reply's redirect from snapping the pane back
+        // to the index route's defaults.
+        $filter = $queryRequest->filter();
+        $status = $queryRequest->status();
 
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $seller->id);
@@ -85,9 +91,6 @@ final class MessageController extends SellerController
             // being replaced by the site's bare 429 page, so the thread the
             // seller was reading re-renders with the reply still in the box.
             $request->flash();
-
-            $filter = $queryRequest->filter();
-            $status = $queryRequest->status();
 
             $pane = $this->paneFor($seller, $filter, $status, $conversation);
 
@@ -103,7 +106,7 @@ final class MessageController extends SellerController
 
         $postMessage($conversation, $seller, $request->body(), $this->now(), $request->replyTo());
 
-        return redirect()->route('seller.messages.show', $conversation);
+        return redirect()->route('seller.messages.show', ['conversation' => $conversation, 'filter' => $filter, 'status' => $status]);
     }
 
     /**

@@ -182,11 +182,21 @@ it('appends a reply and returns to the thread with it visible', function (): voi
     $response = $this->actingAs($seller, 'seller')
         ->post("/seller/messages/{$conversation->id}", ['body' => 'It ships within 3 days.']);
 
-    $response->assertRedirect(route('seller.messages.show', $conversation));
+    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->exists())->toBeTrue();
     $this->actingAs($seller, 'seller')
         ->get(route('seller.messages.show', $conversation))
         ->assertSee('It ships within 3 days.');
+});
+
+it('carries the panes filter and status onward through a replys redirect', function (): void {
+    $seller = $this->seller();
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/messages/{$conversation->id}?filter=questions&status=all", ['body' => 'It ships within 3 days.']);
+
+    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'questions', 'status' => 'all']));
 });
 
 it('leaves the thread unread when the reply is refused', function (): void {
