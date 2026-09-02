@@ -215,7 +215,7 @@ prototype emits every event below that its features support.
 | `ledger.write`                                                          | every ledger entry (`debug`)                                             |
 | `payout.run`, `payout.pay`                                              | the weekly payout: one `run` with the period, one `pay` per seller       |
 | `conversation.open`, `conversation.resolve`, `conversation.reopen`,     | messaging                                                                |
-| `message.post`, `faq.publish`, `faq.unpublish`                         |                                                                          |
+| `message.post`, `faq.publish`, `faq.unpublish`                          |                                                                          |
 | `notification.write`, `notification.deliver`                            | in-app write and transport delivery                                      |
 | `moderation.remove_listing`, `moderation.lift_listing_removal`,         | admin                                                                    |
 | `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
@@ -443,7 +443,8 @@ layout is per stack.
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
-| `/admin/messages`, `/admin/messages/:id`                                | existing                                                                 |
+| `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread; `filter=`/`status=`; open a  |
+| `POST /admin/sellers/:id/messages`, `/admin/customers/:id/messages`     | titled thread from the seller/customer detail page (PHP: `messaging.md`) |
 
 Decisions carried by this table:
 
