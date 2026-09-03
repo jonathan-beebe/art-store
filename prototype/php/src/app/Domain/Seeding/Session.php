@@ -23,6 +23,7 @@ final readonly class Session
         public DateTimeImmutable $at,
         public string $sessionId,
         public string $ip,
+        public string $landingPath,
         public SessionKind $kind,
         public ?int $personIndex,
         public ChannelPick $channel,

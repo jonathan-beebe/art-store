@@ -66,6 +66,13 @@ final readonly class ActivityPlan
             $day = $startDay->modify("+{$dayIndex} days");
             $weekendFactor = self::isWeekend($day) ? 7 : 10;
 
+            // A returning visit only ever names someone who signed up on a
+            // strictly earlier day — never today's own signups — so the
+            // person it verifies as always already has a customer row by
+            // the moment `SeedActivity` reaches this session, whatever the
+            // two sessions' times of day land on within their own days.
+            $eligibleToReturn = $signedUpPersonIndexes;
+
             array_push($sessions, ...self::signupSessions(
                 $lcg, $dayIndex, $day, $dayCount, $weekendFactor, $rosterSize, $listingPoolSize,
                 $nextPersonIndex, $sessionCounter, $signedUpPersonIndexes,
@@ -73,7 +80,7 @@ final readonly class ActivityPlan
 
             array_push($sessions, ...self::visitSessions(
                 $lcg, $dayIndex, $day, $dayCount, $weekendFactor, $listingPoolSize,
-                $sessionCounter, $signedUpPersonIndexes,
+                $sessionCounter, $eligibleToReturn,
             ));
 
             if ($sellerPoolSize > 0 && self::createsListingOn($dayIndex)) {
@@ -204,6 +211,7 @@ final readonly class ActivityPlan
         $at = self::eveningWeightedMoment($lcg, $day);
         $sessionId = sprintf('ses%05d', $sessionCounter);
         $ip = '203.0.113.'.($lcg->nextInt(40) + 1);
+        $landingPath = $lcg->nextInt(10) < 8 ? '/' : '/art';
         $channel = self::pickChannel($lcg);
 
         return new Session(
@@ -211,6 +219,7 @@ final readonly class ActivityPlan
             $at,
             $sessionId,
             $ip,
+            $landingPath,
             $kind,
             $personIndex,
             $channel,

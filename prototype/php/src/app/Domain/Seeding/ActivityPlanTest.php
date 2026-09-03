@@ -146,6 +146,27 @@ it('carries the seed, start day, and day count it was built from', function (): 
         ->and($plan->dayCount)->toBe(7);
 });
 
+it('never returns a person on the same day they signed up', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+
+    $signupDayByPerson = [];
+
+    foreach ($plan->sessions as $session) {
+        if ($session->kind === SessionKind::NewSignup) {
+            $signupDayByPerson[$session->personIndex] = $session->dayIndex;
+        }
+    }
+
+    foreach ($plan->sessions as $session) {
+        if ($session->kind === SessionKind::ReturningVerify) {
+            $personIndex = $session->personIndex ?? -1;
+
+            expect($signupDayByPerson)->toHaveKey($personIndex)
+                ->and($session->dayIndex)->toBeGreaterThan($signupDayByPerson[$personIndex]);
+        }
+    }
+});
+
 it('keeps every session within the given day count', function () use ($fullPlan): void {
     $plan = $fullPlan();
 

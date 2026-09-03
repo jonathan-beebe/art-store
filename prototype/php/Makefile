@@ -1,4 +1,4 @@
-.PHONY: help up down build assets shell test smoke coverage lint lint-fix check precommit migrate fresh seed routes payouts sweep outbox analyse logs image run-image
+.PHONY: help up down build assets shell test smoke coverage lint lint-fix check precommit migrate fresh seed seed-activity routes payouts sweep outbox analyse logs image run-image
 
 .DEFAULT_GOAL := help
 
@@ -79,6 +79,13 @@ fresh: ## drop everything, re-migrate, re-seed the demo data
 
 seed: ## add the platform admins and demo data
 	docker compose run --rm app php artisan db:seed
+
+# Fills the app database and analytics store with a ninety-plus day ramp of
+# customers, browsing, orders, listings, and payouts — refuses in production
+# and refuses a second run against a database that already carries its
+# marker row. Run once, after `make fresh`.
+seed-activity: ## fill the store with a ramp of ninety days of activity (local dev only)
+	docker compose run --rm app php artisan seed:activity
 
 # Every route the app answers, printed by Laravel's own introspection.
 routes: ## print the route table
