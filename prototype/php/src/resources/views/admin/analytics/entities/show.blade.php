@@ -62,6 +62,41 @@
         </div>
     @endif
 
+    {{-- visits --}}
+    @if ($activity->kind !== 'listing')
+        <section aria-labelledby="analytics-entity-visits-heading" class="mt-4">
+            <h2 id="analytics-entity-visits-heading" class="font-semibold text-stone-700 dark:text-stone-300">Visits</h2>
+
+            @if (empty($activity->visits))
+                <x-admin.nothing class="mt-2">No visits recorded.</x-admin.nothing>
+            @else
+                <div class="mt-2 overflow-x-auto rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
+                    <table class="w-full text-left">
+                        <caption class="sr-only">This actor's own visits, newest first</caption>
+                        <thead class="border-b border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50">
+                            <tr>
+                                <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">First seen</th>
+                                <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">Channel</th>
+                                <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">Landing path</th>
+                                <th scope="col" class="px-4 py-2 font-semibold whitespace-nowrap">Referrer</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
+                            @foreach ($activity->visits as $visit)
+                                <tr>
+                                    <td class="px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">{{ $visit->firstSeenAt->format('Y-m-d H:i') }} UTC</td>
+                                    <td class="px-4 py-2 text-stone-700 dark:text-stone-300">{{ $visit->channel->label }}</td>
+                                    <td class="px-4 py-2 font-mono text-xs text-stone-700 dark:text-stone-300">{{ $visit->landingPath }}</td>
+                                    <td class="px-4 py-2 text-stone-600 dark:text-stone-400">{{ $visit->referrerHost ?? '—' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </section>
+    @endif
+
     {{-- tiles --}}
     <dl class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
         @foreach ($activity->tiles as $tile)

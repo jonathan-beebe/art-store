@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Analytics\ActorVisitRow;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Analytics\ActorVelocity;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
@@ -35,6 +37,11 @@ final class EntityActivity
     /** The event feed never shows more than this many rows — an operator
      * chasing one actor or listing scrolls the feed, not the whole range. */
     private const int FEED_LIMIT = 100;
+
+    /** The visits panel never shows more than this many rows — a returning
+     * visitor's whole year of first-touch rows can outrun what the panel
+     * needs to make its point. */
+    private const int VISITS_LIMIT = 20;
 
     private const int STRIP_HEIGHT_PX = 72;
 
@@ -68,6 +75,7 @@ final class EntityActivity
             stripLast: AnalyticsRange::dayCaption($dayLabels[count($dayLabels) - 1]),
             feed: $feed,
             feedCaption: self::feedCaption(count($feed), $feedTotal),
+            visits: [],
         );
     }
 
@@ -79,6 +87,7 @@ final class EntityActivity
     public static function forActor(Customer $customer, AnalyticsRange $range, ?AnalyticsEventName $filter, DateTimeImmutable $now): EntityActivityView
     {
         $scope = fn (Builder $query): Builder => $query->where('actor_id', $customer->id);
+        $visits = AnalyticsReport::visitsForActor($customer->id);
 
         $daily = self::dailyCounts($scope, $range);
         $eventsInRange = array_sum($daily);
@@ -118,7 +127,7 @@ final class EntityActivity
             kind: $identity->kind,
             id: $customer->id,
             title: $identity->kind === 'verified' ? $identity->who : 'Anonymous visitor',
-            facts: self::actorFacts($customer, $range),
+            facts: self::actorFacts($customer, $range, $visits),
             flagged: $flagged,
             flagText: $flagText,
             tiles: self::actorTiles($range, $eventsInRange, $peak, $customer->id, $now, $flagged),
@@ -128,6 +137,7 @@ final class EntityActivity
             stripLast: $stripLast,
             feed: $feed,
             feedCaption: self::feedCaption(count($feed), $feedTotal),
+            visits: array_slice($visits, 0, self::VISITS_LIMIT),
         );
     }
 
@@ -173,9 +183,10 @@ final class EntityActivity
     }
 
     /**
+     * @param  list<ActorVisitRow>  $visits  newest first
      * @return list<EntityFact>
      */
-    private static function actorFacts(Customer $customer, AnalyticsRange $range): array
+    private static function actorFacts(Customer $customer, AnalyticsRange $range, array $visits): array
     {
         $identity = ActorIdentity::of($customer);
         $ips = self::distinctIps($customer->id, $range);
@@ -185,8 +196,25 @@ final class EntityActivity
             new EntityFact('Identity', $identity->who),
             new EntityFact('IPs', $ips === [] ? '—' : implode(', ', $ips)),
             new EntityFact('First seen', $firstSeen !== null ? $firstSeen->format('M j, Y g:ia') : '—'),
+            new EntityFact('First channel', self::firstChannelLabel($visits)),
             new EntityFact('Merged from', self::mergedFrom($customer)),
         ];
+    }
+
+    /**
+     * The earliest visit's channel label — `$visits` reads newest first
+     * ({@see AnalyticsReport::visitsForActor()}), so the earliest is its
+     * last element.
+     *
+     * @param  list<ActorVisitRow>  $visits  newest first
+     */
+    private static function firstChannelLabel(array $visits): string
+    {
+        if ($visits === []) {
+            return '—';
+        }
+
+        return $visits[count($visits) - 1]->channel->label;
     }
 
     private static function mergedFrom(Customer $customer): string

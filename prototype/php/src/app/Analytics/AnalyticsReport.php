@@ -135,6 +135,7 @@ final class AnalyticsReport
             $sessionId,
             new DateTimeImmutable($firstSeenAt, new DateTimeZone('UTC')),
             $landingPath,
+            $referrerHost,
             Channel::derive($utmSource, $utmMedium, $utmCampaign, $referrerHost),
         );
     }
