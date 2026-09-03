@@ -165,19 +165,18 @@ final readonly class ActivityPlan
     }
 
     /**
-     * A handful of signups a week in the first third of the window, a few
-     * every couple of days in the second, and a rising surge in the last —
-     * capped so a long window never asks for more people than a roster can
-     * name.
+     * A handful of signups across the first third of the window, roughly
+     * one a day in the second, and a rising surge in the last — capped so
+     * a long window never asks for more people than a roster can name.
      */
     private static function signupCountForDay(int $dayIndex, int $dayCount): int
     {
         $third = max(1, intdiv($dayCount, 3));
 
         return match (true) {
-            $dayIndex < $third => $dayIndex % 7 === 0 ? 1 : 0,
-            $dayIndex < 2 * $third => $dayIndex % 3 === 0 ? 1 : 0,
-            default => min(5, 1 + intdiv($dayIndex - 2 * $third, 4)),
+            $dayIndex < $third => $dayIndex % 3 === 0 ? 1 : 0,
+            $dayIndex < 2 * $third => ($dayIndex - $third) % 4 === 0 ? 2 : 1,
+            default => min(4, 1 + intdiv($dayIndex - 2 * $third, 6)),
         };
     }
 

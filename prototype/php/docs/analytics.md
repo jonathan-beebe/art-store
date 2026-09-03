@@ -549,13 +549,15 @@ refuses a second run against a database that already carries its marker
 (`seed_runs`).
 
 **The ramp.** `ActivityPlan`'s day-by-day counts start small and surge: a
-real 92-day run lands near 65 / 100 / 435 new customers a month (signups
-plus anonymous visits), roughly 118 verified signups overall, and daily
-listing views that read in the tens early on and climb into the hundreds
-by the end of the window — a visibly rising strip of daily bars at
-`/admin/analytics?range=90`. Listing creation ramps the same way, so the
-catalog itself grows from `make fresh`'s 37 listings to upward of 150 by
-the third month.
+real 92-day run lands near 59 / 110 / 360 new customers a month (signups
+plus anonymous visits), verified signups themselves climbing from a
+handful in the first month to a surge in the third — near 8 / 30 / 80,
+roughly 115 overall — while anonymous visitors carry most of the traffic
+in every month. Daily listing views read in the tens early on and climb
+into the hundreds by the end of the window — a visibly rising strip of
+daily bars at `/admin/analytics?range=90`. Listing creation ramps the
+same way, so the catalog itself grows from `make fresh`'s 37 listings to
+upward of 150 by the third month.
 
 **Two bad actors.** Scripted once per plan, outside the day-by-day ramp,
 once the window reaches a third month:

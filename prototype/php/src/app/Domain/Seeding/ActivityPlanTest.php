@@ -38,6 +38,47 @@ it('ramps: the third month\'s new signups exceed the first month\'s several time
         ->and($monthThree)->toBeGreaterThan($monthOne * 3);
 });
 
+it('ramps verified signups from a handful in month one to a surge in month three, visitors carrying the rest', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+    $third = intdiv($plan->dayCount, 3);
+
+    $countInMonth = fn (SessionKind $kind, int $lowDay, int $highDay): int => count(array_filter(
+        $plan->sessions,
+        fn (Session $session): bool => $session->kind === $kind && $session->dayIndex >= $lowDay && $session->dayIndex < $highDay,
+    ));
+
+    $signupsInMonth = fn (int $lowDay, int $highDay): int => $countInMonth(SessionKind::NewSignup, $lowDay, $highDay);
+    $visitsInMonth = fn (int $lowDay, int $highDay): int => $countInMonth(SessionKind::AnonymousBrowse, $lowDay, $highDay)
+        + $countInMonth(SessionKind::ReturningVerify, $lowDay, $highDay);
+
+    $signupMonths = [
+        $signupsInMonth(0, $third),
+        $signupsInMonth($third, 2 * $third),
+        $signupsInMonth(2 * $third, $plan->dayCount),
+    ];
+    $visitMonths = [
+        $visitsInMonth(0, $third),
+        $visitsInMonth($third, 2 * $third),
+        $visitsInMonth(2 * $third, $plan->dayCount),
+    ];
+
+    // Near the ticket's 8/30/80 target, not exact — the roster and the
+    // day-modulo cadence only land so precisely.
+    expect($signupMonths[0])->toBeGreaterThanOrEqual(5)->toBeLessThanOrEqual(12)
+        ->and($signupMonths[1])->toBeGreaterThanOrEqual(20)->toBeLessThanOrEqual(35)
+        ->and($signupMonths[2])->toBeGreaterThanOrEqual(65)->toBeLessThanOrEqual(90)
+        ->and($signupMonths[0])->toBeLessThan($signupMonths[1])
+        ->and($signupMonths[1])->toBeLessThan($signupMonths[2]);
+
+    // Visitor traffic outgrows the signup curve by far in every month —
+    // the surge is anonymous, not a flood of new accounts.
+    foreach ($signupMonths as $index => $signupCount) {
+        expect($visitMonths[$index])->toBeGreaterThan($signupCount * 2);
+    }
+    expect($visitMonths[0])->toBeLessThan($visitMonths[1])
+        ->and($visitMonths[1])->toBeLessThan($visitMonths[2]);
+});
+
 it('never names a person outside the roster', function () use ($fullPlan): void {
     $plan = $fullPlan();
     $rosterSize = count(HogwartsRoster::people());
