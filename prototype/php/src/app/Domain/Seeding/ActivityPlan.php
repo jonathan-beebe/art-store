@@ -9,8 +9,10 @@ use DateTimeImmutable;
 /**
  * A deterministic day-by-day script for a store that has been open for a
  * season: new customers signing up at a ramping pace, anonymous visitors
- * browsing and some of them verifying partway through, and sellers
- * creating and publishing new listings — everything
+ * browsing and some of them verifying partway through, sellers creating
+ * and publishing new listings, and — once the window is long enough to
+ * hold a third month — a scraper and a prober scripted among the ordinary
+ * traffic ({@see badActorSessions()}) — everything
  * `App\Console\Commands\SeedActivity` needs to drive the real actions with
  * backdated moments. Nothing here touches the clock, the database, or PHP's
  * own random functions ({@see \Tests\Arch}, "the domain core stays pure"):
@@ -21,6 +23,10 @@ use DateTimeImmutable;
  */
 final readonly class ActivityPlan
 {
+    /** A window shorter than this never reaches a scripted third month, so
+     * {@see badActorSessions()} sits out a short test window entirely. */
+    private const int BAD_ACTOR_MIN_DAYS = 60;
+
     private function __construct(
         public int $seed,
         public DateTimeImmutable $startDay,
@@ -82,6 +88,10 @@ final readonly class ActivityPlan
                     $listingCreations[] = self::buildListingCreation($lcg, $dayIndex, $day, $sellerPoolSize, $templateCount);
                 }
             }
+        }
+
+        if ($dayCount >= self::BAD_ACTOR_MIN_DAYS) {
+            array_push($sessions, ...self::badActorSessions($lcg, $startDay, $dayCount, $listingPoolSize, $sessionCounter));
         }
 
         return new self($seed, $startDay, $dayCount, $sessions, $listingCreations);
@@ -192,7 +202,9 @@ final readonly class ActivityPlan
      * How many listings a seller creates on a given day: rare in the first
      * third, a little more common in the second, and rising steeply in the
      * third — the catalog itself grows through the same surge that brings
-     * the third month's flood of visitors.
+     * the third month's flood of visitors, which is what lets the scraper
+     * {@see badActorSessions()} scripts find more than a hundred listings
+     * to hit inside one hour by the time it runs.
      */
     private static function listingCreationCountForDay(int $dayIndex, int $dayCount): int
     {
@@ -416,5 +428,133 @@ final readonly class ActivityPlan
         $weights = [30, 15, 10, 20, 8, 10, 5, 7];
 
         return $options[$lcg->weightedIndex($weights)]();
+    }
+
+    /**
+     * The two bad actors: a scraper, one evening deep in the third month,
+     * and a prober, scanning across several nights. Both are anonymous
+     * ({@see SessionKind::Scraper}, {@see SessionKind::Prober} each name
+     * nobody) and both stay outside the day-by-day ramp above — they are
+     * scripted once, not drawn from a per-day count.
+     *
+     * @return list<Session>
+     */
+    private static function badActorSessions(Lcg $lcg, DateTimeImmutable $startDay, int $dayCount, int $listingPoolSize, int $sessionCounter): array
+    {
+        return [
+            self::scraperSession($lcg, $startDay, $dayCount, $sessionCounter),
+            self::proberSession($lcg, $startDay, $dayCount, $listingPoolSize, $sessionCounter + 1),
+        ];
+    }
+
+    /**
+     * One evening, five days from the end of the window: a single anonymous
+     * visitor requesting a listing page every eight to ten seconds for
+     * most of an hour, rotating between two addresses in a hosting range.
+     * Every request is a plain {@see StepKind::ListingView} carrying the
+     * dedupe key a real page load would — `SeedActivity` resolves its
+     * `listingSlot` against the live catalog rather than `$listingPoolSize`,
+     * since only the catalog a growing store has amassed by the third
+     * month, not the pool this plan started from, holds enough listings to
+     * carry the burst past {@see \App\Domain\Analytics\ActorVelocity}'s
+     * threshold. No favorite, cart, or checkout step ever appears here.
+     */
+    private static function scraperSession(Lcg $lcg, DateTimeImmutable $startDay, int $dayCount, int $sessionCounter): Session
+    {
+        $dayIndex = max(0, $dayCount - 5);
+        $day = $startDay->modify("+{$dayIndex} days");
+        // The burst starts on the hour, so all but its last few seconds
+        // land in one UTC-hour dedupe window rather than splitting across
+        // two and halving what either one collects.
+        $start = $day->setTime(19 + $lcg->nextInt(4), 0, $lcg->nextInt(3));
+        $attemptCount = 340 + $lcg->nextInt(30);
+        $octetA = 1 + $lcg->nextInt(254);
+        $ipA = '185.220.101.'.$octetA;
+        // Offset by half the range so the second address is always distinct
+        // from the first, wrapping back into [1, 254].
+        $ipB = '185.220.101.'.(1 + ($octetA + 126) % 254);
+
+        $steps = [];
+        $cursor = $start;
+        for ($i = 0; $i < $attemptCount; $i++) {
+            $ip = $lcg->nextInt(10) < 7 ? $ipA : $ipB;
+            $steps[] = new VisitStep(StepKind::ListingView, $cursor, $i, $ip);
+            $cursor = $cursor->modify('+'.(8 + $lcg->nextInt(3)).' seconds');
+        }
+
+        return new Session(
+            $dayIndex,
+            $start,
+            sprintf('ses%05d', $sessionCounter),
+            $ipA,
+            '/art',
+            SessionKind::Scraper,
+            null,
+            new ChannelPick(null, null, null, null),
+            $steps,
+        );
+    }
+
+    /**
+     * One anonymous visitor scanning for credential and admin paths across
+     * five nights, spaced roughly a week apart starting mid-window. A
+     * couple of ordinary {@see StepKind::ListingView} steps open the
+     * session, so it carries one real analytics event and an ip — without
+     * one, it would name no actor at all. Every following step is a
+     * {@see StepKind::ProbeRequest} against one of {@see ProbePaths}, one
+     * to two seconds apart, which `SeedActivity` turns into log lines only:
+     * a 404 or 302 never reaches the analytics store.
+     */
+    private static function proberSession(Lcg $lcg, DateTimeImmutable $startDay, int $dayCount, int $listingPoolSize, int $sessionCounter): Session
+    {
+        $firstNightDay = max(0, intdiv($dayCount, 2) - 3);
+        $ip = '45.155.205.233';
+        $firstNight = $startDay->modify("+{$firstNightDay} days")->setTime(21 + $lcg->nextInt(3), $lcg->nextInt(60), 0);
+
+        $introSlot = $listingPoolSize > 0 ? $lcg->nextInt($listingPoolSize) : 0;
+        $steps = [
+            new VisitStep(StepKind::ListingView, $firstNight, $introSlot),
+            new VisitStep(StepKind::ListingView, $firstNight->modify('+90 seconds'), $introSlot),
+        ];
+
+        $nightCount = 5;
+        for ($night = 0; $night < $nightCount; $night++) {
+            $nightDayIndex = min($dayCount - 1, $firstNightDay + $night * 6);
+            $nightStart = $startDay->modify("+{$nightDayIndex} days")->setTime(22 + $lcg->nextInt(2), $lcg->nextInt(60), 0);
+            array_push($steps, ...self::proberBurst($lcg, $nightStart, $ip));
+        }
+
+        return new Session(
+            $firstNightDay,
+            $firstNight,
+            sprintf('ses%05d', $sessionCounter),
+            $ip,
+            '/',
+            SessionKind::Prober,
+            null,
+            new ChannelPick(null, null, null, null),
+            $steps,
+        );
+    }
+
+    /**
+     * One night's scan: {@see ProbePaths}, cycled as many times as it takes
+     * to fill the burst, one to two seconds apart.
+     *
+     * @return list<VisitStep>
+     */
+    private static function proberBurst(Lcg $lcg, DateTimeImmutable $start, string $ip): array
+    {
+        $paths = ProbePaths::paths();
+        $requestCount = 50 + $lcg->nextInt(20);
+        $cursor = $start;
+        $steps = [];
+
+        for ($i = 0; $i < $requestCount; $i++) {
+            $steps[] = new VisitStep(StepKind::ProbeRequest, $cursor, null, $ip, $paths[$i % count($paths)]);
+            $cursor = $cursor->modify('+'.(1 + $lcg->nextInt(2)).' seconds');
+        }
+
+        return $steps;
     }
 }

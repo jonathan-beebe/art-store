@@ -49,11 +49,12 @@ it('never names a person outside the roster', function () use ($fullPlan): void 
     }
 });
 
-it('never names a person for a purely anonymous session', function () use ($fullPlan): void {
+it('never names a person for an anonymous session, ordinary or bad actor', function () use ($fullPlan): void {
     $plan = $fullPlan();
+    $anonymousKinds = [SessionKind::AnonymousBrowse, SessionKind::Scraper, SessionKind::Prober];
 
     foreach ($plan->sessions as $session) {
-        if ($session->kind === SessionKind::AnonymousBrowse) {
+        if (in_array($session->kind, $anonymousKinds, true)) {
             expect($session->personIndex)->toBeNull();
         } else {
             expect($session->personIndex)->not->toBeNull();
@@ -106,10 +107,17 @@ it('addresses every listing creation within the given seller and template pools'
     }
 });
 
-it('addresses every listing view within the given listing pool', function () use ($fullPlan): void {
+it('addresses every ordinary listing view within the given listing pool', function () use ($fullPlan): void {
     $plan = $fullPlan();
 
+    // The scraper is the one exception: `SeedActivity` resolves its steps
+    // against the live catalog rather than this pool — see its own
+    // docblock — so its slots run well past a small test pool by design.
     foreach ($plan->sessions as $session) {
+        if ($session->kind === SessionKind::Scraper) {
+            continue;
+        }
+
         foreach ($session->steps as $step) {
             if ($step->listingSlot !== null) {
                 expect($step->listingSlot)->toBeGreaterThanOrEqual(0)->toBeLessThan(24);
@@ -172,5 +180,90 @@ it('keeps every session within the given day count', function () use ($fullPlan)
 
     foreach ($plan->sessions as $session) {
         expect($session->dayIndex)->toBeGreaterThanOrEqual(0)->toBeLessThan($plan->dayCount);
+    }
+});
+
+it('scripts no bad actor inside a window shorter than a third month', function (): void {
+    $plan = ActivityPlan::generate(2026, new DateTimeImmutable('2026-06-03'), 59, listingPoolSize: 24, sellerPoolSize: 6);
+
+    $kinds = array_map(fn (Session $session): SessionKind => $session->kind, $plan->sessions);
+
+    expect($kinds)->not->toContain(SessionKind::Scraper)
+        ->and($kinds)->not->toContain(SessionKind::Prober);
+});
+
+it('scripts exactly one scraper hammering listing views at high velocity', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+    $scrapers = array_values(array_filter($plan->sessions, fn (Session $session): bool => $session->kind === SessionKind::Scraper));
+
+    expect($scrapers)->toHaveCount(1);
+
+    $scraper = $scrapers[0];
+    $seconds = array_map(fn (VisitStep $step): int => (int) $step->at->format('U'), $scraper->steps);
+    $gaps = [];
+    for ($i = 1; $i < count($seconds); $i++) {
+        $gaps[] = $seconds[$i] - $seconds[$i - 1];
+    }
+
+    expect($scraper->steps)->not->toBe([])
+        ->and(count($scraper->steps))->toBeGreaterThan(300)
+        ->and(array_unique(array_map(fn (VisitStep $step): string => $step->kind->name, $scraper->steps)))->toBe([StepKind::ListingView->name])
+        ->and($gaps)->not->toBe([]);
+
+    foreach ($gaps as $gap) {
+        expect($gap)->toBeGreaterThanOrEqual(8)->toBeLessThanOrEqual(10);
+    }
+});
+
+it("rotates the scraper's requests across two addresses in one hosting range", function () use ($fullPlan): void {
+    $scraper = array_values(array_filter($fullPlan()->sessions, fn (Session $session): bool => $session->kind === SessionKind::Scraper))[0];
+
+    $ips = array_unique(array_map(fn (VisitStep $step): string => $step->ip ?? '', $scraper->steps));
+
+    expect($ips)->toHaveCount(2);
+
+    foreach ($ips as $ip) {
+        expect($ip)->toStartWith('185.220.101.');
+    }
+});
+
+it('scripts exactly one prober scanning credential and admin paths', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+    $probers = array_values(array_filter($plan->sessions, fn (Session $session): bool => $session->kind === SessionKind::Prober));
+
+    expect($probers)->toHaveCount(1);
+
+    $prober = $probers[0];
+    $probeSteps = array_values(array_filter($prober->steps, fn (VisitStep $step): bool => $step->kind === StepKind::ProbeRequest));
+    $viewSteps = array_values(array_filter($prober->steps, fn (VisitStep $step): bool => $step->kind === StepKind::ListingView));
+
+    expect($probeSteps)->not->toBe([])
+        ->and($viewSteps)->not->toBe([])
+        ->and(count($probeSteps))->toBeGreaterThan(200);
+
+    foreach ($probeSteps as $step) {
+        expect(ProbePaths::paths())->toContain($step->path)
+            ->and($step->ip)->toBe('45.155.205.233');
+    }
+});
+
+it('scans across several distinct nights, not one sitting', function () use ($fullPlan): void {
+    $prober = array_values(array_filter($fullPlan()->sessions, fn (Session $session): bool => $session->kind === SessionKind::Prober))[0];
+
+    $probeSteps = array_values(array_filter($prober->steps, fn (VisitStep $step): bool => $step->kind === StepKind::ProbeRequest));
+    $nights = array_unique(array_map(fn (VisitStep $step): string => $step->at->format('Y-m-d'), $probeSteps));
+
+    expect(count($nights))->toBeGreaterThanOrEqual(5);
+});
+
+it('never scripts a transacting or favoriting step for either bad actor', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+    $offLimits = [StepKind::Favorite, StepKind::Unfavorite, StepKind::CartAdd, StepKind::CheckoutOpen, StepKind::OrderPlace, StepKind::OrderPay, StepKind::OrderCancel];
+    $badActors = array_filter($plan->sessions, fn (Session $session): bool => in_array($session->kind, [SessionKind::Scraper, SessionKind::Prober], true));
+
+    foreach ($badActors as $session) {
+        foreach ($session->steps as $step) {
+            expect($step->kind)->not->toBeIn($offLimits);
+        }
     }
 });

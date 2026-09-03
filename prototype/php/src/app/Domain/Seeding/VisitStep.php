@@ -13,6 +13,16 @@ use DateTimeImmutable;
  * before driving the plan. A step naming no listing (`CheckoutOpen`,
  * `OrderPlace`, `OrderPay`, `OrderCancel`, and a `SupportQuestion` that
  * asks about nothing in particular) leaves `listingSlot` null.
+ *
+ * `ip` and `path` exist for the two bad-actor session kinds only, and stay
+ * null for every ordinary step. A scraper's step carries `ip`, since it
+ * rotates addresses within one session that an ordinary visitor never
+ * does; `SeedActivity` resolves its `listingSlot` against the live catalog
+ * rather than the plan's own pool, since the catalog a scraper reaches by
+ * the third month is larger than the pool a plan sizes itself from. A
+ * prober's `ProbeRequest` step carries `path` in place of a listing — the
+ * one it probed — and may carry `ip` too, since a prober rotates addresses
+ * the same way a scraper does.
  */
 final readonly class VisitStep
 {
@@ -20,5 +30,7 @@ final readonly class VisitStep
         public StepKind $kind,
         public DateTimeImmutable $at,
         public ?int $listingSlot,
+        public ?string $ip = null,
+        public ?string $path = null,
     ) {}
 }

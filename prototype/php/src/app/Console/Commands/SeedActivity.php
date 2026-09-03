@@ -19,6 +19,7 @@ use App\Analytics\AnalyticsEvent;
 use App\Analytics\AnalyticsVisit;
 use App\Analytics\RequestFacts;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\PageViewSite;
 use App\Domain\Auth\ActorType;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingStatus;
@@ -34,10 +35,13 @@ use App\Domain\Seeding\ActivityPlan;
 use App\Domain\Seeding\HogwartsRoster;
 use App\Domain\Seeding\ListingTemplates;
 use App\Domain\Seeding\NewListingStep;
+use App\Domain\Seeding\ProbePaths;
 use App\Domain\Seeding\Session;
 use App\Domain\Seeding\SessionKind;
 use App\Domain\Seeding\StepKind;
 use App\Domain\Seeding\VisitStep;
+use App\Logging\LogLine;
+use App\Logging\LogStore;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Customer;
@@ -50,6 +54,7 @@ use App\Models\Seller;
 use App\Support\IdMint;
 use App\Support\Story;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -110,7 +115,7 @@ final class SeedActivity extends Command
      * at the start of every session, since sessions run one at a time. */
     private ?Order $currentOrder = null;
 
-    public function handle(Analytics $analytics): int
+    public function handle(Analytics $analytics, LogStore $logStore): int
     {
         if (app()->isProduction()) {
             $this->error('seed:activity refuses to run in production.');
@@ -156,7 +161,7 @@ final class SeedActivity extends Command
 
         foreach ($this->chronological($plan) as $item) {
             if ($item instanceof Session) {
-                $this->runSession($item, $roster, $listings, $analytics);
+                $this->runSession($item, $roster, $listings, $analytics, $logStore);
             } else {
                 $this->runListingCreation($item, $sellers);
             }
@@ -166,6 +171,7 @@ final class SeedActivity extends Command
         $this->runPayouts($now, $days);
 
         $analytics->flush();
+        $logStore->flush();
 
         DB::table('seed_runs')->insert([
             'id' => IdMint::of('sdr'),
@@ -205,6 +211,24 @@ final class SeedActivity extends Command
     }
 
     /**
+     * Every session kind but the two bad actors drives its steps through
+     * the real actions {@see runOrdinarySession()} names. A scraper and a
+     * prober are scripted outside that pipeline — see each method's own
+     * docblock for why.
+     *
+     * @param  list<array{name: string, email: string}>  $roster
+     * @param  list<Listing>  $listings
+     */
+    private function runSession(Session $session, array $roster, array $listings, Analytics $analytics, LogStore $logStore): void
+    {
+        match ($session->kind) {
+            SessionKind::Scraper => $this->runScraperSession($session, $analytics, $logStore),
+            SessionKind::Prober => $this->runProberSession($session, $analytics, $logStore),
+            default => $this->runOrdinarySession($session, $roster, $listings, $analytics),
+        };
+    }
+
+    /**
      * Resolves who the session is, records its first-touch visit, then
      * drives every step in order, each under its own minted request id and
      * `Analytics::asRequest()` scope so the ip, session, and request id an
@@ -214,7 +238,7 @@ final class SeedActivity extends Command
      * @param  list<array{name: string, email: string}>  $roster
      * @param  list<Listing>  $listings
      */
-    private function runSession(Session $session, array $roster, array $listings, Analytics $analytics): void
+    private function runOrdinarySession(Session $session, array $roster, array $listings, Analytics $analytics): void
     {
         $customer = $this->resolveCustomer($session, $roster);
         $this->currentOrder = null;
@@ -252,6 +276,229 @@ final class SeedActivity extends Command
     }
 
     /**
+     * The scraper: every step is a plain listing-view request, resolved
+     * against the live catalog — {@see ActivityPlan::scraperSession()}'s
+     * own docblock says why this bypasses the ordinary pool — rather than
+     * `$listings`, so a burst deep in the third month reaches a catalog
+     * this command's own fixed pool never grew to. A live query, not a
+     * cached one: every listing the plan's own `NewListingStep`s created
+     * earlier in this same run already exists in the database by now,
+     * `chronological()`'s ordering being what makes that true.
+     */
+    private function runScraperSession(Session $session, Analytics $analytics, LogStore $logStore): void
+    {
+        /** @var list<Listing> $liveListings */
+        $liveListings = Listing::query()->forSale()->orderBy('id')->get()->values()->all();
+
+        if ($liveListings === []) {
+            return;
+        }
+
+        $customer = $this->createAnonymous($session->at);
+
+        Story::inSession($session->sessionId);
+        Story::actorIs(ActorType::Customer, $customer->id);
+
+        $analytics->recordVisit(AnalyticsVisit::of(
+            $session->sessionId,
+            $session->at,
+            $session->landingPath,
+            $session->channel->referrerHost,
+            ['source' => null, 'medium' => null, 'campaign' => null],
+            $customer->id,
+        ));
+
+        foreach ($session->steps as $step) {
+            $listing = $liveListings[($step->listingSlot ?? 0) % count($liveListings)];
+            $ip = $step->ip ?? $session->ip;
+            $requestId = IdMint::of('req');
+            Story::follows($requestId);
+            $facts = RequestFacts::of($ip, $session->sessionId, $requestId);
+
+            try {
+                $analytics->asRequest($facts, function () use ($listing, $customer, $step, $analytics): void {
+                    $analytics->recordEvent(AnalyticsEvent::forListing(
+                        AnalyticsEventName::ListingView,
+                        $listing->id,
+                        $customer->id,
+                        $step->at,
+                        ListingViewCollapse::dedupeKey($listing->id, $customer->id, $step->at),
+                    ));
+                });
+                $this->logListingRequest($logStore, $listing, $requestId, $session->sessionId, $customer->id, $step->at, $analytics);
+            } catch (Throwable) {
+                // A dedupe collision or a listing that sold out mid-run —
+                // skipped, the same tolerance every other session gets.
+            }
+        }
+    }
+
+    /**
+     * The prober: a couple of ordinary listing views — the only reason
+     * this actor carries a real analytics event and an ip an admin can
+     * search for at all, since every following step answers 404 or 302 and
+     * `App\Domain\Analytics\PageViewCountability` keeps a non-2xx response
+     * out of the roll-up by design — then a `ProbeRequest` burst across
+     * several nights, each one only ever an `http.request` log line: no
+     * route this application registers answers any of these paths, so no
+     * analytics event, and no domain story line, is possible for one.
+     */
+    private function runProberSession(Session $session, Analytics $analytics, LogStore $logStore): void
+    {
+        $customer = $this->createAnonymous($session->at);
+
+        Story::inSession($session->sessionId);
+        Story::actorIs(ActorType::Customer, $customer->id);
+
+        $analytics->recordVisit(AnalyticsVisit::of(
+            $session->sessionId,
+            $session->at,
+            $session->landingPath,
+            $session->channel->referrerHost,
+            ['source' => null, 'medium' => null, 'campaign' => null],
+            $customer->id,
+        ));
+
+        /** @var list<Listing> $listings */
+        $listings = Listing::query()->forSale()->orderBy('id')->get()->values()->all();
+
+        foreach ($session->steps as $step) {
+            $requestId = IdMint::of('req');
+            Story::follows($requestId);
+            $facts = RequestFacts::of($session->ip, $session->sessionId, $requestId);
+
+            if ($step->kind === StepKind::ProbeRequest) {
+                $this->logProbeRequest($logStore, $step, $requestId, $session->sessionId, $customer->id);
+
+                continue;
+            }
+
+            if ($listings === []) {
+                continue;
+            }
+
+            $listing = $listings[($step->listingSlot ?? 0) % count($listings)];
+
+            try {
+                $analytics->asRequest($facts, function () use ($listing, $customer, $step, $analytics): void {
+                    $analytics->recordEvent(AnalyticsEvent::forListing(
+                        AnalyticsEventName::ListingView,
+                        $listing->id,
+                        $customer->id,
+                        $step->at,
+                        ListingViewCollapse::dedupeKey($listing->id, $customer->id, $step->at),
+                    ));
+                });
+                $this->logListingRequest($logStore, $listing, $requestId, $session->sessionId, $customer->id, $step->at, $analytics);
+            } catch (Throwable) {
+                // Same tolerance as every other session.
+            }
+        }
+    }
+
+    /**
+     * The lines one real listing-page load writes: the page-view roll-up
+     * and the `http.request` pair — {@see \App\Http\Middleware\LogRequestStory}'s
+     * own shape, captured with `Tests\CapturedStory` against a running
+     * request before this was written.
+     */
+    private function logListingRequest(LogStore $logStore, Listing $listing, string $requestId, string $sessionId, string $actorId, DateTimeImmutable $at, Analytics $analytics): void
+    {
+        $path = "/art/{$listing->slug}";
+        $durationMs = $this->fakeDuration($requestId);
+
+        $analytics->recordPageView(PageViewSite::Shop, $path, $at);
+        $this->logHttpLine($logStore, 'GET', $path, 200, $at, $requestId, $sessionId, $actorId, $durationMs);
+    }
+
+    /**
+     * A prober's one line: the `http.request` pair a real request against
+     * one of {@see ProbePaths} would have written, 404 or 302, and nothing
+     * else — no route answers any of these, so no domain story line ever
+     * could.
+     */
+    private function logProbeRequest(LogStore $logStore, VisitStep $step, string $requestId, string $sessionId, string $actorId): void
+    {
+        $path = $step->path ?? '/';
+        $status = ProbePaths::statusFor($path);
+
+        $this->logHttpLine($logStore, 'GET', $path, $status, $step->at, $requestId, $sessionId, $actorId, $this->fakeDuration($requestId));
+    }
+
+    /**
+     * The `http.request` will/did pair — {@see \App\Http\Middleware\LogRequestStory}'s
+     * own shape: `will` carries `method`/`path` only, `did` carries
+     * `status` and a `db` tally, and neither carries an `ip` — the real
+     * line does not either, an actor's ip living only in the analytics
+     * store's own `ip` column.
+     */
+    private function logHttpLine(LogStore $logStore, string $method, string $path, int $status, DateTimeImmutable $at, string $requestId, string $sessionId, string $actorId, int $durationMs): void
+    {
+        $didAt = $at->modify("+{$durationMs} milliseconds");
+
+        $this->appendLine($logStore, $at, $requestId, $sessionId, $actorId, 'http.request', 'will', "{$method} {$path}", [
+            'method' => $method,
+            'path' => $path,
+        ], null);
+
+        $this->appendLine($logStore, $didAt, $requestId, $sessionId, $actorId, 'http.request', 'did', "{$method} {$path} {$status}", [
+            'status' => $status,
+            'db' => ['queries' => 2 + ($durationMs % 6), 'total_ms' => round($durationMs * 0.35, 1)],
+        ], $durationMs);
+    }
+
+    /**
+     * One deployed-shaped JSON log line, appended straight to the log
+     * store — {@see LogLine::parse()} turns it into the same
+     * row a stdout line would become. `$data` empty is a line with no
+     * `data` key at all, the same as `App\Logging\StoryFormatter` omits it.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function appendLine(
+        LogStore $logStore,
+        DateTimeImmutable $at,
+        string $requestId,
+        string $sessionId,
+        string $actorId,
+        string $event,
+        string $phase,
+        string $msg,
+        array $data,
+        ?int $durationMs,
+    ): void {
+        $payload = array_filter([
+            'ts' => $at->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.v\Z'),
+            'level' => 'info',
+            'event' => $event,
+            'phase' => $phase,
+            'msg' => $msg,
+            'request_id' => $requestId,
+            'session_id' => $sessionId,
+            'actor_type' => ActorType::Customer->value,
+            'actor_id' => $actorId,
+            'data' => $data === [] ? null : $data,
+            'duration_ms' => $durationMs,
+        ], fn (mixed $value): bool => $value !== null);
+
+        $json = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        if ($json !== false) {
+            $logStore->append(LogLine::parse($json));
+        }
+    }
+
+    /**
+     * A small, deterministic stand-in for wall time: the same request id
+     * always fakes the same duration, so a test asserting on one seeded
+     * line's shape never flakes on a value nobody drove from `Lcg`.
+     */
+    private function fakeDuration(string $requestId): int
+    {
+        return 12 + (crc32($requestId) % 160);
+    }
+
+    /**
      * @param  list<array{name: string, email: string}>  $roster
      */
     private function resolveCustomer(Session $session, array $roster): Customer
@@ -260,6 +507,7 @@ final class SeedActivity extends Command
             SessionKind::AnonymousBrowse => $this->createAnonymous($session->at),
             SessionKind::NewSignup => $this->createSignup($session->at, $roster[$this->personIndex($session)]),
             SessionKind::ReturningVerify => $this->verifyReturning($session->at, $roster[$this->personIndex($session)]),
+            SessionKind::Scraper, SessionKind::Prober => throw new LogicException('A bad actor session never resolves a customer this way — see runScraperSession()/runProberSession().'),
         };
     }
 
@@ -327,6 +575,7 @@ final class SeedActivity extends Command
             StepKind::OrderCancel => $this->cancelOrder($step),
             StepKind::ListingQuestion => $this->askListingQuestion($step, $customer, $listings),
             StepKind::SupportQuestion => $this->askSupportQuestion($step, $customer),
+            StepKind::ProbeRequest => throw new LogicException('A probe step never reaches an ordinary session — see runProberSession().'),
         };
     }
 
