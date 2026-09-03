@@ -18,6 +18,8 @@ use Override;
  * ordered list of event names {@see FunnelDefinition} validates. Visitors
  * is every funnel's implied first step and is never stored in `steps`.
  * `position` orders a funnel among the tiles the analytics home shows.
+ *
+ * @property list<string> $steps
  */
 #[Fillable(['name', 'slug', 'steps', 'position'])]
 class Funnel extends Model
