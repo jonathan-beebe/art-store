@@ -337,6 +337,17 @@ it('moves every row an actor owns to another actor', function (): void {
     expect(DB::connection('analytics')->table('analytics_events')->sole()->actor_id)->toBe('cus_MERGED');
 });
 
+it('moves every visit an actor owns to another actor', function (): void {
+    $analytics = new Analytics;
+    $visit = new AnalyticsVisit('ses_01J00000000000000000000ABC', new DateTimeImmutable, '/', null, null, null, null, null, null, 'cus_XYZ');
+    $analytics->recordVisit($visit);
+    $analytics->flush();
+
+    $analytics->reassignActor('cus_XYZ', 'cus_MERGED');
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBe('cus_MERGED');
+});
+
 it('logs one warning and never throws when reassignActor cannot write', function (): void {
     $log = CapturedStory::capture();
 

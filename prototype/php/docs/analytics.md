@@ -7,8 +7,8 @@ slower. `App\Analytics\Analytics` is the one entry point: every recording
 call appends to an in-memory buffer and does no I/O; a later flush is what
 turns the buffer into rows.
 
-Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ListingEventCounts,RequestFacts}.php`,
-`app/Domain/Analytics/AnalyticsEventName.php`,
+Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ActorVisitRow,ListingEventCounts,RequestFacts}.php`,
+`app/Domain/Analytics/{AnalyticsEventName,Channel}.php`,
 `app/Providers/AnalyticsServiceProvider.php`, the `analytics` connection in
 `config/database.php`, `config/analytics.php`, `app/Support/RequestMarks.php`,
 `app/Support/RetentionDays.php`, `database/migrations/*_create_analytics_events_table.php`,
@@ -238,6 +238,45 @@ the sweep runs from the console.
   session, and the request id read back out of `data`). How an operator
   isolates what a scripted or abusive visitor did, and steps from a row to
   the request that produced it via its `request_id`.
+- `visitsForActor($actorId)` — an actor's own `analytics_visits` rows,
+  newest first, each read back as an `App\Analytics\ActorVisitRow`
+  (`sessionId`, `firstSeenAt`, `landingPath`, and the
+  `App\Domain\Analytics\Channel` it derives to) — a visitor's analytics
+  page's source for the origin of each of their visits.
+
+## Channels
+
+`App\Domain\Analytics\Channel::derive()` is the pure precedence every
+channel reads through: a campaign named by `utm_source`/`utm_medium`/`utm_campaign`
+wins, then the `Referer` header's host mapped to a search engine, a social
+network, or a bare referral, then direct. `Channel::key` is what a report
+groups by (`campaign:sept`, `search:google`, `social:instagram`,
+`referral:example.com`, `direct`); `Channel::label` is what a reader sees.
+
+`App\Analytics\Admin\ChannelTable::forRange($range)` is the admin channel
+report: one `ChannelRow` per channel — `channelKey`, `label`, and five
+`ChannelMetric`s (`visitors`, `views`, `cartAdds`, `ordersPlaced`,
+`ordersPaid`), each carrying its count for the range, the count for the
+range before, and the `RangeChange` between them — ordered by visitors,
+most first.
+
+- **Visitors** read straight off `analytics_visits`: one query groups the
+  visits whose `first_seen_at` falls in the window by their raw
+  attribution columns (`utm_source`, `utm_medium`, `utm_campaign`,
+  `referrer_host`), split into the current and the previous range the same
+  way every other admin analytics reader splits a window.
+- **Views, cart adds, orders placed, orders paid** read `analytics_events`
+  joined to `analytics_visits` on `session_id` — one query, since both
+  tables live in the one analytics SQLite file — grouped by the same raw
+  attribution columns plus the event name. A two-query, PHP-side join was
+  the alternative considered; the one-query join reads fewer rows into PHP
+  for a range with many events, since SQL does the grouping.
+- Every group either query returns derives its `Channel` in PHP
+  (`Channel::derive()` is not expressible in SQL), and rows whose derived
+  key matches are folded into one — two raw attribution tuples can derive
+  the same channel (`twitter.com` and `x.com` both read
+  `social:x/twitter`), which is why the fold happens after the SQL
+  grouping rather than in the query itself.
 
 `App\Models\PageViewCount`'s own static methods (`totalForWeek`,
 `totalsByDay`, `totalsByPattern`) read `page_view_counts` directly and are
@@ -478,3 +517,10 @@ session) and is never pruned.
   the request-facts columns and retention window on FEAT-044. Node and
   Rails still write analytics inline in the request, carry no request
   facts, and prune nothing — tickets not yet filed.
+- **Channel page.** `ChannelTable::forRange()` and `AnalyticsReport::visitsForActor()`
+  read the store; no admin page or actor-page section renders either yet
+  (FEAT-047 stage B).
+- **`analytics_visits` retention.** `Analytics::prune()` deletes stale
+  `analytics_events` rows only; `analytics_visits` — carrying a
+  `session_id` and, once an actor signs in, an `actor_id` — is not yet
+  swept by `orders:sweep`.

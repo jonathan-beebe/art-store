@@ -141,8 +141,9 @@ final class Analytics
 
     /**
      * Re-points every buffered-and-flushed row an anonymous customer owns
-     * to the verified identity they merged into — one immediate write,
-     * outside the buffer, for
+     * — both `analytics_events` rows and `analytics_visits` rows — to the
+     * verified identity they merged into — one immediate write to each
+     * table, outside the buffer, for
      * {@see \App\Actions\Customers\MergeAnonymousCustomer}. Never throws: a
      * failure logs the same one warning `flush()` does and leaves the rows
      * pointing at the anonymous id.
@@ -151,6 +152,10 @@ final class Analytics
     {
         try {
             DB::connection('analytics')->table('analytics_events')
+                ->where('actor_id', $fromActorId)
+                ->update(['actor_id' => $toActorId]);
+
+            DB::connection('analytics')->table('analytics_visits')
                 ->where('actor_id', $fromActorId)
                 ->update(['actor_id' => $toActorId]);
         } catch (Throwable $e) {

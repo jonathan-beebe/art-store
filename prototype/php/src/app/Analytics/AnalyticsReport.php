@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace App\Analytics;
 
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\Channel;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
- * Reads the rows {@see Analytics} writes to `analytics_events`. Every
- * method here queries the analytics connection directly and is unguarded:
- * an unavailable store surfaces as whatever error the connection throws,
- * the way a missing data source reads anywhere else in the app. Page-view
- * totals stay on {@see \App\Models\PageViewCount} — this class does not
- * duplicate them.
+ * Reads the rows {@see Analytics} writes to `analytics_events` and
+ * `analytics_visits`. Every method here queries the analytics connection
+ * directly and is unguarded: an unavailable store surfaces as whatever
+ * error the connection throws, the way a missing data source reads
+ * anywhere else in the app. Page-view totals stay on
+ * {@see \App\Models\PageViewCount} — this class does not duplicate them.
  */
 final class AnalyticsReport
 {
@@ -94,6 +95,48 @@ final class AnalyticsReport
     public static function eventsForSession(string $sessionId, DateTimeImmutable $from): array
     {
         return self::eventRows(fn ($query) => $query->where('session_id', $sessionId), $from);
+    }
+
+    /**
+     * Every visit an actor's own first-touch rows carry, newest first, each
+     * with the {@see Channel} it derives to — an actor's own page's source
+     * for the origin of each of their visits.
+     *
+     * @return list<ActorVisitRow>
+     */
+    public static function visitsForActor(string $actorId): array
+    {
+        $rows = DB::connection('analytics')->table('analytics_visits')
+            ->where('actor_id', $actorId)
+            ->orderByDesc('first_seen_at')
+            ->get();
+
+        return array_values($rows->map(self::toActorVisitRow(...))->all());
+    }
+
+    private static function toActorVisitRow(stdClass $row): ActorVisitRow
+    {
+        /** @var string $sessionId */
+        $sessionId = $row->session_id;
+        /** @var string $firstSeenAt */
+        $firstSeenAt = $row->first_seen_at;
+        /** @var string $landingPath */
+        $landingPath = $row->landing_path;
+        /** @var string|null $utmSource */
+        $utmSource = $row->utm_source;
+        /** @var string|null $utmMedium */
+        $utmMedium = $row->utm_medium;
+        /** @var string|null $utmCampaign */
+        $utmCampaign = $row->utm_campaign;
+        /** @var string|null $referrerHost */
+        $referrerHost = $row->referrer_host;
+
+        return new ActorVisitRow(
+            $sessionId,
+            new DateTimeImmutable($firstSeenAt, new DateTimeZone('UTC')),
+            $landingPath,
+            Channel::derive($utmSource, $utmMedium, $utmCampaign, $referrerHost),
+        );
     }
 
     /**

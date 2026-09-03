@@ -6,6 +6,7 @@ namespace App\Actions\Customers;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
@@ -116,6 +117,22 @@ it('re-points analytics events to the verified customer', function (): void {
     expect(DB::connection('analytics')->table('analytics_events')->where('actor_id', $verified->id)->count())->toBe(1)
         ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $anonymous->id)->count())->toBe(0)
         ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $bystander->id)->count())->toBe(1);
+});
+
+it('re-points analytics visits to the verified customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    $analytics = app(Analytics::class);
+    $analytics->recordVisit(new AnalyticsVisit('ses_01J00000000000000000000ONE', new DateTimeImmutable, '/', null, null, null, null, null, null, $anonymous->id));
+    $analytics->recordVisit(new AnalyticsVisit('ses_01J00000000000000000000TWO', new DateTimeImmutable, '/', null, null, null, null, null, null, $bystander->id));
+    $analytics->flush();
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect(DB::connection('analytics')->table('analytics_visits')->where('actor_id', $verified->id)->count())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_visits')->where('actor_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->where('actor_id', $bystander->id)->count())->toBe(1);
 });
 
 it('still merges and logs a warning when the analytics store is unwritable', function (): void {
