@@ -5,22 +5,10 @@
         <h2 id="work-heading" class="sr-only">Money and work</h2>
 
         <div class="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 sm:grid-cols-4 dark:bg-white/10 dark:ring-white/10">
-            <div class="bg-white p-6 dark:bg-gray-900">
-                <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Awaiting shipment</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $openFulfillments }}</p>
-            </div>
-            <div class="bg-white p-6 dark:bg-gray-900">
-                <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Held in escrow</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $balance->held->format() }}</p>
-            </div>
-            <div class="bg-white p-6 dark:bg-gray-900">
-                <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Available</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $balance->available->format() }}</p>
-            </div>
-            <div class="bg-white p-6 dark:bg-gray-900">
-                <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Unread notifications</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $unreadNotifications }}</p>
-            </div>
+            <x-stat-tile accent="gray" label="Awaiting shipment">{{ $openFulfillments }}</x-stat-tile>
+            <x-stat-tile accent="gray" label="Held in escrow">{{ $balance->held->format() }}</x-stat-tile>
+            <x-stat-tile accent="gray" label="Available">{{ $balance->available->format() }}</x-stat-tile>
+            <x-stat-tile accent="gray" label="Unread notifications">{{ $unreadNotifications }}</x-stat-tile>
         </div>
     </section>
 

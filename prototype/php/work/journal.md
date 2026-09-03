@@ -6,7 +6,7 @@
 - DSGN: 10
 - ARCH: 1
 - FEAT: 50
-- IMPRV: 27
+- IMPRV: 30
 - MAINT: 8
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,11 @@
 
 ## Log
 
+- 2026-09-03:13:46:13 — IMPRV-027 — done: one stat-tile component, text-2xl figures pinned to the cell bottom, six-figure rows at three columns; 4046 tests
+- 2026-09-03:13:29:16 — IMPRV-027 — started
+- 2026-09-03:13:28:15 — IMPRV-029 — defined: List panes adopt the stacked-list row
+- 2026-09-03:13:28:15 — IMPRV-028 — defined: Admin filter forms share one control height and one primary button
+- 2026-09-03:13:28:15 — IMPRV-027 — defined: Stat tiles fit their figures at every width
 - 2026-09-03:13:16:19 — IMPRV-026 — done: the seller and admin sign-in pages are one centered column in a new auth layout; 4043 tests
 - 2026-09-03:12:55:04 — IMPRV-026 — started
 - 2026-09-03:12:50:26 — IMPRV-026 — defined: The seller and admin sign-in pages are one centered column in the portal's chrome
