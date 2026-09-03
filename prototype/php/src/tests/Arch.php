@@ -26,6 +26,7 @@ arch('the domain core stays pure')
         'date',
         'random_int',
         'mt_rand',
+        'mt_srand',
         'uniqid',
     ]);
 

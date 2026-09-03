@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Listing;
 use App\Models\Order;
 use Database\Seeders\DatabaseSeeder;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\PendingCommand;
@@ -74,6 +75,40 @@ it('agrees with the app database on how many orders were placed and paid', funct
     expect($placedEvents)->toBe(Order::query()->count())
         ->and($paidEvents)->toBe(Order::query()->whereNotNull('finalized_at')->count())
         ->and($placedEvents)->toBeGreaterThan(0);
+});
+
+it('never writes a timestamp after the moment the command runs, even run early in the day', function (): void {
+    $now = $this->moment('2026-09-03 04:00:00');
+    $this->travelTo($now);
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 92]);
+
+    $nowSql = $now->format('Y-m-d H:i:s');
+
+    $futureEvents = DB::connection('analytics')->table('analytics_events')->where('occurred_at', '>', $nowSql)->count();
+    $futureVisits = DB::connection('analytics')->table('analytics_visits')->where('first_seen_at', '>', $nowSql)->count();
+    $futureListings = Listing::query()->where('created_at', '>', $now)->count();
+
+    expect($futureEvents)->toBe(0)
+        ->and($futureVisits)->toBe(0)
+        ->and($futureListings)->toBe(0);
+});
+
+it('floors to the same start-of-day plan whatever time of day it runs at', function (): void {
+    // The exact `$startDay` derivation `handle()` uses — the plan itself
+    // is already proven deterministic from a fixed start day
+    // (ActivityPlanTest); this pins that two different clock readings on
+    // the same calendar day floor to that same start day, so a run at
+    // 04:00 and a run at 23:59 script identical activity.
+    $startOfDay = fn (DateTimeImmutable $now, int $days): DateTimeImmutable => $now
+        ->modify('-'.($days - 1).' days')
+        ->setTime(0, 0, 0);
+
+    $morning = $this->moment('2026-09-03 04:00:00');
+    $evening = $this->moment('2026-09-03 23:59:59');
+
+    expect($startOfDay($morning, 92))->toEqual($startOfDay($evening, 92));
 });
 
 it('refuses a second run against a database that already carries its marker', function () use ($pending): void {

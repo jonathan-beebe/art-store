@@ -160,6 +160,10 @@ final class SeedActivity extends Command
         ));
 
         foreach ($this->chronological($plan) as $item) {
+            if ($this->endsAfter($item, $now)) {
+                continue;
+            }
+
             if ($item instanceof Session) {
                 $this->runSession($item, $roster, $listings, $analytics, $logStore);
             } else {
@@ -208,6 +212,27 @@ final class SeedActivity extends Command
     private function moment(Session|NewListingStep $item): DateTimeImmutable
     {
         return $item instanceof Session ? $item->at : $item->createdAt;
+    }
+
+    /**
+     * `ActivityPlan` schedules every moment against the calendar day alone,
+     * with no notion of what time within "today" this command actually
+     * runs at — a session or a listing publication drawn for later today
+     * would otherwise land in the future relative to the run. A session's
+     * last step (or its own start, carrying no steps) and a listing
+     * creation's publish moment are each the latest instant the item
+     * would write, so comparing that instant against `$now` is enough to
+     * keep every written timestamp inside the window.
+     */
+    private function endsAfter(Session|NewListingStep $item, DateTimeImmutable $now): bool
+    {
+        if ($item instanceof NewListingStep) {
+            return $item->publishedAt > $now;
+        }
+
+        $end = $item->steps === [] ? $item->at : $item->steps[array_key_last($item->steps)]->at;
+
+        return $end > $now;
     }
 
     /**
