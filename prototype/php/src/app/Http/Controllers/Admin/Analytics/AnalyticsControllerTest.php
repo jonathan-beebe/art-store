@@ -9,6 +9,7 @@ use App\Actions\Orders\CancelOrder;
 use App\Actions\Orders\FinalizeOrder;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
@@ -124,10 +125,28 @@ it('renders the entry page on a fixed number of queries however many actors the 
 
     $response = $this->actingAs($this->admin(), 'admin')
         ->expectsDatabaseQueryCount(2, 'sqlite')
-        ->expectsDatabaseQueryCount(10, 'analytics')
+        ->expectsDatabaseQueryCount(12, 'analytics')
         ->get('/admin/analytics');
 
     $response->assertOk();
+});
+
+it('shows a channels section naming the top three by visitors, and an all-channels link', function (): void {
+    $analytics = app(Analytics::class);
+
+    $analytics->recordVisit(new AnalyticsVisit('sess-a', $this->moment('2026-08-19 09:00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->recordVisit(new AnalyticsVisit('sess-b', $this->moment('2026-08-19 09:00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->recordVisit(new AnalyticsVisit('sess-c', $this->moment('2026-08-19 09:00:00'), '/', null, 'newsletter', 'email', 'sept', null, null, null));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics');
+
+    $response->assertOk();
+    $response->assertSee('Channels');
+    $response->assertSee('Direct (2)');
+    $response->assertSee('Email campaign: sept (1)');
+    $response->assertSee('href="'.route('admin.analytics.channels.index').'"', escape: false);
 });
 
 it('narrows the events table by event name', function (): void {

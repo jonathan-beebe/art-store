@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Admin\ActorLeaderboard;
 use App\Analytics\Admin\AnalyticsJump;
+use App\Analytics\Admin\ChannelRow;
+use App\Analytics\Admin\ChannelTable;
 use App\Analytics\Admin\EventTotals;
 use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\ActorKindFilter;
@@ -26,6 +28,10 @@ final class AnalyticsController extends Controller
      * page (a later stage) is where the rest of the list lives. */
     private const int LEADERBOARD_LIMIT = 6;
 
+    /** How many channels the entry page's summary line names — the
+     * channels page is where the rest of the table lives. */
+    private const int CHANNELS_SUMMARY_LIMIT = 3;
+
     private const array RANGE_LABELS = [7 => '7d', 30 => '30d', 90 => '90d'];
 
     private const array ACTOR_KIND_LABELS = [
@@ -43,6 +49,7 @@ final class AnalyticsController extends Controller
 
         $now = $this->now();
         $range = AnalyticsRange::of($rangeDays, $now);
+        $channels = ChannelTable::forRange($range);
 
         return view('admin.analytics.index', [
             'now' => $now,
@@ -51,13 +58,35 @@ final class AnalyticsController extends Controller
             'funnel' => Funnel::forRange($range),
             'events' => EventTotals::forRange($range, $search),
             'actors' => ActorLeaderboard::forRange($range, $actorKind, $search, self::LEADERBOARD_LIMIT),
+            'channelsSummary' => $this->channelsSummary($channels),
             'jump' => $search === null || $search === '' ? null : AnalyticsJump::for($search),
             'rangeLinks' => $this->rangeLinks($roundTripped, $rangeDays),
             'actorFilterLinks' => $this->actorFilterLinks($roundTripped, $actorKind),
             'search' => $search ?? '',
             'roundTripped' => $roundTripped,
             'allActorsHref' => route('admin.analytics.actors.index', $roundTripped),
+            'allChannelsHref' => route('admin.analytics.channels.index', array_intersect_key($roundTripped, ['range' => true])),
         ]);
+    }
+
+    /**
+     * "Direct (120) · Google search (45) · Instagram (12)" — the top
+     * channels by visitors this range, the channels section's own summary
+     * line.
+     *
+     * @param  list<ChannelRow>  $channels
+     */
+    private function channelsSummary(array $channels): string
+    {
+        $top = array_slice($channels, 0, self::CHANNELS_SUMMARY_LIMIT);
+
+        if ($top === []) {
+            return 'No channel activity in this range.';
+        }
+
+        return collect($top)
+            ->map(fn (ChannelRow $row): string => "{$row->label} (".number_format($row->visitors->current).')')
+            ->implode(' · ');
     }
 
     /**
