@@ -74,6 +74,30 @@ it('reads a social network off the referrer host', function (string $host, strin
     'reddit' => ['www.reddit.com', 'reddit'],
 ]);
 
+it('reads a search engine off a subdomain and a country-specific TLD', function (): void {
+    $channel = Channel::derive(null, null, null, 'www.google.co.uk');
+
+    expect($channel->key)->toBe('search:google');
+});
+
+it('reads a social network off a subdomain the network itself does not use', function (): void {
+    $channel = Channel::derive(null, null, null, 'm.facebook.com');
+
+    expect($channel->key)->toBe('social:facebook');
+});
+
+it('does not read a search engine name embedded in an unrelated host as that engine', function (): void {
+    $channel = Channel::derive(null, null, null, 'mygoogleanalytics.com');
+
+    expect($channel->key)->toBe('referral:mygoogleanalytics.com');
+});
+
+it('does not read a social network domain embedded in an unrelated host as that network', function (): void {
+    $channel = Channel::derive(null, null, null, 'definitely-not-x.com');
+
+    expect($channel->key)->toBe('referral:definitely-not-x.com');
+});
+
 it('reads an unrecognized referrer host as a referral, host verbatim', function (): void {
     $channel = Channel::derive(null, null, null, 'www.example.com');
 

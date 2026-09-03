@@ -101,7 +101,7 @@ final readonly class AnalyticsVisit
             return null;
         }
 
-        return self::cap($host);
+        return self::cap(strtolower($host));
     }
 
     private static function utmParam(Request $request, string $key): ?string

@@ -37,6 +37,42 @@ it('is null when the request carries no session', function (): void {
     expect(AnalyticsVisit::fromRequest($request, $facts, null, new DateTimeImmutable))->toBeNull();
 });
 
+it('lower-cases the referrer host', function (): void {
+    $request = Request::create(
+        'https://store.example.test/',
+        server: ['HTTP_REFERER' => 'https://WWW.Google.COM/search'],
+    );
+    $facts = RequestFacts::of(null, 'ses_01J00000000000000000000ABC', null);
+
+    $visit = AnalyticsVisit::fromRequest($request, $facts, null, new DateTimeImmutable);
+
+    expect($visit?->referrerHost)->toBe('www.google.com');
+});
+
+it('reads the host off a referrer carrying a port and userinfo', function (): void {
+    $request = Request::create(
+        'https://store.example.test/',
+        server: ['HTTP_REFERER' => 'https://user:pass@ref.example.com:8080/path'],
+    );
+    $facts = RequestFacts::of(null, 'ses_01J00000000000000000000ABC', null);
+
+    $visit = AnalyticsVisit::fromRequest($request, $facts, null, new DateTimeImmutable);
+
+    expect($visit?->referrerHost)->toBe('ref.example.com');
+});
+
+it('stores no referrer host for a malformed referrer', function (): void {
+    $request = Request::create(
+        'https://store.example.test/',
+        server: ['HTTP_REFERER' => 'http:///path'],
+    );
+    $facts = RequestFacts::of(null, 'ses_01J00000000000000000000ABC', null);
+
+    $visit = AnalyticsVisit::fromRequest($request, $facts, null, new DateTimeImmutable);
+
+    expect($visit?->referrerHost)->toBeNull();
+});
+
 it('stores no referrer host for a same-host referrer', function (): void {
     $request = Request::create(
         'https://store.example.test/art/starry-night',

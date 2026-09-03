@@ -96,18 +96,36 @@ final readonly class Channel
         $bareHost = self::stripWww(strtolower($host));
 
         foreach (self::SEARCH_ENGINES as $engine) {
-            if (str_contains($bareHost, $engine)) {
+            if (self::hostMatches($bareHost, $engine)) {
                 return new self("search:{$engine}", ucfirst($engine).' search');
             }
         }
 
         foreach (self::SOCIAL_NETWORKS as $needle => $network) {
-            if (str_contains($bareHost, $needle)) {
+            if (self::hostMatches($bareHost, $needle)) {
                 return new self("social:{$network}", ucfirst($network));
             }
         }
 
         return new self("referral:{$bareHost}", $bareHost);
+    }
+
+    /**
+     * A needle carrying a dot (`twitter.com`) names a whole domain: it
+     * matches the host itself or any of its subdomains
+     * (`m.facebook.com`), never a host that merely ends the same letters.
+     * A bare needle (`google`) names one label anywhere in the host
+     * (`www.google.co.uk`), so a country-specific TLD still matches — a
+     * host that only contains the needle inside a longer label
+     * (`mygoogleanalytics.com`) does not.
+     */
+    private static function hostMatches(string $bareHost, string $needle): bool
+    {
+        if (str_contains($needle, '.')) {
+            return $bareHost === $needle || str_ends_with($bareHost, ".{$needle}");
+        }
+
+        return in_array($needle, explode('.', $bareHost), true);
     }
 
     private static function stripWww(string $host): string
