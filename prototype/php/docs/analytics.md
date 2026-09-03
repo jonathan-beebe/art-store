@@ -500,7 +500,10 @@ range — the funnel's numbers agree with the app database's.
 **On the admin pages.** `x-admin.analytics.funnel` renders a `FunnelView`
 as a row of tiles, each with a bar under it sized to its share of the
 first step's count, so the row narrows the way a funnel does — see
-`docs/admin.md` § "Analytics drill-in" for where it is mounted.
+`docs/admin.md` § "Analytics drill-in" for where it is mounted. `docs/funnel.md`
+fixes the boundary between this query and that component: the step
+contract `FunnelStep` carries, the drawing rules the accepted design fixes,
+and what an admin-defined funnel needs from both sides.
 
 ## Test isolation
 

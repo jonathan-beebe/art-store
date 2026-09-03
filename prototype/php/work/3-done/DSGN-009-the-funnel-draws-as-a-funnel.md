@@ -1,7 +1,7 @@
 ---
 id: DSGN-009
 type: design
-status: open
+status: resolved
 created: 2026-09-02
 ---
 
@@ -93,3 +93,34 @@ compared step to step.
 - FEAT-047 — visits and channels (the visitors unit)
 - FEAT-048 — the activity seed the design is drawn against
 - DSGN-005 — admin is small-screen first
+
+## Working
+
+2026-09-03, branch `php/funnel-design`.
+
+Delivered:
+
+- Design canvas: https://claude.ai/code/artifact/76b45703-2274-4eed-8d1e-5a21d9907799
+  (source `__local__/design/funnel/`). Five artboards from the seeded store
+  at 30 days converted to sessions per step, and the Nine Owls listing at
+  90 days: desktop light, desktop dark, one listing, phone, and Option B.
+- Pattern: Tailwind Plus Application UI › Data Display › Stats, the
+  shared-borders grid the admin dashboard already uses, with the "with
+  trending" delta glyph. Cell anatomy top to bottom: label and delta,
+  count, a bar for this range's share of the first step, a thinner bar for
+  the previous range's share, "x% of prerequisite · y% of visitors", side
+  notes (favorited, cancelled). The lowest rate from its prerequisite
+  carries the "largest drop" badge.
+- Architecture note: `docs/funnel.md` (`ba041ed7`): the data flow, the
+  step contract (`key`, `label`, `current`, `previous`, `change`, `rate`,
+  `shareOfFirst`, `previousShareOfFirst`, `isLargestDrop`, `note`,
+  `side`), the sessions-per-step unit, the drawing rules, and what an
+  admin-defined funnel needs.
+
+Accepted 2026-09-03: the primary artboards. Favorites leave the main
+funnel; a favorites-to-purchase path can be a custom funnel later
+(FEAT-049). Option B is withdrawn.
+
+Implementation: FEAT-049 carries it — the query counts sessions per step
+from a step list, and its detail page and the three existing mounts draw
+the accepted design through one component.
