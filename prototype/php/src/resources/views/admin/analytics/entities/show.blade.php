@@ -121,11 +121,7 @@
     <section class="mt-6">
         <h2 class="font-semibold text-stone-700 dark:text-stone-300">{{ $activity->stripTitle }}</h2>
         <div class="mt-2 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
-            <div class="flex h-[72px] items-end gap-0.5">
-                @foreach ($activity->strip as $bar)
-                    <div title="{{ $bar->tip }}" style="height: {{ $bar->height }}px" class="min-h-0.5 flex-1 rounded-t-sm {{ $bar->hot ? 'bg-red-600 dark:bg-red-500' : 'bg-stone-400 dark:bg-stone-500' }}"></div>
-                @endforeach
-            </div>
+            <x-admin.analytics.bar-strip :bars="$activity->strip" :height="72" class="text-stone-500 dark:text-stone-400" />
             <div class="mt-1.5 flex justify-between text-[11px] text-stone-500 dark:text-stone-400">
                 <span>{{ $activity->stripFirst }}</span>
                 <span>{{ $activity->stripLast }}</span>

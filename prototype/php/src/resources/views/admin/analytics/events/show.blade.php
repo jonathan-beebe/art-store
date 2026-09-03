@@ -20,12 +20,7 @@
         ? route('admin.analytics.actors.show', $id)
         : route('admin.analytics.listings.show', $id);
 
-    $barHeights = \App\Domain\Analytics\BarStrip::heights($detail->daily, 112);
-    $barTooltips = array_map(
-        fn (int $count, string $day): string => \App\Domain\Analytics\AnalyticsRange::dayCaption($day).': '.number_format($count),
-        $detail->daily,
-        $dayLabels,
-    );
+    $bars = \App\Domain\Analytics\BarStrip::bars($detail->daily, $dayLabels, 112);
 @endphp
 
 <x-layouts.admin :title="$detail->label.' — Art Store admin'" mode="content-wide">
@@ -62,11 +57,7 @@
     <section class="mt-6">
         <h2 class="font-semibold text-stone-700 dark:text-stone-300">By day</h2>
         <div class="mt-2 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
-            <div class="flex h-28 items-end gap-0.5">
-                @foreach ($barHeights as $i => $px)
-                    <div title="{{ $barTooltips[$i] }}" style="height: {{ $px }}px" class="min-h-0.5 flex-1 rounded-t-sm bg-stone-400 dark:bg-stone-500"></div>
-                @endforeach
-            </div>
+            <x-admin.analytics.bar-strip :bars="$bars" :height="112" class="text-stone-500 dark:text-stone-400" />
             <div class="mt-1.5 flex justify-between text-[11px] text-stone-500 dark:text-stone-400">
                 <span>{{ $detail->firstDay }}</span>
                 <span>{{ $detail->lastDay }}</span>

@@ -94,8 +94,7 @@
                 <tbody class="divide-y divide-stone-200 dark:divide-stone-800">
                     @foreach ($events as $event)
                         @php
-                            $heights = \App\Domain\Analytics\BarStrip::heights($event->daily, 26);
-                            $tooltips = array_map(fn (int $count, string $day): string => \App\Domain\Analytics\AnalyticsRange::dayCaption($day).': '.number_format($count), $event->daily, $dayLabels);
+                            $bars = \App\Domain\Analytics\BarStrip::bars($event->daily, $dayLabels, 26);
                         @endphp
                         <tr class="group relative hover:bg-stone-50 dark:hover:bg-stone-800/50">
                             <th scope="row" class="relative px-4 py-2 font-normal">
@@ -120,10 +119,8 @@
                                 <x-admin.analytics.stretched-link :href="$eventHref($event->name)" />
                             </td>
                             <td class="relative px-4 py-2">
-                                <div class="flex h-7 w-[180px] items-end gap-0.5">
-                                    @foreach ($heights as $i => $px)
-                                        <div title="{{ $tooltips[$i] }}" style="height: {{ $px }}px" class="min-h-0.5 flex-1 rounded-t-sm bg-stone-400 dark:bg-stone-500"></div>
-                                    @endforeach
+                                <div class="w-[180px]">
+                                    <x-admin.analytics.bar-strip :bars="$bars" :height="26" class="text-stone-400 dark:text-stone-500" />
                                 </div>
                                 <x-admin.analytics.stretched-link :href="$eventHref($event->name)" />
                             </td>
