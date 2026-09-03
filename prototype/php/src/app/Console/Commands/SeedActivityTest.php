@@ -9,6 +9,9 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Logging\LogStore;
 use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\CustomerMerge;
+use App\Models\Favorite;
+use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\Payout;
@@ -50,6 +53,25 @@ it('creates and publishes at least one new listing within a seven-day window', f
     Artisan::call('seed:activity', ['--days' => 7]);
 
     expect(Listing::query()->count())->toBeGreaterThan($listingsBefore);
+});
+
+it('drives real shipments, deliveries, cancellations, and favorites, not just placed orders', function (): void {
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 92]);
+
+    expect(Fulfillment::query()->where('status', 'shipped')->exists())->toBeTrue()
+        ->and(Fulfillment::query()->where('status', 'delivered')->exists())->toBeTrue()
+        ->and(Order::query()->where('status', 'cancelled')->exists())->toBeTrue()
+        ->and(Favorite::query()->exists())->toBeTrue();
+});
+
+it('merges a returning anonymous visitor\'s history into the person they verify as', function (): void {
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 92]);
+
+    expect(CustomerMerge::query()->count())->toBeGreaterThan(0);
 });
 
 it('opens at least one conversation within a seven-day window', function (): void {
