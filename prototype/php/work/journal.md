@@ -7,13 +7,15 @@
 - ARCH: 1
 - FEAT: 50
 - IMPRV: 26
-- MAINT: 7
+- MAINT: 8
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
 
+- 2026-09-03:11:51:17 — MAINT-007 — started
+- 2026-09-03:11:50:56 — MAINT-007 — defined: make fresh also resets the log store
 - 2026-09-03:10:37:00 — FEAT-049 — done: the funnel draws as DSGN-009's accepted shared-borders grid — two bars, largest-drop badge, side/note lines — on the detail, listing, and seller pages; the seeded activity plan already opens checkout before it places an order; docs/funnel.md, docs/analytics.md, docs/admin.md, and docs/alignment.md §8 updated; 4025 tests
 - 2026-09-03:08:21:46 — DSGN-009 — done: funnel design accepted — shared-borders stats grid, sessions per step, favorites out of the main funnel; docs/funnel.md fixes the step contract; FEAT-049 implements
 - 2026-09-03:08:06:24 — FEAT-049 — started

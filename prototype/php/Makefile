@@ -74,8 +74,14 @@ check: lint assets coverage ## lint -> assets -> coverage; the pre-PR gate
 migrate: ## apply pending migrations
 	docker compose run --rm app php artisan migrate
 
-fresh: ## drop everything, re-migrate, re-seed the demo data
-	docker compose run --rm app php artisan migrate:fresh --seed
+# Completely fresh: the commerce database is dropped and rebuilt by
+# migrate:fresh, the analytics store by its own migrations' dropIfExists, and
+# the log store by deleting its file (LogStore::open() recreates the schema on
+# the next open). Without the delete, every re-seed stacks its log lines on the
+# previous run's. LOG_DATABASE_FILE=off names no file; rm -f on the literal is
+# a no-op.
+fresh: ## drop the commerce db, analytics store, and log store; re-migrate, re-seed the demo data
+	docker compose run --rm app sh -c 'f="$${LOG_DATABASE_FILE:-storage/logs.sqlite3}"; rm -f "$$f" "$$f-wal" "$$f-shm"; php artisan migrate:fresh --seed'
 
 seed: ## add the platform admins and demo data
 	docker compose run --rm app php artisan db:seed

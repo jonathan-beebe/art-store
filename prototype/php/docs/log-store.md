@@ -39,8 +39,12 @@ separate file load-bearing rather than tidy:
 - A log INSERT on the commerce connection issued inside a business
   transaction joins that transaction — a rollback would erase the very
   `failed` line that explains it.
-- `make fresh` deletes the commerce file. Log history survives a rebuild;
-  retention is the one sanctioned way log rows die.
+- A rebuild of the commerce file (`migrate:fresh`, a deleted
+  `database.sqlite`) drops every table in it; log rows living there would go
+  with it. In the deployed app, retention is the one way log rows die. `make
+  fresh` (local dev) deletes the store's file on purpose, so a re-seed starts
+  with no history from earlier runs; `LogStore::open()` recreates the schema
+  on the next open.
 
 Schema creation is ensure-on-open, versioned by `PRAGMA user_version` — the
 commerce database's Eloquent migrations own nothing here. `LogStore::open()`
