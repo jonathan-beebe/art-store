@@ -1,7 +1,7 @@
 ---
 id: IMPRV-029
 type: improvement
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -37,3 +37,13 @@ A founder and a seller spend most of their time in a list beside a detail. Three
 - PR #58 / PR #59 (seller and admin chrome redesigns)
 - IMPRV-026 (accent-parameterised shared layout, the same shape a shared row could take)
 - DSGN-008 (design system audit)
+
+## Working
+- Tests first in `app/View/Components/ListPaneRowTest.php`: renders the nine panes (admin orders, fulfillments, listings, sellers, customers, messages; seller listings, orders, messages) plus one show route per portal, extracts every pane row anchor, normalises the accent tokens and strips the selected-state vocabulary, and pins: one row class list across all nine (five before), a `data-row-chevron` element on every row, the block's `py-5` rhythm, `aria-current` and the whole-row href on the selected row, and the facts an admin order row and a seller listing row show. Three failed before the change.
+- New `components/pane-row.blade.php`: the stacked-list "with links" row (`flex justify-between gap-x-6 px-6 py-5`), `accent` prop (`stone` | `indigo`) for hover, selected fill and inset rail, chevron tint, and focus ring; `selected` prop; slots `leading`, `title` (required), `supporting`, `preview`, `meta` (`hidden sm:flex sm:flex-col sm:items-end`); the solid 20-viewBox chevron always renders; attribute passthrough onto the anchor for `href`, `data-pane-cell`, `aria-current`.
+- The nine row files fill the slots: orders and fulfillments (both portals) put the status pill over the date in the meta column; listings lead with a `size-12` thumbnail and put the status badge in the meta column; sellers lead with an initials mark and put the balance in the meta column, dropping the supporting line when the email equals the title; customers lead with an initials mark (`?` for anonymous) and put the standing badge over the order count in the meta column; both messaging inboxes keep the unread dot, name, resolved check, and relative time on the title line, the kind tag and topic as the supporting line, and the preview as a third line, with no meta column so the topic keeps the pane's width.
+- Tried and reverted: the relative time in the messaging meta column and the created time in the sellers and customers meta column; at the 288px pane width the meta column costs a quarter of the row and truncated the title or topic.
+- `x-admin.card-row` keeps its mobile-card role; `x-admin.cell-time` lost its last two consumers and is deleted.
+- Verified in Chrome at 1280 in dark: admin orders, sellers, messages; seller listings, orders, messages as The Burrow Craftworks. Light by class review; every dark token has a light counterpart.
+- Gate: `make test` 4058 passed / 33335 assertions; `make lint` clean; `make assets` builds.
+- Found, not fixed: the chevron tint has no `dark:` shade where the block pairs `gray-400` with `dark:gray-500`; the seller-tool memory's pinned list-footer slot gap is unchanged.

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-03:15:09:31 — IMPRV-029 — done: one pane-row component renders the nine seller and admin list panes as the stacked-list row; 4058 tests
+- 2026-09-03:14:24:25 — IMPRV-029 — started
 - 2026-09-03:14:21:52 — IMPRV-028 — done: four admin form components hold one field, primary, and clear idiom across the seven filter forms; 4053 tests
 - 2026-09-03:14:13:50 — DSGN-010 — defined: The log filter bar has an information architecture that flows at every width
 - 2026-09-03:13:47:48 — IMPRV-028 — started
