@@ -133,7 +133,7 @@ final class MessageController extends SellerController
             $eloquent->ofKind(...$kinds);
         }
 
-        $this->applyStatuses($eloquent, $query->statuses);
+        $this->applyStatuses($eloquent, $seller, $query->statuses);
 
         return $eloquent
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
@@ -192,18 +192,21 @@ final class MessageController extends SellerController
     /**
      * The Status group's predicate, OR'd within the group — skipped
      * entirely when both Open and Resolved are selected, since together
-     * they cover every conversation.
+     * they cover every conversation. A thread the seller has not read yet
+     * passes whatever the group says: a customer who replies to a resolved
+     * thread reopens it in the seller's eyes, and the nav badge counts it,
+     * so the inbox lists it under the default Open-only view too.
      *
      * @param  Builder<Conversation>  $query
      * @param  list<string>  $statuses
      */
-    private function applyStatuses(Builder $query, array $statuses): void
+    private function applyStatuses(Builder $query, Seller $seller, array $statuses): void
     {
         if (in_array('open', $statuses, true) && in_array('resolved', $statuses, true)) {
             return;
         }
 
-        $query->where(function (Builder $scoped) use ($statuses): void {
+        $query->where(function (Builder $scoped) use ($seller, $statuses): void {
             foreach ($statuses as $status) {
                 match ($status) {
                     'open' => $scoped->orWhereNull('resolved_at'),
@@ -211,6 +214,8 @@ final class MessageController extends SellerController
                     default => null, // MessagesQueryRequest already refused anything else.
                 };
             }
+
+            $scoped->orWhere(fn (Builder $unread) => $unread->unreadOnly($seller));
         });
     }
 

@@ -385,7 +385,11 @@ and `open`/`resolved`/`all`).
 
 `domain` defaults to `all`; an absent `type[]` means every type; an absent
 `status[]` means Open only (the show route's list pane instead defaults to
-every status, so a resolved thread lands in its own pane). Rows sort unread
+every status, so a resolved thread lands in its own pane). A thread the reader
+has not read yet passes the Status group whatever it says — a reply to a
+resolved thread reopens it in the reader's eyes, and the nav badge already
+counts it — so the default view lists it; for the admin only desk threads are
+ever unread, matching the row's own dot. Rows sort unread
 threads first, then newest `last_message_at` (`Conversation::unreadFirst`).
 
 Domain and Type both narrow by `ConversationKind`, intersected

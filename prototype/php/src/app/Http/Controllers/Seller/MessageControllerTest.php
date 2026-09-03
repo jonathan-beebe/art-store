@@ -81,6 +81,31 @@ it('lists unread threads before read ones regardless of last_message_at', functi
     $response->assertSeeInOrder(['Unread but older', 'Read but newer']);
 });
 
+it('lists an unread resolved thread under the default Open-only view, and hides a read one', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $unreadResolved = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'title' => 'Resolved but replied to',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($customer)->unread()->create(['conversation_id' => $unreadResolved->id]);
+    $readResolved = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'title' => 'Resolved and read',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($customer)->read()->create(['conversation_id' => $readResolved->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
+
+    $response->assertOk();
+    $response->assertSee('Resolved but replied to');
+    $response->assertDontSee('Resolved and read');
+});
+
 it('keeps another sellers threads off the inbox', function (): void {
     $listing = $this->listing($this->seller('Other Studio'), ['title' => 'Not Mine']);
     Conversation::factory()->listingQuestion()->create(['seller_id' => $listing->seller_id, 'listing_id' => $listing->id]);

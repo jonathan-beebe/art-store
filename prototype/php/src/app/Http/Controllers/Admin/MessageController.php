@@ -12,6 +12,7 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Admin\MessagesQueryRequest;
 use App\Http\Requests\Admin\PostMessageRequest;
+use App\Models\Admin;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\ListPaneWindow;
@@ -137,7 +138,7 @@ final class MessageController extends AdminController
             $eloquent->ofKind(...$kinds);
         }
 
-        $this->applyStatuses($eloquent, $query->statuses);
+        $this->applyStatuses($eloquent, $admin, $query->statuses);
 
         return $eloquent->unreadFirst();
     }
@@ -209,19 +210,23 @@ final class MessageController extends AdminController
     /**
      * The Status group's predicate, OR'd within the group — skipped
      * entirely when both Open and Resolved are selected, since together
-     * they cover every conversation. `needs-reply` reuses the `needsReply`
-     * scope, which already carries its own kind and read-state predicate.
+     * they cover every conversation. A desk thread no admin has read yet
+     * passes whatever the group says: a seller or customer who replies to a
+     * resolved thread reopens it in the desk's eyes, and the nav badge
+     * counts it, so the inbox lists it under the default Open-only view too.
+     * Oversight threads are never unread for the desk (the row's own dot
+     * follows the same rule), so the clause is scoped to the desk kinds.
      *
      * @param  Builder<Conversation>  $query
      * @param  list<string>  $statuses
      */
-    private function applyStatuses(Builder $query, array $statuses): void
+    private function applyStatuses(Builder $query, Admin $admin, array $statuses): void
     {
         if (in_array('open', $statuses, true) && in_array('resolved', $statuses, true)) {
             return;
         }
 
-        $query->where(function (Builder $scoped) use ($statuses): void {
+        $query->where(function (Builder $scoped) use ($admin, $statuses): void {
             foreach ($statuses as $status) {
                 match ($status) {
                     'open' => $scoped->orWhereNull('resolved_at'),
@@ -230,6 +235,8 @@ final class MessageController extends AdminController
                     default => null, // MessagesQueryRequest already refused anything else.
                 };
             }
+
+            $scoped->orWhere(fn (Builder $unread) => $unread->withParticipant($admin)->unreadOnly($admin));
         });
     }
 

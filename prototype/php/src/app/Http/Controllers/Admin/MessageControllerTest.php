@@ -105,6 +105,29 @@ it('lists unread threads before read ones regardless of last_message_at', functi
     $response->assertSeeInOrder(['Unread but older', 'Read but newer']);
 });
 
+it('lists an unread resolved desk thread under the default Open-only view, and hides a read one', function (): void {
+    $admin = $this->admin();
+    $seller = $this->seller();
+    $unreadResolved = Conversation::factory()->adminSeller()->create([
+        'seller_id' => $seller->id,
+        'title' => 'Resolved but replied to',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($seller)->unread()->create(['conversation_id' => $unreadResolved->id]);
+    $readResolved = Conversation::factory()->adminSeller()->create([
+        'seller_id' => $seller->id,
+        'title' => 'Resolved and read',
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+    Message::factory()->from($seller)->read()->create(['conversation_id' => $readResolved->id]);
+
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+
+    $response->assertOk();
+    $response->assertSee('Resolved but replied to');
+    $response->assertDontSee('Resolved and read');
+});
+
 it('shows a support thread to every admin, the desk is collective', function (): void {
     $seller = $this->seller('Other Studio');
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $this->admin()->id]);
@@ -550,12 +573,14 @@ it('status[]=needs-reply lists only open desk threads waiting on the desk', func
     Message::factory()->from($seller)->create(['conversation_id' => $waiting->id, 'body' => 'Still waiting.']);
 
     $answered = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller('Rye Press')->id]);
-    Message::factory()->create(['conversation_id' => $answered->id, 'body' => 'First ask.']);
+    Message::factory()->read()->create(['conversation_id' => $answered->id, 'body' => 'First ask.']);
     Message::factory()->from($admin)->create(['conversation_id' => $answered->id, 'body' => 'Already answered.']);
 
+    // Read, so the thread stays out on its status alone — an unread reply
+    // would list it under any Status choice.
     $resolvedSeller = $this->seller('Third Studio');
     $resolved = Conversation::factory()->adminSeller()->create(['seller_id' => $resolvedSeller->id, 'resolved_at' => now()]);
-    Message::factory()->from($resolvedSeller)->create(['conversation_id' => $resolved->id, 'body' => 'Resolved already.']);
+    Message::factory()->from($resolvedSeller)->read()->create(['conversation_id' => $resolved->id, 'body' => 'Resolved already.']);
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=needs-reply');
 
