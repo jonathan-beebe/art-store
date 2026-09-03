@@ -67,7 +67,7 @@
             </div>
 
             <div class="flex flex-wrap items-baseline gap-2">
-                <span class="text-3xl font-semibold tracking-tight tabular-nums text-stone-900 dark:text-white">{{ number_format($step->current) }}</span>
+                <span class="text-3xl font-semibold tracking-tight tabular-nums text-stone-900 dark:text-stone-100">{{ number_format($step->current) }}</span>
                 @if ($step->isLargestDrop)
                     <x-admin.status-badge tint="warn">largest drop</x-admin.status-badge>
                 @endif
