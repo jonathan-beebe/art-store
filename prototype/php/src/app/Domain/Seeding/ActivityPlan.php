@@ -132,10 +132,10 @@ final readonly class ActivityPlan
 
     /**
      * The day's anonymous traffic. One in six visits, once somebody has
-     * signed up, returns and verifies as an already-used person instead of
-     * staying anonymous — {@see SessionKind::ReturningVerify}, the session
-     * kind whose steps `SeedActivity` folds into that person's existing
-     * history through `MergeAnonymousCustomer`.
+     * signed up, returns and verifies as an already-used person —
+     * {@see SessionKind::ReturningVerify}, the session kind whose steps
+     * `SeedActivity` folds into that person's existing history through
+     * `MergeAnonymousCustomer`.
      *
      * @param  list<int>  $signedUpPersonIndexes
      * @return list<Session>
@@ -317,8 +317,8 @@ final readonly class ActivityPlan
     /**
      * 40% of scripts add a viewed listing to the cart. A signed-in
      * visitor's cart then checks out 55% of the time — placed and, 80% of
-     * the time, paid; cancelled the other 20% — and is simply abandoned
-     * the rest. An anonymous visitor's cart is always abandoned: neither
+     * the time, paid; cancelled the other 20%. The remaining carts are
+     * abandoned. An anonymous visitor's cart is always abandoned: neither
      * checkout nor a placed order names a customer who does not exist yet.
      *
      * @param  list<int>  $viewedSlots
@@ -452,19 +452,19 @@ final readonly class ActivityPlan
      * most of an hour, rotating between two addresses in a hosting range.
      * Every request is a plain {@see StepKind::ListingView} carrying the
      * dedupe key a real page load would — `SeedActivity` resolves its
-     * `listingSlot` against the live catalog rather than `$listingPoolSize`,
-     * since only the catalog a growing store has amassed by the third
-     * month, not the pool this plan started from, holds enough listings to
+     * `listingSlot` against the live catalog, since the catalog a growing
+     * store has amassed by the third month is the one pool large enough to
      * carry the burst past {@see \App\Domain\Analytics\ActorVelocity}'s
-     * threshold. No favorite, cart, or checkout step ever appears here.
+     * threshold; `$listingPoolSize` is fixed at the plan's own starting
+     * size. No favorite, cart, or checkout step ever appears here.
      */
     private static function scraperSession(Lcg $lcg, DateTimeImmutable $startDay, int $dayCount, int $sessionCounter): Session
     {
         $dayIndex = max(0, $dayCount - 5);
         $day = $startDay->modify("+{$dayIndex} days");
         // The burst starts on the hour, so all but its last few seconds
-        // land in one UTC-hour dedupe window rather than splitting across
-        // two and halving what either one collects.
+        // land in one UTC-hour dedupe window. Splitting across two would
+        // halve what either one collects.
         $start = $day->setTime(19 + $lcg->nextInt(4), 0, $lcg->nextInt(3));
         $attemptCount = 340 + $lcg->nextInt(30);
         $octetA = 1 + $lcg->nextInt(254);

@@ -8,10 +8,10 @@ namespace App\Domain\Seeding;
  * The credential and admin paths a real prober scans for, each with the
  * status a server that names no such route answers with — 404 for every
  * path this application never registers, 302 for `/admin`, which exists
- * and redirects an unauthenticated request to the admin login rather than
- * naming it not found. `App\Console\Commands\SeedActivity` cycles this list
- * to script the prober bad actor; it never reaches a real route, so no
- * controller here needs to exist for any of these paths to answer.
+ * and redirects an unauthenticated request to the admin login.
+ * `App\Console\Commands\SeedActivity` cycles this list to script the
+ * prober bad actor; it never reaches a real route, so no controller here
+ * needs to exist for any of these paths to answer.
  */
 final class ProbePaths
 {

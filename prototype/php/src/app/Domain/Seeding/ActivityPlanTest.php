@@ -62,8 +62,8 @@ it('ramps verified signups from a handful in month one to a surge in month three
         $visitsInMonth(2 * $third, $plan->dayCount),
     ];
 
-    // Near the ticket's 8/30/80 target, not exact — the roster and the
-    // day-modulo cadence only land so precisely.
+    // The day-modulo cadence and the roster size bound these to a range
+    // around 8/30/80, the three months' target shape.
     expect($signupMonths[0])->toBeGreaterThanOrEqual(5)->toBeLessThanOrEqual(12)
         ->and($signupMonths[1])->toBeGreaterThanOrEqual(20)->toBeLessThanOrEqual(35)
         ->and($signupMonths[2])->toBeGreaterThanOrEqual(65)->toBeLessThanOrEqual(90)
@@ -71,7 +71,7 @@ it('ramps verified signups from a handful in month one to a surge in month three
         ->and($signupMonths[1])->toBeLessThan($signupMonths[2]);
 
     // Visitor traffic outgrows the signup curve by far in every month —
-    // the surge is anonymous, not a flood of new accounts.
+    // the surge is anonymous.
     foreach ($signupMonths as $index => $signupCount) {
         expect($visitMonths[$index])->toBeGreaterThan($signupCount * 2);
     }
@@ -152,8 +152,8 @@ it('addresses every ordinary listing view within the given listing pool', functi
     $plan = $fullPlan();
 
     // The scraper is the one exception: `SeedActivity` resolves its steps
-    // against the live catalog rather than this pool — see its own
-    // docblock — so its slots run well past a small test pool by design.
+    // against the live catalog — see its own docblock — so its slots run
+    // well past a small test pool.
     foreach ($plan->sessions as $session) {
         if ($session->kind === SessionKind::Scraper) {
             continue;

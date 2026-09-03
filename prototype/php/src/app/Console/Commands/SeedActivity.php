@@ -77,7 +77,7 @@ use Throwable;
  * happened. A drawn step can still collide with real store state — a
  * listing that sold out since an earlier visitor viewed it, for
  * instance — the same refusal a real shopper would hit; that step is
- * skipped rather than aborting the run.
+ * skipped, and the run continues.
  */
 final class SeedActivity extends Command
 {
@@ -217,8 +217,8 @@ final class SeedActivity extends Command
 
     /**
      * `ActivityPlan` schedules every moment against the calendar day alone,
-     * with no notion of what time within "today" this command actually
-     * runs at — a session or a listing publication drawn for later today
+     * with no notion of what time within "today" this command runs at —
+     * a session or a listing publication drawn for later today
      * would otherwise land in the future relative to the run. A session's
      * last step (or its own start, carrying no steps) and a listing
      * creation's publish moment are each the latest instant the item
@@ -317,12 +317,13 @@ final class SeedActivity extends Command
     /**
      * The scraper: every step is a plain listing-view request, resolved
      * against the live catalog — {@see ActivityPlan::scraperSession()}'s
-     * own docblock says why this bypasses the ordinary pool — rather than
-     * `$listings`, so a burst deep in the third month reaches a catalog
-     * this command's own fixed pool never grew to. A live query, not a
-     * cached one: every listing the plan's own `NewListingStep`s created
-     * earlier in this same run already exists in the database by now,
-     * `chronological()`'s ordering being what makes that true.
+     * own docblock says why this bypasses `$listings`, the pool every
+     * ordinary session addresses instead — so a burst deep in the third
+     * month reaches a catalog this command's own fixed pool never grew
+     * to. The query runs fresh at this point in the run: every listing
+     * the plan's own `NewListingStep`s created earlier already exists in
+     * the database by now, `chronological()`'s ordering being what makes
+     * that true.
      */
     private function runScraperSession(Session $session, Analytics $analytics, LogStore $logStore): void
     {
@@ -899,10 +900,10 @@ final class SeedActivity extends Command
      * Ships, and sometimes delivers, a majority of the fulfillments a paid
      * order created — enough left `awaiting_shipment` that the seller
      * portal still has something to act on. Timing is drawn from a hash of
-     * the fulfillment's own id rather than {@see \App\Domain\Seeding\Lcg}:
-     * this runs once, after every session, against rows the plan itself
-     * never named, so it owes the plan no determinism of its own — only
-     * that it never schedules a moment past `$now`.
+     * the fulfillment's own id: this runs once, after every session,
+     * against rows the plan itself never named, so its only obligation is
+     * the one every other step already keeps — it never schedules a
+     * moment past `$now`.
      */
     private function runFulfillments(DateTimeImmutable $now): void
     {
@@ -958,7 +959,7 @@ final class SeedActivity extends Command
         try {
             app(ConfirmDelivered::class)($fulfillment, $deliveredAt);
         } catch (Throwable) {
-            // Left shipped rather than delivered.
+            // The fulfillment stays shipped.
         }
     }
 
@@ -979,11 +980,9 @@ final class SeedActivity extends Command
                 // second payable balance surfacing for that same
                 // seller/period — new activity this plan added on top of
                 // the demo data — collides on payouts' unique
-                // (seller_id, period_start) key. Skipped, the same
-                // tolerance every other collision in this command gets,
-                // rather than aborting the run and leaving the log store
-                // unflushed and the marker unwritten. Any other failure
-                // still aborts the command.
+                // (seller_id, period_start) key. This week is skipped; the
+                // command continues, and every other failure still aborts
+                // it.
             }
         }
     }

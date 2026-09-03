@@ -179,9 +179,8 @@ open "Missing confirmation email" thread, tied to her awaiting-shipment
 order, is waiting on the desk.
 
 `make seed-activity`, run once after `make fresh`, adds ninety-plus days of
-store activity ending now: new customers signing up at a ramping pace (a
-few in the first month, a surge by the third — a real 92-day run lands
-near 65 / 100 / 435 new customers a month, signups plus anonymous visits),
+store activity ending now: verified signups ramping from a handful to a
+surge across the three months (near 8 / 30 / 80 on a real 92-day run),
 anonymous visitors browsing, favoriting, and abandoning or completing
 carts, some of them verifying partway through and folding their history
 into a signed-up account, sellers creating and publishing new listings

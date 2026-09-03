@@ -67,7 +67,7 @@ final class Lcg
      * Picks the index of the first cumulative weight in `$weights` that
      * clears a draw against their sum — the standard weighted-choice
      * construction, so a caller lists options once as `[label => weight]`
-     * pairs instead of writing its own cumulative loop. Every weight is
+     * pairs and never writes its own cumulative loop. Every weight is
      * assumed positive; the last index is returned if rounding leaves the
      * draw past every cumulative weight.
      *
