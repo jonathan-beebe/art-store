@@ -308,3 +308,22 @@ it('never scripts a transacting or favoriting step for either bad actor', functi
         }
     }
 });
+
+it('opens checkout before it places an order, in the same session', function () use ($fullPlan): void {
+    $plan = $fullPlan();
+
+    foreach ($plan->sessions as $session) {
+        $checkoutOpenIndex = null;
+
+        foreach ($session->steps as $index => $step) {
+            if ($step->kind === StepKind::CheckoutOpen) {
+                $checkoutOpenIndex = $index;
+            }
+
+            if ($step->kind === StepKind::OrderPlace) {
+                expect($checkoutOpenIndex)->not->toBeNull()
+                    ->and($checkoutOpenIndex)->toBeLessThan($index);
+            }
+        }
+    }
+});
