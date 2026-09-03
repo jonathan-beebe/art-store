@@ -1,6 +1,10 @@
-{{-- The customers list pane's cells (DSGN-006). An anonymous customer has
-     no name, so the id steps into the supporting slot on line 2 — never
-     the identity slot on line 1, which stays "Anonymous". --}}
+{{-- The customers list pane's cells, in the shared pane-row shape. An
+     anonymous customer has no name, so its title stays "Anonymous" and its
+     id steps into the supporting line instead — never the title. The meta
+     column holds the standing badge over the order count — the created
+     date dropped as a low-value fact, and the order count moved out of the
+     supporting line, which otherwise truncates the email/id it shares that
+     line with at pane width. --}}
 @props(['customers', 'selected' => null])
 
 <div class="flex flex-col divide-y divide-stone-200 dark:divide-stone-800">
@@ -19,25 +23,35 @@
                 $customer->isVerified() => 'Verified',
                 default => 'Unverified',
             };
+            $name = $customer->isAnonymous() ? 'Anonymous' : $customer->displayName();
+            $identifier = $customer->isAnonymous() ? $customer->id : ($customer->email ?? '—');
+            $initials = $customer->isAnonymous() ? '?' : collect(preg_split('/\s+/', trim($name)))
+                ->filter()
+                ->take(2)
+                ->map(fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)))
+                ->implode('');
         @endphp
-        <x-admin.card-row
+        <x-pane-row
+            accent="stone"
+            :selected="$isSelected"
             href="{{ route('admin.customers.show', $customer) }}"
             :aria-current="$isSelected ? 'true' : null"
             data-pane-cell="{{ $customer->id }}"
-            class="{{ $isSelected ? 'bg-stone-50 shadow-[inset_2px_0_0_0_var(--color-stone-500)] dark:bg-stone-800/60 dark:shadow-[inset_2px_0_0_0_var(--color-stone-500)]' : '' }}"
         >
-            <div class="flex items-baseline gap-2">
-                <span class="truncate font-medium {{ $customer->isAnonymous() ? 'text-stone-500 dark:text-stone-400' : '' }}">{{ $customer->isAnonymous() ? 'Anonymous' : $customer->displayName() }}</span>
-                <span class="flex-1"></span>
-                <x-admin.cell-time :at="$customer->created_at" />
-            </div>
-            <div class="flex items-center gap-2 text-stone-600 dark:text-stone-400">
+            <x-slot:leading>
+                <span class="flex size-12 flex-none items-center justify-center rounded-full bg-stone-100 text-sm font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">{{ $initials }}</span>
+            </x-slot:leading>
+            <x-slot:title>
+                <p class="truncate text-sm/6 font-semibold {{ $customer->isAnonymous() ? 'text-stone-500 dark:text-stone-400' : 'text-stone-900 dark:text-white' }}">{{ $name }}</p>
+            </x-slot:title>
+            <x-slot:supporting>
+                <p class="mt-1 truncate text-xs/5 {{ $customer->isAnonymous() ? 'font-mono' : '' }} text-stone-500 dark:text-stone-400">{{ $identifier }}</p>
+            </x-slot:supporting>
+            <x-slot:meta>
                 <x-admin.status-badge :tint="$tint">{{ $standingLabel }}</x-admin.status-badge>
-                <span class="truncate {{ $customer->isAnonymous() ? 'font-mono' : '' }}">{{ $customer->isAnonymous() ? $customer->id : ($customer->email ?? '—') }}</span>
-                <span class="flex-1"></span>
-                <span class="font-mono tabular-nums text-stone-900 dark:text-stone-100">{{ $customer->orders_count }} order{{ $customer->orders_count === 1 ? '' : 's' }}</span>
-            </div>
-        </x-admin.card-row>
+                <p class="mt-1 text-xs/5 text-stone-500 dark:text-stone-400">{{ $customer->orders_count }} order{{ $customer->orders_count === 1 ? '' : 's' }}</p>
+            </x-slot:meta>
+        </x-pane-row>
     @empty
         <x-admin.nothing class="m-3">No customers match.</x-admin.nothing>
     @endforelse

@@ -4,22 +4,10 @@
     </div>
 
     <div class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 sm:grid-cols-4 dark:bg-white/10 dark:ring-white/10">
-        <div class="bg-white p-6 dark:bg-gray-900">
-            <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Held in escrow</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $balance->held->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-gray-900">
-            <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Released, awaiting payout</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $balance->available->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-gray-900">
-            <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Paid out to date</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $balance->paidOut->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-gray-900">
-            <p class="text-sm/6 font-medium text-gray-500 dark:text-gray-400">Open orders</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">{{ $openOrders }}</p>
-        </div>
+        <x-stat-tile accent="gray" label="Held in escrow">{{ $balance->held->format() }}</x-stat-tile>
+        <x-stat-tile accent="gray" label="Released, awaiting payout">{{ $balance->available->format() }}</x-stat-tile>
+        <x-stat-tile accent="gray" label="Paid out to date">{{ $balance->paidOut->format() }}</x-stat-tile>
+        <x-stat-tile accent="gray" label="Open orders">{{ $openOrders }}</x-stat-tile>
     </div>
 
     @if ($payouts->isNotEmpty())

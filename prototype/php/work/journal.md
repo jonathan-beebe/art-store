@@ -3,10 +3,10 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 10
+- DSGN: 11
 - ARCH: 1
 - FEAT: 50
-- IMPRV: 26
+- IMPRV: 30
 - MAINT: 8
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,19 @@
 
 ## Log
 
+- 2026-09-03:15:09:31 — IMPRV-029 — done: one pane-row component renders the nine seller and admin list panes as the stacked-list row; 4058 tests
+- 2026-09-03:14:24:25 — IMPRV-029 — started
+- 2026-09-03:14:21:52 — IMPRV-028 — done: four admin form components hold one field, primary, and clear idiom across the seven filter forms; 4053 tests
+- 2026-09-03:14:13:50 — DSGN-010 — defined: The log filter bar has an information architecture that flows at every width
+- 2026-09-03:13:47:48 — IMPRV-028 — started
+- 2026-09-03:13:46:13 — IMPRV-027 — done: one stat-tile component, text-2xl figures pinned to the cell bottom, six-figure rows at three columns; 4046 tests
+- 2026-09-03:13:29:16 — IMPRV-027 — started
+- 2026-09-03:13:28:15 — IMPRV-029 — defined: List panes adopt the stacked-list row
+- 2026-09-03:13:28:15 — IMPRV-028 — defined: Admin filter forms share one control height and one primary button
+- 2026-09-03:13:28:15 — IMPRV-027 — defined: Stat tiles fit their figures at every width
+- 2026-09-03:13:16:19 — IMPRV-026 — done: the seller and admin sign-in pages are one centered column in a new auth layout; 4043 tests
+- 2026-09-03:12:55:04 — IMPRV-026 — started
+- 2026-09-03:12:50:26 — IMPRV-026 — defined: The seller and admin sign-in pages are one centered column in the portal's chrome
 - 2026-09-03:11:55:28 — MAINT-007 — done: make fresh deletes the log store file before migrate:fresh; README and docs/log-store.md updated; 4029 tests
 - 2026-09-03:11:51:17 — MAINT-007 — started
 - 2026-09-03:11:50:56 — MAINT-007 — defined: make fresh also resets the log store

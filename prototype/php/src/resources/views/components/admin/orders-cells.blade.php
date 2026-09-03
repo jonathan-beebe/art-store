@@ -1,8 +1,8 @@
-{{-- The orders list pane's cells (DSGN-006, restyled to the canonical
-     two-line row): the customer leads because that is what a founder
-     recognises, not the order id (`docs/admin.md`); the status pill sits
-     right-aligned beside it, and the muted second line is the scan line —
-     item count, total, and the date placed. --}}
+{{-- The orders list pane's cells, in the shared pane-row shape: the
+     customer leads because that is what a founder recognises, not the
+     order id (`docs/admin.md`); the muted line is the scan line — item
+     count and total; the status pill and the date placed sit in the meta
+     column. --}}
 @props(['orders', 'selected' => null])
 
 <div class="flex flex-col divide-y divide-stone-200 dark:divide-white/10">
@@ -15,22 +15,26 @@
                 \App\Domain\Orders\OrderStatus::Paid, \App\Domain\Orders\OrderStatus::PartiallyShipped, \App\Domain\Orders\OrderStatus::Shipped, \App\Domain\Orders\OrderStatus::Delivered => 'green',
             };
         @endphp
-        <a
+        <x-pane-row
+            accent="stone"
+            :selected="$isSelected"
             href="{{ route('admin.orders.show', $order) }}"
-            @if ($isSelected) aria-current="true" @endif
+            :aria-current="$isSelected ? 'true' : null"
             data-pane-cell="{{ $order->id }}"
-            class="flex items-center gap-3 px-6 py-3 hover:bg-stone-50 dark:hover:bg-white/5 {{ $isSelected ? 'bg-stone-50 shadow-[inset_2px_0_0_0_var(--color-stone-500)] dark:bg-white/5 dark:shadow-[inset_2px_0_0_0_var(--color-stone-400)]' : '' }}"
         >
-            <div class="min-w-0 flex-1">
-                <div class="flex items-start gap-3">
-                    <span class="flex-1 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">{{ $order->customer->displayName() }}</span>
-                    <x-admin.status-pill :tint="$tint">{{ $order->status->label() }}</x-admin.status-pill>
-                </div>
-                <p class="truncate text-xs text-stone-500 dark:text-stone-400">
-                    {{ $order->items_count }} item{{ $order->items_count === 1 ? '' : 's' }} &middot; {{ $order->total()->format() }} &middot; {{ $order->placed_at?->format('M j') }}
+            <x-slot:title>
+                <p class="truncate text-sm/6 font-semibold text-stone-900 dark:text-white">{{ $order->customer->displayName() }}</p>
+            </x-slot:title>
+            <x-slot:supporting>
+                <p class="mt-1 truncate text-xs/5 text-stone-500 dark:text-stone-400">
+                    {{ $order->items_count }} item{{ $order->items_count === 1 ? '' : 's' }} &middot; {{ $order->total()->format() }}
                 </p>
-            </div>
-        </a>
+            </x-slot:supporting>
+            <x-slot:meta>
+                <x-admin.status-pill :tint="$tint">{{ $order->status->label() }}</x-admin.status-pill>
+                <p class="mt-1 text-xs/5 text-stone-500 dark:text-stone-400">{{ $order->placed_at?->format('M j') }}</p>
+            </x-slot:meta>
+        </x-pane-row>
     @empty
         <x-admin.nothing class="m-3">No orders.</x-admin.nothing>
     @endforelse

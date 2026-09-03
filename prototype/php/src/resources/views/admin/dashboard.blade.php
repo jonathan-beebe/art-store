@@ -94,43 +94,24 @@
             <h2 id="money-heading" class="font-semibold text-stone-700 dark:text-stone-300">Platform money</h2>
 
             {{-- Headline figures: the shared-borders stat-tile grid — one
-                 hairline gap between cells rather than a border per card. --}}
-            <div class="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-6 dark:bg-white/10 dark:ring-white/10">
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="held">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Held</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->held->format() }}</p>
-                </div>
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="available">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Available</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->available->format() }}</p>
-                </div>
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="paid-out">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Paid out</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->paidOut->format() }}</p>
-                </div>
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="fees-earned">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees earned</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->feesEarned->format() }}</p>
-                </div>
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="fees-refunded">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees refunded</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->feesRefunded->format() }}</p>
-                </div>
-                <div class="bg-white p-6 dark:bg-stone-900" data-stat="refunded">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Refunded</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ $money->refunded->format() }}</p>
-                </div>
+                 hairline gap between cells rather than a border per card.
+                 Three columns even at `lg`, so the six totals read as two
+                 rows rather than six cells too narrow for their figures. --}}
+            <div class="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 sm:grid-cols-3 dark:bg-white/10 dark:ring-white/10">
+                <x-stat-tile accent="stone" label="Held" data-stat="held">{{ $money->held->format() }}</x-stat-tile>
+                <x-stat-tile accent="stone" label="Available" data-stat="available">{{ $money->available->format() }}</x-stat-tile>
+                <x-stat-tile accent="stone" label="Paid out" data-stat="paid-out">{{ $money->paidOut->format() }}</x-stat-tile>
+                <x-stat-tile accent="stone" label="Fees earned" data-stat="fees-earned">{{ $money->feesEarned->format() }}</x-stat-tile>
+                <x-stat-tile accent="stone" label="Fees refunded" data-stat="fees-refunded">{{ $money->feesRefunded->format() }}</x-stat-tile>
+                <x-stat-tile accent="stone" label="Refunded" data-stat="refunded">{{ $money->refunded->format() }}</x-stat-tile>
             </div>
         </section>
 
         <section aria-labelledby="page-views-heading" class="mt-6">
             <h2 id="page-views-heading" class="font-semibold text-stone-700 dark:text-stone-300">Traffic</h2>
 
-            <div class="mt-2 inline-grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 dark:bg-white/10 dark:ring-white/10" data-stat="page-views-week">
-                <div class="bg-white p-6 dark:bg-stone-900">
-                    <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Page views this week</p>
-                    <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white">{{ number_format($pageViewsThisWeek) }}</p>
-                </div>
+            <div class="mt-2 inline-grid grid-cols-1 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 dark:bg-white/10 dark:ring-white/10">
+                <x-stat-tile accent="stone" label="Page views this week" data-stat="page-views-week">{{ number_format($pageViewsThisWeek) }}</x-stat-tile>
             </div>
         </section>
 

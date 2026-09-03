@@ -73,40 +73,43 @@
                     $previewPrefix = $isLatestMine ? 'You' : $conversation->counterpartName($viewer);
                 }
             @endphp
-            <li class="relative">
-                <a
+            <li>
+                <x-pane-row
+                    accent="indigo"
+                    :selected="$isSelected"
                     href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
-                    @if ($isSelected) aria-current="true" @endif
-                    class="block px-6 py-4 -outline-offset-2 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5 {{ $isSelected ? 'bg-gray-50 dark:bg-white/5' : '' }}"
+                    :aria-current="$isSelected ? 'true' : null"
                 >
-                    @if ($isSelected)
-                        <span class="absolute inset-y-0 left-0 w-0.5 bg-indigo-600" aria-hidden="true"></span>
+                    <x-slot:title>
+                        <p class="flex items-center gap-x-1.5 text-sm/6">
+                            @if ($isUnread)
+                                <span class="size-1.5 shrink-0 rounded-full bg-indigo-500" aria-hidden="true"></span>
+                                <span class="sr-only">{{ $conversation->unread_count }} unread</span>
+                            @endif
+                            <span class="min-w-0 flex-1 truncate {{ $isUnread ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">{{ $conversation->counterpartName($viewer) }}</span>
+                            @if ($isResolved)
+                                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-3.5 shrink-0 text-gray-400 dark:text-gray-500">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="sr-only">Resolved</span>
+                            @endif
+                            <span class="shrink-0 text-xs/5 text-gray-500 dark:text-gray-400">{{ $relativeTime }}</span>
+                        </p>
+                    </x-slot:title>
+                    <x-slot:supporting>
+                        <div class="mt-1 flex items-center gap-x-2">
+                            <span class="inline-flex shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium tracking-wide uppercase {{ $tagClasses }}">{{ $tagLabel }}</span>
+                            <span class="min-w-0 flex-1 truncate text-xs/5 text-gray-900 dark:text-gray-100">{{ $topic }}</span>
+                        </div>
+                    </x-slot:supporting>
+                    @if ($latest)
+                        <x-slot:preview>
+                            <p class="mt-1 truncate text-xs/5 text-gray-500 dark:text-gray-400">
+                                @if ($previewPrefix){{ $previewPrefix }}{!! $previewSeparator !!}@endif{{ str($latest->body)->limit(80) }}
+                            </p>
+                        </x-slot:preview>
                     @endif
-
-                    <div class="flex items-center gap-x-1.5">
-                        @if ($isUnread)
-                            <span class="size-1.5 shrink-0 rounded-full bg-indigo-500" aria-hidden="true"></span>
-                            <span class="sr-only">{{ $conversation->unread_count }} unread</span>
-                        @endif
-                        <span class="min-w-0 flex-1 truncate text-sm {{ $isUnread ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300' }}">{{ $conversation->counterpartName($viewer) }}</span>
-                        @if ($isResolved)
-                            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-3.5 shrink-0 text-gray-400 dark:text-gray-500">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
-                            </svg>
-                            <span class="sr-only">Resolved</span>
-                        @endif
-                        <span class="shrink-0 text-xs font-normal text-gray-500 dark:text-gray-400">{{ $relativeTime }}</span>
-                    </div>
-
-                    <div class="mt-0.5 flex items-center gap-x-2">
-                        <span class="inline-flex shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium tracking-wide uppercase {{ $tagClasses }}">{{ $tagLabel }}</span>
-                        <span class="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-gray-100">{{ $topic }}</span>
-                    </div>
-
-                    <p class="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
-                        @if ($latest)@if ($previewPrefix){{ $previewPrefix }}{!! $previewSeparator !!}@endif{{ str($latest->body)->limit(80) }}@endif
-                    </p>
-                </a>
+                </x-pane-row>
             </li>
         @endforeach
     </ul>

@@ -3,31 +3,13 @@
 
     {{-- Headline figures: the shared-borders stat-tile grid — one hairline
          gap between cells rather than a border per card. --}}
-    <div class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-6 dark:bg-white/10 dark:ring-white/10" data-totals="platform">
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Held</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="held">{{ $totals->held->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Available</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="available">{{ $totals->available->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Paid out</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="paid-out">{{ $totals->paidOut->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Refunded</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="refunded">{{ $totals->refunded->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees earned</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="fees-earned">{{ $totals->feesEarned->format() }}</p>
-        </div>
-        <div class="bg-white p-6 dark:bg-stone-900">
-            <p class="text-sm/6 font-medium text-stone-500 dark:text-stone-400">Fees refunded</p>
-            <p class="mt-1 text-3xl font-semibold tracking-tight text-stone-900 dark:text-white" data-cell="fees-refunded">{{ $totals->feesRefunded->format() }}</p>
-        </div>
+    <div class="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-stone-200 ring-1 ring-stone-200 sm:grid-cols-3 dark:bg-white/10 dark:ring-white/10" data-totals="platform">
+        <x-stat-tile accent="stone" label="Held" data-cell="held">{{ $totals->held->format() }}</x-stat-tile>
+        <x-stat-tile accent="stone" label="Available" data-cell="available">{{ $totals->available->format() }}</x-stat-tile>
+        <x-stat-tile accent="stone" label="Paid out" data-cell="paid-out">{{ $totals->paidOut->format() }}</x-stat-tile>
+        <x-stat-tile accent="stone" label="Refunded" data-cell="refunded">{{ $totals->refunded->format() }}</x-stat-tile>
+        <x-stat-tile accent="stone" label="Fees earned" data-cell="fees-earned">{{ $totals->feesEarned->format() }}</x-stat-tile>
+        <x-stat-tile accent="stone" label="Fees refunded" data-cell="fees-refunded">{{ $totals->feesRefunded->format() }}</x-stat-tile>
     </div>
 
     @if ($sellers->isEmpty())

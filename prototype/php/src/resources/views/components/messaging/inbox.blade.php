@@ -76,29 +76,34 @@
                 }
             @endphp
             <li>
-                <a
+                <x-pane-row
+                    accent="stone"
+                    :selected="$isSelected"
                     href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
-                    @if ($isSelected) aria-current="true" @endif
-                    class="block px-6 py-4 hover:bg-stone-50 dark:hover:bg-white/5 {{ $isSelected ? 'bg-stone-50 ring-2 ring-inset ring-stone-500 dark:bg-white/5' : '' }}"
+                    :aria-current="$isSelected ? 'true' : null"
                 >
-                    <p class="flex min-w-0 items-center gap-x-1.5 text-sm {{ $isUnread ? 'font-semibold text-stone-900 dark:text-white' : 'font-medium text-stone-700 dark:text-stone-300' }}">
-                        @if ($isUnread)
-                            <span class="size-1.5 shrink-0 rounded-full bg-stone-500" aria-hidden="true"></span>
-                            <span class="sr-only">{{ $conversation->unread_count }} unread</span>
-                        @endif
-                        <span class="min-w-0 flex-1 truncate">{{ $conversation->counterpartName($viewer) }}</span>
-                        <span class="shrink-0 text-xs font-normal text-stone-500 dark:text-stone-400">{{ $conversation->last_message_at?->diffForHumans() }}</span>
-                    </p>
-
-                    <p class="mt-1 flex min-w-0 items-center gap-x-2">
-                        <x-messaging.kind-tag :kind="$conversation->kind" />
-                        <span class="truncate text-sm text-stone-700 dark:text-stone-300">{{ $topic }}</span>
-                    </p>
-
+                    <x-slot:title>
+                        <p class="flex min-w-0 items-center gap-x-1.5 text-sm/6 {{ $isUnread ? 'font-semibold text-stone-900 dark:text-white' : 'font-medium text-stone-700 dark:text-stone-300' }}">
+                            @if ($isUnread)
+                                <span class="size-1.5 shrink-0 rounded-full bg-stone-500" aria-hidden="true"></span>
+                                <span class="sr-only">{{ $conversation->unread_count }} unread</span>
+                            @endif
+                            <span class="min-w-0 flex-1 truncate">{{ $conversation->counterpartName($viewer) }}</span>
+                            <span class="shrink-0 text-xs/5 text-stone-500 dark:text-stone-400">{{ $conversation->last_message_at?->diffForHumans() }}</span>
+                        </p>
+                    </x-slot:title>
+                    <x-slot:supporting>
+                        <p class="mt-1 flex min-w-0 items-center gap-x-2">
+                            <x-messaging.kind-tag :kind="$conversation->kind" />
+                            <span class="truncate text-xs/5 text-stone-700 dark:text-stone-300">{{ $topic }}</span>
+                        </p>
+                    </x-slot:supporting>
                     @if ($previewParts !== [])
-                        <p class="mt-1 truncate text-xs text-stone-500 dark:text-stone-400">{{ implode(' · ', $previewParts) }}</p>
+                        <x-slot:preview>
+                            <p class="mt-1 truncate text-xs/5 text-stone-500 dark:text-stone-400">{{ implode(' · ', $previewParts) }}</p>
+                        </x-slot:preview>
                     @endif
-                </a>
+                </x-pane-row>
             </li>
         @endforeach
     </ul>
